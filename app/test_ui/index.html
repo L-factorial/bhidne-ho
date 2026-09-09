@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bhidne Ho · Test console</title>
+  <link rel="stylesheet" href="/test-ui/styles.css">
+  <script src="/test-ui/app.js" defer></script>
+</head>
+<body>
+<header><a class="brand" href="/">♠ <span>Bhidne Ho</span></a><span class="badge">TEST CONSOLE</span><a class="docs" href="/docs" target="_blank" rel="noopener">API docs ↗</a></header>
+<main>
+  <div class="intro"><div><p class="eyebrow">MULTIPLAYER WORKBENCH</p><h1>A place to test the connection.</h1><p>Open a second tab, join the same room, and start a conversation.</p></div><span class="environment">● Local / in-memory</span></div>
+  <p class="notice">Test accounts and rooms reset when the server restarts. Use a different account or guest in each tab to test message delivery.</p>
+  <div id="feedback" role="alert" hidden></div>
+  <div class="workspace">
+    <aside>
+      <section class="panel"><div class="section-title"><h2><span>01</span> Your identity</h2><span id="identity-status" class="muted">Signed out</span></div>
+        <div id="auth-panel">
+          <div class="tabs"><button id="signin-mode" type="button" class="selected" aria-pressed="true">Sign in</button><button id="signup-mode" type="button" aria-pressed="false">Sign up</button></div>
+          <form id="auth-form">
+            <label for="username">Username</label><input id="username" autocomplete="username" required minlength="3" maxlength="32" pattern="[A-Za-z0-9_-]+" placeholder="e.g. player_one">
+            <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required minlength="8" maxlength="128" placeholder="At least 8 characters">
+            <button id="auth-submit" class="primary full">Sign in</button>
+          </form>
+          <button id="guest" class="secondary full">Continue as guest</button>
+        </div>
+        <div id="signed-in" hidden><strong id="account-name"></strong><code id="user-id"></code><button id="signout" class="secondary full">Sign out of this tab</button></div>
+      </section>
+      <section class="panel"><div class="section-title"><h2><span>02</span> Rooms</h2><button id="refresh" class="text-button" disabled>Refresh</button></div>
+        <fieldset id="room-controls" disabled>
+          <form id="create-form"><label for="room-name">Create a room</label><div class="input-row"><input id="room-name" required maxlength="60" placeholder="Friday test table"><button class="primary">Create</button></div></form>
+          <form id="join-form"><label for="room-id">Join by room ID</label><div class="input-row"><input id="room-id" required maxlength="64" pattern="[A-Za-z0-9_-]+" placeholder="Paste a room ID"><button class="secondary">Join</button></div></form>
+        </fieldset>
+        <div id="room-list" class="room-list"><p class="empty">Sign in to see available rooms.</p></div>
+      </section>
+    </aside>
+    <section class="panel chat-panel"><div class="chat-header"><div><p class="eyebrow">03 / ROOM MESSAGES</p><h2 id="active-room">No room selected</h2><code id="active-room-id">Create a room or join one to begin.</code></div><div class="connection-actions"><span id="connection-status" class="status">Disconnected</span><button id="leave" class="secondary" disabled>Leave</button></div></div>
+      <div class="presence"><span id="member-count">0 connected</span><span id="members">—</span></div>
+      <div id="messages" class="messages" role="log" aria-live="polite"><div class="chat-empty">♧<h3>Your test table is ready.</h3><p>Connect two users to the same room.<br>Messages from the other user will appear here.</p></div></div>
+      <form id="message-form" class="composer"><label class="sr-only" for="message">Message</label><input id="message" placeholder="Message, PING hello, or JSON…" maxlength="4000" required disabled autocomplete="off"><button id="send" class="primary" disabled>Send ↗</button></form>
+      <p class="chat-note">Chat is delivered to other users. Type PING hello to receive a server PONG in every connected client in this room. JSON commands also work; inspect them in the Event inspector.</p>
+    </section>
+  </div>
+  <details class="panel diagnostics"><summary>Event inspector <span>Raw WebSocket traffic for debugging</span></summary><div class="inspector-toolbar"><p>Last 100 events · credentials are never recorded here</p><button id="clear-log" class="text-button">Clear log</button></div><pre id="event-log" aria-label="WebSocket event log">No events yet.</pre></details>
+  <footer>Bhidne Ho / Development tools <span>Transport first. Game engines next.</span></footer>
+</main>
+</body>
+</html>
