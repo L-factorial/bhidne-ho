@@ -13,6 +13,8 @@ from app.multiplayer.presence import PresenceService
 from app.multiplayer.room_service import RoomService
 from app.runtime.game_runtime import GameRuntime
 from app.transport import http, websocket
+from app.test_games.service import TestGameService
+from app.test_games.http import router as test_game_router
 
 
 def create_app() -> FastAPI:
@@ -26,6 +28,7 @@ def create_app() -> FastAPI:
         app.state.rooms = rooms
         app.state.presence = PresenceService(rooms)
         app.state.connections = connections
+        app.state.test_games = TestGameService(rooms, connections)
         registry = GameRegistry()
         app.state.game_registry = registry
 
@@ -39,12 +42,14 @@ def create_app() -> FastAPI:
         try:
             yield
         finally:
+            await app.state.test_games.close()
             registry.clear()
         # Uvicorn closes active sockets before lifespan teardown.
 
     app = FastAPI(title="Bhidne Ho", lifespan=lifespan)
     app.include_router(http.router)
     app.include_router(websocket.router)
+    app.include_router(test_game_router)
     static = Path(__file__).parent / "test_ui"
     app.mount("/test-ui", StaticFiles(directory=static), name="test-ui")
 

@@ -35,6 +35,7 @@ function connectionStatus(text, connected = false) {
   $('connection-status').classList.toggle('connected', connected);
   $('message').disabled = $('send').disabled = !connected;
   $('leave').disabled = !socket;
+  if (typeof renderTestGame === 'function') renderTestGame();
 }
 function renderSession() {
   $('auth-panel').hidden = !!session;
@@ -55,6 +56,7 @@ function leave() {
   socket = null;
   if (previous) previous.close();
   activeRoom = null;
+  if (typeof resetTestGame === 'function') resetTestGame();
   connectionStatus('Disconnected');
   $('active-room').textContent = 'No room selected';
   $('active-room-id').textContent = 'Create a room or join one to begin.';
@@ -136,7 +138,12 @@ function join(room) {
     if (data.type === 'CONNECTED') {
       connectionStatus('Connected', true);
       refreshRooms();
+      if (typeof refreshTestGame === 'function') refreshTestGame();
       $('message').focus();
+    } else if (data.type === 'TEST_GAME_STATE') {
+      if (typeof acceptTestSnapshot === 'function') acceptTestSnapshot(data.payload);
+    } else if (data.type === 'TEST_GAME_EVENT') {
+      // Already visible in the inspector; projected state updates the game panel.
     } else if (data.type === 'MESSAGE') {
       addMessage(typeof data.payload?.text === 'string' ? data.payload.text : JSON.stringify(data.payload), data.sender_id);
     } else if (data.type === 'GAME_EVENT') {

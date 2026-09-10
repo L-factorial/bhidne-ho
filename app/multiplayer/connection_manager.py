@@ -87,6 +87,12 @@ class ConnectionManager:
                        for c in room.values() if c.user_id == user_id]
         await asyncio.gather(*(self._send(c, message) for c in targets))
 
+    async def send_to_room_user(self, room_id: str, user_id: str, message: dict[str, Any]) -> None:
+        """Private match output must never reach the user's tabs in other rooms."""
+        async with self._lock:
+            targets = [c for c in self._connections.get(room_id, {}).values() if c.user_id == user_id]
+        await asyncio.gather(*(self._send(c, message) for c in targets))
+
     async def broadcast(
         self, room_id: str, message: dict[str, Any],
         exclude_user_id: str | None = None,

@@ -33,6 +33,8 @@ class GameQuery:
     def _deal(self, deal_number: int | None = None) -> DealState | None:
         state = self._state
         if deal_number is None:
+            if state.preparation:
+                return None
             return state.current_deal or (state.completed_deals[-1].deal if state.completed_deals else None)
         if type(deal_number) is not int or not 1 <= deal_number <= state.config.deals_per_match:
             raise ValueError("Deal number must be an integer from 1 to 5.")
@@ -41,19 +43,22 @@ class GameQuery:
         for completed in state.completed_deals:
             if completed.deal.number == deal_number:
                 return completed.deal
+        if state.preparation and state.preparation.number == deal_number:
+            return None
         raise LookupError("That deal has not started.")
 
     def get_state(self) -> JSON:
         """Match status and progress; never returns the authoritative state."""
         state = self._state
         deal = self._deal()
+        preparation = state.preparation
         return {
             "revision": state.revision, "phase": state.phase.value,
             "player_count": state.config.player_count, "players": list(state.config.players),
             "deals_per_match": state.config.deals_per_match,
             "completed_deals": len(state.completed_deals),
-            "deal_number": deal.number if deal else None,
-            "active_deal_number": state.current_deal.number if state.current_deal else None,
+            "deal_number": preparation.number if preparation else deal.number if deal else None,
+            "active_deal_number": preparation.number if preparation else state.current_deal.number if state.current_deal else None,
             "current_trick": self.get_current_trick(), "turn": self.get_turn(),
             "scores_tenths": list(state.score_tenths), "winners": list(state.winners),
             "finished": state.phase == Phase.MATCH_COMPLETE,
@@ -91,7 +96,13 @@ class GameQuery:
         pending: list[int] = []
         action = None
         control = None
-        if state.phase == Phase.HAND_REVIEW:
+        if state.phase in (Phase.AWAITING_SHUFFLE, Phase.AWAITING_CUT, Phase.AWAITING_DISTRIBUTION):
+            pending = [state.current_player]
+            action = {Phase.AWAITING_SHUFFLE: "SHUFFLE_DECK", Phase.AWAITING_CUT: "CUT_OR_SKIP",
+                      Phase.AWAITING_DISTRIBUTION: "START_DISTRIBUTION"}[state.phase]
+        elif state.phase == Phase.SHUFFLING:
+            control = "COMPLETE_SHUFFLE"
+        elif state.phase == Phase.HAND_REVIEW:
             pending = [p for p in state.config.players if p not in deal.accepted_hands]
             action = "REVIEW_HAND"
         elif state.phase in (Phase.BIDDING, Phase.PLAYING):
@@ -146,6 +157,12 @@ class GameQuery:
     def get_deal(self, deal_number: int | None = None) -> JSON | None:
         """Current deal, or latest completed deal at a boundary; explicit lookup supported."""
         deal = self._deal(deal_number)
+        prep = self._state.preparation
+        if prep and (deal_number is None or deal_number == prep.number):
+            return {"deal_number": prep.number, "attempt": prep.attempt, "dealer": prep.dealer,
+                    "complete": False, "phase": self._state.phase.value,
+                    "tricks_required": self._state.config.tricks_per_deal, "tricks_completed": 0,
+                    "accepted_hands": [], "players": self.get_deal_table(prep.number), "tricks": []}
         if deal is None:
             return None
         completed = deal.number <= len(self._state.completed_deals)
@@ -165,12 +182,16 @@ class GameQuery:
 
     def get_deals(self) -> list[JSON]:
         """All started deals in order; redeal attempts are not extra deals."""
-        count = len(self._state.completed_deals) + (self._state.current_deal is not None)
+        count = len(self._state.completed_deals) + (self._state.current_deal is not None or self._state.preparation is not None)
         return [self.get_deal(number) for number in range(1, count + 1)]
 
     def get_deal_table(self, deal_number: int | None = None) -> list[JSON]:
         """One row per player: bid, tricks won, cards left and finalized deal score."""
         deal = self._deal(deal_number)
+        prep = self._state.preparation
+        if prep and (deal_number is None or prep.number == deal_number):
+            return [{"player_id": p, "bid": None, "tricks_won": 0, "cards_remaining": 0,
+                     "score_tenths": None} for p in self._state.config.players]
         if deal is None:
             return []
         completed = next((d for d in self._state.completed_deals if d.deal.number == deal.number), None)

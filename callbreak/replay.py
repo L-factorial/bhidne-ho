@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from card_utils import Card, Rank
 
 from .commands import AcceptHand, ClaimRedeal, PlaceBid, PlayCard, Redeal, StartDeal
+from .commands import PrepareDeal, ShuffleDeck, CompleteShuffle, CutDeck, SkipCut, StartDistribution
 from .config import GameConfig
 from .engine import apply_control, apply_player, create_match
 from .events import Transition
@@ -20,7 +21,7 @@ from .house_rules import RedealPolicy
 @dataclass(frozen=True)
 class Entry:
     actor: int | None
-    command: StartDeal | Redeal | PlaceBid | PlayCard | AcceptHand | ClaimRedeal
+    command: StartDeal | Redeal | PlaceBid | PlayCard | AcceptHand | ClaimRedeal | PrepareDeal | ShuffleDeck | CompleteShuffle | CutDeck | SkipCut | StartDistribution
 
 
 @dataclass(frozen=True)
@@ -47,13 +48,15 @@ class Replay:
         for entry in self.entries:
             command = entry.command
             row = {"actor": entry.actor, "command": type(command).__name__}
-            if type(command) in (StartDeal, Redeal):
+            if type(command) in (StartDeal, Redeal, CompleteShuffle):
                 row["deck"] = [str(card) for card in command.deck]
             elif type(command) is PlaceBid:
                 row["amount"] = command.amount
             elif type(command) is PlayCard:
                 row["card"] = str(command.card)
-            elif type(command) not in (AcceptHand, ClaimRedeal):
+            elif type(command) is CutDeck:
+                row["position"] = command.position
+            elif type(command) not in (AcceptHand, ClaimRedeal, PrepareDeal, ShuffleDeck, SkipCut, StartDistribution):
                 raise ValueError("Unsupported replay command.")
             rows.append(row)
         return json.dumps({"version": 1, "config": {
@@ -86,20 +89,24 @@ class Replay:
                 if not isinstance(row, dict):
                     raise ValueError("Invalid entry.")
                 name = row.get("command")
-                if name in ("StartDeal", "Redeal"):
+                if name in ("StartDeal", "Redeal", "CompleteShuffle"):
                     exact(row, "actor command deck")
                     if not isinstance(row["deck"], list):
                         raise ValueError("Deck must be a list.")
-                    command = (StartDeal if name == "StartDeal" else Redeal)(tuple(Card.parse(c) for c in row["deck"]))
+                    command = {"StartDeal": StartDeal, "Redeal": Redeal, "CompleteShuffle": CompleteShuffle}[name](tuple(Card.parse(c) for c in row["deck"]))
                 elif name == "PlaceBid":
                     exact(row, "actor command amount")
                     command = PlaceBid(row["amount"])
                 elif name == "PlayCard":
                     exact(row, "actor command card")
                     command = PlayCard(Card.parse(row["card"]))
-                elif name in ("AcceptHand", "ClaimRedeal"):
+                elif name == "CutDeck":
+                    exact(row, "actor command position")
+                    command = CutDeck(row["position"])
+                elif name in ("AcceptHand", "ClaimRedeal", "PrepareDeal", "ShuffleDeck", "SkipCut", "StartDistribution"):
                     exact(row, "actor command")
-                    command = AcceptHand() if name == "AcceptHand" else ClaimRedeal()
+                    command = {"AcceptHand": AcceptHand, "ClaimRedeal": ClaimRedeal,
+                               "PrepareDeal": PrepareDeal, "ShuffleDeck": ShuffleDeck, "SkipCut": SkipCut, "StartDistribution": StartDistribution}[name]()
                 else:
                     raise ValueError("Unknown replay command.")
                 entries.append(Entry(row["actor"], command))

@@ -6,13 +6,14 @@ authentication, transport and persistence are supplied by the caller.
 
 from dataclasses import replace
 
-from card_utils import Card, deal as distribute, standard_52
+from card_utils import Card, cut, deal as distribute, standard_52
 
 from .commands import AcceptHand, ClaimRedeal, PlaceBid, PlayCard, Redeal, StartDeal
+from .commands import PrepareDeal, ShuffleDeck, CompleteShuffle, CutDeck, SkipCut, StartDistribution
 from .config import GameConfig, advance
 from .deals import CompletedDeal, DealResult, DealState, PlayerDealState
 from .events import Event, Transition
-from .game import MatchState, Phase
+from .game import DealPreparation, MatchState, Phase
 from .house_rules import redeal_reasons
 from .models import Play, Trick
 from .rules import PlayRejection, legal_cards, resolve_trick, validate_play
@@ -45,9 +46,31 @@ def _reject(code: str, detail: str) -> PlayRejection:
     return PlayRejection(code, detail)
 
 
-def apply_control(state: MatchState, command: StartDeal | Redeal) -> Transition | PlayRejection:
+def apply_control(state: MatchState, command: StartDeal | Redeal | PrepareDeal | CompleteShuffle) -> Transition | PlayRejection:
     if state.phase == Phase.MATCH_COMPLETE:
         return _reject("MATCH_FINISHED", "The five-deal match has finished.")
+    if type(command) is PrepareDeal:
+        if state.phase not in (Phase.AWAITING_DEAL, Phase.DEAL_COMPLETE, Phase.AWAITING_REDEAL):
+            return _reject("INVALID_PHASE", "Cannot prepare a deal in this phase.")
+        old = state.current_deal
+        if state.phase == Phase.AWAITING_REDEAL:
+            assert old is not None
+            preparation = DealPreparation(old.number, old.attempt + 1, old.dealer)
+        else:
+            number = len(state.completed_deals) + 1
+            preparation = DealPreparation(number, 1, advance(state.initial_dealer, state.config.player_count, number - 1))
+        updated = replace(state, current_deal=None, preparation=preparation, phase=Phase.AWAITING_SHUFFLE,
+                          abandoned_attempts=state.abandoned_attempts + ((old,) if old else ()))
+        return _finish(updated, _event("DealerAssigned", dealer_id=preparation.dealer), _turn(updated))
+    if type(command) is CompleteShuffle:
+        if state.phase != Phase.SHUFFLING:
+            return _reject("INVALID_PHASE", "A dealer must request the shuffle first.")
+        if (len(command.deck) != 52 or any(not isinstance(c, Card) for c in command.deck)
+                or set(command.deck) != set(standard_52())):
+            return _reject("INVALID_DECK", "Supply each of the 52 standard cards exactly once.")
+        assert state.preparation is not None
+        updated = replace(state, preparation=replace(state.preparation, deck=command.deck), phase=Phase.AWAITING_CUT)
+        return _finish(updated, _event("DeckShuffled", dealer_id=state.preparation.dealer), _turn(updated))
     if type(command) not in (StartDeal, Redeal):
         return _reject("UNKNOWN_COMMAND", "Unknown controller command.")
     retry = type(command) is Redeal
@@ -64,7 +87,11 @@ def apply_control(state: MatchState, command: StartDeal | Redeal) -> Transition 
     else:
         number, attempt = len(state.completed_deals) + 1, 1
         dealer = advance(state.initial_dealer, state.config.player_count, number - 1)
-    hands, unused = distribute(command.deck, state.config.player_count, state.config.tricks_per_deal)
+    return _distribute(state, command.deck, number, dealer, attempt, retry, old if retry else None)
+
+
+def _distribute(state, deck, number, dealer, attempt, retry=False, old=None, individual=False):
+    hands, unused = distribute(deck, state.config.player_count, state.config.tricks_per_deal)
     by_player = {
         advance(dealer, state.config.player_count, i + 1): hand
         for i, hand in enumerate(hands)
@@ -72,14 +99,27 @@ def apply_control(state: MatchState, command: StartDeal | Redeal) -> Transition 
     current = DealState(number, attempt, dealer,
                         tuple(PlayerDealState(p, by_player[p]) for p in state.config.players), unused)
     phase = Phase.HAND_REVIEW if state.config.redeal_policy.enabled else Phase.BIDDING
-    updated = replace(state, phase=phase, current_deal=current,
+    updated = replace(state, phase=phase, current_deal=current, preparation=None,
                       abandoned_attempts=state.abandoned_attempts + ((old,) if retry else ()))
-    events = [_event("HandsRedealt" if retry else "DealStarted", deal=number, attempt=attempt,
-                     dealer=dealer, first_bidder=advance(dealer, state.config.player_count),
-                     hand_counts=tuple(len(p.hand) for p in current.players))]
-    for p in current.players:
-        events.append(_event("HandDealt", recipient=p.player_id, hand=p.hand,
-                             deal=number, attempt=attempt))
+    if individual:
+        events = [_event("DistributionStarted", dealer_id=dealer,
+                         first_recipient_id=advance(dealer, state.config.player_count),
+                         cards_per_player=state.config.tricks_per_deal)]
+        for index, card in enumerate(deck[:state.config.player_count * state.config.tricks_per_deal]):
+            owner = advance(dealer, state.config.player_count, index + 1)
+            data = dict(player_id=owner, hand_count=index // state.config.player_count + 1,
+                        distribution_index=index + 1)
+            events.append(_event("CardDealt", recipient=owner, card=card, **data))
+            events.append(_event("CardDistributed", **data))
+        events.append(_event("DistributionCompleted", hand_counts=tuple(len(p.hand) for p in current.players),
+                             undealt_count=len(unused)))
+    else:
+        events = [_event("HandsRedealt" if retry else "DealStarted", deal=number, attempt=attempt,
+                         dealer=dealer, first_bidder=advance(dealer, state.config.player_count),
+                         hand_counts=tuple(len(p.hand) for p in current.players))]
+        for p in current.players:
+            events.append(_event("HandDealt", recipient=p.player_id, hand=p.hand,
+                                 deal=number, attempt=attempt))
     if phase == Phase.BIDDING:
         events.append(_turn(updated))
     return _finish(updated, *events)
@@ -96,12 +136,39 @@ def available_cards(state: MatchState, player_id: int) -> tuple[Card, ...]:
 
 
 def apply_player(
-    state: MatchState, player_id: int, command: PlaceBid | PlayCard | AcceptHand | ClaimRedeal,
+    state: MatchState, player_id: int,
+    command: PlaceBid | PlayCard | AcceptHand | ClaimRedeal | ShuffleDeck | CutDeck | SkipCut | StartDistribution,
 ) -> Transition | PlayRejection:
     if type(player_id) is not int or player_id not in state.config.players:
         return _reject("INVALID_PLAYER", "Player is not in this match.")
     if state.phase == Phase.MATCH_COMPLETE:
         return _reject("MATCH_FINISHED", "The five-deal match has finished.")
+    if type(command) is StartDistribution:
+        if state.phase != Phase.AWAITING_DISTRIBUTION:
+            return _reject("INVALID_PHASE", "Wait for the cutter before distributing.")
+        if player_id != state.current_player:
+            return _reject("NOT_YOUR_TURN", "Only the dealer can distribute.")
+        prep = state.preparation
+        assert prep is not None
+        return _distribute(state, prep.deck, prep.number, prep.dealer, prep.attempt, individual=True)
+    if type(command) in (ShuffleDeck, CutDeck, SkipCut):
+        expected = Phase.AWAITING_SHUFFLE if type(command) is ShuffleDeck else Phase.AWAITING_CUT
+        if state.phase != expected:
+            return _reject("INVALID_PHASE", "Preparation command is not allowed in this phase.")
+        if player_id != state.current_player:
+            return _reject("NOT_YOUR_TURN", "Only the designated player may perform this action.")
+        assert state.preparation is not None
+        if type(command) is ShuffleDeck:
+            updated = replace(state, phase=Phase.SHUFFLING)
+            return _finish(updated, _event("ShuffleInitiated", dealer_id=player_id), _turn(updated))
+        position = command.position if type(command) is CutDeck else None
+        if type(command) is CutDeck and (type(position) is not int or not 1 <= position <= 51):
+            return _reject("INVALID_CUT", "Cut position must be an integer from 1 to 51; use SkipCut otherwise.")
+        deck = cut(state.preparation.deck, position) if position is not None else state.preparation.deck
+        updated = replace(state, phase=Phase.AWAITING_DISTRIBUTION,
+                          preparation=replace(state.preparation, deck=deck, cut_position=position))
+        return _finish(updated, _event("CutCompleted", cutter_id=player_id,
+                                      skipped=position is None, position=position), _turn(updated))
     if type(command) not in (PlaceBid, PlayCard, AcceptHand, ClaimRedeal):
         return _reject("UNKNOWN_COMMAND", "Unknown player command.")
     expected = Phase.BIDDING if type(command) is PlaceBid else Phase.PLAYING if type(command) is PlayCard else Phase.HAND_REVIEW

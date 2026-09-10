@@ -11,6 +11,8 @@ def _plays(trick):
 
 def public_view(state: MatchState) -> dict:
     deal = state.current_deal or (state.completed_deals[-1].deal if state.completed_deals else None)
+    if state.preparation:
+        deal = None
     policy = state.config.redeal_policy
     return {
         "revision": state.revision, "phase": state.phase.value,
@@ -19,8 +21,9 @@ def public_view(state: MatchState) -> dict:
                   "weak_hand_enabled": policy.weak_hand_enabled,
                   "weak_hand_threshold": policy.weak_hand_threshold.name,
                   "no_spades_enabled": policy.no_spades_enabled},
-        "current_player": state.current_player, "deal": deal.number if deal else 0,
-        "attempt": deal.attempt if deal else 0, "dealer": deal.dealer if deal else state.initial_dealer,
+        "current_player": state.current_player, "deal": state.preparation.number if state.preparation else deal.number if deal else 0,
+        "attempt": state.preparation.attempt if state.preparation else deal.attempt if deal else 0,
+        "dealer": state.preparation.dealer if state.preparation else deal.dealer if deal else state.initial_dealer,
         "bids": tuple(p.bid for p in deal.players) if deal else (),
         "hand_counts": tuple(len(p.hand) for p in deal.players) if deal else (),
         "accepted_hands": deal.accepted_hands if deal else (),

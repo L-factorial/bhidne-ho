@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from enum import Enum
+from card_utils import Card
 
 from .config import GameConfig, advance
 from .deals import CompletedDeal, DealState
@@ -9,12 +10,28 @@ from .deals import CompletedDeal, DealState
 
 class Phase(str, Enum):
     AWAITING_DEAL = "AWAITING_DEAL"
+    AWAITING_SHUFFLE = "AWAITING_SHUFFLE"
+    SHUFFLING = "SHUFFLING"
+    AWAITING_CUT = "AWAITING_CUT"
+    AWAITING_DISTRIBUTION = "AWAITING_DISTRIBUTION"
     HAND_REVIEW = "HAND_REVIEW"
     AWAITING_REDEAL = "AWAITING_REDEAL"
     BIDDING = "BIDDING"
     PLAYING = "PLAYING"
     DEAL_COMPLETE = "DEAL_COMPLETE"
     MATCH_COMPLETE = "MATCH_COMPLETE"
+
+
+@dataclass(frozen=True)
+class DealPreparation:
+    number: int
+    attempt: int
+    dealer: int
+    deck: tuple[Card, ...] = ()
+    cut_position: int | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "deck", tuple(self.deck))
 
 
 @dataclass(frozen=True)
@@ -26,6 +43,7 @@ class MatchState:
     current_deal: DealState | None = None
     completed_deals: tuple[CompletedDeal, ...] = ()
     abandoned_attempts: tuple[DealState, ...] = ()
+    preparation: DealPreparation | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "completed_deals", tuple(self.completed_deals))
@@ -33,6 +51,12 @@ class MatchState:
 
     @property
     def current_player(self) -> int | None:
+        if self.preparation:
+            if self.phase in (Phase.AWAITING_SHUFFLE, Phase.AWAITING_DISTRIBUTION):
+                return self.preparation.dealer
+            if self.phase == Phase.AWAITING_CUT:
+                return advance(self.preparation.dealer, self.config.player_count)
+            return None
         deal = self.current_deal
         if deal is None:
             return None

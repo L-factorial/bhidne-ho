@@ -70,6 +70,24 @@ def audit_match(state: MatchState) -> None:
     if type(state.initial_dealer) is not int or state.initial_dealer not in state.config.players:
         raise ValueError("Invalid initial dealer.")
     completed = state.completed_deals
+    preparing = state.phase in (Phase.AWAITING_SHUFFLE, Phase.SHUFFLING, Phase.AWAITING_CUT, Phase.AWAITING_DISTRIBUTION)
+    prep = state.preparation
+    if preparing != (prep is not None):
+        raise ValueError("Preparation does not agree with phase.")
+    if prep:
+        if (state.current_deal is not None or type(prep.number) is not int
+                or prep.number != len(completed) + 1 or not 1 <= prep.number <= 5
+                or type(prep.attempt) is not int or prep.attempt < 1
+                or prep.dealer != advance(state.initial_dealer, state.config.player_count, prep.number - 1)):
+            raise ValueError("Invalid deal preparation.")
+        if state.phase in (Phase.AWAITING_CUT, Phase.AWAITING_DISTRIBUTION):
+            if len(prep.deck) != 52 or set(prep.deck) != set(standard_52()):
+                raise ValueError("Invalid prepared deck.")
+        elif prep.deck:
+            raise ValueError("Deck supplied before shuffle completion.")
+        if prep.cut_position is not None and (state.phase != Phase.AWAITING_DISTRIBUTION
+                or type(prep.cut_position) is not int or not 1 <= prep.cut_position <= 51):
+            raise ValueError("Invalid recorded cut.")
     if len(completed) > 5:
         raise ValueError("Too many deals.")
     for number, archived in enumerate(completed, 1):

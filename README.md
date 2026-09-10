@@ -4,10 +4,15 @@ A Python/FastAPI multiplayer foundation plus an independent Call Break engine.
 The platform provides authentication, rooms, presence, WebSockets and serialized
 command handling. The standalone engine implements four- and five-player games,
 five deals, bidding, tricks, scoring, configurable redeals, public queries and replay.
-The browser console still uses EchoGameEngine; Call Break integration is the next step.
+The browser console includes a separate Call Break test host with four/five-player
+lobbies and three-second automatic actions. Chat and PING still use EchoGameEngine;
+the production adapter remains separate work.
 
 ## Documentation
 
+- [Call Break test console](docs/test-callbreak-console.md): creating/joining games, three-second fallback, private hands and test-only endpoints.
+- [Dealer, shuffle and cut flow](docs/callbreak-preparation.md): implemented preparation phases, adapter dispatch, and a runnable example.
+- [Adapter command/event contract](docs/callbreak-adapter-contract.md): incoming commands, broadcast/unicast schemas, and implementation boundaries.
 - [Call Break implementation and query API](docs/callbreak.md): component ownership, rules, setup, queries, scoring and replay.
 - [Playing loop and player identities](docs/callbreak-playing-loop.md): what runs on each command, state transitions, events, and the future user-to-player mapping.
 - [House rules](docs/callbreak-house-rules.md): pre-game agreement and weak-hand/no-spade redeals.
@@ -288,7 +293,8 @@ suite alone with `python -m pytest -q tests/test_game_milestone2.py`.
 **Milestone 3: standalone Call Break core implemented.** It supports complete
 five-deal games for four or five players, bidding, tricks, scoring, configurable
 redeals, pre-game agreement, private views, history auditing and replay.
-Multiplayer integration remains separate; the browser console still runs Echo.
+The browser has a separate test-only Call Break host; production adapter integration
+remains separate. Room chat and PING continue through Echo.
 
 See the [implementation guide](docs/callbreak.md) for component ownership, examples
 and defaults. Run a complete local simulation with
@@ -330,7 +336,7 @@ malformed domain snapshots raise `ValueError`. It does not mutate state.
 `current_winner(trick)` returns the leading Play, and `resolve_trick(trick)` returns
 the winning player ID only when everyone has played. Match-phase checks, history
 audits and redeals are implemented in the surrounding standalone modules;
-multiplayer integration is not implemented.
+the test console uses the separate `/test-games` host rather than the generic game runtime.
 Run these tests with `python -m pytest -q tests/test_callbreak_rules.py`.
 
 FastAPI reference: [WebSockets](https://fastapi.tiangolo.com/advanced/websockets/).

@@ -5,6 +5,7 @@
   <title>Bhidne Ho · Test console</title>
   <link rel="stylesheet" href="/test-ui/styles.css">
   <script src="/test-ui/app.js" defer></script>
+  <script src="/test-ui/test-games.js" defer></script>
 </head>
 <body>
 <header><a class="brand" href="/">♠ <span>Bhidne Ho</span></a><span class="badge">TEST CONSOLE</span><a class="docs" href="/docs" target="_blank" rel="noopener">API docs ↗</a></header>
@@ -41,8 +42,26 @@
       <p class="chat-note">Chat is delivered to other users. Type PING hello to receive a server PONG in every connected client in this room. JSON commands also work; inspect them in the Event inspector.</p>
     </section>
   </div>
+  <section class="panel game-panel" aria-labelledby="game-heading">
+    <div class="section-title"><h2 id="game-heading">04 / Call Break test game</h2><span class="badge">3s AUTO PLAY · TEST ONLY</span></div>
+    <p class="muted">Create a game inside your room, then join from distinct accounts or guests. The first entrant deals. After three seconds without a response, the server takes a legal test action.</p>
+    <div class="game-toolbar"><label for="game-size">Players</label><select id="game-size"><option value="4">4 players · 13 cards</option><option value="5">5 players · 10 cards</option></select><button id="create-game" class="primary" disabled>Create Call Break game</button><button id="join-game" class="secondary" hidden>Join game</button></div>
+    <p id="game-status" role="status">Connect to a room to create or join a game.</p>
+    <div id="game-roster" class="game-roster"></div>
+    <div id="game-live" hidden>
+      <div class="game-turn"><strong id="game-turn"></strong><span id="game-countdown" aria-live="off"></span></div>
+      <p id="game-rules" class="muted"></p>
+      <div id="game-actions" class="game-actions"></div>
+      <h3>Current trick · visible to everyone</h3><p id="game-trick-status" class="muted"></p><div id="game-trick" class="game-cards"></div>
+      <div id="game-last-trick-section" hidden><h3 id="game-last-trick-title">Last completed trick</h3><div id="game-last-trick" class="game-cards"></div></div>
+      <h3 id="game-hand-label">Your hand</h3><div id="game-hand" class="game-cards"></div>
+      <h3>Deal table</h3><div class="game-table-wrap"><table class="game-table"><thead><tr><th>Player</th><th>Bid</th><th>Tricks won</th><th>Cards left</th><th>Deal score</th><th>Total</th></tr></thead><tbody id="game-table"></tbody></table></div>
+      <h3>Five-deal scoreboard</h3><div class="game-table-wrap"><table class="game-table"><thead><tr><th>Player</th><th>Deal 1</th><th>Deal 2</th><th>Deal 3</th><th>Deal 4</th><th>Deal 5</th><th>Total</th></tr></thead><tbody id="game-scores"></tbody></table></div>
+      <h3>Recent game activity</h3><ol id="game-activity"></ol>
+    </div>
+  </section>
   <details class="panel diagnostics"><summary>Event inspector <span>Raw WebSocket traffic for debugging</span></summary><div class="inspector-toolbar"><p>Last 100 events · credentials are never recorded here</p><button id="clear-log" class="text-button">Clear log</button></div><pre id="event-log" aria-label="WebSocket event log">No events yet.</pre></details>
-  <footer>Bhidne Ho / Development tools <span>Transport first. Game engines next.</span></footer>
+  <footer>Bhidne Ho / Development tools <span>Room messaging + Call Break test games</span></footer>
 </main>
 </body>
 </html>
