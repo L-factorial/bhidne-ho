@@ -1,25 +1,23 @@
-# Call Break adapter contract — increment 1
+# Call Break adapter contract
 
-Status: payload schemas, command/event catalogs, strict request parsing and
-outbound audience validation are implemented in
-[`app/adapters/callbreak/contracts.py`](../app/adapters/callbreak/contracts.py).
-Preparation dispatch and dealer/shuffle/cut phases are now implemented; see
-[the preparation guide](callbreak-preparation.md). Roster lookup, network delivery
-and production incremental distribution are not yet implemented. A separate
-[test-console host](test-callbreak-console.md) now handles full gameplay, private delivery
-and automatic actions using test-only HTTP/WebSocket messages. Chat/PING still run Echo.
+Status: all eight player commands and all 24 outbound event variants are implemented
+in [`adapter.py`](../app/adapters/callbreak/adapter.py), with strict schemas in
+[`contracts.py`](../app/adapters/callbreak/contracts.py). The test-console host uses
+this adapter for manual and automatic play, authenticates roster membership, and
+routes its messages within the room. Production persistence and retry handling
+remain separate work. Chat/PING still run Echo.
 
 ## Ownership
 
 ```text
 Browser request (adapter-owned uppercase command name)
-  → authenticate user and resolve room/match/player [future platform integration]
+  → authenticate user and resolve room/match/player [test host implemented]
   → parse_player_command(raw_request)              [implemented]
-  → validate match/revision/actor and map command   [future adapter dispatch]
+  → validate match/revision/actor and map command   [implemented]
   → standalone engine typed command
   → domain state + outcomes
-  → adapter creates OutboundEvent + RoutedEvent    [schemas implemented]
-  → platform broadcasts/unicasts within room       [future delivery]
+  → adapter creates OutboundEvent + RoutedEvent    [implemented]
+  → platform broadcasts/unicasts within room       [test host implemented]
 ```
 
 The adapter owns the client-facing message vocabulary, payloads and routing
@@ -49,8 +47,8 @@ its private/public boundaries. No adapter types are imported by `callbreak`.
 
 `match_id` identifies a match instance; rematches get another ID. `command_id`
 will support retry deduplication. Revision and deal-attempt checks prevent stale
-actions after a move or redeal. These checks require match state and are future
-dispatch work; this increment validates their shape only.
+actions after a move or redeal. The dispatcher checks match ID, revision and deal attempt against current state.
+`command_id` is carried by the request but is not yet deduplicated.
 
 No `player_id`, `user_id`, `room_id`, deck contents or recipient fields are
 accepted as identity/routing instructions. The platform supplies the trusted
@@ -68,21 +66,28 @@ All go privately to the system. Only validated outcomes are published.
 | SHUFFLE_DECK | `{}` | Dealer | Implemented `ShuffleDeck()` |
 | CUT_DECK | `position` | Player after dealer | Implemented `CutDeck(position)` |
 | SKIP_CUT | `{}` | Player after dealer | Implemented `SkipCut()` |
-| START_DISTRIBUTION | `{}` | Dealer | Core StartDistribution; dispatched by test host, not preparation-only adapter |
-| ACCEPT_HAND | `{}` | Reviewing player | Existing `AcceptHand()` |
-| CLAIM_REDEAL | `{}` | Eligible reviewing player | Existing `ClaimRedeal()` |
-| PLACE_BID | `amount` | Current bidder | Existing `PlaceBid(amount)` |
-| PLAY_CARD | `card` | Current player | Existing `PlayCard(Card.parse(card))` |
+| START_DISTRIBUTION | `{}` | Dealer | Implemented `StartDistribution()` |
+| ACCEPT_HAND | `{}` | Reviewing player | Implemented `AcceptHand()` |
+| CLAIM_REDEAL | `{}` | Eligible reviewing player | Implemented `ClaimRedeal()` |
+| PLACE_BID | `amount` | Current bidder | Implemented `PlaceBid(amount)` |
+| PLAY_CARD | `card` | Current player | Implemented `PlayCard(Card.parse(card))` |
 
 Cut position is 1–51; use SKIP_CUT for no cut. The operation rotates the deck,
 moving its top `position` cards underneath the remaining cards. Bid schema
 accepts 1–13; the engine enforces the selected game's maximum (10 or 13).
-Player identifiers in outgoing schemas allow 1–5; the future mapper must also
+Player identifiers in outgoing schemas allow 1–5; the host must also
 check membership in the actual four- or five-player roster.
 
-Merely parsing a pending command does not make it executable. Future dispatch
-must reject unsupported commands explicitly until their phases are implemented;
-it must not silently map START_DISTRIBUTION to the existing whole-deck StartDeal.
+`dispatch_player(state, request, match_id=..., player_id=...)` returns an
+`AdapterResult(state, messages)` on success or the engine's `PlayRejection` on
+rejection. Invalid schemas raise Pydantic `ValidationError`. The host commits the
+returned state, then delivers messages using the trusted roster. Calls for one
+match must be serialized by the host. Rejections do not advance state.
+
+`dispatch_control(state, PrepareDeal() | CompleteShuffle(deck), match_id=...)`
+is the trusted controller entry point. The host supplies shuffle randomness.
+The old `dispatch_preparation` entry point remains limited to shuffle/cut/skip
+for compatibility; use `dispatch_player` for full gameplay.
 
 ## System → all players: broadcasts
 
@@ -154,8 +159,8 @@ RoutedEvent is server-side metadata; serialize its `message` only. The event
 catalog mandates broadcast or unicast. Broadcasts require recipient=None;
 unicasts require a recipient matching the payload's player/dealer. Attempting
 to broadcast CARD_DEALT or send player 2's card to player 3 rejects validation.
-The future dispatcher must map that local ID through the trusted match roster
-and deliver within the room, not across all rooms belonging to the user.
+The host maps that local ID through the trusted match roster and delivers within
+the room. The adapter itself performs no network I/O.
 
 Output `index` is zero-based within one accepted transition's adapter event
 batch; `revision` increases once per accepted state transition. These indexes
@@ -172,8 +177,9 @@ was acknowledged. Network receipt acknowledgments and retries are separate.
 
 `ControllerAction` defines internal PREPARE_DEAL, COMPLETE_SHUFFLE and
 ADVANCE_DISTRIBUTION triggers. They are not parseable PlayerCommands. The trusted
-host prepares shuffled decks and advances distribution. Exact typed controller
-inputs and engine mappings will be defined with those implementation increments.
+host prepares shuffled decks. PREPARE_DEAL and COMPLETE_SHUFFLE are implemented;
+ADVANCE_DISTRIBUTION is reserved and unsupported. Distribution currently assigns
+all cards atomically and emits ordered private-card/public-receipt pairs.
 
 `CommandRejected` is a private response to the requesting connection, containing
 the command ID, current revision, code and safe detail. It is not a successful
@@ -181,18 +187,25 @@ game event, does not consume an event index, and does not change state. Malforme
 requests whose IDs cannot be trusted can use the transport's existing parsing
 error path; never echo whole malformed requests or credentials.
 
-Existing `GameQuery` is the read API. Authenticated query/snapshot wire requests,
+Implemented `GameQuery` is the read API. Authenticated query/snapshot wire requests,
 pre-match seating/settings messages, transport acknowledgments and their response
 schemas will be separate increments. Snapshot requests never advance state.
 
-## Next increments
+## Current flow and remaining plan
 
-1. Dealer/shuffle/cut phases and their domain/controller commands are implemented.
-2. Implement one-card distribution and its private/public outcomes.
-3. Implement adapter dispatch and outcome mapping with explicit unsupported-command errors.
-4. Add authenticated roster lookup, stale-command checks, deduplication and room-scoped private delivery.
+1. Host prepares each deal; adapter broadcasts dealer assignment and privately prompts shuffle.
+2. Dealer requests shuffle; host supplies a shuffled deck; adapter prompts the cutter.
+3. Cutter cuts or skips; adapter prompts the dealer to distribute.
+4. Distribution emits each private CARD_DEALT followed by public CARD_DISTRIBUTED.
+5. Private hand-review prompts allow accept/redeal. Bidding starts after all accept,
+   or directly after distribution when review rules are disabled.
+6. Bids broadcast in seat order, ending at the dealer; BID_REQUESTED targets each bidder.
+7. Plays broadcast, followed by trick results, deal scores and final match results.
+   The test host prepares the next deal and owns all timers and fallback choices.
 
-The preparation adapter activates only the first increment through explicit calls. Existing core
-whole-hand events remain unchanged until incremental distribution replaces them.
-Tests cover all eight command variants, all 24 event variants, malformed/spoofed
-input, private recipient matching, and rejection of private fields in broadcasts.
+Next: define production snapshot/reconnect handling, command acknowledgment and
+idempotent retries, then durable match storage and production room-runtime integration.
+The test HTTP wrapper currently generates command IDs and fills deal/attempt context
+under its match lock after checking the client's match/revision. It returns HTTP
+errors for rejections; a production transport should use the defined private
+CommandRejected envelope. Do not treat current command IDs as retry guarantees.

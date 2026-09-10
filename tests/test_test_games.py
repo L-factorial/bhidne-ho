@@ -19,9 +19,12 @@ class Delivery:
     def __init__(self):
         self.private = {}
         self.public = []
+        self.private_events = []
 
     async def send_to_room_user(self, room, user, data):
         self.private[room, user] = data
+        if data.get("type") == "GAME_EVENT":
+            self.private_events.append((room, user, data))
 
     async def broadcast(self, room, data):
         self.public.append((room, data))
@@ -60,8 +63,15 @@ async def test_first_seats_auto_start_and_complete_all_five_deals(n):
         assert len(game.state.completed_deals) == 5
         assert all(sum(d.result.tricks_won) == 52 // n for d in game.state.completed_deals)
         assert any(data.get("event") == "AutoAction" for _, data in delivery.public)
-        assert all(data.get("event") not in ("CardDealt", "HandDealt", "RedealEligible") for _, data in delivery.public)
-        assert not any("card" in data.get("payload", {}) for _, data in delivery.public if data.get("event") == "CardDistributed")
+        assert all(data.get("event") not in ("CARD_DEALT", "HAND_REVIEW_REQUESTED", "REDEAL_ELIGIBLE") for _, data in delivery.public)
+        assert not any("card" in data.get("payload", {}) for _, data in delivery.public if data.get("event") == "CARD_DISTRIBUTED")
+        events = [data for _, data in delivery.public if data.get("type") == "GAME_EVENT"]
+        assert sum(e["event"] == "CARD_DISTRIBUTED" for e in events) == 5 * n * (52 // n)
+        assert sum(e["event"] == "MATCH_COMPLETED" for e in events) == 1
+        cards = [(room, user, e) for room, user, e in delivery.private_events if e["event"] == "CARD_DEALT"]
+        assert len(cards) == 5 * n * (52 // n)
+        assert all(room == "room" and user == f"u{e['payload']['player_id'] - 1}" for room, user, e in cards)
+        assert all(e["protocol_version"] == 1 and e["match_id"] == game.match_id for e in events)
         snapshot = await service.snapshot("room", "u0")
         assert snapshot["status"] == "finished" and snapshot["remaining_ms"] is None
         replacement = await service.create("room", "u0", n)

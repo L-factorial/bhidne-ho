@@ -59,7 +59,7 @@ for actor, command in steps:
 
 At the end, the dealer is the expected actor and START_DISTRIBUTION is the next
 action. The preparation-only dispatcher still rejects that command as UNSUPPORTED_COMMAND;
-the separate test host handles it through the core StartDistribution command. Legacy controller
+the full dispatch_player adapter maps it to the core StartDistribution command. Legacy controller
 StartDeal/Redeal cannot bypass cut/shuffle once PrepareDeal has begun; they reject
 in every preparation phase. They remain supported at their original boundaries
 for existing simulations and replay records.
@@ -94,3 +94,7 @@ The new commands support private Replay JSON and audit_match. GameQuery reports
 preparation phase, expected actor, current deal/attempt and zero cards per player;
 previous completed deals remain individually queryable. No cards are playable
 until the distribution and bidding stages have happened.
+
+Full gameplay now uses `dispatch_player` and `dispatch_control` in
+[`adapter.py`](../app/adapters/callbreak/adapter.py). The preparation-only entry
+points remain compatibility wrappers. See [the complete adapter guide](callbreak-adapter-contract.md).

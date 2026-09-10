@@ -6,7 +6,7 @@ command handling. The standalone engine implements four- and five-player games,
 five deals, bidding, tricks, scoring, configurable redeals, public queries and replay.
 The browser console includes a separate Call Break test host with four/five-player
 lobbies and three-second automatic actions. Chat and PING still use EchoGameEngine;
-the production adapter remains separate work.
+the shared adapter handles full gameplay; production runtime integration remains separate work.
 
 ## Documentation
 

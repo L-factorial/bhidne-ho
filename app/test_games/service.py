@@ -3,35 +3,20 @@
 import asyncio
 import logging
 import time
-from dataclasses import dataclass, field, fields, is_dataclass
-from enum import Enum
+from dataclasses import dataclass, field
 from random import SystemRandom
 from uuid import uuid4
 
 from fastapi import HTTPException
 
-from card_utils import Card, Rank, Suit, shuffle, standard_52
+from card_utils import Rank, Suit, shuffle, standard_52
 from callbreak import (
-    AcceptHand, ClaimRedeal, CompleteShuffle, CutDeck, GameConfig, GameQuery,
-    MatchState, Phase, PlaceBid, PlayCard, PrepareDeal, ShuffleDeck, SkipCut,
-    StartDistribution, Transition, apply_control, apply_player, available_cards, create_match,
+    CompleteShuffle, GameConfig, GameQuery, MatchState, Phase, PrepareDeal,
+    available_cards, create_match,
 )
+from app.adapters.callbreak import AdapterResult, PlayerCommand, dispatch_control, dispatch_player
 
 logger = logging.getLogger(__name__)
-
-
-def json_value(value):
-    if isinstance(value, Card):
-        return str(value)
-    if isinstance(value, Enum):
-        return value.value
-    if is_dataclass(value):
-        return {f.name: json_value(getattr(value, f.name)) for f in fields(value)}
-    if isinstance(value, dict):
-        return {k: json_value(v) for k, v in value.items()}
-    if isinstance(value, (tuple, list)):
-        return [json_value(v) for v in value]
-    return value
 
 
 @dataclass
@@ -143,28 +128,12 @@ class TestGameService:
             if body.expected_revision != game.state.revision:
                 raise HTTPException(409, "The turn changed. Your view has been refreshed; try again.")
             actor = game.users.index(user_id) + 1
-            command = self._command(body.command, body.payload)
             before = game.state.phase
-            await self._player(game, actor, command)
+            await self._player(game, actor, body.command, body.payload)
             await self._controllers(game)
             self._deadline(game, before)
             await self._publish(game)
             return self._snapshot(game, user_id)
-
-    @staticmethod
-    def _command(name, payload):
-        commands = {"SHUFFLE_DECK": ShuffleDeck, "SKIP_CUT": SkipCut,
-                    "START_DISTRIBUTION": StartDistribution, "ACCEPT_HAND": AcceptHand,
-                    "CLAIM_REDEAL": ClaimRedeal}
-        if name in commands:
-            return commands[name]()
-        if name == "CUT_DECK":
-            return CutDeck(payload["position"])
-        if name == "PLACE_BID":
-            return PlaceBid(payload["amount"])
-        if name == "PLAY_CARD":
-            return PlayCard(Card.parse(payload["card"]))
-        raise HTTPException(422, "Unknown test action.")
 
     def _deadline(self, game, before):
         if game.state.phase == Phase.MATCH_COMPLETE:
@@ -173,13 +142,19 @@ class TestGameService:
             game.deadline = time.monotonic() + self.timeout_seconds
         # All reviewing players share the same original three-second window.
 
-    async def _player(self, game, actor, command, automatic=False):
-        result = apply_player(game.state, actor, command)
-        if not isinstance(result, Transition):
+    async def _player(self, game, actor, command, payload=None, automatic=False):
+        context = game.state.preparation or game.state.current_deal or game.state.completed_deals[-1].deal
+        request = PlayerCommand(
+            match_id=game.match_id, deal_number=context.number, attempt=context.attempt,
+            command_id=uuid4().hex, expected_revision=game.state.revision,
+            command=command, payload=payload or {},
+        )
+        result = dispatch_player(game.state, request, match_id=game.match_id, player_id=actor)
+        if not isinstance(result, AdapterResult):
             raise HTTPException(409, result.detail)
         await self._record(game, result)
         if automatic:
-            entry = {"event": "AutoAction", "player_id": actor, "action": type(command).__name__,
+            entry = {"event": "AutoAction", "player_id": actor, "action": request.command.value,
                      "revision": game.state.revision}
             game.log.append(entry)
             await self.connections.broadcast(game.room_id, {"type": "TEST_GAME_EVENT", "match_id": game.match_id, **entry})
@@ -189,24 +164,24 @@ class TestGameService:
         while game.state.phase in (Phase.AWAITING_DEAL, Phase.DEAL_COMPLETE, Phase.AWAITING_REDEAL, Phase.SHUFFLING):
             command = (CompleteShuffle(shuffle(standard_52(), rng=self._random))
                        if game.state.phase == Phase.SHUFFLING else PrepareDeal())
-            result = apply_control(game.state, command)
-            if not isinstance(result, Transition):
+            result = dispatch_control(game.state, command, match_id=game.match_id)
+            if not isinstance(result, AdapterResult):
                 raise RuntimeError(result)
             await self._record(game, result)
 
     async def _record(self, game, result):
         game.state = result.state
-        for event in result.events:
-            envelope = {"type": "TEST_GAME_EVENT", "match_id": game.match_id,
-                        "event": event.name, "revision": event.revision, "index": event.index,
-                        "payload": json_value(dict(event.data))}
-            if event.recipient is None:
+        for routed in result.messages:
+            event = routed.message
+            envelope = event.model_dump(mode="json")
+            if routed.recipient_player_id is None:
                 await self.connections.broadcast(game.room_id, envelope)
-                if event.name not in ("CardDistributed", "TurnChanged"):
-                    game.log.append({"event": event.name, "revision": event.revision,
+                if event.event not in ("CARD_DISTRIBUTED", "TURN_CHANGED"):
+                    game.log.append({"event": event.event.value, "revision": event.revision,
                                      "payload": envelope["payload"]})
             else:
-                await self.connections.send_to_room_user(game.room_id, game.users[event.recipient - 1], envelope)
+                await self.connections.send_to_room_user(
+                    game.room_id, game.users[routed.recipient_player_id - 1], envelope)
         game.log[:] = game.log[-30:]
 
     async def _publish(self, game):
@@ -216,17 +191,17 @@ class TestGameService:
 
     def _heuristic(self, state, player):
         if state.phase == Phase.AWAITING_SHUFFLE:
-            return ShuffleDeck()
+            return "SHUFFLE_DECK", {}
         if state.phase == Phase.AWAITING_CUT:
-            return SkipCut()
+            return "SKIP_CUT", {}
         if state.phase == Phase.AWAITING_DISTRIBUTION:
-            return StartDistribution()
+            return "START_DISTRIBUTION", {}
         if state.phase == Phase.BIDDING:
             hand = state.current_deal.players[player - 1].hand
             estimate = sum(c.rank == Rank.ACE or c.suit == Suit.SPADES and c.rank >= Rank.JACK for c in hand)
-            return PlaceBid(max(1, min(state.config.tricks_per_deal, estimate)))
+            return "PLACE_BID", {"amount": max(1, min(state.config.tricks_per_deal, estimate))}
         if state.phase == Phase.PLAYING:
-            return PlayCard(min(available_cards(state, player), key=lambda c: (c.suit == Suit.SPADES, c.rank, c.suit.value)))
+            return "PLAY_CARD", {"card": str(min(available_cards(state, player), key=lambda c: (c.suit == Suit.SPADES, c.rank, c.suit.value)))}
         raise RuntimeError("No test fallback for this phase.")
 
     async def _run(self, game):
@@ -242,10 +217,10 @@ class TestGameService:
                     if before == Phase.HAND_REVIEW:
                         pending = [p for p in game.state.config.players if p not in game.state.current_deal.accepted_hands]
                         for player in pending:
-                            await self._player(game, player, AcceptHand(), automatic=True)
+                            await self._player(game, player, "ACCEPT_HAND", automatic=True)
                     else:
                         player = game.state.current_player
-                        await self._player(game, player, self._heuristic(game.state, player), automatic=True)
+                        await self._player(game, player, *self._heuristic(game.state, player), automatic=True)
                     await self._controllers(game)
                     self._deadline(game, before)
                     await self._publish(game)

@@ -1,7 +1,7 @@
 # Call Break test console
 
 This is a disposable, in-memory test host, separate from the Echo room runtime
-and the future production adapter. Three-second automation belongs exclusively
+and using the shared Call Break adapter. Three-second automation belongs exclusively
 to `app/test_games/service.py`; the standalone core has no timers or bots.
 
 ## Try it
@@ -49,7 +49,7 @@ Hand review has one shared three-second window; another player's acceptance
 does not restart your window. Every ordinary accepted action opens a new window
 for the next actor. Invalid/stale actions do not reset it. The loop checks the
 deadline roughly every 100ms, so fallback occurs just after the deadline when
-the event loop is available. Automatic choices go through the exact same engine
+the event loop is available. Automatic choices go through the same adapter dispatch and engine
 validation as manual choices. It accepts weak hands rather than repeatedly
 requesting redeals; a human may still claim an eligible redeal during review.
 
@@ -68,7 +68,8 @@ two cards unused; four players receive all 52. Snapshots display the resulting
 hand once distribution completes. A future paced-distribution controller can
 introduce separate card steps without placing timing policy inside the core.
 
-The test host sends `TEST_GAME_EVENT` outcomes over existing room WebSockets.
+The adapter translates outcomes to versioned `GAME_EVENT` messages over existing
+room WebSockets. Only the test-specific `AutoAction` uses `TEST_GAME_EVENT`.
 Private outcomes use `send_to_room_user`, never cross-room send_to_user.
 `TEST_GAME_STATE` is individually projected for each connected user. Only a
 seated viewer receives their own `GameQuery.get_player_view`; spectators get
@@ -88,9 +89,11 @@ the player ID from its authenticated-user roster.
 | `POST /test-games/{room_id}/join` | `{match_id}` |
 | `POST /test-games/{room_id}/action` | `{match_id, expected_revision, command, payload}` |
 
-Actions reuse the adapter's validated command names and payload schemas. Their
-test-only envelope and TEST_GAME messages are not the production versioned
-adapter protocol. Each game serializes manual commands and timeouts under one
+Actions use the adapter's validated command names and payload schemas. The host
+wraps each test HTTP action in a full PlayerCommand, generating a command ID and
+filling deal/attempt context after match/revision checks. Manual and automatic
+choices both call dispatch_player; controller steps call dispatch_control.
+The test HTTP input and TEST_GAME_STATE snapshots remain test-specific. Each game serializes manual commands and timeouts under one
 lock. Revision and match-ID checking prevent stale moves and cross-rematch
 actions; there is no production command-ID acknowledgment/deduplication protocol.
 Responses containing state use `Cache-Control: no-store`.

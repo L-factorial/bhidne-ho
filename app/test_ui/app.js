@@ -146,7 +146,7 @@ function join(room) {
       // Already visible in the inspector; projected state updates the game panel.
     } else if (data.type === 'MESSAGE') {
       addMessage(typeof data.payload?.text === 'string' ? data.payload.text : JSON.stringify(data.payload), data.sender_id);
-    } else if (data.type === 'GAME_EVENT') {
+    } else if (data.type === 'GAME_EVENT' && !data.match_id) {
       addMessage(JSON.stringify(data.payload), `Server · ${data.event}`);
     } else if (data.type === 'ERROR') feedback(data.detail || data.code);
   };

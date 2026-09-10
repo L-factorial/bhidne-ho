@@ -158,7 +158,7 @@ function renderTestGame() {
   for (const entry of (testGame.log || []).slice(-8).reverse()) {
     const item = document.createElement('li');
     item.textContent = entry.event === 'AutoAction' ? `Auto · ${playerLabel(entry.player_id)} · ${entry.action}` :
-      `${entry.event}${entry.payload?.winner ? ' · won by ' + playerLabel(entry.payload.winner) : ''}`;
+      `${entry.event}${entry.payload?.winner_id ? ' · won by ' + playerLabel(entry.payload.winner_id) : ''}`;
     $('game-activity').append(item);
   }
 }
