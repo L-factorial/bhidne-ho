@@ -1,27 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { GameId } from './GameRoomsScreen';
 import { CallBreakTableScreen } from './CallBreakTableScreen';
 import { colors, fonts } from '../theme';
 import { RoomGameControl } from '../components/RoomGameControl';
 
-type Session = { user_id: string; token: string };
-type Room = { room_id: string; name: string; members: string[] };
-const apiUrl = (process.env.EXPO_PUBLIC_API_URL || (Platform.OS === 'web'
-  ? `${globalThis.location.protocol}//${globalThis.location.hostname}:8000` : 'http://127.0.0.1:8000')).replace(/\/$/, '');
-
-async function request<T>(path: string, session: Session | null, body?: object, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(`${apiUrl}${path}`, {
-    method: body ? 'POST' : 'GET', signal,
-    headers: { 'Content-Type': 'application/json', ...(session ? { Authorization: `Bearer ${session.token}` } : {}) },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(response.status === 401 ? 'Session expired. Sign out and enter again.'
-    : typeof data.detail === 'string' ? data.detail : 'Could not complete this request. Check your input.');
-  return data;
-}
+import { apiUrl, request } from '../multiplayer/api';
+import type { Room } from '../multiplayer/session';
+import { useRoomSession } from '../multiplayer/useRoomSession';
 
 export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
   const insets = useSafeAreaInsets();
@@ -30,102 +16,48 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
   const [testingOpen, setTestingOpen] = useState(false);
   const [preview, setPreview] = useState(false);
   const [previewSize, setPreviewSize] = useState<4 | 5>(4);
-  const [session, setSession] = useState<Session | null>(null);
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [room, setRoom] = useState<Room | null>(null);
-  const [game, setGame] = useState<GameId | null>(null);
+  const shared = useRoomSession();
+  const { session, rooms, room, game, setGame, expired } = shared;
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [retry, setRetry] = useState(0);
-  const socket = useRef<WebSocket | null>(null);
   const mounted = useRef(true);
-  const connectingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  function clearConnectionTimer() { if (connectingTimer.current) clearTimeout(connectingTimer.current); }
-  useEffect(() => {
-    mounted.current = true;
-    return () => { mounted.current = false; clearConnectionTimer(); socket.current?.close(); socket.current = null; };
-  }, []);
-  useEffect(() => {
-    const controller = new AbortController();
-    setError('');
-    request<Session>('/auth/guest', null, {}, controller.signal).then(setSession).catch(error => {
-      if (!controller.signal.aborted) setError(`Unable to connect. ${error.message}`);
-    });
-    return () => controller.abort();
-  }, [retry]);
-  useEffect(() => {
-    if (!session) return;
-    const controller = new AbortController();
-    let timer: ReturnType<typeof setTimeout>;
-    async function refresh() {
-      try {
-        const result = await request<Room[]>('/rooms', session, undefined, controller.signal);
-        if (!controller.signal.aborted) setRooms(result);
-      } catch (error) {
-        if (!controller.signal.aborted) setError(error instanceof Error ? error.message : 'Could not refresh rooms.');
-      } finally { if (!controller.signal.aborted) timer = setTimeout(refresh, 2000); }
-    }
-    refresh();
-    return () => { controller.abort(); clearTimeout(timer); };
-  }, [session]);
-
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   function leaveRoom() {
-    clearConnectionTimer();
-    const previous = socket.current; socket.current = null; previous?.close();
-    setRoom(null); setGame(null); setPreview(false); setTestingOpen(false); setBusy(false); setError('');
+    shared.leaveRoom(); setPreview(false); setTestingOpen(false); setError('');
   }
   function joinRoom(target: Room) {
-    if (!session) return;
-    leaveRoom(); setBusy(true);
-    const ws = new WebSocket(`${apiUrl.replace(/^http/, 'ws')}/ws/rooms/${encodeURIComponent(target.room_id)}?token=${encodeURIComponent(session.token)}`);
-    socket.current = ws;
-    connectingTimer.current = setTimeout(() => {
-      if (socket.current !== ws) return;
-      socket.current = null; ws.close(); setBusy(false); setError('Connection timed out. Try entering the room again.');
-    }, 10000);
-    ws.onmessage = event => {
-      if (socket.current !== ws || !mounted.current) return;
-      try {
-        const message = JSON.parse(event.data);
-        if (message.type === 'CONNECTED') { clearConnectionTimer(); setRoom(target); setBusy(false); }
-      } catch { setError('Received an invalid room message.'); }
-    };
-    ws.onclose = () => {
-      if (socket.current !== ws || !mounted.current) return;
-      clearConnectionTimer(); socket.current = null; setRoom(null); setGame(null); setBusy(false);
-      setError('Room connection closed. Select the room to reconnect.');
-    };
-    ws.onerror = () => { if (socket.current === ws && mounted.current) setError('Could not connect to the room. Check that the backend is running.'); };
+    shared.joinRoom(target); setPreview(false); setTestingOpen(false); setError('');
   }
+  function signOut() { shared.signOut(); onExit(); }
   async function createRoom() {
-    if (!session || busy) return;
+    if (!session || busy || expired) return;
     if (!name.trim()) { setError('Enter a room name.'); return; }
     setBusy(true); setError('');
     try {
       const created = await request<Room>('/rooms', session, { name: name.trim() });
       if (!mounted.current) return;
-      setRooms(value => [created, ...value.filter(item => item.room_id !== created.room_id)]);
       setName(''); joinRoom(created);
-    } catch (error) { if (mounted.current) { setError(error instanceof Error ? error.message : 'Could not create room.'); setBusy(false); } }
+    } catch (error) { if (mounted.current) setError(error instanceof Error ? error.message : 'Could not create room.'); }
+    finally { if (mounted.current) setBusy(false); }
   }
   const current = rooms.find(item => item.room_id === room?.room_id) || room;
-  const roomMembers = [...new Set([...(current?.members || []), ...(room && session ? [session.user_id] : [])])];
+  const roomMembers = [...new Set([...(current?.members || []), ...(room && session && shared.status === 'connected' ? [session.user_id] : [])])];
   if (room && preview) return <CallBreakTableScreen capacity={previewSize} names={['You']} tableName={room.name} onBack={() => setPreview(false)} />;
-  const selectedGame = game || 'callbreak';
+  const selectedGame = game === 'flush' || game === 'marriage' ? game : 'callbreak';
   return <ScrollView style={styles.page} contentContainerStyle={[styles.container, {
     paddingTop: Math.max(insets.top, 24), paddingBottom: Math.max(insets.bottom, 28),
   }]}>
     <View style={styles.content}>
       <View style={styles.header}>
         <Text style={styles.brand}>♠ Bhidne Ho</Text>
-        <Pressable accessibilityRole="button" onPress={room ? leaveRoom : onExit} style={styles.textButton}>
-          <Text style={styles.lightText}>{room ? '← All rooms' : 'Sign out'}</Text>
+        <Pressable accessibilityRole="button" onPress={room && !expired ? leaveRoom : signOut} style={styles.textButton}>
+          <Text style={styles.lightText}>{room && !expired ? '← All rooms' : 'Sign out'}</Text>
         </Pressable>
       </View>
-      {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
+      {!!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{error || shared.error}</Text>}
+      {room && !expired && shared.status !== 'connected' && <Text accessibilityLiveRegion="polite" style={styles.subtitle}>Reconnecting to your room…</Text>}
       {room ? <>
         <View style={styles.hero}>
           <Text style={styles.eyebrow}>YOUR ROOM</Text>
@@ -146,7 +78,7 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
             {selectedGame === 'callbreak' ? <>
               <Text accessibilityRole="header" style={styles.gameTitle}>A round of Call Break.</Text>
               <Text style={styles.description}>Four or five players. Five deals. Make your call.</Text>
-              {session && <RoomGameControl key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} />}
+              {session && <RoomGameControl key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} connected={shared.status === 'connected' && !expired} members={roomMembers} connectionMessage={expired ? shared.error : undefined} />}
             </> : <View style={styles.comingSoon}><Text style={styles.heading}>{selectedGame === 'flush' ? 'Flush' : 'Marriage'}</Text><Text style={styles.description}>Coming soon. Choose Call Break to play with your room.</Text></View>}
           </View>
           <View style={[styles.sideColumn, wide && styles.fixedSide]}>
@@ -182,8 +114,8 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
           <Text accessibilityRole="header" style={[styles.title, !wide && styles.mobileTitle]}>भिड्ने हो?</Text>
           <Text style={styles.subtitle}>Pull up a chair. Your next round starts here.</Text>
         </View>
-        {!session && <View><Text style={styles.subtitle}>{error ? 'Guest connection unavailable.' : 'Connecting as a guest…'}</Text>
-          {!!error && <Pressable accessibilityRole="button" onPress={() => setRetry(value => value + 1)} style={styles.button}><Text style={styles.buttonText}>Retry connection</Text></Pressable>}</View>}
+        {!session && <View><Text style={styles.subtitle}>{shared.error ? 'Guest connection unavailable.' : 'Connecting as a guest…'}</Text>
+          {!!shared.error && <Pressable accessibilityRole="button" onPress={shared.retry} style={styles.button}><Text style={styles.buttonText}>Retry connection</Text></Pressable>}</View>}
         <View style={[styles.columns, wide && styles.wideColumns]}>
           <View style={[styles.sideColumn, wide && styles.fixedSide, styles.panel]}>
             <View style={styles.gameTabs}>
@@ -194,13 +126,13 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
             <Text style={styles.description}>{form === 'create' ? 'Give your room a name. Everyone can find it in the list.' : 'Enter the table code your friend shared.'}</Text>
             {form === 'create' ? <>
               <TextInput accessibilityLabel="Room name" value={name} onChangeText={setName} maxLength={60} placeholder="e.g. Friday friends" placeholderTextColor={colors.muted} style={styles.input} editable={!busy} />
-              <Pressable accessibilityRole="button" disabled={!session || busy} accessibilityState={{ disabled: !session || busy }} onPress={createRoom} style={[styles.button, (!session || busy) && styles.disabled]}><Text style={styles.buttonText}>Create and enter room</Text></Pressable>
+              <Pressable accessibilityRole="button" disabled={!session || busy || expired} accessibilityState={{ disabled: !session || busy || expired }} onPress={createRoom} style={[styles.button, (!session || busy || expired) && styles.disabled]}><Text style={styles.buttonText}>Create and enter room</Text></Pressable>
             </> : <>
               <TextInput accessibilityLabel="Table code / room ID" value={code} onChangeText={setCode} autoCapitalize="none" autoCorrect={false} maxLength={64} placeholder="Paste a table code" placeholderTextColor={colors.muted} style={styles.input} editable={!busy} />
-              <Pressable accessibilityRole="button" disabled={!session || busy} accessibilityState={{ disabled: !session || busy }} onPress={() => {
+              <Pressable accessibilityRole="button" disabled={!session || busy || expired} accessibilityState={{ disabled: !session || busy || expired }} onPress={() => {
                 const target = rooms.find(item => item.room_id === code.trim());
                 if (target) joinRoom(target); else setError('Table code not found. Choose a listed room or check the code.');
-              }} style={[styles.button, (!session || busy) && styles.disabled]}><Text style={styles.buttonText}>Enter with table code</Text></Pressable>
+              }} style={[styles.button, (!session || busy || expired) && styles.disabled]}><Text style={styles.buttonText}>Enter with table code</Text></Pressable>
             </>}
             {busy && <Text accessibilityLiveRegion="polite" style={styles.description}>Entering room…</Text>}
           </View>

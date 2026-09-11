@@ -41,8 +41,12 @@ Guest sign-in, room creation, room discovery, and WebSocket room membership now
 use the existing FastAPI APIs. After entering as a guest, choose **Create and
 enter room**, select an available room, or enter its ID. Other browser sessions
 see new rooms and presence counts within about two seconds. Leaving closes the
-socket. Sessions are kept in memory per client; refreshing creates a new guest.
-Backend restart clears all rooms and sessions. Accounts/social sign-in and the
+socket. Browser sessions and the selected room/game are saved per tab in sessionStorage, so
+refreshing restores the same guest and seat. Reconnection runs automatically after
+a network interruption; the table stays visible and actions wait for a fresh snapshot.
+Native clients currently keep sessions in memory (network reconnection works, but
+restarting the native app does not restore its identity). Backend restart clears all
+rooms and sessions; expired credentials prompt sign-out rather than silently replacing the player. Accounts/social sign-in and the
 Terms/Privacy controls still show placeholders.
 
 The only backend change is CORS support for localhost/127.0.0.1 Expo web clients
@@ -173,3 +177,33 @@ clears the pulse; reduced-motion users receive a static highlight. **Sound on**
 toggles mute. Web audio is initialized by the Collapse button gesture; native
 playback uses a bundled pong through Expo Audio. These are in-app alerts while
 the room is open, not operating-system push notifications.
+
+## Shared session and reconnect support
+
+`src/multiplayer/` owns guest identity, selected room/game, room membership polling,
+connection retries, and heartbeats. This is independent of Call Break and reusable
+for future games. Each game's client reloads its authoritative state after reconnecting.
+Call Break restores the same seat and private hand and marks disconnected seats
+from the shared room presence list. Manual games wait for that player's input;
+autoplay keeps its existing timeout policy. Commands interrupted by a disconnect
+are never automatically replayed.
+
+Web storage is scoped to both tab and API server. Separate fresh windows can host
+separate guests. Browser tab duplication can copy sessionStorage and therefore reuse
+the original guest; sign out in a duplicate if you want a different player. Leaving
+a room removes the saved room but keeps the guest; signing out clears both. Private
+hands and game snapshots are not stored in browser storage. Storage restrictions
+fall back to an in-memory session.
+
+Clients opt into server idle detection with `heartbeat=1` on the room WebSocket.
+The client sends `HEARTBEAT` every five seconds and expects `HEARTBEAT_ACK`; a missing
+ack triggers reconnect. The server removes opted-in sockets after 30 seconds without
+a frame. Retries back off from one to eight seconds, and reconnect immediately when
+the browser reports that it is online again. Presence is refreshed every two seconds;
+silent network loss can take up to the server idle timeout to appear as offline.
+
+Run connection and session checks with:
+
+```sh
+node --experimental-strip-types --test tests/reconnection.test.mjs
+```

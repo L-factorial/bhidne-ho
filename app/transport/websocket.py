@@ -1,3 +1,4 @@
+import asyncio
 import json
 import re
 
@@ -9,6 +10,7 @@ from app.models.messages import ClientMessage
 from app.models.game import CommandError, GameCommand
 
 router = APIRouter()
+HEARTBEAT_TIMEOUT_SECONDS = 30
 
 
 @router.websocket("/ws/rooms/{room_id}")
@@ -29,12 +31,14 @@ async def room_socket(websocket: WebSocket, room_id: str) -> None:
     websocket.app.state.provision_room(room_id)
     await websocket.accept()
     connection_id = await connections.connect(room_id, identity.user_id, websocket)
+    # Opt-in keeps existing console/terminal clients compatible.
+    receive_timeout = HEARTBEAT_TIMEOUT_SECONDS if websocket.query_params.get("heartbeat") == "1" else None
     try:
         await connections.send_to_connection(room_id, connection_id, {
             "type": "CONNECTED", "user_id": identity.user_id, "room_id": room_id,
         })
         while True:
-            frame = await websocket.receive()
+            frame = await asyncio.wait_for(websocket.receive(), timeout=receive_timeout)
             if frame["type"] == "websocket.disconnect":
                 break
             try:
@@ -43,6 +47,11 @@ async def room_socket(websocket: WebSocket, room_id: str) -> None:
                 error = CommandError(category="transport", code="INVALID_MESSAGE",
                                      detail="Expected a JSON text message.")
             else:
+                if isinstance(data, dict) and data.get("type") == "HEARTBEAT":
+                    await connections.send_to_connection(
+                        room_id, connection_id, {"type": "HEARTBEAT_ACK"},
+                    )
+                    continue
                 is_command = isinstance(data, dict) and data.get("type") == "GAME_COMMAND"
                 try:
                     message = (GameCommand if is_command else ClientMessage).model_validate(data)
@@ -60,5 +69,7 @@ async def room_socket(websocket: WebSocket, room_id: str) -> None:
                 )
     except WebSocketDisconnect:
         pass
+    except TimeoutError:
+        await websocket.close(code=1001, reason="Heartbeat timed out")
     finally:
         await connections.disconnect(room_id, connection_id)

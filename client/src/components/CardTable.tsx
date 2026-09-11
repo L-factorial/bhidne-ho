@@ -1,7 +1,7 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors, fonts } from '../theme';
 
-export type TablePlayer = { id: string; name: string; bid: number; tricks: number; cardsRemaining: number };
+export type TablePlayer = { id: string; name: string; bid: number; tricks: number; cardsRemaining: number; connected?: boolean };
 type Props = {
   players: TablePlayer[]; viewerId: string; activePlayerId: string; width: number;
   plays: { playerId: string; card: string }[];
@@ -19,11 +19,11 @@ export function CardTable({ players, viewerId, activePlayerId, width, plays, pen
         const play = plays[playIndex];
         return <View key={player.id} style={styles.column}>
           <View testID={mine ? 'your-seat' : 'opponent-seat'}
-            accessibilityLabel={`${mine ? 'You' : player.name}${dealerId === player.id ? ', dealer' : ''}, ${bidPending ? 'bid pending' : `bid ${player.bid}, ${player.tricks} tricks won`}${active ? ', current turn' : ''}`}
-            style={[styles.seat, active && styles.active]}>
+            accessibilityLabel={`${mine ? 'You' : player.name}${dealerId === player.id ? ', dealer' : ''}, ${bidPending ? 'bid pending' : `bid ${player.bid}, ${player.tricks} tricks won`}${active ? ', current turn' : ''}${player.connected === false ? ', disconnected' : ''}`}
+            style={[styles.seat, active && styles.active, player.connected === false && styles.disconnected]}>
             <Text numberOfLines={1} style={styles.name}>{mine ? `You · P${player.id}` : `Player ${player.id}`}</Text>
             <Text style={styles.stats}>{bidPending ? 'Bid —' : `${player.tricks}/${player.bid} tricks`}</Text>
-            <Text style={[styles.turn, active && styles.turnActive]}>{active ? (mine ? 'Your turn' : 'Playing') : dealerId === player.id ? 'Dealer' : ' '}</Text>
+            <Text style={[styles.turn, active && styles.turnActive]}>{player.connected === false ? 'Offline' : active ? (mine ? 'Your turn' : 'Playing') : dealerId === player.id ? 'Dealer' : ' '}</Text>
           </View>
           <View style={styles.playArea}>
             {play ? <View accessibilityLabel={`${mine ? 'You' : player.name} played ${play.card}${playIndex === 0 ? ', led this trick' : ''}`}>
@@ -45,6 +45,7 @@ const styles = StyleSheet.create({
   column: { flex: 1, minWidth: 0, alignItems: 'center' },
   seat: { width: '100%', minHeight: 72, borderWidth: 2, borderColor: 'transparent', borderRadius: 10,
     backgroundColor: '#183750', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2, paddingVertical: 6, gap: 4 },
+  disconnected: { borderColor: '#A78166', borderStyle: 'dashed' },
   active: { borderColor: colors.champagne, backgroundColor: '#29475B' },
   name: { color: colors.ivory, fontFamily: fonts.medium, fontSize: 11 },
   stats: { color: colors.champagne, fontFamily: fonts.body, fontSize: 10 },

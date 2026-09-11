@@ -91,3 +91,35 @@ async def test_concurrent_signup_preserves_one_account():
     assert sum(isinstance(result, UsernameTakenError) for result in results) == 1
     winner = next(result for result in results if not isinstance(result, Exception))
     assert (await auth.sign_in('alice', 'testing-password')).user_id == winner.user_id
+
+
+def test_heartbeat_is_connection_local_and_does_not_advance_game():
+    with TestClient(create_app()) as client:
+        account = client.post('/auth/guest').json()
+        url = f"/ws/rooms/heartbeat?token={account['token']}"
+        with client.websocket_connect(url) as first, client.websocket_connect(url) as second:
+            first.receive_json()
+            second.receive_json()
+            first.send_json({"type": "HEARTBEAT"})
+            assert first.receive_json() == {"type": "HEARTBEAT_ACK"}
+            first.send_json({"type": "GAME_COMMAND", "command": "PING"})
+            for socket in (first, second):
+                event = socket.receive_json()
+                assert event['event'] == 'PONG'
+                assert event['payload']['sequence'] == 1
+
+
+def test_silent_heartbeat_client_is_removed_from_presence(monkeypatch):
+    from starlette.websockets import WebSocketDisconnect
+    from app.transport import websocket
+    monkeypatch.setattr(websocket, 'HEARTBEAT_TIMEOUT_SECONDS', 0.1)
+    with TestClient(create_app()) as client:
+        account = client.post('/auth/guest').json()
+        room = client.post('/rooms', headers=headers(account), json={'name': 'Heartbeat timeout'}).json()
+        with client.websocket_connect(f"/ws/rooms/{room['room_id']}?token={account['token']}&heartbeat=1") as socket:
+            socket.receive_json()
+            with pytest.raises(WebSocketDisconnect) as error:
+                socket.receive_json()
+            assert error.value.code == 1001
+        directory = client.get('/rooms', headers=headers(account)).json()
+        assert next(r for r in directory if r['room_id'] == room['room_id'])['members'] == []

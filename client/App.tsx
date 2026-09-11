@@ -6,10 +6,12 @@ import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
 import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
+import { apiUrl } from './src/multiplayer/api';
+import { readSession } from './src/multiplayer/session';
 import { SharedRoomsScreen } from './src/screens/SharedRoomsScreen';
 
 export default function App() {
-  const [inRooms, setInRooms] = useState(false);
+  const [inRooms, setInRooms] = useState(() => !!readSession(apiUrl));
   const [loaded, error] = useFonts({ CormorantGaramond_600SemiBold, Inter_400Regular, Inter_500Medium });
   if (!loaded && !error) return null;
   return (

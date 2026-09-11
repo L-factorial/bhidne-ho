@@ -13,7 +13,7 @@ export type PlayMode = 'manual' | 'auto';
 type Trick = { trick_number: number; plays: { player_id: number; card: string }[]; complete: boolean; winner?: number };
 export type RoomSnapshot = {
   status: 'empty' | 'waiting' | 'playing' | 'finished'; match_id?: string; capacity?: number;
-  players?: { player_id: number; user_id: string }[]; your_player_id?: number | null; can_join?: boolean;
+  players?: { player_id: number; user_id: string; connected?: boolean }[]; your_player_id?: number | null; can_join?: boolean;
   play_mode?: PlayMode; remaining_ms?: number | null; error?: string | null;
   game?: { revision: number; phase: string; finished: boolean; winners: number[]; turn: { player_id: number | null };
     current_trick: Trick | null; scores_tenths: number[] };
@@ -67,6 +67,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   </View>;
   const isTurn = !!snapshot.your_player_id && game.turn.player_id === snapshot.your_player_id;
   const players = deal.players.map(player => ({ id: String(player.player_id), name: `Player ${player.player_id}`,
+    connected: snapshot.players?.find(p => p.player_id === player.player_id)?.connected,
     bid: player.bid ?? 0, tricks: player.tricks_won, cardsRemaining: player.cards_remaining }));
   const last = [...deal.tricks].reverse().find(trick => trick.complete);
   const trick = game.current_trick;
