@@ -95,15 +95,23 @@ function renderTestGame() {
   $('game-roster').replaceChildren();
   for (const player of testGame?.players || []) {
     const badge = document.createElement('span'); badge.className = 'seat';
-    badge.textContent = playerLabel(player.player_id) + (player.player_id === 1 ? ' · first dealer' : '');
+    badge.textContent = playerLabel(player.player_id) + (player.player_id === 1 ? ' · creator' : '');
     badge.title = player.user_id; $('game-roster').append(badge);
   }
   $('game-live').hidden = !testGame?.game;
   if (!connected) { $('game-status').textContent = 'Connect to a room to create or join a game.'; }
   else if (!testGame || testGame.status === 'empty') { $('game-status').textContent = 'No Call Break game yet. Choose four or five players and create one.'; }
-  else if (waiting) { $('game-status').textContent = `${testGame.players.length}/${testGame.capacity} seats filled. Starts automatically when full.${testGame.your_player_id ? ' You are seated.' : ' Join to take the next seat.'}`; }
+  else if (waiting) { $('game-status').textContent = `${testGame.players.length}/${testGame.capacity} seats filled. The creator starts when all seats are filled.${testGame.your_player_id ? ' You are seated.' : ' Join to take the next seat.'}`; }
   else { $('game-status').textContent = testGame.error || `Deal ${testGame.deal.deal_number} of 5 · attempt ${testGame.deal.attempt} · dealer ${playerLabel(testGame.deal.dealer)}${testGame.your_player_id ? '' : ' · You are watching'}`; }
-  if (!testGame?.game) return;
+  if (!testGame?.game) {
+    $('game-actions').replaceChildren();
+    if (waiting && testGame.is_creator) {
+      $('game-live').hidden = false;
+      actionButton('Start player play', () => testGameRequest('/start', {match_id: testGame.match_id, play_mode: 'manual'}), $('game-actions'), testGame.ready);
+      actionButton('Start autoplay', () => testGameRequest('/start', {match_id: testGame.match_id, play_mode: 'auto'}), $('game-actions'), testGame.ready);
+    }
+    return;
+  }
   const {game, deal, private: mine, rules} = testGame;
   const turn = game.turn, isTurn = turn.player_id === testGame.your_player_id && !!testGame.your_player_id;
   $('game-turn').textContent = game.finished ? `Match complete · Winner${game.winners.length > 1 ? 's' : ''}: ${game.winners.map(playerLabel).join(', ')}` :

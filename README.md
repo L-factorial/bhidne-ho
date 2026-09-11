@@ -10,6 +10,8 @@ the shared adapter handles full gameplay; production runtime integration remains
 
 ## Documentation
 
+- [Web and mobile client](client/README.md): Expo/React Native welcome screen with guest and social sign-in previews. Run `cd client && npm ci && npm run web`.
+
 - [Call Break test console](docs/test-callbreak-console.md): creating/joining games, three-second fallback, private hands and test-only endpoints.
 - [Dealer, shuffle and cut flow](docs/callbreak-preparation.md): implemented preparation phases, adapter dispatch, and a runnable example.
 - [Adapter command/event contract](docs/callbreak-adapter-contract.md): incoming commands, broadcast/unicast schemas, and implementation boundaries.

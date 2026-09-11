@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -47,6 +48,13 @@ def create_app() -> FastAPI:
         # Uvicorn closes active sockets before lifespan teardown.
 
     app = FastAPI(title="Bhidne Ho", lifespan=lifespan)
+    # Local Expo web clients use a separate origin from the API.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[f"http://{host}:{port}" for host in ("localhost", "127.0.0.1") for port in (8081, 8083)],
+        allow_methods=["GET", "POST"],
+        allow_headers=["Authorization", "Content-Type"],
+    )
     app.include_router(http.router)
     app.include_router(websocket.router)
     app.include_router(test_game_router)

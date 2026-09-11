@@ -39,18 +39,20 @@ async def host(n, timeout=3):
 
 
 @pytest.mark.parametrize("n", [4, 5])
-async def test_first_seats_auto_start_and_complete_all_five_deals(n):
+async def test_full_table_waits_for_creator_then_completes_all_five_deals(n):
     service, delivery = await host(n, timeout=0.001)
     try:
         waiting = await service.create("room", "u0", n)
         assert waiting["status"] == "waiting" and waiting["your_player_id"] == 1
         for i in range(1, n):
             snapshot = await service.join("room", f"u{i}", waiting["match_id"])
-            assert snapshot["status"] == ("playing" if i == n - 1 else "waiting")
+            assert snapshot["status"] == "waiting"
         game = service.games["room"]
-        assert game.state.initial_dealer == 1 and game.state.phase == Phase.AWAITING_SHUFFLE
+        assert game.state is None and game.task is None
+        snapshot = await service.start("room", "u0", waiting["match_id"])
+        assert 1 <= game.state.initial_dealer <= n and game.state.phase == Phase.AWAITING_SHUFFLE
         assert game.users == [f"u{i}" for i in range(n)]
-        assert snapshot["game"]["turn"]["player_id"] == 1
+        assert snapshot["game"]["turn"]["player_id"] == game.state.initial_dealer
         with pytest.raises(HTTPException):
             await service.join("room", f"u{n}", waiting["match_id"])
         spectator = await service.snapshot("room", f"u{n}")
@@ -74,6 +76,17 @@ async def test_first_seats_auto_start_and_complete_all_five_deals(n):
         assert all(e["protocol_version"] == 1 and e["match_id"] == game.match_id for e in events)
         snapshot = await service.snapshot("room", "u0")
         assert snapshot["status"] == "finished" and snapshot["remaining_ms"] is None
+        assert len(snapshot["deal_history"]) == 5
+        for history, completed in zip(snapshot["deal_history"], game.state.completed_deals):
+            assert history["complete"] and history["deal_number"] == completed.deal.number
+            for row in history["players"]:
+                seat = row["player_id"] - 1
+                assert row["bid"] == completed.deal.players[seat].bid
+                assert row["tricks_won"] == completed.result.tricks_won[seat]
+                assert row["score_tenths"] == completed.result.score_tenths[seat]
+                assert (row["score_tenths"] < 0) == (row["tricks_won"] < row["bid"])
+                assert "hand" not in row
+
         replacement = await service.create("room", "u0", n)
         assert replacement["match_id"] != waiting["match_id"]
     finally:
@@ -87,17 +100,22 @@ async def test_manual_actions_stale_commands_and_three_second_deadline():
         for i in range(1, 4):
             await service.join("room", f"u{i}", waiting["match_id"])
         game = service.games["room"]
+        await service.start("room", "u0", waiting["match_id"])
+        dealer = game.state.initial_dealer
+        dealer_user = f"u{dealer - 1}"
+        cutter = dealer % 4 + 1
+        cutter_user = f"u{cutter - 1}"
         initial_deadline = game.deadline
         assert 2.5 < game.deadline - time.monotonic() <= 3
         body = GameAction(match_id=game.match_id, expected_revision=game.state.revision, command="SHUFFLE_DECK")
         with pytest.raises(HTTPException):
-            await service.action("room", "u1", body)
+            await service.action("room", cutter_user, body)
         assert game.deadline == initial_deadline
-        result = await service.action("room", "u0", body)
-        assert result["game"]["phase"] == "AWAITING_CUT" and game.state.current_player == 2
+        result = await service.action("room", dealer_user, body)
+        assert result["game"]["phase"] == "AWAITING_CUT" and game.state.current_player == cutter
         with pytest.raises(HTTPException):
-            await service.action("room", "u0", body)
-        for user, command in [("u1", "SKIP_CUT"), ("u0", "START_DISTRIBUTION")]:
+            await service.action("room", dealer_user, body)
+        for user, command in [(cutter_user, "SKIP_CUT"), (dealer_user, "START_DISTRIBUTION")]:
             await service.action("room", user, GameAction(match_id=game.match_id, expected_revision=game.state.revision, command=command))
         assert game.state.phase == Phase.HAND_REVIEW
         audit_match(game.state)
@@ -107,6 +125,10 @@ async def test_manual_actions_stale_commands_and_three_second_deadline():
         review_deadline = game.deadline
         await service.action("room", "u0", GameAction(match_id=game.match_id, expected_revision=game.state.revision, command="ACCEPT_HAND"))
         assert game.deadline == review_deadline
+        history = (await service.snapshot("room", "u0"))["deal_history"]
+        assert len(history) == 1 and not history[0]["complete"]
+        assert all(row["bid"] is None and row["score_tenths"] is None for row in history[0]["players"])
+
         with pytest.raises(HTTPException) as error:
             await service.action("room", "u4", GameAction(match_id=game.match_id, expected_revision=game.state.revision, command="ACCEPT_HAND"))
         assert error.value.status_code == 403
@@ -146,6 +168,12 @@ def test_console_http_auth_lobby_and_validation():
         match_id = response.json()['match_id']
         for h in headers[1:]:
             assert client.post('/test-games/room/join', headers=h, json={"match_id": match_id}).status_code == 200
+        assert client.post('/test-games/room/start', headers=headers[1], json={'match_id': match_id}).status_code == 403
+        assert client.post('/test-games/room/start', headers=headers[0], json={'match_id': match_id, 'play_mode': 'invalid'}).status_code == 422
+        started = client.post('/test-games/room/start', headers=headers[0], json={'match_id': match_id, 'play_mode': 'manual'})
+        assert started.status_code == 200
+        assert started.json()['play_mode'] == 'manual'
+        assert started.json()['remaining_ms'] is None
         state = client.get('/test-games/room', headers=headers[0]).json()
         assert state['game']['phase'] == 'AWAITING_SHUFFLE'
         assert client.post('/test-games/room/action', headers=headers[0], json={
@@ -153,3 +181,86 @@ def test_console_http_auth_lobby_and_validation():
             "command": "SHUFFLE_DECK", "player_id": 1}).status_code == 422
         assert 'Call Break test game' in client.get('/').text
         assert client.get('/test-ui/test-games.js').status_code == 200
+
+
+async def test_creator_settings_start_quorum_and_locking():
+    from app.test_games.http import GameSettings
+    service, _ = await host(4)
+    try:
+        game = await service.create("room", "u0", 4)
+        mid = game["match_id"]
+        settings = GameSettings(match_id=mid, weak_hand_enabled=False, no_spades_enabled=False,
+                                payments=[10, 20, 30, 0])
+        with pytest.raises(HTTPException) as error:
+            await service.start("room", "u0", mid)
+        assert error.value.status_code == 409
+        with pytest.raises(HTTPException) as error:
+            await service.configure("room", "u1", settings)
+        assert error.value.status_code == 403
+        await service.configure("room", "u0", settings)
+        for i in range(1, 4):
+            snapshot = await service.join("room", f"u{i}", mid)
+        assert snapshot["ready"] and snapshot["settings"]["payments"] == [10, 20, 30, 0]
+        assert not snapshot["is_creator"] and snapshot["status"] == "waiting"
+        with pytest.raises(HTTPException):
+            await service.start("room", "u0", "stale")
+        snapshot = await service.start("room", "u0", mid)
+        assert not snapshot["rules"]["redeal"]["weak_hand_enabled"]
+        assert not snapshot["rules"]["redeal"]["no_spades_enabled"]
+        with pytest.raises(HTTPException):
+            await service.configure("room", "u0", settings)
+        with pytest.raises(HTTPException):
+            await service.start("room", "u0", mid)
+    finally:
+        await service.close()
+
+
+@pytest.mark.parametrize("n", [4, 5])
+async def test_player_play_waits_for_input_and_completes_match(n):
+    service, delivery = await host(n, timeout=0.001)
+    try:
+        waiting = await service.create("room", "u0", n)
+        for i in range(1, n):
+            await service.join("room", f"u{i}", waiting["match_id"])
+        snapshot = await service.start("room", "u0", waiting["match_id"], "manual")
+        game = service.games["room"]
+        assert snapshot["play_mode"] == "manual"
+        assert snapshot["remaining_ms"] is None and snapshot["timeout_seconds"] is None
+        assert game.task is None
+        checked_phases = set()
+        while game.state.phase != Phase.MATCH_COMPLETE:
+            phase = game.state.phase
+            if phase not in checked_phases:
+                revision = game.state.revision
+                await asyncio.sleep(0.02)
+                assert game.state.revision == revision
+                checked_phases.add(phase)
+            actor = game.state.current_player
+            payload = {}
+            if phase == Phase.HAND_REVIEW:
+                actor = next(p for p in game.state.config.players if p not in game.state.current_deal.accepted_hands)
+                command = "ACCEPT_HAND"
+            elif phase == Phase.BIDDING:
+                command, payload = "PLACE_BID", {"amount": 2}
+            elif phase == Phase.PLAYING:
+                view = await service.snapshot("room", f"u{actor - 1}")
+                command, payload = "PLAY_CARD", {"card": view["private"]["legal_cards"][-1]}
+            else:
+                command = {Phase.AWAITING_SHUFFLE: "SHUFFLE_DECK", Phase.AWAITING_CUT: "SKIP_CUT",
+                           Phase.AWAITING_DISTRIBUTION: "START_DISTRIBUTION"}[phase]
+            body = GameAction(match_id=game.match_id, expected_revision=game.state.revision,
+                              command=command, payload=payload)
+            if phase in (Phase.BIDDING, Phase.PLAYING) and game.state.current_deal.number == 1:
+                revision = game.state.revision
+                with pytest.raises(HTTPException):
+                    await service.action("room", f"u{actor % n}", body)
+                assert game.state.revision == revision
+            snapshot = await service.action("room", f"u{actor - 1}", body)
+            assert snapshot["remaining_ms"] is None and game.deadline is None
+        audit_match(game.state)
+        assert len(game.state.completed_deals) == 5
+        assert all(p.bid == 2 for d in game.state.completed_deals for p in d.deal.players)
+        assert not any(data.get("event") == "AutoAction" for _, data in delivery.public)
+        assert {Phase.BIDDING, Phase.PLAYING, Phase.HAND_REVIEW} <= checked_phases
+    finally:
+        await service.close()

@@ -1,0 +1,20 @@
+import type { RoomSnapshot } from '../screens/LiveGameTable';
+
+// Timer-only polls must not generate another notification.
+export function notificationKey(snapshot: RoomSnapshot | null): string {
+  if (!snapshot?.match_id) return '';
+  return JSON.stringify([snapshot.match_id, snapshot.status, snapshot.game?.revision,
+    snapshot.players?.length, snapshot.settings, snapshot.error]);
+}
+
+export function notificationText(snapshot: RoomSnapshot): string {
+  if (snapshot.error) return snapshot.error;
+  if (snapshot.game?.finished) return 'Game complete · see the final scores';
+  if (snapshot.status === 'waiting') return snapshot.ready ? 'Everyone is ready · the creator can start' : `${snapshot.players?.length}/${snapshot.capacity} players seated`;
+  const phase = snapshot.game?.phase;
+  const yourTurn = !!snapshot.your_player_id && snapshot.game?.turn.player_id === snapshot.your_player_id;
+  if (yourTurn) return phase === 'BIDDING' ? 'Your turn to bid' : phase === 'PLAYING' ? 'Your turn to play a card' : 'Your turn · return to the table';
+  if (phase === 'HAND_REVIEW') return 'Your cards are ready · review your hand';
+  if (phase === 'BIDDING') return 'Bidding is open';
+  return `Deal ${snapshot.deal?.deal_number || 1} · ${phase?.replaceAll('_', ' ').toLowerCase() || 'Game updated'}`;
+}

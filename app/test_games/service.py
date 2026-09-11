@@ -10,6 +10,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 
 from card_utils import Rank, Suit, shuffle, standard_52
+from callbreak.house_rules import RedealPolicy
 from callbreak import (
     CompleteShuffle, GameConfig, GameQuery, MatchState, Phase, PrepareDeal,
     available_cards, create_match,
@@ -25,12 +26,14 @@ class HostedGame:
     capacity: int
     users: list[str]
     match_id: str = field(default_factory=lambda: uuid4().hex)
+    settings: dict = field(default_factory=lambda: {"weak_hand_enabled": True, "no_spades_enabled": True, "payments": [0, 0, 0, 0]})
     state: MatchState | None = None
     deadline: float | None = None
     task: asyncio.Task | None = None
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     log: list[dict] = field(default_factory=list)
     error: str | None = None
+    play_mode: str = "auto"
 
 
 class TestGameService:
@@ -62,10 +65,13 @@ class TestGameService:
         result = {
             "room_id": game.room_id, "match_id": game.match_id, "capacity": game.capacity,
             "players": [{"player_id": i + 1, "user_id": u} for i, u in enumerate(game.users)],
+            "is_creator": user_id == game.users[0],
+            "ready": len(game.users) == game.capacity, "settings": game.settings,
             "your_player_id": seat, "status": "waiting" if game.state is None else
                 "finished" if game.state.phase == Phase.MATCH_COMPLETE else "playing",
             "can_join": game.state is None and seat is None and len(game.users) < game.capacity,
-            "timeout_seconds": self.timeout_seconds,
+            "play_mode": game.play_mode,
+            "timeout_seconds": self.timeout_seconds if game.play_mode == "auto" else None,
             "remaining_ms": max(0, int((game.deadline - time.monotonic()) * 1000)) if game.deadline else None,
             "log": list(game.log), "error": game.error,
         }
@@ -73,6 +79,9 @@ class TestGameService:
             query = GameQuery(game.state)
             result.update(game=query.get_state(), deal=query.get_deal(), rules=query.get_rules(),
                           scoreboard=query.get_scoreboard(),
+                          deal_history=[{key: deal[key] for key in ("deal_number", "complete", "players")}
+                                        for deal in query.get_deals()],
+                          player_stats=[query.get_player(p) for p in game.state.config.players],
                           private=query.get_player_view(seat) if seat else None)
         return result
 
@@ -109,10 +118,41 @@ class TestGameService:
             if game.state is not None or len(game.users) >= game.capacity:
                 raise HTTPException(409, "The game is full; you can watch it.")
             game.users.append(user_id)
-            if len(game.users) == game.capacity:
-                game.state = create_match(GameConfig(game.capacity), initial_dealer=1)
-                await self._controllers(game)
-                game.deadline = time.monotonic() + self.timeout_seconds
+            await self._publish(game)
+            return self._snapshot(game, user_id)
+
+    async def configure(self, room_id, user_id, body):
+        await self._member(room_id, user_id)
+        game = self._get(room_id)
+        async with game.lock:
+            self._creator(game, user_id, body.match_id)
+            game.settings = body.model_dump(exclude={"match_id"})
+            await self._publish(game)
+            return self._snapshot(game, user_id)
+
+    def _creator(self, game, user_id, match_id):
+        if user_id != game.users[0]:
+            raise HTTPException(403, "Only the game creator can do this.")
+        if match_id != game.match_id or game.state is not None:
+            raise HTTPException(409, "Settings and start are only available before this game begins.")
+
+    async def start(self, room_id, user_id, match_id, play_mode="auto"):
+        await self._member(room_id, user_id)
+        game = self._get(room_id)
+        async with game.lock:
+            self._creator(game, user_id, match_id)
+            if len(game.users) != game.capacity:
+                raise HTTPException(409, "Wait for all players to take a seat.")
+            if play_mode not in ("manual", "auto"):
+                raise HTTPException(422, "Choose manual or auto play.")
+            game.play_mode = play_mode
+            policy = RedealPolicy(weak_hand_enabled=game.settings["weak_hand_enabled"],
+                                  no_spades_enabled=game.settings["no_spades_enabled"])
+            game.state = create_match(GameConfig(game.capacity, redeal_policy=policy),
+                                      initial_dealer=self._random.randint(1, game.capacity))
+            await self._controllers(game)
+            self._deadline(game, None)
+            if game.play_mode == "auto":
                 game.task = asyncio.create_task(self._run(game))
             await self._publish(game)
             return self._snapshot(game, user_id)
@@ -136,7 +176,7 @@ class TestGameService:
             return self._snapshot(game, user_id)
 
     def _deadline(self, game, before):
-        if game.state.phase == Phase.MATCH_COMPLETE:
+        if game.play_mode == "manual" or game.state.phase == Phase.MATCH_COMPLETE:
             game.deadline = None
         elif before != Phase.HAND_REVIEW or game.state.phase != Phase.HAND_REVIEW:
             game.deadline = time.monotonic() + self.timeout_seconds

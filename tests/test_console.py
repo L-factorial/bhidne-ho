@@ -26,6 +26,25 @@ def test_console_assets_and_protected_rooms():
         assert client.post('/rooms', json={'name': 'table'}).status_code == 401
 
 
+def test_expo_room_requests_allow_local_origin_without_bypassing_auth():
+    with TestClient(create_app()) as client:
+        origin = 'http://localhost:8083'
+        response = client.options('/rooms', headers={
+            'Origin': origin, 'Access-Control-Request-Method': 'POST',
+            'Access-Control-Request-Headers': 'authorization,content-type',
+        })
+        assert response.status_code == 200
+        assert response.headers['access-control-allow-origin'] == origin
+        unauthorized = client.get('/rooms', headers={'Origin': origin})
+        assert unauthorized.status_code == 401
+        assert unauthorized.headers['access-control-allow-origin'] == origin
+        rejected = client.options('/rooms', headers={
+            'Origin': 'https://unrelated.example', 'Access-Control-Request-Method': 'POST',
+        })
+        assert rejected.status_code == 400
+        assert 'access-control-allow-origin' not in rejected.headers
+
+
 def test_signup_signin_identity_and_validation():
     with TestClient(create_app()) as client:
         account = register(client, 'Alice')

@@ -13,9 +13,9 @@ to `app/test_games/service.py`; the standalone core has no timers or bots.
    five players, then select **Create Call Break game**.
 3. The creator takes player 1. In the other tabs select **Join game**. Seats are
    assigned to distinct identities in join-game order; the last required entrant
-   starts the game automatically. Room entry alone does not reserve a game seat.
-4. Player 1 is the first dealer. Use **Shuffle deck**, then have player 2 cut or
-   skip. The dealer selects **Distribute cards**. Review/accept hands, bid in
+   fills the table. The game creator then presses Start game; the first dealer is random. Room entry alone does not reserve a game seat.
+4. The randomly selected dealer uses **Shuffle deck**, then the next player cuts or
+   skips. The dealer selects **Distribute cards**. Review/accept hands, bid in
    order, and click an enabled card to play it.
 5. Leave any action unanswered for three seconds to exercise the automatic
    fallback. The countdown and recent activity identify automatic actions.
@@ -102,3 +102,14 @@ The browser polls once per second as a recovery path and receives immediate
 WebSocket snapshots. A countdown is only a display of the server deadline; the
 browser does not choose cards for anyone. Chat and PING continue through the
 existing Echo runtime independently.
+
+### Play mode at start
+
+The creator can choose Player play or Autoplay when starting a full table.
+`POST /test-games/{room_id}/start` accepts `play_mode: "manual" | "auto"` alongside
+`match_id`. Omission keeps the existing autoplay behavior for older clients.
+Manual mode has no background automatic player actions or turn deadlines: players
+shuffle, cut/skip, deal, accept hands, confirm bids, and select legal cards themselves.
+Controller transitions (shuffle completion, scoring, and preparation of the next deal)
+still run on the server. Snapshots expose `play_mode`; `remaining_ms` and
+`timeout_seconds` are null in manual mode. The mode is fixed for the match.
