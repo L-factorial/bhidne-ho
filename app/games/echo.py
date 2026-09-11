@@ -1,5 +1,6 @@
 from app.games.base import GameCommandRejected
 from app.models.game import GameCommand, GameEvent
+from app.runtime.command_runtime import OutgoingEvent
 
 
 class EchoGameEngine:
@@ -18,3 +19,31 @@ class EchoGameEngine:
         return [GameEvent(event="PONG", payload={
             "message": message, "player_id": user_id, "sequence": self.command_count,
         })]
+
+
+class EchoCommandTarget:
+    """Minimal example adapter: rules/state only, no retry or receipt logic."""
+
+    def __init__(self, engine: EchoGameEngine):
+        self.engine = engine
+
+    def authorize(self, user_id):
+        # All authenticated room members may ping; membership is checked by HTTP.
+        pass
+
+    @property
+    def revision(self):
+        return self.engine.command_count
+
+    def checkpoint(self):
+        return self.engine.command_count
+
+    def restore(self, checkpoint):
+        self.engine.command_count = checkpoint
+
+    def apply(self, user_id, command):
+        events = self.engine.handle_command(user_id, GameCommand(command=command.command, payload=command.payload))
+        return [OutgoingEvent(event.model_dump(mode="json")) for event in events]
+
+    def snapshot(self, user_id):
+        return {"game": {"revision": self.revision, "command_count": self.engine.command_count}}

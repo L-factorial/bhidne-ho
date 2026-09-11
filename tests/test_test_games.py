@@ -13,6 +13,7 @@ from app.test_games.http import GameAction
 from app.test_games.service import TestGameService as GameHost
 from callbreak import Phase
 from callbreak.audit import audit_match
+from uuid import uuid4
 
 
 class Delivery:
@@ -91,6 +92,138 @@ async def test_full_table_waits_for_creator_then_completes_all_five_deals(n):
         assert replacement["match_id"] != waiting["match_id"]
     finally:
         await service.close()
+
+
+async def manual_host(n=4):
+    service, delivery = await host(n)
+    waiting = await service.create("room", "u0", n)
+    for i in range(1, n):
+        await service.join("room", f"u{i}", waiting["match_id"])
+    await service.start("room", "u0", waiting["match_id"], "manual")
+    return service, delivery, service.games["room"]
+
+
+def next_action(service, game):
+    actor = game.state.current_player
+    if game.state.phase == Phase.HAND_REVIEW:
+        actor = next(p for p in game.state.config.players if p not in game.state.current_deal.accepted_hands)
+        command, payload = "ACCEPT_HAND", {}
+    else:
+        command, payload = service._heuristic(game.state, actor)
+    return f"u{actor - 1}", GameAction(match_id=game.match_id, command_id=uuid4().hex,
+        expected_revision=game.state.revision, command=command, payload=payload)
+
+
+@pytest.mark.parametrize("n", [4, 5])
+async def test_retry_every_move_through_full_match_and_cancel_delivery(n):
+    service, delivery, game = await manual_host(n)
+    interrupted = set()
+    while game.state.phase != Phase.MATCH_COMPLETE:
+        user, body = next_action(service, game)
+        phase = game.state.phase
+        if phase in (Phase.AWAITING_SHUFFLE, Phase.BIDDING, Phase.PLAYING) and phase not in interrupted:
+            entered = asyncio.Event()
+            original = delivery.broadcast
+
+            async def block(*args):
+                entered.set()
+                await asyncio.Event().wait()
+
+            delivery.broadcast = block
+            task = asyncio.create_task(service.action("room", user, body))
+            await asyncio.wait_for(entered.wait(), 2)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+            delivery.broadcast = original
+            interrupted.add(phase)
+            # The caller never received its response and its socket disappears.
+            await service.rooms.leave("room", user)
+            with pytest.raises(HTTPException) as error:
+                await service.action("room", user, body)
+            assert error.value.status_code == 403
+            await service.rooms.join("room", user)
+            receipt = game.commands.receipts[user, body.command_id][1]
+        else:
+            receipt = (await service.action("room", user, body))["action_ack"]
+        assert receipt["status"] == "accepted"
+        committed_state, deadline = game.state, game.deadline
+        events = len(delivery.public), len(delivery.private_events)
+        first, second = await asyncio.gather(service.action("room", user, body), service.action("room", user, body))
+        assert first["action_ack"] == second["action_ack"] == receipt
+        assert game.state is committed_state and game.deadline == deadline
+        assert (len(delivery.public), len(delivery.private_events)) == events
+        view = await service.snapshot("room", user)
+        for key in ("private", "game", "scoreboard", "deal_history"):
+            assert first[key] == view[key]
+        assert "action_ack" not in view
+    assert interrupted == {Phase.AWAITING_SHUFFLE, Phase.BIDDING, Phase.PLAYING}
+    audit_match(game.state)
+    assert len(game.state.completed_deals) == 5
+    old_body = body
+    replacement = await service.create("room", "u0", n)
+    with pytest.raises(HTTPException) as error:
+        await service.action("room", user, old_body)
+    assert error.value.status_code == 409
+    assert replacement["match_id"] != old_body.match_id
+    await service.close()
+
+
+async def test_action_receipts_rejection_conflict_identity_and_fresh_snapshot():
+    service, delivery, game = await manual_host()
+    user, body = next_action(service, game)
+    other = f"u{(game.state.current_player % 4)}"
+    rejected = await service.action("room", other, body)
+    assert rejected["action_ack"]["status"] == "rejected"
+    accepted = await service.action("room", user, body)
+    assert accepted["action_ack"]["status"] == "accepted"
+    assert (await service.action("room", other, body))["action_ack"] == rejected["action_ack"]
+    conflicting = body.model_copy(update={"expected_revision": game.state.revision})
+    with pytest.raises(HTTPException) as error:
+        await service.action("room", user, conflicting)
+    assert error.value.status_code == 409
+    next_user, next_body = next_action(service, game)
+    # Simultaneous first submissions, not merely repeated calls after completion.
+    results = await asyncio.gather(service.action("room", next_user, next_body), service.action("room", next_user, next_body))
+    assert results[0]["action_ack"] == results[1]["action_ack"]
+    retry = await service.action("room", user, body)
+    assert retry["game"]["revision"] > retry["action_ack"]["revision"]
+    assert retry["action_ack"] == accepted["action_ack"]
+    stale = body.model_copy(update={"command_id": "stale-command"})
+    result = await service.action("room", user, stale)
+    assert result["action_ack"]["status"] == "rejected"
+    assert (await service.action("room", user, stale))["action_ack"] == result["action_ack"]
+    with pytest.raises(HTTPException) as error:
+        await service.action("room", "u4", body)
+    assert error.value.status_code == 403
+    assert not any("action_ack" in data for _, data in delivery.public)
+    game.commands.receipt_limit = len(game.commands.receipts)
+    next_user, next_body = next_action(service, game)
+    state = game.state
+    with pytest.raises(HTTPException) as error:
+        await service.action("room", next_user, next_body)
+    assert error.value.status_code == 409 and game.state is state
+    assert (await service.action("room", user, body))["action_ack"] == accepted["action_ack"]
+    await service.close()
+
+
+async def test_controller_failure_rolls_back_before_retry():
+    service, delivery, game = await manual_host()
+    user, body = next_action(service, game)
+    before, log, events = game.state, list(game.log), len(delivery.public)
+    original = service._apply_controllers
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("simulated controller failure")
+
+    service._apply_controllers = fail
+    with pytest.raises(RuntimeError):
+        await service.action("room", user, body)
+    assert game.state is before and game.log == log and len(delivery.public) == events
+    assert not game.commands.receipts
+    service._apply_controllers = original
+    assert (await service.action("room", user, body))["action_ack"]["status"] == "accepted"
+    await service.close()
 
 
 async def test_manual_actions_stale_commands_and_three_second_deadline():
@@ -179,6 +312,21 @@ def test_console_http_auth_lobby_and_validation():
         assert client.post('/test-games/room/action', headers=headers[0], json={
             "match_id": match_id, "expected_revision": state['game']['revision'],
             "command": "SHUFFLE_DECK", "player_id": 1}).status_code == 422
+        body = {"match_id": match_id, "expected_revision": state['game']['revision'],
+                "command": "SHUFFLE_DECK", "command_id": "http-command-1"}
+        for invalid_id in ["", " ", "x" * 129, 123, "a/b"]:
+            assert client.post('/test-games/room/action', headers=headers[0],
+                               json={**body, "command_id": invalid_id}).status_code == 422
+        dealer_headers = headers[state['game']['turn']['player_id'] - 1]
+        accepted = client.post('/test-games/room/action', headers=dealer_headers, json=body)
+        assert accepted.status_code == 200 and accepted.headers['cache-control'] == 'no-store'
+        assert accepted.json()['action_ack']['status'] == 'accepted'
+        retried = client.post('/test-games/room/action', headers=dealer_headers, json=body)
+        assert retried.json()['action_ack'] == accepted.json()['action_ack']
+        assert retried.json()['game'] == accepted.json()['game']
+        rejected = client.post('/test-games/room/action', headers=dealer_headers,
+                               json={**body, "command_id": "http-command-2"})
+        assert rejected.status_code == 200 and rejected.json()['action_ack']['status'] == 'rejected'
         assert 'Call Break test game' in client.get('/').text
         assert client.get('/test-ui/test-games.js').status_code == 200
 

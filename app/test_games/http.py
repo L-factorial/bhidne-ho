@@ -3,10 +3,11 @@
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Request, Response
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.adapters.callbreak.contracts import COMMAND_SPECS, CommandName
 from app.models.user import UserIdentity
+from app.models.action import ActionCommand
 from app.transport.http import current_user
 
 router = APIRouter(prefix="/test-games", tags=["Test console only"])
@@ -26,10 +27,8 @@ class StartGame(JoinGame):
     play_mode: Literal["manual", "auto"] = "auto"
 
 
-class GameAction(JoinGame):
-    expected_revision: Annotated[int, Field(strict=True, ge=0)]
+class GameAction(ActionCommand):
     command: CommandName
-    payload: dict[str, JsonValue] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def validate_payload(self):

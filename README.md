@@ -10,6 +10,10 @@ the shared adapter handles full gameplay; production runtime integration remains
 
 ## Documentation
 
+- [Shared command infrastructure](docs/shared-game-runtime.md): common runtime/client ownership and how a new game inherits reliable commands; implemented for Call Break and Echo.
+
+- [Reliable game actions](docs/reliable-game-actions.md): command acknowledgments, safe retries across disconnects, private snapshot recovery, protocol limits, and verification.
+
 - [Web and mobile client](client/README.md): Expo/React Native welcome screen with guest and social sign-in previews. Run `cd client && npm ci && npm run web`.
 
 - [Call Break test console](docs/test-callbreak-console.md): creating/joining games, three-second fallback, private hands and test-only endpoints.

@@ -7,11 +7,13 @@ import { LiveBidPrompt } from '../components/LiveBidPrompt';
 import { GameDetails } from '../components/GameDetails';
 import { GameHistory } from '../components/GameHistory';
 import { colors, fonts } from '../theme';
+import type { ActionAck } from '../multiplayer/PendingGameAction';
 
 export type PlayMode = 'manual' | 'auto';
 
 type Trick = { trick_number: number; plays: { player_id: number; card: string }[]; complete: boolean; winner?: number };
 export type RoomSnapshot = {
+  action_ack?: ActionAck;
   status: 'empty' | 'waiting' | 'playing' | 'finished'; match_id?: string; capacity?: number;
   players?: { player_id: number; user_id: string; connected?: boolean }[]; your_player_id?: number | null; can_join?: boolean;
   play_mode?: PlayMode; remaining_ms?: number | null; error?: string | null;

@@ -1,13 +1,18 @@
-import asyncio
 from dataclasses import dataclass, field
 
 from app.games.base import GameEngine
+from app.runtime.command_runtime import CommandSession, CommandTarget
 
 
 @dataclass
 class RoomGame:
     engine: GameEngine
-    lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    command_target: CommandTarget | None = None
+    commands: CommandSession = field(default_factory=CommandSession)
+
+    @property
+    def lock(self):
+        return self.commands.lock
 
 
 class GameRegistry:
@@ -21,12 +26,14 @@ class GameRegistry:
     def __init__(self) -> None:
         self._games: dict[str, RoomGame] = {}
 
-    def register(self, room_id: str, engine: GameEngine) -> None:
+    def register(self, room_id: str, engine: GameEngine, *, command_target: CommandTarget | None = None) -> None:
         if room_id in self._games:
             raise ValueError("Room already has an engine")
         if any(game.engine is engine for game in self._games.values()):
             raise ValueError("Each room must own a separate engine instance")
-        self._games[room_id] = RoomGame(engine)
+        if command_target is not None and any(game.command_target is command_target for game in self._games.values()):
+            raise ValueError("Each room must own a separate command target")
+        self._games[room_id] = RoomGame(engine, command_target)
 
     def get_room(self, room_id: str) -> RoomGame | None:
         return self._games.get(room_id)

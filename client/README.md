@@ -185,8 +185,17 @@ connection retries, and heartbeats. This is independent of Call Break and reusab
 for future games. Each game's client reloads its authoritative state after reconnecting.
 Call Break restores the same seat and private hand and marks disconnected seats
 from the shared room presence list. Manual games wait for that player's input;
-autoplay keeps its existing timeout policy. Commands interrupted by a disconnect
-are never automatically replayed.
+autoplay keeps its existing timeout policy. Player commands carry a stable command
+ID. An interrupted action is automatically reconciled after reconnecting using
+the same ID and original revision; the server returns its recorded outcome without
+applying it twice. Pending actions remain in memory while the room stays mounted.
+See [Reliable game actions](../docs/reliable-game-actions.md) for the HTTP contract,
+retry behavior, lifecycle limits, tests, and manual acceptance procedure.
+
+Call Break now uses the shared `GameCommandClient` and HTTP transport. The server
+uses the same `CommandRuntime` as the Echo test engine; game adapters supply rules,
+rollback checkpoints, and snapshots. See [Shared command infrastructure](../docs/shared-game-runtime.md)
+for the integration guide and common tests required for future games.
 
 Web storage is scoped to both tab and API server. Separate fresh windows can host
 separate guests. Browser tab duplication can copy sessionStorage and therefore reuse

@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useGameNotification } from '../notifications/useGameNotification';
 import { colors, fonts } from '../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LiveGameTable, RoomSnapshot as Snapshot } from '../screens/LiveGameTable';
+import { GameCommandClient, createHttpGameTransport } from '../multiplayer/GameCommandClient';
 
 
 export function RoomGameControl({ roomId, apiUrl, token, connected, members, connectionMessage }: {
@@ -19,6 +20,11 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
   const enteredMatch = useRef<string | null>(null);
   const [capacity, setCapacity] = useState<4 | 5>(4);
   const [pendingAction, setBusy] = useState(false);
+  const base = `${apiUrl}/test-games/${encodeURIComponent(roomId)}`;
+  const transport = useMemo(() => createHttpGameTransport<Snapshot>(base, token), [base, token]);
+  const commandClient = useMemo(() => new GameCommandClient(transport), [transport]);
+  const [actionTick, setActionTick] = useState(0);
+  const [actionNotice, setActionNotice] = useState('');
   const [synced, setSynced] = useState(false);
   const busy = pendingAction || !connected || !synced;
   const [actionError, setError] = useState('');
@@ -29,7 +35,7 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
   const requests = useRef(new Set<AbortController>());
   const offeredMatch = useRef<string | null>(null);
   const canSend = useRef(false);
-  canSend.current = connected && synced;
+  canSend.current = connected && synced && !commandClient.pending;
   const visibleSnapshot = snapshot ? { ...snapshot, players: snapshot.players?.map(player => ({
     ...player, connected: members.includes(player.user_id) && (player.player_id !== snapshot.your_player_id || connected),
   })) } : null;
@@ -39,7 +45,6 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
       setOpen(true);
     }
   }, [snapshot?.can_join, snapshot?.match_id]);
-  const base = `${apiUrl}/test-games/${encodeURIComponent(roomId)}`;
   useEffect(() => {
     if ((snapshot?.ready || snapshot?.game) && snapshot.your_player_id && snapshot.match_id !== enteredMatch.current) {
       enteredMatch.current = snapshot.match_id || null; setLive(true); setOpen(true);
@@ -51,30 +56,30 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
     const abort = () => controller.abort();
     if (signal?.aborted) abort();
     signal?.addEventListener('abort', abort, { once: true });
-    const timeout = setTimeout(abort, 10000);
     try {
-      const response = await fetch(base + suffix, { method: body ? 'POST' : 'GET', signal: controller.signal,
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        ...(body ? { body: JSON.stringify(body) } : {}) });
-      const data = await response.json();
-      if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Game request failed. Try again.');
-      return data;
+      return await transport.request(suffix, body, controller.signal);
     } finally {
-      clearTimeout(timeout); signal?.removeEventListener('abort', abort); requests.current.delete(controller);
+      signal?.removeEventListener('abort', abort); requests.current.delete(controller);
     }
   }
 
   useEffect(() => {
     alive.current = true;
     setSynced(false);
-    if (connected) setError('');
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
     async function refresh() {
       const version = generation.current;
       try {
         if (!pending.current) {
-          const data = await api('', undefined, controller.signal);
+          const hadPending = commandClient.pending;
+          if (hadPending) setActionNotice('Confirming your action…');
+          const result = await commandClient.refresh(controller.signal);
+          if (controller.signal.aborted || generation.current !== version) return;
+          const data = result.snapshot;
+          if (hadPending) {
+            setError(result.error); setBusy(false); setActionNotice('');
+          }
           if (!controller.signal.aborted && generation.current === version) {
             setSnapshot(data); setRefreshError(''); setSynced(true);
           }
@@ -82,6 +87,8 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
       } catch (error) {
         if (!controller.signal.aborted && generation.current === version) {
           const message = error instanceof Error ? error.message : 'Cannot load game.';
+          setSynced(false);
+          if (commandClient.pending) setActionNotice('Connection interrupted. Your action will be checked automatically…');
           // Room connection feedback is already handled by the parent screen.
           setRefreshError(message === 'Connect to this room before using its test game.' ? '' : message);
         }
@@ -93,7 +100,7 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
       alive.current = false; generation.current++; controller.abort(); clearTimeout(timer);
       requests.current.forEach(request => request.abort());
     };
-  }, [base, token, connected]);
+  }, [commandClient, connected, actionTick]);
   async function act(join: boolean) {
     if (!canSend.current || pending.current) return;
     pending.current = true; const version = ++generation.current; setBusy(true); setError('');
@@ -105,13 +112,11 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
   }
   const canCreate = snapshot?.status === 'empty' || snapshot?.status === 'finished';
   async function gameAction(command: string, payload: object = {}) {
-    if (!canSend.current || !snapshot?.game || pending.current) return;
-    pending.current = true; const version = ++generation.current; setBusy(true); setError('');
-    try {
-      const data = await api('/action', { match_id: snapshot.match_id, expected_revision: snapshot.game.revision, command, payload });
-      if (alive.current && generation.current === version) setSnapshot(data);
-    } catch (error) { if (alive.current && generation.current === version) setError(error instanceof Error ? error.message : 'Action failed.'); }
-    finally { pending.current = false; if (alive.current) setBusy(false); }
+    if (!canSend.current || !snapshot?.game || !snapshot.match_id || pending.current) return;
+    if (!commandClient.submit(snapshot, command, payload)) return;
+    canSend.current = false; generation.current++;
+    setBusy(true); setError(''); setActionNotice('Sending your action…');
+    setActionTick(value => value + 1);
   }
   async function lobbyAction(suffix: string, payload: object = {}) {
     if (!canSend.current || !snapshot || pending.current) return;
@@ -156,6 +161,7 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
       <Pressable accessibilityRole="button" onPress={() => { setLive(true); setOpen(true); }} style={styles.button}><Text style={styles.buttonText}>View cards & bidding</Text></Pressable>
     </View>}
     {snapshot?.status === 'finished' && <Pressable accessibilityRole="button" onPress={() => { setLive(true); setOpen(true); }} style={styles.choice}><Text style={styles.text}>View final scores</Text></Pressable>}
+    {!!actionNotice && !open && <Text accessibilityLiveRegion="polite" style={styles.note}>{actionNotice}</Text>}
     {!!error && !open && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     <Modal transparent visible={open} animationType="fade" onRequestClose={collapseGame}>
       {live && snapshot ? <View testID="live-game-backdrop" style={[styles.liveBackdrop, {
@@ -163,6 +169,7 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
         paddingLeft: insets.left, paddingRight: insets.right,
       }]}><View accessibilityViewIsModal testID="live-game-overlay" style={styles.liveOverlay}>
         {(!connected || !synced) && <Text accessibilityRole="alert" style={styles.connectionNotice}>{connectionMessage || (!connected ? 'Reconnecting… Your seat is saved.' : 'Updating game…')}</Text>}
+        {!!actionNotice && <Text accessibilityLiveRegion="polite" style={styles.connectionNotice}>{actionNotice}</Text>}
         <LiveGameTable snapshot={visibleSnapshot || snapshot} busy={busy} error={error} onAction={gameAction} onNewGame={() => { setCapacity(snapshot.capacity === 5 ? 5 : 4); setLive(false); setOpen(true); }} onStart={play_mode => lobbyAction('/start', { play_mode })} onSave={settings => lobbyAction('/settings', settings)} onBack={collapseGame} />
       </View></View> :
       <View style={styles.overlay}><View accessibilityViewIsModal style={styles.modal}>

@@ -8,6 +8,7 @@ from random import SystemRandom
 from uuid import uuid4
 
 from fastapi import HTTPException
+from pydantic import ValidationError
 
 from card_utils import Rank, Suit, shuffle, standard_52
 from callbreak.house_rules import RedealPolicy
@@ -16,6 +17,9 @@ from callbreak import (
     available_cards, create_match,
 )
 from app.adapters.callbreak import AdapterResult, PlayerCommand, dispatch_control, dispatch_player
+from app.adapters.callbreak.host import CallBreakCommandTarget
+from app.games.base import GameCommandRejected
+from app.runtime.command_runtime import CommandAccessError, CommandRuntime, CommandSession, OutgoingEvent
 
 logger = logging.getLogger(__name__)
 
@@ -25,20 +29,28 @@ class HostedGame:
     room_id: str
     capacity: int
     users: list[str]
-    match_id: str = field(default_factory=lambda: uuid4().hex)
+    commands: CommandSession = field(default_factory=CommandSession)
     settings: dict = field(default_factory=lambda: {"weak_hand_enabled": True, "no_spades_enabled": True, "payments": [0, 0, 0, 0]})
     state: MatchState | None = None
     deadline: float | None = None
     task: asyncio.Task | None = None
-    lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     log: list[dict] = field(default_factory=list)
     error: str | None = None
     play_mode: str = "auto"
 
+    @property
+    def match_id(self):
+        return self.commands.match_id
+
+    @property
+    def lock(self):
+        return self.commands.lock
+
 
 class TestGameService:
-    def __init__(self, rooms, connections, timeout_seconds=3.0):
+    def __init__(self, rooms, connections, timeout_seconds=3.0, command_runtime=None):
         self.rooms, self.connections = rooms, connections
+        self.command_runtime = command_runtime or CommandRuntime()
         self.timeout_seconds = timeout_seconds
         self.games: dict[str, HostedGame] = {}
         self._catalog_lock = asyncio.Lock()
@@ -160,20 +172,19 @@ class TestGameService:
     async def action(self, room_id, user_id, body):
         await self._member(room_id, user_id)
         game = self._get(room_id)
-        async with game.lock:
-            if body.match_id != game.match_id or game.state is None:
-                raise HTTPException(409, "This game is not active. Refresh its state.")
-            if user_id not in game.users:
-                raise HTTPException(403, "Spectators cannot play.")
-            if body.expected_revision != game.state.revision:
-                raise HTTPException(409, "The turn changed. Your view has been refreshed; try again.")
-            actor = game.users.index(user_id) + 1
-            before = game.state.phase
-            await self._player(game, actor, body.command, body.payload)
-            await self._controllers(game)
-            self._deadline(game, before)
+        async def deliver(events):
+            for event in events:
+                await self._deliver(game, event)
             await self._publish(game)
-            return self._snapshot(game, user_id)
+
+        try:
+            return await self.command_runtime.execute(
+                game.commands, CallBreakCommandTarget(self, game), user_id, body, deliver)
+        except CommandAccessError as error:
+            raise HTTPException(error.status, error.detail) from error
+        except GameCommandRejected as error:
+            # Legacy requests without command IDs keep their HTTP rejection shape.
+            raise HTTPException(409, error.detail) from error
 
     def _deadline(self, game, before):
         if game.play_mode == "manual" or game.state.phase == Phase.MATCH_COMPLETE:
@@ -182,47 +193,67 @@ class TestGameService:
             game.deadline = time.monotonic() + self.timeout_seconds
         # All reviewing players share the same original three-second window.
 
-    async def _player(self, game, actor, command, payload=None, automatic=False):
+    def _apply_player(self, game, actor, command, payload=None, *, command_id=None):
         context = game.state.preparation or game.state.current_deal or game.state.completed_deals[-1].deal
-        request = PlayerCommand(
-            match_id=game.match_id, deal_number=context.number, attempt=context.attempt,
-            command_id=uuid4().hex, expected_revision=game.state.revision,
-            command=command, payload=payload or {},
-        )
+        try:
+            request = PlayerCommand(
+                match_id=game.match_id, deal_number=context.number, attempt=context.attempt,
+                command_id=command_id or uuid4().hex, expected_revision=game.state.revision,
+                command=command, payload=payload or {},
+            )
+        except ValidationError as error:
+            raise GameCommandRejected("INVALID_COMMAND", "Invalid Call Break command or payload.") from error
         result = dispatch_player(game.state, request, match_id=game.match_id, player_id=actor)
         if not isinstance(result, AdapterResult):
-            raise HTTPException(409, result.detail)
-        await self._record(game, result)
+            raise GameCommandRejected(result.code, result.detail)
+        return self._record(game, result)
+
+    async def _player(self, game, actor, command, payload=None, automatic=False):
+        events = self._apply_player(game, actor, command, payload)
+        for event in events:
+            await self._deliver(game, event)
         if automatic:
-            entry = {"event": "AutoAction", "player_id": actor, "action": request.command.value,
+            entry = {"event": "AutoAction", "player_id": actor, "action": command,
                      "revision": game.state.revision}
             game.log.append(entry)
             await self.connections.broadcast(game.room_id, {"type": "TEST_GAME_EVENT", "match_id": game.match_id, **entry})
         game.log[:] = game.log[-30:]
 
-    async def _controllers(self, game):
+    def _apply_controllers(self, game):
+        events = []
         while game.state.phase in (Phase.AWAITING_DEAL, Phase.DEAL_COMPLETE, Phase.AWAITING_REDEAL, Phase.SHUFFLING):
             command = (CompleteShuffle(shuffle(standard_52(), rng=self._random))
                        if game.state.phase == Phase.SHUFFLING else PrepareDeal())
             result = dispatch_control(game.state, command, match_id=game.match_id)
             if not isinstance(result, AdapterResult):
                 raise RuntimeError(result)
-            await self._record(game, result)
+            events.extend(self._record(game, result))
+        return events
 
-    async def _record(self, game, result):
+    async def _controllers(self, game):
+        for event in self._apply_controllers(game):
+            await self._deliver(game, event)
+
+    def _record(self, game, result):
         game.state = result.state
+        events = []
         for routed in result.messages:
             event = routed.message
             envelope = event.model_dump(mode="json")
             if routed.recipient_player_id is None:
-                await self.connections.broadcast(game.room_id, envelope)
                 if event.event not in ("CARD_DISTRIBUTED", "TURN_CHANGED"):
                     game.log.append({"event": event.event.value, "revision": event.revision,
                                      "payload": envelope["payload"]})
-            else:
-                await self.connections.send_to_room_user(
-                    game.room_id, game.users[routed.recipient_player_id - 1], envelope)
+            recipient = game.users[routed.recipient_player_id - 1] if routed.recipient_player_id else None
+            events.append(OutgoingEvent(envelope, recipient))
         game.log[:] = game.log[-30:]
+        return events
+
+    async def _deliver(self, game, event):
+        if event.recipient is None:
+            await self.connections.broadcast(game.room_id, event.message)
+        else:
+            await self.connections.send_to_room_user(game.room_id, event.recipient, event.message)
 
     async def _publish(self, game):
         for user in await self.rooms.members(game.room_id):

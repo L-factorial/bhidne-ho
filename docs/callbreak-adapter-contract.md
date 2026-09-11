@@ -187,9 +187,10 @@ game event, does not consume an event index, and does not change state. Malforme
 requests whose IDs cannot be trusted can use the transport's existing parsing
 error path; never echo whole malformed requests or credentials.
 
-Implemented `GameQuery` is the read API. Authenticated query/snapshot wire requests,
-pre-match seating/settings messages, transport acknowledgments and their response
-schemas will be separate increments. Snapshot requests never advance state.
+Implemented `GameQuery` is the read API. The test host exposes authenticated
+snapshots, seating/settings requests, and [HTTP action acknowledgments](reliable-game-actions.md).
+Equivalent production transport schemas remain separate work. Snapshot requests
+never advance state.
 
 ## Current flow and remaining plan
 
@@ -203,9 +204,15 @@ schemas will be separate increments. Snapshot requests never advance state.
 7. Plays broadcast, followed by trick results, deal scores and final match results.
    The test host prepares the next deal and owns all timers and fallback choices.
 
-Next: define production snapshot/reconnect handling, command acknowledgment and
-idempotent retries, then durable match storage and production room-runtime integration.
-The test HTTP wrapper currently generates command IDs and fills deal/attempt context
-under its match lock after checking the client's match/revision. It returns HTTP
-errors for rejections; a production transport should use the defined private
-CommandRejected envelope. Do not treat current command IDs as retry guarantees.
+The test host and Expo client now implement [command acknowledgments and safe
+retries](reliable-game-actions.md), with current private snapshots returned on
+retry. Production snapshot/reconnect handling, durable match storage, and
+production room-runtime integration remain separate work.
+The test HTTP wrapper accepts client command IDs and delegates reliability to the
+[shared command runtime](shared-game-runtime.md), also used by Echo. The Call Break
+target fills deal/attempt context under the shared match lock. With an ID, the
+runtime checks stored outcomes before revisions and
+returns an `action_ack` for acceptance or game rejection. Requests without an ID
+retain server-generated IDs and HTTP game errors, without safe retry semantics.
+The HTTP acknowledgment is separate from the adapter's private CommandRejected
+envelope; see the linked guide for authorization errors and retention limits.

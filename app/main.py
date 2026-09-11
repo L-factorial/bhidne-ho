@@ -7,13 +7,13 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.auth.service import InMemoryAuthService
-from app.games.echo import EchoGameEngine
+from app.games.echo import EchoCommandTarget, EchoGameEngine
 from app.runtime.game_registry import GameRegistry
 from app.multiplayer.connection_manager import ConnectionManager
 from app.multiplayer.presence import PresenceService
 from app.multiplayer.room_service import RoomService
 from app.runtime.game_runtime import GameRuntime
-from app.transport import http, websocket
+from app.transport import game_actions, http, websocket
 from app.test_games.service import TestGameService
 from app.test_games.http import router as test_game_router
 
@@ -29,17 +29,18 @@ def create_app() -> FastAPI:
         app.state.rooms = rooms
         app.state.presence = PresenceService(rooms)
         app.state.connections = connections
-        app.state.test_games = TestGameService(rooms, connections)
         registry = GameRegistry()
         app.state.game_registry = registry
 
         def provision_room(room_id: str) -> None:
             # Composition root selects the engine; transport only invokes this hook.
             if registry.get_engine(room_id) is None:
-                registry.register(room_id, EchoGameEngine())
+                engine = EchoGameEngine()
+                registry.register(room_id, engine, command_target=EchoCommandTarget(engine))
 
         app.state.provision_room = provision_room
         app.state.runtime = GameRuntime(connections, registry)
+        app.state.test_games = TestGameService(rooms, connections, command_runtime=app.state.runtime.commands)
         try:
             yield
         finally:
@@ -57,6 +58,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(http.router)
     app.include_router(websocket.router)
+    app.include_router(game_actions.router)
     app.include_router(test_game_router)
     static = Path(__file__).parent / "test_ui"
     app.mount("/test-ui", StaticFiles(directory=static), name="test-ui")
