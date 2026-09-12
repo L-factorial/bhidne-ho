@@ -143,3 +143,22 @@ def test_http_phrases_and_pokes_enforce_membership_identity_and_length():
         assert sent.status_code == 200 and sent.json()['scope'] == 'private'
         removed = client.delete('/me/phrases/' + phrase.json()['id'], headers=headers[0])
         assert removed.status_code == 200
+
+
+def test_personal_phrase_update_preserves_id_and_enforces_owner_length_and_duplicates():
+    with TestClient(create_app()) as client:
+        users = [client.post('/auth/guest').json() for _ in range(2)]
+        headers = [{'Authorization': f"Bearer {u['token']}"} for u in users]
+        phrase = client.post('/me/phrases', headers=headers[0], json={'text': 'Before'}).json()
+        path = '/me/phrases/' + phrase['id']
+        assert client.patch(path, json={'text': 'After'}).status_code == 401
+        assert client.patch(path, headers=headers[1], json={'text': 'After'}).status_code == 404
+        for text in ['', 'x' * 26]:
+            assert client.patch(path, headers=headers[0], json={'text': text}).status_code == 422
+        changed = client.patch(path, headers=headers[0], json={'text': 'After'})
+        assert changed.status_code == 200 and changed.headers['cache-control'] == 'no-store'
+        assert changed.json() == {**phrase, 'text': 'After'}
+        client.post('/me/phrases', headers=headers[0], json={'text': 'Another'})
+        assert client.patch(path, headers=headers[0], json={'text': 'another'}).status_code == 409
+        assert client.get('/me/phrases', headers=headers[0]).json()[0]['text'] == 'After'
+        assert client.get('/me/phrases', headers=headers[1]).json() == []

@@ -26,7 +26,7 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay }: {
           const position = cards.length > 1 ? (index / (cards.length - 1)) * 2 - 1 : 0;
           const angle = index * 10 + groupAngle - spread / 2;
           const legal = legalCards.includes(card), enabled = canPlay && legal;
-          const red = /[HD]$/.test(card);
+          const red = /[HD]$/.test(card), club = suitOf(card) === 'C';
           return <Pressable key={card} accessibilityRole="button" accessibilityLabel={`Play ${card}`}
             accessibilityState={{ disabled: !enabled }} disabled={!enabled} onPress={() => onPlay(card)}
             style={({ pressed }) => [styles.card, enabled && styles.legal, {
@@ -38,8 +38,8 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay }: {
               opacity: canPlay && !legal ? 0.55 : 1,
             }]}>
             <View style={styles.corner}>
-              <Text style={[styles.rank, red && styles.red]}>{card.slice(0, -1)}</Text>
-              <Text style={[styles.smallSuit, red && styles.red]}>{suits[suitOf(card)]}</Text>
+              <Text style={[styles.rank, red && styles.red, club && styles.club]}>{card.slice(0, -1)}</Text>
+              <Text style={[styles.smallSuit, red && styles.red, club && styles.club]}>{suits[suitOf(card)]}</Text>
             </View>
           </Pressable>;
         })}
@@ -55,6 +55,7 @@ const styles = StyleSheet.create({
   legal: { borderColor: colors.copper },
   corner: { position: 'absolute', top: 3, left: 5, alignItems: 'center' },
   rank: { fontFamily: fonts.medium, fontSize: 17, lineHeight: 21, color: colors.ink },
-  smallSuit: { fontSize: 17, lineHeight: 21, color: colors.ink },
+  smallSuit: { fontSize: 23, lineHeight: 27, fontWeight: 'bold', color: colors.ink },
+  club: { color: '#176342' },
   red: { color: '#A33332' },
 });

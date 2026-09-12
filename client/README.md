@@ -185,8 +185,8 @@ the room is open, not operating-system push notifications.
 Tap another online player's seat at the live table to send a private poke. Tap
 the played-card area or the table-talk hint to send a message to everyone in the
 room. Choose a quick phrase or type your own, up to **25 characters**. Save it
-with **Save to my phrases** in the composer. After login, **My goofy phrases**
-lets you manage your private collection before joining a room and reuse it across
+with **Save to my phrases** in the composer. After login, open **Profile** to manage
+**My goofy phrases**. Add, edit (tap a saved phrase), or delete entries, then reuse them across
 Call Break rooms. Each player has up to 24 phrases. Collections currently reset
 with backend restarts or a new guest identity.
 
@@ -247,3 +247,43 @@ bearer token and room membership. The server serializes ending with game actions
 timers, and replacement, publishes an `ended` snapshot, and preserves the existing
 state for inspection. Repeating the same end request is safe; a stale match ID
 cannot end a replacement game. Other players see the ended state on refresh.
+
+
+The browser regression in `tests/browser/end-game.cjs` starts a waiting game,
+checks that repeated snapshot refreshes leave exactly one End game button, and
+checks cancellation, confirmation, and starting another game. It mocks HTTP and
+WebSocket data, so it does not create rooms on the backend. With Expo web running
+at `http://localhost:8081` and Playwright available, run from `client/`:
+
+```sh
+node tests/browser/end-game.cjs
+```
+
+For an external Playwright installation, set `PLAYWRIGHT_MODULE` to its absolute
+module path. Chrome is used by default; set `CHROME_EXECUTABLE` for a custom path.
+The test also rejects React duplicate-key warnings. The end control and live
+table must have distinct sibling keys, even when they belong to the same match.
+
+
+### Game display names
+
+Open **Profile**, enter **Display name**, and choose **Save name**. Names are at
+most 25 Unicode characters; whitespace is normalized and control characters are
+rejected. Clear the field to return to the default player number. Names appear
+on live seats, turn notices, and winner announcements, updating on the next game
+snapshot without changing seat ownership or game state. Names need not be unique.
+
+`GET /me/profile` reads `{display_name}`; `PATCH /me/profile` updates it using the
+same shape. Authentication determines whose profile changes. Display names are
+public to fellow room players through game snapshots; saved phrase collections
+remain private. Names are keyed by user identity across rooms and account sessions,
+but are currently in memory and reset with the backend.
+
+
+The signed-in directory has a Nepali brand header with Profile and Sign out.
+Create room / Join with code and Available rooms are independent sections, both
+collapsed by default and reset to collapsed when returning from a room. Profile
+holds the display name and private phrase collection; visible game seats use each
+player's saved name and mark the local seat You.
+`tests/browser/display-names.cjs` checks default collapsed sections, form toggles,
+four distinct profiles, and each saved name at all four tables using mocked data.

@@ -24,6 +24,16 @@ class PlayerPhraseService:
         phrases.append(phrase)
         return dict(phrase)
 
+    async def update_phrase(self, user_id, phrase_id, text):
+        phrases = self.collections.get(user_id, [])
+        phrase = next((p for p in phrases if p["id"] == phrase_id), None)
+        if not phrase:
+            raise HTTPException(404, "That phrase is not in your collection.")
+        if any(p["id"] != phrase_id and p["text"].casefold() == text.casefold() for p in phrases):
+            raise HTTPException(409, "You already have that phrase.")
+        phrase["text"] = text
+        return dict(phrase)
+
     async def remove_phrase(self, user_id, phrase_id):
         phrases = self.collections.get(user_id, [])
         phrase = next((p for p in phrases if p["id"] == phrase_id), None)

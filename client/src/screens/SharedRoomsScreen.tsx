@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CallBreakTableScreen } from './CallBreakTableScreen';
 import { colors, fonts } from '../theme';
-import { PlayerPhrases } from '../components/PlayerPhrases';
+import { ProfileScreen } from './ProfileScreen';
 import { usePlayerPhrases } from '../multiplayer/usePlayerPhrases';
 import { RoomGameControl } from '../components/RoomGameControl';
 
@@ -14,6 +14,9 @@ import { useRoomSession } from '../multiplayer/useRoomSession';
 export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
   const insets = useSafeAreaInsets();
   const wide = useWindowDimensions().width >= 900;
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [roomToolsOpen, setRoomToolsOpen] = useState(false);
+  const [roomsOpen, setRoomsOpen] = useState(false);
   const [form, setForm] = useState<'create' | 'join'>('create');
   const [testingOpen, setTestingOpen] = useState(false);
   const [preview, setPreview] = useState(false);
@@ -28,7 +31,7 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   function leaveRoom() {
-    shared.leaveRoom(); setPreview(false); setTestingOpen(false); setError('');
+    shared.leaveRoom(); setRoomToolsOpen(false); setRoomsOpen(false); setPreview(false); setTestingOpen(false); setError('');
   }
   function joinRoom(target: Room) {
     shared.joinRoom(target); setPreview(false); setTestingOpen(false); setError('');
@@ -52,16 +55,21 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
   return <ScrollView style={styles.page} contentContainerStyle={[styles.container, {
     paddingTop: Math.max(insets.top, 24), paddingBottom: Math.max(insets.bottom, 28),
   }]}>
+    {session && !expired && <Modal visible={profileOpen} animationType="slide" onRequestClose={() => setProfileOpen(false)}>
+      <ProfileScreen session={session} personal={personal} onBack={() => setProfileOpen(false)} />
+    </Modal>}
     <View style={styles.content}>
       <View style={styles.header}>
-        <Text style={styles.brand}>♠ Bhidne Ho</Text>
+        <Text accessibilityRole="header" style={styles.brand}>भिड्ने हो?</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8 }}>
+        {session && !expired && <Pressable accessibilityRole="button" accessibilityLabel="Open profile" onPress={() => setProfileOpen(true)} style={styles.textButton}><Text style={styles.lightText}>Profile</Text></Pressable>}
         <Pressable accessibilityRole="button" onPress={room && !expired ? leaveRoom : signOut} style={styles.textButton}>
           <Text style={styles.lightText}>{room && !expired ? '← All rooms' : 'Sign out'}</Text>
         </Pressable>
+        </View>
       </View>
       {!!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{error || shared.error}</Text>}
       {room && !expired && shared.status !== 'connected' && <Text accessibilityLiveRegion="polite" style={styles.subtitle}>Reconnecting to your room…</Text>}
-      {session && !expired && <PlayerPhrases key={session.user_id} phrases={personal.phrases} userId={session.user_id} connected={!expired} loadError={personal.error} onSave={personal.save} onRemove={personal.remove} />}
       {room ? <>
         <View style={styles.hero}>
           <Text style={styles.eyebrow}>YOUR ROOM</Text>
@@ -113,21 +121,18 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
           </View>}
         </View>
       </> : <>
-        <View style={styles.hero}>
-          <Text style={styles.eyebrow}>GOOD CARDS. BETTER COMPANY.</Text>
-          <Text accessibilityRole="header" style={[styles.title, !wide && styles.mobileTitle]}>भिड्ने हो?</Text>
-          <Text style={styles.subtitle}>Pull up a chair. Your next round starts here.</Text>
-        </View>
         {!session && <View><Text style={styles.subtitle}>{shared.error ? 'Guest connection unavailable.' : 'Connecting as a guest…'}</Text>
           {!!shared.error && <Pressable accessibilityRole="button" onPress={shared.retry} style={styles.button}><Text style={styles.buttonText}>Retry connection</Text></Pressable>}</View>}
-        <View style={[styles.columns, wide && styles.wideColumns]}>
-          <View style={[styles.sideColumn, wide && styles.fixedSide, styles.panel]}>
+        <View style={[styles.columns, { marginTop: 24 }]}>
+          <View style={styles.panel}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Create room / Join with code" aria-expanded={roomToolsOpen} accessibilityState={{ expanded: roomToolsOpen }} onPress={() => setRoomToolsOpen(value => !value)} style={styles.sectionToggle}>
+              <Text style={styles.sectionTitle}>Create room / Join with code</Text><Text style={styles.sectionTitle}>{roomToolsOpen ? '-' : '+'}</Text>
+            </Pressable>
+            {roomToolsOpen && <View>
             <View style={styles.gameTabs}>
               <Pressable accessibilityRole="button" accessibilityState={{ selected: form === 'create' }} onPress={() => setForm('create')} style={[styles.gameTab, form === 'create' && styles.selectedTab]}><Text style={[styles.tabText, form === 'create' && styles.selectedTabText]}>Create room</Text></Pressable>
               <Pressable accessibilityRole="button" accessibilityState={{ selected: form === 'join' }} onPress={() => setForm('join')} style={[styles.gameTab, form === 'join' && styles.selectedTab]}><Text style={[styles.tabText, form === 'join' && styles.selectedTabText]}>Join with code</Text></Pressable>
             </View>
-            <Text accessibilityRole="header" style={styles.heading}>{form === 'create' ? 'Make room for friends.' : 'Your seat is waiting.'}</Text>
-            <Text style={styles.description}>{form === 'create' ? 'Give your room a name. Everyone can find it in the list.' : 'Enter the table code your friend shared.'}</Text>
             {form === 'create' ? <>
               <TextInput accessibilityLabel="Room name" value={name} onChangeText={setName} maxLength={60} placeholder="e.g. Friday friends" placeholderTextColor={colors.muted} style={styles.input} editable={!busy} />
               <Pressable accessibilityRole="button" disabled={!session || busy || expired} accessibilityState={{ disabled: !session || busy || expired }} onPress={createRoom} style={[styles.button, (!session || busy || expired) && styles.disabled]}><Text style={styles.buttonText}>Create and enter room</Text></Pressable>
@@ -139,27 +144,31 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
               }} style={[styles.button, (!session || busy || expired) && styles.disabled]}><Text style={styles.buttonText}>Enter with table code</Text></Pressable>
             </>}
             {busy && <Text accessibilityLiveRegion="polite" style={styles.description}>Entering room…</Text>}
+            </View>}
           </View>
-          <View style={[styles.mainColumn, styles.panel]}>
-            <Text accessibilityRole="header" style={styles.heading}>Available rooms</Text>
-            <Text style={styles.description}>Open to everyone. Pick a room and say hello.</Text>
+          <View style={styles.panel}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Available rooms" aria-expanded={roomsOpen} accessibilityState={{ expanded: roomsOpen }} onPress={() => setRoomsOpen(value => !value)} style={styles.sectionToggle}>
+              <Text style={styles.sectionTitle}>Available rooms</Text><Text style={styles.sectionTitle}>{roomsOpen ? '-' : '+'}</Text>
+            </Pressable>
+            {roomsOpen && <View>
             {session && !rooms.length && <View style={styles.comingSoon}><Text style={styles.heading}>The first table is yours.</Text><Text style={styles.description}>Create a room to get things started.</Text></View>}
             {rooms.map(item => <View key={item.room_id} style={styles.roomRow}>
               <View style={{ flex: 1 }}><Text style={styles.directoryName}>{item.name}</Text><Text selectable style={styles.description}>Table code: {item.room_id}</Text><Text style={styles.description}>{item.members.length} connected</Text></View>
               <Pressable accessibilityRole="button" accessibilityLabel={`Enter ${item.name}`} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => joinRoom(item)} style={[styles.enterButton, busy && styles.disabled]}><Text style={styles.enterText}>Enter →</Text></Pressable>
             </View>)}
+            </View>}
           </View>
         </View>
-        <Text style={styles.footer}>Rooms and guest sessions reset when the server restarts.</Text>
       </>}
     </View>
   </ScrollView>;
 }
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.navy }, container: { alignItems: 'center', paddingHorizontal: 20 }, content: { width: '100%', maxWidth: 1120 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16, borderBottomWidth: 1, borderColor: '#FFFFFF19', paddingBottom: 18 },
-  brand: { fontFamily: fonts.display, fontSize: 30, color: colors.champagne }, textButton: { minHeight: 44, justifyContent: 'center' }, lightText: { fontFamily: fonts.medium, fontSize: 12, color: colors.champagne },
+  header: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16, borderBottomWidth: 1, borderColor: '#FFFFFF19', paddingBottom: 18 },
+  brand: { fontFamily: fonts.body, fontSize: 26, color: colors.champagne }, textButton: { minHeight: 44, justifyContent: 'center' }, lightText: { fontFamily: fonts.medium, fontSize: 12, color: colors.champagne },
   hero: { paddingVertical: 32, gap: 10 }, eyebrow: { fontFamily: fonts.medium, fontSize: 9, letterSpacing: 2, color: colors.champagne }, title: { fontFamily: fonts.display, fontSize: 52, color: colors.ivory }, mobileTitle: { fontSize: 38 }, subtitle: { fontFamily: fonts.body, fontSize: 13, lineHeight: 23, color: '#BBC9D6' },
+  sectionToggle: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, sectionTitle: { fontFamily: fonts.medium, fontSize: 14, color: colors.ink },
   columns: { gap: 20 }, wideColumns: { flexDirection: 'row', alignItems: 'flex-start' }, sideColumn: { gap: 18 }, fixedSide: { width: 330 }, mainColumn: { flex: 1, minWidth: 0 },
   panel: { backgroundColor: colors.ivory, borderRadius: 16, padding: 24, gap: 8 }, heading: { fontFamily: fonts.display, fontSize: 27, color: colors.ink }, description: { fontFamily: fonts.body, fontSize: 12, lineHeight: 21, color: colors.muted },
   gameTabs: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 }, gameTab: { minHeight: 44, paddingHorizontal: 12, justifyContent: 'center', borderRadius: 8, backgroundColor: '#EAE5DC' }, selectedTab: { backgroundColor: colors.ink }, tabText: { fontFamily: fonts.medium, fontSize: 12, color: colors.muted }, selectedTabText: { color: colors.ivory }, eyebrowDark: { fontFamily: fonts.medium, fontSize: 9, letterSpacing: 2, color: colors.copper }, gameTitle: { fontFamily: fonts.display, fontSize: 34, color: colors.ink },

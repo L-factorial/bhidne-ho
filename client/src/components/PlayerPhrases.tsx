@@ -3,17 +3,19 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { limitPokeText, pokeTextLength, type PlayerPhrase } from '../multiplayer/pokes';
 import { colors, fonts } from '../theme';
 
-export function PlayerPhrases({ phrases, userId, connected, loadError, onSave, onRemove }: {
+export function PlayerPhrases({ phrases, userId, connected, loadError, onSave, onRemove, onUpdate }: {
   phrases: PlayerPhrase[]; userId: string; connected: boolean; loadError: string;
+  onUpdate: (id: string, text: string) => Promise<void>;
   onSave: (text: string) => Promise<void>; onRemove: (id: string) => Promise<void>;
 }) {
   const [open, setOpen] = useState(true), [text, setText] = useState(''), [error, setError] = useState('');
+  const [editing, setEditing] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
   async function change(id?: string) {
     if (pending.current || !connected || (!id && !text.trim())) return;
     pending.current = true; setBusy(true); setError('');
-    try { if (id) await onRemove(id); else { await onSave(text.trim()); setText(''); } }
+    try { if (id) { await onRemove(id); if (editing === id) { setEditing(null); setText(''); } } else { if (editing) await onUpdate(editing, text.trim()); else await onSave(text.trim()); setText(''); setEditing(null); } }
     catch (error) { setError(error instanceof Error ? error.message : 'Could not update punchlines.'); }
     finally { pending.current = false; setBusy(false); }
   }
@@ -24,16 +26,21 @@ export function PlayerPhrases({ phrases, userId, connected, loadError, onSave, o
     {open && <View style={styles.body}>
       <Text style={styles.note}>Your keywords. Your inside jokes. Create phrases up to 25 characters. Use them later in any Call Break room by tapping a player or the card area.</Text>
       <View style={styles.phrases}>{phrases.map(phrase => <View key={phrase.id} style={styles.chip}>
-        <Text style={styles.phrase}>{phrase.text}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Edit phrase ${phrase.text}`} disabled={busy || !connected}
+          onPress={() => { setEditing(phrase.id); setText(phrase.text); setError(''); }} style={{ minHeight: 44, justifyContent: 'center', flexShrink: 1 }}>
+          <Text style={styles.phrase}>{phrase.text}</Text>
+        </Pressable>
         {phrase.created_by === userId && <Pressable accessibilityRole="button" accessibilityLabel={`Remove punchline ${phrase.text}`}
           disabled={busy || !connected} onPress={() => void change(phrase.id)} style={styles.remove}><Text style={styles.removeText}>×</Text></Pressable>}
       </View>)}</View>
+      {editing && <View style={styles.toggle}><Text style={styles.note}>Editing phrase</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="Cancel editing" disabled={busy} onPress={() => { setEditing(null); setText(''); setError(''); }} style={styles.remove}><Text style={styles.note}>Cancel</Text></Pressable></View>}
       <TextInput accessibilityLabel="New personal phrase, 25 characters maximum" value={text} onChangeText={value => setText(limitPokeText(value))}
         maxLength={50} editable={!busy && connected} placeholder="A keyword or punchline…" placeholderTextColor={colors.muted} style={styles.input}
         returnKeyType="done" onSubmitEditing={() => void change()} />
       <View style={styles.toggle}><Text style={styles.note}>{pokeTextLength(text)}/25 · Only you can see your collection</Text>
         <Pressable accessibilityRole="button" accessibilityLabel="Save personal phrase" disabled={busy || !connected || !text.trim()}
-          onPress={() => void change()} style={[styles.add, (busy || !connected || !text.trim()) && { opacity: 0.45 }]}><Text style={styles.addText}>{busy ? 'Saving…' : 'Save'}</Text></Pressable></View>
+          onPress={() => void change()} style={[styles.add, (busy || !connected || !text.trim()) && { opacity: 0.45 }]}><Text style={styles.addText}>{busy ? 'Saving…' : editing ? 'Update' : 'Save'}</Text></Pressable></View>
       {!!(error || loadError) && <Text accessibilityRole="alert" style={styles.error}>{error || loadError}</Text>}
     </View>}
   </View>;

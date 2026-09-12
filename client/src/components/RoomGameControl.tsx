@@ -140,7 +140,7 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
     : snapshot.status === 'waiting' ? `Call Break · ${snapshot.players?.length}/${snapshot.capacity} players ready`
     : snapshot.status === 'ended' ? 'Call Break ? Ended by the creator' : snapshot.status === 'finished' ? 'Call Break · Game finished' : `Call Break · ${snapshot.game?.phase.replaceAll('_', ' ').toLowerCase() || 'In progress'}`;
   const endControl = snapshot?.is_creator && !canCreate
-    ? <EndGameControl key={snapshot.match_id} busy={busy} onEnd={() => lobbyAction('/end')} /> : null;
+    ? <EndGameControl key={`end-${snapshot.match_id}`} busy={busy} onEnd={() => lobbyAction('/end')} /> : null;
   return <>
     {collapsed && <View style={styles.returnPanel}>
       <Animated.View style={{ opacity: notification.opacity }}>
@@ -216,7 +216,7 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
             </Pressable>)}</View>
             <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => act(false)} style={styles.button}><Text style={styles.buttonText}>Create Call Break game</Text></Pressable>
           </> : <>
-            {snapshot?.players?.map(player => <Text key={player.player_id} style={styles.player}>Seat {player.player_id} · {player.player_id === snapshot.your_player_id ? 'You' : `Player ${player.player_id}`}</Text>)}
+            {snapshot?.players?.map(player => <Text key={player.player_id} style={styles.player}>Seat {player.player_id} · {player.player_id === snapshot.your_player_id ? 'You' : player.display_name || `Player ${player.player_id}`}</Text>)}
             {!!snapshot?.your_player_id && <Text style={styles.text}>You are seated as player {snapshot.your_player_id}.</Text>}
             {snapshot?.status === 'waiting' && <Text style={styles.text}>Waiting for {(snapshot.capacity || 0) - (snapshot.players?.length || 0)} more players. The table opens when all seats are filled. The creator then starts the game.</Text>}
             {snapshot?.status === 'playing' && !snapshot.your_player_id && <Text style={styles.text}>The game is full. You are watching its status.</Text>}

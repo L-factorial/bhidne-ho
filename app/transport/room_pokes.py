@@ -33,3 +33,10 @@ async def poke(room_id: str, body: CallBreakPokeInput, request: Request, respons
                user: UserIdentity = Depends(current_user)):
     response.headers["Cache-Control"] = "no-store"
     return await request.app.state.test_games.poke(room_id, user.user_id, body, request.app.state.room_pokes)
+
+
+@router.patch("/me/phrases/{phrase_id}")
+async def update_phrase(phrase_id: str, body: PlayerPhraseInput, request: Request, response: Response,
+                        user: UserIdentity = Depends(current_user)):
+    response.headers["Cache-Control"] = "no-store"
+    return await request.app.state.player_phrases.update_phrase(user.user_id, phrase_id, body.text)

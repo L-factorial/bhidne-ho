@@ -44,5 +44,11 @@ export function usePlayerPhrases(identity: Session | null, connected: boolean) {
     generation.current++;
     if (!active.aborted) setPhrases(current => current.filter(p => p.id !== id));
   }
-  return { phrases, error, save, remove };
+  async function update(id: string, text: string) {
+    const active = signal(); generation.current++;
+    const phrase = await request<PlayerPhrase>(`${base}/${encodeURIComponent(id)}`, session, { text }, active, 'PATCH');
+    generation.current++;
+    if (!active.aborted) setPhrases(current => current.map(p => p.id === id ? phrase : p));
+  }
+  return { phrases, error, save, remove, update };
 }

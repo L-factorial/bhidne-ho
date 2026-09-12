@@ -49,8 +49,9 @@ class HostedGame:
 
 
 class TestGameService:
-    def __init__(self, rooms, connections, timeout_seconds=3.0, command_runtime=None):
+    def __init__(self, rooms, connections, timeout_seconds=3.0, command_runtime=None, profiles=None):
         self.rooms, self.connections = rooms, connections
+        self.profiles = profiles
         self.command_runtime = command_runtime or CommandRuntime()
         self.timeout_seconds = timeout_seconds
         self.games: dict[str, HostedGame] = {}
@@ -77,7 +78,7 @@ class TestGameService:
         seat = game.users.index(user_id) + 1 if user_id in game.users else None
         result = {
             "room_id": game.room_id, "match_id": game.match_id, "capacity": game.capacity,
-            "players": [{"player_id": i + 1, "user_id": u} for i, u in enumerate(game.users)],
+            "players": [{"player_id": i + 1, "user_id": u, "display_name": self.profiles.name(u, i + 1) if self.profiles else f"Player {i + 1}"} for i, u in enumerate(game.users)],
             "is_creator": user_id == game.users[0],
             "ready": len(game.users) == game.capacity, "settings": game.settings,
             "your_player_id": seat, "status": "ended" if game.ended else "waiting" if game.state is None else

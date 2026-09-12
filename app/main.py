@@ -14,8 +14,9 @@ from app.multiplayer.presence import PresenceService
 from app.multiplayer.room_service import RoomService
 from app.multiplayer.room_pokes import RoomPokeService
 from app.multiplayer.player_phrases import PlayerPhraseService
+from app.multiplayer.player_profiles import PlayerProfileService
 from app.runtime.game_runtime import GameRuntime
-from app.transport import game_actions, http, room_pokes, websocket
+from app.transport import game_actions, http, room_pokes, websocket, player_profiles
 from app.test_games.service import TestGameService
 from app.test_games.http import router as test_game_router
 
@@ -31,6 +32,7 @@ def create_app() -> FastAPI:
         app.state.rooms = rooms
         app.state.presence = PresenceService(rooms)
         app.state.connections = connections
+        app.state.player_profiles = PlayerProfileService()
         app.state.player_phrases = PlayerPhraseService()
         app.state.room_pokes = RoomPokeService(rooms, connections)
         registry = GameRegistry()
@@ -44,7 +46,7 @@ def create_app() -> FastAPI:
 
         app.state.provision_room = provision_room
         app.state.runtime = GameRuntime(connections, registry)
-        app.state.test_games = TestGameService(rooms, connections, command_runtime=app.state.runtime.commands)
+        app.state.test_games = TestGameService(rooms, connections, command_runtime=app.state.runtime.commands, profiles=app.state.player_profiles)
         try:
             yield
         finally:
@@ -57,13 +59,14 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[f"http://{host}:{port}" for host in ("localhost", "127.0.0.1") for port in (8081, 8083)],
-        allow_methods=["GET", "POST", "DELETE"],
+        allow_methods=["GET", "POST", "DELETE", "PATCH"],
         allow_headers=["Authorization", "Content-Type"],
     )
     app.include_router(http.router)
     app.include_router(websocket.router)
     app.include_router(game_actions.router)
     app.include_router(room_pokes.router)
+    app.include_router(player_profiles.router)
     app.include_router(test_game_router)
     static = Path(__file__).parent / "test_ui"
     app.mount("/test-ui", StaticFiles(directory=static), name="test-ui")

@@ -275,3 +275,22 @@ replay and deck operations, alongside existing multiplayer regressions.
 The platform adapter, private WebSocket delivery, browser gameplay UI, durable
 storage, network retry handling, and disconnect/timeout policy remain separate
 integration work. The standalone core does not import or alter those services.
+
+
+## Validation after distribution
+
+The reducer checks the actual distributed hands with `audit_deal` before committing
+any deal state or emitting card events. All standard cards must appear exactly once:
+
+- Four players: 13 cards each, no undealt cards, 52 unique cards in the hands.
+- Five players: 10 cards each plus two undealt cards, 52 unique cards in total.
+
+Duplicate cards within or across hands, missing/extra cards, incorrect hand sizes,
+missing players, and an incorrect undealt pile reject the command with
+`INVALID_DISTRIBUTION`. The previous state and revision remain unchanged; no card
+or distribution events are returned. This check applies to `StartDeal`,
+`StartDistribution`, and `Redeal`, in addition to the existing input-deck validation.
+The engine does not silently repair or redeal a corrupt distribution.
+
+`tests/test_distribution_validation.py` covers valid four/five-player output and
+injects corrupted distributor output through all three entry points.

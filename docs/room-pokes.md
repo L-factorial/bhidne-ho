@@ -14,8 +14,9 @@ ordinary emoji; the server enforces the same limit.
 - Choose a quick phrase, choose a personal saved phrase, or type your own text.
   Sending is explicit: the button names the target player or everyone.
 - Use **Save to my phrases** in the composer to keep a custom phrase for later.
-- After login, **My goofy phrases** is expanded so you can create and remove
-  personal phrases before joining a room. Your collection is private to your
+- After login, open **Profile** to create, edit, and remove phrases under
+  **My goofy phrases**. Tap a saved phrase to edit it, then choose **Update**.
+  Phrase management is on the profile page, separate from the room directory. Your collection is private to your
   authenticated identity and follows you across rooms and matches. Other players
   see a phrase only when you send it to them. Other tabs using the same identity
   refresh the collection within about two seconds.
@@ -61,6 +62,7 @@ a connected room socket; phrase ownership comes exclusively from the token:
 | --- | --- |
 | `GET /me/phrases` | Return `{id, text, created_by}` entries for the authenticated player. |
 | `POST /me/phrases` | Create/reuse a phrase from `{text}`; HTTP 201. |
+| `PATCH /me/phrases/{id}` | Update your phrase from `{text}`, keeping its ID; duplicate text returns 409. |
 | `DELETE /me/phrases/{id}` | Delete the requesting user's own phrase. |
 | `POST /test-games/{room_id}/poke` | Send `{match_id, recipient_player_id, text}`. Null/omitted recipient means table broadcast. |
 
@@ -125,9 +127,10 @@ npm run typecheck
 npm run build:web
 ```
 
-A two-player Chrome check at a 360-pixel viewport verified the personal section
-before room entry, the 25-character input limit, saving, retaining the collection
-after page reload, isolation from another login, and deletion with no browser errors.
+A two-player Chrome check at a 360-pixel viewport against an isolated backend
+verified Profile navigation, no phrase widget in the directory, creating and
+editing phrases, the 25-character input limit, retention after page reload,
+isolation from another login, and deletion with no browser errors.
 
 The original four-player Chrome test at a 320-pixel viewport verified creating a
 custom phrase, limiting input to 25 characters, private delivery only to Player 2,
@@ -135,7 +138,7 @@ broadcast delivery to all four players, visible bright-to-dim animation, automat
 disappearance, reduced-motion behavior, and unchanged game revision. Screenshots
 were inspected. Native-device behavior has not been manually checked.
 
-To try it manually, create a four-player manual game, save a personal phrase after login,
+To try it manually, create a four-player manual game, save a personal phrase in Profile,
 tap Player 2 from Player 1's table and send it. Confirm that only Player 2 sees
 the private popup. Then tap the card area and send a table message: all players
 should see it fade away while play remains available.

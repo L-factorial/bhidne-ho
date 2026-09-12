@@ -25,7 +25,7 @@ export function CardTable({ players, viewerId, activePlayerId, width, plays, pen
             disabled={!onPokePlayer || mine || player.connected === false} onPress={() => onPokePlayer?.(player.id)}
             accessibilityLabel={`${mine ? 'You' : player.name}${dealerId === player.id ? ', dealer' : ''}, ${bidPending ? 'bid pending' : `bid ${player.bid}, ${player.tricks} tricks won`}${active ? ', current turn' : ''}${player.connected === false ? ', disconnected' : ''}`}
             style={[styles.seat, active && styles.active, player.connected === false && styles.disconnected]}>
-            <Text numberOfLines={1} style={styles.name}>{mine ? `You · P${player.id}` : `Player ${player.id}`}</Text>
+            <Text numberOfLines={1} style={styles.name}>{mine ? `${player.name} · You` : player.name}</Text>
             <Text style={styles.stats}>{bidPending ? 'Bid —' : `${player.tricks}/${player.bid} tricks`}</Text>
             <Text style={[styles.turn, active && styles.turnActive]}>{player.connected === false ? 'Offline' : active ? (mine ? 'Your turn' : 'Playing') : dealerId === player.id ? 'Dealer' : ' '}</Text>
           </Pressable>
@@ -34,7 +34,7 @@ export function CardTable({ players, viewerId, activePlayerId, width, plays, pen
             disabled={!onPokeTable} onPress={onPokeTable}>
             {play ? <View accessibilityLabel={`${mine ? 'You' : player.name} played ${play.card}${playIndex === 0 ? ', led this trick' : ''}`}>
               <View style={styles.playedCard}>
-                <Text style={[styles.playedText, /[♥♦]/.test(play.card) && styles.red]}>{play.card}</Text>
+                <Text style={[styles.playedText, /[♥♦]/.test(play.card) && styles.red, play.card.endsWith('♣') && styles.club]}>{play.card}</Text>
               </View>
               <Text style={styles.playOrder}>{playIndex === 0 ? 'Led' : `Play ${playIndex + 1}`}</Text>
             </View> : <Text style={styles.empty}>{active ? '•••' : '—'}</Text>}
@@ -62,6 +62,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.line },
   playedText: { fontFamily: fonts.display, fontSize: 24, color: colors.ink },
   red: { color: '#A33332' },
+  club: { color: '#176342' },
   playOrder: { color: '#C1CBD5', fontFamily: fonts.body, fontSize: 10, textAlign: 'center', marginTop: 6 },
   empty: { color: '#60768B', fontSize: 18 },
 });

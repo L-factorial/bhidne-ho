@@ -9,7 +9,7 @@ export class ApiError extends Error {
   constructor(status: number, message: string) { super(message); this.status = status; }
 }
 
-export async function request<T>(path: string, session: Session | null, body?: object, signal?: AbortSignal, method?: 'DELETE'): Promise<T> {
+export async function request<T>(path: string, session: Session | null, body?: object, signal?: AbortSignal, method?: 'DELETE' | 'PATCH'): Promise<T> {
   const controller = new AbortController();
   const abort = () => controller.abort();
   if (signal?.aborted) abort();

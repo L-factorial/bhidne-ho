@@ -8,6 +8,7 @@ from dataclasses import replace
 
 from card_utils import Card, cut, deal as distribute, standard_52
 
+from .audit import audit_deal
 from .commands import AcceptHand, ClaimRedeal, PlaceBid, PlayCard, Redeal, StartDeal
 from .commands import PrepareDeal, ShuffleDeck, CompleteShuffle, CutDeck, SkipCut, StartDistribution
 from .config import GameConfig, advance
@@ -92,12 +93,21 @@ def apply_control(state: MatchState, command: StartDeal | Redeal | PrepareDeal |
 
 def _distribute(state, deck, number, dealer, attempt, retry=False, old=None, individual=False):
     hands, unused = distribute(deck, state.config.player_count, state.config.tricks_per_deal)
+    if len(hands) != state.config.player_count:
+        return _reject("INVALID_DISTRIBUTION", "The deal must account for all 52 cards exactly once.")
     by_player = {
         advance(dealer, state.config.player_count, i + 1): hand
         for i, hand in enumerate(hands)
     }
     current = DealState(number, attempt, dealer,
                         tuple(PlayerDealState(p, by_player[p]) for p in state.config.players), unused)
+    # Validate the actual output, not just the input deck, before committing a
+    # state transition or emitting any hand/card events. Five players leave two
+    # cards undealt; those cards are part of the same 52-card conservation check.
+    try:
+        audit_deal(current, state.config)
+    except ValueError:
+        return _reject("INVALID_DISTRIBUTION", "The deal must account for all 52 cards exactly once with the correct hand sizes.")
     phase = Phase.HAND_REVIEW if state.config.redeal_policy.enabled else Phase.BIDDING
     updated = replace(state, phase=phase, current_deal=current, preparation=None,
                       abandoned_attempts=state.abandoned_attempts + ((old,) if retry else ()))
