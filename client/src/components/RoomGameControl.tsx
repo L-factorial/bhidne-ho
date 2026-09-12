@@ -113,7 +113,10 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
     pending.current = true; const version = ++generation.current; setBusy(true); setError('');
     try {
       const data = await api(join ? '/join' : '', join ? { match_id: snapshot?.match_id } : { player_count: capacity, game_type: gameType });
-      if (alive.current && generation.current === version) { setSnapshot(data); setOpen(true); }
+      if (alive.current && generation.current === version) {
+        enteredMatch.current = data.match_id || null;
+        setSnapshot(data); setLive(true); setOpen(true);
+      }
     } catch (error) { if (alive.current && generation.current === version) setError(error instanceof Error ? error.message : 'Cannot update game.'); }
     finally { pending.current = false; if (alive.current) setBusy(false); }
   }
@@ -146,9 +149,9 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
   const endControl = snapshot?.is_creator && !canCreate
     ? <EndGameControl key={`end-${snapshot.match_id}`} busy={busy} onEnd={() => lobbyAction('/end')} /> : null;
   const leaveControl = snapshot?.status === 'waiting' && snapshot.your_player_id
-    ? <Pressable accessibilityRole="button" accessibilityLabel="Leave game" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => void lobbyAction('/leave')} style={styles.choice}><Text style={styles.text}>Leave game</Text></Pressable> : null;
+    ? <Pressable accessibilityRole="button" accessibilityLabel="Leave game" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => void lobbyAction('/leave')} style={styles.choice}><Text style={[styles.text, live && open && { color: colors.ivory }]}>Leave game</Text></Pressable> : null;
   return <>
-    {snapshot?.match_id && snapshot.can_join && !snapshot.your_player_id && !snapshot.is_creator && dismissedInvitation !== snapshot.match_id && <View testID="game-created-notice" style={styles.invitation}>
+    {!open && snapshot?.match_id && snapshot.can_join && !snapshot.your_player_id && !snapshot.is_creator && dismissedInvitation !== snapshot.match_id && <View testID="game-created-notice" style={styles.invitation}>
       <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.summary}>A new {gameName} game is ready!</Text>
       <Text style={styles.text}>Someone in your room created a game. Take a seat to play.</Text>
       <View style={styles.choices}>
@@ -212,15 +215,21 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
         paddingTop: insets.top, paddingBottom: insets.bottom,
         paddingLeft: insets.left, paddingRight: insets.right,
       }]}><View accessibilityViewIsModal testID="live-game-overlay" style={styles.liveOverlay}>
+        {snapshot.can_join && !snapshot.your_player_id && <View testID="in-game-invitation" style={[styles.invitation, { padding: 14, margin: 12, marginBottom: 0 }]}>
+          <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={styles.summary}>A new {gameName} game is ready!</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Join game" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => void act(true)} style={styles.button}>
+            <Text style={styles.buttonText}>Join game</Text>
+          </Pressable>
+        </View>}
         {(!connected || !synced) && <Text accessibilityRole="alert" style={styles.connectionNotice}>{connectionMessage || (!connected ? 'Reconnecting… Your seat is saved.' : 'Updating game…')}</Text>}
         {!!actionNotice && <Text accessibilityLiveRegion="polite" style={styles.connectionNotice}>{actionNotice}</Text>}
-        {leaveControl}
+        {snapshot.game_type !== 'marriage' && leaveControl}
         {snapshot.status === 'ended' ? <View style={styles.body}>
           <Text style={[styles.title, { color: colors.ivory }]}>Game ended</Text>
           <Text style={[styles.text, { color: colors.ivory }]}>The creator ended this game. The room is still open for another round.</Text>
           <Pressable accessibilityRole="button" onPress={() => { setLive(false); setOpen(true); }} style={styles.button}><Text style={styles.buttonText}>Start a new game</Text></Pressable>
           <Pressable accessibilityRole="button" onPress={collapseGame} style={styles.button}><Text style={styles.buttonText}>Back to room</Text></Pressable>
-        </View> : snapshot.game_type === 'marriage' ? <MarriageTable key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={error}
+        </View> : snapshot.game_type === 'marriage' ? <MarriageTable key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={error} lobbyControl={leaveControl}
           onAction={gameAction} onStart={play_mode => lobbyAction('/start', { play_mode })} onBack={collapseGame}
           onNewGame={() => { setLive(false); setOpen(true); }} endControl={snapshot.is_creator && !canCreate ? <EndGameControl compact busy={busy} onEnd={() => lobbyAction('/end')} /> : null}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: (recipient, text) => social.send(snapshot.match_id!, recipient, text) }} />

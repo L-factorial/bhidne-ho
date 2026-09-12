@@ -58,6 +58,9 @@ hands, Maal, and query results are projected separately for each authenticated
 user; spectators receive only the public view. The generic registration hook
 above is an alternative integration, not a second registration for these games.
 See [Marriage UI and room integration](marriage-ui.md) for controls and testing.
+Room snapshots also retain a bounded `marriage.moves` list of the adapter's
+existing public draw/discard events for synchronized card animation. This adds
+no engine command or event type and never projects private stock cards.
 
 ## Envelopes and identity
 

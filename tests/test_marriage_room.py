@@ -45,13 +45,20 @@ def test_marriage_http_lifecycle_private_hands_retries_and_room_chat_policy():
         assert drawn.status_code == 200, drawn.text
         assert drawn.json()['action_ack']['status'] == 'accepted'
         assert len(drawn.json()['marriage']['private']['hand']) == 22
+        moves = drawn.json()['marriage']['moves']
+        assert len(moves) == 1 and moves[0]['kind'] == 'CARD_DRAWN'
+        assert moves[0]['source'] == 'stock' and moves[0]['card'] is None
+        assert client.get(root, headers=headers[2]).json()['marriage']['moves'] == moves
         repeated = client.post(root + '/action', headers=headers[0], json=body).json()
         assert repeated['action_ack'] == drawn.json()['action_ack'] and repeated['game']['revision'] == 2
+        assert repeated['marriage']['moves'] == moves  # receipt retry cannot replay animation
         card_id = repeated['marriage']['private']['hand'][-1]['card_id']
         discarded = client.post(root + '/action', headers=headers[0], json={**body, 'command_id': 'throw1',
             'expected_revision': 2, 'command': 'DISCARD_CARD', 'payload': {'card_id': card_id}})
         assert discarded.json()['game']['turn']['player_id'] == 2
         assert discarded.json()['marriage']['public']['top_discard']['card_id'] == card_id
+        assert discarded.json()['marriage']['moves'][-1]['card']['card_id'] == card_id
+        assert discarded.json()['marriage']['moves'][-1]['kind'] == 'CARD_DISCARDED'
         assert client.post(root + '/end', headers=headers[1], json={'match_id': mid}).status_code == 403
         ended = client.post(root + '/end', headers=headers[0], json={'match_id': mid})
         assert ended.json()['status'] == 'ended'

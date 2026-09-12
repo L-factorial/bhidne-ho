@@ -8,6 +8,9 @@ settlements, and multi-round matches are not implemented.
 ## Playing
 
 1. Choose Marriage, create a game with 2–5 seats, and invite room members to join.
+   Creating a game immediately seats the creator and opens the waiting table.
+   The creator can collapse back to the room while keeping their seat; when all
+   seats fill, the room shows the ready notification and return-to-game control.
    Players can leave before starting. The creator starts once every seat is full.
    Autoplay is selected by default for testing; choose Player play before starting
    to make all moves manually. Autoplay waits ten seconds after dealing, then
@@ -15,28 +18,49 @@ settlements, and multi-round matches are not implemented.
 2. Each player receives 21 private cards. Tap to reveal cards in received order
    or reveal all, then choose Grid or Suit groups. Arc is available only with
    15 or fewer uncommitted cards, including during reveal. Shown groups remain
-   in the Players panel and leave the main hand. Hide/Show cards provides
+   in the Stats overlay and leave the main hand. Hide/Show cards provides
    local screen privacy. Physical copy numbers distinguish repeated faces across
    the three packs; they do not change meld rules.
 3. On your turn, take stock or an eligible discard. Select one card and confirm
    Discard to pass the turn. Available moves come from the engine's player view.
+   The center has separate Last discard, Deck, and Maal spots. Draws travel from
+   the source pile into the acting player's tile and fade away; discards travel
+   from that tile to Last discard. Stock draws stay face down for every viewer.
+   The central Maal card shows Tiplu only to entitled players with cards revealed
+   and not hidden. The private Maal panel also shows Jhiplu and Poplu.
 4. Once all cards are revealed, the client checks for seven disjoint Dublees and
    three disjoint sequences/Tunnelas. Review either suggested route, inspect or
    adjust the staged groups, then explicitly show it during your action window.
-   Suggestions never submit themselves in Player play. Alternatively, select
+   Suggestions never submit themselves in Player play. Select
+   a suggested route to open a centered, private preview of the actual grouped
+   cards. Confirm Show to submit; accepted groups appear in the central table
+   area for everyone, including when autoplay declares. The cards move into a
+   temporary central overlay and fade away after about four seconds; they do
+   not reserve a permanent section or block table controls. Existing declarations
+   are not replayed on reload. Shown groups remain available in Stats.
+   Alternatively, select
    cards, choose Dublee, Sequence, or Tunnela, optionally check the meld,
    then Add group. Stage seven Dublees or three sequences/Tunnelas and submit
    them together. Draft groups stay local until submission. The server validates
    ownership, distinct physical cards, meld legality, and the action window.
 5. Qualifying unlocks your private Maal panel. Shown groups appear publicly under
-   Players and are unavailable for discarding or reuse. Finish round appears
+   Stats and are unavailable for discarding or reuse. Finish round appears
    when the engine offers a valid eighth Dublee. A winning-discard claim requires
    finishing immediately. The result names the winner and offers a new game.
 
 Player tiles send personal pokes; Poke the table broadcasts a room phrase.
+When someone creates the next game, players still viewing the old table receive
+an invitation inside the game overlay and can join directly without collapsing it.
 Active participants cannot use room chat. The creator can end the game from the
-header. Narrow screens stack the table and details; wide screens place Players /
-Rules in a right column. Reload restores authoritative cards and turn state;
+header. A slim Stats / Rules row below the header opens scrollable overlays with
+a Close button at the top right. Stats shows each player's turn situation, card
+count, Maal entitlement, qualification route, and public shown groups.
+Player cards use a centered wrapping grid on every screen size, with uniform
+140px height and up to 176px width. Narrow screens fit two equal columns; wider
+screens fit more cards in a row without stretching the final row. Each card shows
+card count, Maal status, qualification route, and turn situation.
+There is no separate bottom or side Players/Rules panel.
+Reload restores authoritative cards and turn state;
 unsubmitted groups, selections, and reveal progress reset locally.
 
 ## Integration boundaries
@@ -58,6 +82,8 @@ unsubmitted groups, selections, and reveal progress reset locally.
   same adapter authorization, revision checks, receipts, and lock.
 - `client/src/multiplayer/marriage.ts`: view types and display/group helpers.
 - `client/src/screens/MarriageTable.tsx`: table, hand, drafts, and controls.
+- `client/src/components/MarriageCardArea.tsx`: three pile spots and measured
+  card flights between the piles and player tiles; respects reduced motion.
 - `RoomGameControl.tsx`: shared requests, receipts/retries, snapshots, and social UI.
 
 Creation posts `{game_type: "marriage", player_count: 2}` to
@@ -67,6 +93,12 @@ Snapshots identify `game_type` and contain `marriage.public` and
 `marriage.private` (null for spectators). The shared `game` metadata carries
 revision and turn for existing client synchronization. Queries return a
 requester-only `query_result`; mutation acknowledgments use `action_ack`.
+`marriage.moves` retains the latest 20 public `CARD_DRAWN` / `CARD_DISCARDED`
+projections from the existing adapter events. Stock identities remain null.
+The room target checkpoints this list alongside the engine and query results.
+Clients queue new sequences once, skip existing history on mount/reload, and do
+not replay movements on receipt retries or unchanged polls. Animations are
+presentation only; the authoritative game state advances independently.
 No client-side calculation can grant a move or reveal another player's hand.
 
 ## Verification

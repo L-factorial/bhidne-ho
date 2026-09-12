@@ -35,13 +35,32 @@ const label = c => c.card_type === 'man' ? `Man · ${Number(c.card_id.slice(-1))
     await one.getByRole('button', { name: 'Create game', exact: true }).click();
     await one.getByRole('button', { name: '2 players', exact: true }).click();
     await one.getByRole('button', { name: 'Create Marriage game', exact: true }).click();
+    await one.getByTestId('marriage-table').getByText('1/2 players seated', { exact: true }).waitFor();
+    assert.equal(await one.getByRole('button', { name: 'Start game', exact: true }).isDisabled(), true);
+    await one.getByRole('button', { name: 'Collapse game', exact: true }).click();
     await two.getByRole('button', { name: 'View game', exact: true }).click();
     await two.getByRole('button', { name: 'Join game', exact: true }).click();
+    await one.getByText('Everyone is ready · the creator can start', { exact: true }).waitFor();
+    await one.getByRole('button', { name: 'Go back to game', exact: true }).click();
     await one.getByTestId('marriage-table').waitFor();
     await two.getByTestId('marriage-table').waitFor();
     await one.getByRole('button', { name: 'Player play', exact: true }).click();
     await one.getByRole('button', { name: 'Start game', exact: true }).click();
     for (const page of pages) await page.getByRole('button', { name: 'Reveal all cards', exact: true }).click();
+    for (const page of pages) await page.evaluate(() => {
+      window.__flights = [];
+      const seen = new WeakSet();
+      new MutationObserver(() => {
+        document.querySelectorAll('[data-testid="marriage-flying-card"]').forEach(card => {
+          if (!seen.has(card)) { seen.add(card); window.__flights.push({ label: card.getAttribute('aria-label'), face: card.textContent }); }
+        });
+      }).observe(document.body, { childList: true, subtree: true });
+    });
+    for (const page of pages) {
+      await page.getByTestId('marriage-stock-spot').waitFor();
+      await page.getByTestId('marriage-discard-spot').waitFor();
+      assert.equal(await page.getByTestId('marriage-maal-spot').getAttribute('aria-label'), 'Maal hidden');
+    }
     await one.getByRole('button', { name: /Take stock/ }).click();
     await one.getByText('Your cards · 22', { exact: true }).waitFor();
     const root = `/test-games/${room.room_id}`;
@@ -51,6 +70,13 @@ const label = c => c.card_type === 'man' ? `Man · ${Number(c.card_id.slice(-1))
     await one.getByRole('button', { name: `Discard ${label(card)}`, exact: true }).click();
     await two.getByRole('button', { name: 'Take discard', exact: true }).click();
     await two.getByText('Your cards · 22', { exact: true }).waitFor();
+    for (const page of pages) {
+      await page.waitForFunction(() => window.__flights.length >= 3);
+      const flights = await page.evaluate(() => window.__flights);
+      assert.equal(flights[0].face, '✦', 'stock draws must stay face down for everyone');
+      assert.deepEqual(flights.slice(0, 3).map(f => f.label), ['Card moving to player', 'Card moving to discard', 'Card moving to player']);
+      await page.getByTestId('marriage-flying-card').waitFor({ state: 'hidden' });
+    }
     await two.getByRole('button', { name: 'Hide cards', exact: true }).click();
     assert.equal(await two.getByTestId('marriage-hand').getByText(label(card), { exact: true }).count(), 0);
     await two.getByRole('button', { name: 'Show cards', exact: true }).click();
@@ -62,6 +88,12 @@ const label = c => c.card_type === 'man' ? `Man · ${Number(c.card_id.slice(-1))
     await two.getByRole('button', { name: 'Remove group 1', exact: true }).click();
     await two.getByRole('button', { name: 'Rules', exact: true }).click();
     await two.getByText('Three sequences / Tunnelas unlock Maal. Normal-hand winning and scoring are not available yet.', { exact: true }).waitFor();
+    await two.getByRole('button', { name: 'Close details', exact: true }).click();
+    await two.getByRole('button', { name: 'Stats', exact: true }).click();
+    await two.getByText('Game stats', { exact: true }).waitFor();
+    await two.getByRole('button', { name: 'Close details', exact: true }).click();
+    await one.getByTestId('marriage-player-grid').waitFor();
+    await two.getByTestId('marriage-player-grid').waitFor();
     await one.screenshot({ path: path.resolve('../.venv/dev/marriage-mobile.png'), fullPage: true });
     await two.screenshot({ path: path.resolve('../.venv/dev/marriage-desktop.png'), fullPage: true });
     for (const page of pages) {
@@ -73,6 +105,17 @@ const label = c => c.card_type === 'man' ? `Man · ${Number(c.card_id.slice(-1))
     await one.getByRole('button', { name: 'End game', exact: true }).click();
     await one.getByRole('button', { name: 'End game for everyone', exact: true }).click();
     await two.getByText('Game ended', { exact: true }).waitFor();
+    // Rematch invitation must be reachable inside the still-open game overlay.
+    await one.getByTestId('live-game-overlay').getByRole('button', { name: 'Start a new game', exact: true }).click();
+    await one.getByRole('button', { name: 'Create Marriage game', exact: true }).click();
+    await two.getByTestId('in-game-invitation').getByText('A new Marriage game is ready!', { exact: true }).waitFor();
+    await two.getByTestId('in-game-invitation').getByRole('button', { name: 'Join game', exact: true }).click();
+    await two.getByTestId('in-game-invitation').waitFor({ state: 'hidden' });
+    await one.getByRole('button', { name: 'Player play', exact: true }).click();
+    await one.getByRole('button', { name: 'Start game', exact: true }).click();
+    await two.getByRole('button', { name: 'Reveal all cards', exact: true }).waitFor();
+    await one.getByRole('button', { name: 'End game', exact: true }).click();
+    await one.getByRole('button', { name: 'End game for everyone', exact: true }).click();
     assert.deepEqual(errors, []);
     console.log('PASS: real Marriage create/join/start, private 21/22 cards, draw/discard, views, grouping, rules, reload, and end on mobile/desktop.');
   } finally { await browser.close(); }

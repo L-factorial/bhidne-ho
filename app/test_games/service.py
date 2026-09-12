@@ -44,6 +44,7 @@ class HostedGame:
     game_type: str = "callbreak"
     marriage_target: object | None = None
     marriage_queries: dict = field(default_factory=dict)
+    marriage_moves: list[dict] = field(default_factory=list)
 
     @property
     def started(self):
@@ -144,7 +145,7 @@ class TestGameService:
             adapter = game.marriage_target.adapter
             public = adapter.snapshot()["view"]
             private = adapter.snapshot(str(seat))["view"] if seat else None
-            result["marriage"] = {"public": public, "private": private}
+            result["marriage"] = {"public": public, "private": private, "moves": list(game.marriage_moves)}
             result["game"] = {"revision": adapter.revision, "phase": (public["phase"] or "waiting").upper(),
                               "finished": game.finished, "winners": [int(public["winner"])] if public["winner"] else [],
                               "turn": {"player_id": int(public["current_player_id"]) if public["current_player_id"] else None},

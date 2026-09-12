@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
     const browser = await chromium.launch({ ...(process.env.CHROME_EXECUTABLE ? { executablePath: process.env.CHROME_EXECUTABLE } : { channel: 'chrome' }), headless: true });
     try {
         const context = await browser.newContext({ viewport: { width: 360, height: 800 } });
-        let ended = false, calls = 0, started = false, reads = 0;
+        let ended = false, calls = 0, started = false, reads = 0, created = false, seats = 1;
         const room = { room_id: 'ui-end-check', name: 'End control check', members: ['u0', 'u1', 'u2', 'u3'] };
         await context.addInitScript(room => sessionStorage.setItem('bhidne.session.v1:http://localhost:8000', JSON.stringify({ session: { user_id: 'u0', token: 'mock' }, room, game: 'callbreak' })), room);
         await context.route('http://localhost:8000/**', async (route) => {
@@ -16,13 +16,15 @@ const assert = require('node:assert/strict');
             else if (path.startsWith('/test-games/')) {
                 if (route.request().method() === 'GET')
                     reads++;
+                if (path === `/test-games/${room.room_id}` && route.request().method() === 'POST') created = true;
                 if (path.endsWith('/start'))
                     started = true;
                 if (path.endsWith('/end')) {
                     ended = true;
                     calls++;
                 }
-                body = { room_id: room.room_id, match_id: 'm1', capacity: 4, players: room.members.map((user_id, i) => ({ user_id, player_id: i + 1 })), your_player_id: 1, is_creator: true, ready: true, can_join: false, status: ended ? 'ended' : started ? 'playing' : 'waiting', settings: { weak_hand_enabled: true, no_spades_enabled: true, payments: [0, 0, 0, 0] } };
+                body = { room_id: room.room_id, match_id: 'm1', capacity: 4, players: room.members.slice(0, seats).map((user_id, i) => ({ user_id, player_id: i + 1 })), your_player_id: 1, is_creator: true, ready: seats === 4, can_join: false, status: ended ? 'ended' : started ? 'playing' : 'waiting', settings: { weak_hand_enabled: true, no_spades_enabled: true, payments: [0, 0, 0, 0] } };
+                if (!created) body = { room_id: room.room_id, status: 'empty' };
                 if (started)
                     Object.assign(body, { game: { revision: 1, phase: 'AWAITING_SHUFFLE', finished: false, winners: [], turn: { player_id: 1 }, current_trick: null, scores_tenths: [0, 0, 0, 0] }, deal: { deal_number: 1, dealer: 1, tricks_completed: 0, tricks_required: 13, tricks: [], players: room.members.map((_, i) => ({ player_id: i + 1, bid: null, tricks_won: 0, cards_remaining: 0 })) }, private: { hand: [], legal_cards: [], can_accept_hand: false, can_claim_redeal: false } });
             }
@@ -35,6 +37,15 @@ const assert = require('node:assert/strict');
         page.on('console', m => { if (m.type() === 'error' && /same key|unique.*key/i.test(m.text()))
             errors.push(m.text()); });
         await page.goto('http://localhost:8081');
+        await page.getByRole('button', { name: 'Create a game', exact: true }).click();
+        await page.getByRole('button', { name: 'Create game', exact: true }).click();
+        await page.getByRole('button', { name: 'Create Call Break game', exact: true }).click();
+        await page.getByTestId('live-game-overlay').waitFor();
+        assert.equal(await page.getByRole('button', { name: 'Start game', exact: true }).isDisabled(), true);
+        await page.getByRole('button', { name: 'Collapse game', exact: true }).click();
+        seats = 4;
+        await page.getByText('Everyone is ready \u00b7 the creator can start', { exact: true }).waitFor();
+        await page.getByRole('button', { name: 'Go back to game', exact: true }).click();
         await page.getByRole('button', { name: 'Start game', exact: true }).click();
         await page.getByTestId('card-table').waitFor();
         const initialReads = reads;
