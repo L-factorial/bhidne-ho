@@ -5,6 +5,7 @@ import { CallBreakTableScreen } from './CallBreakTableScreen';
 import { colors, fonts } from '../theme';
 import { ProfileScreen } from './ProfileScreen';
 import { usePlayerPhrases } from '../multiplayer/usePlayerPhrases';
+import { RoomChat } from '../components/RoomChat';
 import { RoomGameControl } from '../components/RoomGameControl';
 
 import { apiUrl, request } from '../multiplayer/api';
@@ -17,12 +18,17 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [roomToolsOpen, setRoomToolsOpen] = useState(false);
   const [roomsOpen, setRoomsOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [membersOpen, setMembersOpen] = useState(false);
   const [form, setForm] = useState<'create' | 'join'>('create');
   const [testingOpen, setTestingOpen] = useState(false);
   const [preview, setPreview] = useState(false);
   const [previewSize, setPreviewSize] = useState<4 | 5>(4);
   const shared = useRoomSession();
   const { session, rooms, room, game, setGame, expired } = shared;
+  useEffect(() => {
+    setInviteOpen(false); setMembersOpen(false);
+  }, [room?.room_id]);
   const personal = usePlayerPhrases(session, !!session && !expired);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
@@ -64,7 +70,7 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8 }}>
         {session && !expired && <Pressable accessibilityRole="button" accessibilityLabel="Open profile" onPress={() => setProfileOpen(true)} style={styles.textButton}><Text style={styles.lightText}>Profile</Text></Pressable>}
         <Pressable accessibilityRole="button" onPress={room && !expired ? leaveRoom : signOut} style={styles.textButton}>
-          <Text style={styles.lightText}>{room && !expired ? '← All rooms' : 'Sign out'}</Text>
+          <Text style={styles.lightText}>{room && !expired ? 'Leave room' : 'Sign out'}</Text>
         </Pressable>
         </View>
       </View>
@@ -77,7 +83,9 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
           <Text style={styles.subtitle}>{roomMembers.length} {roomMembers.length === 1 ? 'player' : 'players'} in the room · Invite friends to take a seat.</Text>
         </View>
         <View style={[styles.columns, wide && styles.wideColumns]}>
-          <View style={[styles.mainColumn, styles.panel]}>
+          <View style={styles.mainColumn}>
+            {session && <RoomGameControl personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={roomMembers} connectionMessage={expired ? shared.error : undefined}
+              creationEnabled={selectedGame === 'callbreak'} createContent={<>
             <Text style={styles.eyebrowDark}>CHOOSE A GAME</Text>
             <View style={styles.gameTabs}>
               {(['callbreak', 'flush', 'marriage'] as const).map(value => <Pressable key={value} accessibilityRole="button"
@@ -87,22 +95,27 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
                 <Text style={[styles.tabText, selectedGame === value && styles.selectedTabText]}>{value === 'callbreak' ? '♠ Call Break' : value === 'flush' ? '♦ Flush' : '♥ Marriage'}</Text>
               </Pressable>)}
             </View>
-            {selectedGame === 'callbreak' ? <>
-              <Text accessibilityRole="header" style={styles.gameTitle}>A round of Call Break.</Text>
-              <Text style={styles.description}>Four or five players. Five deals. Make your call.</Text>
-              {session && <RoomGameControl personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={roomMembers} connectionMessage={expired ? shared.error : undefined} />}
-            </> : <View style={styles.comingSoon}><Text style={styles.heading}>{selectedGame === 'flush' ? 'Flush' : 'Marriage'}</Text><Text style={styles.description}>Coming soon. Choose Call Break to play with your room.</Text></View>}
+              {selectedGame === 'callbreak' ? <Text style={styles.description}>Four or five players. Five deals. Make your call.</Text>
+                : <Text style={styles.description}>Coming soon. Choose Call Break to play with your room.</Text>}
+              </>} />}
           </View>
           <View style={[styles.sideColumn, wide && styles.fixedSide]}>
+            {session && <RoomChat key={room.room_id} roomId={room.room_id} session={session} connected={shared.status === 'connected' && !expired} />}
             <View style={styles.panel}>
-              <Text accessibilityRole="header" style={styles.heading}>Invite your friends</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel="Invite a friend" aria-expanded={inviteOpen} accessibilityState={{ expanded: inviteOpen }} onPress={() => setInviteOpen(value => !value)} style={styles.sectionToggle}>
+                <Text style={styles.sectionTitle}>Invite a friend</Text><Text style={styles.sectionTitle}>{inviteOpen ? '-' : '+'}</Text>
+              </Pressable>
+              {inviteOpen && <View>
               <Text style={styles.description}>Share this table code to bring everyone into the same room.</Text>
               <View style={styles.codeBox}><Text style={styles.codeLabel}>TABLE CODE</Text><Text selectable accessibilityLabel={`Table code ${room.room_id}`} style={styles.code}>{room.room_id}</Text></View>
               <Text style={styles.description}>Friends enter the code on the room list, then select Join game.</Text>
+              </View>}
             </View>
             <View style={styles.panel}>
-              <Text accessibilityRole="header" style={styles.heading}>In the room · {roomMembers.length}</Text>
-              {roomMembers.map((member, index) => <View key={member} style={styles.member}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Currently in the room" aria-expanded={membersOpen} accessibilityState={{ expanded: membersOpen }} onPress={() => setMembersOpen(value => !value)} style={styles.sectionToggle}>
+                <Text style={styles.sectionTitle}>Currently in the room · {roomMembers.length}</Text><Text style={styles.sectionTitle}>{membersOpen ? '-' : '+'}</Text>
+              </Pressable>
+              {membersOpen && roomMembers.map((member, index) => <View key={member} style={styles.member}>
                 <View style={styles.avatar}><Text style={styles.avatarText}>{member === session?.user_id ? 'Y' : String(index + 1)}</Text></View>
                 <Text style={styles.directoryName}>{member === session?.user_id ? 'You' : `Guest ${index + 1}`}</Text>
                 <Text style={styles.online}>Online</Text>

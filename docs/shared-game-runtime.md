@@ -10,6 +10,11 @@ private-hand behavior. Storage is still in memory in one server process.
 
 ## Ownership
 
+Room social features sit alongside the command runtime. See
+[room chat and participation](room-chat.md) for the shared chat service and the
+host participation contract. Chat traffic does not create game commands or
+engine events; adapters remain responsible for actual game transitions.
+
 | Component | Responsibility |
 | --- | --- |
 | `app/models/action.py` | Common command envelope, command-ID validation, acknowledgment schema. |

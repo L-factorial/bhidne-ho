@@ -12,11 +12,13 @@ from app.runtime.game_registry import GameRegistry
 from app.multiplayer.connection_manager import ConnectionManager
 from app.multiplayer.presence import PresenceService
 from app.multiplayer.room_service import RoomService
+from app.multiplayer.room_chat import RoomChatService
+from app.multiplayer.participation import GameParticipation
 from app.multiplayer.room_pokes import RoomPokeService
 from app.multiplayer.player_phrases import PlayerPhraseService
 from app.multiplayer.player_profiles import PlayerProfileService
 from app.runtime.game_runtime import GameRuntime
-from app.transport import game_actions, http, room_pokes, websocket, player_profiles
+from app.transport import game_actions, http, room_pokes, websocket, player_profiles, room_chat
 from app.test_games.service import TestGameService
 from app.test_games.http import router as test_game_router
 
@@ -46,7 +48,9 @@ def create_app() -> FastAPI:
 
         app.state.provision_room = provision_room
         app.state.runtime = GameRuntime(connections, registry)
-        app.state.test_games = TestGameService(rooms, connections, command_runtime=app.state.runtime.commands, profiles=app.state.player_profiles)
+        app.state.test_games = TestGameService(rooms, connections, command_runtime=app.state.runtime.commands, profiles=app.state.player_profiles, round_summary_seconds=8)
+        app.state.participation = GameParticipation(app.state.test_games)
+        app.state.room_chat = RoomChatService(rooms, app.state.player_profiles, app.state.participation)
         try:
             yield
         finally:
@@ -66,6 +70,7 @@ def create_app() -> FastAPI:
     app.include_router(websocket.router)
     app.include_router(game_actions.router)
     app.include_router(room_pokes.router)
+    app.include_router(room_chat.router)
     app.include_router(player_profiles.router)
     app.include_router(test_game_router)
     static = Path(__file__).parent / "test_ui"

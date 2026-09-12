@@ -464,3 +464,68 @@ def test_end_game_http_requires_authentication_and_match_identity():
             ended = client.post('/test-games/room/end', headers=headers, json={'match_id': mid})
             assert ended.status_code == 200 and ended.json()['status'] == 'ended'
             assert ended.headers['cache-control'] == 'no-store'
+
+
+@pytest.mark.parametrize("n", [4, 5])
+async def test_manual_round_summary_holds_scores_and_creator_advances_once(n):
+    service, delivery, game = await manual_host(n)
+    service.round_summary_seconds = 8
+    try:
+        for round_number in range(1, 6):
+            for _ in range(150):
+                if game.state.phase in (Phase.DEAL_COMPLETE, Phase.MATCH_COMPLETE): break
+                user, command = next_action(service, game)
+                await service.action('room', user, command)
+            assert len(game.state.completed_deals) == round_number
+            audit_match(game.state)
+            before = game.state
+            if round_number == 5:
+                assert game.state.phase == Phase.MATCH_COMPLETE
+                assert 'round_review' not in await service.snapshot('room', 'u0')
+                with pytest.raises(HTTPException): await service.next_deal('room', 'u0', game.match_id, 5)
+                break
+            assert game.state.phase == Phase.DEAL_COMPLETE and game.deadline is None
+            summary = await service.snapshot('room', 'u0')
+            assert summary['round_review'] == {'deal_number': round_number, 'can_continue': True}
+            assert summary['deal_history'][-1]['complete']
+            assert summary['deal']['tricks'][-1]['complete']
+            assert not (await service.snapshot('room', 'u1'))['round_review']['can_continue']
+            for user, match, number, status in [('u1', game.match_id, round_number, 403),
+                ('outsider', game.match_id, round_number, 403), ('u0', 'stale', round_number, 409),
+                ('u0', game.match_id, round_number + 1, 409)]:
+                with pytest.raises(HTTPException) as error: await service.next_deal('room', user, match, number)
+                assert error.value.status_code == status
+            assert game.state is before
+            results = await asyncio.gather(*[service.next_deal('room', 'u0', game.match_id, round_number) for _ in range(2)])
+            assert results[0]['game']['revision'] == results[1]['game']['revision']
+            assert game.state.phase == Phase.AWAITING_SHUFFLE
+            assert game.state.preparation.number == round_number + 1
+    finally:
+        await service.close()
+
+
+async def test_autoplay_round_summary_waits_for_deadline_and_ending_stops_it():
+    service, _, game = await manual_host()
+    service.round_summary_seconds = 8
+    try:
+        while game.state.phase != Phase.DEAL_COMPLETE:
+            user, command = next_action(service, game)
+            await service.action('room', user, command)
+        game.play_mode = 'auto'
+        service._deadline(game, Phase.PLAYING)
+        game.task = asyncio.create_task(service._run(game))
+        await asyncio.sleep(0.15)
+        assert game.state.phase == Phase.DEAL_COMPLETE
+        assert (await service.snapshot('room', 'u0'))['remaining_ms'] > 7000
+        game.deadline = time.monotonic() - 1
+        for _ in range(10):
+            await asyncio.sleep(0.02)
+            if game.state.phase == Phase.AWAITING_SHUFFLE: break
+        assert game.state.phase == Phase.AWAITING_SHUFFLE
+        assert 'round_review' not in await service.snapshot('room', 'u0')
+        await service.end('room', 'u0', game.match_id)
+        before = game.state
+        await asyncio.sleep(0.15)
+        assert game.state is before and game.task.done()
+    finally:
+        await service.close()

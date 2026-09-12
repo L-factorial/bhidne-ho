@@ -49,14 +49,21 @@ class HostedGame:
 
 
 class TestGameService:
-    def __init__(self, rooms, connections, timeout_seconds=3.0, command_runtime=None, profiles=None):
+    def __init__(self, rooms, connections, timeout_seconds=3.0, command_runtime=None, profiles=None, round_summary_seconds=0):
         self.rooms, self.connections = rooms, connections
         self.profiles = profiles
+        self.round_summary_seconds = round_summary_seconds
         self.command_runtime = command_runtime or CommandRuntime()
         self.timeout_seconds = timeout_seconds
         self.games: dict[str, HostedGame] = {}
         self._catalog_lock = asyncio.Lock()
         self._random = SystemRandom()
+
+    def is_playing(self, room_id: str, user_id: str) -> bool:
+        """Expose participation without leaking Call Break state to room services."""
+        game = self.games.get(room_id)
+        return bool(game and not game.ended and game.state
+                    and game.state.phase != Phase.MATCH_COMPLETE and user_id in game.users)
 
     async def close(self):
         tasks = [g.task for g in self.games.values() if g.task is not None]
@@ -79,7 +86,7 @@ class TestGameService:
         result = {
             "room_id": game.room_id, "match_id": game.match_id, "capacity": game.capacity,
             "players": [{"player_id": i + 1, "user_id": u, "display_name": self.profiles.name(u, i + 1) if self.profiles else f"Player {i + 1}"} for i, u in enumerate(game.users)],
-            "is_creator": user_id == game.users[0],
+            "is_creator": bool(game.users) and user_id == game.users[0],
             "ready": len(game.users) == game.capacity, "settings": game.settings,
             "your_player_id": seat, "status": "ended" if game.ended else "waiting" if game.state is None else
                 "finished" if game.state.phase == Phase.MATCH_COMPLETE else "playing",
@@ -89,6 +96,9 @@ class TestGameService:
             "remaining_ms": max(0, int((game.deadline - time.monotonic()) * 1000)) if game.deadline else None,
             "log": list(game.log), "error": game.error,
         }
+        if game.state and game.state.phase == Phase.DEAL_COMPLETE and self.round_summary_seconds and not game.ended:
+            result["round_review"] = {"deal_number": len(game.state.completed_deals),
+                                      "can_continue": user_id == game.users[0]}
         if game.state:
             query = GameQuery(game.state)
             result.update(game=query.get_state(), deal=query.get_deal(), rules=query.get_rules(),
@@ -121,6 +131,22 @@ class TestGameService:
             await self._publish(game)
             return self._snapshot(game, user_id)
 
+    async def next_deal(self, room_id, user_id, match_id, deal_number):
+        await self._member(room_id, user_id)
+        game = self._get(room_id)
+        async with game.lock:
+            if game.ended or match_id != game.match_id or not game.state or not self.round_summary_seconds:
+                raise HTTPException(409, "This round is no longer available.")
+            if not game.users or user_id != game.users[0]:
+                raise HTTPException(403, "Only the creator can start the next deal.")
+            if deal_number != len(game.state.completed_deals) or game.state.phase == Phase.MATCH_COMPLETE:
+                raise HTTPException(409, "The round changed. Refresh the table.")
+            if game.state.phase == Phase.DEAL_COMPLETE:
+                await self._controllers(game, advance_deal=True)
+                self._deadline(game, Phase.DEAL_COMPLETE)
+                await self._publish(game)
+            return self._snapshot(game, user_id)
+
     async def end(self, room_id, user_id, match_id):
         await self._member(room_id, user_id)
         # Serialize replacement with ending, then serialize with actions and timers.
@@ -129,7 +155,7 @@ class TestGameService:
             async with game.lock:
                 if match_id != game.match_id:
                     raise HTTPException(409, "The game changed. Refresh before ending it.")
-                if user_id != game.users[0]:
+                if not game.users or user_id != game.users[0]:
                     raise HTTPException(403, "Only the game creator can end the game.")
                 if game.ended:
                     return self._snapshot(game, user_id)
@@ -156,6 +182,22 @@ class TestGameService:
             await self._publish(game)
             return self._snapshot(game, user_id)
 
+    async def leave(self, room_id, user_id, match_id):
+        await self._member(room_id, user_id)
+        async with self._catalog_lock:
+            game = self._get(room_id)
+            async with game.lock:
+                if match_id != game.match_id:
+                    raise HTTPException(409, "The game changed. Refresh before leaving.")
+                if game.state is not None:
+                    raise HTTPException(409, "You can only leave a game before it starts.")
+                if user_id in game.users:
+                    game.users.remove(user_id)
+                    if not game.users:
+                        game.ended = True
+                    await self._publish(game)
+                return self._snapshot(game, user_id)
+
     async def configure(self, room_id, user_id, body):
         await self._member(room_id, user_id)
         game = self._get(room_id)
@@ -166,7 +208,7 @@ class TestGameService:
             return self._snapshot(game, user_id)
 
     def _creator(self, game, user_id, match_id):
-        if user_id != game.users[0]:
+        if not game.users or user_id != game.users[0]:
             raise HTTPException(403, "Only the game creator can do this.")
         if match_id != game.match_id or game.state is not None or game.ended:
             raise HTTPException(409, "Settings and start are only available before this game begins.")
@@ -229,6 +271,8 @@ class TestGameService:
     def _deadline(self, game, before):
         if game.play_mode == "manual" or game.state.phase == Phase.MATCH_COMPLETE:
             game.deadline = None
+        elif game.state.phase == Phase.DEAL_COMPLETE and self.round_summary_seconds:
+            game.deadline = time.monotonic() + self.round_summary_seconds
         elif before != Phase.HAND_REVIEW or game.state.phase != Phase.HAND_REVIEW:
             game.deadline = time.monotonic() + self.timeout_seconds
         # All reviewing players share the same original three-second window.
@@ -259,9 +303,11 @@ class TestGameService:
             await self.connections.broadcast(game.room_id, {"type": "TEST_GAME_EVENT", "match_id": game.match_id, **entry})
         game.log[:] = game.log[-30:]
 
-    def _apply_controllers(self, game):
+    def _apply_controllers(self, game, advance_deal=False):
         events = []
         while game.state.phase in (Phase.AWAITING_DEAL, Phase.DEAL_COMPLETE, Phase.AWAITING_REDEAL, Phase.SHUFFLING):
+            if game.state.phase == Phase.DEAL_COMPLETE and self.round_summary_seconds and not advance_deal:
+                break
             command = (CompleteShuffle(shuffle(standard_52(), rng=self._random))
                        if game.state.phase == Phase.SHUFFLING else PrepareDeal())
             result = dispatch_control(game.state, command, match_id=game.match_id)
@@ -270,8 +316,8 @@ class TestGameService:
             events.extend(self._record(game, result))
         return events
 
-    async def _controllers(self, game):
-        for event in self._apply_controllers(game):
+    async def _controllers(self, game, advance_deal=False):
+        for event in self._apply_controllers(game, advance_deal):
             await self._deliver(game, event)
 
     def _record(self, game, result):
@@ -325,6 +371,11 @@ class TestGameService:
                     if game.deadline is None or time.monotonic() < game.deadline:
                         continue
                     before = game.state.phase
+                    if before == Phase.DEAL_COMPLETE and self.round_summary_seconds:
+                        await self._controllers(game, advance_deal=True)
+                        self._deadline(game, before)
+                        await self._publish(game)
+                        continue
                     if before == Phase.HAND_REVIEW:
                         pending = [p for p in game.state.config.players if p not in game.state.current_deal.accepted_hands]
                         for player in pending:

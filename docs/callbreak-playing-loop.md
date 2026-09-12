@@ -197,3 +197,41 @@ private versioned replay records using their own persistence.
 Remaining: actual user-to-player roster, platform adapter, room-scoped private
 WebSocket delivery, browser gameplay/setup UI, durable service storage and
 network retry/disconnect policies. The existing console still uses EchoGameEngine.
+
+
+## Live round flow and score review
+
+The live client guides players through Shuffle, Cut, Deal, Bid, Play, and Scores.
+The current task names the acting player, highlights the local player's turn,
+and explains what to do. Cutting offers a midpoint cut (`CUT_DECK`, position 26)
+or Skip cut. Legal-card enforcement remains authoritative in the engine.
+
+A newly completed trick stays visible for approximately 2.2 seconds, with the
+winner's card highlighted. Repeated snapshots do not restart that timer. If a
+card in the next trick arrives sooner, the current trick takes priority. Local
+card input waits while the previous trick is displayed. On reconnect the most
+recent completed trick can be shown briefly; no private card history is added.
+
+The application host enables an eight-second round-summary interval. After deals
+1?4 it holds `DEAL_COMPLETE`, preserving the last trick and finalized scores.
+Manual games wait for the creator to choose Start next deal. Autoplay advances
+after eight seconds; the creator can also advance early. The summary displays
+names, bids, tricks won, deal scores, and cumulative totals. Deal 5 shows final
+scores and winners, with a new-game option rather than another deal.
+
+`POST /test-games/{room_id}/next-deal` accepts `{match_id, deal_number}`. Room
+membership and creator ownership are required. The host serializes this operation
+with gameplay and timers. Repeating the request for the same completed deal does
+not advance twice; stale match or deal identifiers are rejected. Ending a game
+still stops automation. The pure engine's phases and rules are unchanged.
+
+The host's `round_summary_seconds` defaults to zero for existing headless test
+clients; the application composition sets it to eight. A `round_review` snapshot
+field supplies the completed deal number and whether the viewer can continue.
+`remaining_ms` supplies the autoplay countdown and is null in manual games.
+
+Validation includes complete four/five-player manual matches with summary pauses,
+creator/membership/stale-request checks, concurrent retries, and autoplay timing.
+The mocked Chrome regression `client/tests/browser/round-flow.cjs` covers all
+phase controls, cut payload, trick highlight expiry, scores, next deal, and final
+scores at a narrow viewport. Run with the Playwright setup in the client README.

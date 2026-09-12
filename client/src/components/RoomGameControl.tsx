@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useGameNotification } from '../notifications/useGameNotification';
 import { colors, fonts } from '../theme';
@@ -12,13 +12,17 @@ import { EndGameControl } from './EndGameControl';
 import { PokeOverlay } from './PokeOverlay';
 
 
-export function RoomGameControl({ roomId, apiUrl, token, connected, members, connectionMessage, userId, pokes, personal }: {
+export function RoomGameControl({ roomId, apiUrl, token, connected, members, connectionMessage, userId, pokes, personal, createContent, creationEnabled = true }: {
+  createContent?: ReactNode; creationEnabled?: boolean;
   userId: string; pokes: RoomPoke[]; personal: ReturnType<typeof usePlayerPhrases>;
   roomId: string; apiUrl: string; token: string; connected: boolean; members: string[]; connectionMessage?: string;
 }) {
   const insets = useSafeAreaInsets();
   const social = useRoomPokes(roomId, userId, token, connected);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [joinOpen, setJoinOpen] = useState(false);
+  const [dismissedInvitation, setDismissedInvitation] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [live, setLive] = useState(false);
   const collapsed = !open && live && !!snapshot && snapshot.status !== 'empty';
@@ -40,18 +44,11 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
   const generation = useRef(0), pending = useRef(false);
   const alive = useRef(true);
   const requests = useRef(new Set<AbortController>());
-  const offeredMatch = useRef<string | null>(null);
   const canSend = useRef(false);
   canSend.current = connected && synced && !commandClient.pending;
   const visibleSnapshot = snapshot ? { ...snapshot, players: snapshot.players?.map(player => ({
     ...player, connected: members.includes(player.user_id) && (player.player_id !== snapshot.your_player_id || connected),
   })) } : null;
-  useEffect(() => {
-    if (snapshot?.can_join && snapshot.match_id && offeredMatch.current !== snapshot.match_id) {
-      offeredMatch.current = snapshot.match_id;
-      setOpen(true);
-    }
-  }, [snapshot?.can_join, snapshot?.match_id]);
   useEffect(() => {
     if ((snapshot?.ready || snapshot?.game) && snapshot.your_player_id && snapshot.match_id !== enteredMatch.current) {
       enteredMatch.current = snapshot.match_id || null; setLive(true); setOpen(true);
@@ -130,7 +127,10 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
     pending.current = true; const version = ++generation.current; setBusy(true); setError('');
     try {
       const data = await api(suffix, { match_id: snapshot.match_id, ...payload });
-      if (alive.current && generation.current === version) setSnapshot(data);
+      if (alive.current && generation.current === version) {
+        setSnapshot(data);
+        if (suffix === '/leave') { setOpen(false); setLive(false); enteredMatch.current = null; }
+      }
     } catch (error) { if (alive.current && generation.current === version) setError(error instanceof Error ? error.message : 'Could not update game.'); }
     finally { pending.current = false; if (alive.current) setBusy(false); }
   }
@@ -141,7 +141,17 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
     : snapshot.status === 'ended' ? 'Call Break ? Ended by the creator' : snapshot.status === 'finished' ? 'Call Break · Game finished' : `Call Break · ${snapshot.game?.phase.replaceAll('_', ' ').toLowerCase() || 'In progress'}`;
   const endControl = snapshot?.is_creator && !canCreate
     ? <EndGameControl key={`end-${snapshot.match_id}`} busy={busy} onEnd={() => lobbyAction('/end')} /> : null;
+  const leaveControl = snapshot?.status === 'waiting' && snapshot.your_player_id
+    ? <Pressable accessibilityRole="button" accessibilityLabel="Leave game" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => void lobbyAction('/leave')} style={styles.choice}><Text style={styles.text}>Leave game</Text></Pressable> : null;
   return <>
+    {snapshot?.match_id && snapshot.can_join && !snapshot.your_player_id && !snapshot.is_creator && dismissedInvitation !== snapshot.match_id && <View testID="game-created-notice" style={styles.invitation}>
+      <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.summary}>A new Call Break game is ready!</Text>
+      <Text style={styles.text}>Someone in your room created a game. Take a seat to play.</Text>
+      <View style={styles.choices}>
+        <Pressable accessibilityRole="button" onPress={() => { setJoinOpen(true); setDismissedInvitation(snapshot.match_id!); }} style={styles.button}><Text style={styles.buttonText}>View game</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Dismiss game notification" onPress={() => setDismissedInvitation(snapshot.match_id!)} style={styles.choice}><Text style={styles.text}>Dismiss</Text></Pressable>
+      </View>
+    </View>}
     {collapsed && <View style={styles.returnPanel}>
       <Animated.View style={{ opacity: notification.opacity }}>
         <Pressable accessibilityRole="button" accessibilityLabel="Go back to game" onPress={() => setOpen(true)} style={[styles.button, !!notification.notice && styles.notified]}>
@@ -151,6 +161,22 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
       {!!notification.notice && <Text accessibilityLiveRegion="polite" style={styles.text}>{notification.notice}</Text>}
       <Pressable accessibilityRole="button" accessibilityLabel={notification.muted ? 'Unmute game notifications' : 'Mute game notifications'} onPress={notification.toggleSound} style={styles.choice}><Text style={styles.note}>{notification.muted ? 'Sound off' : 'Sound on · pong'}</Text></Pressable>
     </View>}
+    <View style={styles.roomCard}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Create a game" aria-expanded={createOpen} accessibilityState={{ expanded: createOpen }} onPress={() => setCreateOpen(value => !value)} style={styles.sectionToggle}>
+        <Text style={styles.summary}>Create a game</Text><Text style={styles.summary}>{createOpen ? '-' : '+'}</Text>
+      </Pressable>
+      {createOpen && <View style={{ gap: 12 }}>
+        {createContent}
+        {canCreate ? <Pressable accessibilityRole="button" accessibilityLabel="Create game" disabled={busy || !creationEnabled} accessibilityState={{ disabled: busy || !creationEnabled }} onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, (busy || !creationEnabled) && { opacity: 0.5 }]}>
+          <Text style={styles.buttonText}>Create game</Text>
+        </Pressable> : <Text style={styles.text}>{!snapshot ? 'Loading game?' : 'A game is already open. Expand Join a game to enter it.'}</Text>}
+      </View>}
+    </View>
+    <View style={styles.roomCard}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Join a game" aria-expanded={joinOpen} accessibilityState={{ expanded: joinOpen }} onPress={() => setJoinOpen(value => !value)} style={styles.sectionToggle}>
+        <Text style={styles.summary}>Join a game</Text><Text style={styles.summary}>{joinOpen ? '-' : '+'}</Text>
+      </Pressable>
+      {joinOpen && (canCreate ? <Text style={styles.text}>No active game to join. Create a game to get started.</Text> : <>
     <View style={styles.bar}>
       <View style={{ flex: 1, minWidth: 150 }}>
         <Text style={styles.summary}>{summary}</Text>
@@ -165,7 +191,10 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
         <Text style={styles.buttonText}>{busy ? 'Joining…' : actionLabel}</Text>
       </Pressable>
     </View>
+      </>)}
+    </View>
     {!open && endControl}
+    {!open && leaveControl}
     {!collapsed && !open && snapshot?.status !== 'ended' && snapshot?.game?.phase === 'BIDDING' && !!snapshot.your_player_id && <View style={styles.bidNotice}>
       <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={styles.text}>Deal {snapshot.deal?.deal_number} · {snapshot.game.turn.player_id === snapshot.your_player_id ? 'Your turn to bid' : 'Bidding is open'}</Text>
       <Pressable accessibilityRole="button" onPress={() => { setLive(true); setOpen(true); }} style={styles.button}><Text style={styles.buttonText}>View cards & bidding</Text></Pressable>
@@ -182,12 +211,13 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
         {(!connected || !synced) && <Text accessibilityRole="alert" style={styles.connectionNotice}>{connectionMessage || (!connected ? 'Reconnecting… Your seat is saved.' : 'Updating game…')}</Text>}
         {!!actionNotice && <Text accessibilityLiveRegion="polite" style={styles.connectionNotice}>{actionNotice}</Text>}
         {endControl}
+        {leaveControl}
         {snapshot.status === 'ended' ? <View style={styles.body}>
           <Text style={[styles.title, { color: colors.ivory }]}>Game ended</Text>
           <Text style={[styles.text, { color: colors.ivory }]}>The creator ended this game. The room is still open for another round.</Text>
           <Pressable accessibilityRole="button" onPress={() => { setLive(false); setOpen(true); }} style={styles.button}><Text style={styles.buttonText}>Start a new game</Text></Pressable>
           <Pressable accessibilityRole="button" onPress={collapseGame} style={styles.button}><Text style={styles.buttonText}>Back to room</Text></Pressable>
-        </View> : <LiveGameTable key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={error} onAction={gameAction} onNewGame={() => { setCapacity(snapshot.capacity === 5 ? 5 : 4); setLive(false); setOpen(true); }} onStart={play_mode => lobbyAction('/start', { play_mode })} onSave={settings => lobbyAction('/settings', settings)} onBack={collapseGame}
+        </View> : <LiveGameTable onNextDeal={() => lobbyAction('/next-deal', { deal_number: snapshot.round_review?.deal_number })} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={error} onAction={gameAction} onNewGame={() => { setCapacity(snapshot.capacity === 5 ? 5 : 4); setLive(false); setOpen(true); }} onStart={play_mode => lobbyAction('/start', { play_mode })} onSave={settings => lobbyAction('/settings', settings)} onBack={collapseGame}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: (recipient, text) => social.send(snapshot.match_id!, recipient, text) }} />}
         <PokeOverlay pokes={pokes} matchId={snapshot.match_id} />
       </View></View> :
@@ -196,6 +226,7 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
           <Text accessibilityRole="header" style={styles.title}>{snapshot?.status === 'finished' ? 'Start a new Call Break game' : canCreate ? 'Create a Call Break game' : snapshot?.can_join ? 'Join this Call Break game' : 'Call Break game'}</Text>
           <Text style={styles.text}>{summary}</Text>
           {endControl}
+          {leaveControl}
           {!connected && <Text accessibilityRole="alert" style={styles.modalError}>{connectionMessage || 'Reconnecting… Your seat is saved.'}</Text>}
           {snapshot?.can_join && <>
             <Text style={styles.text}>{(snapshot.capacity || 0) - (snapshot.players?.length || 0)} seats available. Take a seat to play with this room.</Text>
@@ -229,6 +260,9 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
   </>;
 }
 const styles = StyleSheet.create({
+  invitation: { backgroundColor: '#FFF0C2', borderWidth: 1, borderColor: colors.copper, borderRadius: 16, padding: 20, gap: 12, marginBottom: 20 },
+  roomCard: { backgroundColor: colors.ivory, borderRadius: 16, padding: 24, gap: 8, marginBottom: 20 },
+  sectionToggle: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   connectionNotice: { padding: 10, color: '#FFE6AA', backgroundColor: '#29475B', fontFamily: fonts.medium, fontSize: 12 },
   returnPanel: { gap: 10, padding: 14, marginTop: 16, borderWidth: 1, borderColor: colors.copper, borderRadius: 12 },
   notified: { borderWidth: 2, borderColor: '#FFE6AA', backgroundColor: '#996039' },

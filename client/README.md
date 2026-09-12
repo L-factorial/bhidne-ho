@@ -60,7 +60,7 @@ coming-soon message. There is one room header and one navigation action,
 **Create game** opens four/five-player setup using the existing `/test-games`
 backend. Other members use **Join game**; seated players see **Enter game**;
 additional users see **Watch game**. The creator starts the game once all seats fill; the creator chooses **Player play** (the default selection) or **Autoplay** before starting.
-Player play waits for each player to confirm their bid and tap a legal card, with no automatic
+Player play waits for each player to confirm their bid and confirm a selected legal card, with no automatic
 turns or time limit. Players also use the shuffle, cut, deal, and hand-review controls.
 Autoplay retains the three-second fallback for inactive players. When the final seat fills, every seated
 client automatically opens the live card table. **Enter game** reopens it
@@ -287,3 +287,136 @@ holds the display name and private phrase collection; visible game seats use eac
 player's saved name and mark the local seat You.
 `tests/browser/display-names.cjs` checks default collapsed sections, form toggles,
 four distinct profiles, and each saved name at all four tables using mocked data.
+
+
+### Round flow
+
+Each seat shows Bid, Won, and Need. Reaching or exceeding the bid shows green
+Met; needing more wins than the remaining tricks shows Cannot reach bid. Pending
+bids have no progress verdict. Remaining tricks include the unfinished trick,
+and progress updates after the winner's card-collection sequence, supporting
+both four-player (13 tricks) and five-player (10 tricks) deals.
+
+During card play, the active player sees a bold green Your turn banner at the top.
+Everyone sees Player N's turn above the central table. Both gently pulse until
+the authoritative turn changes, pause during trick collection, and stay steady
+when reduced motion is enabled. Snapshot refreshes do not restart the pulse.
+
+Completed tricks hold their cards and winner highlight for 1.5 seconds, then
+collect toward the winner's seat over 650ms. After the 2.2-second sequence, the
+displayed trick count updates and the next leader is named. The final trick goes
+to score review instead. Reduced motion skips card movement. Repeated snapshots
+do not replay the sequence, and an incoming next-trick play immediately takes
+priority. These are presentation timings; authoritative scoring and turns remain
+unchanged on the server.
+
+Live Call Break now shows a phase guide and named turn instructions, offers a
+midpoint cut, briefly highlights each trick winner, and shows a score summary
+between deals. In manual games the creator starts the next deal; autoplay waits
+eight seconds. Final scores appear after deal five. See the
+[round-flow guide](../docs/callbreak-playing-loop.md#live-round-flow-and-score-review).
+
+### Room invitations and leaving
+
+Room controls use separate Create a game and Join a game cards, collapsed by
+default. A joinable game shows other room members a highlighted notification
+with View game and Dismiss. View game expands the join card without taking a
+seat automatically. Dismissal lasts for that match while the room screen stays
+open; a new match can notify again. Notifications use the existing game snapshot
+refresh (about one second). Leave room disconnects the room connection and returns
+to the directory without signing out or ending the game for everyone.
+
+### Hand views
+
+Choose a view using the controls below your cards:
+
+New hands start face down in a single arc, preserving the hand order received
+from the server. During this reveal stage, tap any card or Reveal next to turn
+up exactly the next card in dealt order; Flip all reveals the remaining cards.
+These actions never play cards. View/suit controls stay hidden until all cards
+are revealed, then the previously selected view returns. Each new deal or redeal
+starts another reveal stage. This is local presentation state, not a change to
+dealing or game rules; reopening the app starts with hidden cards again.
+
+During bidding, reveal the full hand to unlock Make your call. The selected bid
+is highlighted and only Confirm bid submits it. After confirmation, the panel
+names the player whose bid is awaited. When bidding ends, the hand area announces
+who leads first until the first card is played. Autoplay retains its server timer;
+the reveal step gates manual controls and does not pause automatic bidding.
+
+- **Sorted fan** keeps the full hand in its existing arc, ordered by suit and rank.
+- **Suit fan** adds suit buttons with card counts. Select a suit to show just its
+  cards in an arc, or select All to see the full hand. Empty suits are disabled.
+- **Grid** shows compact cards with rank, suit symbol, and the full suit name.
+
+Suit groups start in a randomized order each deal. After revealing the hand,
+Shuffle suits changes their order again across the sorted fan, grid, and suit
+selector. Cards stay in rank order within each suit, and a selected suit stays
+selected. Shuffling groups is local to your hand and never submits a game action.
+The initial reveal arc still follows dealt order.
+
+During play, tapping a legal card only selects it. The selected card is raised and
+highlighted; Play shows its rank and suit and submits it only on confirmation.
+Tap another legal card to change the choice, or Cancel to clear it. Hiding cards,
+changing view/suit filter, a new deal/trick/turn, and losing play eligibility clear
+the selection. Illegal cards remain disabled in every view.
+
+As soon as a hand is fully revealed, it offers Hide cards, including during hand
+review and bidding. This hides all cards
+in a face-down arc and replaces every hand control with Show cards. Hidden cards
+cannot be played. Show cards restores the selected view, suit filter, and shuffled
+suit order without restarting the reveal stage. The option is unavailable during initial reveal; a new deal resets the hidden
+state. Moving from review to bidding or play does not turn hidden cards face up.
+
+The view stays selected through score review and subsequent deals while the table
+is open. The suit filter resets to All on each new deal or redeal. Every view uses
+the same turn and legal-card restrictions; changing views does not play a card.
+Clubs use green to distinguish them from spades.
+
+`tests/browser/round-flow.cjs` checks all three views at 360px width, suit counts,
+legal-card restrictions, playing a card from the grid, and view/filter behavior
+across a score review. It uses mocked room data and requires the web dev server.
+
+### Room group chat
+
+Backend architecture and integration instructions are documented in
+[room chat and participation](../docs/room-chat.md). Chat policy and storage live
+in `app/multiplayer/room_chat.py`; game hosts supply the common participation
+query, and the HTTP transport only translates requests, responses, and errors.
+
+Chat is for goofy lines, friendly challenges, and getting people into the game.
+It is intentionally ephemeral: keep it in bounded memory even when accounts and
+games gain database persistence. Do not store chat messages in database tables,
+game history, backups, or analytics payloads. A durable chat archive is outside
+the product scope.
+
+The Room chat card starts collapsed and works independently of the selected game.
+Opening it expands an inline panel sized to the remaining viewport (with a 260px
+minimum body on short screens). Message history scrolls inside the fixed panel;
+the composer stays visible. Tap Room chat again to collapse it and keep the draft.
+New messages follow the bottom only when you are already near the latest message.
+New messages from others add an unread count and highlighted nudge to the closed
+card, with a short ping where browser audio is permitted. Chat has a sound toggle.
+History loaded on entry does not ping, and opening chat clears the unread count.
+Seated players cannot read or send chat while their game is active (including
+between deals). The server enforces this; chat returns after the game ends.
+Room members who are not playing can still chat.
+
+Before start, Leave game releases a seat without leaving the room. If the creator
+leaves, the next seated player becomes creator; if everyone leaves, the waiting
+game ends. `POST /test-games/{room_id}/leave` accepts `{match_id}` and serializes
+with start/join so a started game cannot lose a seat. Repeated leaves are harmless.
+
+Connected room members can send messages up to 500 Unicode characters, with a
+one-second per-sender cooldown. Messages show the sender's display name at send
+time (Guest if unset), and the local sender is labeled You. Failed sends keep the
+draft. Leaving the room stops chat refreshes.
+
+Authenticated `GET /rooms/{room_id}/chat` returns the last 100 messages;
+`POST /rooms/{room_id}/chat` accepts `{text}`. Both require current room membership.
+Clients refresh every second, including while the card is collapsed. History is
+shared with members joining later, stays isolated by room, and resets on backend
+restart. Chat does not change game state or use personal poke phrases.
+
+`tests/test_room_chat.py` covers authentication, room isolation, sender identity,
+validation, rate limiting, bounded history, and access after leaving.

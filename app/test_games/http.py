@@ -60,6 +60,13 @@ async def action(room_id: str, body: GameAction, request: Request, response: Res
     return await request.app.state.test_games.action(room_id, user.user_id, body)
 
 
+@router.post("/{room_id}/leave")
+async def leave(room_id: str, body: JoinGame, request: Request, response: Response,
+                user: UserIdentity = Depends(current_user)):
+    response.headers["Cache-Control"] = "no-store"
+    return await request.app.state.test_games.leave(room_id, user.user_id, body.match_id)
+
+
 class GameSettings(JoinGame):
     weak_hand_enabled: Annotated[bool, Field(strict=True)] = True
     no_spades_enabled: Annotated[bool, Field(strict=True)] = True
@@ -81,3 +88,14 @@ async def end(room_id: str, body: JoinGame, request: Request, response: Response
               user: UserIdentity = Depends(current_user)):
     response.headers["Cache-Control"] = "no-store"
     return await request.app.state.test_games.end(room_id, user.user_id, body.match_id)
+
+
+class NextDeal(JoinGame):
+    deal_number: Annotated[int, Field(strict=True, ge=1, le=4)]
+
+
+@router.post("/{room_id}/next-deal")
+async def next_deal(room_id: str, body: NextDeal, request: Request, response: Response,
+                    user: UserIdentity = Depends(current_user)):
+    response.headers["Cache-Control"] = "no-store"
+    return await request.app.state.test_games.next_deal(room_id, user.user_id, body.match_id, body.deal_number)
