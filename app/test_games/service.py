@@ -18,6 +18,9 @@ from callbreak import (
 )
 from app.adapters.callbreak import AdapterResult, PlayerCommand, dispatch_control, dispatch_player
 from app.adapters.callbreak.host import CallBreakCommandTarget
+from marriage import MarriageGameEngine
+from app.adapters.marriage import MarriageAdapter
+from app.test_games.marriage import HostedMarriageTarget
 from app.games.base import GameCommandRejected
 from app.runtime.command_runtime import CommandAccessError, CommandRuntime, CommandSession, OutgoingEvent
 
@@ -38,6 +41,19 @@ class HostedGame:
     error: str | None = None
     play_mode: str = "auto"
     ended: bool = False
+    game_type: str = "callbreak"
+    marriage_target: object | None = None
+    marriage_queries: dict = field(default_factory=dict)
+
+    @property
+    def started(self):
+        return self.state is not None or self.marriage_target is not None
+
+    @property
+    def finished(self):
+        if self.marriage_target:
+            return self.marriage_target.adapter.snapshot()["view"]["status"] == "finished"
+        return bool(self.state and self.state.phase == Phase.MATCH_COMPLETE)
 
     @property
     def match_id(self):
@@ -62,8 +78,7 @@ class TestGameService:
     def is_playing(self, room_id: str, user_id: str) -> bool:
         """Expose participation without leaking Call Break state to room services."""
         game = self.games.get(room_id)
-        return bool(game and not game.ended and game.state
-                    and game.state.phase != Phase.MATCH_COMPLETE and user_id in game.users)
+        return bool(game and not game.ended and game.started and not game.finished and user_id in game.users)
 
     async def close(self):
         tasks = [g.task for g in self.games.values() if g.task is not None]
@@ -82,9 +97,12 @@ class TestGameService:
         return game
 
     def _snapshot(self, game, user_id):
+        if game.game_type == "marriage":
+            return self._marriage_snapshot(game, user_id)
         seat = game.users.index(user_id) + 1 if user_id in game.users else None
         result = {
             "room_id": game.room_id, "match_id": game.match_id, "capacity": game.capacity,
+            "game_type": "callbreak",
             "players": [{"player_id": i + 1, "user_id": u, "display_name": self.profiles.name(u, i + 1) if self.profiles else f"Player {i + 1}"} for i, u in enumerate(game.users)],
             "is_creator": bool(game.users) and user_id == game.users[0],
             "ready": len(game.users) == game.capacity, "settings": game.settings,
@@ -109,6 +127,31 @@ class TestGameService:
                           private=query.get_player_view(seat) if seat else None)
         return result
 
+    def _marriage_snapshot(self, game, user_id):
+        seat = game.users.index(user_id) + 1 if user_id in game.users else None
+        result = {
+            "room_id": game.room_id, "match_id": game.match_id, "game_type": "marriage",
+            "capacity": game.capacity, "ready": len(game.users) == game.capacity,
+            "players": [{"player_id": i + 1, "user_id": user,
+                         "display_name": self.profiles.name(user, i + 1) if self.profiles else f"Player {i + 1}"}
+                        for i, user in enumerate(game.users)],
+            "your_player_id": seat, "is_creator": bool(game.users) and game.users[0] == user_id,
+            "status": "ended" if game.ended else "finished" if game.finished else "playing" if game.started else "waiting",
+            "can_join": not game.ended and not game.started and seat is None and len(game.users) < game.capacity,
+            "play_mode": game.play_mode, "remaining_ms": None, "error": game.error,
+        }
+        if game.marriage_target:
+            adapter = game.marriage_target.adapter
+            public = adapter.snapshot()["view"]
+            private = adapter.snapshot(str(seat))["view"] if seat else None
+            result["marriage"] = {"public": public, "private": private}
+            result["game"] = {"revision": adapter.revision, "phase": (public["phase"] or "waiting").upper(),
+                              "finished": game.finished, "winners": [int(public["winner"])] if public["winner"] else [],
+                              "turn": {"player_id": int(public["current_player_id"]) if public["current_player_id"] else None},
+                              "current_trick": None, "scores_tenths": []}
+            result["query_result"] = game.marriage_queries.get(user_id)
+        return result
+
     async def snapshot(self, room_id, user_id):
         await self._member(room_id, user_id)
         game = self.games.get(room_id)
@@ -117,15 +160,17 @@ class TestGameService:
         async with game.lock:
             return self._snapshot(game, user_id)
 
-    async def create(self, room_id, user_id, capacity):
+    async def create(self, room_id, user_id, capacity, game_type="callbreak"):
         await self._member(room_id, user_id)
-        if type(capacity) is not int or capacity not in (4, 5):
-            raise HTTPException(422, "Choose four or five players.")
+        if game_type not in ("callbreak", "marriage"):
+            raise HTTPException(422, "Choose a supported game.")
+        if type(capacity) is not int or capacity not in ((2, 3, 4, 5) if game_type == "marriage" else (4, 5)):
+            raise HTTPException(422, "Choose 2-5 players for Marriage or 4-5 for Call Break.")
         async with self._catalog_lock:
             existing = self.games.get(room_id)
-            if existing and not existing.ended and (existing.state is None or existing.state.phase != Phase.MATCH_COMPLETE):
+            if existing and not existing.ended and not existing.finished:
                 raise HTTPException(409, "This room already has a waiting or active game.")
-            game = HostedGame(room_id, capacity, [user_id])
+            game = HostedGame(room_id, capacity, [user_id], game_type=game_type)
             self.games[room_id] = game
         async with game.lock:
             await self._publish(game)
@@ -159,9 +204,11 @@ class TestGameService:
                     raise HTTPException(403, "Only the game creator can end the game.")
                 if game.ended:
                     return self._snapshot(game, user_id)
-                if game.state and game.state.phase == Phase.MATCH_COMPLETE:
+                if game.finished:
                     raise HTTPException(409, "This game has already finished.")
                 game.ended = True
+                if game.marriage_target:
+                    game.marriage_target.active = False
                 game.deadline = None
                 if game.task:
                     game.task.cancel()
@@ -176,7 +223,7 @@ class TestGameService:
                 raise HTTPException(409, "Game changed. Refresh and join again.")
             if user_id in game.users:
                 return self._snapshot(game, user_id)
-            if game.state is not None or len(game.users) >= game.capacity:
+            if game.started or len(game.users) >= game.capacity:
                 raise HTTPException(409, "The game is full; you can watch it.")
             game.users.append(user_id)
             await self._publish(game)
@@ -189,7 +236,7 @@ class TestGameService:
             async with game.lock:
                 if match_id != game.match_id:
                     raise HTTPException(409, "The game changed. Refresh before leaving.")
-                if game.state is not None:
+                if game.started:
                     raise HTTPException(409, "You can only leave a game before it starts.")
                 if user_id in game.users:
                     game.users.remove(user_id)
@@ -201,6 +248,8 @@ class TestGameService:
     async def configure(self, room_id, user_id, body):
         await self._member(room_id, user_id)
         game = self._get(room_id)
+        if game.game_type == "marriage":
+            raise HTTPException(409, "Call Break settings do not apply to Marriage.")
         async with game.lock:
             self._creator(game, user_id, body.match_id)
             game.settings = body.model_dump(exclude={"match_id"})
@@ -210,7 +259,7 @@ class TestGameService:
     def _creator(self, game, user_id, match_id):
         if not game.users or user_id != game.users[0]:
             raise HTTPException(403, "Only the game creator can do this.")
-        if match_id != game.match_id or game.state is not None or game.ended:
+        if match_id != game.match_id or game.started or game.ended:
             raise HTTPException(409, "Settings and start are only available before this game begins.")
 
     async def start(self, room_id, user_id, match_id, play_mode="auto"):
@@ -220,6 +269,25 @@ class TestGameService:
             self._creator(game, user_id, match_id)
             if len(game.users) != game.capacity:
                 raise HTTPException(409, "Wait for all players to take a seat.")
+            if play_mode not in ("manual", "auto"):
+                raise HTTPException(422, "Choose manual or auto play.")
+            if game.game_type == "marriage":
+                from app.adapters.marriage import PlayerCommand as MarriageCommand, AdapterResult as MarriageResult
+                adapter = MarriageAdapter(MarriageGameEngine(tuple(str(i + 1) for i in range(game.capacity))),
+                                          match_id=game.match_id, owner_player_id="1")
+                outcome = adapter.dispatch_player(MarriageCommand(match_id=game.match_id, command_id=uuid4().hex,
+                    expected_revision=0, command="START_GAME"), player_id="1")
+                if not isinstance(outcome, MarriageResult):
+                    raise HTTPException(409, outcome.detail)
+                game.marriage_target = HostedMarriageTarget(self, game, adapter)
+                game.play_mode = play_mode
+                if play_mode == "auto":
+                    game.task = asyncio.create_task(self._run_marriage(game))
+                for event in outcome.messages:
+                    recipient = game.marriage_target.user_by_seat[event.recipient_player_id] if event.recipient_player_id else None
+                    await self._deliver(game, OutgoingEvent(event.message.model_dump(mode="json"), recipient))
+                await self._publish(game)
+                return self._snapshot(game, user_id)
             if play_mode not in ("manual", "auto"):
                 raise HTTPException(422, "Choose manual or auto play.")
             game.play_mode = play_mode
@@ -237,6 +305,15 @@ class TestGameService:
     async def action(self, room_id, user_id, body):
         await self._member(room_id, user_id)
         game = self._get(room_id)
+        return await self._execute_action(game, user_id, body)
+
+    async def _execute_action(self, game, user_id, body):
+        """Shared command execution; transport presence checks belong to action().
+
+        Host automation is authorized by the fixed seated roster, even while a
+        browser reconnects. Target authorization still checks game lifecycle and
+        seat ownership, and the runtime still serializes and validates revisions.
+        """
         async def deliver(events):
             for event in events:
                 await self._deliver(game, event)
@@ -244,7 +321,7 @@ class TestGameService:
 
         try:
             return await self.command_runtime.execute(
-                game.commands, CallBreakCommandTarget(self, game), user_id, body, deliver)
+                game.commands, game.marriage_target or CallBreakCommandTarget(self, game), user_id, body, deliver)
         except CommandAccessError as error:
             raise HTTPException(error.status, error.detail) from error
         except GameCommandRejected as error:
@@ -393,3 +470,30 @@ class TestGameService:
             game.error = "Test automation stopped. Check the server logs."
             game.deadline = None
             await self._publish(game)
+
+    async def _run_marriage(self, game):
+        from app.models.action import ActionCommand
+        from app.test_games.marriage_autoplay import choose_move
+        try:
+            # Give players time to reveal the initial hand before the test driver moves.
+            await asyncio.sleep(max(10, self.timeout_seconds))
+            while not game.ended and not game.finished and self.games.get(game.room_id) is game:
+                adapter = game.marriage_target.adapter
+                seat = adapter.snapshot()["view"]["current_player_id"]
+                move = choose_move(adapter.snapshot(seat)["view"])
+                if move is None:
+                    game.error = "Autoplay has no legal move. End this test round to start again."
+                    await self._publish(game)
+                    return
+                command, payload = move
+                await self._execute_action(game, game.marriage_target.user_by_seat[seat], ActionCommand(
+                    match_id=game.match_id, command_id=uuid4().hex, expected_revision=adapter.revision,
+                    command=command, payload=payload))
+                await asyncio.sleep(max(0.1, self.timeout_seconds))
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            if not game.ended:
+                logger.exception("Marriage test automation failed in room %s", game.room_id)
+                game.error = "Test autoplay stopped. You can continue manually or end the game."
+                await self._publish(game)

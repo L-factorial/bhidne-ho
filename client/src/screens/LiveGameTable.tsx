@@ -17,6 +17,9 @@ export type PlayMode = 'manual' | 'auto';
 
 type Trick = { trick_number: number; plays: { player_id: number; card: string }[]; complete: boolean; winner?: number };
 export type RoomSnapshot = {
+  game_type?: 'callbreak' | 'marriage';
+  marriage?: import('../multiplayer/marriage').MarriageView;
+  query_result?: { command: string; command_id: string; result: unknown } | null;
   action_ack?: ActionAck;
   round_review?: { deal_number: number; can_continue: boolean };
   status: 'empty' | 'waiting' | 'playing' | 'finished' | 'ended'; match_id?: string; capacity?: number;

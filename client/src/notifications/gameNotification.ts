@@ -9,6 +9,11 @@ export function notificationKey(snapshot: RoomSnapshot | null): string {
 
 export function notificationText(snapshot: RoomSnapshot): string {
   if (snapshot.error) return snapshot.error;
+  if (snapshot.game_type === 'marriage' && snapshot.game) {
+    if (snapshot.game.finished) return 'Marriage complete · view the result';
+    if (snapshot.your_player_id === snapshot.game.turn.player_id) return snapshot.game.phase === 'MUST_DRAW' ? 'Your turn · take a card' : 'Your turn · show, finish, or discard';
+    return 'Marriage · the table has updated';
+  }
   if (snapshot.game?.finished) return 'Game complete · see the final scores';
   if (snapshot.status === 'waiting') return snapshot.ready ? 'Everyone is ready · the creator can start' : `${snapshot.players?.length}/${snapshot.capacity} players seated`;
   const phase = snapshot.game?.phase;

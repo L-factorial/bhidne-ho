@@ -85,7 +85,7 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
         <View style={[styles.columns, wide && styles.wideColumns]}>
           <View style={styles.mainColumn}>
             {session && <RoomGameControl personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={roomMembers} connectionMessage={expired ? shared.error : undefined}
-              creationEnabled={selectedGame === 'callbreak'} createContent={<>
+              gameType={selectedGame === 'marriage' ? 'marriage' : 'callbreak'} creationEnabled={selectedGame !== 'flush'} createContent={<>
             <Text style={styles.eyebrowDark}>CHOOSE A GAME</Text>
             <View style={styles.gameTabs}>
               {(['callbreak', 'flush', 'marriage'] as const).map(value => <Pressable key={value} accessibilityRole="button"
@@ -96,7 +96,8 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
               </Pressable>)}
             </View>
               {selectedGame === 'callbreak' ? <Text style={styles.description}>Four or five players. Five deals. Make your call.</Text>
-                : <Text style={styles.description}>Coming soon. Choose Call Break to play with your room.</Text>}
+                : selectedGame === 'marriage' ? <Text style={styles.description}>Two to five players. Build your melds, unlock Maal, and finish with eight Dublees.</Text>
+                : <Text style={styles.description}>Coming soon. Choose Call Break or Marriage to play with your room.</Text>}
               </>} />}
           </View>
           <View style={[styles.sideColumn, wide && styles.fixedSide]}>

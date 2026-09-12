@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.adapters.callbreak.contracts import COMMAND_SPECS, CommandName
+from app.adapters.marriage.contracts import COMMAND_SPECS as MARRIAGE_COMMANDS, CommandName as MarriageCommandName
 from app.models.user import UserIdentity
 from app.models.action import ActionCommand
 from app.transport.http import current_user
@@ -15,7 +16,14 @@ router = APIRouter(prefix="/test-games", tags=["Test console only"])
 
 class CreateGame(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    player_count: Annotated[int, Field(strict=True, ge=4, le=5)]
+    player_count: Annotated[int, Field(strict=True, ge=2, le=5)]
+    game_type: Literal["callbreak", "marriage"] = "callbreak"
+
+    @model_validator(mode="after")
+    def capacity(self):
+        if self.game_type == "callbreak" and self.player_count < 4:
+            raise ValueError("Call Break requires four or five players.")
+        return self
 
 
 class JoinGame(BaseModel):
@@ -28,11 +36,12 @@ class StartGame(JoinGame):
 
 
 class GameAction(ActionCommand):
-    command: CommandName
+    command: CommandName | MarriageCommandName
 
     @model_validator(mode="after")
     def validate_payload(self):
-        COMMAND_SPECS[self.command].payload.model_validate(self.payload)
+        specs = MARRIAGE_COMMANDS if isinstance(self.command, MarriageCommandName) else COMMAND_SPECS
+        specs[self.command].payload.model_validate(self.payload)
         return self
 
 
@@ -45,7 +54,7 @@ async def state(room_id: str, request: Request, response: Response, user: UserId
 @router.post("/{room_id}", status_code=201)
 async def create(room_id: str, body: CreateGame, request: Request, response: Response, user: UserIdentity = Depends(current_user)):
     response.headers["Cache-Control"] = "no-store"
-    return await request.app.state.test_games.create(room_id, user.user_id, body.player_count)
+    return await request.app.state.test_games.create(room_id, user.user_id, body.player_count, body.game_type)
 
 
 @router.post("/{room_id}/join")
