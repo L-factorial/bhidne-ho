@@ -10,6 +10,10 @@ the shared adapter handles full gameplay; production runtime integration remains
 
 ## Documentation
 
+- [Room pokes and punchlines](docs/room-pokes.md): private player pokes, table messages, custom 25-character phrases, and popup behavior.
+
+- [Project TODO](TODO.md): current refinement priority and deferred backend-restart recovery.
+
 - [Shared command infrastructure](docs/shared-game-runtime.md): common runtime/client ownership and how a new game inherits reliable commands; implemented for Call Break and Echo.
 
 - [Reliable game actions](docs/reliable-game-actions.md): command acknowledgments, safe retries across disconnects, private snapshot recovery, protocol limits, and verification.

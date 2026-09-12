@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardTable } from '../components/CardTable';
@@ -8,6 +8,8 @@ import { GameDetails } from '../components/GameDetails';
 import { GameHistory } from '../components/GameHistory';
 import { colors, fonts } from '../theme';
 import type { ActionAck } from '../multiplayer/PendingGameAction';
+import type { RoomPhrase } from '../multiplayer/pokes';
+import { PokeComposer } from '../components/PokeComposer';
 
 export type PlayMode = 'manual' | 'auto';
 
@@ -33,7 +35,8 @@ export type RoomSnapshot = {
 const suits: Record<string, string> = { S: '♠', H: '♥', D: '♦', C: '♣' };
 const face = (card: string) => card.slice(0, -1) + suits[card.slice(-1)];
 
-export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart, onSave, onNewGame }: {
+export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart, onSave, onNewGame, social }: {
+  social: { connected: boolean; phrases: RoomPhrase[]; save: (text: string) => Promise<void>; send: (recipient: number | null, text: string) => Promise<void> };
   onNewGame: () => void; onStart: (playMode: PlayMode) => void; onSave: (settings: NonNullable<RoomSnapshot['settings']>) => void;
   snapshot: RoomSnapshot; busy: boolean; error: string; onAction: (command: string, payload?: object) => void; onBack: () => void;
 }) {
@@ -43,6 +46,13 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   const width = Math.max(180, Math.min(tableWidth - 24, 800));
   const [historyOpen, setHistoryOpen] = useState(false);
   const [playMode, setPlayMode] = useState<PlayMode>('manual');
+  const [pokeTarget, setPokeTarget] = useState<number | null | undefined>(undefined);
+  const [pokeNotice, setPokeNotice] = useState<{ text: string; at: number } | null>(null);
+  useEffect(() => {
+    if (!pokeNotice) return;
+    const timer = setTimeout(() => setPokeNotice(null), 2500);
+    return () => clearTimeout(timer);
+  }, [pokeNotice]);
   const game = snapshot.game, deal = snapshot.deal, mine = snapshot.private;
   if (!game || !deal) return <View style={styles.page}>
     <View style={styles.overlayHeader}><Text style={styles.overlayTitle}>Call Break · Ready to play</Text>
@@ -105,7 +115,14 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
       {mine?.can_claim_redeal && action('Request redeal', 'CLAIM_REDEAL')}
     </View>
     <CardTable width={width} players={players} dealerId={String(deal.dealer)} viewerId={snapshot.your_player_id ? String(snapshot.your_player_id) : ''}
+      onPokePlayer={snapshot.your_player_id && social.connected ? id => setPokeTarget(Number(id)) : undefined}
+      onPokeTable={snapshot.your_player_id && social.connected ? () => setPokeTarget(null) : undefined}
       activePlayerId={game.turn.player_id ? String(game.turn.player_id) : ''} plays={(trick?.plays || []).map(play => ({ playerId: String(play.player_id), card: face(play.card) }))} />
+    {!!snapshot.your_player_id && <Pressable accessibilityRole="button" accessibilityLabel="Poke the whole table"
+      disabled={!social.connected} onPress={() => setPokeTarget(null)} style={styles.pokeHint}>
+      <Text style={styles.link}>✦ Tap a player to poke · Tap cards for table talk</Text>
+    </Pressable>}
+    {!!pokeNotice && <Text accessibilityLiveRegion="polite" style={styles.meta}>{pokeNotice.text}</Text>}
     {last && <View><Text style={styles.meta}>Last trick · won by Player {last.winner}</Text><View style={styles.actions}>{last.plays.map(play => <Text key={play.player_id} style={styles.meta}>P{play.player_id}: {face(play.card)}</Text>)}</View></View>}
   </View></ScrollView>
     {historyOpen && <View style={wide ? styles.historySide : styles.historyBottom}>
@@ -124,9 +141,15 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     {<Pressable accessibilityRole="button" accessibilityState={{ expanded: historyOpen }} onPress={() => setHistoryOpen(value => !value)} style={styles.historyToggle}>
       <Text style={styles.link}>{historyOpen ? 'Hide history' : 'Show game history'}</Text>
     </Pressable>}
+    {pokeTarget !== undefined && <PokeComposer recipient={pokeTarget} phrases={social.phrases} connected={social.connected}
+      onClose={() => setPokeTarget(undefined)} onSave={social.save} onSend={async text => {
+        await social.send(pokeTarget, text);
+        setPokeNotice({ text: pokeTarget === null ? 'Sent to the table ✦' : `Poke sent to Player ${pokeTarget} ✦`, at: Date.now() });
+      }} />}
   </View>;
 }
 const styles = StyleSheet.create({
+  pokeHint: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderStyle: 'dashed', borderColor: '#D2AF794D', borderRadius: 10, padding: 6, marginBottom: 10 },
   newGamePanel: { padding: 16, gap: 8, borderBottomWidth: 1, borderColor: '#FFFFFF19' },
   overlayHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderColor: '#FFFFFF19', minHeight: 60 },
   overlayTitle: { fontFamily: fonts.display, fontSize: 23, color: colors.ivory, flexShrink: 1 },

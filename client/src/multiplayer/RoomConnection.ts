@@ -10,10 +10,13 @@ export class RoomConnection {
   private url: string;
   private onStatus: (status: ConnectionStatus) => void;
   private makeSocket: (url: string) => Socket;
+  private onEvent: (message: unknown) => void;
 
   constructor(url: string, onStatus: (status: ConnectionStatus) => void,
-    makeSocket: (url: string) => Socket = url => new WebSocket(url)) {
+    makeSocket: (url: string) => Socket = url => new WebSocket(url),
+    onEvent: (message: unknown) => void = () => {}) {
     this.url = url; this.onStatus = onStatus; this.makeSocket = makeSocket;
+    this.onEvent = onEvent;
   }
   start() { this.stopped = false; this.connect(); }
   stop() {
@@ -44,9 +47,11 @@ export class RoomConnection {
       if (this.socket !== socket || this.stopped) return;
       let message;
       try { message = JSON.parse(event.data); } catch { return; }
+      if (!message || typeof message !== 'object') return;
       if (message.type === 'CONNECTED') {
         this.attempts = 0; this.onStatus('connected'); this.scheduleHeartbeat(socket);
       } else if (message.type === 'HEARTBEAT_ACK') this.scheduleHeartbeat(socket);
+      else this.onEvent(message);
     };
   }
   private scheduleHeartbeat(socket: Socket) {

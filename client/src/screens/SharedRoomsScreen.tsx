@@ -78,7 +78,7 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
             {selectedGame === 'callbreak' ? <>
               <Text accessibilityRole="header" style={styles.gameTitle}>A round of Call Break.</Text>
               <Text style={styles.description}>Four or five players. Five deals. Make your call.</Text>
-              {session && <RoomGameControl key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} connected={shared.status === 'connected' && !expired} members={roomMembers} connectionMessage={expired ? shared.error : undefined} />}
+              {session && <RoomGameControl key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={roomMembers} connectionMessage={expired ? shared.error : undefined} />}
             </> : <View style={styles.comingSoon}><Text style={styles.heading}>{selectedGame === 'flush' ? 'Flush' : 'Marriage'}</Text><Text style={styles.description}>Coming soon. Choose Call Break to play with your room.</Text></View>}
           </View>
           <View style={[styles.sideColumn, wide && styles.fixedSide]}>

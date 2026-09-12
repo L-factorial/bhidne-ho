@@ -3,8 +3,10 @@ import { AppState, Platform } from 'react-native';
 import { apiUrl, ApiError, request } from './api';
 import { readSession, saveSession, type Room, type Session } from './session';
 import { RoomConnection, type ConnectionStatus } from './RoomConnection';
+import { appendPoke, readPoke, type RoomPoke } from './pokes';
 
 export function useRoomSession() {
+  const [pokes, setPokes] = useState<RoomPoke[]>([]);
   const [saved] = useState(() => readSession(apiUrl));
   const [session, setSession] = useState<Session | null>(saved?.session || null);
   const [room, setRoom] = useState<Room | null>(saved?.room || null);
@@ -61,9 +63,13 @@ export function useRoomSession() {
 
   useEffect(() => {
     if (!session || !room || expired) { setStatus('disconnected'); return; }
+    setPokes([]);
     const transport = new RoomConnection(
       `${apiUrl.replace(/^http/, 'ws')}/ws/rooms/${encodeURIComponent(room.room_id)}?token=${encodeURIComponent(session.token)}&heartbeat=1`,
-      setStatus,
+      setStatus, undefined, message => {
+        const poke = readPoke(message, room.room_id, session.user_id);
+        if (poke) setPokes(current => appendPoke(current, poke));
+      },
     );
     connection.current = transport; transport.start();
     const wake = () => transport.retryNow();
@@ -84,6 +90,6 @@ export function useRoomSession() {
     if (session && !expired) saveSession(apiUrl, { session, room: null, game: null });
   }
   function signOut() { connection.current?.stop(); saveSession(apiUrl, null); }
-  return { session, room, rooms, game, setGame, joinRoom, leaveRoom, signOut, status, expired, error,
+  return { session, room, rooms, game, setGame, joinRoom, leaveRoom, signOut, status, expired, error, pokes,
     retry: () => { connection.current?.retryNow(); setRetry(value => value + 1); } };
 }

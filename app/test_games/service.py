@@ -186,6 +186,23 @@ class TestGameService:
             # Legacy requests without command IDs keep their HTTP rejection shape.
             raise HTTPException(409, error.detail) from error
 
+    async def poke(self, room_id, user_id, body, social):
+        await self._member(room_id, user_id)
+        game = self._get(room_id)
+        # Pokes never acquire the gameplay lock or change revisions/deadlines.
+        # Roster validation is synchronous; social delivery has its own room checks.
+        if body.match_id != game.match_id:
+            raise HTTPException(409, "The game changed. Reopen the table to send a poke.")
+        if user_id not in game.users:
+            raise HTTPException(403, "Take a seat before sending a poke.")
+        recipient = body.recipient_player_id
+        if recipient is not None and recipient > len(game.users):
+            raise HTTPException(409, "That seat is empty.")
+        return await social.send(room_id, user_id, match_id=game.match_id,
+            sender_player_id=game.users.index(user_id) + 1,
+            recipient_user_id=game.users[recipient - 1] if recipient else None,
+            recipient_player_id=recipient, text=body.text)
+
     def _deadline(self, game, before):
         if game.play_mode == "manual" or game.state.phase == Phase.MATCH_COMPLETE:
             game.deadline = None

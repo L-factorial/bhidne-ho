@@ -5,12 +5,18 @@ import { colors, fonts } from '../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LiveGameTable, RoomSnapshot as Snapshot } from '../screens/LiveGameTable';
 import { GameCommandClient, createHttpGameTransport } from '../multiplayer/GameCommandClient';
+import type { RoomPoke } from '../multiplayer/pokes';
+import { useRoomPokes } from '../multiplayer/useRoomPokes';
+import { RoomPhrases } from './RoomPhrases';
+import { PokeOverlay } from './PokeOverlay';
 
 
-export function RoomGameControl({ roomId, apiUrl, token, connected, members, connectionMessage }: {
+export function RoomGameControl({ roomId, apiUrl, token, connected, members, connectionMessage, userId, pokes }: {
+  userId: string; pokes: RoomPoke[];
   roomId: string; apiUrl: string; token: string; connected: boolean; members: string[]; connectionMessage?: string;
 }) {
   const insets = useSafeAreaInsets();
+  const social = useRoomPokes(roomId, userId, token, connected);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [open, setOpen] = useState(false);
   const [live, setLive] = useState(false);
@@ -163,6 +169,8 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
     {snapshot?.status === 'finished' && <Pressable accessibilityRole="button" onPress={() => { setLive(true); setOpen(true); }} style={styles.choice}><Text style={styles.text}>View final scores</Text></Pressable>}
     {!!actionNotice && !open && <Text accessibilityLiveRegion="polite" style={styles.note}>{actionNotice}</Text>}
     {!!error && !open && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
+    <RoomPhrases phrases={social.phrases} userId={userId} connected={connected} loadError={social.error} onSave={social.save} onRemove={social.remove} />
+    {!open && <PokeOverlay pokes={pokes} matchId={snapshot?.match_id} />}
     <Modal transparent visible={open} animationType="fade" onRequestClose={collapseGame}>
       {live && snapshot ? <View testID="live-game-backdrop" style={[styles.liveBackdrop, {
         paddingTop: insets.top, paddingBottom: insets.bottom,
@@ -170,7 +178,9 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
       }]}><View accessibilityViewIsModal testID="live-game-overlay" style={styles.liveOverlay}>
         {(!connected || !synced) && <Text accessibilityRole="alert" style={styles.connectionNotice}>{connectionMessage || (!connected ? 'Reconnecting… Your seat is saved.' : 'Updating game…')}</Text>}
         {!!actionNotice && <Text accessibilityLiveRegion="polite" style={styles.connectionNotice}>{actionNotice}</Text>}
-        <LiveGameTable snapshot={visibleSnapshot || snapshot} busy={busy} error={error} onAction={gameAction} onNewGame={() => { setCapacity(snapshot.capacity === 5 ? 5 : 4); setLive(false); setOpen(true); }} onStart={play_mode => lobbyAction('/start', { play_mode })} onSave={settings => lobbyAction('/settings', settings)} onBack={collapseGame} />
+        <LiveGameTable key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={error} onAction={gameAction} onNewGame={() => { setCapacity(snapshot.capacity === 5 ? 5 : 4); setLive(false); setOpen(true); }} onStart={play_mode => lobbyAction('/start', { play_mode })} onSave={settings => lobbyAction('/settings', settings)} onBack={collapseGame}
+          social={{ connected, phrases: social.phrases, save: social.save, send: (recipient, text) => social.send(snapshot.match_id!, recipient, text) }} />
+        <PokeOverlay pokes={pokes} matchId={snapshot.match_id} />
       </View></View> :
       <View style={styles.overlay}><View accessibilityViewIsModal style={styles.modal}>
         <ScrollView contentContainerStyle={styles.body}>

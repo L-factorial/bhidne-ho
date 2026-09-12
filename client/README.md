@@ -180,6 +180,20 @@ the room is open, not operating-system push notifications.
 
 ## Shared session and reconnect support
 
+### Pokes and room punchlines
+
+Tap another online player's seat at the live table to send a private poke. Tap
+the played-card area or the table-talk hint to send a message to everyone in the
+room. Choose a quick phrase or type your own, up to **25 characters**. Save it
+from the composer, or expand **Room punchlines** in the room to manage your phrases.
+
+Private mint and table-wide gold popups brighten, dim, and disappear within five
+seconds without blocking card controls. Reduced-motion mode uses a steady popup.
+Pokes do not change game state and are not replayed after reconnecting. See the
+[poke guide](../docs/room-pokes.md) for delivery rules, APIs, limits, and testing.
+
+### Connection lifecycle
+
 `src/multiplayer/` owns guest identity, selected room/game, room membership polling,
 connection retries, and heartbeats. This is independent of Call Break and reusable
 for future games. Each game's client reloads its authoritative state after reconnecting.

@@ -12,8 +12,9 @@ from app.runtime.game_registry import GameRegistry
 from app.multiplayer.connection_manager import ConnectionManager
 from app.multiplayer.presence import PresenceService
 from app.multiplayer.room_service import RoomService
+from app.multiplayer.room_pokes import RoomPokeService
 from app.runtime.game_runtime import GameRuntime
-from app.transport import game_actions, http, websocket
+from app.transport import game_actions, http, room_pokes, websocket
 from app.test_games.service import TestGameService
 from app.test_games.http import router as test_game_router
 
@@ -29,6 +30,7 @@ def create_app() -> FastAPI:
         app.state.rooms = rooms
         app.state.presence = PresenceService(rooms)
         app.state.connections = connections
+        app.state.room_pokes = RoomPokeService(rooms, connections)
         registry = GameRegistry()
         app.state.game_registry = registry
 
@@ -53,12 +55,13 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[f"http://{host}:{port}" for host in ("localhost", "127.0.0.1") for port in (8081, 8083)],
-        allow_methods=["GET", "POST"],
+        allow_methods=["GET", "POST", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
     )
     app.include_router(http.router)
     app.include_router(websocket.router)
     app.include_router(game_actions.router)
+    app.include_router(room_pokes.router)
     app.include_router(test_game_router)
     static = Path(__file__).parent / "test_ui"
     app.mount("/test-ui", StaticFiles(directory=static), name="test-ui")
