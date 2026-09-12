@@ -3,6 +3,8 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CallBreakTableScreen } from './CallBreakTableScreen';
 import { colors, fonts } from '../theme';
+import { PlayerPhrases } from '../components/PlayerPhrases';
+import { usePlayerPhrases } from '../multiplayer/usePlayerPhrases';
 import { RoomGameControl } from '../components/RoomGameControl';
 
 import { apiUrl, request } from '../multiplayer/api';
@@ -18,6 +20,7 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
   const [previewSize, setPreviewSize] = useState<4 | 5>(4);
   const shared = useRoomSession();
   const { session, rooms, room, game, setGame, expired } = shared;
+  const personal = usePlayerPhrases(session, !!session && !expired);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
@@ -58,6 +61,7 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
       </View>
       {!!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{error || shared.error}</Text>}
       {room && !expired && shared.status !== 'connected' && <Text accessibilityLiveRegion="polite" style={styles.subtitle}>Reconnecting to your room…</Text>}
+      {session && !expired && <PlayerPhrases key={session.user_id} phrases={personal.phrases} userId={session.user_id} connected={!expired} loadError={personal.error} onSave={personal.save} onRemove={personal.remove} />}
       {room ? <>
         <View style={styles.hero}>
           <Text style={styles.eyebrow}>YOUR ROOM</Text>
@@ -78,7 +82,7 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
             {selectedGame === 'callbreak' ? <>
               <Text accessibilityRole="header" style={styles.gameTitle}>A round of Call Break.</Text>
               <Text style={styles.description}>Four or five players. Five deals. Make your call.</Text>
-              {session && <RoomGameControl key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={roomMembers} connectionMessage={expired ? shared.error : undefined} />}
+              {session && <RoomGameControl personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={roomMembers} connectionMessage={expired ? shared.error : undefined} />}
             </> : <View style={styles.comingSoon}><Text style={styles.heading}>{selectedGame === 'flush' ? 'Flush' : 'Marriage'}</Text><Text style={styles.description}>Coming soon. Choose Call Break to play with your room.</Text></View>}
           </View>
           <View style={[styles.sideColumn, wide && styles.fixedSide]}>

@@ -7,12 +7,13 @@ import { LiveGameTable, RoomSnapshot as Snapshot } from '../screens/LiveGameTabl
 import { GameCommandClient, createHttpGameTransport } from '../multiplayer/GameCommandClient';
 import type { RoomPoke } from '../multiplayer/pokes';
 import { useRoomPokes } from '../multiplayer/useRoomPokes';
-import { RoomPhrases } from './RoomPhrases';
+import type { usePlayerPhrases } from '../multiplayer/usePlayerPhrases';
+import { EndGameControl } from './EndGameControl';
 import { PokeOverlay } from './PokeOverlay';
 
 
-export function RoomGameControl({ roomId, apiUrl, token, connected, members, connectionMessage, userId, pokes }: {
-  userId: string; pokes: RoomPoke[];
+export function RoomGameControl({ roomId, apiUrl, token, connected, members, connectionMessage, userId, pokes, personal }: {
+  userId: string; pokes: RoomPoke[]; personal: ReturnType<typeof usePlayerPhrases>;
   roomId: string; apiUrl: string; token: string; connected: boolean; members: string[]; connectionMessage?: string;
 }) {
   const insets = useSafeAreaInsets();
@@ -116,7 +117,7 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
     } catch (error) { if (alive.current && generation.current === version) setError(error instanceof Error ? error.message : 'Cannot update game.'); }
     finally { pending.current = false; if (alive.current) setBusy(false); }
   }
-  const canCreate = snapshot?.status === 'empty' || snapshot?.status === 'finished';
+  const canCreate = snapshot?.status === 'empty' || snapshot?.status === 'finished' || snapshot?.status === 'ended';
   async function gameAction(command: string, payload: object = {}) {
     if (!canSend.current || !snapshot?.game || !snapshot.match_id || pending.current) return;
     if (!commandClient.submit(snapshot, command, payload)) return;
@@ -133,11 +134,13 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
     } catch (error) { if (alive.current && generation.current === version) setError(error instanceof Error ? error.message : 'Could not update game.'); }
     finally { pending.current = false; if (alive.current) setBusy(false); }
   }
-  const actionLabel = !snapshot ? 'Loading game…' : snapshot.status === 'finished' ? 'Start a new game' : canCreate ? 'Create game'
+  const actionLabel = !snapshot ? 'Loading game…' : (snapshot.status === 'finished' || snapshot.status === 'ended') ? 'Start a new game' : canCreate ? 'Create game'
     : snapshot.can_join ? 'Join game' : snapshot.your_player_id ? 'Enter game' : 'Watch game';
   const summary = !snapshot ? 'Loading room game…' : snapshot.status === 'empty' ? 'No game yet. Create one for everyone in this room.'
     : snapshot.status === 'waiting' ? `Call Break · ${snapshot.players?.length}/${snapshot.capacity} players ready`
-    : snapshot.status === 'finished' ? 'Call Break · Game finished' : `Call Break · ${snapshot.game?.phase.replaceAll('_', ' ').toLowerCase() || 'In progress'}`;
+    : snapshot.status === 'ended' ? 'Call Break ? Ended by the creator' : snapshot.status === 'finished' ? 'Call Break · Game finished' : `Call Break · ${snapshot.game?.phase.replaceAll('_', ' ').toLowerCase() || 'In progress'}`;
+  const endControl = snapshot?.is_creator && !canCreate
+    ? <EndGameControl key={snapshot.match_id} busy={busy} onEnd={() => lobbyAction('/end')} /> : null;
   return <>
     {collapsed && <View style={styles.returnPanel}>
       <Animated.View style={{ opacity: notification.opacity }}>
@@ -162,14 +165,14 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
         <Text style={styles.buttonText}>{busy ? 'Joining…' : actionLabel}</Text>
       </Pressable>
     </View>
-    {!collapsed && !open && snapshot?.game?.phase === 'BIDDING' && !!snapshot.your_player_id && <View style={styles.bidNotice}>
+    {!open && endControl}
+    {!collapsed && !open && snapshot?.status !== 'ended' && snapshot?.game?.phase === 'BIDDING' && !!snapshot.your_player_id && <View style={styles.bidNotice}>
       <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={styles.text}>Deal {snapshot.deal?.deal_number} · {snapshot.game.turn.player_id === snapshot.your_player_id ? 'Your turn to bid' : 'Bidding is open'}</Text>
       <Pressable accessibilityRole="button" onPress={() => { setLive(true); setOpen(true); }} style={styles.button}><Text style={styles.buttonText}>View cards & bidding</Text></Pressable>
     </View>}
     {snapshot?.status === 'finished' && <Pressable accessibilityRole="button" onPress={() => { setLive(true); setOpen(true); }} style={styles.choice}><Text style={styles.text}>View final scores</Text></Pressable>}
     {!!actionNotice && !open && <Text accessibilityLiveRegion="polite" style={styles.note}>{actionNotice}</Text>}
     {!!error && !open && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
-    <RoomPhrases phrases={social.phrases} userId={userId} connected={connected} loadError={social.error} onSave={social.save} onRemove={social.remove} />
     {!open && <PokeOverlay pokes={pokes} matchId={snapshot?.match_id} />}
     <Modal transparent visible={open} animationType="fade" onRequestClose={collapseGame}>
       {live && snapshot ? <View testID="live-game-backdrop" style={[styles.liveBackdrop, {
@@ -178,14 +181,21 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
       }]}><View accessibilityViewIsModal testID="live-game-overlay" style={styles.liveOverlay}>
         {(!connected || !synced) && <Text accessibilityRole="alert" style={styles.connectionNotice}>{connectionMessage || (!connected ? 'Reconnecting… Your seat is saved.' : 'Updating game…')}</Text>}
         {!!actionNotice && <Text accessibilityLiveRegion="polite" style={styles.connectionNotice}>{actionNotice}</Text>}
-        <LiveGameTable key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={error} onAction={gameAction} onNewGame={() => { setCapacity(snapshot.capacity === 5 ? 5 : 4); setLive(false); setOpen(true); }} onStart={play_mode => lobbyAction('/start', { play_mode })} onSave={settings => lobbyAction('/settings', settings)} onBack={collapseGame}
-          social={{ connected, phrases: social.phrases, save: social.save, send: (recipient, text) => social.send(snapshot.match_id!, recipient, text) }} />
+        {endControl}
+        {snapshot.status === 'ended' ? <View style={styles.body}>
+          <Text style={[styles.title, { color: colors.ivory }]}>Game ended</Text>
+          <Text style={[styles.text, { color: colors.ivory }]}>The creator ended this game. The room is still open for another round.</Text>
+          <Pressable accessibilityRole="button" onPress={() => { setLive(false); setOpen(true); }} style={styles.button}><Text style={styles.buttonText}>Start a new game</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={collapseGame} style={styles.button}><Text style={styles.buttonText}>Back to room</Text></Pressable>
+        </View> : <LiveGameTable key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={error} onAction={gameAction} onNewGame={() => { setCapacity(snapshot.capacity === 5 ? 5 : 4); setLive(false); setOpen(true); }} onStart={play_mode => lobbyAction('/start', { play_mode })} onSave={settings => lobbyAction('/settings', settings)} onBack={collapseGame}
+          social={{ connected, phrases: personal.phrases, save: personal.save, send: (recipient, text) => social.send(snapshot.match_id!, recipient, text) }} />}
         <PokeOverlay pokes={pokes} matchId={snapshot.match_id} />
       </View></View> :
       <View style={styles.overlay}><View accessibilityViewIsModal style={styles.modal}>
         <ScrollView contentContainerStyle={styles.body}>
           <Text accessibilityRole="header" style={styles.title}>{snapshot?.status === 'finished' ? 'Start a new Call Break game' : canCreate ? 'Create a Call Break game' : snapshot?.can_join ? 'Join this Call Break game' : 'Call Break game'}</Text>
           <Text style={styles.text}>{summary}</Text>
+          {endControl}
           {!connected && <Text accessibilityRole="alert" style={styles.modalError}>{connectionMessage || 'Reconnecting… Your seat is saved.'}</Text>}
           {snapshot?.can_join && <>
             <Text style={styles.text}>{(snapshot.capacity || 0) - (snapshot.players?.length || 0)} seats available. Take a seat to play with this room.</Text>

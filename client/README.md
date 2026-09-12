@@ -180,12 +180,15 @@ the room is open, not operating-system push notifications.
 
 ## Shared session and reconnect support
 
-### Pokes and room punchlines
+### Pokes and personal phrases
 
 Tap another online player's seat at the live table to send a private poke. Tap
 the played-card area or the table-talk hint to send a message to everyone in the
 room. Choose a quick phrase or type your own, up to **25 characters**. Save it
-from the composer, or expand **Room punchlines** in the room to manage your phrases.
+with **Save to my phrases** in the composer. After login, **My goofy phrases**
+lets you manage your private collection before joining a room and reuse it across
+Call Break rooms. Each player has up to 24 phrases. Collections currently reset
+with backend restarts or a new guest identity.
 
 Private mint and table-wide gold popups brighten, dim, and disappear within five
 seconds without blocking card controls. Reduced-motion mode uses a steady popup.
@@ -230,3 +233,17 @@ Run connection and session checks with:
 ```sh
 node --experimental-strip-types --test tests/reconnection.test.mjs
 ```
+
+
+### Ending a game
+
+The game creator can choose **End game** in the room, waiting lobby, or live table.
+A confirmation offers **Keep playing** or **End game for everyone**. Ending stops
+manual actions and autoplay for everyone, leaves the room open, and allows a new
+game. An unfinished match has no declared winner or final placement payout.
+
+`POST /test-games/{room_id}/end` takes `{match_id}` and requires the creator's
+bearer token and room membership. The server serializes ending with game actions,
+timers, and replacement, publishes an `ended` snapshot, and preserves the existing
+state for inspection. Repeating the same end request is safe; a stale match ID
+cannot end a replacement game. Other players see the ended state on refresh.

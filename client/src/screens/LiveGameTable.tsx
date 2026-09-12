@@ -8,7 +8,7 @@ import { GameDetails } from '../components/GameDetails';
 import { GameHistory } from '../components/GameHistory';
 import { colors, fonts } from '../theme';
 import type { ActionAck } from '../multiplayer/PendingGameAction';
-import type { RoomPhrase } from '../multiplayer/pokes';
+import type { PlayerPhrase } from '../multiplayer/pokes';
 import { PokeComposer } from '../components/PokeComposer';
 
 export type PlayMode = 'manual' | 'auto';
@@ -16,7 +16,7 @@ export type PlayMode = 'manual' | 'auto';
 type Trick = { trick_number: number; plays: { player_id: number; card: string }[]; complete: boolean; winner?: number };
 export type RoomSnapshot = {
   action_ack?: ActionAck;
-  status: 'empty' | 'waiting' | 'playing' | 'finished'; match_id?: string; capacity?: number;
+  status: 'empty' | 'waiting' | 'playing' | 'finished' | 'ended'; match_id?: string; capacity?: number;
   players?: { player_id: number; user_id: string; connected?: boolean }[]; your_player_id?: number | null; can_join?: boolean;
   play_mode?: PlayMode; remaining_ms?: number | null; error?: string | null;
   game?: { revision: number; phase: string; finished: boolean; winners: number[]; turn: { player_id: number | null };
@@ -36,7 +36,7 @@ const suits: Record<string, string> = { S: '♠', H: '♥', D: '♦', C: '♣' }
 const face = (card: string) => card.slice(0, -1) + suits[card.slice(-1)];
 
 export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart, onSave, onNewGame, social }: {
-  social: { connected: boolean; phrases: RoomPhrase[]; save: (text: string) => Promise<void>; send: (recipient: number | null, text: string) => Promise<void> };
+  social: { connected: boolean; phrases: PlayerPhrase[]; save: (text: string) => Promise<void>; send: (recipient: number | null, text: string) => Promise<void> };
   onNewGame: () => void; onStart: (playMode: PlayMode) => void; onSave: (settings: NonNullable<RoomSnapshot['settings']>) => void;
   snapshot: RoomSnapshot; busy: boolean; error: string; onAction: (command: string, payload?: object) => void; onBack: () => void;
 }) {

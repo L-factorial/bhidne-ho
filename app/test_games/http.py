@@ -74,3 +74,10 @@ async def settings(room_id: str, body: GameSettings, request: Request, user: Use
 @router.post("/{room_id}/start")
 async def start(room_id: str, body: StartGame, request: Request, user: UserIdentity = Depends(current_user)):
     return await request.app.state.test_games.start(room_id, user.user_id, body.match_id, body.play_mode)
+
+
+@router.post("/{room_id}/end")
+async def end(room_id: str, body: JoinGame, request: Request, response: Response,
+              user: UserIdentity = Depends(current_user)):
+    response.headers["Cache-Control"] = "no-store"
+    return await request.app.state.test_games.end(room_id, user.user_id, body.match_id)

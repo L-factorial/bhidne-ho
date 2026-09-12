@@ -13,6 +13,7 @@ from app.multiplayer.connection_manager import ConnectionManager
 from app.multiplayer.presence import PresenceService
 from app.multiplayer.room_service import RoomService
 from app.multiplayer.room_pokes import RoomPokeService
+from app.multiplayer.player_phrases import PlayerPhraseService
 from app.runtime.game_runtime import GameRuntime
 from app.transport import game_actions, http, room_pokes, websocket
 from app.test_games.service import TestGameService
@@ -30,6 +31,7 @@ def create_app() -> FastAPI:
         app.state.rooms = rooms
         app.state.presence = PresenceService(rooms)
         app.state.connections = connections
+        app.state.player_phrases = PlayerPhraseService()
         app.state.room_pokes = RoomPokeService(rooms, connections)
         registry = GameRegistry()
         app.state.game_registry = registry

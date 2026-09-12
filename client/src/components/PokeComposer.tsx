@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { BackHandler, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { limitPokeText, pokeTextLength, QUICK_POKES, type RoomPhrase } from '../multiplayer/pokes';
+import { limitPokeText, pokeTextLength, QUICK_POKES, type PlayerPhrase } from '../multiplayer/pokes';
 import { colors, fonts } from '../theme';
 
 export function PokeComposer({ recipient, phrases, connected, onClose, onSend, onSave }: {
-  recipient: number | null; phrases: RoomPhrase[]; connected: boolean; onClose: () => void;
+  recipient: number | null; phrases: PlayerPhrase[]; connected: boolean; onClose: () => void;
   onSend: (text: string) => Promise<void>; onSave: (text: string) => Promise<void>;
 }) {
   const [text, setText] = useState('');
@@ -27,7 +27,7 @@ export function PokeComposer({ recipient, phrases, connected, onClose, onSend, o
     if (pending.current || !connected || !text.trim()) return;
     pending.current = true; setBusy(true); setError(''); setNotice('');
     try {
-      if (save) { await onSave(text.trim()); if (alive.current) setNotice('Saved for everyone in this room.'); }
+      if (save) { await onSave(text.trim()); if (alive.current) setNotice('Saved to your phrases.'); }
       else { await onSend(text.trim()); if (alive.current) onClose(); }
     } catch (error) { if (alive.current) setError(error instanceof Error ? error.message : 'Could not send your poke.'); }
     finally { pending.current = false; if (alive.current) setBusy(false); }
@@ -51,7 +51,7 @@ export function PokeComposer({ recipient, phrases, connected, onClose, onSend, o
         style={styles.input} maxLength={50} editable={!busy} returnKeyType="send" onSubmitEditing={() => void submit(false)} />
       <View style={styles.between}><Text style={styles.note}>{pokeTextLength(text)}/25 characters</Text>
         <Pressable accessibilityRole="button" disabled={busy || !connected || !text.trim()} onPress={() => void submit(true)} style={styles.save}>
-          <Text style={styles.saveText}>+ Save to room</Text>
+          <Text style={styles.saveText}>+ Save to my phrases</Text>
         </Pressable></View>
       {!!notice && <Text accessibilityLiveRegion="polite" style={styles.success}>{notice}</Text>}
       {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}

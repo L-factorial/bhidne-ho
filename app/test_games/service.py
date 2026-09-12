@@ -37,6 +37,7 @@ class HostedGame:
     log: list[dict] = field(default_factory=list)
     error: str | None = None
     play_mode: str = "auto"
+    ended: bool = False
 
     @property
     def match_id(self):
@@ -79,9 +80,9 @@ class TestGameService:
             "players": [{"player_id": i + 1, "user_id": u} for i, u in enumerate(game.users)],
             "is_creator": user_id == game.users[0],
             "ready": len(game.users) == game.capacity, "settings": game.settings,
-            "your_player_id": seat, "status": "waiting" if game.state is None else
+            "your_player_id": seat, "status": "ended" if game.ended else "waiting" if game.state is None else
                 "finished" if game.state.phase == Phase.MATCH_COMPLETE else "playing",
-            "can_join": game.state is None and seat is None and len(game.users) < game.capacity,
+            "can_join": not game.ended and game.state is None and seat is None and len(game.users) < game.capacity,
             "play_mode": game.play_mode,
             "timeout_seconds": self.timeout_seconds if game.play_mode == "auto" else None,
             "remaining_ms": max(0, int((game.deadline - time.monotonic()) * 1000)) if game.deadline else None,
@@ -111,7 +112,7 @@ class TestGameService:
             raise HTTPException(422, "Choose four or five players.")
         async with self._catalog_lock:
             existing = self.games.get(room_id)
-            if existing and (existing.state is None or existing.state.phase != Phase.MATCH_COMPLETE):
+            if existing and not existing.ended and (existing.state is None or existing.state.phase != Phase.MATCH_COMPLETE):
                 raise HTTPException(409, "This room already has a waiting or active game.")
             game = HostedGame(room_id, capacity, [user_id])
             self.games[room_id] = game
@@ -119,11 +120,32 @@ class TestGameService:
             await self._publish(game)
             return self._snapshot(game, user_id)
 
+    async def end(self, room_id, user_id, match_id):
+        await self._member(room_id, user_id)
+        # Serialize replacement with ending, then serialize with actions and timers.
+        async with self._catalog_lock:
+            game = self._get(room_id)
+            async with game.lock:
+                if match_id != game.match_id:
+                    raise HTTPException(409, "The game changed. Refresh before ending it.")
+                if user_id != game.users[0]:
+                    raise HTTPException(403, "Only the game creator can end the game.")
+                if game.ended:
+                    return self._snapshot(game, user_id)
+                if game.state and game.state.phase == Phase.MATCH_COMPLETE:
+                    raise HTTPException(409, "This game has already finished.")
+                game.ended = True
+                game.deadline = None
+                if game.task:
+                    game.task.cancel()
+                await self._publish(game)
+                return self._snapshot(game, user_id)
+
     async def join(self, room_id, user_id, match_id):
         await self._member(room_id, user_id)
         game = self._get(room_id)
         async with game.lock:
-            if match_id != game.match_id:
+            if match_id != game.match_id or game.ended:
                 raise HTTPException(409, "Game changed. Refresh and join again.")
             if user_id in game.users:
                 return self._snapshot(game, user_id)
@@ -145,7 +167,7 @@ class TestGameService:
     def _creator(self, game, user_id, match_id):
         if user_id != game.users[0]:
             raise HTTPException(403, "Only the game creator can do this.")
-        if match_id != game.match_id or game.state is not None:
+        if match_id != game.match_id or game.state is not None or game.ended:
             raise HTTPException(409, "Settings and start are only available before this game begins.")
 
     async def start(self, room_id, user_id, match_id, play_mode="auto"):
@@ -191,7 +213,7 @@ class TestGameService:
         game = self._get(room_id)
         # Pokes never acquire the gameplay lock or change revisions/deadlines.
         # Roster validation is synchronous; social delivery has its own room checks.
-        if body.match_id != game.match_id:
+        if body.match_id != game.match_id or game.ended:
             raise HTTPException(409, "The game changed. Reopen the table to send a poke.")
         if user_id not in game.users:
             raise HTTPException(403, "Take a seat before sending a poke.")
@@ -297,7 +319,7 @@ class TestGameService:
             while True:
                 await asyncio.sleep(min(0.1, self.timeout_seconds))
                 async with game.lock:
-                    if game.state.phase == Phase.MATCH_COMPLETE:
+                    if game.ended or game.state.phase == Phase.MATCH_COMPLETE:
                         return
                     if game.deadline is None or time.monotonic() < game.deadline:
                         continue

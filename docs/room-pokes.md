@@ -11,12 +11,14 @@ ordinary emoji; the server enforces the same limit.
   receives the message. Your own seat and offline seats do not open this action.
 - Tap the central played-card area, an empty card slot, or the table-talk hint
   below the seats to open a message for **everyone** in the room.
-- Choose a quick phrase, choose a saved room punchline, or type your own text.
+- Choose a quick phrase, choose a personal saved phrase, or type your own text.
   Sending is explicit: the button names the target player or everyone.
-- Use **Save to room** in the composer to keep a custom phrase for later.
-- In the room, expand **Room punchlines** to create phrases and remove your own.
-  Other room members can see and reuse them. The collection updates within about
-  two seconds and is shared across matches in the same room.
+- Use **Save to my phrases** in the composer to keep a custom phrase for later.
+- After login, **My goofy phrases** is expanded so you can create and remove
+  personal phrases before joining a room. Your collection is private to your
+  authenticated identity and follows you across rooms and matches. Other players
+  see a phrase only when you send it to them. Other tabs using the same identity
+  refresh the collection within about two seconds.
 
 The composer can be dismissed with its close button, the backdrop, or Escape on
 the web. Closing it after sending does not undo a message already dispatched.
@@ -35,11 +37,10 @@ another tab using that same identity. It does not broadcast a copy to the sender
 spectators, other players, or that recipient's tabs in other rooms. Table delivery
 includes all currently connected room members, including the sender and spectators.
 
-Only seated players can send a Call Break poke. Any connected room member can
-create or reuse room phrases; only the creator can delete a phrase. Each room can
-hold 24 custom phrases. Duplicate phrases, compared without case, reuse the
-existing entry rather than filling another slot. Short built-in quick phrases
-are also available and do not consume custom slots.
+Only seated players can send a Call Break poke. Any authenticated player can
+manage their own collection without joining a room. Each player can hold 24
+custom phrases. Case-insensitive duplicates reuse an existing entry in that
+player's collection. Built-in quick phrases do not consume custom slots.
 
 The server allows one poke per sender per room every 1.5 seconds. Empty/oversized
 messages, a stale match, an empty or offline target seat, self-pokes, and requests
@@ -50,16 +51,17 @@ keeps repeated taps from flooding the table.
 
 Social messages are independent of gameplay commands. They do not change the
 match revision, bids, cards, scores, history, turn deadlines, or command receipts.
-`RoomPokeService` owns shared phrases and room-scoped delivery. The Call Break host
+`PlayerPhraseService` owns personal collections; `RoomPokeService` owns room delivery. The Call Break host
 only validates the match/roster and maps seat numbers to authenticated user IDs.
 
-All endpoints require the existing bearer token and a connected room socket:
+All endpoints require the existing bearer token. Only sending a poke also requires
+a connected room socket; phrase ownership comes exclusively from the token:
 
 | Endpoint | Behavior |
 | --- | --- |
-| `GET /rooms/{room_id}/phrases` | Return `{id, text, created_by}` entries for this room. |
-| `POST /rooms/{room_id}/phrases` | Create/reuse a phrase from `{text}`; HTTP 201. |
-| `DELETE /rooms/{room_id}/phrases/{id}` | Delete the requesting user's own phrase. |
+| `GET /me/phrases` | Return `{id, text, created_by}` entries for the authenticated player. |
+| `POST /me/phrases` | Create/reuse a phrase from `{text}`; HTTP 201. |
+| `DELETE /me/phrases/{id}` | Delete the requesting user's own phrase. |
 | `POST /test-games/{room_id}/poke` | Send `{match_id, recipient_player_id, text}`. Null/omitted recipient means table broadcast. |
 
 For example:
@@ -91,9 +93,12 @@ popup list. `RoomGameControl` displays only events for its current match.
 
 The client sends pokes once and does not automatically retry a failed request.
 These are ephemeral social messages, not reliable game actions. There is no
-offline inbox, message history, read receipt, or replay on reconnect. Room phrases
+offline inbox, message history, read receipt, or replay on reconnect. Personal phrases
 and cooldown state live in memory and clear when the backend restarts, consistent
 with the deferred persistence work in [TODO.md](../TODO.md).
+
+Guest sign-out creates a new identity on next login, so it starts a new collection.
+Durable accounts and phrase storage across backend restarts remain deferred.
 
 ## Verification
 
@@ -103,7 +108,7 @@ deprecation warnings remain.
 
 Backend tests in `tests/test_room_pokes.py` cover private routing across players,
 tabs and rooms, broadcasts, spectators, no gameplay mutation, cooldown, offline
-targets, stale matches, phrase ownership/capacity, authentication, spoofing, and
+targets, stale matches, personal phrase isolation before room entry, ownership/capacity, authentication, spoofing, and
 the 25-character limit. Client tests in `client/tests/pokes.test.mjs` cover audience
 filtering, expiry, deduplication, bounded messages, Unicode limits, and reconnect
 event handling.
@@ -120,13 +125,17 @@ npm run typecheck
 npm run build:web
 ```
 
-An isolated four-player Chrome test at a 320-pixel viewport verified creating a
+A two-player Chrome check at a 360-pixel viewport verified the personal section
+before room entry, the 25-character input limit, saving, retaining the collection
+after page reload, isolation from another login, and deletion with no browser errors.
+
+The original four-player Chrome test at a 320-pixel viewport verified creating a
 custom phrase, limiting input to 25 characters, private delivery only to Player 2,
 broadcast delivery to all four players, visible bright-to-dim animation, automatic
 disappearance, reduced-motion behavior, and unchanged game revision. Screenshots
 were inspected. Native-device behavior has not been manually checked.
 
-To try it manually, create a four-player manual game, save a phrase in the room,
+To try it manually, create a four-player manual game, save a personal phrase after login,
 tap Player 2 from Player 1's table and send it. Confirm that only Player 2 sees
 the private popup. Then tap the card area and send a table message: all players
 should see it fade away while play remains available.

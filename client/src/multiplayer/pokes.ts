@@ -1,6 +1,6 @@
 export const POKE_TEXT_LIMIT = 25;
 export const QUICK_POKES = ['Your move, legend!', 'Nice one!', 'Big talk, small tricks!', 'Spades have entered!', 'Bhidne ho? 😏', 'Plot twist!'];
-export type RoomPhrase = { id: string; text: string; created_by: string };
+export type PlayerPhrase = { id: string; text: string; created_by: string };
 export type RoomPoke = {
   type: 'ROOM_POKE'; id: string; room_id: string; match_id: string;
   sender_id: string; sender_player_id: number; recipient_id: string | null;

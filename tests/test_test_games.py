@@ -412,3 +412,55 @@ async def test_player_play_waits_for_input_and_completes_match(n):
         assert {Phase.BIDDING, Phase.PLAYING, Phase.HAND_REVIEW} <= checked_phases
     finally:
         await service.close()
+
+
+@pytest.mark.parametrize("started", [False, True])
+async def test_creator_can_end_waiting_or_running_game_and_replace_it(started):
+    service, delivery = await host(4, timeout=0.01)
+    try:
+        first = await service.create('room', 'u0', 4)
+        mid = first['match_id']
+        for i in range(1, 4): await service.join('room', f'u{i}', mid)
+        if started: await service.start('room', 'u0', mid, 'auto')
+        game = service.games['room']
+        state = game.state
+        for user, match, status in [('u1', mid, 403), ('u4', mid, 403),
+                                     ('outsider', mid, 403), ('u0', 'stale', 409)]:
+            with pytest.raises(HTTPException) as error: await service.end('room', user, match)
+            assert error.value.status_code == status
+        result = await service.end('room', 'u0', mid)
+        assert result['status'] == 'ended' and not result['can_join']
+        assert game.deadline is None and game.state is state
+        assert (await service.end('room', 'u0', mid))['status'] == 'ended'
+        await asyncio.sleep(0.03)
+        assert game.state is state
+        if started: assert game.task.done()
+        for i in range(5):
+            assert delivery.private['room', f'u{i}']['payload']['status'] == 'ended'
+        with pytest.raises(HTTPException): await service.join('room', 'u4', mid)
+        with pytest.raises(HTTPException): await service.start('room', 'u0', mid)
+        if started:
+            with pytest.raises(HTTPException) as error:
+                await service.action('room', 'u0', GameAction(match_id=mid,
+                    expected_revision=state.revision, command='SHUFFLE_DECK'))
+            assert error.value.status_code == 409
+        replacement = await service.create('room', 'u0', 4)
+        assert replacement['match_id'] != mid and replacement['status'] == 'waiting'
+        with pytest.raises(HTTPException): await service.end('room', 'u0', mid)
+        assert service.games['room'].ended is False
+    finally:
+        await service.close()
+
+
+def test_end_game_http_requires_authentication_and_match_identity():
+    with TestClient(create_app()) as client:
+        assert client.post('/test-games/room/end', json={'match_id': 'old'}).status_code == 401
+        user = client.post('/auth/guest').json()
+        headers = {'Authorization': f"Bearer {user['token']}"}
+        with client.websocket_connect(f"/ws/rooms/room?token={user['token']}") as socket:
+            socket.receive_json()
+            mid = client.post('/test-games/room', headers=headers, json={'player_count': 4}).json()['match_id']
+            assert client.post('/test-games/room/end', headers=headers, json={}).status_code == 422
+            ended = client.post('/test-games/room/end', headers=headers, json={'match_id': mid})
+            assert ended.status_code == 200 and ended.json()['status'] == 'ended'
+            assert ended.headers['cache-control'] == 'no-store'

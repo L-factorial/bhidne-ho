@@ -3,7 +3,7 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-class RoomPhraseInput(BaseModel):
+class PlayerPhraseInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     text: str = Field(min_length=1, max_length=25)
 
@@ -16,6 +16,6 @@ class RoomPhraseInput(BaseModel):
         return value
 
 
-class CallBreakPokeInput(RoomPhraseInput):
+class CallBreakPokeInput(PlayerPhraseInput):
     match_id: str = Field(min_length=1, max_length=128)
     recipient_player_id: Annotated[int, Field(strict=True, ge=1, le=5)] | None = None

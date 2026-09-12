@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from app.main import create_app
-from app.models.poke import CallBreakPokeInput, RoomPhraseInput
+from app.models.poke import CallBreakPokeInput, PlayerPhraseInput
 from app.multiplayer.connection_manager import ConnectionManager
 from app.multiplayer.room_pokes import RoomPokeService
 from app.multiplayer.room_service import RoomService
@@ -85,50 +85,55 @@ async def test_poke_authorization_stale_match_empty_seat_self_offline_and_cooldo
     await host.close()
 
 
-async def test_room_phrase_sharing_isolation_ownership_duplicate_and_capacity():
-    host, social, _, _, _ = await social_table()
-    first = await social.add_phrase('room', 'u0', 'Spades have entered!')
-    duplicate = await social.add_phrase('room', 'u1', 'spades have entered!')
-    assert first['id'] == duplicate['id']
-    assert await social.phrases('room', 'u1') == [first]
-    assert await social.phrases('elsewhere', 'u1') == []
+async def test_personal_phrases_without_room_isolation_duplicates_and_capacity():
+    from app.multiplayer.player_phrases import PlayerPhraseService
+    social = PlayerPhraseService()
+    first = await social.add_phrase('u0', 'Spades have entered!')
+    assert await social.add_phrase('u0', 'spades have entered!') == first
+    assert await social.phrases('u1') == []
+    other = await social.add_phrase('u1', first['text'])
+    assert other['id'] != first['id']
     with pytest.raises(HTTPException) as error:
-        await social.remove_phrase('room', 'u1', first['id'])
-    assert error.value.status_code == 403
-    for number in range(23): await social.add_phrase('room', 'u0', f'Phrase {number}')
+        await social.remove_phrase('u1', first['id'])
+    assert error.value.status_code == 404
+    for number in range(23): await social.add_phrase('u0', f'Phrase {number}')
     with pytest.raises(HTTPException) as error:
-        await social.add_phrase('room', 'u0', 'Too many')
+        await social.add_phrase('u0', 'Too many')
     assert error.value.status_code == 409
-    await social.remove_phrase('room', 'u0', first['id'])
-    assert len(await social.phrases('room', 'u1')) == 23
-    with pytest.raises(HTTPException): await social.phrases('room', 'outsider')
-    await host.close()
+    await social.remove_phrase('u0', first['id'])
+    assert len(await social.phrases('u0')) == 23
+    assert await social.phrases('u1') == [other]
 
 
 @pytest.mark.parametrize('text', ['', '   ', 'a' * 26, '😏' * 26, 'bad\x00text'])
 def test_phrase_validation_rejects_empty_long_and_control_text(text):
-    with pytest.raises(ValidationError): RoomPhraseInput(text=text)
+    with pytest.raises(ValidationError): PlayerPhraseInput(text=text)
 
 
 def test_phrase_validation_accepts_25_characters_and_unicode():
-    assert RoomPhraseInput(text='a' * 25).text == 'a' * 25
-    assert RoomPhraseInput(text='😏' * 25).text == '😏' * 25
-    assert RoomPhraseInput(text='  nice   hand! ').text == 'nice hand!'
+    assert PlayerPhraseInput(text='a' * 25).text == 'a' * 25
+    assert PlayerPhraseInput(text='😏' * 25).text == '😏' * 25
+    assert PlayerPhraseInput(text='  nice   hand! ').text == 'nice hand!'
 
 
 def test_http_phrases_and_pokes_enforce_membership_identity_and_length():
     with TestClient(create_app()) as client, ExitStack() as stack:
-        assert client.get('/rooms/room/phrases').status_code == 401
+        assert client.get('/me/phrases').status_code == 401
         users = [client.post('/auth/guest').json() for _ in range(2)]
         headers = [{'Authorization': f"Bearer {u['token']}"} for u in users]
-        assert client.post('/rooms/room/phrases', headers=headers[0], json={'text': 'Hey'}).status_code == 403
+        # Personal collection is usable before opening any room socket.
+        assert client.post('/me/phrases', headers=headers[0], json={'text': 'Hey'}).status_code == 201
+        assert client.post('/me/phrases', headers=headers[0], json={'text': 'Hey', 'user_id': users[1]['user_id']}).status_code == 422
+        assert client.post('/test-games/room/poke', headers=headers[0], json={'match_id': 'none', 'text': 'Hey'}).status_code == 403
         for user in users:
             socket = stack.enter_context(client.websocket_connect(f"/ws/rooms/room?token={user['token']}"))
             socket.receive_json()
-        phrase = client.post('/rooms/room/phrases', headers=headers[0], json={'text': 'Nice hand!'})
+        phrase = client.post('/me/phrases', headers=headers[0], json={'text': 'Nice hand!'})
         assert phrase.status_code == 201 and phrase.headers['cache-control'] == 'no-store'
-        assert client.get('/rooms/room/phrases', headers=headers[1]).json()[0]['text'] == 'Nice hand!'
-        assert client.post('/rooms/room/phrases', headers=headers[0], json={'text': 'x' * 26}).status_code == 422
+        assert client.get('/me/phrases', headers=headers[1]).json() == []
+        assert client.get('/me/phrases', headers=headers[0]).json()[-1]['text'] == 'Nice hand!'
+        assert client.delete('/me/phrases/' + phrase.json()['id'], headers=headers[1]).status_code == 404
+        assert client.post('/me/phrases', headers=headers[0], json={'text': 'x' * 26}).status_code == 422
         mid = client.post('/test-games/room', headers=headers[0], json={'player_count': 4}).json()['match_id']
         client.post('/test-games/room/join', headers=headers[1], json={'match_id': mid})
         body = {'match_id': mid, 'recipient_player_id': 2, 'text': 'Poke!'}
@@ -136,5 +141,5 @@ def test_http_phrases_and_pokes_enforce_membership_identity_and_length():
         assert client.post('/test-games/room/poke', headers=headers[0], json={**body, 'text': 'x' * 26}).status_code == 422
         sent = client.post('/test-games/room/poke', headers=headers[0], json=body)
         assert sent.status_code == 200 and sent.json()['scope'] == 'private'
-        removed = client.delete('/rooms/room/phrases/' + phrase.json()['id'], headers=headers[0])
+        removed = client.delete('/me/phrases/' + phrase.json()['id'], headers=headers[0])
         assert removed.status_code == 200
