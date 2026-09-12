@@ -210,14 +210,13 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
       }]}><View accessibilityViewIsModal testID="live-game-overlay" style={styles.liveOverlay}>
         {(!connected || !synced) && <Text accessibilityRole="alert" style={styles.connectionNotice}>{connectionMessage || (!connected ? 'Reconnecting… Your seat is saved.' : 'Updating game…')}</Text>}
         {!!actionNotice && <Text accessibilityLiveRegion="polite" style={styles.connectionNotice}>{actionNotice}</Text>}
-        {endControl}
         {leaveControl}
         {snapshot.status === 'ended' ? <View style={styles.body}>
           <Text style={[styles.title, { color: colors.ivory }]}>Game ended</Text>
           <Text style={[styles.text, { color: colors.ivory }]}>The creator ended this game. The room is still open for another round.</Text>
           <Pressable accessibilityRole="button" onPress={() => { setLive(false); setOpen(true); }} style={styles.button}><Text style={styles.buttonText}>Start a new game</Text></Pressable>
           <Pressable accessibilityRole="button" onPress={collapseGame} style={styles.button}><Text style={styles.buttonText}>Back to room</Text></Pressable>
-        </View> : <LiveGameTable onNextDeal={() => lobbyAction('/next-deal', { deal_number: snapshot.round_review?.deal_number })} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={error} onAction={gameAction} onNewGame={() => { setCapacity(snapshot.capacity === 5 ? 5 : 4); setLive(false); setOpen(true); }} onStart={play_mode => lobbyAction('/start', { play_mode })} onSave={settings => lobbyAction('/settings', settings)} onBack={collapseGame}
+        </View> : <LiveGameTable endControl={snapshot.is_creator && !canCreate ? <EndGameControl compact busy={busy} onEnd={() => lobbyAction('/end')} /> : null} onNextDeal={() => lobbyAction('/next-deal', { deal_number: snapshot.round_review?.deal_number })} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={error} onAction={gameAction} onNewGame={() => { setCapacity(snapshot.capacity === 5 ? 5 : 4); setLive(false); setOpen(true); }} onStart={play_mode => lobbyAction('/start', { play_mode })} onSave={settings => lobbyAction('/settings', settings)} onBack={collapseGame}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: (recipient, text) => social.send(snapshot.match_id!, recipient, text) }} />}
         <PokeOverlay pokes={pokes} matchId={snapshot.match_id} />
       </View></View> :

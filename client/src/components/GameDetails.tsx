@@ -3,20 +3,22 @@ import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { colors, fonts } from '../theme';
 
-export function GameDetails({ snapshot, busy, onSave }: {
-  snapshot: RoomSnapshot; busy: boolean; onSave: (settings: NonNullable<RoomSnapshot['settings']>) => void;
+export function GameDetails({ snapshot, busy, onSave, sidebar = false }: {
+  sidebar?: boolean; snapshot: RoomSnapshot; busy: boolean; onSave: (settings: NonNullable<RoomSnapshot['settings']>) => void;
 }) {
   const [tab, setTab] = useState<'stats' | 'rules' | null>(null);
+  const selectedTab = tab ?? (sidebar ? 'stats' : null);
   const [draft, setDraft] = useState(snapshot.settings);
   const editable = snapshot.is_creator && snapshot.status === 'waiting';
   const settings = editable ? draft || snapshot.settings : snapshot.settings;
-  return <View style={styles.panel}>
-    <View style={styles.row}>{(['stats', 'rules'] as const).map(value => <Pressable key={value} accessibilityRole="button"
-      accessibilityState={{ expanded: tab === value }} onPress={() => { setDraft(snapshot.settings); setTab(tab === value ? null : value); }} style={styles.button}>
-      <Text style={styles.label}>{value === 'stats' ? 'Stats' : 'Rules'} {tab === value ? '−' : '+'}</Text>
+  return <View testID={sidebar ? "game-details-sidebar" : "game-details-inline"} style={[styles.panel, sidebar && styles.sidebar]}>
+    <View style={styles.row} accessibilityRole={sidebar ? 'tablist' : undefined}>{(['stats', 'rules'] as const).map(value => <Pressable key={value} accessibilityRole={sidebar ? 'tab' : 'button'}
+      accessibilityLabel={value === 'stats' ? 'Stats' : 'Rules'} aria-selected={sidebar ? selectedTab === value : undefined}
+      accessibilityState={sidebar ? { selected: selectedTab === value } : { expanded: selectedTab === value }} onPress={() => { setDraft(snapshot.settings); setTab(!sidebar && tab === value ? null : value); }} style={[styles.button, sidebar && selectedTab === value && styles.selectedTab]}>
+      <Text style={styles.label}>{value === 'stats' ? 'Stats' : 'Rules'}{sidebar ? '' : selectedTab === value ? ' -' : ' +'}</Text>
     </Pressable>)}</View>
-    {tab && <ScrollView style={styles.details} nestedScrollEnabled contentContainerStyle={{ gap: 12, paddingVertical: 12 }}>
-      {tab === 'stats' ? <>
+    {selectedTab && <ScrollView style={sidebar ? styles.sidebarDetails : styles.details} nestedScrollEnabled contentContainerStyle={{ gap: 12, paddingVertical: 12 }}>
+      {selectedTab === 'stats' ? <>
         <View style={styles.statsTable}>
           <View style={styles.statsRow}>
             <Text style={styles.cell}>Deal</Text>
@@ -84,6 +86,9 @@ export function GameDetails({ snapshot, busy, onSave }: {
   </View>;
 }
 const styles = StyleSheet.create({
+  sidebar: { flex: 1, minHeight: 0, borderBottomWidth: 0, paddingHorizontal: 12 },
+  sidebarDetails: { flex: 1, minHeight: 0 },
+  selectedTab: { backgroundColor: '#29475B', borderBottomWidth: 2, borderColor: colors.champagne },
   panel: { paddingHorizontal: 16, borderBottomWidth: 1, borderColor: '#FFFFFF19' }, row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   button: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 12 }, label: { fontFamily: fonts.medium, fontSize: 12, color: colors.champagne },
   details: { maxHeight: 320 }, title: { fontFamily: fonts.display, fontSize: 23, color: colors.ivory }, text: { fontFamily: fonts.body, color: '#C1CBD5', fontSize: 12, lineHeight: 21, flexShrink: 1 },

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardTable } from '../components/CardTable';
@@ -7,8 +7,7 @@ import { PlayerHand, type HandView } from '../components/PlayerHand';
 import { LiveBidPrompt } from '../components/LiveBidPrompt';
 import { GameDetails } from '../components/GameDetails';
 import { RoundSummary } from '../components/RoundSummary';
-import { ROUND_STEPS, roundGuidance } from '../multiplayer/roundFlow';
-import { GameHistory } from '../components/GameHistory';
+import { roundGuidance } from '../multiplayer/roundFlow';
 import { colors, fonts } from '../theme';
 import type { ActionAck } from '../multiplayer/PendingGameAction';
 import type { PlayerPhrase } from '../multiplayer/pokes';
@@ -39,7 +38,8 @@ export type RoomSnapshot = {
 const suits: Record<string, string> = { S: '♠', H: '♥', D: '♦', C: '♣' };
 const face = (card: string) => card.slice(0, -1) + suits[card.slice(-1)];
 
-export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart, onSave, onNewGame, onNextDeal, social }: {
+export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart, onSave, onNewGame, onNextDeal, social, endControl }: {
+  endControl?: ReactNode;
   social: { connected: boolean; phrases: PlayerPhrase[]; save: (text: string) => Promise<void>; send: (recipient: number | null, text: string) => Promise<void> };
   onNextDeal: () => void; onNewGame: () => void; onStart: (playMode: PlayMode) => void; onSave: (settings: NonNullable<RoomSnapshot['settings']>) => void;
   snapshot: RoomSnapshot; busy: boolean; error: string; onAction: (command: string, payload?: object) => void; onBack: () => void;
@@ -50,8 +50,8 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   const width = Math.max(180, Math.min(tableWidth - 24, 800));
   const [revealedDeal, setRevealedDeal] = useState<string | null>(null);
   const handDealKey = `${snapshot.match_id}:${snapshot.deal?.deal_number}:${snapshot.deal?.attempt}`;
+  const [expandedLastTrick, setExpandedLastTrick] = useState<string | null>(null);
   const [handView, setHandView] = useState<HandView>('fan');
-  const [historyOpen, setHistoryOpen] = useState(false);
   const [playMode, setPlayMode] = useState<PlayMode>('manual');
   const [pokeTarget, setPokeTarget] = useState<number | null | undefined>(undefined);
   const [pokeNotice, setPokeNotice] = useState<{ text: string; at: number } | null>(null);
@@ -75,6 +75,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   const game = snapshot.game, deal = snapshot.deal, mine = snapshot.private;
   if (!game || !deal) return <View style={styles.page}>
     <View style={styles.overlayHeader}><Text style={styles.overlayTitle}>Call Break · Ready to play</Text>
+      {endControl}
       <Pressable accessibilityRole="button" accessibilityLabel="Collapse game" onPress={onBack} style={styles.back}><Text style={styles.link}>Collapse ↘</Text></Pressable></View>
     <GameDetails snapshot={snapshot} busy={busy} onSave={onSave} />
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 20 }}>
@@ -96,8 +97,8 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
       {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     </View>
   </View>;
-  if ((snapshot.round_review || game.finished) && !reveal) return <RoundSummary
-    snapshot={snapshot} busy={busy} error={error || snapshot.error || ''} onContinue={onNextDeal} onBack={onBack} onNewGame={onNewGame} />;
+  if ((snapshot.round_review || game.finished) && !reveal) return <View style={styles.page}>{endControl}<RoundSummary
+    snapshot={snapshot} busy={busy} error={error || snapshot.error || ''} onContinue={onNextDeal} onBack={onBack} onNewGame={onNewGame} /></View>;
   const isTurn = !!snapshot.your_player_id && game.turn.player_id === snapshot.your_player_id;
   const showTurn = game.phase === 'PLAYING' && !game.finished && !reveal && !!game.turn.player_id;
   const players = deal.players.map(player => ({ id: String(player.player_id), name: playerName(player.player_id),
@@ -105,33 +106,30 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     bid: player.bid ?? 0, tricks: Math.max(0, player.tricks_won - (reveal && completedTrick?.winner === player.player_id ? 1 : 0)), cardsRemaining: player.cards_remaining }));
   const last = [...deal.tricks].reverse().find(trick => trick.complete);
   const trick = reveal ? completedTrick : game.current_trick;
-  const leadsNext = !reveal && completedTrick && game.phase === 'PLAYING' && !game.current_trick?.plays.length;
   function action(label: string, command: string, payload = {}) {
     return <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => onAction(command, payload)} style={styles.button}><Text style={styles.buttonText}>{label}</Text></Pressable>;
   }
   return <View style={styles.page}>
-    {showTurn && isTurn && <TurnPulse personal text="Your turn" />}
     <View style={styles.overlayHeader}>
       <Text accessibilityRole="header" style={styles.overlayTitle}>भिड्ने हो? · Call Break · Live game</Text>
+      {endControl}
       <Pressable accessibilityRole="button" accessibilityLabel="Collapse game" onPress={onBack} style={styles.back}><Text style={styles.link}>Collapse ↘</Text></Pressable>
     </View>
-    <GameDetails snapshot={snapshot} busy={busy} onSave={onSave} />
+    {!wide && <GameDetails snapshot={snapshot} busy={busy} onSave={onSave} />}
     {game.finished && <View style={styles.newGamePanel}>
       <Text style={styles.status}>Game complete · ready for another round?</Text>
       <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={onNewGame} style={styles.button}>
         <Text style={styles.buttonText}>Start a new game</Text>
       </Pressable>
     </View>}
-    <View style={[styles.body, wide && styles.wideBody]}>
+    <View style={[styles.workspace, wide && styles.wideBody]}>
+    <View style={styles.playColumn}>
+    <View style={styles.body}>
     <ScrollView style={styles.tableScroll} onLayout={event => setTableWidth(event.nativeEvent.layout.width)} contentContainerStyle={[styles.container, {
       paddingTop: 12, paddingBottom: Math.max(insets.bottom, 16),
     }]}><View style={{ width }}>
     <Text style={styles.meta}>Deal {deal.deal_number} of 5 · {deal.tricks_completed}/{deal.tricks_required} tricks completed · Spades trump</Text>
-    <View style={[styles.guidance, guidance.mine && styles.yourTurn]}>
-      <Text style={styles.meta}>{ROUND_STEPS.map((step, i) => i === guidance.step ? `[${step}]` : step).join(' > ')}</Text>
-      <Text accessibilityLiveRegion="polite" style={styles.status}>{reveal ? `${playerName(completedTrick!.winner!)} wins trick ${completedTrick!.trick_number}` : leadsNext ? `${playerName(game.turn.player_id!)} leads next` : guidance.title}</Text>
-      <Text style={styles.meta}>{reveal ? (game.finished || snapshot.round_review ? 'Collecting the final trick before scores.' : collectingTrick === trickKey ? 'Collecting the cards.' : 'Winning card highlighted.') : guidance.instruction}</Text>
-    </View>
+    {game.phase !== 'PLAYING' && game.phase !== 'BIDDING' && !reveal && <Text style={styles.meta}>{guidance.title}</Text>}
     {!game.finished && snapshot.play_mode === 'auto' && snapshot.remaining_ms != null && <Text style={styles.meta}>Automatic move in {Math.ceil(snapshot.remaining_ms / 1000)}s</Text>}
     {!!(error || snapshot.error) && <Text accessibilityRole="alert" style={styles.error}>{error || snapshot.error}</Text>}
     <View style={styles.actions}>
@@ -141,24 +139,40 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
       {mine?.can_accept_hand && revealedDeal === handDealKey && action('Accept hand', 'ACCEPT_HAND')}
       {mine?.can_claim_redeal && action('Request redeal', 'CLAIM_REDEAL')}
     </View>
-    {showTurn && <TurnPulse text={`Player ${game.turn.player_id}'s turn`} />}
     <CardTable width={width} players={players} dealerId={String(deal.dealer)} viewerId={snapshot.your_player_id ? String(snapshot.your_player_id) : ''}
-      tricksRemaining={Math.max(0, deal.tricks_required - deal.tricks_completed + (reveal ? 1 : 0))}
       onPokePlayer={snapshot.your_player_id && social.connected ? id => setPokeTarget(Number(id)) : undefined}
       onPokeTable={snapshot.your_player_id && social.connected ? () => setPokeTarget(null) : undefined}
       collectionKey={reveal ? trickKey : undefined} collecting={reveal && collectingTrick === trickKey}
       winnerPlayerId={reveal ? String(completedTrick?.winner) : undefined} activePlayerId={!reveal && game.turn.player_id ? String(game.turn.player_id) : ''} plays={(trick?.plays || []).map(play => ({ playerId: String(play.player_id), card: face(play.card) }))} />
+    <View testID="central-turn-notice">
+      {reveal && <Text accessibilityLiveRegion="polite" style={styles.status}>{playerName(completedTrick!.winner!)} wins trick {completedTrick!.trick_number}</Text>}
+      {showTurn && <TurnPulse personal={isTurn} text={isTurn ? 'Your turn' : `Player ${game.turn.player_id}'s turn`} />}
+    </View>
     {!!snapshot.your_player_id && <Pressable accessibilityRole="button" accessibilityLabel="Poke the whole table"
       disabled={!social.connected} onPress={() => setPokeTarget(null)} style={styles.pokeHint}>
       <Text style={styles.link}>✦ Tap a player to poke · Tap cards for table talk</Text>
     </Pressable>}
     {!!pokeNotice && <Text accessibilityLiveRegion="polite" style={styles.meta}>{pokeNotice.text}</Text>}
-    {last && <View><Text style={styles.meta}>Last trick · won by {playerName(last.winner!)}</Text><View style={styles.actions}>{last.plays.map(play => <Text key={play.player_id} style={styles.meta}>P{play.player_id}: {face(play.card)}</Text>)}</View></View>}
+
   </View></ScrollView>
-    {historyOpen && <View style={wide ? styles.historySide : styles.historyBottom}>
-      <GameHistory snapshot={snapshot} />
-    </View>}
+
     </View>
+    {last && <View style={styles.lastTrick}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Last trick" aria-expanded={expandedLastTrick === trickKey} accessibilityState={{ expanded: expandedLastTrick === trickKey }}
+        onPress={() => setExpandedLastTrick(value => value === trickKey ? null : trickKey)} style={styles.lastToggle}>
+        <Text style={styles.meta}>Last trick - {playerName(last.winner!)} won</Text><Text style={styles.link}>{expandedLastTrick === trickKey ? '-' : '+'}</Text>
+      </Pressable>
+      {expandedLastTrick === trickKey && <View testID="last-trick-cards" style={styles.lastCards}>
+        {last.plays.map((play, index) => <View key={play.player_id} style={styles.lastPlayer}>
+          <Text numberOfLines={1} style={styles.meta}>{playerName(play.player_id)}</Text>
+          <View testID={play.player_id === last.winner ? 'last-trick-winner' : undefined} accessibilityLabel={`${playerName(play.player_id)} played ${face(play.card)}${play.player_id === last.winner ? ', winner' : ''}`}
+            style={[styles.lastCard, play.player_id === last.winner && styles.lastWinner]}>
+            <Text style={[styles.lastFace, /[HD]$/.test(play.card) && { color: '#A33332' }, play.card.endsWith('C') && { color: '#176342' }]}>{face(play.card)}</Text>
+          </View>
+          <Text style={styles.meta}>{play.player_id === last.winner ? 'Winner' : index === 0 ? 'Led' : `Play ${index + 1}`}</Text>
+        </View>)}
+      </View>}
+    </View>}
     <View style={styles.handDock}>
     {game.phase === 'PLAYING' && !deal.tricks.some(trick => trick.complete || trick.plays.length) && !game.current_trick?.plays.length && <Text accessibilityLiveRegion="polite" style={styles.status}>Bidding complete. {isTurn ? 'You lead first.' : `${playerName(game.turn.player_id!)} leads first.`}</Text>}
     {game.phase === 'BIDDING' && <LiveBidPrompt key={`${snapshot.match_id}-${deal.deal_number}-${deal.attempt}`} snapshot={snapshot} revealed={revealedDeal === handDealKey} busy={busy} onAction={onAction} />}
@@ -167,11 +181,11 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     {mine && <PlayerHand turnKey={`${game.phase}:${game.turn.player_id}:${game.current_trick?.trick_number}`} view={handView} onViewChange={setHandView} dealKey={handDealKey} onRevealComplete={setRevealedDeal} hand={mine.hand} legalCards={mine.legal_cards}
       canPlay={!reveal && !busy && isTurn && game.phase === 'PLAYING'} onPlay={card => onAction('PLAY_CARD', { card })} />}
     {!mine && <Text style={styles.meta}>Only seated players can see their own hand.</Text>}
-    <Text style={styles.meta}>♠ Spades · <Text style={{ color: '#78D5A8' }}>♣ Clubs</Text> · ♥ Hearts · ♦ Diamonds</Text>
     </View>
-    {<Pressable accessibilityRole="button" accessibilityState={{ expanded: historyOpen }} onPress={() => setHistoryOpen(value => !value)} style={styles.historyToggle}>
-      <Text style={styles.link}>{historyOpen ? 'Hide history' : 'Show game history'}</Text>
-    </Pressable>}
+
+    </View>
+    {wide && <View style={styles.detailsColumn}><GameDetails sidebar snapshot={snapshot} busy={busy} onSave={onSave} /></View>}
+    </View>
     {pokeTarget !== undefined && <PokeComposer recipient={pokeTarget} phrases={social.phrases} connected={social.connected}
       onClose={() => setPokeTarget(undefined)} onSave={social.save} onSend={async text => {
         await social.send(pokeTarget, text);
@@ -180,14 +194,22 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   </View>;
 }
 const styles = StyleSheet.create({
+  workspace: { flex: 1, minHeight: 0 },
+  playColumn: { flex: 1, minHeight: 0, minWidth: 0 },
+  detailsColumn: { width: 360, minHeight: 0, borderLeftWidth: 1, borderColor: '#FFFFFF19', backgroundColor: '#11273C' },
+  lastTrick: { position: 'relative', zIndex: 20, flexShrink: 0, borderTopWidth: 1, borderColor: '#FFFFFF19', backgroundColor: '#11273C', paddingHorizontal: 20 },
+  lastToggle: { minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  lastCards: { position: 'absolute', bottom: '100%', left: 0, right: 0, flexDirection: 'row', gap: 6, padding: 14, backgroundColor: '#183750', borderTopLeftRadius: 12, borderTopRightRadius: 12, borderWidth: 1, borderColor: '#365267' },
+  lastPlayer: { flex: 1, minWidth: 0, alignItems: 'center', gap: 5 },
+  lastCard: { width: 48, height: 64, borderRadius: 7, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.ivory, alignItems: 'center', justifyContent: 'center' },
+  lastWinner: { borderWidth: 3, borderColor: '#D2943F', backgroundColor: '#FFF0CC' },
+  lastFace: { fontFamily: fonts.display, fontSize: 24, color: colors.ink },
   guidance: { padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#365267', backgroundColor: '#183750' }, yourTurn: { borderColor: '#8EDBFF', backgroundColor: '#173E58' },
   pokeHint: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderStyle: 'dashed', borderColor: '#D2AF794D', borderRadius: 10, padding: 6, marginBottom: 10 },
   newGamePanel: { padding: 16, gap: 8, borderBottomWidth: 1, borderColor: '#FFFFFF19' },
   overlayHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderColor: '#FFFFFF19', minHeight: 60 },
   overlayTitle: { fontFamily: fonts.display, fontSize: 23, color: colors.ivory, flexShrink: 1 },
   body: { flex: 1, minHeight: 0 }, wideBody: { flexDirection: 'row' }, tableScroll: { flex: 1, minHeight: 0, minWidth: 0 },
-  historySide: { width: 280, borderLeftWidth: 1, borderColor: '#FFFFFF19' }, historyBottom: { height: 250, maxHeight: '48%', borderTopWidth: 1, borderColor: '#FFFFFF19' },
-  historyToggle: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderTopWidth: 1, borderColor: '#FFFFFF19' },
   page: { flex: 1, backgroundColor: colors.navy }, container: { alignItems: 'center' }, back: { minHeight: 44, justifyContent: 'center' }, link: { color: colors.champagne, fontFamily: fonts.medium, fontSize: 12 },
   title: { fontFamily: fonts.display, fontSize: 28, color: colors.ivory, marginVertical: 12 }, meta: { fontFamily: fonts.body, color: '#C1CBD5', fontSize: 11, lineHeight: 20 }, status: { fontFamily: fonts.medium, fontSize: 13, color: colors.champagne, marginVertical: 12 }, error: { color: '#FFD1C5', fontFamily: fonts.body, fontSize: 12 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, paddingVertical: 10 }, button: { minHeight: 44, minWidth: 44, padding: 12, borderRadius: 8, backgroundColor: colors.copper, justifyContent: 'center', alignItems: 'center' }, buttonText: { color: colors.ivory, fontFamily: fonts.medium, fontSize: 12 },

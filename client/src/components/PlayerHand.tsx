@@ -78,7 +78,7 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
     const width = Math.ceil(2 * (170 * Math.sin(spread * Math.PI / 360) + 50) + 32);
     return <View testID="player-hand">
       <ScrollView horizontal contentContainerStyle={styles.scroll} accessibilityLabel="Your hand is face down">
-        <View style={{ width, height: 226 }}>
+        <View style={{ width, height: 250 }}>
           {hand.map((card, index) => <View key={card} accessible={false} style={[styles.card, styles.cardBack, {
             left: width / 2 - 32 + (hand.length > 1 ? index / (hand.length - 1) * 2 - 1 : 0) * 18,
             top: 18, transformOrigin: 'bottom center', transform: [{ rotate: `${index * 10 - spread / 2}deg` }],
@@ -93,7 +93,7 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
 
   return <View testID="player-hand">
     {revealing && <Text style={styles.empty}>Tap the arc to reveal the next card. {hand.filter(isRevealed).length}/{hand.length} revealed.</Text>}
-    {!revealing && view === 'grid' ? <ScrollView style={{ maxHeight: 226 }} contentContainerStyle={styles.grid} accessibilityLabel="Card grid">
+    {!revealing && view === 'grid' ? <ScrollView style={{ height: 250 }} contentContainerStyle={styles.grid} accessibilityLabel="Card grid">
       {cards.map((card, index) => {
         const suit = suitOf(card), faceUp = isRevealed(card), enabled = faceUp && canPlay && legalCards.includes(card);
         return <Pressable key={card} accessibilityRole="button" accessibilityLabel={faceUp ? `Select ${card}` : `Reveal card ${index + 1}`}
@@ -107,7 +107,7 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
       })}
     </ScrollView> : <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.scroll}
       accessibilityLabel={revealing ? "Your hand in dealt order" : `Your hand, grouped by suit: ${suitOrder.map(suit => suitNames[suit]).join(', ')}`}>
-      <View style={{ width: fanWidth, height: 226 }}>
+      <View style={{ width: fanWidth, height: 250 }}>
         {cards.map((card, index) => {
           if (!revealing && index > 0 && suitOf(card) !== suitOf(cards[index - 1])) groupAngle += 3;
           const position = cards.length > 1 ? (index / (cards.length - 1)) * 2 - 1 : 0;

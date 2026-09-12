@@ -291,14 +291,12 @@ four distinct profiles, and each saved name at all four tables using mocked data
 
 ### Round flow
 
-Each seat shows Bid, Won, and Need. Reaching or exceeding the bid shows green
-Met; needing more wins than the remaining tricks shows Cannot reach bid. Pending
-bids have no progress verdict. Remaining tricks include the unfinished trick,
-and progress updates after the winner's card-collection sequence, supporting
-both four-player (13 tricks) and five-player (10 tricks) deals.
+Each seat shows a larger player name with two stacked rows: Bid and Won. Turn
+text is shown centrally instead of repeated in each seat; the active seat retains
+its highlighted border. Won updates after the card-collection sequence.
 
-During card play, the active player sees a bold green Your turn banner at the top.
-Everyone sees Player N's turn above the central table. Both gently pulse until
+During card play, a single notice appears beneath the played cards: bold green
+Your turn for the active player, or Player N's turn for everyone else. It pulses until
 the authoritative turn changes, pause during trick collection, and stay steady
 when reduced motion is enabled. Snapshot refreshes do not restart the pulse.
 
@@ -310,7 +308,7 @@ do not replay the sequence, and an incoming next-trick play immediately takes
 priority. These are presentation timings; authoritative scoring and turns remain
 unchanged on the server.
 
-Live Call Break now shows a phase guide and named turn instructions, offers a
+Live Call Break shows compact preparation instructions and central turn notices, offers a
 midpoint cut, briefly highlights each trick winner, and shows a score summary
 between deals. In manual games the creator starts the next deal; autoplay waits
 eight seconds. Final scores appear after deal five. See the
@@ -327,6 +325,16 @@ refresh (about one second). Leave room disconnects the room connection and retur
 to the directory without signing out or ending the game for everyone.
 
 ### Hand views
+
+On live tables at widths of 1000px or more, Stats and Rules share a 360px right
+column beside the table and hand. Stats opens by default; tabs switch the column
+content, which scrolls independently. Narrow screens keep the collapsible inline
+controls. Rule editing remains limited to the creator before the game starts.
+
+Last trick is anchored as a slim collapsed row directly above the hand. It expands
+upward over the table without moving the hand. Expand it to see each player's card
+in play order, with the winner highlighted. A new trick starts collapsed again.
+The hand display area is 250px tall, giving the cards more vertical room.
 
 Choose a view using the controls below your cards:
 
@@ -420,3 +428,6 @@ restart. Chat does not change game state or use personal poke phrases.
 
 `tests/test_room_chat.py` covers authentication, room isolation, sender identity,
 validation, rate limiting, bounded history, and access after leaving.
+
+The play screen omits the phase breadcrumb and verbose guidance panel to keep
+space for cards. Trick winner announcements appear in the central notice area.
