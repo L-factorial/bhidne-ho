@@ -2,8 +2,9 @@
 
 The supplied Marriage V1 contract is implemented through increments 1-9. It supports
 a complete **Dublee-route round**, normal qualification through sequences/Tunnelas,
-and entitled Maal visibility. Normal final-hand completion, wildcards, scoring, and
-settlements remain outside this contract; the engine does not invent those rules.
+and entitled Maal visibility. Configurable final-round scoring is now implemented;
+see [scoring rules and API](marriage-scoring.md). Normal final-hand completion and
+wildcards remain outside this contract. Points are not monetary transactions.
 
 `MarriageGameEngine` is the single application entry point. Callers use immutable
 values such as `Meld`, `DrawSource`, and `MarriageRules`, but never need to manipulate
@@ -266,7 +267,8 @@ qualification, Maal privacy, winning-discard policies, terminal rejection, immut
 and repeated complete public-API rounds.
 
 Remaining work requires separate contracts: normal final-hand partitions, wildcards,
-Maal scoring, settlements, matches, alternate house rules, and stalemate resolution.
+monetary settlement, matches, alternate gameplay rules, and stalemate resolution.
+Final-round Maal scoring is available through `get_scores()`; see [scoring](marriage-scoring.md).
 The platform adapter supplies wire commands and shared runtime serialization;
 [lobby/UI integration](marriage-ui.md) now provides a playable first version.
 Persistence remains separate. Integrations call this API rather than duplicate

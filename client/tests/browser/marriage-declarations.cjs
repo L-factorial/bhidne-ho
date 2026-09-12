@@ -13,8 +13,13 @@ const assert = require('node:assert/strict');
       card_id, card_type: 'standard', rank: Number(card_id.slice(3, -1)), suit: card_id.slice(-1), deck_index: Number(card_id[1]) }));
     let revision = 1, qualified = false, finished = false;
     const commands = [];
+    const scoring = { tiplu: [3,8,15], jhiplu: [2,5,10], poplu: [2,5,10], man: [2,5,10], marriage: [10,25,50],
+      tunnela_bonus: 5, tunnela_scope: 'shown', maal_requires_seen: true, seen_payment: 3, unseen_payment: 10, dublee_win_bonus: 5 };
+    const scores = { winner: '1', rules: scoring, total_maal: 0, players: ['1','2','3','4','5'].map(player_id => ({
+      player_id, has_seen_maal: player_id === '1', eligible: player_id === '1', items: [], maal_points: 0, maal_net: 0,
+      winner_payment: player_id === '1' ? 60 : -15, net_points: player_id === '1' ? 60 : -15 })) };
     function snapshot() {
-      const pub = { revision, status: finished ? 'finished' : 'active', current_player_id: finished ? null : '1', phase: 'must_discard', stock_count: 115,
+      const pub = { scoring_rules: scoring, scores: finished ? scores : null, revision, status: finished ? 'finished' : 'active', current_player_id: finished ? null : '1', phase: 'must_discard', stock_count: 115,
         top_discard: hand[20], winner: finished ? '1' : null, players: ['1', '2', '3', '4', '5'].map(player_id => ({ player_id, hand_count: 21,
           route: player_id === '1' && qualified ? 'dublee' : 'unqualified', shown_melds: player_id === '1' && qualified ? pairs : [],
           has_seen_maal: player_id === '1' && qualified, finished: player_id === '1' && finished })) };
@@ -56,6 +61,9 @@ const assert = require('node:assert/strict');
       assert.ok(a.x >= grid.x - 1 && a.x + a.width <= grid.x + grid.width + 1);
       for (const b of seats.slice(i + 1)) assert.ok(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y, 'player tiles overlap');
     }
+    await page.getByRole('button', { name: 'Points', exact: true }).click();
+    await page.getByTestId('marriage-points').getByText('Points appear here when the round finishes, using the saved scoring rules.', { exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Close details', exact: true }).click();
     await page.getByRole('button', { name: 'Stats', exact: true }).click();
     await page.getByTestId('marriage-details').getByText('Player 5', { exact: true }).waitFor();
     await page.getByRole('button', { name: 'Close details', exact: true }).click();
@@ -85,6 +93,12 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: 'Arc', exact: true }).click();
     await page.getByRole('button', { name: 'Finish round', exact: true }).click();
     await page.getByText('Player 1 wins!', { exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Points', exact: true }).click();
+    await page.getByTestId('marriage-points').getByText('Player 1: +60 points', { exact: true }).waitFor();
+    await page.getByTestId('marriage-points').getByText('Player 5: -15 points', { exact: true }).waitFor();
+    await page.setViewportSize({ width: 360, height: 800 });
+    await page.screenshot({ path: '../.venv/dev/marriage-points-mobile.png' });
+    await page.getByRole('button', { name: 'Close details', exact: true }).click();
     assert.deepEqual(commands.map(c => c.command), ['SHOW_DUBLEES', 'FINISH']);
     assert.deepEqual(errors, []);
     console.log('PASS: seven-pair payload, qualified private Maal, committed-card lock, finish, and winner UI.');

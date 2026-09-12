@@ -3,7 +3,7 @@
 import asyncio
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from random import SystemRandom
 from uuid import uuid4
 
@@ -19,6 +19,8 @@ from callbreak import (
 from app.adapters.callbreak import AdapterResult, PlayerCommand, dispatch_control, dispatch_player
 from app.adapters.callbreak.host import CallBreakCommandTarget
 from marriage import MarriageGameEngine
+from marriage.rules import MarriageRules
+from marriage.scoring_rules import ScoringRules, SCORING_PRESETS
 from app.adapters.marriage import MarriageAdapter
 from app.test_games.marriage import HostedMarriageTarget
 from app.games.base import GameCommandRejected
@@ -45,6 +47,7 @@ class HostedGame:
     marriage_target: object | None = None
     marriage_queries: dict = field(default_factory=dict)
     marriage_moves: list[dict] = field(default_factory=list)
+    marriage_scoring: ScoringRules = field(default_factory=ScoringRules)
 
     @property
     def started(self):
@@ -131,6 +134,8 @@ class TestGameService:
     def _marriage_snapshot(self, game, user_id):
         seat = game.users.index(user_id) + 1 if user_id in game.users else None
         result = {
+            "marriage_scoring": asdict(game.marriage_scoring),
+            "marriage_scoring_presets": {key: asdict(value) for key, value in SCORING_PRESETS.items()},
             "room_id": game.room_id, "match_id": game.match_id, "game_type": "marriage",
             "capacity": game.capacity, "ready": len(game.users) == game.capacity,
             "players": [{"player_id": i + 1, "user_id": user,
@@ -257,6 +262,21 @@ class TestGameService:
             await self._publish(game)
             return self._snapshot(game, user_id)
 
+    async def configure_marriage(self, room_id, user_id, body):
+        await self._member(room_id, user_id)
+        game = self._get(room_id)
+        async with game.lock:
+            self._creator(game, user_id, body.match_id)
+            if game.game_type != "marriage":
+                raise HTTPException(409, "Marriage scoring only applies to Marriage.")
+            try:
+                rules = ScoringRules.from_dict(body.scoring)
+            except (ValueError, TypeError) as error:
+                raise HTTPException(422, str(error)) from error
+            game.marriage_scoring = rules
+            await self._publish(game)
+            return self._snapshot(game, user_id)
+
     def _creator(self, game, user_id, match_id):
         if not game.users or user_id != game.users[0]:
             raise HTTPException(403, "Only the game creator can do this.")
@@ -274,7 +294,8 @@ class TestGameService:
                 raise HTTPException(422, "Choose manual or auto play.")
             if game.game_type == "marriage":
                 from app.adapters.marriage import PlayerCommand as MarriageCommand, AdapterResult as MarriageResult
-                adapter = MarriageAdapter(MarriageGameEngine(tuple(str(i + 1) for i in range(game.capacity))),
+                adapter = MarriageAdapter(MarriageGameEngine(tuple(str(i + 1) for i in range(game.capacity)),
+                                          rules=MarriageRules(scoring=game.marriage_scoring)),
                                           match_id=game.match_id, owner_player_id="1")
                 outcome = adapter.dispatch_player(MarriageCommand(match_id=game.match_id, command_id=uuid4().hex,
                     expected_revision=0, command="START_GAME"), player_id="1")

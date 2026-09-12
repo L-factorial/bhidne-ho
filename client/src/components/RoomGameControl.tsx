@@ -229,7 +229,7 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
           <Text style={[styles.text, { color: colors.ivory }]}>The creator ended this game. The room is still open for another round.</Text>
           <Pressable accessibilityRole="button" onPress={() => { setLive(false); setOpen(true); }} style={styles.button}><Text style={styles.buttonText}>Start a new game</Text></Pressable>
           <Pressable accessibilityRole="button" onPress={collapseGame} style={styles.button}><Text style={styles.buttonText}>Back to room</Text></Pressable>
-        </View> : snapshot.game_type === 'marriage' ? <MarriageTable key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={error} lobbyControl={leaveControl}
+        </View> : snapshot.game_type === 'marriage' ? <MarriageTable key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={error} lobbyControl={leaveControl} onSave={scoring => lobbyAction('/marriage-settings', { scoring })}
           onAction={gameAction} onStart={play_mode => lobbyAction('/start', { play_mode })} onBack={collapseGame}
           onNewGame={() => { setLive(false); setOpen(true); }} endControl={snapshot.is_creator && !canCreate ? <EndGameControl compact busy={busy} onEnd={() => lobbyAction('/end')} /> : null}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: (recipient, text) => social.send(snapshot.match_id!, recipient, text) }} />
@@ -268,7 +268,7 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
             {snapshot?.status === 'waiting' && <Text style={styles.text}>Waiting for {(snapshot.capacity || 0) - (snapshot.players?.length || 0)} more players. The table opens when all seats are filled. The creator then starts the game.</Text>}
             {snapshot?.status === 'playing' && !snapshot.your_player_id && <Text style={styles.text}>The game is full. You are watching its status.</Text>}
           </>}
-          <Text style={styles.note}>{gameName === 'Marriage' ? '21 cards each. Autoplay is selected for testing; choose Player play at the table for manual moves. Complete seven Dublees and an eighth pair to win. Normal qualification is available; normal-hand winning and scoring come later.' : 'The creator can set rules and placement bets at the table before starting. Choose Player play for manual bids and card selection, or Autoplay for three-second automatic turns.'}</Text>
+          <Text style={styles.note}>{gameName === 'Marriage' ? '21 cards each. Autoplay is selected for testing; choose Player play at the table for manual moves. Complete seven Dublees and an eighth pair to win. Normal qualification is available; normal-hand winning comes later. Set scoring rules at the table before starting.' : 'The creator can set rules and placement bets at the table before starting. Choose Player play for manual bids and card selection, or Autoplay for three-second automatic turns.'}</Text>
           <Pressable accessibilityRole="button" onPress={() => setOpen(false)} style={styles.choice}><Text style={styles.text}>Back to room</Text></Pressable>
         </ScrollView>
       </View></View>}

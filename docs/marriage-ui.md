@@ -2,8 +2,15 @@
 
 Marriage is selectable beside Call Break in the shared room UI. This is a first
 playable interface for the standalone V1 engine: a complete Dublee round and
-normal meld qualification. Normal-hand winning, wildcard partitions, scoring,
-settlements, and multi-round matches are not implemented.
+normal meld qualification, and configurable final-round points. Normal-hand winning,
+wildcard partitions, monetary settlement, and multi-round matches are not implemented.
+
+The thin Stats / Rules / Points row opens closable overlays. Before starting, the
+creator can select House bonus (default), Simple points, or edit every scoring value
+in Rules and save. Everyone sees the saved rules; they lock on start. Points shows
+the final server-calculated itemization, Maal exchange, winner payments, and net
+points for every player. During play it shows a pending message; a manually ended
+game has no settlement. See [scoring](marriage-scoring.md) for exact rules.
 
 ## Playing
 

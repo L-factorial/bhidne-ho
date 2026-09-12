@@ -82,6 +82,16 @@ class GameSettings(JoinGame):
     payments: Annotated[list[Annotated[int, Field(strict=True, ge=0, le=1000000)]], Field(min_length=4, max_length=4)] = [0, 0, 0, 0]
 
 
+class MarriageSettings(JoinGame):
+    scoring: dict
+
+
+@router.post("/{room_id}/marriage-settings")
+async def marriage_settings(room_id: str, body: MarriageSettings, request: Request,
+                            user: UserIdentity = Depends(current_user)):
+    return await request.app.state.test_games.configure_marriage(room_id, user.user_id, body)
+
+
 @router.post("/{room_id}/settings")
 async def settings(room_id: str, body: GameSettings, request: Request, user: UserIdentity = Depends(current_user)):
     return await request.app.state.test_games.configure(room_id, user.user_id, body)

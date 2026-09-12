@@ -15,12 +15,15 @@ from .queries import AllowedActions, BlockedDrawSource, PlayerView, PublicGameVi
 from .invariants import validate_card_conservation, validate_game_state
 from .rank_policy import adjacent_maal_ranks, sequence_rank_order
 from .rules import MarriageRules
+from .scoring_rules import ScoringRules, SCORING_PRESETS
+from .scoring import RoundScore, PlayerScore, ScoreItem
 from .completion import Capability
 from .maal import MaalView
 from .visibility import VisibleEvent
 from .events import MeldsShown, PlayerFinished, PlayerSawMaal, TipluRevealed
 
 __all__ = [
+    "ScoringRules", "SCORING_PRESETS", "RoundScore", "PlayerScore", "ScoreItem",
     "Rank", "Suit", "CardIdentity", "PhysicalCard", "create_deck", "validate_deck",
     "AceSequencePolicy", "CardType", "DrawSource", "GameStatus", "MaalNeighborPolicy",
     "MeldType", "QualificationRoute", "TurnPhase", "MarriageConfig", "Meld",

@@ -37,6 +37,12 @@ const label = c => c.card_type === 'man' ? `Man · ${Number(c.card_id.slice(-1))
     await one.getByRole('button', { name: 'Create Marriage game', exact: true }).click();
     await one.getByTestId('marriage-table').getByText('1/2 players seated', { exact: true }).waitFor();
     assert.equal(await one.getByRole('button', { name: 'Start game', exact: true }).isDisabled(), true);
+    await one.getByRole('button', { name: 'Rules', exact: true }).click();
+    await one.getByRole('button', { name: 'Simple points', exact: true }).click();
+    await one.getByLabel('Loser payment: Maal seen', { exact: true }).fill('7');
+    await one.getByRole('button', { name: 'Save scoring rules', exact: true }).click();
+    await one.getByText('Saved rules apply when the game starts.', { exact: true }).waitFor();
+    await one.getByRole('button', { name: 'Close details', exact: true }).click();
     await one.getByRole('button', { name: 'Collapse game', exact: true }).click();
     await two.getByRole('button', { name: 'View game', exact: true }).click();
     await two.getByRole('button', { name: 'Join game', exact: true }).click();
@@ -44,6 +50,13 @@ const label = c => c.card_type === 'man' ? `Man · ${Number(c.card_id.slice(-1))
     await one.getByRole('button', { name: 'Go back to game', exact: true }).click();
     await one.getByTestId('marriage-table').waitFor();
     await two.getByTestId('marriage-table').waitFor();
+    await two.getByRole('button', { name: 'Rules', exact: true }).click();
+    await two.getByTestId('marriage-scoring-rules').waitFor();
+    assert.equal(await two.getByRole('button', { name: 'Save scoring rules', exact: true }).count(), 0);
+    const saved = await api(`/test-games/${room.room_id}`, users[1]);
+    assert.equal(saved.marriage_scoring.seen_payment, 7);
+    assert.deepEqual(saved.marriage_scoring.tiplu, [3, 6, 9]);
+    await two.getByRole('button', { name: 'Close details', exact: true }).click();
     await one.getByRole('button', { name: 'Player play', exact: true }).click();
     await one.getByRole('button', { name: 'Start game', exact: true }).click();
     for (const page of pages) await page.getByRole('button', { name: 'Reveal all cards', exact: true }).click();
@@ -87,7 +100,7 @@ const label = c => c.card_type === 'man' ? `Man · ${Number(c.card_id.slice(-1))
     await two.getByRole('button', { name: 'Add group · 2 cards', exact: true }).click();
     await two.getByRole('button', { name: 'Remove group 1', exact: true }).click();
     await two.getByRole('button', { name: 'Rules', exact: true }).click();
-    await two.getByText('Three sequences / Tunnelas unlock Maal. Normal-hand winning and scoring are not available yet.', { exact: true }).waitFor();
+    await two.getByText('Three sequences / Tunnelas unlock Maal. Normal-hand winning is not available yet.', { exact: true }).waitFor();
     await two.getByRole('button', { name: 'Close details', exact: true }).click();
     await two.getByRole('button', { name: 'Stats', exact: true }).click();
     await two.getByText('Game stats', { exact: true }).waitFor();

@@ -1,5 +1,6 @@
 """Frozen V1 rules. Proposed defaults are recorded in the implementation plan."""
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from .scoring_rules import ScoringRules
 from typing import ClassVar
 
 from .enums import AceSequencePolicy, MaalNeighborPolicy
@@ -17,8 +18,11 @@ class MarriageRules:
     maal_neighbors: MaalNeighborPolicy = MaalNeighborPolicy.CYCLIC
     dublee_player_can_draw_discard: bool = False
     dublee_player_can_take_winning_discard: bool = True
+    scoring: ScoringRules = field(default_factory=ScoringRules)
 
     def __post_init__(self):
+        if not isinstance(self.scoring, ScoringRules):
+            raise ValueError("Scoring requires ScoringRules.")
         if not isinstance(self.ace_sequence, AceSequencePolicy):
             raise ValueError("Unsupported Ace sequence policy.")
         if not isinstance(self.maal_neighbors, MaalNeighborPolicy):

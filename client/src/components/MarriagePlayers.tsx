@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import type { MarriagePublic } from '../multiplayer/marriage';
 import { physicalLabel } from '../multiplayer/marriage';
+import { MarriageScoring, MarriagePoints } from './MarriageScoring';
 import { colors, fonts } from '../theme';
 
 type Player = MarriagePublic['players'][number];
@@ -32,12 +33,12 @@ export function MarriagePlayers({ snapshot, onPoke, registerSeat }: { snapshot: 
   </View>;
 }
 
-export function MarriageDetails({ snapshot, section, onClose }: { snapshot: RoomSnapshot; section: 'stats' | 'rules' | null; onClose: () => void }) {
+export function MarriageDetails({ snapshot, section, onClose, busy, error, onSave }: { busy: boolean; error: string; onSave: (rules: import('../multiplayer/marriage').MarriageScoringRules) => void; snapshot: RoomSnapshot; section: 'stats' | 'rules' | 'points' | null; onClose: () => void }) {
   const insets = useSafeAreaInsets(), pub = snapshot.marriage?.public;
   return <Modal transparent visible={section !== null} animationType="none" onRequestClose={onClose}>
     <View style={[styles.backdrop, { paddingTop: Math.max(16, insets.top), paddingBottom: Math.max(16, insets.bottom) }]}>
       <View accessibilityViewIsModal testID="marriage-details" style={styles.dialog}>
-        <View style={styles.dialogHeader}><Text accessibilityRole="header" style={styles.heading}>{section === 'stats' ? 'Game stats' : 'Marriage rules'}</Text>
+        <View style={styles.dialogHeader}><Text accessibilityRole="header" style={styles.heading}>{section === 'stats' ? 'Game stats' : section === 'rules' ? 'Marriage rules' : 'Points breakdown'}</Text>
           <Pressable accessibilityRole="button" accessibilityLabel="Close details" onPress={onClose} style={styles.close}><Text style={styles.name}>Close ×</Text></Pressable></View>
         <ScrollView contentContainerStyle={styles.details}>
           {section === 'stats' ? pub ? pub.players.map(p => <View key={p.player_id} style={styles.stat}>
@@ -48,12 +49,13 @@ export function MarriageDetails({ snapshot, section, onClose }: { snapshot: Room
               <Text style={styles.small}>{meld.meld_type === 'pure_sequence' ? 'Sequence' : meld.meld_type === 'tunnela' ? 'Tunnela' : 'Dublee'}</Text>
               <Text style={styles.text}>{meld.card_ids.map(physicalLabel).join('   ')}</Text>
             </View>)}
-          </View>) : <Text style={styles.text}>Player stats appear when the game starts.</Text> : <>
+          </View>) : <Text style={styles.text}>Player stats appear when the game starts.</Text> : section === 'points' ? <MarriagePoints snapshot={snapshot} /> : <>
             <Text style={styles.text}>21 cards each. Take one card, optionally show melds, then discard.</Text>
             <Text style={styles.text}>Sequence: consecutive ranks in one suit, Ace low. Tunnela: three copies of one face. Dublee: two copies.</Text>
             <Text style={styles.text}>Show seven Dublees, then finish with an eighth uncommitted pair. A winning discard must be followed by Finish.</Text>
-            <Text style={styles.text}>Three sequences / Tunnelas unlock Maal. Normal-hand winning and scoring are not available yet.</Text>
+            <Text style={styles.text}>Three sequences / Tunnelas unlock Maal. Normal-hand winning is not available yet.</Text>
             <Text style={styles.text}>Other players can see your shown groups and whether you have seen Maal. Your private hand and Maal faces stay private.</Text>
+            <MarriageScoring snapshot={snapshot} busy={busy} error={error} onSave={onSave} />
           </>}
         </ScrollView>
       </View>

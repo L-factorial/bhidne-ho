@@ -113,7 +113,7 @@ def test_public_draw_redacted_query_results_private_and_read_only():
     with pytest.raises(ValidationError):
         OutboundEvent.model_validate(leaked)
     queries = ("GET_STATE", "GET_ALLOWED_ACTIONS", "GET_MAAL", "CAN_SEE_MAAL", "READ_LAST_CARD",
-               "HAS_EIGHTH_DUBLEE", "CAN_FINISH_NORMAL_HAND", "GET_EVENTS")
+               "HAS_EIGHTH_DUBLEE", "CAN_FINISH_NORMAL_HAND", "GET_EVENTS", "GET_SCORES")
     before = game.checkpoint()
     for name in queries:
         response = command(game, name)
@@ -167,6 +167,11 @@ def test_complete_adapter_round_projects_qualification_and_finish():
         card = next((i for i in choices if i not in protected), choices[0])
         assert isinstance(command(game, "DISCARD_CARD", {"card_id": card}, actor=actor), AdapterResult)
     assert game.checkpoint().get_public_view().status is GameStatus.FINISHED
+    scores = command(game, "GET_SCORES", actor="b").messages[0].message.payload["result"]
+    assert scores == game.snapshot()["view"]["scores"]
+    assert scores == game.snapshot("a")["view"]["public"]["scores"]
+    assert sum(p["net_points"] for p in scores["players"]) == 0
+    assert "hand" not in str(scores)
     assert {EventName.SEVEN_DUBLEES_SHOWN, EventName.TIPLU_REVEALED, EventName.PLAYER_FINISHED} <= observed
 
 

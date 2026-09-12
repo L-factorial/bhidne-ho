@@ -403,3 +403,10 @@ stalemate resolution, durable replay, and alternate house-rule profiles also rem
 separate increments. Platform integration later owns user-to-seat mapping, command
 envelopes, concurrency/locking, delivery, retries, participation registration, room
 lifecycle, and UI. It must not move Marriage rules out of this standalone package.
+
+## Subsequent scoring increment
+
+The original V1 scoring deferral is superseded by the implemented, explicitly
+configurable house policies in [Marriage scoring](marriage-scoring.md). This
+extension provides final-round point accounting, not money movement or normal-hand
+completion. Adapter and UI integration are documented in their respective guides.

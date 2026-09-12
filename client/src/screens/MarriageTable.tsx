@@ -11,7 +11,8 @@ import type { PlayerPhrase } from '../multiplayer/pokes';
 import type { RoomSnapshot } from './LiveGameTable';
 import { canSubmitMarriage, marriageSuggestions, marriageUsesArc, marriageFace, physicalLabel, suitName, type MarriageMeld } from '../multiplayer/marriage';
 
-export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack, onNewGame, endControl, lobbyControl, social }: {
+export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack, onNewGame, onSave, endControl, lobbyControl, social }: {
+  onSave: (rules: import('../multiplayer/marriage').MarriageScoringRules) => void;
   snapshot: RoomSnapshot; busy: boolean; error: string; endControl?: ReactNode; lobbyControl?: ReactNode;
   onAction: (command: string, payload?: object) => void; onStart: (mode: 'auto' | 'manual') => void; onBack: () => void; onNewGame: () => void;
   social: { connected: boolean; phrases: PlayerPhrase[]; save: (text: string) => Promise<void>; send: (recipient: number | null, text: string) => Promise<void> };
@@ -30,7 +31,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const showOpacity = useRef(new Animated.Value(0)).current;
   const showTravel = useRef(new Animated.Value(-70)).current;
   const [kind, setKind] = useState<MarriageMeld['meld_type']>('dublee');
-  const [details, setDetails] = useState<'stats' | 'rules' | null>(null);
+  const [details, setDetails] = useState<'stats' | 'rules' | 'points' | null>(null);
   const [poke, setPoke] = useState<number | null | undefined>(undefined);
   const pub = snapshot.marriage?.public, mine = snapshot.marriage?.private;
   const hand = mine?.hand || [], actions = mine?.actions;
@@ -85,15 +86,15 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   return <View style={s.page} testID="marriage-table">
     <View style={s.header}><Text accessibilityRole="header" style={s.title}>भिड्ने हो? · Marriage</Text>{endControl}{button('Collapse game', onBack)}</View>
     <View style={s.detailsBar}>
-      {(['stats', 'rules'] as const).map(section => <Pressable key={section} accessibilityRole="button" onPress={() => setDetails(section)} style={s.detailsTab}>
-        <Text style={s.buttonText}>{section === 'stats' ? 'Stats' : 'Rules'}</Text>
+      {(['stats', 'rules', 'points'] as const).map(section => <Pressable key={section} accessibilityRole="button" onPress={() => setDetails(section)} style={s.detailsTab}>
+        <Text style={s.buttonText}>{section === 'stats' ? 'Stats' : section === 'rules' ? 'Rules' : 'Points'}</Text>
       </Pressable>)}
     </View>
     <ScrollView contentContainerStyle={s.content}>
       {!pub ? <View style={s.panel}>
         <Text style={s.heading}>{snapshot.players?.length}/{snapshot.capacity} players seated</Text>
         {snapshot.players?.map(p => <Text key={p.player_id} style={s.text}>{p.display_name || `Player ${p.player_id}`}{p.player_id === snapshot.your_player_id ? ' · You' : ''}</Text>)}
-        <Text style={s.text}>Build seven pairs, see Maal, then finish with an eighth pair. Normal qualification is available; normal-hand winning and scoring come later.</Text>
+        <Text style={s.text}>Build seven pairs, see Maal, then finish with an eighth pair. Normal qualification is available; normal-hand winning comes later. Open Rules to select scoring before starting.</Text>
         {snapshot.is_creator && <View style={s.row}>{button('Autoplay', () => setPlayMode('auto'), busy, playMode === 'auto')}{button('Player play', () => setPlayMode('manual'), busy, playMode === 'manual')}</View>}
         {snapshot.is_creator ? button('Start game', () => onStart(playMode), busy || !snapshot.ready) : <Text style={s.text}>Waiting for the creator to start.</Text>}
         {lobbyControl}
@@ -176,7 +177,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         </ScrollView>
       </View></View>
     </Modal>
-    <MarriageDetails snapshot={snapshot} section={details} onClose={() => setDetails(null)} />
+    <MarriageDetails busy={busy} error={error} onSave={onSave} snapshot={snapshot} section={details} onClose={() => setDetails(null)} />
     {poke !== undefined && <PokeComposer recipient={poke} connected={social.connected} phrases={social.phrases} onSave={social.save}
       onSend={text => social.send(poke, text)} onClose={() => setPoke(undefined)} />}
   </View>;

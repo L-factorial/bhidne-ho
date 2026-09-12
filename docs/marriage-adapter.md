@@ -114,6 +114,7 @@ request content is rejected by the shared runtime.
 | `READ_LAST_CARD` | `{}` | Visible top discard or null. |
 | `HAS_EIGHTH_DUBLEE` | `{}` | Uncommitted eighth-pair boolean. |
 | `CAN_FINISH_NORMAL_HAND` | `{}` | Capability `{supported:false, reason:...}`. |
+| `GET_SCORES` | `{}` | Final `RoundScore`, or `null` until finished. |
 | `GET_EVENTS` | `{"after_sequence":0}`; default 0 | This actor's safe engine-event history. |
 
 A meld object is:
@@ -207,3 +208,19 @@ payload tampering, private hand/Maal delivery, safe history queries, normal and 
 declarations, full adapter-driven completion, failed projection rollback, shared
 runtime receipt replay, and rollback before delivery. Engine independence tests
 continue to forbid platform imports from `marriage` and `card_utils`.
+
+## Configurable scoring
+
+The host accepts `POST /test-games/{room_id}/marriage-settings` with
+`{ "match_id": "...", "scoring": { ... } }`. Only the creator may configure a
+waiting game, under the same lock as start. Invalid values return 422, wrong
+creator 403, and stale/started/ended matches 409. Omitted options use house defaults.
+Room snapshots expose `marriage_scoring` and `marriage_scoring_presets` before start.
+Start passes an immutable `MarriageRules(scoring=...)` to the standalone engine.
+
+Public views add `scoring_rules` and `scores`. `scores` stays null throughout play
+and becomes the final breakdown after FINISH; private PLAYER_STATE events and room
+snapshots carry the same result. GET_SCORES uses the existing private QUERY_RESULT
+event and does not advance revision. No new event names or client point calculation
+are needed. Final results disclose score categories and counts, never whole hands
+or physical card IDs. See [scoring](marriage-scoring.md).

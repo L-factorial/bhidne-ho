@@ -18,6 +18,7 @@ from .melds import validate_declaration, validate_meld
 from .visibility import VisibleEvent, visible_events
 from .queries import AllowedActions, PlayerView, PublicGameView, allowed_actions, player_view, public_view
 from .rules import MarriageRules
+from .scoring import RoundScore, calculate_scores
 from .turns import discardable_ids, draw_source_block, find_player, recycle_discards
 
 
@@ -27,6 +28,10 @@ class MarriageGameEngine:
     Mutation results and get_state() are trusted. Use player/public projections
     for external consumers. See docs/marriage.md for the complete rules contract.
     """
+    def get_scores(self) -> RoundScore | None:
+        """Return the final immutable points breakdown, or None before finishing."""
+        return calculate_scores(self._state)
+
     def __init__(self, player_ids: Sequence[str], *, rules: MarriageRules | None = None,
                  rng: Random | None = None, first_player_id: str | None = None):
         config = MarriageConfig(player_ids, rules if rules is not None else MarriageRules(),

@@ -82,7 +82,7 @@ class MarriageAdapter:
 
         try:
             method = getattr(engine, spec.engine_method)
-            if request.command in (CommandName.START_GAME, CommandName.READ_LAST_CARD):
+            if request.command in (CommandName.START_GAME, CommandName.READ_LAST_CARD, CommandName.GET_SCORES):
                 result = method()
             elif request.command is CommandName.DRAW_CARD:
                 result = method(player_id, DrawSource(payload["source"]))

@@ -2,6 +2,8 @@
 from dataclasses import dataclass
 
 from .cards import PhysicalCard
+from .scoring import RoundScore, calculate_scores
+from .scoring_rules import ScoringRules
 from .enums import ActionKind, DrawSource, GameStatus, QualificationRoute, TurnPhase
 from .errors import InvalidActionError
 from .models import MarriageGameState, Meld
@@ -75,6 +77,8 @@ class PublicGameView:
     stock_count: int
     top_discard: PhysicalCard | None
     winner: str | None
+    scoring_rules: ScoringRules
+    scores: RoundScore | None
 
 
 @dataclass(frozen=True)
@@ -95,6 +99,7 @@ def public_view(state: MarriageGameState) -> PublicGameView:
         current_player_id=state.current_player_id, phase=state.phase,
         stock_count=len(state.stock),
         top_discard=state.discard[-1] if state.discard else None, winner=state.winner,
+        scoring_rules=state.config.rules.scoring, scores=calculate_scores(state),
     )
 
 

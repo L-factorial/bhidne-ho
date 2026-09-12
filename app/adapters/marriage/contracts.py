@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter, field
 
 from marriage import (AllowedActions, Capability, MaalView, Meld, PhysicalCard,
                       PlayerView, VisibleEvent, create_deck)
+from marriage.scoring import RoundScore
 
 Identifier = Annotated[str, Field(strict=True, min_length=1, max_length=128, pattern=r"\S")]
 Nonnegative = Annotated[int, Field(strict=True, ge=0)]
@@ -83,6 +84,7 @@ class CommandName(str, Enum):
     HAS_EIGHTH_DUBLEE = "HAS_EIGHTH_DUBLEE"
     CAN_FINISH_NORMAL_HAND = "CAN_FINISH_NORMAL_HAND"
     GET_EVENTS = "GET_EVENTS"
+    GET_SCORES = "GET_SCORES"
 
 
 @dataclass(frozen=True)
@@ -94,6 +96,7 @@ class CommandSpec:
 
 
 COMMAND_SPECS = {
+    CommandName.GET_SCORES: CommandSpec(Empty, "get_scores", "seated_player", False),
     CommandName.START_GAME: CommandSpec(Empty, "start_game", "owner", True),
     CommandName.DRAW_CARD: CommandSpec(DrawPayload, "draw_card", "current_player", True),
     CommandName.DISCARD_CARD: CommandSpec(CardPayload, "discard_card", "current_player", True),
@@ -166,6 +169,7 @@ class QueryPayload(Payload):
     @model_validator(mode="after")
     def result_shape(self):
         result_types = {
+            CommandName.GET_SCORES: RoundScore | None,
             CommandName.VALIDATE_MELD: Meld,
             CommandName.VALIDATE_INITIAL_MELDS: tuple[Meld, ...],
             CommandName.VALIDATE_DUBLEES: tuple[Meld, ...],
