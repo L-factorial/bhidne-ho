@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: '3.14'
       - run: pip install '.[dev]'
-      - run: pytest -q
+      - run: python -m pytest -q
       - name: Deploy tested backend
         env:
           DEPLOY_KEY: ${{ secrets.BHIDNE_DEPLOY_SSH_KEY }}
