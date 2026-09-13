@@ -187,3 +187,65 @@ async def test_between_round_seating_creator_transfer_and_balance_history():
     assert final.players[-1].player_id == '1' and final.players[-1].chips == balances['1']
     assert len(final.round_results) == 2
     await host.close()
+
+
+@pytest.mark.parametrize('game_type,capacity', [('flush', 10), ('marriage', 3), ('callbreak', 4)])
+async def test_completed_flush_round_can_be_replaced_after_room_reentry(game_type, capacity):
+    rooms = RoomService(); host = Host(rooms, Delivery())
+    for user in ['a', 'b', 'c']: await rooms.join('returning', user)
+    waiting = await host.create('returning', 'a', 10, 'flush')
+    mid = waiting['match_id']
+    assert not waiting['can_create_new_game']
+    for user in ['b', 'c']: await host.join('returning', user, mid)
+    with pytest.raises(HTTPException):
+        await host.create('returning', 'b', capacity, game_type)
+    started = await host.start('returning', 'a', mid, rules_revision=0)
+    assert not started['can_create_new_game']
+    with pytest.raises(HTTPException):
+        await host.create('returning', 'b', capacity, game_type)
+    old = host.games['returning']
+    engine = old.flush_target.adapter.checkpoint()
+    engine.deal_cards(engine.get_state().current_player_id)
+    engine.skip_cut(engine.get_state().current_player_id)
+    for _ in range(2): engine.fold(engine.get_state().current_player_id)
+    for user in ['a', 'b', 'c']: await rooms.leave('returning', user)
+    await rooms.join('returning', 'b')
+    returned = await host.snapshot('returning', 'b')
+    assert returned['can_create_new_game'] and returned['roster_open']
+    assert returned['flush']['public']['settlement']
+    new = await host.create('returning', 'b', capacity, game_type)
+    assert new['match_id'] != mid and new['game_type'] == game_type
+    assert new['status'] == 'waiting' and new['is_creator']
+    assert old.ended
+    await rooms.join('returning', 'a')
+    with pytest.raises(HTTPException):
+        await host.start('returning', 'a', mid, rules_revision=0)
+    await host.close()
+
+
+@pytest.mark.parametrize('replace_first', [True, False])
+async def test_flush_replacement_and_next_round_cannot_both_start(replace_first):
+    rooms = RoomService(); host = Host(rooms, Delivery())
+    for user in ['a', 'b']: await rooms.join('race', user)
+    waiting = await host.create('race', 'a', 10, 'flush')
+    mid = waiting['match_id']
+    await host.join('race', 'b', mid)
+    await host.start('race', 'a', mid, rules_revision=0)
+    game = host.games['race']
+    engine = game.flush_target.adapter.checkpoint()
+    engine.deal_cards(engine.get_state().current_player_id)
+    engine.skip_cut(engine.get_state().current_player_id)
+    engine.fold(engine.get_state().current_player_id)
+    async with game.lock:
+        operations = [lambda: host.create('race', 'b', 3, 'marriage'),
+                      lambda: host.start('race', 'a', mid, rules_revision=0)]
+        if not replace_first: operations.reverse()
+        tasks = [asyncio.create_task(operation()) for operation in operations]
+        await asyncio.sleep(0)
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    assert isinstance(results[0], dict)
+    assert isinstance(results[1], HTTPException) and results[1].status_code == 409
+    current = await host.snapshot('race', 'a')
+    assert current['game_type'] == ('marriage' if replace_first else 'flush')
+    if not replace_first: assert not current['can_create_new_game']
+    await host.close()

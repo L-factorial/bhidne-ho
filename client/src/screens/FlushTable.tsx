@@ -1,6 +1,6 @@
 import { AppHeader } from '../components/AppHeader';
 import { type ReactNode, useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { fonts, useThemedStyles, type ThemeColors } from '../theme';
 import type { RoomSnapshot } from './LiveGameTable';
 import { FlushFoldNotice } from '../components/FlushFoldNotice';
@@ -35,6 +35,7 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onAction, o
   onBack: () => void; onNewGame: () => void;
 }) {
   const s = useThemedStyles(styles);
+  const wide = useWindowDimensions().width >= 1100;
   const settings = snapshot.flush_settings!;
   const [rulesOpen, setRulesOpen] = useState(false);
   const [betsOpen, setBetsOpen] = useState(false);
@@ -90,13 +91,36 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onAction, o
   const can = (kind: string) => !busy && snapshot.status === 'playing' && !!mine?.actions.kinds.includes(kind);
   const button = (label: string, action: () => void, disabled = false) => <Pressable accessibilityRole="button" accessibilityLabel={label}
     disabled={disabled} accessibilityState={{ disabled }} onPress={action} style={[s.button, disabled && { opacity: 0.45 }]}><Text style={s.text}>{label}</Text></Pressable>;
+  const rulesContent = <>
+      <Text style={s.title}>{settings.locked ? 'Rules locked for this game' : 'Rules before starting'}</Text>
+      <Text style={s.text}>You can see your cards on your turn without prior bets. Side-show requires the configured number of completed personal bets (blind or seen), excluding boot. Bet the minimum or double your current blind or seen minimum to raise. Blind bets set the seen minimum using the multiplier; seen bets set the blind minimum by dividing and rounding up. Show always requires exactly two active players. A side-show request costs one seen bet, even if declined; only the two participants can see the compared cards.</Text>
+      {stale && dirty && !settings.locked && <Text accessibilityRole="alert" style={s.error}>Saved rules changed. Reload before editing or starting.</Text>}
+      {(['starting_chips', ...Object.keys(labels)] as (keyof FlushRules | 'starting_chips')[]).map(key => {
+        const value = shownRules[key]; const label = key === 'starting_chips' ? 'Starting chips per player' : labels[key];
+        return <View key={key} style={s.field}><Text style={s.text}>{label}</Text>
+          {typeof value === 'boolean' ? button(value ? `${label}: Yes` : `${label}: No`, () => edit(key, !value), !editable || key === 'show_only_when_two_players_remain')
+            : key === 'sequence_ace_policy' || key === 'tie_policy' ? <View style={s.row}>{choices[key].map(([v, title]) => <Pressable key={v} accessibilityRole="radio" accessibilityLabel={title}
+              accessibilityState={{ checked: value === v, disabled: !editable }} disabled={!editable} onPress={() => edit(key, v)} style={[s.button, value === v && s.chosen]}><Text style={s.text}>{title}</Text></Pressable>)}</View>
+            : <TextInput accessibilityLabel={label} value={String(value)} editable={!!editable && key !== 'minimum_players' && key !== 'maximum_players'} keyboardType="number-pad" onChangeText={v => edit(key, v)} style={s.input} />}
+        </View>;
+      })}
+      {!settings.locked && snapshot.is_creator && <View style={s.row}>{button('Save Flush rules', save, busy || !dirty || stale)}{button('Reload saved rules', reload, busy)}</View>}
+      <Text style={s.text}>{settings.locked ? 'New rules can be chosen for the next game.' : dirty ? 'Save and review the saved rules before starting.' : 'Everyone can review these saved rules. They lock when the creator starts.'}</Text>
+
+      {!!(localError || error) && <Text accessibilityRole="alert" style={s.error}>{localError || error}</Text>}
+  </>;
   return <View style={s.page} testID="flush-table">
     <AppHeader title="Flush" actions={<>{endControl}{button('Collapse table', onBack)}</>} />
-    <View style={s.tabs}>{button('Bet', () => setBetsOpen(true))}{button('Rules', () => setRulesOpen(true))}{!!snapshot.your_player_id && button('Poke the table', () => setPokeOpen(true), !social.connected)}</View>
+    <View style={[s.body, wide && s.wideBody]}>
+    <View style={s.mainColumn} testID="flush-main-column">
+    {!wide && <View style={s.tabs}>{button('Bet', () => setBetsOpen(true))}{button('Rules', () => setRulesOpen(true))}{!!snapshot.your_player_id && button('Poke the table', () => setPokeOpen(true), !social.connected)}</View>}
     {!!pub?.current_player_id && <TurnPulse personal={myTurn} text={myTurn
       ? `Your turn · ${pub.pending_show ? 'Reveal or fold' : pub.pending_side_show ? 'Accept or decline side-show' : pub.status === 'awaiting_deal' ? 'Deal cards' : pub.status === 'awaiting_cut' ? 'Cut or skip' : 'Bet, show, or fold'}`
       : `${name(pub.current_player_id)}’s turn`} />}
-    <ScrollView onLayout={e => setArenaHeight(Math.max(220, Math.min(370, e.nativeEvent.layout.height - 36)))} contentContainerStyle={s.playArea}>
+    <ScrollView style={s.playViewport} onLayout={e => {
+      const { height } = e.nativeEvent.layout;
+      setArenaHeight(Math.max(wide ? 370 : 280, Math.min(wide ? 560 : 370, height - 16)));
+    }} contentContainerStyle={s.playArea}>
       {finalStage && button(finalStage === 'pending' ? 'View final show' : 'View round result', () => setFinalShowOpen(true))}
     {(snapshot.status === 'waiting' || snapshot.roster_open) && <View style={s.panel}>
       <Text style={s.title}>{snapshot.players?.length}/{snapshot.capacity} players seated · minimum 2</Text>
@@ -121,13 +145,23 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onAction, o
     </>}
     {!!(localError || error) && <Text accessibilityRole="alert" style={s.error}>{localError || error}</Text>}
     </ScrollView>
-    {mine && !preparing && !pub?.settlement && <View style={s.handDock} testID="flush-hand-dock">
+    {mine && !preparing && !pub?.settlement && <View style={[s.handDock, wide && s.wideHandDock]} testID="flush-hand-dock">
+      <View style={wide && s.handCards}>
       <View style={s.row}><Text style={s.title}>Your cards</Text></View>
       {!!mine.cards.length && !comparisonOpen && <Text style={s.text}>Tap the cards to see all three · tap again to hide.</Text>}
       {comparisonOpen && comparison ? <View testID="flush-private-comparison">
         <Text style={s.text}>Private side-show · flip {name(comparison.opponent_id)}’s cards</Text>
         <FlushCards key={`side-${comparison.revision}`} cards={comparison.opponent_cards} label="Opponent card" onComplete={() => setFlippedAll(true)} />
       </View> : <FlushCards tapToToggle key={pub?.round_number} cards={mine.cards} />}
+      </View>
+      <View style={wide && s.handActions}>
+      {pub?.pending_show?.target_id === String(snapshot.your_player_id) && <View style={s.panel}>
+        <Text style={s.text}>Final show: reveal your cards to everyone or fold.</Text>
+        <View style={s.row}>
+          {button('Reveal cards', () => onAction('REVEAL_CARDS'), !can('reveal_cards'))}
+          {button('Fold', () => onAction('FOLD'), !can('fold'))}
+        </View>
+      </View>}
       {pub?.status === 'in_progress' && !pub.pending_show && !comparisonOpen && <View style={s.row}>
         {button(`Bet minimum · ${mine.actions.required_bet} chips`, () => onAction('BET', { amount: mine.actions.required_bet }), !can('bet'))}
         {button(`Bet double · ${doubleBet} chips`, () => onAction('BET', { amount: doubleBet }), !can('bet') || !canDouble)}
@@ -136,28 +170,26 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onAction, o
         {button(`Show · ${mine.actions.show_cost} chips`, () => onAction('SHOW'), !can('show'))}
         {settings.rules.allow_side_show && button('Request side-show', () => onAction('REQUEST_SIDE_SHOW'), !can('request_side_show'))}
       </View>}
+      </View>
     </View>}
+    </View>
+    {wide && <View style={s.sidebar} testID="flush-sidebar">
+      <View style={s.tabs}>
+        <Pressable accessibilityRole="tab" accessibilityState={{ selected: !rulesOpen }} onPress={() => setRulesOpen(false)} style={[s.button, !rulesOpen && s.chosen]}><Text style={s.text}>Bet</Text></Pressable>
+        <Pressable accessibilityRole="tab" accessibilityState={{ selected: rulesOpen }} onPress={() => setRulesOpen(true)} style={[s.button, rulesOpen && s.chosen]}><Text style={s.text}>Rules</Text></Pressable>
+      </View>
+      <ScrollView style={s.playViewport} contentContainerStyle={s.sidebarContent} testID={rulesOpen ? 'flush-rules' : 'flush-sidebar-bets'}>
+        {rulesOpen ? rulesContent : <><Text accessibilityRole="header" style={s.title}>Bet history</Text><FlushBetTable snapshot={snapshot} /></>}
+      </ScrollView>
+      {!!snapshot.your_player_id && button('Poke the table', () => setPokeOpen(true), !social.connected)}
+    </View>}
+    </View>
     {pokeOpen && <PokeComposer recipient={null} connected={social.connected} phrases={social.phrases} onSave={social.save}
       onSend={social.send} onClose={() => setPokeOpen(false)} />}
-    <Modal transparent visible={rulesOpen} onRequestClose={() => setRulesOpen(false)}>
+    <Modal transparent visible={!wide && rulesOpen} onRequestClose={() => setRulesOpen(false)}>
       <View style={s.backdrop}><View style={s.modal} accessibilityViewIsModal><View style={s.row}><Text style={s.title}>Rules</Text>{button('Close Flush rules', () => setRulesOpen(false))}</View>
       <ScrollView testID="flush-rules" contentContainerStyle={{ gap: 12 }}>
-      <Text style={s.title}>{settings.locked ? 'Rules locked for this game' : 'Rules before starting'}</Text>
-      <Text style={s.text}>You can see your cards on your turn without prior bets. Side-show requires the configured number of completed personal bets (blind or seen), excluding boot. Bet the minimum or double your current blind or seen minimum to raise. Blind bets set the seen minimum using the multiplier; seen bets set the blind minimum by dividing and rounding up. Show always requires exactly two active players. A side-show request costs one seen bet, even if declined; only the two participants can see the compared cards.</Text>
-      {stale && dirty && !settings.locked && <Text accessibilityRole="alert" style={s.error}>Saved rules changed. Reload before editing or starting.</Text>}
-      {(['starting_chips', ...Object.keys(labels)] as (keyof FlushRules | 'starting_chips')[]).map(key => {
-        const value = shownRules[key]; const label = key === 'starting_chips' ? 'Starting chips per player' : labels[key];
-        return <View key={key} style={s.field}><Text style={s.text}>{label}</Text>
-          {typeof value === 'boolean' ? button(value ? `${label}: Yes` : `${label}: No`, () => edit(key, !value), !editable || key === 'show_only_when_two_players_remain')
-            : key === 'sequence_ace_policy' || key === 'tie_policy' ? <View style={s.row}>{choices[key].map(([v, title]) => <Pressable key={v} accessibilityRole="radio" accessibilityLabel={title}
-              accessibilityState={{ checked: value === v, disabled: !editable }} disabled={!editable} onPress={() => edit(key, v)} style={[s.button, value === v && s.chosen]}><Text style={s.text}>{title}</Text></Pressable>)}</View>
-            : <TextInput accessibilityLabel={label} value={String(value)} editable={!!editable && key !== 'minimum_players' && key !== 'maximum_players'} keyboardType="number-pad" onChangeText={v => edit(key, v)} style={s.input} />}
-        </View>;
-      })}
-      {!settings.locked && snapshot.is_creator && <View style={s.row}>{button('Save Flush rules', save, busy || !dirty || stale)}{button('Reload saved rules', reload, busy)}</View>}
-      <Text style={s.text}>{settings.locked ? 'New rules can be chosen for the next game.' : dirty ? 'Save and review the saved rules before starting.' : 'Everyone can review these saved rules. They lock when the creator starts.'}</Text>
-
-      {!!(localError || error) && <Text accessibilityRole="alert" style={s.error}>{localError || error}</Text>}
+        {rulesContent}
       </ScrollView></View></View>
     </Modal>
     <Modal transparent visible={finalShowOpen && finalStage !== null} animationType="fade" onRequestClose={() => setFinalShowOpen(false)}>
@@ -184,7 +216,7 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onAction, o
         </ScrollView>
       </View></View>
     </Modal>
-    <Modal transparent visible={betsOpen} onRequestClose={() => setBetsOpen(false)}>
+    <Modal transparent visible={!wide && betsOpen} onRequestClose={() => setBetsOpen(false)}>
       <View style={s.backdrop}><View style={s.modal} accessibilityViewIsModal><View style={s.row}><Text style={s.title}>Bet history</Text>{button('Close Bet', () => setBetsOpen(false))}</View>
         <FlushBetTable snapshot={snapshot} />
       </View></View>
@@ -197,9 +229,18 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onAction, o
 
 const styles = (c: ThemeColors) => StyleSheet.create({
   page: { flex: 1, padding: 12, gap: 8, backgroundColor: c.background },
+  body: { flex: 1, minHeight: 0, gap: 16 },
+  wideBody: { flexDirection: 'row' },
+  mainColumn: { flex: 1, minWidth: 0, minHeight: 0, gap: 8 },
+  sidebar: { width: 300, flexShrink: 0, minHeight: 0, padding: 12, gap: 12, borderWidth: 1, borderColor: c.border, borderRadius: 14, backgroundColor: c.surface },
+  sidebarContent: { gap: 12, paddingBottom: 12 },
   tabs: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  playViewport: { flex: 1, minHeight: 0 },
   playArea: { flexGrow: 1, gap: 8, paddingBottom: 8 },
   handDock: { borderTopWidth: 1, borderColor: c.border, paddingTop: 8, gap: 4 },
+  wideHandDock: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  handCards: { width: 300, flexShrink: 0 },
+  handActions: { flex: 1, minWidth: 0 },
   backdrop: { flex: 1, backgroundColor: c.overlay, alignItems: 'center', justifyContent: 'center', padding: 16 },
   modal: { backgroundColor: c.surface, padding: 16, borderRadius: 14, width: '100%', maxWidth: 720, maxHeight: '90%', gap: 12 },
   panel: { backgroundColor: c.surface, padding: 16, borderRadius: 14, gap: 12 },

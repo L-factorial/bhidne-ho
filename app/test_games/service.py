@@ -64,6 +64,10 @@ class HostedGame:
         return self.game_type == "flush" and (not self.started or self.flush_target.adapter.snapshot()["view"]["status"] == "finished")
 
     @property
+    def replaceable(self):
+        return self.ended or self.finished or (self.started and self.flush_open)
+
+    @property
     def finished(self):
         if self.flush_target:
             return False  # Flush continues between rounds until the table is explicitly ended.
@@ -181,6 +185,7 @@ class TestGameService:
                 for i, user in enumerate(game.users)],
             "your_player_id": seat, "is_creator": bool(game.users) and game.users[0] == user_id,
             "roster_open": game.flush_open and not game.ended,
+            "can_create_new_game": game.replaceable,
             "status": "ended" if game.ended else "finished" if game.finished else "playing" if game.started else "waiting",
             "can_join": not game.ended and game.flush_open and seat is None and len(game.users) < game.capacity,
             "play_mode": "manual", "remaining_ms": None, "error": game.error,
@@ -248,11 +253,16 @@ class TestGameService:
             raise HTTPException(422, "Choose 2-10 players for Flush, 2-5 for Marriage or 4-5 for Call Break.")
         async with self._catalog_lock:
             existing = self.games.get(room_id)
-            if existing and not existing.ended and not existing.finished:
-                raise HTTPException(409, "This room already has a waiting or active game.")
             game = HostedGame(room_id, capacity, [user_id], game_type=game_type)
             if game_type == "flush": game.flush_seats[user_id] = 1
-            self.games[room_id] = game
+            if existing:
+                async with existing.lock:
+                    if not existing.replaceable:
+                        raise HTTPException(409, "This room already has a waiting or active game.")
+                    existing.ended = True
+                    self.games[room_id] = game
+            else:
+                self.games[room_id] = game
         async with game.lock:
             await self._publish(game)
             return self._snapshot(game, user_id)
@@ -280,8 +290,12 @@ class TestGameService:
             async with game.lock:
                 if match_id != game.match_id:
                     raise HTTPException(409, "The game changed. Refresh before ending it.")
-                if not game.users or user_id != game.users[0]:
-                    raise HTTPException(403, "Only the game creator can end the game.")
+                members = await self.rooms.members(room_id)
+                if user_id not in members:
+                    raise HTTPException(403, "Connect to this room before using its test game.")
+                is_creator = bool(game.users) and user_id == game.users[0]
+                if not is_creator and members != [user_id]:
+                    raise HTTPException(403, "Only the game creator or the sole person in the room can end the game.")
                 if game.ended:
                     return self._snapshot(game, user_id)
                 if game.finished:

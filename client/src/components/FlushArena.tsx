@@ -89,7 +89,7 @@ function CoinFlight({ bet, from, to, onFinish }: { bet: FlushBet; from: { x: num
   </Animated.View>;
 }
 const styles = (c: ThemeColors) => StyleSheet.create({
-  arena: { height: 370, width: '100%', maxWidth: 680, alignSelf: 'center' },
+  arena: { height: 370, flexShrink: 0, width: '100%', maxWidth: 1040, alignSelf: 'center' },
   ellipse: { position: 'absolute', top: 62, height: 238, borderRadius: 160, backgroundColor: c.surface, borderColor: c.border, borderWidth: 2 },
   pot: { position: 'absolute', top: 151, width: 116, alignItems: 'center' }, potValue: { color: c.text, fontFamily: fonts.medium, fontSize: 32 },
   seat: { position: 'absolute', width: 80, alignItems: 'center', gap: 3 },

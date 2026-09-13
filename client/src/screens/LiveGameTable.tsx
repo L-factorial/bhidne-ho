@@ -18,6 +18,7 @@ export type PlayMode = 'manual';
 
 type Trick = { trick_number: number; plays: { player_id: number; card: string }[]; complete: boolean; winner?: number };
 export type RoomSnapshot = {
+  can_create_new_game?: boolean;
   roster_open?: boolean;
   marriage_scoring?: import('../multiplayer/marriage').MarriageScoringRules;
   marriage_scoring_presets?: Record<string, import('../multiplayer/marriage').MarriageScoringRules>;
