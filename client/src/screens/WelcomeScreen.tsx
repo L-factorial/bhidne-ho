@@ -8,6 +8,9 @@ import { BrandBanner } from '../components/BrandArt';
 import { SignInButton, SignInMethod } from '../components/SignInButton';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
+// Keep provider controls available for later; guest is the only enabled sign-in.
+const SOCIAL_SIGN_IN_ENABLED = false;
+
 export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
@@ -17,6 +20,7 @@ export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
   const [notice, setNotice] = useState('');
   function selectMethod(method: SignInMethod) {
     if (method === 'guest') { onEnterLobby(); return; }
+    if (!SOCIAL_SIGN_IN_ENABLED) return;
     setNotice(`${method} sign-in is coming next. Choose Play as guest to preview the lobby.`);
   }
   return (
@@ -44,7 +48,7 @@ export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
             </View>}
             <View style={styles.buttons}>
               {(['Apple', 'Google', 'Facebook'] as const).map(method => (
-                <SignInButton key={method} method={method} onPress={() => selectMethod(method)} />
+                <SignInButton key={method} method={method} disabled={!SOCIAL_SIGN_IN_ENABLED} onPress={() => selectMethod(method)} />
               ))}
             </View>
             <View style={styles.divider}><View style={styles.dividerLine} /><Text style={styles.or}>or</Text><View style={styles.dividerLine} /></View>

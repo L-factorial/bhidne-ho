@@ -15,7 +15,7 @@ function GoogleIcon() {
     </Svg>
   );
 }
-export function SignInButton({ method, onPress }: { method: SignInMethod; onPress: () => void }) {
+export function SignInButton({ method, onPress, disabled = false }: { method: SignInMethod; onPress: () => void; disabled?: boolean }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const [focused, setFocused] = useState(false);
@@ -23,9 +23,10 @@ export function SignInButton({ method, onPress }: { method: SignInMethod; onPres
   const color = method === 'Google' ? '#242424' : '#FFFFFF';
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={method === 'guest' ? 'Play as guest' : `Continue with ${method}`}
+      disabled={disabled} accessibilityState={{ disabled }}
       onPress={onPress} onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)} style={({ pressed }) => [
-        styles.button, { backgroundColor, opacity: pressed ? 0.78 : 1 },
+        styles.button, { backgroundColor, opacity: disabled ? 0.4 : pressed ? 0.78 : 1 },
         method === 'Google' && styles.google, focused && styles.focused,
       ]}>
       <View style={styles.icon}>

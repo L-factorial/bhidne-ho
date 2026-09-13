@@ -6,6 +6,11 @@ Apple, Google, Facebook, and guest buttons. It adapts from a two-column desktop
 layout to a stacked phone layout, including safe-area padding and scrolling on
 small screens.
 
+Apple, Google, and Facebook buttons remain visible but are dimmed and disabled.
+Only **Play as guest** is enabled. `SOCIAL_SIGN_IN_ENABLED` in
+`src/screens/WelcomeScreen.tsx` controls this temporary restriction; enabling it
+restores the existing provider placeholders, not a completed OAuth integration.
+
 ## Run
 
 Use Node.js 22.13 or newer and npm:
