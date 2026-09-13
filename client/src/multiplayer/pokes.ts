@@ -14,7 +14,7 @@ export function readPoke(value: unknown, roomId: string, userId: string, now = D
   const poke = value as RoomPoke;
   if (poke.type !== 'ROOM_POKE' || poke.room_id !== roomId || typeof poke.id !== 'string'
       || typeof poke.match_id !== 'string' || typeof poke.sender_id !== 'string'
-      || !Number.isInteger(poke.sender_player_id) || poke.sender_player_id < 1 || poke.sender_player_id > 5
+      || !Number.isInteger(poke.sender_player_id) || poke.sender_player_id < 1
       || typeof poke.text !== 'string' || !poke.text.trim() || pokeTextLength(poke.text) > POKE_TEXT_LIMIT
       || !Number.isFinite(poke.expires_at) || poke.expires_at <= now) return null;
   if (poke.scope === 'private') {

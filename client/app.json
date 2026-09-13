@@ -5,13 +5,14 @@
     "version": "0.1.0",
     "orientation": "default",
     "userInterfaceStyle": "light",
-    "backgroundColor": "#091B30",
+    "backgroundColor": "#4B0D0D",
     "ios": {
       "supportsTablet": true
     },
     "web": {
       "bundler": "metro",
-      "name": "Bhidne Ho"
+      "name": "Bhidne Ho",
+      "favicon": "./assets/branding/06_bhidne_ho_favicon.png"
     },
     "plugins": [
       "expo-font",

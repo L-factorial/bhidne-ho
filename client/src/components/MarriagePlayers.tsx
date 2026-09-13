@@ -5,7 +5,7 @@ import type { RoomSnapshot } from '../screens/LiveGameTable';
 import type { MarriagePublic } from '../multiplayer/marriage';
 import { physicalLabel } from '../multiplayer/marriage';
 import { MarriageScoring, MarriagePoints } from './MarriageScoring';
-import { colors, fonts } from '../theme';
+import { fonts, useThemedStyles, type ThemeColors } from '../theme';
 
 type Player = MarriagePublic['players'][number];
 const route = (p: Player) => p.route === 'dublee' ? '7 Dublees' : p.route === 'normal' ? '3 sequences / Tunnelas' : 'Not shown';
@@ -14,26 +14,43 @@ const situation = (p: Player, pub: MarriagePublic) => p.finished ? 'Winner' : pu
 const playerName = (snapshot: RoomSnapshot, id: string) => snapshot.players?.find(p => String(p.player_id) === id)?.display_name || `Player ${id}`;
 
 export function MarriagePlayers({ snapshot, onPoke, registerSeat }: { snapshot: RoomSnapshot; onPoke: (seat: number) => void; registerSeat?: (seat: string, node: View | null) => void }) {
-  const [width, setWidth] = useState(280);
+  const styles = useThemedStyles(createStyles);
+  const [selected, setSelected] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
   const pub = snapshot.marriage!.public, mine = snapshot.marriage?.private?.player_id;
-  const cardWidth = Math.min(176, Math.max(1, Math.floor((width - 10) / 2)));
-  return <View testID="marriage-player-grid" onLayout={e => setWidth(e.nativeEvent.layout.width)} style={styles.grid}>
-    {pub.players.map(p => {
-      const connected = snapshot.players?.find(row => String(row.player_id) === p.player_id)?.connected !== false;
-      return <Pressable ref={node => registerSeat?.(p.player_id, node)} key={p.player_id} testID={`marriage-player-${p.player_id}`} accessibilityRole="button"
-        accessibilityLabel={`Poke ${playerName(snapshot, p.player_id)}`} disabled={!mine || p.player_id === mine}
-        onPress={() => onPoke(Number(p.player_id))} style={[styles.seat, { width: cardWidth, height: 140 }, pub.current_player_id === p.player_id && styles.active]}>
-        <Text numberOfLines={1} style={styles.name}>{playerName(snapshot, p.player_id)}{p.player_id === mine ? ' · You' : ''}</Text>
-        <Text style={styles.small}>{p.hand_count} cards{connected ? '' : ' · Offline'}</Text>
-        <Text style={[styles.small, p.has_seen_maal && styles.seen]}>{p.has_seen_maal ? 'Maal seen' : 'Maal not seen'}</Text>
-        <Text style={styles.route}>{route(p)}</Text>
-        <Text style={styles.small}>{situation(p, pub)}</Text>
-      </Pressable>;
-    })}
-  </View>;
+  const detail = pub.players.find(p => p.player_id === selected);
+  return <>
+    <View testID="marriage-player-grid" style={styles.grid}>
+      {pub.players.map(p => <Pressable ref={node => registerSeat?.(p.player_id, node)} key={p.player_id}
+        testID={`marriage-player-${p.player_id}`} accessibilityRole="button"
+        accessibilityLabel={`${playerName(snapshot, p.player_id)}${p.player_id === mine ? ', You' : ''}, ${p.has_seen_maal ? 'Maal seen' : 'Maal not seen'}. View player details`}
+        onPress={() => setSelected(p.player_id)} style={[styles.seat, p.has_seen_maal && styles.seenSeat, pub.current_player_id === p.player_id && styles.active]}>
+        <Text numberOfLines={1} style={[styles.name, { flexShrink: 1 }]}>{playerName(snapshot, p.player_id)}{p.player_id === mine ? ' · You' : ''}</Text>
+        {pub.current_player_id === p.player_id && <Text style={styles.small}>● Turn</Text>}
+      </Pressable>)}
+    </View>
+    <Modal transparent visible={!!detail} animationType="none" onRequestClose={() => setSelected(null)}>
+      <View style={[styles.backdrop, { paddingTop: Math.max(16, insets.top), paddingBottom: Math.max(16, insets.bottom) }]}>
+        <View accessibilityViewIsModal testID="marriage-player-details" style={styles.dialog}>
+          <View style={styles.dialogHeader}><Text accessibilityRole="header" style={styles.heading}>{detail && playerName(snapshot, detail.player_id)}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Close player details" onPress={() => setSelected(null)} style={styles.close}><Text style={styles.name}>Close ×</Text></Pressable></View>
+          {detail && <ScrollView contentContainerStyle={styles.details}>
+            <Text style={styles.text}>{detail.hand_count} cards{snapshot.players?.find(p => String(p.player_id) === detail.player_id)?.connected === false ? ' · Offline' : ''}</Text>
+            <Text style={styles.text}>{detail.has_seen_maal ? 'Maal seen' : 'Maal not seen'}</Text>
+            <Text style={styles.route}>{route(detail)}</Text>
+            <Text style={styles.text}>{situation(detail, pub)}</Text>
+            {detail.shown_melds.map((meld, i) => <View key={i} style={styles.meld}><Text style={styles.small}>{meld.meld_type.replace('_', ' ')}</Text><Text style={styles.text}>{meld.card_ids.map(physicalLabel).join('   ')}</Text></View>)}
+            {mine && detail.player_id !== mine && <Pressable accessibilityRole="button" accessibilityLabel={`Poke ${playerName(snapshot, detail.player_id)}`}
+              onPress={() => { setSelected(null); onPoke(Number(detail.player_id)); }} style={styles.close}><Text style={styles.name}>Poke player</Text></Pressable>}
+          </ScrollView>}
+        </View>
+      </View>
+    </Modal>
+  </>;
 }
 
 export function MarriageDetails({ snapshot, section, onClose, busy, error, onSave }: { busy: boolean; error: string; onSave: (rules: import('../multiplayer/marriage').MarriageScoringRules) => void; snapshot: RoomSnapshot; section: 'stats' | 'rules' | 'points' | null; onClose: () => void }) {
+  const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets(), pub = snapshot.marriage?.public;
   return <Modal transparent visible={section !== null} animationType="none" onRequestClose={onClose}>
     <View style={[styles.backdrop, { paddingTop: Math.max(16, insets.top), paddingBottom: Math.max(16, insets.bottom) }]}>
@@ -63,16 +80,16 @@ export function MarriageDetails({ snapshot, section, onClose, busy, error, onSav
   </Modal>;
 }
 
-const styles = StyleSheet.create({
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' },
-  seat: { padding: 8, borderRadius: 12, borderWidth: 1, borderColor: '#537E68', backgroundColor: '#173D38', gap: 3 },
-  active: { borderColor: '#76EEA3', borderWidth: 2 }, name: { fontFamily: fonts.medium, color: colors.ivory, fontSize: 14 },
-  small: { fontFamily: fonts.body, color: '#BBC9D6', fontSize: 11, lineHeight: 16 },
-  route: { fontFamily: fonts.medium, color: colors.champagne, fontSize: 11, lineHeight: 15 }, seen: { color: '#76EEA3' },
-  backdrop: { flex: 1, paddingHorizontal: 16, backgroundColor: '#020A14DD', alignItems: 'center', justifyContent: 'center' },
-  dialog: { width: '100%', maxWidth: 660, maxHeight: '90%', borderRadius: 16, backgroundColor: '#173046', overflow: 'hidden' },
-  dialogHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 18, borderBottomWidth: 1, borderColor: '#FFFFFF22' },
-  close: { minHeight: 44, padding: 14, justifyContent: 'center' }, heading: { fontFamily: fonts.medium, color: colors.champagne, fontSize: 18 },
-  details: { padding: 18, gap: 16 }, stat: { gap: 6, paddingBottom: 14, borderBottomWidth: 1, borderColor: '#FFFFFF22' },
-  text: { fontFamily: fonts.body, color: colors.ivory, fontSize: 13, lineHeight: 21 }, meld: { padding: 8, backgroundColor: '#234535', borderRadius: 8, gap: 3 },
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
+  seat: { flexBasis: '45%', flexGrow: 1, minWidth: 0, minHeight: 44, padding: 8, borderRadius: 12, borderWidth: 3, borderColor: colors.maalUnseen, backgroundColor: colors.surface, justifyContent: 'center', flexDirection: 'row', alignItems: 'center', gap: 4 },
+  seenSeat: { borderColor: colors.maalSeen }, active: { backgroundColor: colors.surfaceSelected }, name: { fontFamily: fonts.medium, color: colors.text, fontSize: 14 },
+  small: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 11, lineHeight: 16 },
+  route: { fontFamily: fonts.medium, color: colors.accent, fontSize: 11, lineHeight: 15 }, seen: { color: colors.success },
+  backdrop: { flex: 1, paddingHorizontal: 16, backgroundColor: colors.overlay, alignItems: 'center', justifyContent: 'center' },
+  dialog: { width: '100%', maxWidth: 660, maxHeight: '90%', borderRadius: 16, backgroundColor: colors.surface, overflow: 'hidden' },
+  dialogHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 18, borderBottomWidth: 1, borderColor: colors.border },
+  close: { minHeight: 44, padding: 14, justifyContent: 'center' }, heading: { fontFamily: fonts.medium, color: colors.accent, fontSize: 18 },
+  details: { padding: 18, gap: 16 }, stat: { gap: 6, paddingBottom: 14, borderBottomWidth: 1, borderColor: colors.border },
+  text: { fontFamily: fonts.body, color: colors.text, fontSize: 13, lineHeight: 21 }, meld: { padding: 8, backgroundColor: colors.surface, borderRadius: 8, gap: 3 },
 });

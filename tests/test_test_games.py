@@ -1,5 +1,4 @@
 import asyncio
-import time
 from contextlib import ExitStack
 
 import pytest
@@ -11,7 +10,7 @@ from app.multiplayer.connection_manager import ConnectionManager
 from app.multiplayer.room_service import RoomService
 from app.test_games.http import GameAction
 from app.test_games.service import TestGameService as GameHost
-from callbreak import Phase
+from callbreak import Phase, available_cards
 from callbreak.audit import audit_match
 from uuid import uuid4
 
@@ -31,17 +30,17 @@ class Delivery:
         self.public.append((room, data))
 
 
-async def host(n, timeout=3):
+async def host(n):
     rooms, delivery = RoomService(), Delivery()
     for i in range(n + 1):
         await rooms.join("room", f"u{i}")
-    service = GameHost(rooms, delivery, timeout_seconds=timeout)
+    service = GameHost(rooms, delivery)
     return service, delivery
 
 
 @pytest.mark.parametrize("n", [4, 5])
 async def test_full_table_waits_for_creator_then_completes_all_five_deals(n):
-    service, delivery = await host(n, timeout=0.001)
+    service, delivery = await host(n)
     try:
         waiting = await service.create("room", "u0", n)
         assert waiting["status"] == "waiting" and waiting["your_player_id"] == 1
@@ -60,12 +59,15 @@ async def test_full_table_waits_for_creator_then_completes_all_five_deals(n):
         assert spectator["private"] is None and spectator["your_player_id"] is None
         # Duplicate tabs/reconnects reuse the same seat.
         assert (await service.join("room", "u0", waiting["match_id"]))["your_player_id"] == 1
-        await asyncio.wait_for(game.task, timeout=10)
+        assert snapshot['play_mode'] == 'manual' and game.task is None
+        while game.state.phase != Phase.MATCH_COMPLETE:
+            user, command = next_action(service, game)
+            await service.action('room', user, command)
         assert game.error is None and game.state.phase == Phase.MATCH_COMPLETE
         audit_match(game.state)
         assert len(game.state.completed_deals) == 5
         assert all(sum(d.result.tricks_won) == 52 // n for d in game.state.completed_deals)
-        assert any(data.get("event") == "AutoAction" for _, data in delivery.public)
+        assert not any(data.get("event") == "AutoAction" for _, data in delivery.public)
         assert all(data.get("event") not in ("CARD_DEALT", "HAND_REVIEW_REQUESTED", "REDEAL_ELIGIBLE") for _, data in delivery.public)
         assert not any("card" in data.get("payload", {}) for _, data in delivery.public if data.get("event") == "CARD_DISTRIBUTED")
         events = [data for _, data in delivery.public if data.get("type") == "GAME_EVENT"]
@@ -109,7 +111,15 @@ def next_action(service, game):
         actor = next(p for p in game.state.config.players if p not in game.state.current_deal.accepted_hands)
         command, payload = "ACCEPT_HAND", {}
     else:
-        command, payload = service._heuristic(game.state, actor)
+        phase = game.state.phase
+        command, payload = {
+            Phase.AWAITING_SHUFFLE: ('SHUFFLE_DECK', {}),
+            Phase.AWAITING_CUT: ('SKIP_CUT', {}),
+            Phase.AWAITING_DISTRIBUTION: ('START_DISTRIBUTION', {}),
+            Phase.BIDDING: ('PLACE_BID', {'amount': 1}),
+        }.get(phase, ('PLAY_CARD', {}))
+        if phase == Phase.PLAYING:
+            payload = {'card': str(available_cards(game.state, actor)[0])}
     return f"u{actor - 1}", GameAction(match_id=game.match_id, command_id=uuid4().hex,
         expected_revision=game.state.revision, command=command, payload=payload)
 
@@ -226,7 +236,7 @@ async def test_controller_failure_rolls_back_before_retry():
     await service.close()
 
 
-async def test_manual_actions_stale_commands_and_three_second_deadline():
+async def test_manual_actions_reject_stale_commands_without_turn_deadlines():
     service, delivery = await host(4)
     try:
         waiting = await service.create("room", "u0", 4)
@@ -239,7 +249,7 @@ async def test_manual_actions_stale_commands_and_three_second_deadline():
         cutter = dealer % 4 + 1
         cutter_user = f"u{cutter - 1}"
         initial_deadline = game.deadline
-        assert 2.5 < game.deadline - time.monotonic() <= 3
+        assert game.deadline is None
         body = GameAction(match_id=game.match_id, expected_revision=game.state.revision, command="SHUFFLE_DECK")
         with pytest.raises(HTTPException):
             await service.action("room", cutter_user, body)
@@ -267,7 +277,7 @@ async def test_manual_actions_stale_commands_and_three_second_deadline():
         assert error.value.status_code == 403
     finally:
         await service.close()
-    assert game.task.done()
+    assert game.task is None
 
 
 async def test_private_delivery_scoped_to_room_and_user():
@@ -303,7 +313,8 @@ def test_console_http_auth_lobby_and_validation():
             assert client.post('/test-games/room/join', headers=h, json={"match_id": match_id}).status_code == 200
         assert client.post('/test-games/room/start', headers=headers[1], json={'match_id': match_id}).status_code == 403
         assert client.post('/test-games/room/start', headers=headers[0], json={'match_id': match_id, 'play_mode': 'invalid'}).status_code == 422
-        started = client.post('/test-games/room/start', headers=headers[0], json={'match_id': match_id, 'play_mode': 'manual'})
+        assert client.post('/test-games/room/start', headers=headers[0], json={'match_id': match_id, 'play_mode': 'auto'}).status_code == 422
+        started = client.post('/test-games/room/start', headers=headers[0], json={'match_id': match_id})
         assert started.status_code == 200
         assert started.json()['play_mode'] == 'manual'
         assert started.json()['remaining_ms'] is None
@@ -365,7 +376,7 @@ async def test_creator_settings_start_quorum_and_locking():
 
 @pytest.mark.parametrize("n", [4, 5])
 async def test_player_play_waits_for_input_and_completes_match(n):
-    service, delivery = await host(n, timeout=0.001)
+    service, delivery = await host(n)
     try:
         waiting = await service.create("room", "u0", n)
         for i in range(1, n):
@@ -416,12 +427,12 @@ async def test_player_play_waits_for_input_and_completes_match(n):
 
 @pytest.mark.parametrize("started", [False, True])
 async def test_creator_can_end_waiting_or_running_game_and_replace_it(started):
-    service, delivery = await host(4, timeout=0.01)
+    service, delivery = await host(4)
     try:
         first = await service.create('room', 'u0', 4)
         mid = first['match_id']
         for i in range(1, 4): await service.join('room', f'u{i}', mid)
-        if started: await service.start('room', 'u0', mid, 'auto')
+        if started: await service.start('room', 'u0', mid, 'manual')
         game = service.games['room']
         state = game.state
         for user, match, status in [('u1', mid, 403), ('u4', mid, 403),
@@ -434,7 +445,7 @@ async def test_creator_can_end_waiting_or_running_game_and_replace_it(started):
         assert (await service.end('room', 'u0', mid))['status'] == 'ended'
         await asyncio.sleep(0.03)
         assert game.state is state
-        if started: assert game.task.done()
+        if started: assert game.task is None
         for i in range(5):
             assert delivery.private['room', f'u{i}']['payload']['status'] == 'ended'
         with pytest.raises(HTTPException): await service.join('room', 'u4', mid)
@@ -500,32 +511,5 @@ async def test_manual_round_summary_holds_scores_and_creator_advances_once(n):
             assert results[0]['game']['revision'] == results[1]['game']['revision']
             assert game.state.phase == Phase.AWAITING_SHUFFLE
             assert game.state.preparation.number == round_number + 1
-    finally:
-        await service.close()
-
-
-async def test_autoplay_round_summary_waits_for_deadline_and_ending_stops_it():
-    service, _, game = await manual_host()
-    service.round_summary_seconds = 8
-    try:
-        while game.state.phase != Phase.DEAL_COMPLETE:
-            user, command = next_action(service, game)
-            await service.action('room', user, command)
-        game.play_mode = 'auto'
-        service._deadline(game, Phase.PLAYING)
-        game.task = asyncio.create_task(service._run(game))
-        await asyncio.sleep(0.15)
-        assert game.state.phase == Phase.DEAL_COMPLETE
-        assert (await service.snapshot('room', 'u0'))['remaining_ms'] > 7000
-        game.deadline = time.monotonic() - 1
-        for _ in range(10):
-            await asyncio.sleep(0.02)
-            if game.state.phase == Phase.AWAITING_SHUFFLE: break
-        assert game.state.phase == Phase.AWAITING_SHUFFLE
-        assert 'round_review' not in await service.snapshot('room', 'u0')
-        await service.end('room', 'u0', game.match_id)
-        before = game.state
-        await asyncio.sleep(0.15)
-        assert game.state is before and game.task.done()
     finally:
         await service.close()

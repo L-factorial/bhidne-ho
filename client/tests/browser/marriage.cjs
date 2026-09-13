@@ -21,7 +21,7 @@ const label = c => c.card_type === 'man' ? `Man · ${Number(c.card_id.slice(-1))
     const errors = [];
     const pages = [];
     for (let i = 0; i < 2; i++) {
-      const context = await browser.newContext({ viewport: i ? { width: 1280, height: 900 } : { width: 360, height: 800 } });
+      const context = await browser.newContext({ colorScheme: 'dark', viewport: i ? { width: 1280, height: 900 } : { width: 360, height: 800 } });
       await context.addInitScript(({ user, room }) => sessionStorage.setItem('bhidne.session.v1:http://localhost:8000',
         JSON.stringify({ session: user, room, game: 'marriage' })), { user: users[i], room });
       const page = await context.newPage();
@@ -57,9 +57,40 @@ const label = c => c.card_type === 'man' ? `Man · ${Number(c.card_id.slice(-1))
     assert.equal(saved.marriage_scoring.seen_payment, 7);
     assert.deepEqual(saved.marriage_scoring.tiplu, [3, 6, 9]);
     await two.getByRole('button', { name: 'Close details', exact: true }).click();
-    await one.getByRole('button', { name: 'Player play', exact: true }).click();
+    assert.equal(await one.getByRole('button', { name: 'Autoplay', exact: true }).count(), 0);
     await one.getByRole('button', { name: 'Start game', exact: true }).click();
+    await one.getByRole('button', { name: 'Reveal next · 0/21', exact: true }).click();
+    await one.reload();
+    await one.getByRole('button', { name: 'Reveal next · 1/21', exact: true }).waitFor();
     for (const page of pages) await page.getByRole('button', { name: 'Reveal all cards', exact: true }).click();
+    await one.reload();
+    await one.getByRole('button', { name: 'Hide cards', exact: true }).waitFor();
+    assert.equal(await one.getByRole('button', { name: /Reveal next/ }).count(), 0);
+    for (const page of pages) {
+      const seat = page.getByTestId('marriage-player-grid').getByRole('button').first();
+      assert.equal(await seat.evaluate(el => getComputedStyle(el).borderTopColor), 'rgb(80, 86, 92)');
+      await seat.click();
+      await page.getByTestId('marriage-player-details').getByText('Maal not seen', { exact: true }).waitFor();
+      await page.getByRole('button', { name: 'Close player details', exact: true }).click();
+      for (const viewport of [{ width: 360, height: 800 }, { width: 640, height: 1250 }, { width: 1280, height: 900 }]) {
+        await page.setViewportSize(viewport);
+        await page.waitForTimeout(150);
+        const checkHand = () => page.getByTestId('marriage-hand').getByRole('button').evaluateAll(cards =>
+          cards.every(card => { const r = card.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth; }));
+        assert.ok(await checkHand(), 'all hand cards must fit in the viewport');
+        assert.ok(await page.getByTestId('marriage-hand').getByRole('button').evaluateAll(cards => {
+          const rects = cards.map(card => card.getBoundingClientRect());
+          return cards.every(card => getComputedStyle(card).transform === 'none') && rects.every((a, i) =>
+            rects.slice(i + 1).every(b => a.right <= b.left + 1 || b.right <= a.left + 1 || a.bottom <= b.top + 1 || b.bottom <= a.top + 1));
+        }), 'hands over 15 cards must use a grid without overlapping cards');
+        assert.ok(await page.getByTestId('marriage-play-area').evaluate(el => el.scrollHeight <= el.clientHeight + 1), 'table must fit without scrolling');
+        for (const id of ['marriage-player-grid', 'marriage-card-spots']) {
+          const rect = await page.getByTestId(id).boundingBox();
+          const dock = await page.getByTestId('marriage-hand-dock').boundingBox();
+          assert.ok(rect.y >= 0 && rect.y + rect.height <= dock.y, `${id} must stay above the hand`);
+        }
+      }
+    }
     for (const page of pages) await page.evaluate(() => {
       window.__flights = [];
       const seen = new WeakSet();
@@ -93,12 +124,16 @@ const label = c => c.card_type === 'man' ? `Man · ${Number(c.card_id.slice(-1))
     await two.getByRole('button', { name: 'Hide cards', exact: true }).click();
     assert.equal(await two.getByTestId('marriage-hand').getByText(label(card), { exact: true }).count(), 0);
     await two.getByRole('button', { name: 'Show cards', exact: true }).click();
+    await two.getByRole('button', { name: 'Hand tools', exact: true }).click();
     for (const mode of ['Suit groups', 'Grid']) await two.getByRole('button', { name: mode, exact: true }).click();
+    await two.getByRole('button', { name: 'Close hand tools', exact: true }).click();
     const hand = (await api(root, users[1])).marriage.private.hand;
     await two.getByRole('button', { name: label(hand[0]), exact: true }).click();
     await two.getByRole('button', { name: label(hand[1]), exact: true }).click();
+    await two.getByRole('button', { name: 'Hand tools', exact: true }).click();
     await two.getByRole('button', { name: 'Add group · 2 cards', exact: true }).click();
     await two.getByRole('button', { name: 'Remove group 1', exact: true }).click();
+    await two.getByRole('button', { name: 'Close hand tools', exact: true }).click();
     await two.getByRole('button', { name: 'Rules', exact: true }).click();
     await two.getByText('Three sequences / Tunnelas unlock Maal. Normal-hand winning is not available yet.', { exact: true }).waitFor();
     await two.getByRole('button', { name: 'Close details', exact: true }).click();
@@ -115,16 +150,19 @@ const label = c => c.card_type === 'man' ? `Man · ${Number(c.card_id.slice(-1))
     await two.reload();
     await two.getByTestId('marriage-table').waitFor();
     await two.getByText('Your cards · 22', { exact: true }).waitFor();
+    assert.equal(await two.getByRole('button', { name: 'Reveal all cards', exact: true }).count(), 0, 'refresh during play must not restart the deal reveal');
+    assert.equal(await two.getByRole('button', { name: /Reveal next/ }).count(), 0);
     await one.getByRole('button', { name: 'End game', exact: true }).click();
     await one.getByRole('button', { name: 'End game for everyone', exact: true }).click();
     await two.getByText('Game ended', { exact: true }).waitFor();
     // Rematch invitation must be reachable inside the still-open game overlay.
     await one.getByTestId('live-game-overlay').getByRole('button', { name: 'Start a new game', exact: true }).click();
+    await one.getByRole('button', { name: '2 players', exact: true }).click();
     await one.getByRole('button', { name: 'Create Marriage game', exact: true }).click();
     await two.getByTestId('in-game-invitation').getByText('A new Marriage game is ready!', { exact: true }).waitFor();
     await two.getByTestId('in-game-invitation').getByRole('button', { name: 'Join game', exact: true }).click();
     await two.getByTestId('in-game-invitation').waitFor({ state: 'hidden' });
-    await one.getByRole('button', { name: 'Player play', exact: true }).click();
+    assert.equal(await one.getByRole('button', { name: 'Autoplay', exact: true }).count(), 0);
     await one.getByRole('button', { name: 'Start game', exact: true }).click();
     await two.getByRole('button', { name: 'Reveal all cards', exact: true }).waitFor();
     await one.getByRole('button', { name: 'End game', exact: true }).click();

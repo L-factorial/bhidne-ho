@@ -1,20 +1,19 @@
-"""Test-only in-memory host. Automatic actions never live in the core engine."""
+"""In-memory host for manually played multiplayer games."""
 
 import asyncio
-import logging
-import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
+import json
 from random import SystemRandom
 from uuid import uuid4
 
 from fastapi import HTTPException
-from pydantic import ValidationError
+from pydantic import ValidationError, TypeAdapter
 
-from card_utils import Rank, Suit, shuffle, standard_52
+from card_utils import shuffle, standard_52
 from callbreak.house_rules import RedealPolicy
 from callbreak import (
     CompleteShuffle, GameConfig, GameQuery, MatchState, Phase, PrepareDeal,
-    available_cards, create_match,
+    create_match,
 )
 from app.adapters.callbreak import AdapterResult, PlayerCommand, dispatch_control, dispatch_player
 from app.adapters.callbreak.host import CallBreakCommandTarget
@@ -23,11 +22,11 @@ from marriage.rules import MarriageRules
 from marriage.scoring_rules import ScoringRules, SCORING_PRESETS
 from app.adapters.marriage import MarriageAdapter
 from app.test_games.marriage import HostedMarriageTarget
+from flush import FlushGameEngine, FlushRulesConfig, FlushError
+from app.adapters.flush import FlushAdapter
+from app.test_games.flush import HostedFlushTarget
 from app.games.base import GameCommandRejected
 from app.runtime.command_runtime import CommandAccessError, CommandRuntime, CommandSession, OutgoingEvent
-
-logger = logging.getLogger(__name__)
-
 
 @dataclass
 class HostedGame:
@@ -41,9 +40,16 @@ class HostedGame:
     task: asyncio.Task | None = None
     log: list[dict] = field(default_factory=list)
     error: str | None = None
-    play_mode: str = "auto"
+    play_mode: str = "manual"
     ended: bool = False
     game_type: str = "callbreak"
+    flush_target: object | None = None
+    flush_queries: dict = field(default_factory=dict)
+    flush_seats: dict = field(default_factory=dict)
+    flush_balances: dict = field(default_factory=dict)
+    flush_rules: FlushRulesConfig = field(default_factory=lambda: FlushRulesConfig(5, 1))
+    flush_rules_revision: int = 0
+    flush_starting_chips: int = 1000
     marriage_target: object | None = None
     marriage_queries: dict = field(default_factory=dict)
     marriage_moves: list[dict] = field(default_factory=list)
@@ -51,10 +57,16 @@ class HostedGame:
 
     @property
     def started(self):
-        return self.state is not None or self.marriage_target is not None
+        return self.state is not None or self.marriage_target is not None or self.flush_target is not None
+
+    @property
+    def flush_open(self):
+        return self.game_type == "flush" and (not self.started or self.flush_target.adapter.snapshot()["view"]["status"] == "finished")
 
     @property
     def finished(self):
+        if self.flush_target:
+            return False  # Flush continues between rounds until the table is explicitly ended.
         if self.marriage_target:
             return self.marriage_target.adapter.snapshot()["view"]["status"] == "finished"
         return bool(self.state and self.state.phase == Phase.MATCH_COMPLETE)
@@ -69,12 +81,11 @@ class HostedGame:
 
 
 class TestGameService:
-    def __init__(self, rooms, connections, timeout_seconds=3.0, command_runtime=None, profiles=None, round_summary_seconds=0):
+    def __init__(self, rooms, connections, command_runtime=None, profiles=None, round_summary_seconds=0):
         self.rooms, self.connections = rooms, connections
         self.profiles = profiles
         self.round_summary_seconds = round_summary_seconds
         self.command_runtime = command_runtime or CommandRuntime()
-        self.timeout_seconds = timeout_seconds
         self.games: dict[str, HostedGame] = {}
         self._catalog_lock = asyncio.Lock()
         self._random = SystemRandom()
@@ -82,7 +93,7 @@ class TestGameService:
     def is_playing(self, room_id: str, user_id: str) -> bool:
         """Expose participation without leaking Call Break state to room services."""
         game = self.games.get(room_id)
-        return bool(game and not game.ended and game.started and not game.finished and user_id in game.users)
+        return bool(game and not game.ended and game.started and not game.finished and not game.flush_open and user_id in game.users)
 
     async def close(self):
         tasks = [g.task for g in self.games.values() if g.task is not None]
@@ -101,6 +112,8 @@ class TestGameService:
         return game
 
     def _snapshot(self, game, user_id):
+        if game.game_type == "flush":
+            return self._flush_snapshot(game, user_id)
         if game.game_type == "marriage":
             return self._marriage_snapshot(game, user_id)
         seat = game.users.index(user_id) + 1 if user_id in game.users else None
@@ -114,8 +127,8 @@ class TestGameService:
                 "finished" if game.state.phase == Phase.MATCH_COMPLETE else "playing",
             "can_join": not game.ended and game.state is None and seat is None and len(game.users) < game.capacity,
             "play_mode": game.play_mode,
-            "timeout_seconds": self.timeout_seconds if game.play_mode == "auto" else None,
-            "remaining_ms": max(0, int((game.deadline - time.monotonic()) * 1000)) if game.deadline else None,
+            "timeout_seconds": None,
+            "remaining_ms": None,
             "log": list(game.log), "error": game.error,
         }
         if game.state and game.state.phase == Phase.DEAL_COMPLETE and self.round_summary_seconds and not game.ended:
@@ -158,6 +171,67 @@ class TestGameService:
             result["query_result"] = game.marriage_queries.get(user_id)
         return result
 
+    def _flush_snapshot(self, game, user_id):
+        seat = game.flush_seats.get(user_id) if user_id in game.users else None
+        result = {
+            "room_id": game.room_id, "match_id": game.match_id, "game_type": "flush",
+            "capacity": game.capacity, "ready": len(game.users) >= 2,
+            "players": [{"player_id": game.flush_seats[user], "user_id": user,
+                "display_name": self.profiles.name(user, game.flush_seats[user]) if self.profiles else f"Player {game.flush_seats[user]}"}
+                for i, user in enumerate(game.users)],
+            "your_player_id": seat, "is_creator": bool(game.users) and game.users[0] == user_id,
+            "roster_open": game.flush_open and not game.ended,
+            "status": "ended" if game.ended else "finished" if game.finished else "playing" if game.started else "waiting",
+            "can_join": not game.ended and game.flush_open and seat is None and len(game.users) < game.capacity,
+            "play_mode": "manual", "remaining_ms": None, "error": game.error,
+            "flush_settings": {"rules": asdict(game.flush_rules), "rules_revision": game.flush_rules_revision,
+                "starting_chips": game.flush_starting_chips, "locked": game.started or game.ended},
+        }
+        if game.flush_target:
+            adapter = game.flush_target.adapter
+            public = adapter.snapshot()["view"]
+            result["flush"] = {"public": public, "private": adapter.snapshot(str(seat))["view"] if str(seat) in adapter.seat_ids and user_id in game.users else None,
+                "bets": [event for event in adapter.public_events() if event["revision"] >= adapter.checkpoint().get_state().round_start_revision and event["kind"] in ("BET_PLACED", "SHOW_REQUESTED", "SIDE_SHOW_REQUESTED")]}
+            result["flush"]["folds"] = [{"sequence": event["sequence"], "revision": event["revision"],
+                "player_id": event["player_id"] if event["kind"] == "PLAYER_FOLDED" else event["loser_player_id"]}
+                for event in adapter.public_events() if event["revision"] >= adapter.checkpoint().get_state().round_start_revision
+                and event["kind"] in ("PLAYER_FOLDED", "SIDE_SHOW_RESOLVED")]
+            result["flush"]["participants"] = [{"player_id": str(s), "display_name": self.profiles.name(u, s) if self.profiles else f"Player {s}"} for u, s in game.flush_seats.items()]
+            settlement = public["settlement"]
+            result["game"] = {"revision": adapter.revision, "phase": public["status"].upper(),
+                "finished": game.finished, "winners": [int(p) for p in settlement["winner_ids"]] if settlement else [],
+                "turn": {"player_id": int(public["current_player_id"]) if public["current_player_id"] else None},
+                "current_trick": None, "scores_tenths": []}
+            result["query_result"] = game.flush_queries.get(user_id)
+        return result
+
+    async def configure_flush(self, room_id, user_id, body):
+        await self._member(room_id, user_id)
+        game = self._get(room_id)
+        async with game.lock:
+            self._creator(game, user_id, body.match_id)
+            if game.game_type != "flush":
+                raise HTTPException(409, "Flush settings only apply to Flush.")
+            if body.rules_revision != game.flush_rules_revision:
+                raise HTTPException(409, "Flush rules changed. Reload them before saving.")
+            try:
+                if set(body.rules) != {f.name for f in fields(FlushRulesConfig)}:
+                    raise ValueError("Supply the complete Flush ruleset without unknown fields.")
+                rules = TypeAdapter(FlushRulesConfig).validate_json(json.dumps(body.rules), strict=True)
+                if rules.minimum_players != 2 or rules.maximum_players != 10:
+                    raise ValueError("Flush tables require limits of 2 to 10 players.")
+                if not rules.minimum_players <= game.capacity <= rules.maximum_players:
+                    raise ValueError("Player limits must include this room's seat count.")
+                if rules.boot_amount > body.starting_chips:
+                    raise ValueError("Starting chips must cover the boot for every player.")
+            except (ValueError, TypeError, FlushError) as error:
+                raise HTTPException(422, str(error)) from error
+            game.flush_rules = rules
+            game.flush_starting_chips = body.starting_chips
+            game.flush_rules_revision += 1
+            await self._publish(game)
+            return self._snapshot(game, user_id)
+
     async def snapshot(self, room_id, user_id):
         await self._member(room_id, user_id)
         game = self.games.get(room_id)
@@ -168,15 +242,16 @@ class TestGameService:
 
     async def create(self, room_id, user_id, capacity, game_type="callbreak"):
         await self._member(room_id, user_id)
-        if game_type not in ("callbreak", "marriage"):
+        if game_type not in ("callbreak", "marriage", "flush"):
             raise HTTPException(422, "Choose a supported game.")
-        if type(capacity) is not int or capacity not in ((2, 3, 4, 5) if game_type == "marriage" else (4, 5)):
-            raise HTTPException(422, "Choose 2-5 players for Marriage or 4-5 for Call Break.")
+        if type(capacity) is not int or capacity not in (tuple(range(2, 11)) if game_type == "flush" else (2, 3, 4, 5) if game_type == "marriage" else (4, 5)):
+            raise HTTPException(422, "Choose 2-10 players for Flush, 2-5 for Marriage or 4-5 for Call Break.")
         async with self._catalog_lock:
             existing = self.games.get(room_id)
             if existing and not existing.ended and not existing.finished:
                 raise HTTPException(409, "This room already has a waiting or active game.")
             game = HostedGame(room_id, capacity, [user_id], game_type=game_type)
+            if game_type == "flush": game.flush_seats[user_id] = 1
             self.games[room_id] = game
         async with game.lock:
             await self._publish(game)
@@ -194,7 +269,6 @@ class TestGameService:
                 raise HTTPException(409, "The round changed. Refresh the table.")
             if game.state.phase == Phase.DEAL_COMPLETE:
                 await self._controllers(game, advance_deal=True)
-                self._deadline(game, Phase.DEAL_COMPLETE)
                 await self._publish(game)
             return self._snapshot(game, user_id)
 
@@ -215,6 +289,8 @@ class TestGameService:
                 game.ended = True
                 if game.marriage_target:
                     game.marriage_target.active = False
+                if game.flush_target:
+                    game.flush_target.active = False
                 game.deadline = None
                 if game.task:
                     game.task.cancel()
@@ -229,8 +305,10 @@ class TestGameService:
                 raise HTTPException(409, "Game changed. Refresh and join again.")
             if user_id in game.users:
                 return self._snapshot(game, user_id)
-            if game.started or len(game.users) >= game.capacity:
+            if (game.started and not game.flush_open) or len(game.users) >= game.capacity:
                 raise HTTPException(409, "The game is full; you can watch it.")
+            if game.game_type == "flush" and user_id not in game.flush_seats:
+                game.flush_seats[user_id] = max(game.flush_seats.values(), default=0) + 1
             game.users.append(user_id)
             await self._publish(game)
             return self._snapshot(game, user_id)
@@ -242,7 +320,7 @@ class TestGameService:
             async with game.lock:
                 if match_id != game.match_id:
                     raise HTTPException(409, "The game changed. Refresh before leaving.")
-                if game.started:
+                if game.started and not game.flush_open:
                     raise HTTPException(409, "You can only leave a game before it starts.")
                 if user_id in game.users:
                     game.users.remove(user_id)
@@ -254,8 +332,8 @@ class TestGameService:
     async def configure(self, room_id, user_id, body):
         await self._member(room_id, user_id)
         game = self._get(room_id)
-        if game.game_type == "marriage":
-            raise HTTPException(409, "Call Break settings do not apply to Marriage.")
+        if game.game_type != "callbreak":
+            raise HTTPException(409, "Call Break settings only apply to Call Break.")
         async with game.lock:
             self._creator(game, user_id, body.match_id)
             game.settings = body.model_dump(exclude={"match_id"})
@@ -277,21 +355,52 @@ class TestGameService:
             await self._publish(game)
             return self._snapshot(game, user_id)
 
-    def _creator(self, game, user_id, match_id):
+    def _creator(self, game, user_id, match_id, *, relock=False):
         if not game.users or user_id != game.users[0]:
             raise HTTPException(403, "Only the game creator can do this.")
-        if match_id != game.match_id or game.started or game.ended:
+        if match_id != game.match_id or (game.started and not (relock and game.flush_open)) or game.ended:
             raise HTTPException(409, "Settings and start are only available before this game begins.")
 
-    async def start(self, room_id, user_id, match_id, play_mode="auto"):
+    async def start(self, room_id, user_id, match_id, play_mode=None, rules_revision=None):
         await self._member(room_id, user_id)
         game = self._get(room_id)
         async with game.lock:
-            self._creator(game, user_id, match_id)
-            if len(game.users) != game.capacity:
+            self._creator(game, user_id, match_id, relock=True)
+            if (len(game.users) < 2 if game.game_type == "flush" else len(game.users) != game.capacity):
                 raise HTTPException(409, "Wait for all players to take a seat.")
-            if play_mode not in ("manual", "auto"):
-                raise HTTPException(422, "Choose manual or auto play.")
+            if play_mode not in (None, "manual"):
+                raise HTTPException(422, "Games support manual multiplayer only.")
+            play_mode = "manual"
+            if game.game_type == "flush":
+                from app.adapters.flush import PlayerCommand as FlushCommand, AdapterResult as FlushResult
+                if rules_revision != game.flush_rules_revision or type(rules_revision) is not int:
+                    raise HTTPException(409, "Flush rules changed. Review the saved rules before starting.")
+                seats = tuple(str(game.flush_seats[u]) for u in game.users)
+                owner = str(game.flush_seats[user_id])
+                if game.flush_target:
+                    from copy import deepcopy
+                    engine = deepcopy(game.flush_target.adapter.checkpoint())
+                    old = engine.get_state()
+                    balances = {**game.flush_balances, **{p.player_id: p.chips for p in old.players}}
+                    dealer = next((p for p in old.settlement.winner_ids if p in seats), owner)
+                    try:
+                        engine.prepare_next_round(dealer, player_ids=seats,
+                            initial_chips={p: balances.get(p, game.flush_starting_chips) for p in seats})
+                    except (FlushError, ValueError) as error:
+                        raise HTTPException(409, str(error)) from error
+                    adapter = FlushAdapter(engine, match_id=game.match_id, owner_player_id=owner)
+                    game.flush_balances = balances
+                else:
+                    adapter = FlushAdapter(FlushGameEngine(seats,
+                        initial_chips=dict.fromkeys(seats, game.flush_starting_chips), rules=game.flush_rules,
+                        dealer_id=self._random.choice(seats)), match_id=game.match_id, owner_player_id=owner)
+                    outcome = adapter.dispatch_player(FlushCommand(match_id=game.match_id, command_id=uuid4().hex,
+                        expected_revision=0, command="START_GAME"), player_id=owner)
+                    if not isinstance(outcome, FlushResult): raise HTTPException(409, outcome.detail)
+                game.flush_target = HostedFlushTarget(self, game, adapter)
+                game.flush_queries = {}
+                await self._publish(game)
+                return self._snapshot(game, user_id)
             if game.game_type == "marriage":
                 from app.adapters.marriage import PlayerCommand as MarriageCommand, AdapterResult as MarriageResult
                 adapter = MarriageAdapter(MarriageGameEngine(tuple(str(i + 1) for i in range(game.capacity)),
@@ -303,24 +412,17 @@ class TestGameService:
                     raise HTTPException(409, outcome.detail)
                 game.marriage_target = HostedMarriageTarget(self, game, adapter)
                 game.play_mode = play_mode
-                if play_mode == "auto":
-                    game.task = asyncio.create_task(self._run_marriage(game))
                 for event in outcome.messages:
                     recipient = game.marriage_target.user_by_seat[event.recipient_player_id] if event.recipient_player_id else None
                     await self._deliver(game, OutgoingEvent(event.message.model_dump(mode="json"), recipient))
                 await self._publish(game)
                 return self._snapshot(game, user_id)
-            if play_mode not in ("manual", "auto"):
-                raise HTTPException(422, "Choose manual or auto play.")
             game.play_mode = play_mode
             policy = RedealPolicy(weak_hand_enabled=game.settings["weak_hand_enabled"],
                                   no_spades_enabled=game.settings["no_spades_enabled"])
             game.state = create_match(GameConfig(game.capacity, redeal_policy=policy),
                                       initial_dealer=self._random.randint(1, game.capacity))
             await self._controllers(game)
-            self._deadline(game, None)
-            if game.play_mode == "auto":
-                game.task = asyncio.create_task(self._run(game))
             await self._publish(game)
             return self._snapshot(game, user_id)
 
@@ -330,12 +432,7 @@ class TestGameService:
         return await self._execute_action(game, user_id, body)
 
     async def _execute_action(self, game, user_id, body):
-        """Shared command execution; transport presence checks belong to action().
-
-        Host automation is authorized by the fixed seated roster, even while a
-        browser reconnects. Target authorization still checks game lifecycle and
-        seat ownership, and the runtime still serializes and validates revisions.
-        """
+        """Shared revisioned command execution after transport authorization."""
         async def deliver(events):
             for event in events:
                 await self._deliver(game, event)
@@ -343,7 +440,7 @@ class TestGameService:
 
         try:
             return await self.command_runtime.execute(
-                game.commands, game.marriage_target or CallBreakCommandTarget(self, game), user_id, body, deliver)
+                game.commands, game.flush_target or game.marriage_target or CallBreakCommandTarget(self, game), user_id, body, deliver)
         except CommandAccessError as error:
             raise HTTPException(error.status, error.detail) from error
         except GameCommandRejected as error:
@@ -360,21 +457,14 @@ class TestGameService:
         if user_id not in game.users:
             raise HTTPException(403, "Take a seat before sending a poke.")
         recipient = body.recipient_player_id
+        if game.game_type == "flush" and recipient is not None:
+            raise HTTPException(403, "Flush only allows pokes to the whole table.")
         if recipient is not None and recipient > len(game.users):
             raise HTTPException(409, "That seat is empty.")
         return await social.send(room_id, user_id, match_id=game.match_id,
-            sender_player_id=game.users.index(user_id) + 1,
+            sender_player_id=game.flush_seats[user_id] if game.game_type == "flush" else game.users.index(user_id) + 1,
             recipient_user_id=game.users[recipient - 1] if recipient else None,
             recipient_player_id=recipient, text=body.text)
-
-    def _deadline(self, game, before):
-        if game.play_mode == "manual" or game.state.phase == Phase.MATCH_COMPLETE:
-            game.deadline = None
-        elif game.state.phase == Phase.DEAL_COMPLETE and self.round_summary_seconds:
-            game.deadline = time.monotonic() + self.round_summary_seconds
-        elif before != Phase.HAND_REVIEW or game.state.phase != Phase.HAND_REVIEW:
-            game.deadline = time.monotonic() + self.timeout_seconds
-        # All reviewing players share the same original three-second window.
 
     def _apply_player(self, game, actor, command, payload=None, *, command_id=None):
         context = game.state.preparation or game.state.current_deal or game.state.completed_deals[-1].deal
@@ -390,17 +480,6 @@ class TestGameService:
         if not isinstance(result, AdapterResult):
             raise GameCommandRejected(result.code, result.detail)
         return self._record(game, result)
-
-    async def _player(self, game, actor, command, payload=None, automatic=False):
-        events = self._apply_player(game, actor, command, payload)
-        for event in events:
-            await self._deliver(game, event)
-        if automatic:
-            entry = {"event": "AutoAction", "player_id": actor, "action": command,
-                     "revision": game.state.revision}
-            game.log.append(entry)
-            await self.connections.broadcast(game.room_id, {"type": "TEST_GAME_EVENT", "match_id": game.match_id, **entry})
-        game.log[:] = game.log[-30:]
 
     def _apply_controllers(self, game, advance_deal=False):
         events = []
@@ -444,78 +523,3 @@ class TestGameService:
         for user in await self.rooms.members(game.room_id):
             await self.connections.send_to_room_user(game.room_id, user, {
                 "type": "TEST_GAME_STATE", "payload": self._snapshot(game, user)})
-
-    def _heuristic(self, state, player):
-        if state.phase == Phase.AWAITING_SHUFFLE:
-            return "SHUFFLE_DECK", {}
-        if state.phase == Phase.AWAITING_CUT:
-            return "SKIP_CUT", {}
-        if state.phase == Phase.AWAITING_DISTRIBUTION:
-            return "START_DISTRIBUTION", {}
-        if state.phase == Phase.BIDDING:
-            hand = state.current_deal.players[player - 1].hand
-            estimate = sum(c.rank == Rank.ACE or c.suit == Suit.SPADES and c.rank >= Rank.JACK for c in hand)
-            return "PLACE_BID", {"amount": max(1, min(state.config.tricks_per_deal, estimate))}
-        if state.phase == Phase.PLAYING:
-            return "PLAY_CARD", {"card": str(min(available_cards(state, player), key=lambda c: (c.suit == Suit.SPADES, c.rank, c.suit.value)))}
-        raise RuntimeError("No test fallback for this phase.")
-
-    async def _run(self, game):
-        try:
-            while True:
-                await asyncio.sleep(min(0.1, self.timeout_seconds))
-                async with game.lock:
-                    if game.ended or game.state.phase == Phase.MATCH_COMPLETE:
-                        return
-                    if game.deadline is None or time.monotonic() < game.deadline:
-                        continue
-                    before = game.state.phase
-                    if before == Phase.DEAL_COMPLETE and self.round_summary_seconds:
-                        await self._controllers(game, advance_deal=True)
-                        self._deadline(game, before)
-                        await self._publish(game)
-                        continue
-                    if before == Phase.HAND_REVIEW:
-                        pending = [p for p in game.state.config.players if p not in game.state.current_deal.accepted_hands]
-                        for player in pending:
-                            await self._player(game, player, "ACCEPT_HAND", automatic=True)
-                    else:
-                        player = game.state.current_player
-                        await self._player(game, player, *self._heuristic(game.state, player), automatic=True)
-                    await self._controllers(game)
-                    self._deadline(game, before)
-                    await self._publish(game)
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            logger.exception("Test game automation failed in room %s", game.room_id)
-            game.error = "Test automation stopped. Check the server logs."
-            game.deadline = None
-            await self._publish(game)
-
-    async def _run_marriage(self, game):
-        from app.models.action import ActionCommand
-        from app.test_games.marriage_autoplay import choose_move
-        try:
-            # Give players time to reveal the initial hand before the test driver moves.
-            await asyncio.sleep(max(10, self.timeout_seconds))
-            while not game.ended and not game.finished and self.games.get(game.room_id) is game:
-                adapter = game.marriage_target.adapter
-                seat = adapter.snapshot()["view"]["current_player_id"]
-                move = choose_move(adapter.snapshot(seat)["view"])
-                if move is None:
-                    game.error = "Autoplay has no legal move. End this test round to start again."
-                    await self._publish(game)
-                    return
-                command, payload = move
-                await self._execute_action(game, game.marriage_target.user_by_seat[seat], ActionCommand(
-                    match_id=game.match_id, command_id=uuid4().hex, expected_revision=adapter.revision,
-                    command=command, payload=payload))
-                await asyncio.sleep(max(0.1, self.timeout_seconds))
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            if not game.ended:
-                logger.exception("Marriage test automation failed in room %s", game.room_id)
-                game.error = "Test autoplay stopped. You can continue manually or end the game."
-                await self._publish(game)

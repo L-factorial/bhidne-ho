@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {
-    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const context = await browser.newContext({ colorScheme: 'dark', viewport: { width: 1280, height: 900 } });
     const room = { room_id: 'marriage-declarations', name: 'Marriage declarations', members: ['u0', 'u1', 'u2', 'u3', 'u4'] };
     await context.addInitScript(room => sessionStorage.setItem('bhidne.session.v1:http://localhost:8000',
       JSON.stringify({ session: { user_id: 'u0', token: 'mock' }, room, game: 'marriage' })), room);
@@ -71,6 +71,17 @@ const assert = require('node:assert/strict');
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.getByTestId('marriage-player-grid').waitFor();
     await page.getByRole('button', { name: 'Reveal all cards', exact: true }).click();
+    const initialHand = await page.getByTestId('marriage-hand').getByRole('button').count();
+    for (const mode of ['light', 'dark']) {
+      await page.getByTestId('marriage-table').getByRole('button', { name: `Switch to ${mode} mode`, exact: true }).click();
+      assert.equal(await page.getByTestId('marriage-table').evaluate(el => getComputedStyle(el).backgroundColor), mode === 'light' ? 'rgb(243, 245, 248)' : 'rgb(16, 23, 32)');
+      assert.equal(await page.getByTestId('marriage-hand').getByRole('button').count(), initialHand, 'theme switching preserves the hand');
+      assert.equal(await page.getByTestId('marriage-hand').getByRole('button').first().evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(255, 255, 255)');
+      await page.screenshot({ path: `../.venv/dev/marriage-${mode}.png` });
+    }
+
+    assert.equal(await page.getByTestId('marriage-maal-spot').isDisabled(), true);
+    await page.getByRole('button', { name: 'Hand tools', exact: true }).click();
     await page.getByText('Hidden until your melds qualify.', { exact: true }).waitFor();
     assert.equal(await page.getByRole('button', { name: 'Arc', exact: true }).count(), 0);
     await page.getByRole('button', { name: 'Review seven Dublees', exact: true }).click();
@@ -84,13 +95,21 @@ const assert = require('node:assert/strict');
     await page.getByTestId('marriage-shown-melds').waitFor({ state: 'hidden', timeout: 6000 });
     await page.waitForTimeout(1200); // unchanged polls must not replay the declaration
     assert.equal(await page.getByTestId('marriage-shown-melds').count(), 0);
-    await page.getByText('Tiplu 8♣ · Jhiplu 7♣ · Poplu 9♣', { exact: true }).waitFor();
-    assert.equal(await page.getByTestId('marriage-maal-spot').getAttribute('aria-label'), 'Maal Tiplu 8♣');
+    assert.equal(await page.getByTestId('marriage-maal-spot').getByText('8♣', { exact: true }).count(), 0, 'table Maal stays face down');
+    await page.getByTestId('marriage-maal-spot').click();
+    const maalDialog = page.getByTestId('marriage-maal-details');
+    for (const label of ['Jhiplu 7♣', 'Tiplu · Maal 8♣', 'Paplu 9♣']) await maalDialog.getByLabel(label, { exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Close Maal', exact: true }).click();
+    await maalDialog.waitFor({ state: 'hidden' });
+    assert.equal(await page.getByTestId('marriage-maal-spot').getAttribute('aria-label'), 'View Maal');
     await page.getByRole('button', { name: 'Hide cards', exact: true }).click();
     assert.equal(await page.getByTestId('marriage-maal-spot').getAttribute('aria-label'), 'Maal hidden');
+    assert.equal(await page.getByTestId('marriage-maal-spot').isDisabled(), true);
     await page.getByRole('button', { name: 'Show cards', exact: true }).click();
     assert.equal(await page.getByRole('button', { name: '2♥ · 1 grouped', exact: true }).count(), 0);
+    await page.getByRole('button', { name: 'Hand tools', exact: true }).click();
     await page.getByRole('button', { name: 'Arc', exact: true }).click();
+    await page.getByRole('button', { name: 'Close hand tools', exact: true }).click();
     await page.getByRole('button', { name: 'Finish round', exact: true }).click();
     await page.getByText('Player 1 wins!', { exact: true }).waitFor();
     await page.getByRole('button', { name: 'Points', exact: true }).click();

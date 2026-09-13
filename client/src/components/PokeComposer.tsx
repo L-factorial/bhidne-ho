@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { BackHandler, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { limitPokeText, pokeTextLength, QUICK_POKES, type PlayerPhrase } from '../multiplayer/pokes';
-import { colors, fonts } from '../theme';
+import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 export function PokeComposer({ recipient, phrases, connected, onClose, onSend, onSave }: {
   recipient: number | null; phrases: PlayerPhrase[]; connected: boolean; onClose: () => void;
   onSend: (text: string) => Promise<void>; onSave: (text: string) => Promise<void>;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
@@ -43,10 +45,10 @@ export function PokeComposer({ recipient, phrases, connected, onClose, onSend, o
       <ScrollView style={{ maxHeight: 190 }} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.phrases}>
         {options.map(phrase => <Pressable key={phrase} accessibilityRole="button" accessibilityState={{ selected: text === phrase }}
           onPress={() => { setText(phrase); setError(''); setNotice(''); }} style={[styles.chip, text === phrase && styles.selected]}>
-          <Text style={[styles.chipText, text === phrase && { color: colors.ivory }]}>{phrase}</Text>
+          <Text style={[styles.chipText, text === phrase && { color: colors.text }]}>{phrase}</Text>
         </Pressable>)}
       </ScrollView>
-      <TextInput accessibilityLabel="Poke message, 25 characters maximum" placeholder="Your own little punchline…" placeholderTextColor="#74838C"
+      <TextInput accessibilityLabel="Poke message, 25 characters maximum" placeholder="Your own little punchline…" placeholderTextColor={colors.textMuted}
         value={text} onChangeText={value => { setText(limitPokeText(value)); setNotice(''); setError(''); }}
         style={styles.input} maxLength={50} editable={!busy} returnKeyType="send" onSubmitEditing={() => void submit(false)} />
       <View style={styles.between}><Text style={styles.note}>{pokeTextLength(text)}/25 characters</Text>
@@ -64,16 +66,16 @@ export function PokeComposer({ recipient, phrases, connected, onClose, onSend, o
   </KeyboardAvoidingView>;
 }
 
-const styles = StyleSheet.create({
-  overlay: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 30, backgroundColor: '#071520B8', justifyContent: 'center', alignItems: 'center', padding: 16 },
-  sheet: { width: '100%', maxWidth: 430, maxHeight: '95%', borderRadius: 22, padding: 20, backgroundColor: colors.ivory, gap: 8 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 8 }, eyebrow: { fontFamily: fonts.medium, color: colors.copper, fontSize: 9, letterSpacing: 1.5 },
-  title: { fontFamily: fonts.display, color: colors.ink, fontSize: 29, marginTop: 5 }, note: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, lineHeight: 18 },
-  close: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }, closeText: { color: colors.ink, fontSize: 29 },
-  phrases: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, paddingVertical: 8 }, chip: { borderRadius: 14, backgroundColor: '#E6E1D7', paddingHorizontal: 12, minHeight: 40, justifyContent: 'center' },
-  selected: { backgroundColor: colors.ink }, chipText: { color: colors.ink, fontSize: 12, fontFamily: fonts.medium },
-  input: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.line, borderRadius: 10, padding: 12, minHeight: 48, fontSize: 15, fontFamily: fonts.body, color: colors.ink },
-  between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, save: { minHeight: 44, justifyContent: 'center' }, saveText: { color: colors.copper, fontFamily: fonts.medium, fontSize: 12 },
-  send: { minHeight: 48, borderRadius: 12, backgroundColor: colors.copper, alignItems: 'center', justifyContent: 'center' }, sendText: { color: colors.ivory, fontFamily: fonts.medium, fontSize: 13 },
-  success: { color: '#256D59', fontFamily: fonts.body, fontSize: 11 }, error: { color: '#A33332', fontFamily: fonts.body, fontSize: 12 },
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  overlay: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 30, backgroundColor: colors.overlay, justifyContent: 'center', alignItems: 'center', padding: 16 },
+  sheet: { width: '100%', maxWidth: 430, maxHeight: '95%', borderRadius: 22, padding: 20, backgroundColor: colors.surface, gap: 8 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 8 }, eyebrow: { fontFamily: fonts.medium, color: colors.accent, fontSize: 9, letterSpacing: 1.5 },
+  title: { fontFamily: fonts.display, color: colors.text, fontSize: 29, marginTop: 5 }, note: { fontFamily: fonts.body, fontSize: 11, color: colors.textMuted, lineHeight: 18 },
+  close: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }, closeText: { color: colors.text, fontSize: 29 },
+  phrases: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, paddingVertical: 8 }, chip: { borderRadius: 14, backgroundColor: colors.surface, paddingHorizontal: 12, minHeight: 40, justifyContent: 'center' },
+  selected: { backgroundColor: colors.surfaceSelected }, chipText: { color: colors.text, fontSize: 12, fontFamily: fonts.medium },
+  input: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, minHeight: 48, fontSize: 15, fontFamily: fonts.body, color: colors.text },
+  between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, save: { minHeight: 44, justifyContent: 'center' }, saveText: { color: colors.accent, fontFamily: fonts.medium, fontSize: 12 },
+  send: { minHeight: 48, borderRadius: 12, backgroundColor: colors.surfaceSelected, alignItems: 'center', justifyContent: 'center' }, sendText: { color: colors.text, fontFamily: fonts.medium, fontSize: 13 },
+  success: { color: colors.success, fontFamily: fonts.body, fontSize: 11 }, error: { color: colors.danger, fontFamily: fonts.body, fontSize: 12 },
 });

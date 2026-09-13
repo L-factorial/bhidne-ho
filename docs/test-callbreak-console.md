@@ -1,8 +1,7 @@
 # Call Break test console
 
 This is a disposable, in-memory test host, separate from the Echo room runtime
-and using the shared Call Break adapter. Three-second automation belongs exclusively
-to `app/test_games/service.py`; the standalone core has no timers or bots.
+and using the shared Call Break adapter. All seats are played manually; neither the host nor standalone core chooses moves.
 
 ## Try it
 
@@ -17,8 +16,8 @@ to `app/test_games/service.py`; the standalone core has no timers or bots.
 4. The randomly selected dealer uses **Shuffle deck**, then the next player cuts or
    skips. The dealer selects **Distribute cards**. Review/accept hands, bid in
    order, and click an enabled card to play it.
-5. Leave any action unanswered for three seconds to exercise the automatic
-   fallback. The countdown and recent activity identify automatic actions.
+5. Complete each turn in the appropriate player’s tab. Between deals the creator
+   selects **Start next deal**. Unanswered turns wait for player input.
 
 Your private hand appears after distribution and stays readable even when it
 isn't your turn; legal clickable cards have a green border. The public trick
@@ -29,34 +28,16 @@ while the next trick proceeds. Spectators see those public cards but no hands.
 After all seats fill, additional users are spectators. They see public play,
 scores and activity, never hands. Multiple tabs of one account remain one player.
 Rejoining a room restores the existing seat and latest private snapshot. Leaving
-or closing a tab does not remove a started game's seat: server automation keeps
-the test running. Waiting games reserve entered seats until restart; they do not
+or closing a tab does not remove a started game's seat: play waits for the disconnected player to return. Waiting games reserve entered seats until restart; they do not
 create fake players to fill missing seats. A completed game can be replaced by
 creating a new game with a fresh match ID in the same room.
 
-## Automatic policy
+## Manual play
 
-| Phase | Fallback after three seconds |
-| --- | --- |
-| Dealer shuffle | Request shuffle; host supplies a SystemRandom deck |
-| Cut | Skip cut |
-| Distribution | Dealer starts distribution |
-| Hand review | Accept every pending player's hand |
-| Bidding | Count aces and J-or-higher spades, clamp to 1–maximum bid |
-| Play | Choose the lowest-ranked legal non-spade if possible, otherwise a low legal spade |
-
-Hand review has one shared three-second window; another player's acceptance
-does not restart your window. Every ordinary accepted action opens a new window
-for the next actor. Invalid/stale actions do not reset it. The loop checks the
-deadline roughly every 100ms, so fallback occurs just after the deadline when
-the event loop is available. Automatic choices go through the same adapter dispatch and engine
-validation as manual choices. It accepts weak hands rather than repeatedly
-requesting redeals; a human may still claim an eligible redeal during review.
-
-The next deal is prepared automatically, retaining the core's dealer rotation.
-All five deals run, after which automation stops and the final scoreboard remains.
-Server shutdown cancels automation tasks. Accounts, rooms and games disappear
-on restart; no production persistence, reconnect grace or strategic bot is implied.
+Players shuffle, cut, distribute, accept hands, bid, and choose legal cards
+explicitly. There are no automatic moves or turn deadlines. The server still
+completes requested shuffles, validates moves, and calculates scores.
+Accounts, rooms, and games disappear on server restart.
 
 ## Distribution and private information
 
@@ -69,7 +50,7 @@ hand once distribution completes. A future paced-distribution controller can
 introduce separate card steps without placing timing policy inside the core.
 
 The adapter translates outcomes to versioned `GAME_EVENT` messages over existing
-room WebSockets. Only the test-specific `AutoAction` uses `TEST_GAME_EVENT`.
+room WebSockets.
 Private outcomes use `send_to_room_user`, never cross-room send_to_user.
 `TEST_GAME_STATE` is individually projected for each connected user. Only a
 seated viewer receives their own `GameQuery.get_player_view`; spectators get
@@ -91,25 +72,19 @@ the player ID from its authenticated-user roster.
 
 Actions use the adapter's validated command names and payload schemas. The host
 wraps each test HTTP action in a full PlayerCommand, generating a command ID and
-filling deal/attempt context after match/revision checks. Manual and automatic
-choices both call dispatch_player; controller steps call dispatch_control.
-The test HTTP input and TEST_GAME_STATE snapshots remain test-specific. Each game serializes manual commands and timeouts under one
+filling deal/attempt context after match/revision checks. Player choices call dispatch_player; controller steps call dispatch_control.
+The test HTTP input and TEST_GAME_STATE snapshots remain test-specific. Each game serializes player commands under one
 lock. Revision and match-ID checking prevent stale moves and cross-rematch
-actions; there is no production command-ID acknowledgment/deduplication protocol.
+actions; command IDs provide acknowledgments and deduplicated retries.
 Responses containing state use `Cache-Control: no-store`.
 
 The browser polls once per second as a recovery path and receives immediate
-WebSocket snapshots. A countdown is only a display of the server deadline; the
-browser does not choose cards for anyone. Chat and PING continue through the
+WebSocket snapshots. The browser does not choose cards for anyone. Chat and PING continue through the
 existing Echo runtime independently.
 
 ### Play mode at start
 
-The creator can choose Player play or Autoplay when starting a full table.
-`POST /test-games/{room_id}/start` accepts `play_mode: "manual" | "auto"` alongside
-`match_id`. Omission keeps the existing autoplay behavior for older clients.
-Manual mode has no background automatic player actions or turn deadlines: players
-shuffle, cut/skip, deal, accept hands, confirm bids, and select legal cards themselves.
-Controller transitions (shuffle completion, scoring, and preparation of the next deal)
-still run on the server. Snapshots expose `play_mode`; `remaining_ms` and
-`timeout_seconds` are null in manual mode. The mode is fixed for the match.
+The creator starts a full table using `POST /test-games/{room_id}/start` with
+`{match_id}`. An optional `play_mode: "manual"` is accepted for compatibility;
+`"auto"` is rejected. Snapshots expose `play_mode: "manual"`, with `remaining_ms`
+and `timeout_seconds` always null. Player choices have no time limit.

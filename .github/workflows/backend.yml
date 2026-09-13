@@ -1,0 +1,36 @@
+name: Deploy backend
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: droplet-backend
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - run: pip install '.[dev]'
+      - run: pytest -q
+      - name: Deploy tested backend
+        env:
+          DEPLOY_KEY: ${{ secrets.BHIDNE_DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.BHIDNE_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d "$RUNNER_TEMP/bhidne-ssh"
+          printf '%s\n' "$DEPLOY_KEY" > "$RUNNER_TEMP/bhidne-ssh/key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$RUNNER_TEMP/bhidne-ssh/known_hosts"
+          chmod 600 "$RUNNER_TEMP/bhidne-ssh/key"
+          trap 'rm -rf "$RUNNER_TEMP/bhidne-ssh"' EXIT
+          tar --exclude='__pycache__' --exclude='*.pyc' -czf "$RUNNER_TEMP/backend.tar.gz" Dockerfile .dockerignore pyproject.toml app card_utils callbreak marriage flush deploy/compose.yaml
+          ssh -i "$RUNNER_TEMP/bhidne-ssh/key" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/bhidne-ssh/known_hosts" root@64.227.86.254 < "$RUNNER_TEMP/backend.tar.gz"
+          curl --fail --retry 3 https://api-bhidne-ho.lfactorial.com/health

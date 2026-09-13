@@ -21,3 +21,11 @@ test('messages identify bids, card turns, and completion without treating specta
   assert.equal(notificationText({ ...snapshot, game: { ...snapshot.game, phase: 'PLAYING' } }), 'Your turn to play a card');
   assert.equal(notificationText({ ...snapshot, game: { ...snapshot.game, finished: true } }), 'Game complete · see the final scores');
 });
+test('Flush announces the folding player without repeating it for later actions', () => {
+  const flush = { ...snapshot, game_type: 'flush', flush: {
+    participants: [{ player_id: '2', display_name: 'Maya' }],
+    folds: [{ sequence: 15, revision: 10, player_id: '2' }],
+  } };
+  assert.equal(notificationText(flush), 'Maya folded');
+  assert.notEqual(notificationText({ ...flush, game: { ...flush.game, revision: 11 } }), 'Maya folded');
+});

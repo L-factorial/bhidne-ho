@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import os
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -59,10 +60,12 @@ def create_app() -> FastAPI:
         # Uvicorn closes active sockets before lifespan teardown.
 
     app = FastAPI(title="Bhidne Ho", lifespan=lifespan)
-    # Local Expo web clients use a separate origin from the API.
+    # Hosted static frontend origins are explicitly configured; local Expo remains supported.
+    origins = [f"http://{host}:{port}" for host in ("localhost", "127.0.0.1") for port in (8081, 8083)]
+    origins.extend(origin.strip().rstrip("/") for origin in os.environ.get("BHIDNE_CORS_ORIGINS", "").split(",") if origin.strip())
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[f"http://{host}:{port}" for host in ("localhost", "127.0.0.1") for port in (8081, 8083)],
+        allow_origins=origins,
         allow_methods=["GET", "POST", "DELETE", "PATCH"],
         allow_headers=["Authorization", "Content-Type"],
     )
@@ -76,9 +79,17 @@ def create_app() -> FastAPI:
     static = Path(__file__).parent / "test_ui"
     app.mount("/test-ui", StaticFiles(directory=static), name="test-ui")
 
-    @app.get("/", include_in_schema=False)
-    async def test_console():
-        return FileResponse(static / "index.html")
+    web_dir = os.environ.get("BHIDNE_WEB_DIR")
+    if web_dir:
+        web = Path(web_dir)
+        if not (web / "index.html").is_file():
+            raise RuntimeError("BHIDNE_WEB_DIR must contain the exported frontend index.html")
+        # API and WebSocket routes must precede this catch-all static mount.
+        app.mount("/", StaticFiles(directory=web, html=True), name="web")
+    else:
+        @app.get("/", include_in_schema=False)
+        async def test_console():
+            return FileResponse(static / "index.html")
 
     return app
 

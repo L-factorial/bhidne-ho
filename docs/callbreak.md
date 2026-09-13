@@ -3,7 +3,7 @@
 The engine runs a complete five-deal match using local player IDs 1–4 or 1–5.
 It imports only `card_utils` and Python's standard library. A separate
 [test-console host](test-callbreak-console.md) connects it to four/five-player
-test lobbies with three-second automatic actions. Chat/PING still use EchoGameEngine;
+test lobbies with manual player actions. Chat/PING still use EchoGameEngine;
 production adapter integration remains separate.
 
 For a step-by-step explanation of player IDs, turn order, command dispatch and

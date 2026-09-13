@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
-import { colors, fonts } from '../theme';
+import { fonts, useThemedStyles, type ThemeColors } from '../theme';
 
 const suits: Record<string, string> = { S: '♠', H: '♥', D: '♦', C: '♣' };
 export function GameHistory({ snapshot }: { snapshot: RoomSnapshot }) {
+  const styles = useThemedStyles(createStyles);
   const [tab, setTab] = useState<'tricks' | 'activity'>('tricks');
   const tricks = [...(snapshot.deal?.tricks || [])].filter(trick => trick.complete).reverse();
   const activity = [...(snapshot.log || [])].reverse();
@@ -25,16 +26,16 @@ export function GameHistory({ snapshot }: { snapshot: RoomSnapshot }) {
         </Text>)}</View>
       </View>) : <Text style={styles.text}>Completed tricks will appear here.</Text>
         : activity.length ? activity.map((event, index) => <View key={`${event.revision}-${event.event}-${index}`} style={styles.entry}>
-          <Text style={styles.title}>{event.event === 'AutoAction' ? 'Automatic action' : event.event.replaceAll('_', ' ').toLowerCase()}</Text>
+          <Text style={styles.title}>{event.event.replaceAll('_', ' ').toLowerCase()}</Text>
           <Text style={styles.text}>{event.player_id ? `Player ${event.player_id} · ` : ''}{event.action?.replaceAll('_', ' ').toLowerCase() || `Revision ${event.revision}`}</Text>
         </View>) : <Text style={styles.text}>No activity yet.</Text>}
     </ScrollView>
     <Text style={styles.caption}>{tab === 'tricks' ? 'Current deal · newest first' : 'Recent server events · newest first'}</Text>
   </View>;
 }
-const styles = StyleSheet.create({
-  panel: { flex: 1, minHeight: 0, backgroundColor: '#11273C', padding: 14 }, heading: { fontFamily: fonts.display, fontSize: 24, color: colors.ivory },
-  tabs: { flexDirection: 'row', gap: 6, marginVertical: 10 }, tab: { minHeight: 44, paddingHorizontal: 10, justifyContent: 'center', borderRadius: 7 }, selected: { backgroundColor: '#294159' }, label: { fontFamily: fonts.medium, fontSize: 11, color: colors.ivory },
-  scroll: { flex: 1, minHeight: 0 }, entries: { paddingRight: 8, paddingBottom: 12, gap: 10 }, entry: { borderBottomWidth: 1, borderColor: '#FFFFFF19', paddingVertical: 10, gap: 6 },
-  title: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 19, color: colors.champagne }, text: { fontFamily: fonts.body, fontSize: 11, lineHeight: 20, color: '#C1CBD5' }, cards: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 10 }, caption: { fontFamily: fonts.body, fontSize: 10, color: '#A7B7C8', marginTop: 8 },
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  panel: { flex: 1, minHeight: 0, backgroundColor: colors.surface, padding: 14 }, heading: { fontFamily: fonts.display, fontSize: 24, color: colors.text },
+  tabs: { flexDirection: 'row', gap: 6, marginVertical: 10 }, tab: { minHeight: 44, paddingHorizontal: 10, justifyContent: 'center', borderRadius: 7 }, selected: { backgroundColor: colors.surface }, label: { fontFamily: fonts.medium, fontSize: 11, color: colors.text },
+  scroll: { flex: 1, minHeight: 0 }, entries: { paddingRight: 8, paddingBottom: 12, gap: 10 }, entry: { borderBottomWidth: 1, borderColor: colors.border, paddingVertical: 10, gap: 6 },
+  title: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 19, color: colors.accent }, text: { fontFamily: fonts.body, fontSize: 11, lineHeight: 20, color: colors.textMuted }, cards: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 10 }, caption: { fontFamily: fonts.body, fontSize: 10, color: colors.textMuted, marginTop: 8 },
 });

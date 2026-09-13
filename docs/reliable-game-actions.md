@@ -30,7 +30,7 @@ current registered example. See the integration guide for adding another game.
    A new player choice creates a new command ID.
 
 An action that never reached the server can still succeed if its original
-revision is current. If other players or autoplay advanced the game, it is
+revision is current. If other players advanced the game, it is
 rejected as stale. The client never changes an unresolved action's revision to
 make it valid on a later turn.
 
@@ -234,9 +234,9 @@ still benefit from the manual check below.
    clears, and the hand, turn, and score agree across the other tabs. The move
    should occur at most once. If it never reached the server and is still legal
    at the original revision, the retry should apply it once.
-4. Repeat in autoplay with a long interruption. If the original request never
-   arrived before the turn advanced, expect a stale-turn rejection and a fresh
-   table, without the old move executing on the new turn.
+4. Repeat with a long interruption after an accepted move. If the table has
+   advanced, expect an authoritative snapshot without the old move executing
+   on the new turn.
 5. Repeat while the table is collapsed, then reopen it. Separately refresh a tab
    to verify seat restoration, keeping the pending-action persistence limits above
    in mind. Network timing is nondeterministic; the automated cancellation tests

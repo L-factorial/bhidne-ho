@@ -1,6 +1,7 @@
+import { CardBack } from './CardBack';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { colors, fonts } from '../theme';
+import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 const defaultSuits = ['S', 'C', 'H', 'D'];
 function shuffledSuits(previous = defaultSuits, present = defaultSuits) {
@@ -28,6 +29,8 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
   view?: HandView; onViewChange?: (view: HandView) => void; dealKey?: string;
   hand: string[]; legalCards: string[]; canPlay: boolean; onPlay: (card: string) => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [suitLayout, setSuitLayout] = useState(() => ({ dealKey, order: shuffledSuits() }));
   useEffect(() => {
     setSuitLayout(current => current.dealKey === dealKey ? current : { dealKey, order: shuffledSuits(current.order) });
@@ -82,7 +85,7 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
           {hand.map((card, index) => <View key={card} accessible={false} style={[styles.card, styles.cardBack, {
             left: width / 2 - 32 + (hand.length > 1 ? index / (hand.length - 1) * 2 - 1 : 0) * 18,
             top: 18, transformOrigin: 'bottom center', transform: [{ rotate: `${index * 10 - spread / 2}deg` }],
-          }]}><View style={styles.corner}><Text style={styles.backMark}>{'\u25C7'}</Text></View></View>)}
+          }]}><CardBack /></View>)}
         </View>
       </ScrollView>
       <View style={styles.selector}>
@@ -102,7 +105,7 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
           {faceUp ? <>
           <Text style={[styles.gridRank, /[HD]/.test(suit) && styles.red, suit === 'C' && styles.club]}>{card.slice(0, -1)}{suits[suit]}</Text>
           <Text style={[styles.suitName, /[HD]/.test(suit) && styles.red, suit === 'C' && styles.club]}>{suitNames[suit]}</Text>
-          </> : <Text style={styles.backMark}>{'\u25C7'}</Text>}
+          </> : <CardBack />}
         </Pressable>;
       })}
     </ScrollView> : <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.scroll}
@@ -128,7 +131,7 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
             {faceUp ? <View style={styles.corner}>
               <Text style={[styles.rank, red && styles.red, club && styles.club]}>{card.slice(0, -1)}</Text>
               <Text style={[styles.smallSuit, red && styles.red, club && styles.club]}>{suits[suitOf(card)]}</Text>
-            </View> : <View style={styles.corner}><Text style={styles.backMark}>{'\u25C7'}</Text></View>}
+            </View> : <CardBack />}
           </Pressable>;
         })}
       </View>
@@ -150,7 +153,7 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
         return <Pressable key={suit} accessibilityRole="radio" accessibilityLabel={`${suit === 'all' ? 'All suits' : suitNames[suit]}, ${count} cards`}
           accessibilityState={{ checked: selectedSuit === suit, disabled: count === 0 }} aria-checked={selectedSuit === suit} disabled={count === 0}
           onPress={() => setSelection({ dealKey, suit })} style={[styles.option, selectedSuit === suit && styles.selected, count === 0 && { opacity: 0.4 }]}>
-          <Text style={[styles.optionText, suit === 'C' && { color: '#78D5A8' }]}>{suit === 'all' ? 'All' : suits[suit]} {count}</Text>
+          <Text style={[styles.optionText, suit === 'C' && { color: colors.success }]}>{suit === 'all' ? 'All' : suits[suit]} {count}</Text>
         </Pressable>;
       })}
     </View>}
@@ -171,25 +174,25 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
   </View>;
 }
 
-const styles = StyleSheet.create({
-  chosen: { borderColor: '#FFE39B', borderWidth: 3, backgroundColor: '#FFF3CF' },
-  chosenGrid: { borderColor: '#FFE39B', borderWidth: 3, backgroundColor: '#FFF3CF', transform: [{ translateY: -4 }] },
-  confirm: { backgroundColor: colors.copper, borderColor: colors.champagne },
-  cardBack: { backgroundColor: '#274E69', borderColor: colors.champagne },
-  backMark: { color: colors.champagne, fontSize: 25, fontWeight: 'bold' },
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  chosen: { borderColor: colors.cardSelectedBorder, borderWidth: 3, backgroundColor: colors.cardSelected },
+  chosenGrid: { borderColor: colors.cardSelectedBorder, borderWidth: 3, backgroundColor: colors.cardSelected, transform: [{ translateY: -4 }] },
+  confirm: { backgroundColor: colors.surfaceSelected, borderColor: colors.accent },
+  cardBack: { backgroundColor: colors.cardBack, borderColor: colors.cardBorder },
+  backMark: { color: colors.accent, fontSize: 25, fontWeight: 'bold' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingVertical: 8, justifyContent: 'center' },
-  gridCard: { width: 56, minHeight: 60, borderRadius: 8, borderWidth: 2, borderColor: '#D5CEC2', backgroundColor: colors.ivory, alignItems: 'center', justifyContent: 'center', padding: 4 },
-  gridRank: { fontFamily: fonts.medium, fontSize: 21, color: colors.ink }, suitName: { fontFamily: fonts.body, fontSize: 9, color: colors.ink },
-  selector: { flexDirection: 'row', gap: 4, marginTop: 6 }, option: { flex: 1, minWidth: 0, minHeight: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: '#183750', borderWidth: 1, borderColor: '#365267', borderRadius: 8 },
-  selected: { backgroundColor: '#29475B', borderColor: colors.champagne }, optionText: { fontFamily: fonts.medium, color: colors.ivory, fontSize: 12 },
-  empty: { color: colors.ivory, fontFamily: fonts.body, fontSize: 12, padding: 8 },
+  gridCard: { width: 56, minHeight: 60, borderRadius: 8, borderWidth: 2, borderColor: colors.cardBorder, backgroundColor: colors.cardFace, alignItems: 'center', justifyContent: 'center', padding: 4 },
+  gridRank: { fontFamily: fonts.medium, fontSize: 21, color: colors.cardInk }, suitName: { fontFamily: fonts.body, fontSize: 9, color: colors.cardInk },
+  selector: { flexDirection: 'row', gap: 4, marginTop: 6 }, option: { flex: 1, minWidth: 0, minHeight: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 8 },
+  selected: { backgroundColor: colors.surfaceSelected, borderColor: colors.accent }, optionText: { fontFamily: fonts.medium, color: colors.text, fontSize: 12 },
+  empty: { color: colors.text, fontFamily: fonts.body, fontSize: 12, padding: 8 },
   scroll: { flexGrow: 1, justifyContent: 'center' },
-  card: { position: 'absolute', width: 64, height: 170, borderRadius: 8, backgroundColor: colors.ivory,
-    borderWidth: 2, borderColor: '#D5CEC2', boxShadow: '0px 3px 6px rgba(0, 0, 0, 0.25)' },
-  legal: { borderColor: colors.copper },
+  card: { position: 'absolute', width: 64, height: 170, borderRadius: 8, backgroundColor: colors.cardFace,
+    borderWidth: 2, borderColor: colors.cardBorder, boxShadow: '0px 3px 6px rgba(0, 0, 0, 0.25)' },
+  legal: { borderColor: colors.accent },
   corner: { position: 'absolute', top: 3, left: 5, alignItems: 'center' },
-  rank: { fontFamily: fonts.medium, fontSize: 17, lineHeight: 21, color: colors.ink },
-  smallSuit: { fontSize: 23, lineHeight: 27, fontWeight: 'bold', color: colors.ink },
-  club: { color: '#176342' },
-  red: { color: '#A33332' },
+  rank: { fontFamily: fonts.medium, fontSize: 17, lineHeight: 21, color: colors.cardInk },
+  smallSuit: { fontSize: 23, lineHeight: 27, fontWeight: 'bold', color: colors.cardInk },
+  club: { color: colors.cardClub },
+  red: { color: colors.cardRed },
 });

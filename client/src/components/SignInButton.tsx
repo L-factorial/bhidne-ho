@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import Svg, { Path } from 'react-native-svg';
-import { colors, fonts } from '../theme';
+import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 export type SignInMethod = 'Apple' | 'Google' | 'Facebook' | 'guest';
 function GoogleIcon() {
@@ -16,8 +16,10 @@ function GoogleIcon() {
   );
 }
 export function SignInButton({ method, onPress }: { method: SignInMethod; onPress: () => void }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [focused, setFocused] = useState(false);
-  const backgroundColor = { Apple: '#141414', Google: '#FFFFFF', Facebook: '#0866FF', guest: colors.copper }[method];
+  const backgroundColor = { Apple: '#141414', Google: '#FFFFFF', Facebook: '#0866FF', guest: colors.primary }[method];
   const color = method === 'Google' ? '#242424' : '#FFFFFF';
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={method === 'guest' ? 'Play as guest' : `Continue with ${method}`}
@@ -36,11 +38,11 @@ export function SignInButton({ method, onPress }: { method: SignInMethod; onPres
     </Pressable>
   );
 }
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   button: { minHeight: 56, borderRadius: 11, paddingHorizontal: 20, paddingVertical: 15,
     flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: 'transparent' },
-  google: { borderColor: '#E7E2DB', boxShadow: '0px 3px 8px rgba(16, 35, 56, 0.05)' },
-  focused: { outlineWidth: 3, outlineColor: colors.copper, outlineOffset: 4 },
+  google: { borderColor: colors.surfaceRaised, boxShadow: '0px 3px 8px rgba(16, 35, 56, 0.05)' },
+  focused: { outlineWidth: 3, outlineColor: colors.accent, outlineOffset: 4 },
   icon: { width: 26, alignItems: 'center' }, balance: { width: 26 },
   label: { flex: 1, textAlign: 'center', fontFamily: fonts.medium, fontSize: 15 },
 });

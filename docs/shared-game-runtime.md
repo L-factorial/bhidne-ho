@@ -5,7 +5,7 @@ client command interface. Games provide rules, state, and private views; they do
 not implement command IDs, duplicate detection, receipts, or retry handling.
 
 This increment generalizes the [reconnect recovery contract](reliable-game-actions.md).
-It preserves Call Break's current gameplay, test-host URLs, autoplay policy, and
+It preserves Call Break's current gameplay, test-host URLs, manual turn handling, and
 private-hand behavior. Storage is still in memory in one server process.
 
 ## Ownership

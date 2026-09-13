@@ -108,7 +108,6 @@ function renderTestGame() {
     if (waiting && testGame.is_creator) {
       $('game-live').hidden = false;
       actionButton('Start player play', () => testGameRequest('/start', {match_id: testGame.match_id, play_mode: 'manual'}), $('game-actions'), testGame.ready);
-      actionButton('Start autoplay', () => testGameRequest('/start', {match_id: testGame.match_id, play_mode: 'auto'}), $('game-actions'), testGame.ready);
     }
     return;
   }
@@ -165,8 +164,7 @@ function renderTestGame() {
   $('game-activity').replaceChildren();
   for (const entry of (testGame.log || []).slice(-8).reverse()) {
     const item = document.createElement('li');
-    item.textContent = entry.event === 'AutoAction' ? `Auto · ${playerLabel(entry.player_id)} · ${entry.action}` :
-      `${entry.event}${entry.payload?.winner_id ? ' · won by ' + playerLabel(entry.payload.winner_id) : ''}`;
+    item.textContent = `${entry.event}${entry.payload?.winner_id ? ' · won by ' + playerLabel(entry.payload.winner_id) : ''}`;
     $('game-activity').append(item);
   }
 }

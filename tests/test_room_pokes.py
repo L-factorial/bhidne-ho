@@ -20,7 +20,7 @@ class Socket:
     async def close(self, code): pass
 
 
-async def social_table():
+async def social_table(game_type="callbreak", started=True):
     rooms = RoomService()
     connections = ConnectionManager(rooms)
     sockets = [Socket() for _ in range(7)]
@@ -30,9 +30,10 @@ async def social_table():
     await connections.connect('room', 'u1', sockets[5])  # Same player's second tab.
     await connections.connect('elsewhere', 'u1', sockets[6])
     host, social = GameHost(rooms, connections), RoomPokeService(rooms, connections)
-    game = await host.create('room', 'u0', 4)
+    game = await host.create('room', 'u0', 4, game_type)
     for index in range(1, 4): await host.join('room', f'u{index}', game['match_id'])
-    await host.start('room', 'u0', game['match_id'], 'manual')
+    if started:
+        await host.start('room', 'u0', game['match_id'], 'manual', rules_revision=0)
     for socket in sockets: socket.messages.clear()
     return host, social, connections, sockets, ids
 
@@ -162,3 +163,22 @@ def test_personal_phrase_update_preserves_id_and_enforces_owner_length_and_dupli
         assert client.patch(path, headers=headers[0], json={'text': 'another'}).status_code == 409
         assert client.get('/me/phrases', headers=headers[0]).json()[0]['text'] == 'After'
         assert client.get('/me/phrases', headers=headers[1]).json() == []
+
+
+@pytest.mark.parametrize('started', [False, True])
+async def test_flush_only_allows_table_pokes(started):
+    host, social, _, sockets, _ = await social_table('flush', started)
+    game = host.games['room']
+    before = await host.snapshot('room', 'u0')
+    with pytest.raises(HTTPException) as error:
+        await host.poke('room', 'u0', CallBreakPokeInput(
+            match_id=game.match_id, recipient_player_id=2, text='Hey!'), social)
+    assert error.value.status_code == 403
+    assert all(not socket.messages for socket in sockets)
+    ack = await host.poke('room', 'u0', CallBreakPokeInput(
+        match_id=game.match_id, text='Your move!'), social)
+    assert ack['scope'] == 'table'
+    assert [len(socket.messages) for socket in sockets] == [1, 1, 1, 1, 1, 1, 0]
+    assert all(socket.messages[0]['recipient_id'] is None for socket in sockets[:6])
+    assert await host.snapshot('room', 'u0') == before
+    await host.close()

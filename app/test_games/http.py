@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.adapters.callbreak.contracts import COMMAND_SPECS, CommandName
 from app.adapters.marriage.contracts import COMMAND_SPECS as MARRIAGE_COMMANDS, CommandName as MarriageCommandName
+from app.adapters.flush.contracts import COMMAND_SPECS as FLUSH_COMMANDS, CommandName as FlushCommandName
 from app.models.user import UserIdentity
 from app.models.action import ActionCommand
 from app.transport.http import current_user
@@ -16,11 +17,13 @@ router = APIRouter(prefix="/test-games", tags=["Test console only"])
 
 class CreateGame(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    player_count: Annotated[int, Field(strict=True, ge=2, le=5)]
-    game_type: Literal["callbreak", "marriage"] = "callbreak"
+    player_count: Annotated[int, Field(strict=True, ge=2, le=10)]
+    game_type: Literal["callbreak", "marriage", "flush"] = "callbreak"
 
     @model_validator(mode="after")
     def capacity(self):
+        if self.game_type != "flush" and self.player_count > 5:
+            raise ValueError("Marriage and Call Break support at most five players.")
         if self.game_type == "callbreak" and self.player_count < 4:
             raise ValueError("Call Break requires four or five players.")
         return self
@@ -32,15 +35,16 @@ class JoinGame(BaseModel):
 
 
 class StartGame(JoinGame):
-    play_mode: Literal["manual", "auto"] = "auto"
+    play_mode: Literal["manual"] = "manual"
+    rules_revision: Annotated[int, Field(strict=True, ge=0)] | None = None
 
 
 class GameAction(ActionCommand):
-    command: CommandName | MarriageCommandName
+    command: CommandName | MarriageCommandName | FlushCommandName
 
     @model_validator(mode="after")
     def validate_payload(self):
-        specs = MARRIAGE_COMMANDS if isinstance(self.command, MarriageCommandName) else COMMAND_SPECS
+        specs = FLUSH_COMMANDS if isinstance(self.command, FlushCommandName) else MARRIAGE_COMMANDS if isinstance(self.command, MarriageCommandName) else COMMAND_SPECS
         specs[self.command].payload.model_validate(self.payload)
         return self
 
@@ -99,7 +103,7 @@ async def settings(room_id: str, body: GameSettings, request: Request, user: Use
 
 @router.post("/{room_id}/start")
 async def start(room_id: str, body: StartGame, request: Request, user: UserIdentity = Depends(current_user)):
-    return await request.app.state.test_games.start(room_id, user.user_id, body.match_id, body.play_mode)
+    return await request.app.state.test_games.start(room_id, user.user_id, body.match_id, body.play_mode, body.rules_revision)
 
 
 @router.post("/{room_id}/end")
@@ -118,3 +122,15 @@ async def next_deal(room_id: str, body: NextDeal, request: Request, response: Re
                     user: UserIdentity = Depends(current_user)):
     response.headers["Cache-Control"] = "no-store"
     return await request.app.state.test_games.next_deal(room_id, user.user_id, body.match_id, body.deal_number)
+
+
+class FlushSettings(JoinGame):
+    rules_revision: Annotated[int, Field(strict=True, ge=0)]
+    rules: dict
+    starting_chips: Annotated[int, Field(strict=True, ge=0, le=1000000)]
+
+
+@router.post('/{room_id}/flush-settings')
+async def flush_settings(room_id: str, body: FlushSettings, request: Request,
+                         user: UserIdentity = Depends(current_user)):
+    return await request.app.state.test_games.configure_flush(room_id, user.user_id, body)

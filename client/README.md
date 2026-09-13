@@ -59,18 +59,17 @@ coming-soon message. There is one room header and one navigation action,
 
 **Create game** opens four/five-player setup using the existing `/test-games`
 backend. Other members use **Join game**; seated players see **Enter game**;
-additional users see **Watch game**. The creator starts the game once all seats fill; the creator chooses **Player play** (the default selection) or **Autoplay** before starting.
+additional users see **Watch game**. The creator starts the game once all seats fill.
 Player play waits for each player to confirm their bid and confirm a selected legal card, with no automatic
 turns or time limit. Players also use the shuffle, cut, deal, and hand-review controls.
-Autoplay retains the three-second fallback for inactive players. When the final seat fills, every seated
+When the final seat fills, every seated
 client automatically opens the live card table. **Enter game** reopens it
 after returning to the room; **Watch game** opens a spectator view without hands.
 The UI polls authorized snapshots every second and sends revision-checked game
 actions to the backend. It displays the real private hand, legal card choices,
 turn, bids, current/last trick, and scores. Shuffle, skip cut, deal, hand review,
 bidding, and card-play controls are available to the appropriate player.
-Only Autoplay uses three-second timers, including bidding; the ten-second
-bid timer belongs to the separate local test preview.
+All moves wait for explicit player input; there are no turn or bid timers.
 
 Live games open in a full-screen overlay. The top-right **Collapse**
 button returns to the room without leaving the game. History starts collapsed
@@ -91,44 +90,13 @@ beside it on desktop and below it on phones.
 Local test tools are under the collapsed **Developer previews** section. Choose
 four or five players, then **Preview card table**. The table opens on its own
 screen without stacked room navigation. It shows players in one compact row with played cards underneath and
-your face-up hand at the bottom. Opponent card-count boxes are omitted. Card placement and the
-10-second bidding/autoplay simulator remain local, separate from shared games.
+your face-up hand at the bottom. Opponent card-count boxes are omitted. Card placement remains local, separate from shared games.
 
 The table's **Current deal** panel shows phase, trick progress, and the current or
 next player. Expand **View bids and player status** to scroll through each
 player's bid, tricks won, tricks still needed, and remaining card count. Swipe or
 use the previous/next arrows. These values reflect the same local preview state
 as the hand and table and reset with **Reset table preview**.
-
-### Temporary autoplay testing
-
-Choose **Testing only: open autoplay** on the card table. Each test deal opens a
-10-second bidding window with a heuristic suggestion. Adjust your bid from 1 to
-13 (four players) or 10 (five players), then confirm. If you don't confirm in time,
-the original suggested bid is accepted automatically; editing does not extend
-the deadline. Opponents use estimated bids immediately. After your bid is accepted,
-autoplay starts and runs all seats every three seconds. Pause stops card play,
-Step once advances one card (or clears a completed trick), and New test deal
-reshuffles and opens a fresh bidding window. Exiting cancels the
-timer. The test stops after one complete deal. Four players receive 13 cards each;
-five receive 10 each, leaving two unused.
-
-The disposable simulator in `src/testing/` mirrors the existing server test
-heuristic: estimate bids from aces and J-or-higher spades, then choose the lowest
-legal non-spade when possible. It follows suit and beats/trumps when required.
-It is not the Python engine and does not simulate shuffle/cut phases, hand review,
-redeals, match scoring, or networking. All test hands exist locally; only yours is
-displayed face-up. Do not use it for real multiplayer or engine validation.
-
-To remove it, delete `src/testing/` and `tests/autoplay.test.mjs`, then remove the
-`AutoPlayTable` import, `testing` state, conditional render, and testing button
-from `CallBreakTableScreen.tsx`. No backend changes are needed.
-
-Run the heuristic checks with Node.js 22.13+:
-
-```sh
-node --experimental-strip-types --test tests/autoplay.test.mjs
-```
 
 The cards are drawn with native views, text, and gradients. Fonts ship with the
 bundle, so the screen does not depend on a remote image or font service.
@@ -201,8 +169,7 @@ Pokes do not change game state and are not replayed after reconnecting. See the
 connection retries, and heartbeats. This is independent of Call Break and reusable
 for future games. Each game's client reloads its authoritative state after reconnecting.
 Call Break restores the same seat and private hand and marks disconnected seats
-from the shared room presence list. Manual games wait for that player's input;
-autoplay keeps its existing timeout policy. Player commands carry a stable command
+from the shared room presence list. Games wait for that player's input. Player commands carry a stable command
 ID. An interrupted action is automatically reconciled after reconnecting using
 the same ID and original revision; the server returns its recorded outcome without
 applying it twice. Pending actions remain in memory while the room stays mounted.
@@ -239,7 +206,7 @@ node --experimental-strip-types --test tests/reconnection.test.mjs
 
 The game creator can choose **End game** in the room, waiting lobby, or live table.
 A confirmation offers **Keep playing** or **End game for everyone**. Ending stops
-manual actions and autoplay for everyone, leaves the room open, and allows a new
+game actions for everyone, leaves the room open, and allows a new
 game. An unfinished match has no declared winner or final placement payout.
 
 `POST /test-games/{room_id}/end` takes `{match_id}` and requires the creator's
@@ -310,8 +277,7 @@ unchanged on the server.
 
 Live Call Break shows compact preparation instructions and central turn notices, offers a
 midpoint cut, briefly highlights each trick winner, and shows a score summary
-between deals. In manual games the creator starts the next deal; autoplay waits
-eight seconds. Final scores appear after deal five. See the
+between deals. The creator starts the next deal. Final scores appear after deal five. See the
 [round-flow guide](../docs/callbreak-playing-loop.md#live-round-flow-and-score-review).
 
 ### Room invitations and leaving
@@ -349,8 +315,7 @@ dealing or game rules; reopening the app starts with hidden cards again.
 During bidding, reveal the full hand to unlock Make your call. The selected bid
 is highlighted and only Confirm bid submits it. After confirmation, the panel
 names the player whose bid is awaited. When bidding ends, the hand area announces
-who leads first until the first card is played. Autoplay retains its server timer;
-the reveal step gates manual controls and does not pause automatic bidding.
+who leads first until the first card is played. The reveal step gates the manual controls.
 
 - **Sorted fan** keeps the full hand in its existing arc, ordered by suit and rank.
 - **Suit fan** adds suit buttons with card counts. Select a suit to show just its
@@ -431,3 +396,30 @@ validation, rate limiting, bounded history, and access after leaving.
 
 The play screen omits the phase breadcrumb and verbose guidance panel to keep
 space for cards. Trick winner announcements appear in the central notice area.
+
+## Appearance
+
+Use the sun/moon button on the welcome screen, in the lobby or profile, or at
+either game table to switch between light and dark mode. The initial theme follows
+the device setting; a browser choice is saved across refreshes. Switching themes
+preserves the current game and card selection.
+
+`src/theme.ts` owns the shared surface, text, status, and playing-card colors.
+Use `useTheme()` for inline colors and `useThemedStyles()` for stylesheet factories
+so screens and overlays update together. Both games use `CardBack`; card faces,
+red/black suits, and selected-card colors stay consistent across themes.
+
+### Flush rooms
+
+Choose Flush to create a 2–5-player game. The creator can configure boot, starting
+chips, blind/seen thresholds and multiplier, show permissions/cost, Ace order, and
+tie policy before starting. Everyone can review saved rules. Rules lock for the
+round, and show always requires the final two active players. Manual Bet, See,
+Fold, and Show controls use the shared reliable command client. See the
+[Flush adapter and rules guide](../docs/flush-adapter.md) for APIs and verification.
+
+Flush now uses an ellipse of player eye icons, completed-bet counters, a central
+pot with coin flights, a Bet grid, and a three-card flip arc. Enable private
+side-show in pre-game Rules to request the previous active seen player. Acceptance
+reveals opponent cards only to those two players; the loser folds and the winner
+stays. The final-two SHOW requirement remains unchanged.

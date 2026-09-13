@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { colors, fonts } from '../theme';
+import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 export type TablePlayer = { id: string; name: string; bid: number; tricks: number; cardsRemaining: number; connected?: boolean };
 type Props = {
@@ -12,6 +12,8 @@ type Props = {
 };
 
 export function CardTable({ players, viewerId, activePlayerId, width, plays, pendingBidPlayerId, dealerId, winnerPlayerId, collecting = false, collectionKey, onPokePlayer, onPokeTable }: Props) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const progress = useRef(new Animated.Value(0)).current;
   const [reduceMotion, setReduceMotion] = useState(true);
   useEffect(() => {
@@ -55,7 +57,7 @@ export function CardTable({ players, viewerId, activePlayerId, width, plays, pen
             accessibilityLabel={onPokeTable ? 'Poke everyone at the table' : undefined}
             disabled={!onPokeTable} onPress={onPokeTable}>
             {play ? <View accessibilityLabel={`${mine ? 'You' : player.name} played ${play.card}${playIndex === 0 ? ', led this trick' : ''}`}>
-              <Animated.View testID={player.id === winnerPlayerId ? 'winning-card' : undefined} style={[styles.playedCard, player.id === winnerPlayerId && { borderWidth: 3, borderColor: '#D2943F', backgroundColor: '#FFF0CC' }, { opacity: progress.interpolate({ inputRange: [0, 0.8, 1], outputRange: [1, 1, 0] }), transform: reduceMotion ? [] : [{ translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [0, winnerIndex < 0 ? 0 : (winnerIndex - index) * pitch] }) }, { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, -104] }) }, { scale: progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0.35] }) }] }]}>
+              <Animated.View testID={player.id === winnerPlayerId ? 'winning-card' : undefined} style={[styles.playedCard, player.id === winnerPlayerId && { borderWidth: 3, borderColor: colors.cardSelectedBorder, backgroundColor: colors.cardSelected }, { opacity: progress.interpolate({ inputRange: [0, 0.8, 1], outputRange: [1, 1, 0] }), transform: reduceMotion ? [] : [{ translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [0, winnerIndex < 0 ? 0 : (winnerIndex - index) * pitch] }) }, { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, -104] }) }, { scale: progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0.35] }) }] }]}>
                 <Text style={[styles.playedText, /[♥♦]/.test(play.card) && styles.red, play.card.endsWith('♣') && styles.club]}>{play.card}</Text>
               </Animated.View>
               <Text style={styles.playOrder}>{player.id === winnerPlayerId ? 'Winner' : playIndex === 0 ? 'Led' : `Play ${playIndex + 1}`} </Text>
@@ -67,23 +69,23 @@ export function CardTable({ players, viewerId, activePlayerId, width, plays, pen
   </ScrollView>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   scroll: { flexGrow: 1 },
   row: { flexDirection: 'row', gap: 6, paddingVertical: 8 },
   column: { flex: 1, minWidth: 0, alignItems: 'center' },
   seat: { width: '100%', minHeight: 72, borderWidth: 2, borderColor: 'transparent', borderRadius: 10,
-    backgroundColor: '#183750', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2, paddingVertical: 6, gap: 4 },
-  disconnected: { borderColor: '#A78166', borderStyle: 'dashed' },
-  active: { borderColor: colors.champagne, backgroundColor: '#29475B' },
-  name: { color: colors.ivory, fontFamily: fonts.medium, fontSize: 13 },
-  stats: { color: colors.champagne, fontFamily: fonts.medium, fontSize: 13 },
+    backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2, paddingVertical: 6, gap: 4 },
+  disconnected: { borderColor: colors.border, borderStyle: 'dashed' },
+  active: { borderColor: colors.turnText, backgroundColor: colors.turnSurface },
+  name: { color: colors.text, fontFamily: fonts.medium, fontSize: 13 },
+  stats: { color: colors.accent, fontFamily: fonts.medium, fontSize: 13 },
   scoreStrip: { alignItems: 'center', gap: 3 },
   playArea: { width: '100%', minHeight: 142, paddingTop: 16, alignItems: 'center', justifyContent: 'center' },
-  playedCard: { width: 54, height: 80, borderRadius: 8, backgroundColor: colors.ivory,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.line },
-  playedText: { fontFamily: fonts.display, fontSize: 28, color: colors.ink },
-  red: { color: '#A33332' },
-  club: { color: '#176342' },
-  playOrder: { color: '#C1CBD5', fontFamily: fonts.body, fontSize: 10, textAlign: 'center', marginTop: 6 },
-  empty: { color: '#60768B', fontSize: 18 },
+  playedCard: { width: 54, height: 80, borderRadius: 8, backgroundColor: colors.cardFace,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.cardBorder },
+  playedText: { fontFamily: fonts.display, fontSize: 28, color: colors.cardInk },
+  red: { color: colors.cardRed },
+  club: { color: colors.cardClub },
+  playOrder: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 10, textAlign: 'center', marginTop: 6 },
+  empty: { color: colors.textMuted, fontSize: 18 },
 });

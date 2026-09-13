@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, StyleSheet, Text, View } from 'react-native';
 import type { RoomPoke } from '../multiplayer/pokes';
-import { fonts } from '../theme';
+import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 function PokeBubble({ poke, reduceMotion }: { poke: RoomPoke; reduceMotion: boolean }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const opacity = useRef(new Animated.Value(0)).current;
   const glow = useRef(new Animated.Value(1)).current;
   const [visible, setVisible] = useState(true);
@@ -27,7 +29,7 @@ function PokeBubble({ poke, reduceMotion }: { poke: RoomPoke; reduceMotion: bool
   if (!visible) return null;
   const privatePoke = poke.scope === 'private';
   return <Animated.View testID="poke-popup" accessibilityLiveRegion="polite" accessibilityRole="alert"
-    style={[styles.bubble, privatePoke && styles.privateBubble, reduceMotion && { backgroundColor: privatePoke ? '#BFF9ED' : '#FFE8A8', boxShadow: 'none' }, { opacity }]}>
+    style={[styles.bubble, privatePoke && styles.privateBubble, reduceMotion && { backgroundColor: privatePoke ? colors.success : colors.accent, boxShadow: 'none' }, { opacity }]}>
     {!reduceMotion && <Animated.View style={[StyleSheet.absoluteFill, styles.glow, privatePoke && styles.privateGlow, { opacity: glow }]} />}
     <Text style={styles.label}>{privatePoke ? '✦ JUST FOR YOU' : '✦ TABLE TALK'} · PLAYER {poke.sender_player_id}</Text>
     <Text style={styles.text}>{poke.text}</Text>
@@ -35,6 +37,7 @@ function PokeBubble({ poke, reduceMotion }: { poke: RoomPoke; reduceMotion: bool
 }
 
 export function PokeOverlay({ pokes, matchId }: { pokes: RoomPoke[]; matchId?: string }) {
+  const styles = useThemedStyles(createStyles);
   const [reduceMotion, setReduceMotion] = useState(false);
   useEffect(() => {
     let alive = true;
@@ -48,13 +51,13 @@ export function PokeOverlay({ pokes, matchId }: { pokes: RoomPoke[]; matchId?: s
   </View>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   overlay: { position: 'absolute', top: 82, left: 12, right: 12, zIndex: 40, alignItems: 'center', gap: 8 },
-  bubble: { width: '100%', maxWidth: 350, borderRadius: 20, borderWidth: 2, borderColor: '#FFE28C',
-    backgroundColor: '#B96819', paddingHorizontal: 20, paddingVertical: 16, overflow: 'hidden',
-    boxShadow: '0 0 30px rgba(255, 202, 90, 0.6)' },
-  privateBubble: { backgroundColor: '#317C84', borderColor: '#AAFFF2', boxShadow: '0 0 30px rgba(100, 255, 225, 0.5)' },
-  glow: { backgroundColor: '#FFDA72' }, privateGlow: { backgroundColor: '#90F8E5' },
-  label: { color: '#102638', fontFamily: fonts.medium, fontSize: 10, letterSpacing: 1 },
-  text: { color: '#102638', fontFamily: fonts.display, fontSize: 29, lineHeight: 35, marginTop: 6, textAlign: 'center' },
+  bubble: { width: '100%', maxWidth: 350, borderRadius: 20, borderWidth: 2, borderColor: colors.accent,
+    backgroundColor: colors.surfaceSelected, paddingHorizontal: 20, paddingVertical: 16, overflow: 'hidden',
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.16)' },
+  privateBubble: { backgroundColor: colors.successSurface, borderColor: colors.success, boxShadow: '0 4px 20px rgba(0, 0, 0, 0.16)' },
+  glow: { backgroundColor: colors.accent }, privateGlow: { backgroundColor: colors.success },
+  label: { color: colors.text, fontFamily: fonts.medium, fontSize: 10, letterSpacing: 1 },
+  text: { color: colors.text, fontFamily: fonts.display, fontSize: 29, lineHeight: 35, marginTop: 6, textAlign: 'center' },
 });

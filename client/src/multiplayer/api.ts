@@ -2,7 +2,9 @@ import { Platform } from 'react-native';
 import type { Session } from './session';
 
 export const apiUrl = (process.env.EXPO_PUBLIC_API_URL || (Platform.OS === 'web'
-  ? `${globalThis.location.protocol}//${globalThis.location.hostname}:8000` : 'http://127.0.0.1:8000')).replace(/\/$/, '');
+  ? (['8081', '8083'].includes(globalThis.location.port)
+    ? `${globalThis.location.protocol}//${globalThis.location.hostname}:8000`
+    : globalThis.location.origin) : 'http://127.0.0.1:8000')).replace(/\/$/, '');
 
 export class ApiError extends Error {
   status: number;

@@ -1,22 +1,23 @@
+import { AppHeader } from '../components/AppHeader';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardTable, TablePlayer } from '../components/CardTable';
 import { DealStatusPanel } from '../components/DealStatusPanel';
-import { colors, fonts } from '../theme';
-import { AutoPlayTable } from '../testing/AutoPlayTable';
+import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 const sampleHand = ['A♠', 'K♠', 'J♠', '8♠', '3♠', 'K♥', '9♥', '4♥', 'Q♦', '7♦', 'A♣', '10♣', '5♣'];
 
 export function CallBreakTableScreen({ capacity, names, tableName, onBack }: {
   capacity: 4 | 5; names: string[]; tableName: string; onBack: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const width = Math.max(240, Math.min(useWindowDimensions().width - Math.max(insets.left, 12) - Math.max(insets.right, 12), 800));
   const [selected, setSelected] = useState<string | null>(null);
   const [played, setPlayed] = useState<string | null>(null);
-  const [testing, setTesting] = useState(false);
   const hand = sampleHand.slice(0, capacity === 4 ? 13 : 10).filter(card => card !== played);
   // Only the local hand exists in this fixture; opponents expose card counts, never faces.
   const players: TablePlayer[] = Array.from({ length: capacity }, (_, index) => ({
@@ -28,23 +29,16 @@ export function CallBreakTableScreen({ capacity, names, tableName, onBack }: {
   const nextPlayer = players[(players.indexOf(viewer) + 1) % capacity];
   const plays = played ? [{ playerId: viewer.id, card: played }] : [];
 
-  if (testing) return <AutoPlayTable capacity={capacity} names={names} onExit={() => setTesting(false)} />;
 
-  return <LinearGradient colors={[colors.navyLight, colors.navy]} style={{ flex: 1 }}>
+  return <LinearGradient colors={[colors.surface, colors.background]} style={{ flex: 1 }}>
     <ScrollView contentContainerStyle={[styles.page, {
       paddingTop: Math.max(insets.top, 16), paddingBottom: Math.max(insets.bottom, 24),
       paddingLeft: Math.max(insets.left, 12), paddingRight: Math.max(insets.right, 12),
     }]}>
       <View style={[styles.content, { width }]}>
-        <View style={styles.header}>
-          <Pressable accessibilityRole="button" onPress={onBack} style={styles.linkButton}><Text style={styles.link}>← Back to lobby</Text></Pressable>
-          <Text style={styles.label}>{capacity} PLAYERS · TABLE PREVIEW</Text>
-        </View>
+        <AppHeader title="Call Break" actions={<Pressable accessibilityRole="button" onPress={onBack} style={styles.linkButton}><Text style={styles.link}>← Back to lobby</Text></Pressable>} />
         <Text accessibilityRole="header" style={styles.title}>{tableName}</Text>
         <Text style={styles.meta}>Call Break · Deal 1 of 5 · Spades trump</Text>
-        <Pressable accessibilityRole="button" onPress={() => setTesting(true)} style={styles.linkButton}>
-          <Text style={styles.link}>Testing only: open autoplay</Text>
-        </Pressable>
         <DealStatusPanel players={players} viewerId={viewer.id} activePlayerId={played ? nextPlayer.id : viewer.id}
           cardsPlayed={plays.length} paused={!!played} />
         <Text accessibilityLiveRegion="polite" style={styles.turn}>{played ? 'Card placed · preview paused' : 'Your turn · choose a card'}</Text>
@@ -71,14 +65,14 @@ export function CallBreakTableScreen({ capacity, names, tableName, onBack }: {
   </LinearGradient>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   page: { alignItems: 'center', flexGrow: 1 }, content: { alignItems: 'stretch' }, header: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  linkButton: { minHeight: 44, justifyContent: 'center' }, link: { color: colors.champagne, fontFamily: fonts.body, fontSize: 12 }, label: { color: colors.champagne, fontFamily: fonts.medium, fontSize: 9, letterSpacing: 1 },
-  title: { color: colors.ivory, fontFamily: fonts.display, fontSize: 36, marginTop: 12 }, meta: { color: '#B4C1CF', fontFamily: fonts.body, fontSize: 11, lineHeight: 19 },
-  turn: { alignSelf: 'center', color: colors.champagne, fontFamily: fonts.medium, fontSize: 12, paddingVertical: 10, marginTop: 14 },
-  handHeader: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 6 }, handTitle: { color: colors.ivory, fontFamily: fonts.display, fontSize: 26 },
-  hand: { gap: 7, paddingVertical: 16, paddingHorizontal: 3 }, card: { backgroundColor: colors.ivory, width: 48, height: 78, borderRadius: 7, borderWidth: 2, borderColor: colors.line, padding: 6 },
-  selectedCard: { borderColor: colors.champagne, transform: [{ translateY: -7 }], backgroundColor: '#FFE6C6' }, rank: { color: colors.ink, fontFamily: fonts.display, fontSize: 23 }, suit: { color: colors.ink, fontSize: 23, textAlign: 'right' }, red: { color: '#A33332' },
-  hint: { color: '#B4C1CF', fontFamily: fonts.body, fontSize: 10, marginBottom: 16 }, action: { minHeight: 48, borderRadius: 9, backgroundColor: colors.copper, alignItems: 'center', justifyContent: 'center', padding: 12 },
-  actionText: { color: colors.ivory, fontFamily: fonts.medium, fontSize: 13 }, notice: { color: '#B4C1CF', fontFamily: fonts.body, fontSize: 11, lineHeight: 18, textAlign: 'center', marginTop: 20 },
+  linkButton: { minHeight: 44, justifyContent: 'center' }, link: { color: colors.accent, fontFamily: fonts.body, fontSize: 12 }, label: { color: colors.accent, fontFamily: fonts.medium, fontSize: 9, letterSpacing: 1 },
+  title: { color: colors.text, fontFamily: fonts.display, fontSize: 36, marginTop: 12 }, meta: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 11, lineHeight: 19 },
+  turn: { alignSelf: 'center', color: colors.accent, fontFamily: fonts.medium, fontSize: 12, paddingVertical: 10, marginTop: 14 },
+  handHeader: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 6 }, handTitle: { color: colors.text, fontFamily: fonts.display, fontSize: 26 },
+  hand: { gap: 7, paddingVertical: 16, paddingHorizontal: 3 }, card: { backgroundColor: colors.cardFace, width: 48, height: 78, borderRadius: 7, borderWidth: 2, borderColor: colors.cardBorder, padding: 6 },
+  selectedCard: { borderColor: colors.cardSelectedBorder, transform: [{ translateY: -7 }], backgroundColor: colors.cardSelected }, rank: { color: colors.cardInk, fontFamily: fonts.display, fontSize: 23 }, suit: { color: colors.cardInk, fontSize: 23, textAlign: 'right' }, red: { color: colors.cardRed },
+  hint: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 10, marginBottom: 16 }, action: { minHeight: 48, borderRadius: 9, backgroundColor: colors.surfaceSelected, alignItems: 'center', justifyContent: 'center', padding: 12 },
+  actionText: { color: colors.text, fontFamily: fonts.medium, fontSize: 13 }, notice: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 11, lineHeight: 18, textAlign: 'center', marginTop: 20 },
 });

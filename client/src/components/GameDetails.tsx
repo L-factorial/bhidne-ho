@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
-import { colors, fonts } from '../theme';
+import { fonts, useThemedStyles, type ThemeColors } from '../theme';
 
 export function GameDetails({ snapshot, busy, onSave, sidebar = false }: {
   sidebar?: boolean; snapshot: RoomSnapshot; busy: boolean; onSave: (settings: NonNullable<RoomSnapshot['settings']>) => void;
 }) {
+  const styles = useThemedStyles(createStyles);
   const [tab, setTab] = useState<'stats' | 'rules' | null>(null);
   const selectedTab = tab ?? (sidebar ? 'stats' : null);
   const [draft, setDraft] = useState(snapshot.settings);
@@ -85,18 +86,18 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false }: {
     </ScrollView>}
   </View>;
 }
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   sidebar: { flex: 1, minHeight: 0, borderBottomWidth: 0, paddingHorizontal: 12 },
   sidebarDetails: { flex: 1, minHeight: 0 },
-  selectedTab: { backgroundColor: '#29475B', borderBottomWidth: 2, borderColor: colors.champagne },
-  panel: { paddingHorizontal: 16, borderBottomWidth: 1, borderColor: '#FFFFFF19' }, row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  button: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 12 }, label: { fontFamily: fonts.medium, fontSize: 12, color: colors.champagne },
-  details: { maxHeight: 320 }, title: { fontFamily: fonts.display, fontSize: 23, color: colors.ivory }, text: { fontFamily: fonts.body, color: '#C1CBD5', fontSize: 12, lineHeight: 21, flexShrink: 1 },
-  statsTable: { width: '100%', borderWidth: 1, borderColor: '#FFFFFF19', borderRadius: 8, overflow: 'hidden' },
-  statsRow: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderColor: '#FFFFFF12' },
+  selectedTab: { backgroundColor: colors.surfaceSelected, borderBottomWidth: 2, borderColor: colors.accent },
+  panel: { paddingHorizontal: 16, borderBottomWidth: 1, borderColor: colors.border }, row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  button: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 12 }, label: { fontFamily: fonts.medium, fontSize: 12, color: colors.accent },
+  details: { maxHeight: 320 }, title: { fontFamily: fonts.display, fontSize: 23, color: colors.text }, text: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 12, lineHeight: 21, flexShrink: 1 },
+  statsTable: { width: '100%', borderWidth: 1, borderColor: colors.border, borderRadius: 8, overflow: 'hidden' },
+  statsRow: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderColor: colors.surfaceSelected },
   playerCell: { flex: 1, minWidth: 0, paddingHorizontal: 2, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', gap: 2 },
-  statValue: { fontFamily: fonts.body, color: '#C1CBD5', fontSize: 11, lineHeight: 20, textAlign: 'center', fontVariant: ['tabular-nums'], maxWidth: '100%' },
-  columnHeading: { fontFamily: fonts.medium, color: colors.ivory, fontSize: 12, textAlign: 'center', fontVariant: ['tabular-nums'] }, activeDeal: { backgroundColor: '#173E58', borderRadius: 8 }, activeBid: { color: '#8EDBFF', fontFamily: fonts.medium },
-  result: { alignSelf: 'center', maxWidth: '100%', paddingHorizontal: 3, borderWidth: 1, borderColor: 'transparent', borderRadius: 24 }, missed: { borderColor: '#FF9E99', backgroundColor: '#542E3A' }, negative: { color: '#FFB7B1' },
-  cell: { width: 52, flexShrink: 0, color: colors.ivory, fontFamily: fonts.medium, fontSize: 11, lineHeight: 20, paddingVertical: 8, paddingLeft: 6 }, input: { width: 100, minHeight: 44, padding: 10, color: colors.ivory, borderWidth: 1, borderColor: '#526479', borderRadius: 8 },
+  statValue: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 11, lineHeight: 20, textAlign: 'center', fontVariant: ['tabular-nums'], maxWidth: '100%' },
+  columnHeading: { fontFamily: fonts.medium, color: colors.text, fontSize: 12, textAlign: 'center', fontVariant: ['tabular-nums'] }, activeDeal: { backgroundColor: colors.surface, borderRadius: 8 }, activeBid: { color: colors.accent, fontFamily: fonts.medium },
+  result: { alignSelf: 'center', maxWidth: '100%', paddingHorizontal: 3, borderWidth: 1, borderColor: 'transparent', borderRadius: 24 }, missed: { borderColor: colors.danger, backgroundColor: colors.dangerSurface }, negative: { color: colors.danger },
+  cell: { width: 52, flexShrink: 0, color: colors.text, fontFamily: fonts.medium, fontSize: 11, lineHeight: 20, paddingVertical: 8, paddingLeft: 6 }, input: { width: 100, minHeight: 44, padding: 10, color: colors.text, borderWidth: 1, borderColor: colors.textMuted, borderRadius: 8 },
 });

@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, fonts } from '../theme';
+import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 const cards = [
   { rank: 'K', suit: '♠', rotation: '-24deg', left: 26, top: 32, red: false },
@@ -10,12 +10,14 @@ const cards = [
 ] as const;
 
 export function CardFan({ compact = false }: { compact?: boolean }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   return (
     <View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
       style={[styles.space, compact && styles.compactSpace]}>
       <View style={[styles.fan, compact && styles.compactFan]}>
         {cards.map(card => (
-          <LinearGradient key={card.rank} colors={['#FFFDF7', '#E9E2D5']} style={[
+          <LinearGradient key={card.rank} colors={[colors.cardFace, colors.cardFace]} style={[
             styles.card, { left: card.left, top: card.top, transform: [{ rotate: card.rotation }] },
           ]}>
             <View style={styles.corner}>
@@ -33,17 +35,17 @@ export function CardFan({ compact = false }: { compact?: boolean }) {
     </View>
   );
 }
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   space: { width: 370, height: 280, alignItems: 'center' },
   compactSpace: { width: 260, height: 164 },
   fan: { width: 370, height: 280 },
   compactFan: { transform: [{ scale: 0.65 }], marginTop: -37 },
   card: { position: 'absolute', width: 120, height: 184, borderRadius: 12,
-    borderWidth: 1, borderColor: '#E5DDCF', padding: 11, boxShadow: '0px 12px 22px rgba(0, 0, 0, 0.24)' },
+    borderWidth: 1, borderColor: colors.cardBorder, padding: 11, boxShadow: '0px 12px 22px rgba(0, 0, 0, 0.24)' },
   corner: { alignSelf: 'flex-start', alignItems: 'center' },
   bottomCorner: { position: 'absolute', right: 11, bottom: 11, alignItems: 'center', transform: [{ rotate: '180deg' }] },
-  rank: { fontFamily: fonts.display, fontSize: 29, lineHeight: 30, color: colors.ink },
-  smallSuit: { fontSize: 20, lineHeight: 24, color: colors.ink },
-  suit: { position: 'absolute', alignSelf: 'center', top: 65, fontSize: 53, color: colors.ink },
-  red: { color: '#AE3934' },
+  rank: { fontFamily: fonts.display, fontSize: 29, lineHeight: 30, color: colors.cardInk },
+  smallSuit: { fontSize: 20, lineHeight: 24, color: colors.cardInk },
+  suit: { position: 'absolute', alignSelf: 'center', top: 65, fontSize: 53, color: colors.cardInk },
+  red: { color: colors.cardRed },
 });

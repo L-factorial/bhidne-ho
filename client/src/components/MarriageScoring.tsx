@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import type { MarriageScoringRules } from '../multiplayer/marriage';
-import { colors, fonts } from '../theme';
+import { fonts, useThemedStyles, type ThemeColors } from '../theme';
 
 const tables = ['tiplu', 'jhiplu', 'poplu', 'man', 'marriage'] as const;
 const amounts = ['tunnela_bonus', 'seen_payment', 'unseen_payment', 'dublee_win_bonus'] as const;
@@ -12,6 +12,7 @@ const labels = { tiplu: 'Tiplu', jhiplu: 'Jhiplu', poplu: 'Poplu', man: 'Man', m
 export function MarriageScoring({ snapshot, busy, error, onSave }: {
   snapshot: RoomSnapshot; busy: boolean; error: string; onSave: (rules: MarriageScoringRules) => void;
 }) {
+  const s = useThemedStyles(createStyles);
   const saved = snapshot.marriage?.public.scoring_rules || snapshot.marriage_scoring;
   const [draft, setDraft] = useState(saved);
   const savedKey = JSON.stringify(saved);
@@ -54,6 +55,7 @@ export function MarriageScoring({ snapshot, busy, error, onSave }: {
 }
 
 export function MarriagePoints({ snapshot }: { snapshot: RoomSnapshot }) {
+  const s = useThemedStyles(createStyles);
   const scores = snapshot.marriage?.public.scores;
   const name = (id: string) => snapshot.players?.find(p => String(p.player_id) === id)?.display_name || `Player ${id}`;
   const signed = (n: number) => n > 0 ? `+${n}` : String(n);
@@ -76,12 +78,12 @@ export function MarriagePoints({ snapshot }: { snapshot: RoomSnapshot }) {
     </>}
   </View>;
 }
-const s = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   section: { gap: 12 }, row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 },
   label: { flexGrow: 1, flexBasis: 120 }, value: { width: 44, textAlign: 'center' },
-  text: { color: colors.ivory, fontFamily: fonts.body, fontSize: 13, lineHeight: 21 },
-  heading: { color: colors.champagne, fontFamily: fonts.medium, fontSize: 16 },
-  input: { width: 46, minHeight: 44, color: colors.ivory, backgroundColor: '#29485F', borderRadius: 6, textAlign: 'center' },
-  button: { padding: 10, minHeight: 44, borderWidth: 1, borderColor: '#FFFFFF44', borderRadius: 8 }, selected: { backgroundColor: '#316543' },
-  player: { gap: 5, paddingVertical: 12, borderTopWidth: 1, borderColor: '#FFFFFF33' },
+  text: { color: colors.text, fontFamily: fonts.body, fontSize: 13, lineHeight: 21 },
+  heading: { color: colors.accent, fontFamily: fonts.medium, fontSize: 16 },
+  input: { width: 46, minHeight: 44, color: colors.text, backgroundColor: colors.surfaceRaised, borderRadius: 6, textAlign: 'center' },
+  button: { padding: 10, minHeight: 44, borderWidth: 1, borderColor: colors.border, borderRadius: 8 }, selected: { backgroundColor: colors.successSurface },
+  player: { gap: 5, paddingVertical: 12, borderTopWidth: 1, borderColor: colors.border },
 });

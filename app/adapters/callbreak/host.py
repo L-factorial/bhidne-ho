@@ -25,11 +25,9 @@ class CallBreakCommandTarget:
 
     def apply(self, user_id, command):
         actor = self.game.users.index(user_id) + 1
-        before = self.game.state.phase
         events = self.host._apply_player(self.game, actor, command.command, command.payload,
                                         command_id=command.command_id)
         events.extend(self.host._apply_controllers(self.game))
-        self.host._deadline(self.game, before)
         return events
 
     def snapshot(self, user_id):

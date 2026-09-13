@@ -85,9 +85,22 @@ export function useRoomSession() {
     if (!session || expired) return;
     setStatus('connecting'); setRoom(target); setGame(null); setError('');
   }
-  function leaveRoom() {
+  async function leaveRoom() {
+    if (room && session && !expired) {
+      try {
+        const path = `/test-games/${encodeURIComponent(room.room_id)}`;
+        const table = await request<{ game_type?: string; your_player_id?: number; match_id?: string; status: string }>(path, session);
+        if (table.game_type === 'flush' && table.your_player_id && table.status !== 'ended') {
+          await request(path + '/leave', session, { match_id: table.match_id });
+        }
+      } catch (error) {
+        setError(error instanceof Error ? error.message : 'Could not leave the table.');
+        return false;
+      }
+    }
     connection.current?.stop(); setStatus('disconnected'); setRoom(null); setGame(null); setError('');
     if (session && !expired) saveSession(apiUrl, { session, room: null, game: null });
+    return true;
   }
   function signOut() { connection.current?.stop(); saveSession(apiUrl, null); }
   return { session, room, rooms, game, setGame, joinRoom, leaveRoom, signOut, status, expired, error, pokes,

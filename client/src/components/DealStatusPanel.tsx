@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { TablePlayer } from './CardTable';
-import { colors, fonts } from '../theme';
+import { fonts, useThemedStyles, type ThemeColors } from '../theme';
 
 export function DealStatusPanel({ players, viewerId, activePlayerId, cardsPlayed, paused, trickNumber = 1, complete = false }: {
   players: TablePlayer[]; viewerId: string; activePlayerId: string; cardsPlayed: number; paused: boolean;
   trickNumber?: number; complete?: boolean;
 }) {
+  const styles = useThemedStyles(createStyles);
   const [expanded, setExpanded] = useState(false);
   const [offset, setOffset] = useState(0);
   const [viewportWidth, setViewportWidth] = useState(0);
@@ -59,13 +60,13 @@ export function DealStatusPanel({ players, viewerId, activePlayerId, cardsPlayed
   </View>;
 }
 
-const styles = StyleSheet.create({
-  panel: { backgroundColor: '#FFFFFF09', borderWidth: 1, borderColor: '#526479', borderRadius: 12, padding: 14, marginTop: 16 },
-  headingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, heading: { fontFamily: fonts.display, fontSize: 24, color: colors.ivory }, deal: { fontFamily: fonts.medium, fontSize: 12, color: colors.champagne },
-  status: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 20, color: colors.ivory, marginTop: 6 }, detail: { fontFamily: fonts.body, fontSize: 11, lineHeight: 20, color: '#C1CBD5' },
-  toggle: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 6 }, toggleText: { fontFamily: fonts.medium, fontSize: 12, color: colors.champagne },
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  panel: { backgroundColor: colors.surfaceSelected, borderWidth: 1, borderColor: colors.textMuted, borderRadius: 12, padding: 14, marginTop: 16 },
+  headingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, heading: { fontFamily: fonts.display, fontSize: 24, color: colors.text }, deal: { fontFamily: fonts.medium, fontSize: 12, color: colors.accent },
+  status: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 20, color: colors.text, marginTop: 6 }, detail: { fontFamily: fonts.body, fontSize: 11, lineHeight: 20, color: colors.textMuted },
+  toggle: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 6 }, toggleText: { fontFamily: fonts.medium, fontSize: 12, color: colors.accent },
   scrollHeader: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8 }, arrows: { flexDirection: 'row', gap: 6 },
-  arrow: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#526479', borderRadius: 8 }, disabled: { opacity: 0.35 },
-  bidList: { gap: 10, paddingVertical: 12 }, bidCard: { width: 154, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#526479', backgroundColor: colors.navy }, active: { borderColor: colors.champagne },
-  player: { fontFamily: fonts.medium, fontSize: 12, color: colors.ivory }, bid: { fontFamily: fonts.display, fontSize: 26, color: colors.champagne, marginVertical: 5 }, turn: { fontFamily: fonts.medium, fontSize: 10, color: colors.champagne, marginTop: 8 }, hint: { fontFamily: fonts.body, fontSize: 10, lineHeight: 17, color: '#C1CBD5' },
+  arrow: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.textMuted, borderRadius: 8 }, disabled: { opacity: 0.35 },
+  bidList: { gap: 10, paddingVertical: 12 }, bidCard: { width: 154, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.textMuted, backgroundColor: colors.background }, active: { borderColor: colors.turnText },
+  player: { fontFamily: fonts.medium, fontSize: 12, color: colors.text }, bid: { fontFamily: fonts.display, fontSize: 26, color: colors.accent, marginVertical: 5 }, turn: { fontFamily: fonts.medium, fontSize: 10, color: colors.accent, marginTop: 8 }, hint: { fontFamily: fonts.body, fontSize: 10, lineHeight: 17, color: colors.textMuted },
 });

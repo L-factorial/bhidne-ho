@@ -5,7 +5,7 @@ The platform provides authentication, rooms, presence, WebSockets and serialized
 command handling. The standalone engine implements four- and five-player games,
 five deals, bidding, tricks, scoring, configurable redeals, public queries and replay.
 The browser console includes a separate Call Break test host with four/five-player
-lobbies and three-second automatic actions. Chat and PING still use EchoGameEngine;
+lobbies and manual player actions. Chat and PING still use EchoGameEngine;
 the shared adapter handles full gameplay; production runtime integration remains separate work.
 
 ## Documentation
@@ -25,7 +25,7 @@ the shared adapter handles full gameplay; production runtime integration remains
 
 - [Web and mobile client](client/README.md): Expo/React Native welcome screen with guest and social sign-in previews. Run `cd client && npm ci && npm run web`.
 
-- [Call Break test console](docs/test-callbreak-console.md): creating/joining games, three-second fallback, private hands and test-only endpoints.
+- [Call Break test console](docs/test-callbreak-console.md): creating/joining games, manual turns, private hands and test-only endpoints.
 - [Dealer, shuffle and cut flow](docs/callbreak-preparation.md): implemented preparation phases, adapter dispatch, and a runnable example.
 - [Adapter command/event contract](docs/callbreak-adapter-contract.md): incoming commands, broadcast/unicast schemas, and implementation boundaries.
 - [Call Break implementation and query API](docs/callbreak.md): component ownership, rules, setup, queries, scoring and replay.

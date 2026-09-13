@@ -9,6 +9,10 @@ export function notificationKey(snapshot: RoomSnapshot | null): string {
 
 export function notificationText(snapshot: RoomSnapshot): string {
   if (snapshot.error) return snapshot.error;
+  if (snapshot.game_type === 'flush') {
+    const fold = snapshot.flush?.folds?.at(-1);
+    if (fold && fold.revision === snapshot.game?.revision) return foldText(snapshot, fold.player_id);
+  }
   if (snapshot.game_type === 'marriage' && snapshot.game) {
     if (snapshot.game.finished) return 'Marriage complete · view the result';
     if (snapshot.your_player_id === snapshot.game.turn.player_id) return snapshot.game.phase === 'MUST_DRAW' ? 'Your turn · take a card' : 'Your turn · show, finish, or discard';
@@ -22,4 +26,10 @@ export function notificationText(snapshot: RoomSnapshot): string {
   if (phase === 'HAND_REVIEW') return 'Your cards are ready · review your hand';
   if (phase === 'BIDDING') return 'Bidding is open';
   return `Deal ${snapshot.deal?.deal_number || 1} · ${phase?.replaceAll('_', ' ').toLowerCase() || 'Game updated'}`;
+}
+
+export function foldText(snapshot: RoomSnapshot, playerId: string): string {
+  const name = snapshot.flush?.participants?.find(p => p.player_id === playerId)?.display_name
+    || snapshot.players?.find(p => String(p.player_id) === playerId)?.display_name || `Player ${playerId}`;
+  return `${name} folded`;
 }

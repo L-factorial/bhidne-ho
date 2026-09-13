@@ -4,11 +4,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePong } from '../notifications/usePong';
 import { ApiError, request } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
-import { colors, fonts } from '../theme';
+import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 type Message = { id: string; sender_id: string; sender_name: string; text: string; sent_at: number };
 
 export function RoomChat({ roomId, session, connected }: { roomId: string; session: Session; connected: boolean }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [open, setOpen] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [unread, setUnread] = useState(0);
@@ -80,7 +82,7 @@ export function RoomChat({ roomId, session, connected }: { roomId: string; sessi
       if (!signal?.aborted) setError(failure instanceof Error ? failure.message : 'Could not send message.');
     } finally { sending.current = false; setBusy(false); }
   }
-  return <View ref={card} style={[styles.card, unread > 0 && { borderWidth: 2, borderColor: colors.copper }]}>
+  return <View ref={card} style={[styles.card, unread > 0 && { borderWidth: 2, borderColor: colors.accent }]}>
     <Pressable accessibilityRole="button" accessibilityLabel="Room chat" aria-expanded={open} accessibilityState={{ expanded: open }} disabled={blocked} onPress={() => { if (open) setOpen(false); else openChat(); }} style={styles.toggle}>
       <Text style={styles.heading}>Room chat</Text><Text style={styles.heading}>{open ? '-' : unread ? `${unread} new` : '+'}</Text>
     </Pressable>
@@ -107,17 +109,17 @@ export function RoomChat({ roomId, session, connected }: { roomId: string; sessi
     </KeyboardAvoidingView>}
   </View>;
 }
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   chatBody: { gap: 12, overflow: 'hidden' },
-  card: { backgroundColor: colors.ivory, borderRadius: 16, padding: 24, gap: 8 },
+  card: { backgroundColor: colors.surface, borderRadius: 16, padding: 24, gap: 8 },
   toggle: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  heading: { fontFamily: fonts.medium, fontSize: 14, color: colors.ink },
-  message: { paddingVertical: 10, borderBottomWidth: 1, borderColor: colors.line, gap: 5 },
-  author: { fontFamily: fonts.medium, fontSize: 11, color: colors.copper },
-  text: { fontFamily: fonts.body, fontSize: 13, lineHeight: 20, color: colors.ink },
-  note: { fontFamily: fonts.body, fontSize: 11, color: colors.muted },
-  error: { color: '#A33332', fontFamily: fonts.body, fontSize: 12 },
-  input: { height: 70, flexShrink: 0, borderWidth: 1, borderColor: colors.line, borderRadius: 8, padding: 12, backgroundColor: '#FFFFFF', color: colors.ink, fontFamily: fonts.body },
-  send: { minHeight: 44, flexShrink: 0, backgroundColor: colors.copper, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  sendText: { color: colors.ivory, fontFamily: fonts.medium, fontSize: 12 },
+  heading: { fontFamily: fonts.medium, fontSize: 14, color: colors.text },
+  message: { paddingVertical: 10, borderBottomWidth: 1, borderColor: colors.border, gap: 5 },
+  author: { fontFamily: fonts.medium, fontSize: 11, color: colors.accent },
+  text: { fontFamily: fonts.body, fontSize: 13, lineHeight: 20, color: colors.text },
+  note: { fontFamily: fonts.body, fontSize: 11, color: colors.textMuted },
+  error: { color: colors.danger, fontFamily: fonts.body, fontSize: 12 },
+  input: { height: 70, flexShrink: 0, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, backgroundColor: colors.surface, color: colors.text, fontFamily: fonts.body },
+  send: { minHeight: 44, flexShrink: 0, backgroundColor: colors.surfaceSelected, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  sendText: { color: colors.text, fontFamily: fonts.medium, fontSize: 12 },
 });

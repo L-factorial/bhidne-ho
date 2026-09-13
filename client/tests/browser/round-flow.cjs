@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 (async () => {
  const browser = await chromium.launch({channel:'chrome',headless:true});
  try {
-  const context = await browser.newContext({viewport:{width:360,height:800}});
+  const context = await browser.newContext({colorScheme:'dark',viewport:{width:360,height:800}});
   const room = {room_id:'round-ui',name:'Round UI',members:['u0','u1','u2','u3']};
   let phase = null, review = false, final = false, dealNumber = 1, completed = [], current = null, revision = 0;
   let waitingForBid = false;
@@ -51,6 +51,12 @@ const assert = require('node:assert/strict');
   assert.equal(requests.length, beforeReveal);
   assert.equal(await hand.getByRole('radio').count(), 0);
   await hand.getByRole('button', {name:'Flip all cards',exact:true}).click();
+  for (const mode of ['light', 'dark']) {
+    await page.getByTestId('live-game-overlay').getByRole('button', {name:`Switch to ${mode} mode`,exact:true}).click();
+    assert.equal(await hand.getByRole('button', {name:'Hide cards',exact:true}).count(),1);
+    await page.screenshot({path:`../.venv/dev/callbreak-${mode}.png`});
+  }
+
   await page.getByText('Make your call',{exact:true}).waitFor();
   await hand.getByRole('button',{name:'Hide cards',exact:true}).click();
   assert.deepEqual(await hand.getByRole('button').allTextContents(),['Show cards']);

@@ -19,9 +19,9 @@ game has no settlement. See [scoring](marriage-scoring.md) for exact rules.
    The creator can collapse back to the room while keeping their seat; when all
    seats fill, the room shows the ready notification and return-to-game control.
    Players can leave before starting. The creator starts once every seat is full.
-   Autoplay is selected by default for testing; choose Player play before starting
-   to make all moves manually. Autoplay waits ten seconds after dealing, then
-   drives every seat at the host timeout interval (normally three seconds).
+   Marriage uses manual multiplayer only. Each seated player makes their own
+   moves; there are no automatic turns or timeout moves. If a player disconnects,
+   their seat and turn remain reserved until they reconnect.
 2. Each player receives 21 private cards. Tap to reveal cards in received order
    or reveal all, then choose Grid or Suit groups. Arc is available only with
    15 or fewer uncommitted cards, including during reveal. Shown groups remain
@@ -38,10 +38,10 @@ game has no settlement. See [scoring](marriage-scoring.md) for exact rules.
 4. Once all cards are revealed, the client checks for seven disjoint Dublees and
    three disjoint sequences/Tunnelas. Review either suggested route, inspect or
    adjust the staged groups, then explicitly show it during your action window.
-   Suggestions never submit themselves in Player play. Select
+   Suggestions never submit themselves. Select
    a suggested route to open a centered, private preview of the actual grouped
    cards. Confirm Show to submit; accepted groups appear in the central table
-   area for everyone, including when autoplay declares. The cards move into a
+   area for everyone. The cards move into a
    temporary central overlay and fade away after about four seconds; they do
    not reserve a permanent section or block table controls. Existing declarations
    are not replayed on reload. Shown groups remain available in Stats.
@@ -68,7 +68,8 @@ screens fit more cards in a row without stretching the final row. Each card show
 card count, Maal status, qualification route, and turn situation.
 There is no separate bottom or side Players/Rules panel.
 Reload restores authoritative cards and turn state;
-unsubmitted groups, selections, and reveal progress reset locally.
+unsubmitted groups and selections reset locally. Reveal progress is retained
+for the same player and match in the browser session.
 
 ## Integration boundaries
 
@@ -76,17 +77,11 @@ unsubmitted groups, selections, and reveal progress reset locally.
 - `app/adapters/marriage/`: typed command/event catalogs and engine translation.
 - `app/test_games/marriage.py`: authenticated seats, room lifecycle checks,
   transactional checkpoints, and per-user query results.
-- `app/test_games/marriage_autoplay.py`: removable test policy using only the
-  acting seat's safe view. Prefers finishing, then Dublee qualification, then
-  normal qualification, and preserves matching cards when discarding. It does
-  not guarantee a win; normal completion remains unsupported.
 - `app/test_games/service.py`: common create/join/leave/start/end host, membership,
-  notifications, participation, and reliable runtime delivery.
-  Autoplay submits the same revisioned commands as a client, stops when the game
-  ends, and is cancelled during server shutdown. No automation enters the engine.
-  The driver uses the fixed seated roster, so disconnected browsers do not stop
-  turns. Human HTTP actions still require room membership; both paths use the
-  same adapter authorization, revision checks, receipts, and lock.
+  notifications, participation, and reliable runtime delivery. Marriage starts in
+  manual mode and rejects autoplay requests. All player commands require room
+  membership and use adapter authorization, revision checks, receipts, and a
+  shared lock. Disconnected players keep their seats and can resume on reconnect.
 - `client/src/multiplayer/marriage.ts`: view types and display/group helpers.
 - `client/src/screens/MarriageTable.tsx`: table, hand, drafts, and controls.
 - `client/src/components/MarriageCardArea.tsx`: three pile spots and measured
@@ -111,7 +106,7 @@ No client-side calculation can grant a move or reveal another player's hand.
 ## Verification
 
 ```text
-python -m pytest tests/test_marriage_room.py tests/test_marriage_adapter.py tests/marriage -q
+python -m pytest tests/test_marriage_manual.py tests/test_marriage_room.py tests/test_marriage_adapter.py tests/marriage -q
 cd client
 npm run typecheck
 node --experimental-strip-types --test tests/*.test.mjs

@@ -212,26 +212,25 @@ card in the next trick arrives sooner, the current trick takes priority. Local
 card input waits while the previous trick is displayed. On reconnect the most
 recent completed trick can be shown briefly; no private card history is added.
 
-The application host enables an eight-second round-summary interval. After deals
-1?4 it holds `DEAL_COMPLETE`, preserving the last trick and finalized scores.
-Manual games wait for the creator to choose Start next deal. Autoplay advances
-after eight seconds; the creator can also advance early. The summary displays
+The application host enables round summaries. After deals
+1–4 it holds `DEAL_COMPLETE`, preserving the last trick and finalized scores.
+Games wait for the creator to choose Start next deal. The summary displays
 names, bids, tricks won, deal scores, and cumulative totals. Deal 5 shows final
 scores and winners, with a new-game option rather than another deal.
 
 `POST /test-games/{room_id}/next-deal` accepts `{match_id, deal_number}`. Room
 membership and creator ownership are required. The host serializes this operation
-with gameplay and timers. Repeating the request for the same completed deal does
-not advance twice; stale match or deal identifiers are rejected. Ending a game
-still stops automation. The pure engine's phases and rules are unchanged.
+with gameplay. Repeating the request for the same completed deal does
+not advance twice; stale match or deal identifiers are rejected. Ending a game stops further player actions. The pure engine's phases and rules are unchanged.
 
 The host's `round_summary_seconds` defaults to zero for existing headless test
-clients; the application composition sets it to eight. A `round_review` snapshot
+clients; a positive value enables the manual summary pause without a timer.
+The application enables this pause. A `round_review` snapshot
 field supplies the completed deal number and whether the viewer can continue.
-`remaining_ms` supplies the autoplay countdown and is null in manual games.
+`remaining_ms` is always null; there is no turn countdown.
 
 Validation includes complete four/five-player manual matches with summary pauses,
-creator/membership/stale-request checks, concurrent retries, and autoplay timing.
+creator/membership/stale-request checks, concurrent retries, and manual continuation.
 The mocked Chrome regression `client/tests/browser/round-flow.cjs` covers all
 phase controls, cut payload, trick highlight expiry, scores, next deal, and final
 scores at a narrow viewport. Run with the Playwright setup in the client README.
