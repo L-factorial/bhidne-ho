@@ -96,7 +96,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const fanSpread = Math.min(90, Math.max(0, shown.length - 1) * 7);
 
   return <View style={s.page} testID="marriage-table">
-    <AppHeader title="Marriage" actions={<>{endControl}{button('Collapse game', onBack)}</>} />
+    <AppHeader title="Marriage" actions={<>{endControl}{button('Back to room', onBack)}</>} />
     <View style={s.detailsBar}>
 
       {(['stats', 'rules', 'points'] as const).map(section => <Pressable key={section} accessibilityRole="button" onPress={() => setDetails(section)} style={s.detailsTab}>

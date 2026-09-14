@@ -38,7 +38,7 @@ async function api(route, user, body) {
     const saved = await api(root, users[0]);
     assert.equal(saved.flush_settings.rules_revision, 1);
     await one.getByRole('button', { name: 'Close Flush rules', exact: true }).click();
-    await one.getByRole('button', { name: 'Collapse table', exact: true }).click();
+    await one.getByRole('button', { name: 'Back to room', exact: true }).click();
     await two.getByRole('button', { name: 'View table', exact: true }).click();
     await two.getByRole('button', { name: 'Join table', exact: true }).click();
     await two.getByTestId('flush-table').waitFor();
@@ -46,7 +46,7 @@ async function api(route, user, body) {
     await two.getByRole('button', { name: 'Rules', exact: true }).click();
     assert.equal(await two.getByLabel('Personal bets before side-show', { exact: true }).inputValue(), '1');
     await two.getByRole('button', { name: 'Close Flush rules', exact: true }).click();
-    await one.getByRole('button', { name: 'Go back to table', exact: true }).click();
+    await one.getByRole('button', { name: 'Return to table', exact: true }).click();
     await one.getByRole('button', { name: 'Lock game', exact: true }).click();
     await one.getByRole('button', { name: 'Start game', exact: true }).click();
     let preparation = await api(root, users[0]);

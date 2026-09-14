@@ -86,7 +86,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   const playerName = (id: number) => snapshot.players?.find(p => p.player_id === id)?.display_name || `Player ${id}`;
   const game = snapshot.game, deal = snapshot.deal, mine = snapshot.private;
   if (!game || !deal) return <View style={styles.page}>
-    <AppHeader title="Call Break" actions={<>{endControl}<Pressable accessibilityRole="button" accessibilityLabel="Collapse game" onPress={onBack} style={styles.back}><Text style={styles.link}>Collapse ↘</Text></Pressable></>} />
+    <AppHeader title="Call Break" actions={<>{endControl}<Pressable accessibilityRole="button" accessibilityLabel="Back to room" onPress={onBack} style={styles.back}><Text style={styles.link}>Back to room</Text></Pressable></>} />
     <GameDetails snapshot={snapshot} busy={busy} onSave={onSave} />
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 20 }}>
       <Text style={styles.title}>{snapshot.players?.length}/{snapshot.capacity} players seated</Text>
@@ -110,7 +110,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     return <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => onAction(command, payload)} style={styles.button}><Text style={styles.buttonText}>{label}</Text></Pressable>;
   }
   return <View style={styles.page}>
-    <AppHeader title="Call Break" actions={<>{endControl}<Pressable accessibilityRole="button" accessibilityLabel="Collapse game" onPress={onBack} style={styles.back}><Text style={styles.link}>Collapse ↘</Text></Pressable></>} />
+    <AppHeader title="Call Break" actions={<>{endControl}<Pressable accessibilityRole="button" accessibilityLabel="Back to room" onPress={onBack} style={styles.back}><Text style={styles.link}>Back to room</Text></Pressable></>} />
     {!wide && <GameDetails snapshot={snapshot} busy={busy} onSave={onSave} />}
     {game.finished && <View style={styles.newGamePanel}>
       <Text style={styles.status}>Game complete · ready for another round?</Text>

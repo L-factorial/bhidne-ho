@@ -51,7 +51,7 @@ async function api(path, user, body) {
       await waiter.page.getByText(/Waitlist position 1/).waitFor();
       if (kind === 'callbreak') {
         await api(root + '/table/leave-seat', users[1], body);
-        await waiter.page.getByRole('button', { name: 'Collapse game', exact: true }).waitFor();
+        await waiter.page.getByRole('button', { name: 'Back to room', exact: true }).waitFor();
         const promoted = await api(root, users.at(-1));
         assert.equal(promoted.your_player_id, 4);
         assert.equal(promoted.table.current_user.is_queued, false);
@@ -65,7 +65,7 @@ async function api(path, user, body) {
         await waiter.page.getByRole('button', { name: kind === 'flush' ? 'Watch table' : 'Watch game', exact: true }).click();
         const watched = await api(root, users.at(-1));
         assert.equal(watched[kind].private, null);
-        await waiter.page.getByRole('button', { name: kind === 'flush' ? 'Collapse table' : 'Collapse game', exact: true }).click();
+        await waiter.page.getByRole('button', { name: 'Back to room', exact: true }).click();
         await waiter.page.getByTestId('live-game-overlay').waitFor({ state: 'hidden' });
         await waiter.page.getByText(/Waitlist position 1/).waitFor();
         await waiter.page.getByRole('button', { name: 'Leave room', exact: true }).click();

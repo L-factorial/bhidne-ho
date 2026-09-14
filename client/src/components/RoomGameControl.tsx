@@ -189,8 +189,8 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, roo
     </View>}
     {collapsed && <View style={styles.returnPanel}>
       <Animated.View style={{ opacity: notification.opacity }}>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Go back to ${noun}`} disabled={busy} onPress={() => void returnToGame()} style={[styles.button, !!notification.notice && styles.notified]}>
-          <Text style={styles.buttonText}>{notification.notice ? '✦ ' : ''}Go back to {noun}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Return to ${noun}`} disabled={busy} onPress={() => void returnToGame()} style={[styles.button, !!notification.notice && styles.notified]}>
+          <Text style={styles.buttonText}>{notification.notice ? '✦ ' : ''}Return to {noun}</Text>
         </Pressable>
       </Animated.View>
       {!!notification.notice && <Text accessibilityLiveRegion="polite" style={styles.text}>{notification.notice}</Text>}

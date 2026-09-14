@@ -34,9 +34,9 @@ async function api(path, user, body) {
       page.on('request', request => { if (request.method() === 'POST') mutations.push(new URL(request.url()).pathname); });
       page.on('pageerror', error => errors.push(error.message));
       await page.goto('http://localhost:8081');
-      const collapse = page.getByRole('button', { name: kind === 'flush' ? 'Collapse table' : 'Collapse game', exact: true });
+      const collapse = page.getByRole('button', { name: 'Back to room', exact: true });
       await collapse.click();
-      const returning = page.getByRole('button', { name: kind === 'flush' ? 'Go back to table' : 'Go back to game', exact: true });
+      const returning = page.getByRole('button', { name: kind === 'flush' ? 'Return to table' : 'Return to game', exact: true });
       await returning.waitFor();
       assert.equal((await api(`/rooms/${room.room_id}`, users[0])).active_game.player_is_participant, true);
       await returning.click();

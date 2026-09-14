@@ -113,7 +113,7 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onAction, o
       {!!(localError || error) && <Text accessibilityRole="alert" style={s.error}>{localError || error}</Text>}
   </>;
   return <View style={s.page} testID="flush-table">
-    <AppHeader title="Flush" actions={<>{endControl}{button('Collapse table', onBack)}</>} />
+    <AppHeader title="Flush" actions={<>{endControl}{button('Back to room', onBack)}</>} />
     <View style={[s.body, wide && s.wideBody]}>
     <View style={s.mainColumn} testID="flush-main-column">
     {!wide && <View style={s.tabs}>{button('Bet', () => setBetsOpen(true))}{button('Rules', () => setRulesOpen(true))}{!!snapshot.your_player_id && button('Poke the table', () => setPokeOpen(true), !social.connected)}</View>}

@@ -43,11 +43,11 @@ const label = c => c.card_type === 'man' ? `Man · ${Number(c.card_id.slice(-1))
     await one.getByRole('button', { name: 'Save scoring rules', exact: true }).click();
     await one.getByText('Saved rules apply when the game starts.', { exact: true }).waitFor();
     await one.getByRole('button', { name: 'Close details', exact: true }).click();
-    await one.getByRole('button', { name: 'Collapse game', exact: true }).click();
+    await one.getByRole('button', { name: 'Back to room', exact: true }).click();
     await two.getByRole('button', { name: 'View game', exact: true }).click();
     await two.getByRole('button', { name: 'Join game', exact: true }).click();
     await one.getByText('Everyone is ready · the creator can start', { exact: true }).waitFor();
-    await one.getByRole('button', { name: 'Go back to game', exact: true }).click();
+    await one.getByRole('button', { name: 'Return to game', exact: true }).click();
     await one.getByTestId('marriage-table').waitFor();
     await two.getByTestId('marriage-table').waitFor();
     await two.getByRole('button', { name: 'Rules', exact: true }).click();

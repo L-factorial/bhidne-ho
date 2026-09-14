@@ -143,7 +143,7 @@ shows bids / tricks won and scores for all five deals. The active deal is blue;
 completed negative scores are circled in red to mark missed bids. History is
 loaded from the server, so earlier deal bids remain available after reopening.
 
-Collapsing the live table reveals **Go back to game**. New game revisions,
+Collapsing the live table reveals **Return to game**. New game revisions,
 seat changes, settings updates, and game errors trigger a short pong and a
 pulsing return button. Repeated timer polls do not retrigger alerts. Reopening
 clears the pulse; reduced-motion users receive a static highlight. **Sound on**
