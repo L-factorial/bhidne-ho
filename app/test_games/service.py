@@ -29,6 +29,7 @@ from app.test_games.flush import HostedFlushTarget
 from app.games.base import GameCommandRejected
 from app.multiplayer.table import TableState, GameTablePolicy, reject
 from app.multiplayer.table_lifecycle import GameTableLifecycle
+from app.multiplayer.rule_proposals import RuleProposals
 from app.games.lifecycle import PlayerDeparture, WaitingGameDeparture
 from app.runtime.command_runtime import CommandAccessError, CommandRuntime, CommandSession, OutgoingEvent
 
@@ -39,6 +40,7 @@ class HostedGame:
     users: list[str]
     table: TableState = field(default_factory=TableState)
     previous_match_id: str | None = None
+    rule_proposal: dict | None = None
     departed: set[str] = field(default_factory=set)
     commands: CommandSession = field(default_factory=CommandSession)
     settings: dict = field(default_factory=lambda: {"weak_hand_enabled": True, "no_spades_enabled": True, "payments": [0, 0, 0, 0]})
@@ -91,7 +93,7 @@ class HostedGame:
         return self.commands.lock
 
 
-class TestGameService(GameTableLifecycle):
+class TestGameService(GameTableLifecycle, RuleProposals):
     def __init__(self, rooms, connections, command_runtime=None, profiles=None, round_summary_seconds=0):
         self.rooms, self.connections = rooms, connections
         self.profiles = profiles
@@ -135,6 +137,11 @@ class TestGameService(GameTableLifecycle):
         game = self.games.get(room_id)
         return bool(game and not game.ended and game.started and not game.finished and not game.flush_open and user_id in game.users and user_id not in game.departed)
 
+    def chat_blocked(self, room_id, user_id):
+        game = self.games.get(room_id)
+        return self.is_playing(room_id, user_id) and not (
+            game.game_type == 'callbreak' and game.state and game.state.phase == Phase.DEAL_COMPLETE)
+
     async def close(self):
         tasks = [g.task for g in self.games.values() if g.task is not None] + list(self._offer_tasks.values())
         for task in tasks:
@@ -155,7 +162,9 @@ class TestGameService(GameTableLifecycle):
 
     def _snapshot(self, game, user_id):
         result = self._game_snapshot(game, user_id)
+        result["rule_proposal"] = self._proposal_view(game, user_id)
         result["active_game"] = self.membership(game.room_id, user_id)
+        result["chat_enabled"] = not self.chat_blocked(game.room_id, user_id)
         result["table"] = game.table.view(game, user_id)
         for player in result["table"]["seated_players"]:
             player["display_name"] = self.profiles.name(player["user_id"], player["seat_id"]) if self.profiles else f"Player {player['seat_id']}"
@@ -287,9 +296,7 @@ class TestGameService(GameTableLifecycle):
                     raise ValueError("Starting chips must cover the boot for every player.")
             except (ValueError, TypeError, FlushError) as error:
                 raise HTTPException(422, str(error)) from error
-            game.flush_rules = rules
-            game.flush_starting_chips = body.starting_chips
-            game.flush_rules_revision += 1
+            self._propose(game, user_id, {"rules": asdict(rules), "starting_chips": body.starting_chips})
             await self._publish(game)
             return self._snapshot(game, user_id)
 
@@ -437,7 +444,7 @@ class TestGameService(GameTableLifecycle):
         async with game.lock:
             await self._member(room_id, user_id, game)
             self._creator(game, user_id, body.match_id)
-            game.settings = body.model_dump(exclude={"match_id"})
+            self._propose(game, user_id, body.model_dump(exclude={"match_id"}))
             await self._publish(game)
             return self._snapshot(game, user_id)
 
@@ -453,7 +460,7 @@ class TestGameService(GameTableLifecycle):
                 rules = ScoringRules.from_dict(body.scoring)
             except (ValueError, TypeError) as error:
                 raise HTTPException(422, str(error)) from error
-            game.marriage_scoring = rules
+            self._propose(game, user_id, asdict(rules))
             await self._publish(game)
             return self._snapshot(game, user_id)
 
@@ -472,6 +479,9 @@ class TestGameService(GameTableLifecycle):
             if game.table.phase == 'STARTED' and match_id == game.match_id and user_id == game.users[0]:
                 return self._snapshot(game, user_id)
             self._creator(game, user_id, match_id, relock=True)
+            self._sync_proposal(game)
+            if game.rule_proposal and game.rule_proposal['status'] == 'PENDING':
+                reject('RULE_APPROVAL_PENDING', 'All seated players must accept the proposed rules before starting.')
             policy = GameTablePolicy.for_game(game.game_type, game.capacity)
             if policy.requires_explicit_lock and game.table.phase != 'LOCKED':
                 reject('LOCK_REQUIRED', 'Lock the roster before starting the game.')

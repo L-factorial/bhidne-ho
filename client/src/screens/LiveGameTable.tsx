@@ -1,3 +1,5 @@
+import { ActionCue } from '../components/ActionCue';
+import type { RuleProposalView } from '../components/RuleProposal';
 import { AppHeader } from '../components/AppHeader';
 import { type ReactNode, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -18,6 +20,7 @@ export type PlayMode = 'manual';
 
 type Trick = { trick_number: number; plays: { player_id: number; card: string }[]; complete: boolean; winner?: number };
 export type RoomSnapshot = {
+  rule_proposal?: RuleProposalView | null; chat_enabled?: boolean;
   can_create_new_game?: boolean;
   roster_open?: boolean;
   table?: import('../components/TableControls').TableView;
@@ -92,7 +95,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
       <Text style={styles.title}>{snapshot.players?.length}/{snapshot.capacity} players seated</Text>
       <Text style={styles.meta}>{snapshot.ready ? 'Everyone is here. The first dealer will be chosen at random.' : 'Waiting for everyone to take a seat.'}</Text>
       <Text style={styles.meta}>Each player confirms their bid and taps a card to play. No turn time limit.</Text>
-      {snapshot.is_creator ? <Pressable accessibilityRole="button" disabled={busy || !snapshot.ready} accessibilityState={{ disabled: busy || !snapshot.ready }} onPress={onStart} style={[styles.button, { opacity: snapshot.ready && !busy ? 1 : 0.5 }]}><Text style={styles.buttonText}>{busy ? 'Starting…' : 'Start game'}</Text></Pressable>
+      {snapshot.is_creator ? <Pressable accessibilityRole="button" disabled={busy || !snapshot.ready || snapshot.rule_proposal?.status === 'PENDING'} accessibilityState={{ disabled: busy || !snapshot.ready || snapshot.rule_proposal?.status === 'PENDING' }} onPress={onStart} style={[styles.button, { opacity: snapshot.ready && !busy && snapshot.rule_proposal?.status !== 'PENDING' ? 1 : 0.5 }]}><ActionCue active={!busy && !!snapshot.ready && snapshot.rule_proposal?.status !== 'PENDING'} style={styles.buttonText}>{busy ? 'Starting…' : 'Start game'}</ActionCue></Pressable>
         : <Text style={styles.status}>Waiting for the creator to start the game.</Text>}
       {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     </View>
@@ -107,7 +110,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   const last = [...deal.tricks].reverse().find(trick => trick.complete);
   const trick = reveal ? completedTrick : game.current_trick;
   function action(label: string, command: string, payload = {}) {
-    return <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => onAction(command, payload)} style={styles.button}><Text style={styles.buttonText}>{label}</Text></Pressable>;
+    return <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => onAction(command, payload)} style={styles.button}><ActionCue active={!busy} style={styles.buttonText}>{label}</ActionCue></Pressable>;
   }
   return <View style={styles.page}>
     <AppHeader title="Call Break" actions={<>{endControl}<Pressable accessibilityRole="button" accessibilityLabel="Back to room" onPress={onBack} style={styles.back}><Text style={styles.link}>Back to room</Text></Pressable></>} />

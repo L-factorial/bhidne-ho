@@ -18,3 +18,6 @@ class GameParticipation:
 
     def is_playing(self, room_id: str, user_id: str) -> bool:
         return any(source.is_playing(room_id, user_id) for source in self.sources)
+
+    def chat_blocked(self, room_id: str, user_id: str) -> bool:
+        return any(getattr(source, 'chat_blocked', source.is_playing)(room_id, user_id) for source in self.sources)

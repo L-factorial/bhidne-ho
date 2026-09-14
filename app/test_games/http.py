@@ -150,3 +150,15 @@ async def table_command(room_id: str, command: Literal["join-queue", "leave-queu
     response.headers["Cache-Control"] = "no-store"
     return await request.app.state.test_games.table_command(room_id, user.user_id, body.match_id, command,
         offer_id=body.offer_id, seat_id=body.seat_id, recipient=body.recipient)
+
+
+class RuleVote(JoinGame):
+    proposal_id: Annotated[str, Field(min_length=1, max_length=128)]
+    accept: Annotated[bool, Field(strict=True)]
+
+
+@router.post("/{room_id}/rule-vote")
+async def rule_vote(room_id: str, body: RuleVote, request: Request, response: Response,
+                    user: UserIdentity = Depends(current_user)):
+    response.headers["Cache-Control"] = "no-store"
+    return await request.app.state.test_games.vote_rules(room_id, user.user_id, body)

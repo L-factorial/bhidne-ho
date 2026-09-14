@@ -101,6 +101,8 @@ async def test_concurrent_save_start_and_failed_start_are_atomic(start_first):
     assert sum(isinstance(r, HTTPException) and r.status_code == 409 for r in results) == 1
     game = host.games['r']
     if not game.started:
+        from app.test_games.http import RuleVote
+        await host.vote_rules('r', 'b', RuleVote(match_id=mid, proposal_id=game.rule_proposal['id'], accept=True))
         # Defense in depth: corrupt an internal bankroll, then verify startup installs nothing.
         await host.table_command('r', 'a', mid, 'lock')
         game.flush_starting_chips = 0

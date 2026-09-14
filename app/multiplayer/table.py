@@ -120,6 +120,7 @@ class TableState:
         open_ = self.phase == 'OPEN'
         valid = policy.min_players <= count <= policy.max_players
         pending = self.pending()
+        rules_pending = bool(game.rule_proposal and game.rule_proposal['status'] == 'PENDING')
         occupied = [{'seat_id': (game.flush_seats[u] if game.game_type == 'flush' else i + 1), 'user_id': u}
                     for i, u in enumerate(seats) if u is not None]
         return {'table_id': self.table_id, 'phase': self.phase, **asdict(policy),
@@ -130,8 +131,8 @@ class TableState:
                 'queue_position': self.queue.index(user_id) + 1 if user_id in self.queue else None,
                 'can_join': open_ and not seated and count < policy.max_players,
                 'can_queue': self.phase != 'ENDED' and not seated and user_id not in self.queue,
-                'can_lock': policy.requires_explicit_lock and open_ and host and valid,
-                'can_start': host and valid and not pending and not self.releases and
+                'can_lock': policy.requires_explicit_lock and open_ and host and valid and not rules_pending,
+                'can_start': host and valid and not rules_pending and not pending and not self.releases and
                     (self.phase == 'LOCKED' if policy.requires_explicit_lock else open_),
                 'can_leave_seat': seated and self.phase in ('OPEN', 'LOCKED', 'COMPLETED', 'ENDED'),
                 'can_abandon_match': seated and self.phase == 'STARTED' and policy.supports_abandonment,

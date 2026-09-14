@@ -16,8 +16,8 @@ export function MarriageScoring({ snapshot, busy, error, onSave }: {
   const saved = snapshot.marriage?.public.scoring_rules || snapshot.marriage_scoring;
   const [draft, setDraft] = useState(saved);
   const savedKey = JSON.stringify(saved);
-  useEffect(() => setDraft(saved), [savedKey]);
-  const editable = snapshot.status === 'waiting' && !!snapshot.is_creator;
+  useEffect(() => setDraft(saved), [savedKey, snapshot.rule_proposal?.id, snapshot.rule_proposal?.status]);
+  const editable = snapshot.status === 'waiting' && !!snapshot.is_creator && snapshot.rule_proposal?.status !== 'PENDING';
   if (!draft) return <Text style={s.text}>Scoring rules are loading.</Text>;
   const valid = [...tables.flatMap(key => draft[key]), ...amounts.map(key => draft[key])].every(n => Number.isInteger(n) && n >= 0 && n <= 1000);
   const changed = JSON.stringify(draft) !== savedKey;
@@ -32,7 +32,7 @@ export function MarriageScoring({ snapshot, busy, error, onSave }: {
   }
   return <View testID="marriage-scoring-rules" style={s.section}>
     <Text style={s.heading}>Scoring rules</Text>
-    <Text style={s.text}>{editable ? 'House bonus is the default. Choose a preset or edit any value, then save before starting.' : 'The creator selects these rules before the round. They are locked during play.'}</Text>
+    <Text style={s.text}>{editable ? 'House bonus is the default. Choose a preset or edit any value, then propose the change for player approval.' : 'The creator selects these rules before the round. They are locked during play.'}</Text>
     {editable && <View style={s.row}>{Object.entries(snapshot.marriage_scoring_presets || {}).map(([key, rules]) =>
       <View key={key}>{button(key === 'house' ? 'House bonus (default)' : 'Simple points', () => setDraft(rules), JSON.stringify(draft) === JSON.stringify(rules))}</View>)}</View>}
     <Text style={s.text}>Totals for 1 / 2 / 3 copies or combinations</Text>
@@ -48,8 +48,8 @@ export function MarriageScoring({ snapshot, busy, error, onSave }: {
     {editable ? button(draft.maal_requires_seen ? 'Maal points: seen players only' : 'Maal points: all players', () => setDraft({ ...draft, maal_requires_seen: !draft.maal_requires_seen }))
       : <Text style={s.text}>Maal points: {draft.maal_requires_seen ? 'seen players only' : 'all players'}</Text>}
     <Text style={s.text}>The highest scoring combination is used. Marriage replaces its individual Maal points. The Tunnela bonus is additional; it uses shown groups or final holdings, not a declaration at deal time. Eligibility also applies to Man and Tunnela points.</Text>
-    {editable && <>{button('Save scoring rules', () => onSave(draft), false, !valid || !changed)}
-      <Text style={s.text}>{!valid ? 'Enter whole numbers from 0 to 1000.' : changed ? 'Unsaved changes' : 'Saved rules apply when the game starts.'}</Text></>}
+    {editable && <>{button('Propose scoring rules', () => onSave(draft), false, !valid || !changed)}
+      <Text style={s.text}>{!valid ? 'Enter whole numbers from 0 to 1000.' : changed ? 'Unsaved changes' : 'Rule changes apply only after every seated player accepts.'}</Text></>}
     {!!error && <Text accessibilityRole="alert" style={s.text}>{error}</Text>}
   </View>;
 }

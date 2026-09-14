@@ -32,8 +32,8 @@ async function api(route, user, body) {
     await one.getByLabel('Blind bet', {exact:true}).fill('10');
     await one.getByLabel('Personal bets before side-show', { exact: true }).fill('1');
     await one.getByLabel('Personal blind bets before show', { exact: true }).fill('1');
-    await one.getByRole('button', { name: 'Save Flush rules', exact: true }).click();
-    await one.getByText('Everyone can review these saved rules. They lock when the creator starts.', { exact: true }).waitFor();
+    await one.getByRole('button', { name: 'Propose Flush rules', exact: true }).click();
+    await one.getByText('Edits need every seated player’s approval. One rejection keeps the current rules.', { exact: true }).waitFor();
     const root = `/test-games/${room.room_id}`;
     const saved = await api(root, users[0]);
     assert.equal(saved.flush_settings.rules_revision, 1);
@@ -42,7 +42,7 @@ async function api(route, user, body) {
     await two.getByRole('button', { name: 'View table', exact: true }).click();
     await two.getByRole('button', { name: 'Join table', exact: true }).click();
     await two.getByTestId('flush-table').waitFor();
-    assert.equal(await two.getByRole('button', { name: 'Save Flush rules', exact: true }).count(), 0);
+    assert.equal(await two.getByRole('button', { name: 'Propose Flush rules', exact: true }).count(), 0);
     await two.getByRole('button', { name: 'Rules', exact: true }).click();
     assert.equal(await two.getByLabel('Personal bets before side-show', { exact: true }).inputValue(), '1');
     await two.getByRole('button', { name: 'Close Flush rules', exact: true }).click();

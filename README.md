@@ -21,6 +21,7 @@ the shared adapter handles full gameplay; production runtime integration remains
 
 - [Shared command infrastructure](docs/shared-game-runtime.md): common runtime/client ownership and how a new game inherits reliable commands; implemented for Call Break and Echo.
 
+- [Chat and rule approval](docs/chat-and-rule-approval.md): chat overlays, between-deal access, unanimous player votes and Flush rule details.
 - [Table seating and rotation](docs/table-seating.md): FIFO waitlists, accepted replacement offers, Call Break Leave Seat, and explicit Marriage/Flush lock/start.
 - [Room and game lifecycle](docs/room-game-lifecycle.md): navigation, explicit departure, preserved membership, reconnect, per-game policies, and audit results.
 - [Reliable game actions](docs/reliable-game-actions.md): command acknowledgments, safe retries across disconnects, private snapshot recovery, protocol limits, and verification.

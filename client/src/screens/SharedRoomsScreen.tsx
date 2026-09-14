@@ -1,3 +1,6 @@
+import { InvitationPreview } from '../components/InvitationPreview';
+import { ShareLink } from '../components/ShareLink';
+import type { Invitation } from '../multiplayer/invitations';
 import { AppHeader, HeaderProfileContext } from '../components/AppHeader';
 import { HeaderAction } from '../components/HeaderAction';
 import { GameIcon } from '../components/BrandArt';
@@ -10,14 +13,13 @@ import { CallBreakTableScreen } from './CallBreakTableScreen';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { ProfileScreen } from './ProfileScreen';
 import { usePlayerPhrases } from '../multiplayer/usePlayerPhrases';
-import { RoomChat } from '../components/RoomChat';
 import { RoomGameControl } from '../components/RoomGameControl';
 
 import { apiUrl, request } from '../multiplayer/api';
 import type { Room } from '../multiplayer/session';
 import { useRoomSession } from '../multiplayer/useRoomSession';
 
-export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
+export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { onExit: () => void; invitation?: Invitation | null; dismissInvitation?: () => void }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
@@ -30,6 +32,7 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
   const [testingOpen, setTestingOpen] = useState(false);
   const [preview, setPreview] = useState(false);
   const [previewSize, setPreviewSize] = useState<4 | 5>(4);
+  const [linkedMatch, setLinkedMatch] = useState<string>();
   const [guestName, setGuestName] = useState('');
   const shared = useRoomSession();
   const { session, rooms, room, game, setGame, expired } = shared;
@@ -83,15 +86,21 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
         <Pressable accessibilityRole="button" disabled={busy} onPress={shared.cancelLeave}><Text style={styles.subtitle}>Stay in room</Text></Pressable>
       </View>}
       {room && !expired && shared.status !== 'connected'  && <Text accessibilityLiveRegion="polite" style={styles.subtitle}>Reconnecting to your room…</Text>}
-      {room ? <>
+      {invitation && session ? <InvitationPreview key={`${invitation.roomId}:${invitation.matchId}`} invitation={invitation} session={session}
+        dismiss={() => dismissInvitation?.()} join={async (target, gameType, matchId) => {
+          const joined = await shared.joinRoom(target, gameType);
+          if (joined) { setLinkedMatch(matchId); dismissInvitation?.(); }
+          return joined;
+        }} /> : room ? <>
         <View style={styles.hero}>
           <Text style={styles.eyebrow}>YOUR ROOM</Text>
+          <ShareLink roomId={room.room_id} />
           <Text accessibilityRole="header" style={[styles.title, !wide && styles.mobileTitle]}>{room.name}</Text>
           <Text style={styles.subtitle}>{roomMembers.length} {roomMembers.length === 1 ? 'player' : 'players'} in the room · Invite friends to take a seat.</Text>
         </View>
         <View style={[styles.columns, wide && styles.wideColumns]}>
           <View style={styles.mainColumn}>
-            {session && <RoomGameControl personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={current?.connected_members || []} roomMembers={roomMembers} connectionMessage={expired ? shared.error : undefined}
+            {session && <RoomGameControl requestedMatchId={linkedMatch} personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={current?.connected_members || []} roomMembers={roomMembers} connectionMessage={expired ? shared.error : undefined}
               gameType={selectedGame} createContent={<>
             <Text style={styles.eyebrowDark}>CHOOSE A GAME</Text>
             <View style={styles.gameTabs}>
@@ -109,7 +118,6 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
               </>} />}
           </View>
           <View style={[styles.sideColumn, wide && styles.fixedSide]}>
-            {session && <RoomChat key={room.room_id} roomId={room.room_id} session={session} connected={shared.status === 'connected' && !expired} />}
             <View style={styles.panel}>
               <Pressable accessibilityRole="button" accessibilityLabel="Invite a friend" aria-expanded={inviteOpen} accessibilityState={{ expanded: inviteOpen }} onPress={() => setInviteOpen(value => !value)} style={styles.sectionToggle}>
                 <Text style={styles.sectionTitle}>Invite a friend</Text><Text style={styles.sectionTitle}>{inviteOpen ? '-' : '+'}</Text>

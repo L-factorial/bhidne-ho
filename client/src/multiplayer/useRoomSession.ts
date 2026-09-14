@@ -79,13 +79,15 @@ export function useRoomSession() {
     };
   }, [session, room?.room_id, expired]);
 
-  async function joinRoom(target: Room) {
-    if (!session || expired) return;
+  async function joinRoom(target: Room, selectedGame: string | null = null) {
+    if (!session || expired) return false;
     try {
       await request(`/rooms/${encodeURIComponent(target.room_id)}/enter`, session, {});
-      setStatus('connecting'); setRoom(target); setGame(null); setLeaveGameRequired(null); setError('');
+      setStatus('connecting'); setRoom(target); setGame(selectedGame); setLeaveGameRequired(null); setError('');
+      return true;
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Could not enter the room.');
+      return false;
     }
   }
   async function leaveRoom() {

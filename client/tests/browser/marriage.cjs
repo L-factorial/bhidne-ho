@@ -40,8 +40,8 @@ const label = c => c.card_type === 'man' ? `Man · ${Number(c.card_id.slice(-1))
     await one.getByRole('button', { name: 'Rules', exact: true }).click();
     await one.getByRole('button', { name: 'Simple points', exact: true }).click();
     await one.getByLabel('Loser payment: Maal seen', { exact: true }).fill('7');
-    await one.getByRole('button', { name: 'Save scoring rules', exact: true }).click();
-    await one.getByText('Saved rules apply when the game starts.', { exact: true }).waitFor();
+    await one.getByRole('button', { name: 'Propose scoring rules', exact: true }).click();
+    await one.getByText('Rule changes apply only after every seated player accepts.', { exact: true }).waitFor();
     await one.getByRole('button', { name: 'Close details', exact: true }).click();
     await one.getByRole('button', { name: 'Back to room', exact: true }).click();
     await two.getByRole('button', { name: 'View game', exact: true }).click();
@@ -52,7 +52,7 @@ const label = c => c.card_type === 'man' ? `Man · ${Number(c.card_id.slice(-1))
     await two.getByTestId('marriage-table').waitFor();
     await two.getByRole('button', { name: 'Rules', exact: true }).click();
     await two.getByTestId('marriage-scoring-rules').waitFor();
-    assert.equal(await two.getByRole('button', { name: 'Save scoring rules', exact: true }).count(), 0);
+    assert.equal(await two.getByRole('button', { name: 'Propose scoring rules', exact: true }).count(), 0);
     const saved = await api(`/test-games/${room.room_id}`, users[1]);
     assert.equal(saved.marriage_scoring.seen_payment, 7);
     assert.deepEqual(saved.marriage_scoring.tiplu, [3, 6, 9]);

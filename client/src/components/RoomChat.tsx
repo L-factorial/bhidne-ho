@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePong } from '../notifications/usePong';
 import { ApiError, request } from '../multiplayer/api';
@@ -8,7 +8,7 @@ import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 type Message = { id: string; sender_id: string; sender_name: string; text: string; sent_at: number };
 
-export function RoomChat({ roomId, session, connected }: { roomId: string; session: Session; connected: boolean }) {
+export function useRoomChat({ roomId, session, connected }: { roomId: string; session: Session; connected: boolean }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const [open, setOpen] = useState(false);
@@ -17,20 +17,13 @@ export function RoomChat({ roomId, session, connected }: { roomId: string; sessi
   const [muted, setMuted] = useState(false);
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = useWindowDimensions();
-  const card = useRef<View>(null);
-  const [panelHeight, setPanelHeight] = useState(320);
+  const panelHeight = Math.max(240, Math.min(600, screenHeight - insets.top - insets.bottom - 80));
   const followLatest = useRef(true);
-  function fitChat() {
-    card.current?.measureInWindow((_x, y) => {
-      setPanelHeight(Math.max(260, screenHeight - Math.max(0, y) - Math.max(insets.bottom, 20) - 100));
-    });
-  }
-  useEffect(() => { if (open) fitChat(); }, [screenHeight, insets.bottom, open]);
   const { play, prepare } = usePong();
   const notification = useRef({ open, muted, play });
   notification.current = { open, muted, play };
   const previousIds = useRef<Set<string> | null>(null);
-  function openChat() { prepare(); setUnread(0); followLatest.current = true; fitChat(); setOpen(true); }
+  function openChat() { prepare(); setUnread(0); followLatest.current = true; setOpen(true); }
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState('');
@@ -82,13 +75,17 @@ export function RoomChat({ roomId, session, connected }: { roomId: string; sessi
       if (!signal?.aborted) setError(failure instanceof Error ? failure.message : 'Could not send message.');
     } finally { sending.current = false; setBusy(false); }
   }
-  return <View ref={card} style={[styles.card, unread > 0 && { borderWidth: 2, borderColor: colors.accent }]}>
+  return <View style={[styles.card, unread > 0 && { borderWidth: 2, borderColor: colors.accent }]}>
     <Pressable accessibilityRole="button" accessibilityLabel="Room chat" aria-expanded={open} accessibilityState={{ expanded: open }} disabled={blocked} onPress={() => { if (open) setOpen(false); else openChat(); }} style={styles.toggle}>
       <Text style={styles.heading}>Room chat</Text><Text style={styles.heading}>{open ? '-' : unread ? `${unread} new` : '+'}</Text>
     </Pressable>
     {blocked && <Text style={styles.note}>Chat is paused while you are playing.</Text>}
     {!blocked && unread > 0 && <Text accessibilityLiveRegion="polite" style={styles.note}>New room banter! Tap to open chat.</Text>}
-    {open && !blocked && <KeyboardAvoidingView testID="room-chat-window" style={[styles.chatBody, { height: panelHeight }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <Modal transparent visible={open && !blocked} onRequestClose={() => setOpen(false)} animationType="fade">
+      <View style={{ flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', padding: 20 }}>
+      <View accessibilityViewIsModal style={{ width: '100%', maxWidth: 600, alignSelf: 'center', backgroundColor: colors.surface, borderRadius: 16, padding: 16 }}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Close chat" onPress={() => setOpen(false)} style={styles.toggle}><Text style={styles.heading}>Room chat</Text><Text style={styles.heading}>Close ×</Text></Pressable>
+      <KeyboardAvoidingView testID="room-chat-window" style={[styles.chatBody, { height: panelHeight }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable accessibilityRole="button" accessibilityLabel={muted ? 'Unmute chat notifications' : 'Mute chat notifications'} onPress={() => { prepare(); setMuted(value => !value); }}><Text style={styles.note}>{muted ? 'Chat sound off' : 'Chat sound on'}</Text></Pressable>
       <ScrollView ref={scroll} testID="room-chat-history" nestedScrollEnabled style={{ flex: 1, minHeight: 0 }} scrollEventThrottle={16}
         onScroll={({ nativeEvent: { contentOffset, contentSize, layoutMeasurement } }) => { followLatest.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 40; }}
@@ -106,7 +103,9 @@ export function RoomChat({ roomId, session, connected }: { roomId: string; sessi
       <Pressable accessibilityRole="button" accessibilityLabel="Send chat message" disabled={busy || !connected || !draft.trim() || length > 500} accessibilityState={{ disabled: busy || !connected || !draft.trim() || length > 500 }} onPress={() => void send()} style={[styles.send, (busy || !connected || !draft.trim() || length > 500) && { opacity: 0.5 }]}>
         <Text style={styles.sendText}>{busy ? 'Sending...' : 'Send'}</Text>
       </Pressable>
-    </KeyboardAvoidingView>}
+    </KeyboardAvoidingView>
+      </View></View>
+    </Modal>
   </View>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({

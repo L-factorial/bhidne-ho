@@ -1,3 +1,4 @@
+import { ActionCue } from './ActionCue';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { fonts, useTheme } from '../theme';
@@ -23,7 +24,7 @@ export function TableControls({ table, members, userId, busy, act, start, format
   const button = (label: string, action: () => void, disabled = false) => <Pressable accessibilityRole="button"
     accessibilityLabel={label} disabled={busy || disabled} onPress={action}
     style={{ padding: 10, minHeight: 44, justifyContent: 'center', opacity: busy || disabled ? 0.45 : 1 }}>
-    <Text style={{ color: colors.accent, fontFamily: fonts.medium }}>{label}</Text>
+    {['Lock game', 'Start game'].includes(label) ? <ActionCue active={!busy && !disabled} style={{ color: colors.accent, fontFamily: fonts.medium }}>{label}</ActionCue> : <Text style={{ color: colors.accent, fontFamily: fonts.medium }}>{label}</Text>}
   </Pressable>;
   return <View testID="table-lifecycle" style={{ backgroundColor: colors.surface, padding: 8, gap: 4 }}>
     <Text style={{ color: colors.textMuted, fontFamily: fonts.body }}>

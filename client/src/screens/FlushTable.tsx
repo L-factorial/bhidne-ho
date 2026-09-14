@@ -1,3 +1,4 @@
+import { ActionCue } from '../components/ActionCue';
 import { AppHeader } from '../components/AppHeader';
 import { type ReactNode, useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
@@ -54,7 +55,8 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onAction, o
     const saved = { ...settings.rules, starting_chips: settings.starting_chips };
     if (!dirty || Object.entries(saved).every(([key, value]) => String(draft[key]) === String(value))) reload();
   }, [settings.rules_revision]);
-  const editable = snapshot.is_creator && !settings.locked && !busy;
+  const editable = snapshot.is_creator && !settings.locked && !busy && snapshot.rule_proposal?.status !== 'PENDING';
+  useEffect(() => { if (snapshot.rule_proposal) reload(); }, [snapshot.rule_proposal?.id, snapshot.rule_proposal?.status]);
   const shownRules = settings.locked ? { ...settings.rules, starting_chips: settings.starting_chips } : draft;
   function edit(key: string, value: string | boolean) { setDraft(v => ({ ...v, [key]: value })); setDirty(true); setLocalError(''); }
   function save() {
@@ -93,9 +95,10 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onAction, o
   const name = (id: string) => snapshot.players?.find(p => String(p.player_id) === id)?.display_name || `Player ${id}`;
   const can = (kind: string) => !busy && snapshot.status === 'playing' && !!mine?.actions.kinds.includes(kind);
   const button = (label: string, action: () => void, disabled = false) => <Pressable accessibilityRole="button" accessibilityLabel={label}
-    disabled={disabled} accessibilityState={{ disabled }} onPress={action} style={[s.button, disabled && { opacity: 0.45 }]}><Text style={s.text}>{label}</Text></Pressable>;
+    disabled={disabled} accessibilityState={{ disabled }} onPress={action} style={[s.button, disabled && { opacity: 0.45 }]}>{['Deal cards', 'Cut in half', 'Skip cut'].includes(label) ? <ActionCue active={!disabled && !busy} style={s.text}>{label}</ActionCue> : <Text style={s.text}>{label}</Text>}</Pressable>;
   const rulesContent = <>
       <Text style={s.title}>{settings.locked ? 'Rules locked for this game' : 'Rules before starting'}</Text>
+      <Text style={s.text}>Every player pays the boot each hand (0 disables it). There is no fixed raise cap; you cannot bet more than your chips.</Text>
       <Text style={s.text}>You can see your cards on your turn without prior bets. Side-show requires the configured number of completed personal bets (blind or seen), excluding boot. Bet the minimum or double your current blind or seen minimum to raise. Blind bets set the seen minimum using the multiplier; seen bets set the blind minimum by dividing and rounding up. Show always requires exactly two active players. A side-show request costs one seen bet, even if declined; only the two participants can see the compared cards.</Text>
       {stale && dirty && !settings.locked && <Text accessibilityRole="alert" style={s.error}>Saved rules changed. Reload before editing or starting.</Text>}
       {(['starting_chips', ...Object.keys(labels)] as (keyof FlushRules | 'starting_chips')[]).map(key => {
@@ -107,8 +110,8 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onAction, o
             : <TextInput accessibilityLabel={label} value={String(value)} editable={!!editable && key !== 'minimum_players' && key !== 'maximum_players'} keyboardType="number-pad" onChangeText={v => edit(key, v)} style={s.input} />}
         </View>;
       })}
-      {!settings.locked && snapshot.is_creator && <View style={s.row}>{button('Save Flush rules', save, busy || !dirty || stale)}{button('Reload saved rules', reload, busy)}</View>}
-      <Text style={s.text}>{settings.locked ? 'New rules can be chosen for the next game.' : dirty ? 'Save and review the saved rules before starting.' : 'Everyone can review these saved rules. They lock when the creator starts.'}</Text>
+      {!settings.locked && snapshot.is_creator && <View style={s.row}>{button('Propose Flush rules', save, busy || !dirty || stale || snapshot.rule_proposal?.status === 'PENDING')}{button('Reload saved rules', reload, busy)}</View>}
+      <Text style={s.text}>{settings.locked ? 'New rules can be chosen for the next game.' : dirty ? 'Propose these changes for approval before starting.' : 'Edits need every seated player’s approval. One rejection keeps the current rules.'}</Text>
 
       {!!(localError || error) && <Text accessibilityRole="alert" style={s.error}>{localError || error}</Text>}
   </>;
@@ -190,7 +193,7 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onAction, o
     {pokeOpen && <PokeComposer recipient={null} connected={social.connected} phrases={social.phrases} onSave={social.save}
       onSend={social.send} onClose={() => setPokeOpen(false)} />}
     <Modal transparent visible={!wide && rulesOpen} onRequestClose={() => setRulesOpen(false)}>
-      <View style={s.backdrop}><View style={s.modal} accessibilityViewIsModal><View style={s.row}><Text style={s.title}>Rules</Text>{button('Close Flush rules', () => setRulesOpen(false))}</View>
+      <View style={s.backdrop}><View style={s.modal} accessibilityViewIsModal><View style={s.row}><Text style={s.title}>Rules</Text>{button('Close Flush rules', () => setRulesOpen(false))}</View><Text style={s.text}>Boot is paid by every player each hand; 0 disables it. Bets have no fixed raise cap, but cannot exceed your chips. Side-show counts each player’s own bets.</Text>
       <ScrollView testID="flush-rules" contentContainerStyle={{ gap: 12 }}>
         {rulesContent}
       </ScrollView></View></View>

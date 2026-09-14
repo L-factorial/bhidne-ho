@@ -26,8 +26,8 @@ class RoomChatService:
     async def history(self, room_id, user_id):
         if user_id not in await self.rooms.members(room_id):
             raise ChatAccessDenied("Connect to this room to use chat.")
-        if self.participation.is_playing(room_id, user_id):
-            raise ChatAccessDenied("Chat is paused while you are playing. Return after the game ends.")
+        if getattr(self.participation, 'chat_blocked', self.participation.is_playing)(room_id, user_id):
+            raise ChatAccessDenied("Chat is paused while you are playing. Chat reopens at the next permitted break.")
         return list(self.messages.get(room_id, []))
 
     async def send(self, room_id, user_id, text):

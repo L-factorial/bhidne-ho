@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { fonts, useThemedStyles, type ThemeColors } from '../theme';
@@ -10,7 +10,8 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false }: {
   const [tab, setTab] = useState<'stats' | 'rules' | null>(null);
   const selectedTab = tab ?? (sidebar ? 'stats' : null);
   const [draft, setDraft] = useState(snapshot.settings);
-  const editable = snapshot.is_creator && snapshot.status === 'waiting';
+  useEffect(() => setDraft(snapshot.settings), [JSON.stringify(snapshot.settings), snapshot.rule_proposal?.id, snapshot.rule_proposal?.status]);
+  const editable = snapshot.is_creator && snapshot.status === 'waiting' && snapshot.rule_proposal?.status !== 'PENDING';
   const settings = editable ? draft || snapshot.settings : snapshot.settings;
   return <View testID={sidebar ? "game-details-sidebar" : "game-details-inline"} style={[styles.panel, sidebar && styles.sidebar]}>
     <View style={styles.row} accessibilityRole={sidebar ? 'tablist' : undefined}>{(['stats', 'rules'] as const).map(value => <Pressable key={value} accessibilityRole={sidebar ? 'tab' : 'button'}
@@ -80,7 +81,7 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false }: {
           </View>) : settings.payments.slice(0, (snapshot.capacity || 4) - 1).map((amount, i) =>
             <Text key={i} style={styles.text}>{['2nd', '3rd', '4th', '5th'][i]} place → 1st: {amount} units</Text>)}
           <Text style={styles.text}>Zero means no bet. Amounts record your agreement; no money is transferred. Tied placements require agreement between players.</Text>
-          {editable && <Pressable accessibilityRole="button" disabled={busy} onPress={() => onSave(settings)} style={styles.button}><Text style={styles.label}>{busy ? 'Saving…' : 'Save rules & bets'}</Text></Pressable>}
+          {editable && <Pressable accessibilityRole="button" disabled={busy} onPress={() => onSave(settings)} style={styles.button}><Text style={styles.label}>{busy ? 'Proposing…' : 'Propose rules & bets'}</Text></Pressable>}
         </>}
       </>}
     </ScrollView>}

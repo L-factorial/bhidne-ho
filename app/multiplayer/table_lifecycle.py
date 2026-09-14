@@ -13,6 +13,7 @@ from app.multiplayer.table import GameTablePolicy, reject
 
 class GameTableLifecycle:
     async def _advance_table(self, game):
+        self._sync_proposal(game)
         game.table.advance(game, await self.rooms.members(game.room_id))
         if game.table.pending() and game.table.table_id not in self._offer_tasks:
             self._offer_tasks[game.table.table_id] = asyncio.create_task(self._expire_offers(game))
@@ -124,6 +125,8 @@ class GameTableLifecycle:
                 elif command == 'leave-queue':
                     self._remove_from_queue(game, user_id)
                 elif command == 'lock':
+                    if game.rule_proposal and game.rule_proposal['status'] == 'PENDING':
+                        reject('RULE_APPROVAL_PENDING', 'Resolve the proposed rules before locking.')
                     if not host:
                         raise HTTPException(403, 'Only the table host can lock the roster.')
                     if not policy.requires_explicit_lock:

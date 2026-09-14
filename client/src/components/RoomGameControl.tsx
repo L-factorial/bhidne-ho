@@ -1,3 +1,6 @@
+import { ShareLink } from './ShareLink';
+import { useRoomChat } from './RoomChat';
+import { RuleProposal } from './RuleProposal';
 import { TableControls } from './TableControls';
 import { AppHeader } from './AppHeader';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
@@ -16,12 +19,14 @@ import { FlushTable } from '../screens/FlushTable';
 import { MarriageTable } from '../screens/MarriageTable';
 
 
-export function RoomGameControl({ roomId, apiUrl, token, connected, members, roomMembers = members, connectionMessage, userId, pokes, personal, createContent, creationEnabled = true, gameType = 'callbreak' }: {
+export function RoomGameControl({ requestedMatchId, roomId, apiUrl, token, connected, members, roomMembers = members, connectionMessage, userId, pokes, personal, createContent, creationEnabled = true, gameType = 'callbreak' }: {
+  requestedMatchId?: string;
   gameType?: 'callbreak' | 'marriage' | 'flush';
   createContent?: ReactNode; creationEnabled?: boolean;
   userId: string; pokes: RoomPoke[]; personal: ReturnType<typeof usePlayerPhrases>;
   roomId: string; apiUrl: string; token: string; connected: boolean; members: string[]; roomMembers?: string[]; connectionMessage?: string;
 }) {
+  const chat = useRoomChat({ roomId, session: { token, user_id: userId }, connected });
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
@@ -63,6 +68,12 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, roo
       enteredMatch.current = snapshot.match_id || null; setLive(true); setOpen(true);
     }
   }, [snapshot?.match_id, snapshot?.ready, snapshot?.game, snapshot?.your_player_id]);
+  const openedInvitation = useRef<string | null>(null);
+  useEffect(() => {
+    if (requestedMatchId && snapshot?.match_id === requestedMatchId && openedInvitation.current !== requestedMatchId) {
+      openedInvitation.current = requestedMatchId; setLive(true); setOpen(true);
+    }
+  }, [requestedMatchId, snapshot?.match_id]);
   async function api(suffix = '', body?: object, signal?: AbortSignal): Promise<Snapshot> {
     const controller = new AbortController();
     requests.current.add(controller);
@@ -177,6 +188,7 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, roo
     start={() => lobbyAction('/start', { play_mode: 'manual', rules_revision: snapshot.flush_settings?.rules_revision })} /> : null;
   const leaveControl = !snapshot?.table?.current_user.can_leave_seat && !snapshot?.table?.current_user.can_abandon_match && snapshot?.your_player_id
     ? <Pressable accessibilityRole="button" accessibilityLabel={`Leave ${noun}`} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => void lobbyAction('/leave')} style={styles.choice}><Text style={[styles.text, live && open && { color: colors.text }]}>{`Leave ${noun}`}</Text></Pressable> : null;
+  const ruleReview = snapshot?.rule_proposal && <RuleProposal key={snapshot.rule_proposal.id} proposal={snapshot.rule_proposal} busy={busy} vote={accept => void lobbyAction('/rule-vote', { proposal_id: snapshot.rule_proposal!.id, accept })} />;
   return <>
     {!open && lifecycleControl}
     {!open && snapshot?.match_id && snapshot.can_join && !snapshot.your_player_id && !snapshot.is_creator && dismissedInvitation !== snapshot.match_id && <View testID="game-created-notice" style={styles.invitation}>
@@ -187,6 +199,7 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, roo
         <Pressable accessibilityRole="button" accessibilityLabel={`Dismiss ${noun} notification`} onPress={() => setDismissedInvitation(snapshot.match_id!)} style={styles.choice}><Text style={styles.text}>Dismiss</Text></Pressable>
       </View>
     </View>}
+    {!open && <>{chat}{ruleReview}{snapshot?.match_id && snapshot.status !== 'ended' && <ShareLink roomId={roomId} matchId={snapshot.match_id} />}</>}
     {collapsed && <View style={styles.returnPanel}>
       <Animated.View style={{ opacity: notification.opacity }}>
         <Pressable accessibilityRole="button" accessibilityLabel={`Return to ${noun}`} disabled={busy} onPress={() => void returnToGame()} style={[styles.button, !!notification.notice && styles.notified]}>
@@ -252,6 +265,9 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, roo
         </View>}
         {(!connected || !synced) && <Text accessibilityRole="alert" style={styles.connectionNotice}>{connectionMessage || (!connected ? 'Reconnecting… Your seat is saved.' : 'Updating game…')}</Text>}
         {!!actionNotice && <Text accessibilityLiveRegion="polite" style={styles.connectionNotice}>{actionNotice}</Text>}
+        {chat}
+        {ruleReview}
+        {snapshot.match_id && snapshot.status !== 'ended' && <ShareLink roomId={roomId} matchId={snapshot.match_id} />}
         {lifecycleControl}
         {snapshot.game_type === 'callbreak' && leaveControl}
         {snapshot.status === 'ended' ? <View style={styles.body}><AppHeader title={gameName} />

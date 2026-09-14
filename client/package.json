@@ -9,6 +9,7 @@
     "@expo/vector-icons": "^15.0.2",
     "expo": "~57.0.21",
     "expo-audio": "~57.0.4",
+    "expo-clipboard": "~57.0.2",
     "expo-font": "~57.0.3",
     "expo-linear-gradient": "~57.0.1",
     "expo-status-bar": "~57.0.1",

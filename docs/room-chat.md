@@ -1,5 +1,8 @@
 # Ephemeral room chat and participation
 
+See [chat and rule approval](chat-and-rule-approval.md) for the current overlay
+and Call Break between-deal exception; it supersedes the older UI/access details below.
+
 Room chat is a shared multiplayer feature for playful room banter. It is separate
 from game commands, engine events, score history, and personal poke phrases.
 Messages remain in bounded memory, including after future database adoption.

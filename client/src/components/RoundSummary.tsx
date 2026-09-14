@@ -1,3 +1,4 @@
+import { ActionCue } from './ActionCue';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
@@ -21,7 +22,7 @@ export function RoundSummary({ snapshot, busy, error, onContinue, onBack, onNewG
     </View>)}
     {!!error && <Text accessibilityRole="alert" style={styles.note}>{error}</Text>}
     {final && snapshot.table?.requires_replacement ? <Text style={styles.note}>Keep your seat for the next match, or choose Leave Seat above. The host can prepare the next match when every seat is filled.</Text> : (final || snapshot.round_review?.can_continue) ? <Pressable accessibilityRole="button" disabled={busy} onPress={final ? onNewGame : onContinue}
-      style={[styles.button, busy && { opacity: 0.5 }]}><Text style={styles.name}>{final ? 'Start a new game' : 'Start next deal'}</Text></Pressable>
+      style={[styles.button, busy && { opacity: 0.5 }]}><ActionCue active={!busy} style={styles.name}>{final ? 'Start a new game' : 'Start next deal'}</ActionCue></Pressable>
       : <Text style={styles.note}>Waiting for the creator to start the next deal.</Text>}
     <Pressable accessibilityRole="button" onPress={onBack} style={styles.back}><Text style={styles.note}>Back to room</Text></Pressable>
   </ScrollView>;

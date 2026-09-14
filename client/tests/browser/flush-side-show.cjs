@@ -26,8 +26,8 @@ async function api(route, user, body) {
     await owner.getByLabel('Blind bet', {exact:true}).fill('10');
     await owner.getByLabel('Personal bets before side-show', {exact:true}).fill('0');
     await owner.getByRole('button', {name:'Allow private side-show: No',exact:true}).click();
-    await owner.getByRole('button', {name:'Save Flush rules',exact:true}).click();
-    await owner.getByText('Everyone can review these saved rules. They lock when the creator starts.', {exact:true}).waitFor();
+    await owner.getByRole('button', {name:'Propose Flush rules',exact:true}).click();
+    await owner.getByText('Edits need every seated player’s approval. One rejection keeps the current rules.', {exact:true}).waitFor();
     await owner.getByRole('button', {name:'Close Flush rules',exact:true}).click();
     for (const page of pages.slice(1)) {
       await page.getByRole('button', {name:'View table',exact:true}).click();

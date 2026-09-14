@@ -357,6 +357,9 @@ across a score review. It uses mocked room data and requires the web dev server.
 
 ### Room group chat
 
+See [chat and rule approval](../docs/chat-and-rule-approval.md) for the current
+chat overlay, between-deal access and unanimous rule-change workflow.
+
 Backend architecture and integration instructions are documented in
 [room chat and participation](../docs/room-chat.md). Chat policy and storage live
 in `app/multiplayer/room_chat.py`; game hosts supply the common participation
@@ -371,13 +374,13 @@ the product scope.
 The Room chat card starts collapsed and works independently of the selected game.
 Opening it expands an inline panel sized to the remaining viewport (with a 260px
 minimum body on short screens). Message history scrolls inside the fixed panel;
-the composer stays visible. Tap Room chat again to collapse it and keep the draft.
+the composer stays visible. Use Close chat to dismiss the overlay and keep the draft.
 New messages follow the bottom only when you are already near the latest message.
 New messages from others add an unread count and highlighted nudge to the closed
 card, with a short ping where browser audio is permitted. Chat has a sound toggle.
 History loaded on entry does not ping, and opening chat clears the unread count.
-Seated players cannot read or send chat while their game is active (including
-between deals). The server enforces this; chat returns after the game ends.
+Seated players cannot read or send chat during active play. Call Break chat
+reopens between deals and closes when the next deal starts. The server enforces this.
 Room members who are not playing can still chat.
 
 Before start, Leave game releases a seat without leaving the room. If the creator
@@ -439,3 +442,38 @@ omit the name, so older unnamed profiles retain fallback labels.
 
 Run `client/tests/browser/guest-name.cjs` with the backend on 8000 and Expo on 8081
 to check required entry, profile storage and refresh recovery.
+
+### Invitation links and action cues
+
+Room and game views offer **Copy link** and **Share link**. Web sharing uses the
+browser share sheet where available and otherwise copies the link. Native builds
+use the OS share sheet and Expo Clipboard. No player token is included in a link.
+
+Links use query parameters on the deployed web root, so static hosting requires
+no custom route rewrite:
+
+- `?room=<room-id>` opens a preview and waits for **Join room**.
+- `?room=<room-id>&match=<match-id>` validates the game, enters its parent room,
+  and opens the table. Joining a seat remains an explicit player action.
+
+New guests enter their display name first; the invitation remains pending through
+sign-in. Missing rooms and obsolete game links show an error without registering
+a room membership. Once handled/dismissed, invitation parameters are removed from
+the browser address so refresh cannot silently re-enter a room after departure.
+
+Native builds also recognize `bhidneho://invite?room=...&match=...`. Shared links
+use HTTPS so recipients can open them without installing the app. Native share
+links default to `https://bhidne-ho.lfactorial.com/`; set `EXPO_PUBLIC_WEB_URL` for
+another web deployment. Adding the scheme/clipboard module requires rebuilding
+installed native binaries. Native OS share-sheet/device behavior has not been
+manually tested in this environment.
+
+Available Lock, Start, Deal, Cut/Skip, Accept hand, Request redeal and Start next
+deal controls use the shared slow pulse, respect Reduce Motion and stop when
+disabled. Redeal eligibility still comes from the game engine.
+
+Verification: invitation unit tests cover parsing, invalid links, deployment paths
+and stripping credentials. `tests/browser/invitations.cjs` verifies real room/game
+membership, copying/sharing, stale-link rejection and refresh after departure.
+`tests/browser/action-cues.cjs` checks actual changing opacity, disabled actions
+and Reduce Motion against real Flush play.
