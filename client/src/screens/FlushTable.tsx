@@ -2,7 +2,6 @@ import { BrandIcon } from '../components/BrandArt';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { MobileFlushHand } from '../components/MobileFlushHand';
 import { ActionCue } from '../components/ActionCue';
-import { AppHeader } from '../components/AppHeader';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { fonts, useThemedStyles, type ThemeColors } from '../theme';
@@ -31,8 +30,9 @@ const choices = {
   tie_policy: [['requester_loses', 'Show requester loses'], ['split', 'Split pot']],
 };
 
-export function FlushTable({ snapshot, busy, error, onSave, onStart, onAction, onBack, onNewGame, endControl, lobbyControl, social, onFormationBlocked, tableControl }: {
+export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onAction, onBack, onNewGame, endControl, lobbyControl, social, onFormationBlocked, tableControl }: {
   tableControl?: ReactNode;
+  onLock: () => void;
   onFormationBlocked?: (blocked: boolean) => void;
   social: { connected: boolean; phrases: PlayerPhrase[]; save: (text: string) => Promise<void>; send: (text: string) => Promise<void> };
   snapshot: RoomSnapshot; busy: boolean; error: string; endControl?: ReactNode; lobbyControl?: ReactNode;
@@ -44,6 +44,7 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onAction, o
   const width = useWindowDimensions().width;
   const wide = width >= 1100;
   const mobile = width < 900;
+  const showFormation = mobile && !!snapshot.table && (['OPEN', 'LOCKED', 'COMPLETED'].includes(snapshot.table.phase) || !!snapshot.roster_open);
   const [menuOpen, setMenuOpen] = useState(false);
   const [handOpen, setHandOpen] = useState(false);
   const submitted = useRef(false);
@@ -92,6 +93,18 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onAction, o
     // Keep drafts on rejection. A successful save publishes a new rules revision.
   }
   const pub = snapshot.flush?.public, mine = snapshot.flush?.private;
+  const activeGame = snapshot.status === 'playing' && !!pub && pub.status !== 'finished';
+  const locking = snapshot.table?.phase === 'OPEN';
+  const starting = snapshot.table?.phase === 'LOCKED';
+  const formationDisabled = busy || dirty || stale || snapshot.rule_proposal?.status === 'PENDING'
+    || !(locking ? snapshot.table?.current_user.can_lock : snapshot.table?.current_user.can_start);
+  const centerLabel = starting ? 'Start game' : pub?.settlement ? 'Lock the table to start another game' : 'Lock game';
+  const centerControl = snapshot.is_creator && snapshot.status !== 'ended' && (locking || starting)
+    ? <Pressable testID="flush-center-start" accessibilityRole="button" accessibilityLabel={centerLabel}
+        disabled={formationDisabled} accessibilityState={{ disabled: formationDisabled }}
+        onPress={() => locking ? onLock() : onStart(baseRevision)} style={[s.button, { maxWidth: 220 }, formationDisabled && { opacity: 0.45 }]}>
+        <ActionCue active={!formationDisabled} style={[s.title, { textAlign: 'center' }]}>{centerLabel}</ActionCue>
+      </Pressable> : null;
   const [finalShowOpen, setFinalShowOpen] = useState(false);
   const finalStage = pub?.pending_show ? 'pending' : pub?.settlement ? 'result' : null;
   useEffect(() => { setFinalShowOpen(finalStage !== null); }, [snapshot.match_id, pub?.round_number, finalStage]);
@@ -120,6 +133,11 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onAction, o
   const can = (kind: string) => !busy && snapshot.status === 'playing' && !!mine?.actions.kinds.includes(kind);
   const button = (label: string, action: () => void, disabled = false) => <Pressable accessibilityRole="button" accessibilityLabel={label}
     disabled={disabled} accessibilityState={{ disabled }} onPress={action} style={[s.button, disabled && { opacity: 0.45 }]}>{['Deal cards', 'Cut in half', 'Skip cut'].includes(label) ? <ActionCue active={!disabled && !busy} style={s.text}>{label}</ActionCue> : <Text style={s.text}>{label}</Text>}</Pressable>;
+  const preparationControl = activeGame && preparing && myTurn ? <View testID="flush-center-preparation" style={{ gap: 8, alignItems: 'center' }}>
+    {mine?.actions.kinds.includes('deal_cards') && button('Deal cards', () => act('DEAL_CARDS'), !can('deal_cards'))}
+    {mine?.actions.kinds.includes('cut_deck') && button('Cut in half', () => act('CUT_DECK', { position: 26 }), !can('cut_deck'))}
+    {mine?.actions.kinds.includes('skip_cut') && button('Skip cut', () => act('SKIP_CUT'), !can('skip_cut'))}
+  </View> : null;
   const rulesContent = <>
       <Text style={s.title}>{settings.locked ? 'Rules locked for this game' : 'Rules before starting'}</Text>
       <Text style={s.text}>Every player pays the boot each hand (0 disables it). There is no fixed raise cap; you cannot bet more than your chips.</Text>
@@ -140,19 +158,24 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onAction, o
       {!!(localError || error) && <Text accessibilityRole="alert" style={s.error}>{localError || error}</Text>}
   </>;
   return <View style={[s.page, mobile && { padding: 8, gap: 4 }]} testID="flush-table">
-    {mobile ? <View style={s.mobileHeader} testID="flush-mobile-header">
-      <BrandIcon size={30} /><Text accessibilityRole="header" style={[s.title, { flex: 1, fontSize: 17 }]}>Flush</Text>
-      {button('Back to room', onBack)}
-      <Pressable accessibilityRole="button" accessibilityLabel="Table menu" accessibilityState={{ expanded: menuOpen }} onPress={() => setMenuOpen(v => !v)} style={s.menuToggle}><Text style={s.title}>{menuOpen ? '\u2303' : '\u22ef'}</Text></Pressable>
-    </View> : <AppHeader title="Flush" actions={<>{endControl}{button('Back to room', onBack)}</>} />}
-    {mobile && menuOpen && <ScrollView style={{ maxHeight: '40%', flexGrow: 0 }} testID="flush-mobile-menu" contentContainerStyle={{ gap: 8, padding: 8 }}>
-      <View style={s.row}>{button('Bet history', () => { setMenuOpen(false); setBetsOpen(true); })}{button('Rules', () => { setMenuOpen(false); setRulesOpen(true); })}
-      {!!snapshot.your_player_id && button('Poke the table', () => { setMenuOpen(false); setPokeOpen(true); }, !social.connected)}<ThemeToggle /></View>
-      {tableControl}<View style={{ borderTopWidth: 1, borderColor: s.handDock.borderColor, paddingTop: 4 }}>{endControl}</View>
+    <View style={s.mobileHeader} testID={mobile ? 'flush-mobile-header' : 'flush-header'}>
+      <BrandIcon size={mobile ? 30 : 48} /><Text accessibilityRole="header" style={[s.title, { flex: 1 }, mobile && { fontSize: 17 }]}>Flush</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel="Table menu" accessibilityState={{ expanded: menuOpen }} onPress={() => setMenuOpen(v => !v)} style={s.menuToggle}>
+        <View style={{ gap: 5 }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          {[0, 1, 2].map(line => <View key={line} style={s.menuLine} />)}
+        </View>
+      </Pressable>
+    </View>
+    {menuOpen && <ScrollView style={{ maxHeight: '40%', flexGrow: 0 }} testID="flush-mobile-menu" contentContainerStyle={{ gap: 8, padding: 8 }}>
+      <View style={s.row}>{button('Back to room', onBack)}<ThemeToggle /></View>
+      {mobile && <View style={s.row}>{button('Bet history', () => { setMenuOpen(false); setBetsOpen(true); })}{button('Rules', () => { setMenuOpen(false); setRulesOpen(true); })}
+      {!activeGame && !!snapshot.your_player_id && button('Poke the table', () => { setMenuOpen(false); setPokeOpen(true); }, !social.connected)}</View>}
+      {mobile && !showFormation && tableControl}<View style={{ borderTopWidth: 1, borderColor: s.handDock.borderColor, paddingTop: 4 }}>{endControl}</View>
     </ScrollView>}
     <View style={[s.body, wide && s.wideBody]}>
     <View style={s.mainColumn} testID="flush-main-column">
-    {!wide && !mobile && <View style={s.tabs}>{button('Bet', () => setBetsOpen(true))}{button('Rules', () => setRulesOpen(true))}{!!snapshot.your_player_id && button('Poke the table', () => setPokeOpen(true), !social.connected)}</View>}
+    {showFormation && <View testID="flush-formation-controls">{tableControl}</View>}
+    {!wide && !mobile && <View style={s.tabs}>{button('Bet', () => setBetsOpen(true))}{button('Rules', () => setRulesOpen(true))}{!activeGame && !!snapshot.your_player_id && button('Poke the table', () => setPokeOpen(true), !social.connected)}</View>}
     {!!pub?.current_player_id && <TurnPulse personal={myTurn} text={myTurn
       ? `Your turn · ${pub.pending_show ? 'Reveal or fold' : pub.pending_side_show ? 'Accept or decline side-show' : pub.status === 'awaiting_deal' ? 'Deal cards' : pub.status === 'awaiting_cut' ? 'Cut or skip' : 'Bet, show, or fold'}`
       : `${name(pub.current_player_id)}’s turn`} />}
@@ -161,6 +184,9 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onAction, o
       setArenaHeight(Math.max(wide ? 370 : 280, Math.min(wide ? 560 : 370, height - 16)));
     }} contentContainerStyle={[s.playArea, mobile && mine && !preparing && !pub?.settlement && { paddingBottom: 60 }]}>
       {finalStage && button(finalStage === 'pending' ? 'View final show' : 'View round result', () => setFinalShowOpen(true))}
+      {pub && <FlushFoldNotice key={`folds:${snapshot.match_id}`} snapshot={snapshot} />}
+      <FlushArena key={`${snapshot.match_id}:${pub?.round_number || 0}`} snapshot={snapshot} centerControl={centerControl || preparationControl}
+        height={pub && pub.players.length > 5 ? 370 + (pub.players.length - 5) * 126 : arenaHeight} />
     {(snapshot.status === 'waiting' || snapshot.roster_open) && <View style={s.panel}>
       <Text style={s.title}>{snapshot.players?.length}/{snapshot.capacity} players seated · minimum 2</Text>
       <Text style={s.text}>Locking keeps the current players for the next round. Seating reopens when that round ends.</Text>
@@ -168,12 +194,9 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onAction, o
       {!snapshot.table && (snapshot.is_creator ? <FlushLockButton onPress={() => onStart(baseRevision)} disabled={busy || !snapshot.ready || dirty || stale} /> : <Text style={s.text}>Waiting for the creator to lock the table.</Text>)}{lobbyControl}
     </View>}
     {pub && <>
-      <FlushFoldNotice key={`folds:${snapshot.match_id}`} snapshot={snapshot} />
-      <FlushArena key={`${snapshot.match_id}:${pub.round_number}`} snapshot={snapshot} height={pub.players.length > 5 ? 370 + (pub.players.length - 5) * 126 : arenaHeight} />
+
       {preparing && <View style={s.panel}>
         <Text style={s.text}>{pub.status === 'awaiting_deal' ? `${name(pub.current_player_id!)} deals next.` : `${name(pub.current_player_id!)} can cut the deck or skip the cut.`}</Text>
-        {can('deal_cards') && button('Deal cards', () => act('DEAL_CARDS'), busy)}
-        {can('cut_deck') && <View style={s.row}>{button('Cut in half', () => act('CUT_DECK', { position: 26 }), busy)}{button('Skip cut', () => act('SKIP_CUT'), busy)}</View>}
       </View>}
       {pub.pending_side_show && <View style={s.panel}>
         <Text style={s.text}>{name(pub.pending_side_show.requester_id)} requests a side-show with {name(pub.pending_side_show.target_id)}.</Text>
@@ -195,6 +218,7 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onAction, o
       </View> : <FlushCards tapToToggle key={pub?.round_number} cards={mine.cards} />}
       </View>
       <View style={wide && s.handActions}>
+      {activeGame && !!snapshot.your_player_id && <View style={s.row}>{button('Poke the table', () => setPokeOpen(true), !social.connected)}</View>}
       {pub?.pending_show?.target_id === String(snapshot.your_player_id) && <View style={s.panel}>
         <Text style={s.text}>Final show: reveal your cards to everyone or fold.</Text>
         <View style={s.row}>
@@ -222,7 +246,7 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onAction, o
       <ScrollView style={s.playViewport} contentContainerStyle={s.sidebarContent} testID={rulesOpen ? 'flush-rules' : 'flush-sidebar-bets'}>
         {rulesOpen ? rulesContent : <><Text accessibilityRole="header" style={s.title}>Bet history</Text><FlushBetTable snapshot={snapshot} /></>}
       </ScrollView>
-      {!!snapshot.your_player_id && button('Poke the table', () => setPokeOpen(true), !social.connected)}
+      {!activeGame && !!snapshot.your_player_id && button('Poke the table', () => setPokeOpen(true), !social.connected)}
     </View>}
     </View>
     {pokeOpen && <PokeComposer recipient={null} connected={social.connected} phrases={social.phrases} onSave={social.save}
@@ -271,6 +295,7 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onAction, o
 const styles = (c: ThemeColors) => StyleSheet.create({
   mobileHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, borderBottomWidth: 1, borderColor: c.border, paddingBottom: 4 },
   menuToggle: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  menuLine: { width: 22, height: 2, borderRadius: 1, backgroundColor: c.text },
   page: { flex: 1, padding: 12, gap: 8, backgroundColor: c.background },
   body: { flex: 1, minHeight: 0, gap: 16 },
   wideBody: { flexDirection: 'row' },

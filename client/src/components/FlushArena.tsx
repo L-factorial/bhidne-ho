@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, StyleSheet, Text, View } from 'react-native';
 import { TurnPulse } from './TurnPulse';
 import Svg, { Circle, Ellipse, G, Path } from 'react-native-svg';
@@ -36,14 +36,15 @@ function PlayerFace({ seen, folded }: { seen: boolean; folded: boolean }) {
     {folded && <Path d="M13 10 L51 50 M51 10 L13 50" stroke={colors.danger} strokeWidth={4} strokeLinecap="round" />}
   </Svg>;
 }
-export function FlushArena({ snapshot, height = 370 }: { snapshot: RoomSnapshot; height?: number }) {
+export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot: RoomSnapshot; height?: number; centerControl?: ReactNode }) {
   const s = useThemedStyles(styles);
   const [width, setWidth] = useState(300);
   const [pending, setPending] = useState<FlushBet[]>([]);
   const [reduceMotion, setReduceMotion] = useState(false);
   const bets = snapshot.flush?.bets || [];
   const last = useRef<number | null>(null);
-  const pub = snapshot.flush!.public;
+  const pub = snapshot.flush?.public;
+  const roster = pub?.players || (snapshot.players || []).map(p => ({ player_id: String(p.player_id), status: 'active', visibility: 'blind', turn_bet_count: 0 }));
   useEffect(() => { let active = true; AccessibilityInfo.isReduceMotionEnabled().then(v => { if (active) setReduceMotion(v); });
     const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion); return () => { active = false; sub.remove(); }; }, []);
   const newest = bets.at(-1)?.sequence || 0;
@@ -52,22 +53,23 @@ export function FlushArena({ snapshot, height = 370 }: { snapshot: RoomSnapshot;
     last.current = newest;
   }, [newest, reduceMotion]);
   useEffect(() => { if (reduceMotion) setPending([]); }, [reduceMotion]);
-  const own = pub.players.findIndex(p => p.player_id === String(snapshot.your_player_id));
-  const players = own < 0 ? pub.players : [...pub.players.slice(own), ...pub.players.slice(0, own)];
+  const own = roster.findIndex(p => p.player_id === String(snapshot.your_player_id));
+  const players = own < 0 ? roster : [...roster.slice(own), ...roster.slice(0, own)];
   const current = pending[0];
   const index = current ? players.findIndex(p => p.player_id === current.player_id) : -1;
   return <View style={[s.arena, { height }]} onLayout={e => setWidth(e.nativeEvent.layout.width)} testID="flush-arena">
     <View style={[s.ellipse, { left: 34, width: Math.max(100, width - 68), top: 48, height: height - 96 }]} />
-    <View style={[s.pot, { left: width / 2 - 58, top: height / 2 - 29 }]}><Text style={s.caption}>TOTAL POT</Text><Text testID="flush-pot" accessibilityLiveRegion="polite" style={s.potValue}>{potBeforeFlights(pub.pot, pending)}</Text><Text style={s.caption}>chips</Text></View>
+    {!centerControl && <View style={[s.pot, { left: width / 2 - 58, top: height / 2 - 29 }]}><Text style={s.caption}>TOTAL POT</Text><Text testID="flush-pot" accessibilityLiveRegion="polite" style={s.potValue}>{potBeforeFlights(pub?.pot || 0, pending)}</Text><Text style={s.caption}>chips</Text></View>}
     {players.map((p, i) => {
       const pos = playerPosition(i, players.length, width, height), folded = p.status !== 'active';
       const name = snapshot.players?.find(row => String(row.player_id) === p.player_id)?.display_name || `Player ${p.player_id}`;
       return <View key={p.player_id} testID={`flush-seat-${p.player_id}`} style={[s.seat, { left: pos.x - 40, top: pos.y - 38, opacity: folded ? 0.4 : 1 }]}>
-        <View style={[s.icon, p.player_id === pub.current_player_id && s.current]}><PlayerFace seen={p.visibility === 'seen'} folded={folded} /><Text style={s.count}>{p.turn_bet_count}</Text></View>
-        <TurnPulse active={p.player_id === pub.current_player_id} testID={`flush-turn-name-${p.player_id}`} numberOfLines={1} style={s.name}>{name}{p.player_id === String(snapshot.your_player_id) ? ' · You' : ''}</TurnPulse>
+        <View style={[s.icon, p.player_id === pub?.current_player_id && s.current]}><PlayerFace seen={p.visibility === 'seen'} folded={folded} /><Text style={s.count}>{p.turn_bet_count}</Text></View>
+        <TurnPulse active={p.player_id === pub?.current_player_id} testID={`flush-turn-name-${p.player_id}`} numberOfLines={1} style={s.name}>{name}{p.player_id === String(snapshot.your_player_id) ? ' · You' : ''}</TurnPulse>
         <Text style={s.caption}>{folded ? 'Folded' : `${p.visibility} · bet ${p.turn_bet_count}`}</Text>
       </View>;
     })}
+    {!!centerControl && <View pointerEvents="box-none" style={{ position: 'absolute', left: 56, right: 56, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>{centerControl}</View>}
     {current && <CoinFlight key={current.sequence} bet={current} from={playerPosition(Math.max(0, index), players.length, width, height)} to={{ x: width / 2, y: height / 2 }}
       onFinish={() => setPending(items => items.filter(b => b.sequence !== current.sequence))} />}
   </View>;

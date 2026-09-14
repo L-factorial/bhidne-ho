@@ -488,14 +488,21 @@ chat restrictions still apply; active players see a compact “Paused” label.
 
 ### Mobile Flush controls
 
-Below 900px, Flush uses one compact header with Back to room and a Table menu
-for bet history, rules, pokes, theme, seating controls and End table. Invitation
-copying stays in the room. Paused chat and its reserved space are hidden.
+Flush uses one header with a three-line Table menu on the right for Back to room,
+theme and End table, with no profile button. Below 900px, the menu also holds bet
+history, rules and in-play seating controls. During play, Poke the table appears
+only in Your cards. Lock game and Start game remain visible above the table during
+setup and between rounds. The creator also gets a pulsing button in the table's
+center; after a round it reads "Lock the table to start another game". It respects
+Reduce Motion and the same seating/rule checks as the other start controls.
+Deal cards and Cut in half / Skip cut also pulse in the center for the acting player.
+Shuffling is part of Deal cards; there is no separate shuffle action.
+Invitation copying stays in the room. Paused chat and its reserved space are hidden.
 The bottom Your cards bar expands into a translucent overlay with solid cards
 and action buttons. It opens when your turn begins; manual collapse lasts until
 the next turn. Confirmed bets/show/fold actions collapse it, rejected actions keep
 it open, and seeing or peeking at cards leaves it open. Private side-show results
-reopen it. Desktop Flush and the other games retain their existing layouts.
+reopen it. Desktop Flush retains its table and cards layout; other games are unchanged.
 
 Run `tests/browser/flush-mobile.cjs` with the backend on 8000 and exported web
 client served on 8083 (`TEST_WEB_URL` can override the web URL). It checks mobile
