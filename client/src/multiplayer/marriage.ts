@@ -59,7 +59,8 @@ export function marriageSuggestions(hand: MarriageCard[]) {
     }
     return null;
   }
-  return { dublees: pairs.length >= 7 ? pairs.slice(0, 7) : [], normal: find(0, [], new Set()) || [], pairCount: pairs.length };
+  return { dublees: pairs.length >= 7 ? pairs.slice(0, 7) : [], normal: find(0, [], new Set()) || [], pairCount: pairs.length,
+    pairs, melds: candidates };
 }
 
 export function marriageUsesArc(cardCount: number, mode: string, revealing: boolean) {

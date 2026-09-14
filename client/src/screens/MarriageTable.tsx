@@ -36,6 +36,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const [selected, setSelected] = useState<string[]>([]);
   const [groups, setGroups] = useState<MarriageMeld[]>([]);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [hintsOpen, setHintsOpen] = useState(false);
   const [preview, setPreview] = useState(false);
   const [shownPlayer, setShownPlayer] = useState<string | null>(null);
   const previousShown = useRef<string[] | null>(null);
@@ -90,12 +91,17 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const cards = useMobileCards({ mobile, busy, error, promptKey, onAction });
   const activeGame = snapshot.status === 'playing';
   const staged = groups.flatMap(g => g.card_ids);
+  const hints = useMemo(() => allRevealed ? marriageSuggestions(availableHand.filter(c => !staged.includes(c.card_id))) : null,
+    [handKey, allRevealed, staged.join(',')]);
+  const detectedGroups = [...(hints?.pairs || []), ...(hints?.melds || [])];
+  const detectedIds = new Set(detectedGroups.flatMap(g => g.card_ids));
+  const detectedSelection = detectedGroups.find(g => g.card_ids.length === selected.length && g.card_ids.every(id => selected.includes(id)));
   const declaration = canSubmitMarriage(groups);
   const selectedMeld = { meld_type: kind, card_ids: selected };
   function button(label: string, action: () => void, disabled = false, chosen = false) {
     return <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled}
       accessibilityState={{ disabled, selected: chosen }} onPress={action} style={[s.button, chosen && s.chosen, disabled && s.disabled]}>
-      {label.startsWith('Take ') || label === 'Finish round' ? <ActionCue active={!disabled} style={s.buttonText}>{label}</ActionCue> : <Text style={s.buttonText}>{label}</Text>}</Pressable>;
+      {label.startsWith('Take ') || label.startsWith('Show ') && label !== 'Show cards' || label === 'Review declaration' || label.startsWith('Stage selected ') || label === 'Finish round' ? <ActionCue active={!disabled} style={s.buttonText}>{label}</ActionCue> : <Text style={s.buttonText}>{label}</Text>}</Pressable>;
   }
   const shown = !allRevealed ? availableHand : [...availableHand].filter(c => mode !== 'suits' || suit === 'all' || (c.suit || 'man') === suit)
     .sort((a, b) => (a.suit || 'Z').localeCompare(b.suit || 'Z') || (a.rank || 0) - (b.rank || 0) || a.card_id.localeCompare(b.card_id));
@@ -114,6 +120,10 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       </Pressable>)}
     </View>;
   const startCue = <TableStartCue snapshot={snapshot} busy={busy} onStart={onStart} onTableAction={onTableAction} onNewGame={onNewGame} />;
+  const hintsButton = !hidden && !!detectedGroups.length && <Pressable testID="marriage-meld-hints" accessibilityRole="button" accessibilityLabel="Review detected melds and Dublees"
+    onPress={() => setHintsOpen(true)} style={s.button}>
+    <ActionCue active={!busy} style={s.buttonText}>{hints!.pairs.length} Dublees · {hints!.melds.length} meld options · Review</ActionCue>
+  </Pressable>;
   const turnPrompt = activeGame && pub && <TurnPulse personal={isTurn} text={isTurn ? `Your turn · ${pub.phase === 'must_draw' ? 'Take a card' : 'Show, finish, or discard'}` : `${name(pub.current_player_id)}’s turn`} />;
   const canDraw = !busy && allRevealed && activeGame;
   const mobileHandHeader = <View testID="marriage-hand-header" onLayout={e => setMobileHeaderHeight(e.nativeEvent.layout.height)} style={{ backgroundColor: colors.surface, padding: 8, gap: 8 }}>
@@ -121,6 +131,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       {button('Take discard', () => cards.act('DRAW_CARD', { source: 'discard' }), !canDraw || !actions?.drawable_sources.includes('discard'))}
       {button(`Take stock ${pub.stock_count}`, () => cards.act('DRAW_CARD', { source: 'stock' }), !canDraw || !actions?.drawable_sources.includes('stock'))}
     </View>}
+    {hintsButton}
     {turnPrompt}
   </View>;
   return <View style={s.page} testID="marriage-table">
@@ -161,10 +172,12 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       <ScrollView horizontal contentContainerStyle={{ gap: 8 }}>{(snapshot.players || []).filter(p => p.player_id !== snapshot.your_player_id).map(p => <View key={p.player_id}>{button(`Poke ${p.display_name || `Player ${p.player_id}`}`, () => setPoke(p.player_id), !social.connected || p.connected === false)}</View>)}</ScrollView>
       {actions?.kinds.includes('finish') && button('Finish round', () => cards.act('FINISH'), !canAct)}
       <View style={s.row}><Text style={s.heading}>Your cards · {availableHand.length}</Text>{allRevealed && button(hidden ? 'Show cards' : 'Hide cards', () => { setHidden(v => !v); setSelected([]); })}</View>
+      {!mobile && hintsButton}
       <View testID="marriage-hand" style={[s.hand, { height: 156, width }]}>{shown.map((card, index) => {
         const back = hidden || (!allRevealed && index >= revealed);
         const locked = committed.includes(card.card_id) || staged.includes(card.card_id), checked = selected.includes(card.card_id);
         return <Pressable key={card.card_id} accessibilityRole="button" accessibilityLabel={back ? 'Reveal next card' : `${physicalLabel(card.card_id)}${locked ? ' grouped' : ''}`}
+          aria-pressed={checked}
           accessibilityState={{ selected: checked, disabled: busy || hidden || (allRevealed && locked) }} disabled={busy || hidden || (allRevealed && locked)}
           onPress={() => !allRevealed ? reveal() : setSelected(ids => checked ? ids.filter(id => id !== card.card_id) : [...ids, card.card_id])}
           style={[s.card, back && s.cardBack, checked && s.selectedCard, locked && !back && { opacity: 0.55 }, !fan && { position: 'absolute', width: gridCardWidth, height: gridCardHeight,
@@ -175,9 +188,22 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
             transform: [{ rotate: `${shown.length > 1 ? index / (shown.length - 1) * fanSpread - fanSpread / 2 : 0}deg` }],
           }]} >
           {back ? <MarriageCardBack /> : <Text style={[s.face, fan ? { position: 'absolute', top: 4, left: 4, fontSize: 17 } : { fontSize: gridCardWidth < 45 ? 16 : 21 }, { color: card.suit === 'H' || card.suit === 'D' ? colors.cardRed : card.suit === 'C' ? colors.cardClub : colors.cardInk }]}>{marriageFace(card)}</Text>}
+          {!back && !locked && detectedIds.has(card.card_id) && <View pointerEvents="none" style={{ position: 'absolute', right: 2, top: 2, width: 5, height: 5, borderRadius: 3, backgroundColor: colors.accent }} />}
           {!back && !fan && <Text numberOfLines={1} style={s.copy}>{card.card_type === 'man' ? 'Man' : suitName[card.suit!]} · {(card.deck_index ?? Number(card.card_id.slice(-1))) + 1}</Text>}
         </Pressable>;
       })}</View>
+      {!hidden && allRevealed && own?.route === 'unqualified' && <View testID="marriage-declaration-controls" style={{ gap: 6 }}>
+        {!!detectedSelection && button(detectedSelection.meld_type === 'dublee' ? 'Stage selected Dublee' : 'Stage selected meld', () => {
+          setGroups(current => [...current, detectedSelection]); setSelected([]);
+        }, busy)}
+        {!!groups.length && <>
+          <Text style={s.small}>Staged privately · {groups.length} groups. Showing needs three melds or seven Dublees.</Text>
+          <ScrollView horizontal contentContainerStyle={{ gap: 6 }}>{groups.map((group, index) => <View key={index}>
+            {button(`Remove staged ${group.meld_type === 'dublee' ? 'Dublee' : 'meld'} ${index + 1}`, () => setGroups(current => current.filter((_, i) => i !== index)), busy)}
+          </View>)}</ScrollView>
+          {button('Review declaration', () => setPreview(true), !declaration || busy)}
+        </>}
+      </View>}
       {!hidden && (!allRevealed ? <View style={s.row}>{button(`Reveal next · ${revealed}/21`, () => reveal())}{!mobile && button('Reveal all cards', () => reveal(true))}</View> : <>
           {button(selected.length === 1 ? `Discard ${physicalLabel(selected[0])}` : 'Select one card to discard', () => cards.act('DISCARD_CARD', { card_id: selected[0] }),
             !canAct || selected.length !== 1 || !actions?.discardable_card_ids.includes(selected[0]))}
@@ -185,6 +211,20 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
     {!!error && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}
     </View></MobileGameHand>}
     </View>
+    <Modal transparent visible={hintsOpen && !hidden && allRevealed} animationType="none" onRequestClose={() => setHintsOpen(false)}>
+      <View style={s.previewBackdrop}><View accessibilityViewIsModal testID="marriage-hints-dialog" style={s.previewPanel}>
+        <View style={s.row}><Text accessibilityRole="header" style={[s.heading, { flex: 1 }]}>Detected melds and Dublees</Text>{button('Close detected groups', () => setHintsOpen(false))}</View>
+        <Text style={s.small}>Tap a group to select its cards. Options may overlap; showing requires three sequences/Tunnelas or seven Dublees.</Text>
+        <ScrollView contentContainerStyle={{ gap: 8 }}>
+          {detectedGroups.map(group => <View key={`${group.meld_type}:${group.card_ids.join(',')}`}>
+            {button(`Select ${group.meld_type === 'dublee' ? 'Dublee' : group.meld_type === 'tunnela' ? 'Tunnela' : 'sequence'} · ${group.card_ids.map(physicalLabel).join(', ')}`, () => {
+              setSelected(group.card_ids); setKind(group.meld_type); setMode('grid'); setSuit('all'); cards.setOpen(true); setHintsOpen(false);
+            }, busy)}
+          </View>)}
+          {!detectedGroups.length && <Text style={s.text}>No available melds or Dublees.</Text>}
+        </ScrollView>
+      </View></View>
+    </Modal>
     {publicDisplay && <View pointerEvents="none" style={s.shownOverlay}>
       <Animated.View testID="marriage-shown-melds" style={[s.shownCards, { opacity: showOpacity, transform: [{ translateY: showTravel }] }]}>
         <Text accessibilityLiveRegion="polite" style={s.heading}>{name(publicDisplay.player_id)} showed {publicDisplay.route === 'dublee' ? 'seven Dublees' : 'three sequences / Tunnelas'}</Text>

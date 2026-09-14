@@ -25,6 +25,17 @@ test('normal suggestions search disjoint physical groups, including Ace low', ()
   assert.equal(marriageSuggestions([card(12, 'S'), card(13, 'S'), card(14, 'S')]).normal.length, 0);
   assert.equal(marriageSuggestions([card(2, 'S'), card(3, 'S'), card(4, 'S'), card(5, 'S'), card(6, 'S')]).normal.length, 0);
 });
+test('awareness hints expose partial Dublees and melds before qualification is ready', () => {
+  const hand = [card(2, 'H'), card(2, 'H', 1), card(3, 'H'), card(4, 'H')];
+  const hints = marriageSuggestions(hand);
+  assert.equal(hints.pairs.length, 1);
+  assert.equal(hints.melds.length, 2, 'both physical copies can participate in a sequence');
+  assert.equal(hints.dublees.length, 0);
+  assert.equal(hints.normal.length, 0);
+  const remaining = marriageSuggestions(hand.filter(c => !hints.pairs[0].card_ids.includes(c.card_id)));
+  assert.equal(remaining.pairs.length, 0);
+  assert.equal(remaining.melds.length, 0, 'staged cards must not be reused in suggestions');
+});
 test('arc threshold applies during reveal and after filtering too', () => {
   assert.equal(marriageUsesArc(21, 'fan', true), false);
   assert.equal(marriageUsesArc(16, 'fan', false), false);

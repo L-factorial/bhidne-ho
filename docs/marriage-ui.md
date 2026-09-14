@@ -38,6 +38,13 @@ game has no settlement. See [scoring](marriage-scoring.md) for exact rules.
 4. Once all cards are revealed, the client checks for seven disjoint Dublees and
    three disjoint sequences/Tunnelas. Review either suggested route, inspect or
    adjust the staged groups, then explicitly show it during your action window.
+   A pulsing Review cue also detects individual Dublees and natural melds before
+   a full declaration is ready. On mobile it remains accessible above the collapsed
+   hand. Tap an option to select its physical cards, then Stage selected Dublee/meld.
+   Remove staged groups locally or Review declaration and Show once the required
+   three melds or seven pairs are ready. Options may overlap; staged and committed
+   cards are excluded from new hints. Hidden/unrevealed hands do not expose hints,
+   and Reduce Motion disables the pulse. These controls never discard a group.
    Suggestions never submit themselves. Select
    a suggested route to open a centered, private preview of the actual grouped
    cards. Confirm Show to submit; accepted groups appear in the central table
