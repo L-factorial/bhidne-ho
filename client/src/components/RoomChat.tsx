@@ -95,7 +95,7 @@ export function RoomChat({ roomId, session, connected }: { roomId: string; sessi
         onContentSizeChange={() => { if (followLatest.current) scroll.current?.scrollToEnd({ animated: false }); }}>
         {!messages.length && <Text style={styles.note}>Drop a goofy line. Challenge your friends. Get the game going!</Text>}
         {messages.map(message => <View key={message.id} style={styles.message}>
-          <Text style={styles.author}>{message.sender_id === session.user_id ? 'You' : message.sender_name} ? {new Date(message.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+          <Text style={styles.author}>{message.sender_id === session.user_id ? `${message.sender_name} (You)` : message.sender_name} · {new Date(message.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
           <Text selectable style={styles.text}>{message.text}</Text>
         </View>)}
       </ScrollView>

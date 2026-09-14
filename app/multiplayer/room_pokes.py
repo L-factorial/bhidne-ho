@@ -16,8 +16,9 @@ class RoomPokeService:
     cooldown_seconds = 1.5
     display_ms = 5000
 
-    def __init__(self, rooms, connections):
+    def __init__(self, rooms, connections, profiles=None):
         self.rooms, self.connections = rooms, connections
+        self.profiles = profiles
         self.states: dict[str, RoomSocialState] = {}
 
     async def member(self, room_id, user_id):
@@ -42,6 +43,7 @@ class RoomPokeService:
         state.last_poke[user_id] = now
         event = {"type": "ROOM_POKE", "id": uuid4().hex, "room_id": room_id, "match_id": match_id,
                  "sender_id": user_id, "sender_player_id": sender_player_id,
+                 "sender_name": self.profiles.name(user_id, sender_player_id) if self.profiles else f"Player {sender_player_id}",
                  "recipient_id": recipient_user_id, "recipient_player_id": recipient_player_id,
                  "scope": "private" if recipient_user_id is not None else "table", "text": text,
                  "expires_at": int(time.time() * 1000) + self.display_ms}

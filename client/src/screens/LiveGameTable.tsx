@@ -141,7 +141,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
       winnerPlayerId={reveal ? String(completedTrick?.winner) : undefined} activePlayerId={!reveal && game.turn.player_id ? String(game.turn.player_id) : ''} plays={(trick?.plays || []).map(play => ({ playerId: String(play.player_id), card: face(play.card) }))} />
     <View testID="central-turn-notice">
       {reveal && <Text accessibilityLiveRegion="polite" style={styles.status}>{playerName(completedTrick!.winner!)} wins trick {completedTrick!.trick_number}</Text>}
-      {showTurn && <TurnPulse personal={isTurn} text={isTurn ? 'Your turn' : `Player ${game.turn.player_id}'s turn`} />}
+      {showTurn && <TurnPulse personal={isTurn} text={isTurn ? 'Your turn' : `${playerName(game.turn.player_id!)}'s turn`} />}
     </View>
     {!!snapshot.your_player_id && <Pressable accessibilityRole="button" accessibilityLabel="Poke the whole table"
       disabled={!social.connected} onPress={() => setPokeTarget(null)} style={styles.pokeHint}>
@@ -181,7 +181,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     </View>
     {wide && <View style={styles.detailsColumn}><GameDetails sidebar snapshot={snapshot} busy={busy} onSave={onSave} /></View>}
     </View>
-    {pokeTarget !== undefined && <PokeComposer recipient={pokeTarget} phrases={social.phrases} connected={social.connected}
+    {pokeTarget !== undefined && <PokeComposer recipient={pokeTarget} recipientName={snapshot.players?.find(p => p.player_id === pokeTarget)?.display_name} phrases={social.phrases} connected={social.connected}
       onClose={() => setPokeTarget(undefined)} onSave={social.save} onSend={async text => {
         await social.send(pokeTarget, text);
         setPokeNotice({ text: pokeTarget === null ? 'Sent to the table ✦' : `Poke sent to ${playerName(pokeTarget)} ✦`, at: Date.now() });

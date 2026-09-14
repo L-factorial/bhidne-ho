@@ -23,8 +23,8 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false }: {
         <View style={styles.statsTable}>
           <View style={styles.statsRow}>
             <Text style={styles.cell}>Deal</Text>
-            {(snapshot.players || []).map(player => <Text key={player.player_id} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} accessibilityLabel={`Player ${player.player_id}${player.player_id === snapshot.your_player_id ? ", you" : ""}`} style={[styles.playerCell, styles.columnHeading]}>
-              {player.player_id === snapshot.your_player_id ? 'You' : `P${player.player_id}`}
+            {(snapshot.players || []).map(player => <Text key={player.player_id} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} accessibilityLabel={`${player.display_name || `Player ${player.player_id}`}${player.player_id === snapshot.your_player_id ? ", you" : ""}`} style={[styles.playerCell, styles.columnHeading]}>
+              {player.player_id === snapshot.your_player_id ? 'You' : player.display_name || `Player ${player.player_id}`}
             </Text>)}
           </View>
           {Array.from({ length: 5 }, (_, i) => {
@@ -41,7 +41,7 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false }: {
                 const points = score?.deal_scores_tenths[i];
                 const missed = points != null && points < 0;
                 return <View key={player.player_id} style={styles.playerCell}
-                  accessibilityLabel={`Player ${player.player_id}, deal ${i + 1}${active ? ', active' : ''}, bid ${bid ?? 'pending'}, won ${won ?? 0}${points != null ? `, ${missed ? 'missed bid, ' : ''}score ${points / 10}` : ''}`}>
+                  accessibilityLabel={`${player.display_name || `Player ${player.player_id}`}, deal ${i + 1}${active ? ', active' : ''}, bid ${bid ?? 'pending'}, won ${won ?? 0}${points != null ? `, ${missed ? 'missed bid, ' : ''}score ${points / 10}` : ''}`}>
                   <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.statValue, active && styles.activeBid]}>Bid {bid ?? '—'}</Text>
                   <Text numberOfLines={1} adjustsFontSizeToFit style={styles.statValue}>Won {won ?? '—'}</Text>
                   <View style={[styles.result, missed && styles.missed]}><Text numberOfLines={1} adjustsFontSizeToFit style={[styles.statValue, missed && styles.negative]}>{points == null ? '—' : `${points > 0 ? '+' : ''}${(points / 10).toFixed(1)}`}</Text></View>

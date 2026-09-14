@@ -183,3 +183,19 @@ async def test_flush_only_allows_table_pokes(started):
     assert all(socket.messages[0]['recipient_id'] is None for socket in sockets[:6])
     assert await host.snapshot('room', 'u0') == before
     await host.close()
+
+
+@pytest.mark.parametrize('kind,recipient', [('callbreak', None), ('callbreak', 2), ('marriage', None), ('marriage', 2), ('flush', None)])
+async def test_pokes_include_current_profile_name_for_private_and_broadcast(kind, recipient):
+    from app.multiplayer.player_profiles import PlayerProfileService
+    host, social, _, sockets, _ = await social_table(kind)
+    social.profiles = PlayerProfileService()
+    social.profiles.update('u0', 'Prajwal')
+    await host.poke('room', 'u0', CallBreakPokeInput(
+        match_id=host.games['room'].match_id, recipient_player_id=recipient, text='Hello!'), social)
+    assert sockets[1].messages[-1]['sender_name'] == 'Prajwal'
+    if recipient is not None:
+        assert sockets[2].messages == []
+    else:
+        assert sockets[2].messages[-1]['sender_name'] == 'Prajwal'
+    await host.close()

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.auth.models import AccountCredentials, AccountInput, GuestCredentials
+from app.auth.models import AccountCredentials, AccountInput, GuestCredentials, GuestInput
 from app.auth.service import AuthenticationError, UsernameTakenError
 from app.models.room import CreateRoom, RoomSummary
 from app.models.user import UserIdentity
@@ -15,9 +15,12 @@ async def health() -> dict[str, str]:
 
 
 @router.post("/auth/guest", response_model=GuestCredentials, status_code=201)
-async def guest(request: Request, response: Response) -> GuestCredentials:
+async def guest(request: Request, response: Response, body: GuestInput | None = None) -> GuestCredentials:
     response.headers["Cache-Control"] = "no-store"
-    return await request.app.state.guests.issue_guest()
+    credentials = await request.app.state.guests.issue_guest()
+    if body is not None and body.display_name:
+        request.app.state.player_profiles.update(credentials.user_id, body.display_name)
+    return credentials
 
 bearer = HTTPBearer(auto_error=False)
 

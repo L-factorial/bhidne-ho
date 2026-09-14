@@ -30,6 +30,7 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
   const [testingOpen, setTestingOpen] = useState(false);
   const [preview, setPreview] = useState(false);
   const [previewSize, setPreviewSize] = useState<4 | 5>(4);
+  const [guestName, setGuestName] = useState('');
   const shared = useRoomSession();
   const { session, rooms, room, game, setGame, expired } = shared;
   useEffect(() => {
@@ -143,8 +144,18 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
         </View>
       </> : <>
         <Image source={branding.background} accessibilityLabel="Play. Connect. Bhidne Ho!" resizeMode="contain" style={{ width: '100%', maxWidth: 415, aspectRatio: 415 / 182, alignSelf: 'center', marginTop: 20, borderRadius: 16 }} />
-        {!session && <View><Text style={styles.subtitle}>{shared.error ? 'Guest connection unavailable.' : 'Connecting as a guest…'}</Text>
-          {!!shared.error && <Pressable accessibilityRole="button" onPress={shared.retry} style={styles.button}><Text style={styles.buttonText}>Retry connection</Text></Pressable>}</View>}
+        {!session && <View style={styles.panel}>
+          <Text style={styles.sectionTitle}>What should we call you?</Text>
+          <Text style={styles.subtitle}>This name appears in every game, room message and poke.</Text>
+          <TextInput accessibilityLabel="Guest display name" placeholder="Your display name" placeholderTextColor={colors.textMuted}
+            value={guestName} onChangeText={setGuestName} maxLength={25} editable={!shared.loggingIn}
+            style={styles.input} returnKeyType="go" onSubmitEditing={() => { if (guestName.trim()) void shared.loginGuest(guestName); }} />
+          <Pressable accessibilityRole="button" disabled={!guestName.trim() || shared.loggingIn}
+            onPress={() => void shared.loginGuest(guestName)} style={styles.button}>
+            <Text style={styles.buttonText}>{shared.loggingIn ? 'Signing in…' : 'Continue as guest'}</Text>
+          </Pressable>
+          {!!shared.error && <Text accessibilityRole="alert" style={styles.subtitle}>{shared.error}</Text>}
+        </View>}
         <View style={[styles.columns, { marginTop: 24 }]}>
           <View style={styles.panel}>
             <Pressable accessibilityRole="button" accessibilityLabel="Create room / Join with code" aria-expanded={roomToolsOpen} accessibilityState={{ expanded: roomToolsOpen }} onPress={() => setRoomToolsOpen(value => !value)} style={styles.sectionToggle}>

@@ -3,8 +3,8 @@ import { BackHandler, KeyboardAvoidingView, Platform, Pressable, ScrollView, Sty
 import { limitPokeText, pokeTextLength, QUICK_POKES, type PlayerPhrase } from '../multiplayer/pokes';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
-export function PokeComposer({ recipient, phrases, connected, onClose, onSend, onSave }: {
-  recipient: number | null; phrases: PlayerPhrase[]; connected: boolean; onClose: () => void;
+export function PokeComposer({ recipient, recipientName, phrases, connected, onClose, onSend, onSave }: {
+  recipient: number | null; recipientName?: string; phrases: PlayerPhrase[]; connected: boolean; onClose: () => void;
   onSend: (text: string) => Promise<void>; onSave: (text: string) => Promise<void>;
 }) {
   const { colors } = useTheme();
@@ -23,7 +23,7 @@ export function PokeComposer({ recipient, phrases, connected, onClose, onSend, o
   }, [onClose]);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
-  const target = recipient === null ? 'everyone' : `Player ${recipient}`;
+  const target = recipient === null ? 'everyone' : recipientName || `Player ${recipient}`;
   const options = [...new Set([...phrases.map(p => p.text), ...QUICK_POKES])];
   async function submit(save: boolean) {
     if (pending.current || !connected || !text.trim()) return;
@@ -39,9 +39,9 @@ export function PokeComposer({ recipient, phrases, connected, onClose, onSend, o
     <View accessibilityViewIsModal style={styles.sheet}>
       <View style={styles.header}><View style={{ flex: 1 }}>
         <Text style={styles.eyebrow}>{recipient === null ? 'TO THE WHOLE TABLE' : 'PRIVATE POKE'}</Text>
-        <Text accessibilityRole="header" style={styles.title}>{recipient === null ? 'Make the table laugh.' : `Poke Player ${recipient}`}</Text>
+        <Text accessibilityRole="header" style={styles.title}>{recipient === null ? 'Make the table laugh.' : `Poke ${target}`}</Text>
       </View><Pressable accessibilityRole="button" accessibilityLabel="Close poke composer" onPress={onClose} style={styles.close}><Text style={styles.closeText}>×</Text></Pressable></View>
-      <Text style={styles.note}>{recipient === null ? 'Everyone in this room will see it.' : `Only Player ${recipient} will see this message.`}</Text>
+      <Text style={styles.note}>{recipient === null ? 'Everyone in this room will see it.' : `Only ${target} will see this message.`}</Text>
       <ScrollView style={{ maxHeight: 190 }} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.phrases}>
         {options.map(phrase => <Pressable key={phrase} accessibilityRole="button" accessibilityState={{ selected: text === phrase }}
           onPress={() => { setText(phrase); setError(''); setNotice(''); }} style={[styles.chip, text === phrase && styles.selected]}>

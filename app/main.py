@@ -38,7 +38,7 @@ def create_app() -> FastAPI:
         app.state.connections = connections
         app.state.player_profiles = PlayerProfileService()
         app.state.player_phrases = PlayerPhraseService()
-        app.state.room_pokes = RoomPokeService(rooms, connections)
+        app.state.room_pokes = RoomPokeService(rooms, connections, app.state.player_profiles)
         registry = GameRegistry()
         app.state.game_registry = registry
 

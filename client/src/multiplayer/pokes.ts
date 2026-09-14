@@ -3,7 +3,7 @@ export const QUICK_POKES = ['Your move, legend!', 'Nice one!', 'Big talk, small 
 export type PlayerPhrase = { id: string; text: string; created_by: string };
 export type RoomPoke = {
   type: 'ROOM_POKE'; id: string; room_id: string; match_id: string;
-  sender_id: string; sender_player_id: number; recipient_id: string | null;
+  sender_id: string; sender_name?: string; sender_player_id: number; recipient_id: string | null;
   recipient_player_id: number | null; scope: 'private' | 'table'; text: string; expires_at: number;
 };
 export const limitPokeText = (text: string) => Array.from(text).slice(0, POKE_TEXT_LIMIT).join('');

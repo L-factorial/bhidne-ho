@@ -45,3 +45,31 @@ def test_account_profile_survives_sign_in_with_another_token():
             assert first.token != second.token
             assert profiles.get(second.user_id)['display_name'] == 'Same player'
         asyncio.run(check())
+
+
+def test_named_guest_registration_validates_and_saves_profile():
+    with TestClient(create_app()) as client:
+        for name in ['', '   ', 'x' * 26, 'bad\nname', None]:
+            assert client.post('/auth/guest', json={'display_name': name}).status_code == 422
+        response = client.post('/auth/guest', json={'display_name': '  Prajwal  R  '})
+        assert response.status_code == 201
+        user = response.json()
+        headers = {'Authorization': f"Bearer {user['token']}"}
+        assert client.get('/me/profile', headers=headers).json() == {'display_name': 'Prajwal R'}
+        assert client.post('/auth/guest', json={}).status_code == 201
+
+
+def test_named_guests_visible_in_every_game_and_room_chat():
+    with TestClient(create_app()) as client:
+        users = [client.post('/auth/guest', json={'display_name': name}).json() for name in ['Prajwal', 'Sita']]
+        headers = [{'Authorization': f"Bearer {u['token']}"} for u in users]
+        for kind in ['callbreak', 'marriage', 'flush']:
+            room = client.post('/rooms', headers=headers[0], json={'name': kind}).json()['room_id']
+            for h in headers:
+                assert client.post(f'/rooms/{room}/enter', headers=h).status_code == 200
+            root = f'/test-games/{room}'
+            game = client.post(root, headers=headers[0], json={'game_type': kind, 'player_count': 4}).json()
+            joined = client.post(root + '/join', headers=headers[1], json={'match_id': game['match_id']}).json()
+            assert [p['display_name'] for p in joined['players']] == ['Prajwal', 'Sita']
+            message = client.post(f'/rooms/{room}/chat', headers=headers[0], json={'text': 'Hello!'}).json()
+            assert message['sender_name'] == 'Prajwal'

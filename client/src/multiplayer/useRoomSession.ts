@@ -17,26 +17,19 @@ export function useRoomSession() {
   const [expired, setExpired] = useState(false);
   const [abandonRequired, setAbandonRequired] = useState(false);
   const [leaveGameRequired, setLeaveGameRequired] = useState<string | null>(null);
-  const [retry, setRetry] = useState(0);
   const connection = useRef<RoomConnection | null>(null);
 
-  useEffect(() => {
-    if (session) return;
-    const controller = new AbortController();
-    let timer: ReturnType<typeof setTimeout>;
-    async function enter() {
-      try {
-        const value = await request<Session>('/auth/guest', null, {}, controller.signal);
-        if (!controller.signal.aborted) { setSession(value); setError(''); }
-      } catch {
-        if (!controller.signal.aborted) {
-          setError('Unable to reach the server. Retrying…'); timer = setTimeout(enter, 3000);
-        }
-      }
-    }
-    enter();
-    return () => { controller.abort(); clearTimeout(timer); };
-  }, [session, retry]);
+  const [loggingIn, setLoggingIn] = useState(false);
+  const loginPending = useRef(false);
+  async function loginGuest(displayName: string) {
+    if (loginPending.current || session) return;
+    loginPending.current = true; setLoggingIn(true); setError('');
+    try {
+      const value = await request<Session>('/auth/guest', null, { display_name: displayName.trim() });
+      setSession(value);
+    } catch (error) { setError(error instanceof Error ? error.message : 'Could not sign in. Please try again.'); }
+    finally { loginPending.current = false; setLoggingIn(false); }
+  }
 
   useEffect(() => {
     if (session && !expired) saveSession(apiUrl, { session, room, game });
@@ -123,7 +116,7 @@ export function useRoomSession() {
     }
   }
   function signOut() { connection.current?.stop(); saveSession(apiUrl, null); }
-  return { session, room, rooms, game, setGame, joinRoom, leaveRoom, signOut, leaveGameRequired, leaveGameAndRoom, abandonRequired,
+  return { loginGuest, loggingIn, session, room, rooms, game, setGame, joinRoom, leaveRoom, signOut, leaveGameRequired, leaveGameAndRoom, abandonRequired,
     cancelLeave: () => { setLeaveGameRequired(null); setError(''); }, status, expired, error, pokes,
-    retry: () => { connection.current?.retryNow(); setRetry(value => value + 1); } };
+    retry: () => { connection.current?.retryNow(); } };
 }

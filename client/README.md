@@ -428,3 +428,14 @@ pot with coin flights, a Bet grid, and a three-card flip arc. Enable private
 side-show in pre-game Rules to request the previous active seen player. Acceptance
 reveals opponent cards only to those two players; the loser folds and the winner
 stays. The final-two SHOW requirement remains unchanged.
+
+### Guest display names
+
+Fresh guest entry asks for a display name before issuing a session. The backend
+validates and saves that profile with the credentials; reload uses the saved
+session. Names appear in all hosted game rosters, room chat, and private/table
+pokes. The profile editor can change the name later. Legacy API callers may still
+omit the name, so older unnamed profiles retain fallback labels.
+
+Run `client/tests/browser/guest-name.cjs` with the backend on 8000 and Expo on 8081
+to check required entry, profile storage and refresh recovery.
