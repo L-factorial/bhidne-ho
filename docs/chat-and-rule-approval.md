@@ -2,7 +2,9 @@
 
 Room chat uses the existing bounded, in-memory history and authenticated profile
 names. The notification strip appears in the room and live game view; selecting
-it opens a modal overlay with an explicit Close button. Notification, unread and
+it expands a docked chat panel with an explicit Close button. The collapsed dock
+is a compact bottom bar on mobile and a bottom-right panel on wide screens; it
+remains at the screen edge while the room scrolls. Notification, unread and
 draft state survive moving between those views. The server checks access for
 both reading and sending, independently of which screen is open.
 

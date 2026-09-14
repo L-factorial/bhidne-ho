@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePong } from '../notifications/usePong';
 import { ApiError, request } from '../multiplayer/api';
@@ -16,8 +16,9 @@ export function useRoomChat({ roomId, session, connected }: { roomId: string; se
   const [unread, setUnread] = useState(0);
   const [muted, setMuted] = useState(false);
   const insets = useSafeAreaInsets();
-  const { height: screenHeight } = useWindowDimensions();
-  const panelHeight = Math.max(240, Math.min(600, screenHeight - insets.top - insets.bottom - 80));
+  const { height: screenHeight, width: screenWidth } = useWindowDimensions();
+  const wide = screenWidth >= 900;
+  const panelHeight = Math.max(200, Math.min(420, screenHeight * 0.65 - insets.bottom));
   const followLatest = useRef(true);
   const { play, prepare } = usePong();
   const notification = useRef({ open, muted, play });
@@ -35,6 +36,7 @@ export function useRoomChat({ roomId, session, connected }: { roomId: string; se
   const scroll = useRef<ScrollView>(null);
   const path = `/rooms/${encodeURIComponent(roomId)}/chat`;
   const length = Array.from(draft).length;
+  useEffect(() => { setOpen(false); setMessages([]); setDraft(''); setUnread(0); setBlocked(false); previousIds.current = null; }, [roomId, session.token]);
   useEffect(() => {
     const controller = new AbortController(); lifetime.current = controller;
     let timer: ReturnType<typeof setTimeout>;
@@ -75,17 +77,20 @@ export function useRoomChat({ roomId, session, connected }: { roomId: string; se
       if (!signal?.aborted) setError(failure instanceof Error ? failure.message : 'Could not send message.');
     } finally { sending.current = false; setBusy(false); }
   }
-  return <View style={[styles.card, unread > 0 && { borderWidth: 2, borderColor: colors.accent }]}>
-    <Pressable accessibilityRole="button" accessibilityLabel="Room chat" aria-expanded={open} accessibilityState={{ expanded: open }} disabled={blocked} onPress={() => { if (open) setOpen(false); else openChat(); }} style={styles.toggle}>
-      <Text style={styles.heading}>Room chat</Text><Text style={styles.heading}>{open ? '-' : unread ? `${unread} new` : '+'}</Text>
-    </Pressable>
-    {blocked && <Text style={styles.note}>Chat is paused while you are playing.</Text>}
-    {!blocked && unread > 0 && <Text accessibilityLiveRegion="polite" style={styles.note}>New room banter! Tap to open chat.</Text>}
-    <Modal transparent visible={open && !blocked} onRequestClose={() => setOpen(false)} animationType="fade">
-      <View style={{ flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', padding: 20 }}>
-      <View accessibilityViewIsModal style={{ width: '100%', maxWidth: 600, alignSelf: 'center', backgroundColor: colors.surface, borderRadius: 16, padding: 16 }}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Close chat" onPress={() => setOpen(false)} style={styles.toggle}><Text style={styles.heading}>Room chat</Text><Text style={styles.heading}>Close ×</Text></Pressable>
-      <KeyboardAvoidingView testID="room-chat-window" style={[styles.chatBody, { height: panelHeight }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+  return <KeyboardAvoidingView testID="chat-dock" behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    style={[styles.dock, { bottom: Math.max(8, insets.bottom), right: wide ? 16 : 8, left: wide ? undefined : 8, width: wide ? 340 : undefined }]}>
+    <View style={[styles.card, unread > 0 && { borderColor: colors.accent, borderWidth: 2 }]}>
+      <View style={styles.header}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Room chat" accessibilityHint={blocked ? 'Chat is paused while you are playing.' : unread ? `${unread} unread messages` : 'Expand or minimize room chat'}
+          aria-expanded={open} accessibilityState={{ expanded: open, disabled: blocked }} disabled={blocked}
+          onPress={() => { if (open) setOpen(false); else openChat(); }} style={[styles.toggle, { flex: 1 }]}>
+          <Text style={styles.heading}>Room chat{blocked ? ' · Paused' : ''}</Text>
+          {unread > 0 ? <Text testID="chat-unread" accessibilityLiveRegion="polite" style={styles.badge}>{unread} new</Text>
+            : <Text style={styles.heading}>{open ? '−' : '⌃'}</Text>}
+        </Pressable>
+        {open && <Pressable accessibilityRole="button" accessibilityLabel="Close chat" onPress={() => setOpen(false)} style={styles.close}><Text style={styles.heading}>×</Text></Pressable>}
+      </View>
+      {open && !blocked && <View testID="room-chat-window" style={[styles.chatBody, { height: panelHeight }]}>
       <Pressable accessibilityRole="button" accessibilityLabel={muted ? 'Unmute chat notifications' : 'Mute chat notifications'} onPress={() => { prepare(); setMuted(value => !value); }}><Text style={styles.note}>{muted ? 'Chat sound off' : 'Chat sound on'}</Text></Pressable>
       <ScrollView ref={scroll} testID="room-chat-history" nestedScrollEnabled style={{ flex: 1, minHeight: 0 }} scrollEventThrottle={16}
         onScroll={({ nativeEvent: { contentOffset, contentSize, layoutMeasurement } }) => { followLatest.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 40; }}
@@ -103,15 +108,18 @@ export function useRoomChat({ roomId, session, connected }: { roomId: string; se
       <Pressable accessibilityRole="button" accessibilityLabel="Send chat message" disabled={busy || !connected || !draft.trim() || length > 500} accessibilityState={{ disabled: busy || !connected || !draft.trim() || length > 500 }} onPress={() => void send()} style={[styles.send, (busy || !connected || !draft.trim() || length > 500) && { opacity: 0.5 }]}>
         <Text style={styles.sendText}>{busy ? 'Sending...' : 'Send'}</Text>
       </Pressable>
-    </KeyboardAvoidingView>
-      </View></View>
-    </Modal>
-  </View>;
+      </View>}
+    </View>
+  </KeyboardAvoidingView>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  chatBody: { gap: 12, overflow: 'hidden' },
-  card: { backgroundColor: colors.surface, borderRadius: 16, padding: 24, gap: 8 },
-  toggle: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  dock: { position: 'absolute', zIndex: 50, elevation: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12 },
+  close: { minWidth: 44, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
+  badge: { color: colors.text, backgroundColor: colors.surfaceSelected, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, fontSize: 12 },
+  chatBody: { gap: 8, overflow: 'hidden', padding: 12, borderTopWidth: 1, borderColor: colors.border },
+  card: { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', boxShadow: '0px 4px 18px rgba(0,0,0,0.2)' },
+  toggle: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   heading: { fontFamily: fonts.medium, fontSize: 14, color: colors.text },
   message: { paddingVertical: 10, borderBottomWidth: 1, borderColor: colors.border, gap: 5 },
   author: { fontFamily: fonts.medium, fontSize: 11, color: colors.accent },

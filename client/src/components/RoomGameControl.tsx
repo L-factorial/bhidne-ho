@@ -1,5 +1,4 @@
 import { ShareLink } from './ShareLink';
-import { useRoomChat } from './RoomChat';
 import { RuleProposal } from './RuleProposal';
 import { TableControls } from './TableControls';
 import { AppHeader } from './AppHeader';
@@ -19,14 +18,14 @@ import { FlushTable } from '../screens/FlushTable';
 import { MarriageTable } from '../screens/MarriageTable';
 
 
-export function RoomGameControl({ requestedMatchId, roomId, apiUrl, token, connected, members, roomMembers = members, connectionMessage, userId, pokes, personal, createContent, creationEnabled = true, gameType = 'callbreak' }: {
+export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, apiUrl, token, connected, members, roomMembers = members, connectionMessage, userId, pokes, personal, createContent, creationEnabled = true, gameType = 'callbreak' }: {
+  chat?: ReactNode; onOpenChange?: (open: boolean) => void;
   requestedMatchId?: string;
   gameType?: 'callbreak' | 'marriage' | 'flush';
   createContent?: ReactNode; creationEnabled?: boolean;
   userId: string; pokes: RoomPoke[]; personal: ReturnType<typeof usePlayerPhrases>;
   roomId: string; apiUrl: string; token: string; connected: boolean; members: string[]; roomMembers?: string[]; connectionMessage?: string;
 }) {
-  const chat = useRoomChat({ roomId, session: { token, user_id: userId }, connected });
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
@@ -36,6 +35,8 @@ export function RoomGameControl({ requestedMatchId, roomId, apiUrl, token, conne
   const [joinOpen, setJoinOpen] = useState(false);
   const [dismissedInvitation, setDismissedInvitation] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  useEffect(() => { onOpenChange?.(open); }, [open, onOpenChange]);
+  useEffect(() => () => onOpenChange?.(false), [onOpenChange]);
   const [live, setLive] = useState(false);
   const collapsed = !open && live && !!snapshot && snapshot.status !== 'empty';
   const notification = useGameNotification(snapshot, collapsed);
@@ -199,7 +200,7 @@ export function RoomGameControl({ requestedMatchId, roomId, apiUrl, token, conne
         <Pressable accessibilityRole="button" accessibilityLabel={`Dismiss ${noun} notification`} onPress={() => setDismissedInvitation(snapshot.match_id!)} style={styles.choice}><Text style={styles.text}>Dismiss</Text></Pressable>
       </View>
     </View>}
-    {!open && <>{chat}{ruleReview}{snapshot?.match_id && snapshot.status !== 'ended' && <ShareLink roomId={roomId} matchId={snapshot.match_id} />}</>}
+    {!open && <>{ruleReview}{snapshot?.match_id && snapshot.status !== 'ended' && <ShareLink roomId={roomId} matchId={snapshot.match_id} />}</>}
     {collapsed && <View style={styles.returnPanel}>
       <Animated.View style={{ opacity: notification.opacity }}>
         <Pressable accessibilityRole="button" accessibilityLabel={`Return to ${noun}`} disabled={busy} onPress={() => void returnToGame()} style={[styles.button, !!notification.notice && styles.notified]}>
@@ -257,19 +258,6 @@ export function RoomGameControl({ requestedMatchId, roomId, apiUrl, token, conne
         paddingTop: insets.top, paddingBottom: insets.bottom,
         paddingLeft: insets.left, paddingRight: insets.right,
       }]}><View accessibilityViewIsModal testID="live-game-overlay" style={styles.liveOverlay}>
-        {snapshot.can_join && !snapshot.your_player_id && <View testID="in-game-invitation" style={[styles.invitation, { padding: 14, margin: 12, marginBottom: 0 }]}>
-          <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={styles.summary}>A new {gameName} {noun} is ready!</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel={`Join ${noun}`} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => void act(true)} style={styles.button}>
-            <Text style={styles.buttonText}>{`Join ${noun}`}</Text>
-          </Pressable>
-        </View>}
-        {(!connected || !synced) && <Text accessibilityRole="alert" style={styles.connectionNotice}>{connectionMessage || (!connected ? 'Reconnecting… Your seat is saved.' : 'Updating game…')}</Text>}
-        {!!actionNotice && <Text accessibilityLiveRegion="polite" style={styles.connectionNotice}>{actionNotice}</Text>}
-        {chat}
-        {ruleReview}
-        {snapshot.match_id && snapshot.status !== 'ended' && <ShareLink roomId={roomId} matchId={snapshot.match_id} />}
-        {lifecycleControl}
-        {snapshot.game_type === 'callbreak' && leaveControl}
         {snapshot.status === 'ended' ? <View style={styles.body}><AppHeader title={gameName} />
           <Text style={[styles.title, { color: colors.text }]}>{snapshot.game_type === 'flush' ? 'Table ended' : 'Game ended'}</Text>
           <Text style={[styles.text, { color: colors.text }]}>{snapshot.game_type === 'flush' ? 'This table has ended. The room is still open for a new table.' : 'This game has ended. The room is still open for another round.'}</Text>
@@ -286,6 +274,21 @@ export function RoomGameControl({ requestedMatchId, roomId, apiUrl, token, conne
           social={{ connected, phrases: personal.phrases, save: personal.save, send: (recipient, text) => social.send(snapshot.match_id!, recipient, text) }} />
         : <LiveGameTable endControl={canEnd ? <EndGameControl compact busy={busy} onEnd={() => lobbyAction('/end')} /> : null} onNextDeal={() => lobbyAction('/next-deal', { deal_number: snapshot.round_review?.deal_number })} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={error} onAction={gameAction} onNewGame={() => { setCapacity(snapshot.capacity === 5 ? 5 : 4); setLive(false); setOpen(true); }} onStart={() => lobbyAction('/start', { play_mode: 'manual' })} onSave={settings => lobbyAction('/settings', settings)} onBack={collapseGame}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: (recipient, text) => social.send(snapshot.match_id!, recipient, text) }} />}
+        <ScrollView testID="game-footer" style={styles.gameFooter} contentContainerStyle={{ gap: 4 }} nestedScrollEnabled>
+          {snapshot.can_join && !snapshot.your_player_id && <View testID="in-game-invitation" style={[styles.invitation, { padding: 14, margin: 12, marginBottom: 0 }]}>
+            <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={styles.summary}>A new {gameName} {noun} is ready!</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Join ${noun}`} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => void act(true)} style={styles.button}>
+              <Text style={styles.buttonText}>{`Join ${noun}`}</Text>
+            </Pressable>
+          </View>}
+          {(!connected || !synced) && <Text accessibilityRole="alert" style={styles.connectionNotice}>{connectionMessage || (!connected ? 'Reconnecting… Your seat is saved.' : 'Updating game…')}</Text>}
+          {!!actionNotice && <Text accessibilityLiveRegion="polite" style={styles.connectionNotice}>{actionNotice}</Text>}
+          {ruleReview}
+          {snapshot.match_id && snapshot.status !== 'ended' && <ShareLink roomId={roomId} matchId={snapshot.match_id} />}
+          {lifecycleControl}
+          {snapshot.game_type === 'callbreak' && leaveControl}
+        </ScrollView>
+        {chat}
         <PokeOverlay pokes={pokes} matchId={snapshot.match_id} />
       </View></View> :
       <View style={styles.overlay}><View accessibilityViewIsModal style={styles.modal}>
@@ -335,7 +338,8 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   notified: { borderWidth: 2, borderColor: colors.turnText, backgroundColor: colors.turnSurface },
   bidNotice: { padding: 14, gap: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.accent, backgroundColor: colors.surfaceSelected },
   liveBackdrop: { flex: 1, backgroundColor: colors.overlay, alignItems: 'center', justifyContent: 'center' },
-  liveOverlay: { width: '100%', height: '100%', overflow: 'hidden', backgroundColor: colors.background },
+  gameFooter: { flexGrow: 0, flexShrink: 0, maxHeight: '38%', borderTopWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  liveOverlay: { width: '100%', height: '100%', paddingBottom: 64, overflow: 'hidden', backgroundColor: colors.background },
   codePanel: { padding: 16, borderRadius: 10, backgroundColor: colors.surface, gap: 8 },
   code: { fontFamily: fonts.medium, fontSize: 22, color: colors.text, letterSpacing: 1 },
   joinHint: { fontFamily: fonts.body, fontSize: 12, lineHeight: 21, color: colors.textMuted, marginTop: 8 },

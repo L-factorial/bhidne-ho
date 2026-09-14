@@ -36,7 +36,7 @@ async function api(path, user, body) {
         await page.getByRole('button', { name: 'Close chat', exact: true }).click();
       }
       await api(`/rooms/${room.room_id}/chat`, users[0], { text: 'Hello from Friend 0' });
-      await viewer.getByText('New room banter! Tap to open chat.', { exact: true }).waitFor();
+      await viewer.getByTestId('chat-unread').waitFor();
       await viewer.getByRole('button', { name: 'Room chat', exact: true }).click();
       await viewer.getByText('Hello from Friend 0', { exact: true }).waitFor();
       await viewer.getByRole('button', { name: 'Close chat', exact: true }).click();
@@ -62,7 +62,7 @@ async function api(path, user, body) {
       if (kind !== 'callbreak') await api(root + '/table/lock', users[0], body);
       const current = await api(root, users[0]);
       await api(root + '/start', users[0], { ...body, rules_revision: current.flush_settings?.rules_revision ?? 0 });
-      await player.getByText('Chat is paused while you are playing.', { exact: true }).waitFor();
+      await player.getByText('Room chat · Paused', { exact: true }).waitFor();
       assert.equal(await player.getByRole('button', { name: 'Room chat', exact: true }).isDisabled(), true);
       await viewer.getByRole('button', { name: 'Room chat', exact: true }).click();
       await viewer.getByRole('textbox', { name: 'Room chat message', exact: true }).fill('Still watching');

@@ -1,3 +1,4 @@
+import { useRoomChat } from '../components/RoomChat';
 import { InvitationPreview } from '../components/InvitationPreview';
 import { ShareLink } from '../components/ShareLink';
 import type { Invitation } from '../multiplayer/invitations';
@@ -36,6 +37,8 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
   const [guestName, setGuestName] = useState('');
   const shared = useRoomSession();
   const { session, rooms, room, game, setGame, expired } = shared;
+  const [gameOpen, setGameOpen] = useState(false);
+  const chat = useRoomChat({ roomId: room?.room_id || '', session: session || { token: '', user_id: '' }, connected: !!room && !!session && !expired && shared.status === 'connected' });
   useEffect(() => {
     setInviteOpen(false); setMembersOpen(false);
   }, [room?.room_id]);
@@ -68,8 +71,8 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
   const roomMembers = [...new Set([...(current?.members || []), ...(room && session && shared.status === 'connected' ? [session.user_id] : [])])];
   if (room && preview) return <CallBreakTableScreen capacity={previewSize} names={['You']} tableName={room.name} onBack={() => setPreview(false)} />;
   const selectedGame = game === 'flush' || game === 'marriage' ? game : 'callbreak';
-  return <HeaderProfileContext.Provider value={session && !expired ? close => <ProfileScreen session={session} personal={personal} onBack={close} /> : null}><ScrollView style={styles.page} contentContainerStyle={[styles.container, {
-    paddingTop: Math.max(insets.top, 24), paddingBottom: Math.max(insets.bottom, 28),
+  return <HeaderProfileContext.Provider value={session && !expired ? close => <ProfileScreen session={session} personal={personal} onBack={close} /> : null}><View style={{ flex: 1 }}><ScrollView style={styles.page} contentContainerStyle={[styles.container, {
+    paddingTop: Math.max(insets.top, 24), paddingBottom: Math.max(insets.bottom, 28) + (room ? 64 : 0),
   }]}>
     <View style={styles.content}>
       <AppHeader />
@@ -100,7 +103,7 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
         </View>
         <View style={[styles.columns, wide && styles.wideColumns]}>
           <View style={styles.mainColumn}>
-            {session && <RoomGameControl requestedMatchId={linkedMatch} personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={current?.connected_members || []} roomMembers={roomMembers} connectionMessage={expired ? shared.error : undefined}
+            {session && <RoomGameControl chat={chat} onOpenChange={setGameOpen} requestedMatchId={linkedMatch} personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={current?.connected_members || []} roomMembers={roomMembers} connectionMessage={expired ? shared.error : undefined}
               gameType={selectedGame} createContent={<>
             <Text style={styles.eyebrowDark}>CHOOSE A GAME</Text>
             <View style={styles.gameTabs}>
@@ -202,7 +205,7 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
         </View>
       </>}
     </View>
-  </ScrollView></HeaderProfileContext.Provider>;
+  </ScrollView>{room && !expired && !invitation && !gameOpen && chat}</View></HeaderProfileContext.Provider>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.background }, container: { alignItems: 'center', paddingHorizontal: 20 }, content: { width: '100%', maxWidth: 1120 },

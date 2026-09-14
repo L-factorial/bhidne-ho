@@ -37,10 +37,7 @@ async function api(path, user, body) {
     assert.equal(await page.evaluate(() => navigator.clipboard.readText()), roomUrl);
     await page.getByRole('button', { name: 'Copy game link', exact: true }).click();
     assert.equal(await page.evaluate(() => navigator.clipboard.readText()), gameUrl);
-    // Exercise the web share payload without opening an external messaging application.
-    await page.evaluate(() => { navigator.share = async data => { window.sharedInvitation = data; }; });
-    await page.getByRole('button', { name: 'Share game link', exact: true }).click();
-    assert.equal(await page.evaluate(() => window.sharedInvitation.url), gameUrl);
+    assert.equal(await page.getByRole('button', { name: 'Share game link', exact: true }).count(), 0);
     await page.getByRole('button', { name: 'Leave room', exact: true }).click();
     await page.getByText('YOUR SPACE', { exact: true }).waitFor();
     await page.goto(gameUrl);

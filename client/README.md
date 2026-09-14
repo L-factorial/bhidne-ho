@@ -445,9 +445,12 @@ to check required entry, profile storage and refresh recovery.
 
 ### Invitation links and action cues
 
-Room and game views offer **Copy link** and **Share link**. Web sharing uses the
-browser share sheet where available and otherwise copies the link. Native builds
-use the OS share sheet and Expo Clipboard. No player token is included in a link.
+Room and game views offer a single **Copy link** control with a copy icon. Paste
+the copied invitation into any messaging app. Expo Clipboard supports copying
+on web and native. No player token is included in a link. Seating and link controls sit in a scrollable bottom footer beneath the game
+content. Chat has its own compact screen-edge dock: bottom bar on mobile and
+bottom-right panel on wide screens. It expands upward without a full-screen
+backdrop; minimize/close preserves drafts and unread alerts remain on the bar.
 
 Links use query parameters on the deployed web root, so static hosting requires
 no custom route rewrite:
@@ -465,8 +468,7 @@ Native builds also recognize `bhidneho://invite?room=...&match=...`. Shared link
 use HTTPS so recipients can open them without installing the app. Native share
 links default to `https://bhidne-ho.lfactorial.com/`; set `EXPO_PUBLIC_WEB_URL` for
 another web deployment. Adding the scheme/clipboard module requires rebuilding
-installed native binaries. Native OS share-sheet/device behavior has not been
-manually tested in this environment.
+installed native binaries. Native device behavior has not been manually tested in this environment.
 
 Available Lock, Start, Deal, Cut/Skip, Accept hand, Request redeal and Start next
 deal controls use the shared slow pulse, respect Reduce Motion and stop when
@@ -477,3 +479,8 @@ and stripping credentials. `tests/browser/invitations.cjs` verifies real room/ga
 membership, copying/sharing, stale-link rejection and refresh after departure.
 `tests/browser/action-cues.cjs` checks actual changing opacity, disabled actions
 and Reduce Motion against real Flush play.
+
+The chat controller is shared between room and game views, preserving the draft
+and notification state during navigation and reconnect. The dock reserves bottom
+space so its collapsed bar does not cover the final controls. Existing server
+chat restrictions still apply; active players see a compact “Paused” label.
