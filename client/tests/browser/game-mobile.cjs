@@ -16,7 +16,7 @@ async function pulse(locator) {
   try {
     for (const kind of ['marriage', 'callbreak']) {
       if (process.env.TEST_GAME && process.env.TEST_GAME !== kind) continue;
-      const users = await Promise.all(Array.from({ length: kind === 'marriage' ? 2 : 4 }, (_, i) => api('/auth/guest', null, { display_name: `${kind} ${i}` })));
+      const users = await Promise.all(Array.from({ length: 4 }, (_, i) => api('/auth/guest', null, { display_name: `${kind} ${i}` })));
       const room = await api('/rooms', users[0], { name: `${kind} mobile ${Date.now()}` });
       for (const user of users) await api(`/rooms/${room.room_id}/enter`, user, {});
       const root = `/test-games/${room.room_id}`, game = await api(root, users[0], { game_type: kind, player_count: users.length });
@@ -67,7 +67,10 @@ async function pulse(locator) {
         }
         state = await stateWhen(s => s.game.phase === 'PLAYING');
       } else {
-        for (const page of pages) { await button(page, 'Reveal all cards').click(); }
+        for (const page of pages) {
+          await button(page, 'Expand your cards').waitFor();
+          await button(page, 'Reveal all cards').click();
+        }
       }
       state = await api(root, users[0]);
       const actorIndex = Number(kind === 'marriage' ? state.marriage.public.current_player_id : state.game.turn.player_id) - 1;
@@ -79,9 +82,19 @@ async function pulse(locator) {
       assert.equal(await actor.getByTestId(`${kind}-menu`).getByRole('button', { name: /Poke/ }).count(), 0);
       await button(actor, 'Table menu').click();
       if (kind === 'marriage') {
+        await button(actor, 'Hide cards').click();
+        await button(actor, 'Collapse your cards').click();
+        const prompt = await actor.getByTestId('your-turn-pulse').boundingBox();
+        const collapsed = await button(actor, 'Expand your cards').boundingBox();
+        assert.ok(prompt.y + prompt.height <= collapsed.y, 'turn prompt sits above collapsed cards');
+        assert.ok(collapsed.y - (prompt.y + prompt.height) <= 12, 'turn prompt is directly above cards');
+        const stock = actor.getByRole('button', { name: /^Take stock / });
+        await stock.click({ trial: true });
+        await actor.screenshot({ path: process.env.TEMP + '/marriage-mobile-draw.png' });
         await actor.getByRole('button', { name: /^Take stock / }).click();
         await stateWhen(s => s.marriage.public.phase === 'must_discard');
         await button(actor, 'Collapse your cards').waitFor();
+        await button(actor, 'Show cards').click();
         await actor.getByTestId('marriage-hand').getByRole('button').first().click();
       } else {
         await actor.getByRole('radio', { name: 'Card grid view', exact: true }).click();

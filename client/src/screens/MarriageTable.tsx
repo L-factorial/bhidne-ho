@@ -29,6 +29,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const mobile = useWindowDimensions().width < 900;
   const showFormation = mobile && (!snapshot.marriage || snapshot.status === 'finished' || ['OPEN', 'LOCKED', 'COMPLETED'].includes(snapshot.table?.phase || ''));
   const [width, setWidth] = useState(300);
+  const [mobileHeaderHeight, setMobileHeaderHeight] = useState(120);
   const [mode, setMode] = useState<'grid' | 'fan' | 'suits'>('grid');
   const [suit, setSuit] = useState('all');
   const [hidden, setHidden] = useState(false);
@@ -84,8 +85,8 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const canAct = !busy && !hidden && allRevealed && snapshot.status === 'playing';
   const name = (id: string | null) => snapshot.players?.find(p => String(p.player_id) === id)?.display_name || `Player ${id}`;
   const isTurn = !!mine && mine.player_id === pub?.current_player_id;
-  const promptKey = mine && snapshot.status === 'playing' && (!allRevealed || isTurn)
-    ? `${snapshot.match_id}:${!allRevealed ? 'reveal' : `${pub?.phase}:${pub?.current_player_id}`}` : null;
+  const promptKey = mine && snapshot.status === 'playing' && isTurn && pub?.phase === 'must_discard'
+    ? `${snapshot.match_id}:${pub.phase}:${pub.current_player_id}` : null;
   const cards = useMobileCards({ mobile, busy, error, promptKey, onAction });
   const activeGame = snapshot.status === 'playing';
   const staged = groups.flatMap(g => g.card_ids);
@@ -113,6 +114,15 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       </Pressable>)}
     </View>;
   const startCue = <TableStartCue snapshot={snapshot} busy={busy} onStart={onStart} onTableAction={onTableAction} onNewGame={onNewGame} />;
+  const turnPrompt = activeGame && pub && <TurnPulse personal={isTurn} text={isTurn ? `Your turn · ${pub.phase === 'must_draw' ? 'Take a card' : 'Show, finish, or discard'}` : `${name(pub.current_player_id)}’s turn`} />;
+  const canDraw = !busy && allRevealed && activeGame;
+  const mobileHandHeader = <View testID="marriage-hand-header" onLayout={e => setMobileHeaderHeight(e.nativeEvent.layout.height)} style={{ backgroundColor: colors.surface, padding: 8, gap: 8 }}>
+    {!allRevealed ? button('Reveal all cards', () => { reveal(true); cards.setOpen(true); }, busy) : isTurn && pub?.phase === 'must_draw' && <View style={s.row}>
+      {button('Take discard', () => cards.act('DRAW_CARD', { source: 'discard' }), !canDraw || !actions?.drawable_sources.includes('discard'))}
+      {button(`Take stock ${pub.stock_count}`, () => cards.act('DRAW_CARD', { source: 'stock' }), !canDraw || !actions?.drawable_sources.includes('stock'))}
+    </View>}
+    {turnPrompt}
+  </View>;
   return <View style={s.page} testID="marriage-table">
     <GameTableHeader title="Marriage" game="marriage" onBack={onBack} endControl={endControl}>
       {mobile && detailsBar}{mobile && !showFormation && tableControl}
@@ -120,7 +130,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
     {showFormation && <View testID="marriage-formation-controls">{tableControl}</View>}
     {!mobile && detailsBar}
     <View style={{ flex: 1, minHeight: 0 }}>
-    <View testID="marriage-play-area" style={[s.playArea, mobile && mine && activeGame && { paddingBottom: 60 }]}>
+    <View testID="marriage-play-area" style={[s.playArea, mobile && mine && activeGame && { paddingBottom: 60 + mobileHeaderHeight }]}>
       {!pub ? <ScrollView contentContainerStyle={s.panel}>
         <View style={[s.table, { minHeight: 180 }]}>{startCue}</View>
         <Text style={s.heading}>{snapshot.players?.length}/{snapshot.capacity} players seated</Text>
@@ -136,7 +146,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
           <View style={s.main}>
             <View style={s.table}>
               <MarriageCardArea snapshot={snapshot} canAct={canAct} hidden={hidden || !allRevealed} onAction={cards.act} showActions={!mobile} onPoke={activeGame ? undefined : setPoke} />
-              {snapshot.status === 'playing' && <TurnPulse personal={isTurn} text={isTurn ? `Your turn · ${pub.phase === 'must_draw' ? 'Take a card' : 'Show, finish, or discard'}` : `${name(pub.current_player_id)}’s turn`} />}
+              {(!mobile || !mine) && turnPrompt}
 
             </View>
 
@@ -145,11 +155,10 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       </>}
       {!!error && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}
     </View>
-    {pub && mine && activeGame && <MobileGameHand game="marriage" mobile={mobile} keepMounted open={cards.open} onToggle={cards.toggle} myTurn={isTurn}>
+    {pub && mine && activeGame && <MobileGameHand game="marriage" mobile={mobile} keepMounted header={mobileHandHeader} open={cards.open} onToggle={cards.toggle} myTurn={isTurn}>
     <View testID="marriage-hand-dock" style={[s.handDock, mobile && { backgroundColor: 'transparent', borderTopWidth: 0, padding: 4 }]} onLayout={e => { if (e.nativeEvent.layout.width > 48) setWidth(e.nativeEvent.layout.width - (mobile ? 8 : 24)); }}>
       <View style={s.row}>{button('Hand tools', () => setToolsOpen(true))}{button('Poke the table', () => setPoke(null), !social.connected)}</View>
       <ScrollView horizontal contentContainerStyle={{ gap: 8 }}>{(snapshot.players || []).filter(p => p.player_id !== snapshot.your_player_id).map(p => <View key={p.player_id}>{button(`Poke ${p.display_name || `Player ${p.player_id}`}`, () => setPoke(p.player_id), !social.connected || p.connected === false)}</View>)}</ScrollView>
-      {mobile && <View style={s.row}>{button('Take discard', () => cards.act('DRAW_CARD', { source: 'discard' }), !canAct || !actions?.drawable_sources.includes('discard'))}{button(`Take stock ${pub.stock_count}`, () => cards.act('DRAW_CARD', { source: 'stock' }), !canAct || !actions?.drawable_sources.includes('stock'))}</View>}
       {actions?.kinds.includes('finish') && button('Finish round', () => cards.act('FINISH'), !canAct)}
       <View style={s.row}><Text style={s.heading}>Your cards · {availableHand.length}</Text>{allRevealed && button(hidden ? 'Show cards' : 'Hide cards', () => { setHidden(v => !v); setSelected([]); })}</View>
       <View testID="marriage-hand" style={[s.hand, { height: 156, width }]}>{shown.map((card, index) => {
@@ -169,7 +178,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
           {!back && !fan && <Text numberOfLines={1} style={s.copy}>{card.card_type === 'man' ? 'Man' : suitName[card.suit!]} · {(card.deck_index ?? Number(card.card_id.slice(-1))) + 1}</Text>}
         </Pressable>;
       })}</View>
-      {!hidden && (!allRevealed ? <View style={s.row}>{button(`Reveal next · ${revealed}/21`, () => reveal())}{button('Reveal all cards', () => reveal(true))}</View> : <>
+      {!hidden && (!allRevealed ? <View style={s.row}>{button(`Reveal next · ${revealed}/21`, () => reveal())}{!mobile && button('Reveal all cards', () => reveal(true))}</View> : <>
           {button(selected.length === 1 ? `Discard ${physicalLabel(selected[0])}` : 'Select one card to discard', () => cards.act('DISCARD_CARD', { card_id: selected[0] }),
             !canAct || selected.length !== 1 || !actions?.discardable_card_ids.includes(selected[0]))}
       </>)}

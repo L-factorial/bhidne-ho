@@ -526,7 +526,10 @@ Mobile Your cards expands over the table and preserves revealed cards and hand
 view choices when collapsed. It reopens for a new decision and collapses only
 after a confirmed bid, played card, accepted hand, Marriage discard or finish.
 Rejections stay visible. Marriage draws, meld checks and local card manipulation
-keep the panel open for the rest of the turn. Table and private pokes are available
+keep the panel open for the rest of the turn. Marriage starts with Your cards
+collapsed on mobile and opens the hand after drawing. Its reveal/draw controls
+stay above the hand toggle, with the turn prompt directly above Your cards, so
+drawing does not require expanding the hand. Table and private pokes are available
 only inside Your cards during active play. Desktop keeps its permanent hand and
 Call Break statistics sidebar.
 
