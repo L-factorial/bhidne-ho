@@ -22,6 +22,7 @@ async function api(path, user, body) {
       const root = `/test-games/${room.room_id}`;
       const game = await api(root, users[0], { game_type: kind, player_count: count });
       for (const user of users.slice(1)) await api(root + '/join', user, { match_id: game.match_id });
+      if (kind !== 'callbreak') await api(root + '/table/lock', users[0], { match_id: game.match_id });
       const before = await api(root + '/start', users[0], { match_id: game.match_id, rules_revision: 0 });
       const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
       await context.addInitScript(({ user, room, kind }) => {
@@ -50,14 +51,13 @@ async function api(path, user, body) {
       assert.deepEqual(mutations.filter(path => path.startsWith(root)), []);
       await collapse.click();
       await page.getByRole('button', { name: 'Leave room', exact: true }).click();
-      await page.getByRole('button', { name: 'Leave game and room', exact: true }).waitFor();
+      await page.getByRole('button', { name: kind === 'callbreak' ? 'Abandon match and leave room' : 'Leave game and room', exact: true }).waitFor();
       await page.getByRole('button', { name: 'Stay in room', exact: true }).click();
       assert.equal((await api(`/rooms/${room.room_id}`, users[0])).is_member, true);
-      // Confirming a departure from a waiting game leaves game first, then room.
+      // A waiting seat is released atomically by explicit room departure.
       await api(root + '/end', users[0], { match_id: game.match_id });
       await api(root, users[0], { game_type: kind, player_count: count });
       await page.getByRole('button', { name: 'Leave room', exact: true }).click();
-      await page.getByRole('button', { name: 'Leave game and room', exact: true }).click();
       await page.getByText('YOUR SPACE', { exact: true }).waitFor();
       assert.equal((await api(`/rooms/${room.room_id}`, users[0])).is_member, false);
       assert.equal((await api(`/rooms/${room.room_id}`, users[0])).active_game.player_is_participant, false);

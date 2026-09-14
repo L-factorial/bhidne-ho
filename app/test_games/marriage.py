@@ -18,6 +18,8 @@ class HostedMarriageTarget(MarriageCommandTarget):
     def authorize(self, user_id):
         if self.host.games.get(self.game.room_id) is not self.game or self.game.ended:
             raise CommandAccessError(409, "This game is no longer active.")
+        if user_id in self.game.departed:
+            raise CommandAccessError(403, "You have left this seat.")
         super().authorize(user_id)
 
     def snapshot(self, user_id):

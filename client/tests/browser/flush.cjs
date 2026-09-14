@@ -27,7 +27,7 @@ async function api(route, user, body) {
     await one.getByRole('button', { name: 'Create table', exact: true }).click();
     await one.getByRole('button', { name: 'Create Flush table', exact: true }).click();
     await one.getByTestId('flush-table').waitFor();
-    assert.ok(await one.getByRole('button', { name: 'Lock table', exact: true }).isDisabled());
+    assert.ok(await one.getByRole('button', { name: 'Lock game', exact: true }).isDisabled());
     await one.getByRole('button', { name: 'Rules', exact: true }).click();
     await one.getByLabel('Blind bet', {exact:true}).fill('10');
     await one.getByLabel('Personal bets before side-show', { exact: true }).fill('1');
@@ -47,7 +47,8 @@ async function api(route, user, body) {
     assert.equal(await two.getByLabel('Personal bets before side-show', { exact: true }).inputValue(), '1');
     await two.getByRole('button', { name: 'Close Flush rules', exact: true }).click();
     await one.getByRole('button', { name: 'Go back to table', exact: true }).click();
-    await one.getByRole('button', { name: 'Lock table', exact: true }).click();
+    await one.getByRole('button', { name: 'Lock game', exact: true }).click();
+    await one.getByRole('button', { name: 'Start game', exact: true }).click();
     let preparation = await api(root, users[0]);
     const dealer = preparation.game.turn.player_id - 1;
     await pages[dealer].getByRole('button', {name:'Deal cards',exact:true}).click();
@@ -91,7 +92,7 @@ async function api(route, user, body) {
       await page.getByTestId('flush-final-show').waitFor();
       assert.equal(await page.getByTestId('flush-final-show').getByRole('button', {name:/shown card [123]:/}).count(), 3);
       assert.equal(await page.getByTestId('flush-round-result').count(), 0);
-      assert.equal(await page.getByRole('button', {name:'Lock table',exact:true}).count(), 0);
+      assert.equal(await page.getByRole('button', {name:'Lock game',exact:true}).count(), 0);
     }
     await pages[second].getByRole('button', {name:'Close final show',exact:true}).click();
     await pages[second].getByTestId('flush-show-overlay').waitFor({state:'hidden'});
@@ -117,20 +118,21 @@ async function api(route, user, body) {
     assert.equal(state.flush.public.settlement.shown_hands.length, 2);
     for (const page of [...pages, spectator]) await page.getByRole('button', {name:'Close final show',exact:true}).click();
     const winner = Number(state.flush.public.next_dealer_id) - 1;
-    assert.equal(await pages[1].getByRole('button', {name:'Lock table',exact:true}).count(), 0);
+    assert.equal(await pages[1].getByRole('button', {name:'Lock game',exact:true}).count(), 0);
     await pages[winner].getByRole('button', {name:'Bet',exact:true}).click();
     const grid = pages[winner].getByTestId('flush-bet-grid');
     assert.ok((await grid.innerText()).includes('Round 1'));
     assert.ok((await grid.innerText()).includes('+'));
     assert.ok((await grid.innerText()).includes('−') || (await grid.innerText()).includes('-'));
     await pages[winner].getByRole('button', {name:'Close Bet',exact:true}).click();
-    await pages[0].getByRole('button', {name:'Leave table',exact:true}).click();
-    await pages[1].getByRole('button', {name:'Lock table',exact:true}).waitFor();
-    assert.ok(await pages[1].getByRole('button', {name:'Lock table',exact:true}).isDisabled());
+    await pages[0].getByRole('button', {name:'Leave Seat',exact:true}).click();
+    await pages[1].getByRole('button', {name:'Lock game',exact:true}).waitFor();
+    assert.ok(await pages[1].getByRole('button', {name:'Lock game',exact:true}).isDisabled());
     const joinSection = pages[0].getByRole('button', {name:'Join a table',exact:true});
     if (await joinSection.getAttribute('aria-expanded') !== 'true') await joinSection.click();
     await pages[0].getByRole('button', {name:'Join table',exact:true}).click();
-    await pages[1].getByRole('button', {name:'Lock table',exact:true}).click();
+    await pages[1].getByRole('button', {name:'Lock game',exact:true}).click();
+    await pages[1].getByRole('button', {name:'Start game',exact:true}).click();
     await pages[winner].getByRole('button', {name:'Deal cards',exact:true}).waitFor();
     await pages[winner].reload();
     await pages[winner].getByRole('button', {name:'Deal cards',exact:true}).click();

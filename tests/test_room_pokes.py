@@ -33,6 +33,7 @@ async def social_table(game_type="callbreak", started=True):
     game = await host.create('room', 'u0', 4, game_type)
     for index in range(1, 4): await host.join('room', f'u{index}', game['match_id'])
     if started:
+        if game_type != 'callbreak': await host.table_command('room', 'u0', game['match_id'], 'lock')
         await host.start('room', 'u0', game['match_id'], 'manual', rules_revision=0)
     for socket in sockets: socket.messages.clear()
     return host, social, connections, sockets, ids

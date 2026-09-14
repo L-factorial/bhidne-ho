@@ -39,6 +39,7 @@ def test_flush_room_settings_lock_privacy_turns_and_retries(capacity):
         assert client.get(root, headers=headers[-1]).json()['flush_settings'] == saved.json()['flush_settings']
         assert post('/start', 0, {'match_id': mid}).status_code == 409
         assert post('/start', 0, {'match_id': mid, 'rules_revision': 0}).status_code == 409
+        assert post('/table/lock', 0, {'match_id': mid}).status_code == 200
         started = post('/start', 0, {'match_id': mid, 'rules_revision': 1})
         assert started.status_code == 200, started.text
         state = started.json()
@@ -91,19 +92,24 @@ async def test_concurrent_save_start_and_failed_start_are_atomic(start_first):
     mid = state['match_id']
     await host.join('r', 'b', mid)
     body = FlushSettings(match_id=mid, rules_revision=0, rules=state['flush_settings']['rules'], starting_chips=200)
-    operations = [host.configure_flush('r', 'a', body), host.start('r', 'a', mid, rules_revision=0)]
+    async def lock_and_start():
+        await host.table_command('r', 'a', mid, 'lock')
+        return await host.start('r', 'a', mid, rules_revision=0)
+    operations = [host.configure_flush('r', 'a', body), lock_and_start()]
     results = await asyncio.gather(*(reversed(operations) if start_first else operations), return_exceptions=True)
     assert sum(isinstance(r, dict) for r in results) == 1
     assert sum(isinstance(r, HTTPException) and r.status_code == 409 for r in results) == 1
     game = host.games['r']
     if not game.started:
         # Defense in depth: corrupt an internal bankroll, then verify startup installs nothing.
+        await host.table_command('r', 'a', mid, 'lock')
         game.flush_starting_chips = 0
         with pytest.raises(HTTPException):
-            await host.start('r', 'a', mid, rules_revision=1)
+            await host.start('r', 'a', mid, rules_revision=game.flush_rules_revision)
         assert game.flush_target is None and not game.started
         game.flush_starting_chips = 200
-        await host.start('r', 'a', mid, rules_revision=1)
+        await host.table_command('r', 'a', mid, 'lock')
+        await host.start('r', 'a', mid, rules_revision=game.flush_rules_revision)
     before = game.flush_target.adapter.revision
     assert (await host.snapshot('r', 'a'))['flush_settings']['locked']
     with pytest.raises(HTTPException):
@@ -123,6 +129,7 @@ async def test_flush_locks_current_quorum_and_rejects_late_joiners(count):
     for i in range(1, count): await host.join('quorum', f'u{i}', mid)
     assert (await host.snapshot('quorum', 'u0'))['ready']
     with pytest.raises(HTTPException): await host.start('quorum', 'u1', mid, rules_revision=0)
+    await host.table_command('quorum', 'u0', mid, 'lock')
     locked = await host.start('quorum', 'u0', mid, rules_revision=0)
     assert len(locked['flush']['public']['players']) == count
     assert not (await host.snapshot('quorum', 'u10'))['can_join']
@@ -140,12 +147,13 @@ async def test_flush_join_and_lock_race_freezes_one_roster(join_first):
     await host.join('race', 'b', mid)
     game = host.games['race']
     async with game.lock:
-        operations = [lambda: host.join('race', 'c', mid), lambda: host.start('race', 'a', mid, rules_revision=0)]
+        operations = [lambda: host.join('race', 'c', mid), lambda: host.table_command('race', 'a', mid, 'lock')]
         if not join_first: operations.reverse()
         tasks = [asyncio.create_task(operation()) for operation in operations]
         await asyncio.sleep(0)
     results = await asyncio.gather(*tasks, return_exceptions=True)
     assert len(game.users) == (3 if join_first else 2)
+    await host.start('race', 'a', mid, rules_revision=0)
     assert len(game.flush_target.adapter.seat_ids) == len(game.users)
     if not join_first: assert isinstance(results[1], HTTPException)
     await host.close()
@@ -156,6 +164,7 @@ async def test_between_round_seating_creator_transfer_and_balance_history():
     for user in ['a', 'b', 'c']: await rooms.join('changing', user)
     waiting = await host.create('changing', 'a', 10, 'flush'); mid = waiting['match_id']
     await host.join('changing', 'b', mid)
+    await host.table_command('changing', 'a', mid, 'lock')
     await host.start('changing', 'a', mid, rules_revision=0)
     game = host.games['changing']
     e = game.flush_target.adapter.checkpoint()
@@ -170,6 +179,7 @@ async def test_between_round_seating_creator_transfer_and_balance_history():
     newcomer = await host.snapshot('changing', 'c')
     assert newcomer['your_player_id'] == 3 and newcomer['flush']['private'] is None
     with pytest.raises(HTTPException): await host.start('changing', 'c', mid, rules_revision=0)
+    await host.table_command('changing', 'b', mid, 'lock')
     locked = await host.start('changing', 'b', mid, rules_revision=0)
     assert not locked['roster_open']
     current = game.flush_target.adapter.checkpoint()
@@ -182,6 +192,7 @@ async def test_between_round_seating_creator_transfer_and_balance_history():
     current.deal_cards(current.get_state().current_player_id); current.skip_cut(current.get_state().current_player_id)
     current.fold(current.get_state().current_player_id)
     await host.join('changing', 'a', mid)
+    await host.table_command('changing', 'b', mid, 'lock')
     await host.start('changing', 'b', mid, rules_revision=0)
     final = game.flush_target.adapter.checkpoint().get_state()
     assert final.players[-1].player_id == '1' and final.players[-1].chips == balances['1']
@@ -199,6 +210,7 @@ async def test_completed_flush_round_can_be_replaced_after_room_reentry(game_typ
     for user in ['b', 'c']: await host.join('returning', user, mid)
     with pytest.raises(HTTPException):
         await host.create('returning', 'b', capacity, game_type)
+    await host.table_command('returning', 'a', mid, 'lock')
     started = await host.start('returning', 'a', mid, rules_revision=0)
     assert not started['can_create_new_game']
     with pytest.raises(HTTPException):
@@ -219,6 +231,7 @@ async def test_completed_flush_round_can_be_replaced_after_room_reentry(game_typ
     assert old.ended
     await rooms.join('returning', 'a')
     with pytest.raises(HTTPException):
+        await host.table_command('returning', 'a', mid, 'lock')
         await host.start('returning', 'a', mid, rules_revision=0)
     await host.close()
 
@@ -230,6 +243,7 @@ async def test_flush_replacement_and_next_round_cannot_both_start(replace_first)
     waiting = await host.create('race', 'a', 10, 'flush')
     mid = waiting['match_id']
     await host.join('race', 'b', mid)
+    await host.table_command('race', 'a', mid, 'lock')
     await host.start('race', 'a', mid, rules_revision=0)
     game = host.games['race']
     engine = game.flush_target.adapter.checkpoint()
@@ -238,7 +252,7 @@ async def test_flush_replacement_and_next_round_cannot_both_start(replace_first)
     engine.fold(engine.get_state().current_player_id)
     async with game.lock:
         operations = [lambda: host.create('race', 'b', 3, 'marriage'),
-                      lambda: host.start('race', 'a', mid, rules_revision=0)]
+                      lambda: host.table_command('race', 'a', mid, 'lock')]
         if not replace_first: operations.reverse()
         tasks = [asyncio.create_task(operation()) for operation in operations]
         await asyncio.sleep(0)

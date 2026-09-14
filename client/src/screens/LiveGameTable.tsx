@@ -20,6 +20,7 @@ type Trick = { trick_number: number; plays: { player_id: number; card: string }[
 export type RoomSnapshot = {
   can_create_new_game?: boolean;
   roster_open?: boolean;
+  table?: import('../components/TableControls').TableView;
   marriage_scoring?: import('../multiplayer/marriage').MarriageScoringRules;
   marriage_scoring_presets?: Record<string, import('../multiplayer/marriage').MarriageScoringRules>;
   game_type?: 'callbreak' | 'marriage' | 'flush';

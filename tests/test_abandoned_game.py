@@ -20,6 +20,7 @@ async def test_sole_newcomer_can_end_abandoned_game(game_type, capacity, started
     mid = game['match_id']
     for user in users[1:]: await host.join('room', user, mid)
     if started:
+        if game_type != 'callbreak': await host.table_command('room', users[0], mid, 'lock')
         await host.start('room', users[0], mid, rules_revision=0)
     for user in users: await rooms.leave('room', user)
     await rooms.join('room', 'newcomer')

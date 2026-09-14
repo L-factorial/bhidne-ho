@@ -15,6 +15,9 @@ class RoomLifecycle:
             return await self._snapshot(room_id, user_id)
 
     async def _snapshot(self, room_id, user_id):
+        hosted = self.games.games.get(room_id)
+        if hosted:
+            await self.games._advance_table(hosted)
         members = await self.rooms.members(room_id)
         return {"room_id": room_id, "members": members,
                 "is_member": user_id in members,
@@ -31,11 +34,13 @@ class RoomLifecycle:
     async def leave(self, room_id, user_id):
         async with self.games.membership_guard(room_id):
             game = self.games.membership(room_id, user_id)
-            if game and game["active"] and game["player_is_participant"]:
+            if game and game["table"]["current_user"]["is_in_active_match"]:
                 raise HTTPException(409, {"code": "ACTIVE_GAME_EXISTS",
                     "detail": "Leave the game explicitly before leaving this room.",
                     "game_id": game["game_id"], "match_id": game["game_id"],
-                    "requires_leave_game": True})
+                    "requires_leave_game": True,
+                    "departure_command": "abandon" if game["table"]["current_user"]["can_abandon_match"] else "leave"})
+            await self.games.room_departure(room_id, user_id)
             await self.connections.leave_room(room_id, user_id)
             state = await self._snapshot(room_id, user_id)
         await self._publish(room_id)

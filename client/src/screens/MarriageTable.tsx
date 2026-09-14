@@ -102,6 +102,11 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       {(['stats', 'rules', 'points'] as const).map(section => <Pressable key={section} accessibilityRole="button" onPress={() => setDetails(section)} style={s.detailsTab}>
         <Text style={s.buttonText}>{section === 'stats' ? 'Stats' : section === 'rules' ? 'Rules' : 'Points'}</Text>
       </Pressable>)}
+      {!!snapshot.your_player_id && <Pressable accessibilityRole="button" accessibilityLabel="Poke the room"
+        disabled={!social.connected} accessibilityState={{ disabled: !social.connected }}
+        onPress={() => setPoke(null)} style={[s.detailsTab, !social.connected && s.disabled]}>
+        <Text style={s.buttonText}>Poke the room</Text>
+      </Pressable>}
       {pub && mine && <Pressable accessibilityRole="button" accessibilityLabel="Hand tools" onPress={() => setToolsOpen(true)} style={s.detailsTab}><Text style={s.buttonText}>Hand tools</Text></Pressable>}
     </View>
     <View testID="marriage-play-area" style={s.playArea}>
@@ -110,7 +115,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         {snapshot.players?.map(p => <Text key={p.player_id} style={s.text}>{p.display_name || `Player ${p.player_id}`}{p.player_id === snapshot.your_player_id ? ' · You' : ''}</Text>)}
         <Text style={s.text}>Build seven pairs, see Maal, then finish with an eighth pair. Normal qualification is available; normal-hand winning comes later. Open Rules to select scoring before starting.</Text>
         <Text style={s.text}>Each player draws, shows melds, and discards on their own turn. Play waits for disconnected players to return.</Text>
-        {snapshot.is_creator ? button('Start game', onStart, busy || !snapshot.ready) : <Text style={s.text}>Waiting for the creator to start.</Text>}
+        {!snapshot.table && (snapshot.is_creator ? button('Start game', onStart, busy || !snapshot.ready) : <Text style={s.text}>Waiting for the creator to start.</Text>)}
         {lobbyControl}
       </View> : <>
         {snapshot.status === 'finished' && <View style={s.panel}><Text accessibilityRole="header" style={s.heading}>{name(pub.winner)} wins!</Text>
@@ -188,7 +193,6 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
                 <View style={s.maal}><Text style={s.heading}>Maal</Text><Text style={s.text}>{mine.maal ? `Tiplu ${marriageFace(mine.maal.tiplu)} · Jhiplu ${marriageFace(mine.maal.jhiplu)} · Poplu ${marriageFace(mine.maal.poplu)}` : 'Hidden until your melds qualify.'}</Text></View>
               </>}
             </View>}
-          {mine && button('Poke the table', () => { setToolsOpen(false); setPoke(null); }, !social.connected)}
           {!!error && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}
         </ScrollView>
       </View></View>

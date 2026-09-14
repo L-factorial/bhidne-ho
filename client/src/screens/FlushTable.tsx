@@ -27,7 +27,8 @@ const choices = {
   tie_policy: [['requester_loses', 'Show requester loses'], ['split', 'Split pot']],
 };
 
-export function FlushTable({ snapshot, busy, error, onSave, onStart, onAction, onBack, onNewGame, endControl, lobbyControl, social }: {
+export function FlushTable({ snapshot, busy, error, onSave, onStart, onAction, onBack, onNewGame, endControl, lobbyControl, social, onFormationBlocked }: {
+  onFormationBlocked?: (blocked: boolean) => void;
   social: { connected: boolean; phrases: PlayerPhrase[]; save: (text: string) => Promise<void>; send: (text: string) => Promise<void> };
   snapshot: RoomSnapshot; busy: boolean; error: string; endControl?: ReactNode; lobbyControl?: ReactNode;
   onSave: (payload: { rules: FlushRules; starting_chips: number; rules_revision: number }) => void;
@@ -46,6 +47,8 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onAction, o
   const [dirty, setDirty] = useState(false);
   const [localError, setLocalError] = useState('');
   const stale = baseRevision !== settings.rules_revision;
+  useEffect(() => { onFormationBlocked?.(dirty || stale); }, [dirty, stale, onFormationBlocked]);
+  useEffect(() => () => onFormationBlocked?.(false), [onFormationBlocked]);
   function reload() { setDraft({ ...settings.rules, starting_chips: settings.starting_chips }); setBaseRevision(settings.rules_revision); setDirty(false); setLocalError(''); }
   useEffect(() => {
     const saved = { ...settings.rules, starting_chips: settings.starting_chips };
@@ -126,7 +129,7 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onAction, o
       <Text style={s.title}>{snapshot.players?.length}/{snapshot.capacity} players seated · minimum 2</Text>
       <Text style={s.text}>Locking keeps the current players for the next round. Seating reopens when that round ends.</Text>
       {snapshot.players?.map(p => <Text key={p.player_id} style={s.text}>{p.display_name}</Text>)}
-      {snapshot.is_creator ? <FlushLockButton onPress={() => onStart(baseRevision)} disabled={busy || !snapshot.ready || dirty || stale} /> : <Text style={s.text}>Waiting for the creator to lock the table.</Text>}{lobbyControl}
+      {!snapshot.table && (snapshot.is_creator ? <FlushLockButton onPress={() => onStart(baseRevision)} disabled={busy || !snapshot.ready || dirty || stale} /> : <Text style={s.text}>Waiting for the creator to lock the table.</Text>)}{lobbyControl}
     </View>}
     {pub && <>
       <FlushFoldNotice key={`folds:${snapshot.match_id}`} snapshot={snapshot} />

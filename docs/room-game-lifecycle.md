@@ -1,5 +1,9 @@
 # Room and game lifecycle audit and implementation report
 
+For current seating, departure and formation semantics, see [Table seating and
+rotation](table-seating.md). That extension supersedes the waiting-seat departure,
+completed Call Break recreation and single-step start behavior described here.
+
 Navigation, room membership, table membership, connection state, and engine state
 are separate. All state remains in memory in one process.
 

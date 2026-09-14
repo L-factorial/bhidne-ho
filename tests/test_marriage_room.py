@@ -36,6 +36,7 @@ def test_marriage_http_lifecycle_private_hands_retries_and_room_chat_policy():
         assert client.post(root + '/leave', headers=headers[1], json={'match_id': mid}).json()['your_player_id'] is None
         client.post(root + '/join', headers=headers[1], json={'match_id': mid})
         assert client.post(root + '/start', headers=headers[1], json={'match_id': mid}).status_code == 403
+        assert client.post(root + '/table/lock', headers=headers[0], json={'match_id': mid}).status_code == 200
         started = client.post(root + '/start', headers=headers[0], json={'match_id': mid, 'play_mode': 'manual'})
         assert started.status_code == 200, started.text
         initial = started.json()

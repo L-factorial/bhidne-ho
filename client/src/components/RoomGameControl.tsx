@@ -1,3 +1,4 @@
+import { TableControls } from './TableControls';
 import { AppHeader } from './AppHeader';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -38,6 +39,7 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, roo
   const [capacity, setCapacity] = useState(4);
   useEffect(() => { if (gameType === 'callbreak') setCapacity(value => Math.max(4, value)); }, [gameType]);
   const [pendingAction, setBusy] = useState(false);
+  const [formationBlocked, setFormationBlocked] = useState(false);
   const base = `${apiUrl}/test-games/${encodeURIComponent(roomId)}`;
   const transport = useMemo(() => createHttpGameTransport<Snapshot>(base, token), [base, token]);
   const commandClient = useMemo(() => new GameCommandClient(transport), [transport]);
@@ -136,7 +138,7 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, roo
     } catch (error) { if (alive.current && generation.current === version) setError(error instanceof Error ? error.message : 'Cannot update game.'); }
     finally { pending.current = false; if (alive.current) setBusy(false); }
   }
-  const canCreate = snapshot?.status === 'empty' || snapshot?.status === 'finished' || snapshot?.status === 'ended';
+  const canCreate = snapshot?.status === 'empty' || (snapshot?.status === 'finished' && !snapshot.table?.requires_replacement) || snapshot?.status === 'ended';
   const canCreateNewGame = canCreate || !!snapshot?.can_create_new_game;
   const canEnd = !canCreate && (snapshot?.is_creator || (connected && roomMembers.length === 1 && roomMembers[0] === userId));
   const selectedGameName = ({ marriage: 'Marriage', callbreak: 'Call Break', flush: 'Flush' })[gameType];
@@ -158,7 +160,7 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, roo
       const data = await api(suffix, { match_id: snapshot.match_id, ...payload });
       if (alive.current && generation.current === version) {
         setSnapshot(data);
-        if (suffix === '/leave') { setOpen(false); setLive(false); enteredMatch.current = null; }
+        if (suffix === '/leave' || suffix === '/table/leave-seat' || suffix === '/table/abandon') { setOpen(false); setLive(false); enteredMatch.current = null; }
       }
     } catch (error) { if (alive.current && generation.current === version) setError(error instanceof Error ? error.message : 'Could not update game.'); }
     finally { pending.current = false; if (alive.current) setBusy(false); }
@@ -170,9 +172,13 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, roo
     : snapshot.status === 'ended' ? `${gameName} - Ended` : snapshot.status === 'finished' ? `${gameName} - Game finished` : `${gameName} · ${snapshot.game?.phase.replaceAll('_', ' ').toLowerCase() || 'In progress'}`;
   const endControl = canEnd
     ? <EndGameControl table={snapshot?.game_type === 'flush'} key={`end-${snapshot?.match_id}`} busy={busy} onEnd={() => lobbyAction('/end')} /> : null;
-  const leaveControl = snapshot?.your_player_id
+  const lifecycleControl = snapshot?.table ? <TableControls table={snapshot.table} members={roomMembers} userId={userId} busy={busy} formationBlocked={formationBlocked}
+    act={(command, payload) => lobbyAction(`/table/${command}`, payload)}
+    start={() => lobbyAction('/start', { play_mode: 'manual', rules_revision: snapshot.flush_settings?.rules_revision })} /> : null;
+  const leaveControl = !snapshot?.table?.current_user.can_leave_seat && !snapshot?.table?.current_user.can_abandon_match && snapshot?.your_player_id
     ? <Pressable accessibilityRole="button" accessibilityLabel={`Leave ${noun}`} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => void lobbyAction('/leave')} style={styles.choice}><Text style={[styles.text, live && open && { color: colors.text }]}>{`Leave ${noun}`}</Text></Pressable> : null;
   return <>
+    {!open && lifecycleControl}
     {!open && snapshot?.match_id && snapshot.can_join && !snapshot.your_player_id && !snapshot.is_creator && dismissedInvitation !== snapshot.match_id && <View testID="game-created-notice" style={styles.invitation}>
       <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.summary}>A new {gameName} {noun} is ready!</Text>
       <Text style={styles.text}>Someone in your room created a {noun}. Take a seat to play.</Text>
@@ -246,13 +252,14 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, roo
         </View>}
         {(!connected || !synced) && <Text accessibilityRole="alert" style={styles.connectionNotice}>{connectionMessage || (!connected ? 'Reconnecting… Your seat is saved.' : 'Updating game…')}</Text>}
         {!!actionNotice && <Text accessibilityLiveRegion="polite" style={styles.connectionNotice}>{actionNotice}</Text>}
+        {lifecycleControl}
         {snapshot.game_type === 'callbreak' && leaveControl}
         {snapshot.status === 'ended' ? <View style={styles.body}><AppHeader title={gameName} />
           <Text style={[styles.title, { color: colors.text }]}>{snapshot.game_type === 'flush' ? 'Table ended' : 'Game ended'}</Text>
           <Text style={[styles.text, { color: colors.text }]}>{snapshot.game_type === 'flush' ? 'This table has ended. The room is still open for a new table.' : 'This game has ended. The room is still open for another round.'}</Text>
           <Pressable accessibilityRole="button" onPress={() => { setLive(false); setOpen(true); }} style={styles.button}><Text style={styles.buttonText}>{snapshot.game_type === 'flush' ? 'Start a new table' : 'Start a new game'}</Text></Pressable>
           <Pressable accessibilityRole="button" onPress={collapseGame} style={styles.button}><Text style={styles.buttonText}>Back to room</Text></Pressable>
-        </View> : snapshot.game_type === 'flush' ? <FlushTable key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={error}
+        </View> : snapshot.game_type === 'flush' ? <FlushTable onFormationBlocked={setFormationBlocked} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={error}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: text => social.send(snapshot.match_id!, null, text) }}
           onSave={payload => lobbyAction('/flush-settings', payload)} onStart={rules_revision => lobbyAction('/start', { rules_revision })}
           onAction={gameAction} onBack={collapseGame} onNewGame={() => { setLive(false); setOpen(true); }} lobbyControl={leaveControl}

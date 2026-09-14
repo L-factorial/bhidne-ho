@@ -32,6 +32,7 @@ def test_manual_turns_require_the_seated_player_and_survive_reconnect(capacity):
                 'match_id': mid, 'play_mode': 'auto'})
             assert rejected.status_code == 422
             assert client.get(root, headers=headers[0]).json()['status'] == 'waiting'
+            assert client.post(root + '/table/lock', headers=headers[0], json={'match_id': mid}).status_code == 200
             started = client.post(root + '/start', headers=headers[0], json={'match_id': mid}).json()
             assert started['play_mode'] == 'manual'
             game = client.app.state.test_games.games['manual-marriage']

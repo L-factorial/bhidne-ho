@@ -90,7 +90,7 @@ async def test_full_table_waits_for_creator_then_completes_all_five_deals(n):
                 assert (row["score_tenths"] < 0) == (row["tricks_won"] < row["bid"])
                 assert "hand" not in row
 
-        replacement = await service.create("room", "u0", n)
+        replacement = await service.table_command("room", "u0", game.match_id, "next-match")
         assert replacement["match_id"] != waiting["match_id"]
     finally:
         await service.close()
@@ -171,7 +171,7 @@ async def test_retry_every_move_through_full_match_and_cancel_delivery(n):
     audit_match(game.state)
     assert len(game.state.completed_deals) == 5
     old_body = body
-    replacement = await service.create("room", "u0", n)
+    replacement = await service.table_command("room", "u0", game.match_id, "next-match")
     with pytest.raises(HTTPException) as error:
         await service.action("room", user, old_body)
     assert error.value.status_code == 409
@@ -368,8 +368,7 @@ async def test_creator_settings_start_quorum_and_locking():
         assert not snapshot["rules"]["redeal"]["no_spades_enabled"]
         with pytest.raises(HTTPException):
             await service.configure("room", "u0", settings)
-        with pytest.raises(HTTPException):
-            await service.start("room", "u0", mid)
+        assert (await service.start("room", "u0", mid))["match_id"] == mid
     finally:
         await service.close()
 

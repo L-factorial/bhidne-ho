@@ -8,7 +8,7 @@ export const apiUrl = (process.env.EXPO_PUBLIC_API_URL || (Platform.OS === 'web'
 
 export class ApiError extends Error {
   status: number;
-  detail?: { code?: string; match_id?: string; requires_leave_game?: boolean };
+  detail?: { code?: string; match_id?: string; requires_leave_game?: boolean; departure_command?: 'abandon' | 'leave' };
   constructor(status: number, message: string, detail?: ApiError["detail"]) { super(message); this.status = status; this.detail = detail; }
 }
 

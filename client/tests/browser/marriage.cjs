@@ -36,7 +36,7 @@ const label = c => c.card_type === 'man' ? `Man · ${Number(c.card_id.slice(-1))
     await one.getByRole('button', { name: '2 players', exact: true }).click();
     await one.getByRole('button', { name: 'Create Marriage game', exact: true }).click();
     await one.getByTestId('marriage-table').getByText('1/2 players seated', { exact: true }).waitFor();
-    assert.equal(await one.getByRole('button', { name: 'Start game', exact: true }).isDisabled(), true);
+    assert.equal(await one.getByRole('button', { name: 'Lock game', exact: true }).isDisabled(), true);
     await one.getByRole('button', { name: 'Rules', exact: true }).click();
     await one.getByRole('button', { name: 'Simple points', exact: true }).click();
     await one.getByLabel('Loser payment: Maal seen', { exact: true }).fill('7');
@@ -58,6 +58,7 @@ const label = c => c.card_type === 'man' ? `Man · ${Number(c.card_id.slice(-1))
     assert.deepEqual(saved.marriage_scoring.tiplu, [3, 6, 9]);
     await two.getByRole('button', { name: 'Close details', exact: true }).click();
     assert.equal(await one.getByRole('button', { name: 'Autoplay', exact: true }).count(), 0);
+    await one.getByRole('button', { name: 'Lock game', exact: true }).click();
     await one.getByRole('button', { name: 'Start game', exact: true }).click();
     await one.getByRole('button', { name: 'Reveal next · 0/21', exact: true }).click();
     await one.reload();
@@ -163,6 +164,7 @@ const label = c => c.card_type === 'man' ? `Man · ${Number(c.card_id.slice(-1))
     await two.getByTestId('in-game-invitation').getByRole('button', { name: 'Join game', exact: true }).click();
     await two.getByTestId('in-game-invitation').waitFor({ state: 'hidden' });
     assert.equal(await one.getByRole('button', { name: 'Autoplay', exact: true }).count(), 0);
+    await one.getByRole('button', { name: 'Lock game', exact: true }).click();
     await one.getByRole('button', { name: 'Start game', exact: true }).click();
     await two.getByRole('button', { name: 'Reveal all cards', exact: true }).waitFor();
     await one.getByRole('button', { name: 'End game', exact: true }).click();

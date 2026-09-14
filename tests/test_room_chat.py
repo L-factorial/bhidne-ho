@@ -65,7 +65,7 @@ def test_leave_before_start_and_active_players_cannot_chat():
         for header in headers[:2]:
             assert client.post(base+'/join', headers=header, json=body).status_code == 200
         assert client.post(base+'/start', headers=headers[2], json={**body, 'play_mode': 'manual'}).status_code == 200
-        assert client.post(base+'/leave', headers=headers[1], json=body).status_code == 409
+        assert client.post(base+'/table/leave-seat', headers=headers[1], json=body).status_code == 409
         for header in headers[:4]:
             assert client.get(chat, headers=header).status_code == 403
             assert client.post(chat, headers=header, json={'text': 'Playing'}).status_code == 403

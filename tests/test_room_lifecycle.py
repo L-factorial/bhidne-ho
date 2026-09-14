@@ -35,6 +35,8 @@ def table(request):
 
 def start(table):
     client, _, headers, root, body, _, _ = table
+    if table[5] != 'callbreak':
+        assert client.post(root + '/table/lock', headers=headers[0], json=body).status_code == 200
     response = client.post(root + '/start', headers=headers[0], json={**body, 'rules_revision': 0})
     assert response.status_code == 200, response.text
     return response.json()
@@ -81,16 +83,12 @@ def test_waiting_leave_is_once_and_distinct_from_room_leave(table, monkeypatch):
     target = host._leave_target(host.games['r'])
     callback = Mock(wraps=target.handle_player_leave)
     monkeypatch.setattr(type(target), 'handle_player_leave', callback)
-    rejected = client.post('/rooms/r/leave', headers=headers[1], json={})
-    assert rejected.status_code == 409
-    assert rejected.json()['detail']['code'] == 'ACTIVE_GAME_EXISTS'
-    assert rejected.json()['detail']['requires_leave_game'] is True
     for _ in range(2):
         left = client.post(root + '/leave', headers=headers[1], json=body)
         assert left.status_code == 200
         assert left.json()['your_player_id'] is None
         assert not left.json()['active_game']['player_is_participant']
-    callback.assert_called_once_with(users[1]['user_id'])
+    assert sum(e['event'] == 'SEAT_RELEASED' for e in host.games['r'].table.events) == 1
     assert users[1]['user_id'] in client.get('/rooms/r', headers=headers[0]).json()['members']
     for _ in range(2):
         assert client.post('/rooms/r/leave', headers=headers[1], json={}).status_code == 200
@@ -107,11 +105,10 @@ def test_active_room_departure_rejected_and_end_then_leave_preserves_other_seats
     assert rejected.status_code == 409
     assert rejected.json()['detail']['game_id'] == body['match_id']
     # Preserve existing fixed-roster departure policy; Flush also rejects during preparation.
-    rejected = client.post(root + '/leave', headers=headers[1], json=body)
-    assert rejected.status_code == 409
-    if kind != 'flush':
-        assert rejected.json()['detail']['code'] == 'LEAVE_NOT_ALLOWED'
-    assert client.get(root, headers=headers[2]).json() == before
+    if kind != 'callbreak':
+        rejected = client.post(root + '/leave', headers=headers[1], json=body)
+        assert rejected.status_code == 409
+        assert client.get(root, headers=headers[2]).json() == before
     assert client.post(root + '/end', headers=headers[0], json=body).status_code == 200
     for _ in range(2):
         left = client.post(root + '/leave', headers=headers[1], json=body).json()

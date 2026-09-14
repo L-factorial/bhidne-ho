@@ -17,7 +17,7 @@ class CallBreakCommandTarget:
     def authorize(self, user_id):
         if self.host.games.get(self.game.room_id) is not self.game or self.game.state is None or self.game.ended:
             raise CommandAccessError(409, "This game is not active. Refresh its state.")
-        if user_id not in self.game.users:
+        if user_id not in self.game.users or user_id in self.game.departed:
             raise CommandAccessError(403, "Spectators cannot play.")
 
     @property

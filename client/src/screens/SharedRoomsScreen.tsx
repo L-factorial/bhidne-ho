@@ -75,10 +75,10 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
       </View>
       {!!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{error || shared.error}</Text>}
       {shared.leaveGameRequired && <View>
-        <Text style={styles.subtitle}>You are seated in a game. Leave the game and room? The game's departure rules still apply.</Text>
+        <Text style={styles.subtitle}>{shared.abandonRequired ? 'Abandon the active match and leave the room? The match will stop for everyone.' : 'You are seated in a game. Leave the game and room? The game’s departure rules still apply.'}</Text>
         <Pressable accessibilityRole="button" disabled={busy} onPress={async () => {
           setBusy(true); try { await shared.leaveGameAndRoom(); } finally { setBusy(false); }
-        }}><Text style={styles.subtitle}>Leave game and room</Text></Pressable>
+        }}><Text style={styles.subtitle}>{shared.abandonRequired ? 'Abandon match and leave room' : 'Leave game and room'}</Text></Pressable>
         <Pressable accessibilityRole="button" disabled={busy} onPress={shared.cancelLeave}><Text style={styles.subtitle}>Stay in room</Text></Pressable>
       </View>}
       {room && !expired && shared.status !== 'connected'  && <Text accessibilityLiveRegion="polite" style={styles.subtitle}>Reconnecting to your room…</Text>}

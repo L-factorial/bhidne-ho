@@ -34,7 +34,8 @@ async function api(route, user, body) {
       await page.getByRole('button', {name:'Join table',exact:true}).click();
       await page.getByTestId('flush-table').waitFor();
     }
-    await owner.getByRole('button', {name:'Lock table',exact:true}).click();
+    await owner.getByRole('button', {name:'Lock game',exact:true}).click();
+    await owner.getByRole('button', {name:'Start game',exact:true}).click();
     let preparation = await api(root, users[0]);
     const dealer = preparation.game.turn.player_id - 1;
     await pages[dealer].getByRole('button', {name:'Deal cards',exact:true}).click();
