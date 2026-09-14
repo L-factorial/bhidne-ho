@@ -38,7 +38,7 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
   const shared = useRoomSession();
   const { session, rooms, room, game, setGame, expired } = shared;
   const [gameOpen, setGameOpen] = useState(false);
-  const chat = useRoomChat({ roomId: room?.room_id || '', session: session || { token: '', user_id: '' }, connected: !!room && !!session && !expired && shared.status === 'connected' });
+  const chat = useRoomChat({ hideWhenBlocked: gameOpen && !wide && game === 'flush', roomId: room?.room_id || '', session: session || { token: '', user_id: '' }, connected: !!room && !!session && !expired && shared.status === 'connected' });
   useEffect(() => {
     setInviteOpen(false); setMembersOpen(false);
   }, [room?.room_id]);

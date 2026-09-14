@@ -1,6 +1,7 @@
 // Real backend :8000 and Expo :8081. Shared controls must follow the game header.
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const assert = require('node:assert/strict');
+const site = process.env.TEST_WEB_URL || 'http://localhost:8081';
 async function api(path, user, body) {
   const r = await fetch('http://localhost:8000' + path, { method: body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', ...(user ? { Authorization: `Bearer ${user.token}` } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
   const result = await r.json(); assert.ok(r.ok, JSON.stringify(result)); return result;
@@ -20,9 +21,17 @@ async function api(path, user, body) {
         await context.addInitScript(({ user, room, kind }) => sessionStorage.setItem('bhidne.session.v1:http://localhost:8000', JSON.stringify({ session: user, room, game: kind })), { user: users[0], room, kind });
         const page = await context.newPage(), errors = [];
         page.on('pageerror', e => errors.push(e.message));
-        await page.goto('http://localhost:8081');
+        await page.goto(site);
         const overlay = page.getByTestId('live-game-overlay'), footer = page.getByTestId('game-footer');
-        await overlay.waitFor(); await footer.waitFor();
+        await overlay.waitFor();
+        if (kind === 'flush' && width < 900) {
+          assert.equal(await overlay.getByRole('button', { name: 'Copy game link', exact: true }).count(), 0);
+          await overlay.getByRole('button', { name: 'Table menu', exact: true }).click();
+          await overlay.getByTestId('table-lifecycle').waitFor();
+          await overlay.getByRole('button', { name: 'Table menu', exact: true }).click();
+          await context.close(); continue;
+        }
+        await footer.waitFor();
         const back = await overlay.getByRole('button', { name: 'Back to room', exact: true }).boundingBox();
         const bounds = await footer.boundingBox();
         assert.ok(bounds.y >= back.y + back.height, `${kind} ${width}: footer follows header`);
@@ -31,7 +40,7 @@ async function api(path, user, body) {
         assert.equal(await overlay.getByRole('button', { name: 'Room chat', exact: true }).count(), 1);
         assert.equal(await overlay.getByRole('button', { name: 'Share game link', exact: true }).count(), 0);
         await footer.getByRole('button', { name: 'Copy game link', exact: true }).click();
-        assert.equal(await page.evaluate(() => navigator.clipboard.readText()), `http://localhost:8081/?room=${room.room_id}&match=${game.match_id}`);
+        assert.equal(await page.evaluate(() => navigator.clipboard.readText()), `${site}/?room=${room.room_id}&match=${game.match_id}`);
         const dock = page.getByTestId('chat-dock');
         const collapsed = await dock.boundingBox();
         assert.ok(collapsed.height <= 56, 'collapsed chat is a compact row');

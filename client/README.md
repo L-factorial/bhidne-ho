@@ -484,3 +484,19 @@ The chat controller is shared between room and game views, preserving the draft
 and notification state during navigation and reconnect. The dock reserves bottom
 space so its collapsed bar does not cover the final controls. Existing server
 chat restrictions still apply; active players see a compact “Paused” label.
+
+
+### Mobile Flush controls
+
+Below 900px, Flush uses one compact header with Back to room and a Table menu
+for bet history, rules, pokes, theme, seating controls and End table. Invitation
+copying stays in the room. Paused chat and its reserved space are hidden.
+The bottom Your cards bar expands into a translucent overlay with solid cards
+and action buttons. It opens when your turn begins; manual collapse lasts until
+the next turn. Confirmed bets/show/fold actions collapse it, rejected actions keep
+it open, and seeing or peeking at cards leaves it open. Private side-show results
+reopen it. Desktop Flush and the other games retain their existing layouts.
+
+Run `tests/browser/flush-mobile.cjs` with the backend on 8000 and exported web
+client served on 8083 (`TEST_WEB_URL` can override the web URL). It checks mobile
+controls, accepted/rejected actions, card peeking, paused chat and desktop resize.

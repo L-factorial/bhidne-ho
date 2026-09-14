@@ -8,7 +8,7 @@ import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 type Message = { id: string; sender_id: string; sender_name: string; text: string; sent_at: number };
 
-export function useRoomChat({ roomId, session, connected }: { roomId: string; session: Session; connected: boolean }) {
+export function useRoomChat({ roomId, session, connected, hideWhenBlocked = false }: { hideWhenBlocked?: boolean; roomId: string; session: Session; connected: boolean }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const [open, setOpen] = useState(false);
@@ -77,6 +77,7 @@ export function useRoomChat({ roomId, session, connected }: { roomId: string; se
       if (!signal?.aborted) setError(failure instanceof Error ? failure.message : 'Could not send message.');
     } finally { sending.current = false; setBusy(false); }
   }
+  if (blocked && hideWhenBlocked) return null;
   return <KeyboardAvoidingView testID="chat-dock" behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     style={[styles.dock, { bottom: Math.max(8, insets.bottom), right: wide ? 16 : 8, left: wide ? undefined : 8, width: wide ? 340 : undefined }]}>
     <View style={[styles.card, unread > 0 && { borderColor: colors.accent, borderWidth: 2 }]}>
