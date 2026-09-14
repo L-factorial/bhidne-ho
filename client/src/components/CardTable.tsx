@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 export type TablePlayer = { id: string; name: string; bid: number; tricks: number; cardsRemaining: number; connected?: boolean };
 type Props = {
+  centerControl?: ReactNode;
   players: TablePlayer[]; viewerId: string; activePlayerId: string; width: number;
   plays: { playerId: string; card: string }[];
   winnerPlayerId?: string; collecting?: boolean; collectionKey?: string;
@@ -11,7 +12,7 @@ type Props = {
   onPokePlayer?: (playerId: string) => void; onPokeTable?: () => void;
 };
 
-export function CardTable({ players, viewerId, activePlayerId, width, plays, pendingBidPlayerId, dealerId, winnerPlayerId, collecting = false, collectionKey, onPokePlayer, onPokeTable }: Props) {
+export function CardTable({ players, viewerId, activePlayerId, width, plays, pendingBidPlayerId, dealerId, winnerPlayerId, collecting = false, collectionKey, onPokePlayer, onPokeTable, centerControl }: Props) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const progress = useRef(new Animated.Value(0)).current;
@@ -65,6 +66,7 @@ export function CardTable({ players, viewerId, activePlayerId, width, plays, pen
           </Pressable>
         </View>;
       })}
+    {!!centerControl && <View pointerEvents="box-none" style={{ position: 'absolute', top: 82, bottom: 0, left: 40, right: 40, alignItems: 'center', justifyContent: 'center' }}>{centerControl}</View>}
     </View>
   </ScrollView>;
 }

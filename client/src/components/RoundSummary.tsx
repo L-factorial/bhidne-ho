@@ -1,9 +1,11 @@
+import type { ReactNode } from 'react';
 import { ActionCue } from './ActionCue';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
-export function RoundSummary({ snapshot, busy, error, onContinue, onBack, onNewGame }: {
+export function RoundSummary({ snapshot, busy, error, onContinue, onBack, onNewGame, controls, hideNavigation = false }: {
+  controls?: ReactNode; hideNavigation?: boolean;
   snapshot: RoomSnapshot; busy: boolean; error: string; onContinue: () => void; onBack: () => void; onNewGame: () => void;
 }) {
   const { colors } = useTheme();
@@ -15,16 +17,17 @@ export function RoundSummary({ snapshot, busy, error, onContinue, onBack, onNewG
   return <ScrollView testID="round-summary" style={styles.page} contentContainerStyle={styles.body}>
     <Text accessibilityRole="header" style={styles.title}>{final ? 'Final scores' : `Deal ${round?.deal_number} complete`}</Text>
     {final && <Text style={styles.note}>Winner{snapshot.game!.winners.length > 1 ? 's' : ''}: {snapshot.game!.winners.map(name).join(', ')}</Text>}
+    {controls}
     {round?.players.map(player => <View key={player.player_id} style={styles.row}>
       <Text style={styles.name}>{name(player.player_id)}{player.player_id === snapshot.your_player_id ? ' · You' : ''}</Text>
       <Text style={styles.note}>Bid {player.bid} · Won {player.tricks_won}</Text>
       <Text style={[styles.note, { color: (player.score_tenths || 0) < 0 ? colors.danger : colors.success }]}>Deal {score(player.score_tenths)} · Total {score(snapshot.scoreboard?.find(p => p.player_id === player.player_id)?.total_score_tenths)}</Text>
     </View>)}
     {!!error && <Text accessibilityRole="alert" style={styles.note}>{error}</Text>}
-    {final && snapshot.table?.requires_replacement ? <Text style={styles.note}>Keep your seat for the next match, or choose Leave Seat above. The host can prepare the next match when every seat is filled.</Text> : (final || snapshot.round_review?.can_continue) ? <Pressable accessibilityRole="button" disabled={busy} onPress={final ? onNewGame : onContinue}
+    {controls === undefined && (final && snapshot.table?.requires_replacement ? <Text style={styles.note}>Keep your seat for the next match, or choose Leave Seat above. The host can prepare the next match when every seat is filled.</Text> : (final || snapshot.round_review?.can_continue) ? <Pressable accessibilityRole="button" disabled={busy} onPress={final ? onNewGame : onContinue}
       style={[styles.button, busy && { opacity: 0.5 }]}><ActionCue active={!busy} style={styles.name}>{final ? 'Start a new game' : 'Start next deal'}</ActionCue></Pressable>
-      : <Text style={styles.note}>Waiting for the creator to start the next deal.</Text>}
-    <Pressable accessibilityRole="button" onPress={onBack} style={styles.back}><Text style={styles.note}>Back to room</Text></Pressable>
+      : <Text style={styles.note}>Waiting for the creator to start the next deal.</Text>)}
+    {!hideNavigation && <Pressable accessibilityRole="button" onPress={onBack} style={styles.back}><Text style={styles.note}>Back to room</Text></Pressable>}
   </ScrollView>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({

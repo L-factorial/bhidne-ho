@@ -24,7 +24,7 @@ async function api(path, user, body) {
         await page.goto(site);
         const overlay = page.getByTestId('live-game-overlay'), footer = page.getByTestId('game-footer');
         await overlay.waitFor();
-        if (kind === 'flush' && width < 900) {
+        if (width < 900) {
           assert.equal(await overlay.getByRole('button', { name: 'Copy game link', exact: true }).count(), 0);
           await overlay.getByRole('button', { name: 'Table menu', exact: true }).click();
           await overlay.getByTestId('table-lifecycle').waitFor();
@@ -32,12 +32,12 @@ async function api(path, user, body) {
           await context.close(); continue;
         }
         await footer.waitFor();
-        if (kind === 'flush') await overlay.getByRole('button', { name: 'Table menu', exact: true }).click();
+        await overlay.getByRole('button', { name: 'Table menu', exact: true }).click();
         const back = await overlay.getByRole('button', { name: 'Back to room', exact: true }).boundingBox();
         const bounds = await footer.boundingBox();
         assert.ok(bounds.y >= back.y + back.height, `${kind} ${width}: footer follows header`);
         assert.ok(bounds.y + bounds.height <= 851, `${kind} ${width}: footer fits viewport`);
-        if (kind === 'flush') await overlay.getByRole('button', { name: 'Table menu', exact: true }).click();
+        await overlay.getByRole('button', { name: 'Table menu', exact: true }).click();
         assert.equal(await footer.getByTestId('table-lifecycle').count(), 1);
         assert.equal(await overlay.getByRole('button', { name: 'Room chat', exact: true }).count(), 1);
         assert.equal(await overlay.getByRole('button', { name: 'Share game link', exact: true }).count(), 0);
@@ -52,7 +52,7 @@ async function api(path, user, body) {
         await overlay.getByRole('button', { name: 'Room chat', exact: true }).click();
         await page.getByRole('textbox', { name: 'Room chat message', exact: true }).fill('Keep this draft');
         await page.getByRole('button', { name: 'Close chat', exact: true }).click();
-        if (kind === 'flush') await overlay.getByRole('button', { name: 'Table menu', exact: true }).click();
+        await overlay.getByRole('button', { name: 'Table menu', exact: true }).click();
         await overlay.getByRole('button', { name: 'Back to room', exact: true }).click();
         await overlay.waitFor({ state: 'hidden' });
         await page.getByRole('button', { name: 'Room chat', exact: true }).click();

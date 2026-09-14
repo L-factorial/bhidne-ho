@@ -1,3 +1,4 @@
+import { ActionCue } from './ActionCue';
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,9 +33,10 @@ function FlyingCard({ move, origin, destination, done }: { move: MarriageMove; o
     }]}>{move.card ? <Text style={[styles.face, move.card.suit === 'H' || move.card.suit === 'D' ? styles.red : null]}>{marriageFace(move.card)}</Text> : <MarriageCardBack />}</Animated.View>;
 }
 
-export function MarriageCardArea({ snapshot, canAct, hidden, onAction, onPoke }: {
+export function MarriageCardArea({ snapshot, canAct, hidden, onAction, onPoke, showActions = true }: {
+  showActions?: boolean;
   snapshot: RoomSnapshot; canAct: boolean; hidden: boolean;
-  onAction: (command: string, payload?: object) => void; onPoke: (seat: number) => void;
+  onAction: (command: string, payload?: object) => void; onPoke?: (seat: number) => void;
 }) {
   const styles = useThemedStyles(createStyles);
   const [maalOpen, setMaalOpen] = useState(false);
@@ -84,13 +86,13 @@ export function MarriageCardArea({ snapshot, canAct, hidden, onAction, onPoke }:
       <View style={styles.spot}><Text style={styles.label}>Last discard</Text>
         <View ref={discard} testID="marriage-discard-spot" style={styles.card}><Text style={[styles.face, pub.top_discard?.suit === 'H' || pub.top_discard?.suit === 'D' ? styles.red : null]}>
           {current?.kind === 'CARD_DISCARDED' ? '' : pub.top_discard ? marriageFace(pub.top_discard) : '—'}</Text></View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Take discard" disabled={!canAct || !mine?.actions.drawable_sources.includes('discard')}
-          onPress={() => onAction('DRAW_CARD', { source: 'discard' })} style={[styles.button, (!canAct || !mine?.actions.drawable_sources.includes('discard')) && styles.disabled]}><Text style={styles.buttonText}>Take discard</Text></Pressable>
+        {showActions && <Pressable accessibilityRole="button" accessibilityLabel="Take discard" disabled={!canAct || !mine?.actions.drawable_sources.includes('discard')}
+          onPress={() => onAction('DRAW_CARD', { source: 'discard' })} style={[styles.button, (!canAct || !mine?.actions.drawable_sources.includes('discard')) && styles.disabled]}><ActionCue active={canAct && !!mine?.actions.drawable_sources.includes('discard')} style={styles.buttonText}>Take discard</ActionCue></Pressable>}
       </View>
       <View style={styles.spot}><Text style={styles.label}>Deck · {pub.stock_count}</Text>
         <View ref={stock} testID="marriage-stock-spot" style={[styles.card, styles.back, styles.stack]}><MarriageCardBack /></View>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Take stock · ${pub.stock_count}`} disabled={!canAct || !mine?.actions.drawable_sources.includes('stock')}
-          onPress={() => onAction('DRAW_CARD', { source: 'stock' })} style={[styles.button, (!canAct || !mine?.actions.drawable_sources.includes('stock')) && styles.disabled]}><Text style={styles.buttonText}>Take stock</Text></Pressable>
+        {showActions && <Pressable accessibilityRole="button" accessibilityLabel={`Take stock · ${pub.stock_count}`} disabled={!canAct || !mine?.actions.drawable_sources.includes('stock')}
+          onPress={() => onAction('DRAW_CARD', { source: 'stock' })} style={[styles.button, (!canAct || !mine?.actions.drawable_sources.includes('stock')) && styles.disabled]}><ActionCue active={canAct && !!mine?.actions.drawable_sources.includes('stock')} style={styles.buttonText}>Take stock</ActionCue></Pressable>}
       </View>
       <View style={styles.spot}><Text style={styles.label}>Maal</Text>
         <Pressable accessibilityRole="button" disabled={!privateMaal} accessibilityState={{ disabled: !privateMaal }} onPress={() => setMaalOpen(true)} accessibilityHint={privateMaal ? 'Show Maal and the marriage sequence' : undefined} testID="marriage-maal-spot" accessibilityLabel={privateMaal ? 'View Maal' : 'Maal hidden'} style={[styles.card, styles.back]}>

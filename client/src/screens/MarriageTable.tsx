@@ -1,6 +1,10 @@
-import { AppHeader } from '../components/AppHeader';
+import { GameTableHeader } from '../components/GameTableHeader';
+import { MobileGameHand } from '../components/MobileGameHand';
+import { TableStartCue } from '../components/TableStartCue';
+import { ActionCue } from '../components/ActionCue';
+import { useMobileCards } from '../multiplayer/useMobileCards';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { useMarriageReveal } from '../multiplayer/useMarriageReveal';
 import { MarriageCardArea } from '../components/MarriageCardArea';
@@ -13,7 +17,8 @@ import type { PlayerPhrase } from '../multiplayer/pokes';
 import type { RoomSnapshot } from './LiveGameTable';
 import { canSubmitMarriage, marriageSuggestions, marriageUsesArc, marriageFace, physicalLabel, suitName, type MarriageMeld } from '../multiplayer/marriage';
 
-export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack, onNewGame, onSave, endControl, lobbyControl, social }: {
+export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack, onNewGame, onSave, endControl, lobbyControl, social, tableControl, onTableAction }: {
+  tableControl?: ReactNode; onTableAction: (command: string) => void;
   onSave: (rules: import('../multiplayer/marriage').MarriageScoringRules) => void;
   snapshot: RoomSnapshot; busy: boolean; error: string; endControl?: ReactNode; lobbyControl?: ReactNode;
   onAction: (command: string, payload?: object) => void; onStart: () => void; onBack: () => void; onNewGame: () => void;
@@ -21,6 +26,8 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
 }) {
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
+  const mobile = useWindowDimensions().width < 900;
+  const showFormation = mobile && (!snapshot.marriage || snapshot.status === 'finished' || ['OPEN', 'LOCKED', 'COMPLETED'].includes(snapshot.table?.phase || ''));
   const [width, setWidth] = useState(300);
   const [mode, setMode] = useState<'grid' | 'fan' | 'suits'>('grid');
   const [suit, setSuit] = useState('all');
@@ -77,13 +84,17 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const canAct = !busy && !hidden && allRevealed && snapshot.status === 'playing';
   const name = (id: string | null) => snapshot.players?.find(p => String(p.player_id) === id)?.display_name || `Player ${id}`;
   const isTurn = !!mine && mine.player_id === pub?.current_player_id;
+  const promptKey = mine && snapshot.status === 'playing' && (!allRevealed || isTurn)
+    ? `${snapshot.match_id}:${!allRevealed ? 'reveal' : `${pub?.phase}:${pub?.current_player_id}`}` : null;
+  const cards = useMobileCards({ mobile, busy, error, promptKey, onAction });
+  const activeGame = snapshot.status === 'playing';
   const staged = groups.flatMap(g => g.card_ids);
   const declaration = canSubmitMarriage(groups);
   const selectedMeld = { meld_type: kind, card_ids: selected };
   function button(label: string, action: () => void, disabled = false, chosen = false) {
     return <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled}
       accessibilityState={{ disabled, selected: chosen }} onPress={action} style={[s.button, chosen && s.chosen, disabled && s.disabled]}>
-      <Text style={s.buttonText}>{label}</Text></Pressable>;
+      {label.startsWith('Take ') || label === 'Finish round' ? <ActionCue active={!disabled} style={s.buttonText}>{label}</ActionCue> : <Text style={s.buttonText}>{label}</Text>}</Pressable>;
   }
   const shown = !allRevealed ? availableHand : [...availableHand].filter(c => mode !== 'suits' || suit === 'all' || (c.suit || 'man') === suit)
     .sort((a, b) => (a.suit || 'Z').localeCompare(b.suit || 'Z') || (a.rank || 0) - (b.rank || 0) || a.card_id.localeCompare(b.card_id));
@@ -95,37 +106,38 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const gridWidth = Math.min(shown.length, gridColumns) * (gridCardWidth + 6) - 6;
   const fanSpread = Math.min(90, Math.max(0, shown.length - 1) * 7);
 
-  return <View style={s.page} testID="marriage-table">
-    <AppHeader title="Marriage" actions={<>{endControl}{button('Back to room', onBack)}</>} />
-    <View style={s.detailsBar}>
+  const detailsBar = <View style={s.detailsBar}>
 
       {(['stats', 'rules', 'points'] as const).map(section => <Pressable key={section} accessibilityRole="button" onPress={() => setDetails(section)} style={s.detailsTab}>
         <Text style={s.buttonText}>{section === 'stats' ? 'Stats' : section === 'rules' ? 'Rules' : 'Points'}</Text>
       </Pressable>)}
-      {!!snapshot.your_player_id && <Pressable accessibilityRole="button" accessibilityLabel="Poke the room"
-        disabled={!social.connected} accessibilityState={{ disabled: !social.connected }}
-        onPress={() => setPoke(null)} style={[s.detailsTab, !social.connected && s.disabled]}>
-        <Text style={s.buttonText}>Poke the room</Text>
-      </Pressable>}
-      {pub && mine && <Pressable accessibilityRole="button" accessibilityLabel="Hand tools" onPress={() => setToolsOpen(true)} style={s.detailsTab}><Text style={s.buttonText}>Hand tools</Text></Pressable>}
-    </View>
-    <View testID="marriage-play-area" style={s.playArea}>
-      {!pub ? <View style={s.panel}>
+    </View>;
+  const startCue = <TableStartCue snapshot={snapshot} busy={busy} onStart={onStart} onTableAction={onTableAction} onNewGame={onNewGame} />;
+  return <View style={s.page} testID="marriage-table">
+    <GameTableHeader title="Marriage" game="marriage" onBack={onBack} endControl={endControl}>
+      {mobile && detailsBar}{mobile && !showFormation && tableControl}
+    </GameTableHeader>
+    {showFormation && <View testID="marriage-formation-controls">{tableControl}</View>}
+    {!mobile && detailsBar}
+    <View style={{ flex: 1, minHeight: 0 }}>
+    <View testID="marriage-play-area" style={[s.playArea, mobile && mine && activeGame && { paddingBottom: 60 }]}>
+      {!pub ? <ScrollView contentContainerStyle={s.panel}>
+        <View style={[s.table, { minHeight: 180 }]}>{startCue}</View>
         <Text style={s.heading}>{snapshot.players?.length}/{snapshot.capacity} players seated</Text>
         {snapshot.players?.map(p => <Text key={p.player_id} style={s.text}>{p.display_name || `Player ${p.player_id}`}{p.player_id === snapshot.your_player_id ? ' · You' : ''}</Text>)}
         <Text style={s.text}>Build seven pairs, see Maal, then finish with an eighth pair. Normal qualification is available; normal-hand winning comes later. Open Rules to select scoring before starting.</Text>
         <Text style={s.text}>Each player draws, shows melds, and discards on their own turn. Play waits for disconnected players to return.</Text>
-        {!snapshot.table && (snapshot.is_creator ? button('Start game', onStart, busy || !snapshot.ready) : <Text style={s.text}>Waiting for the creator to start.</Text>)}
+        {!snapshot.is_creator && <Text style={s.text}>Waiting for the creator to start.</Text>}
         {lobbyControl}
-      </View> : <>
+      </ScrollView> : <>
         {snapshot.status === 'finished' && <View style={s.panel}><Text accessibilityRole="header" style={s.heading}>{name(pub.winner)} wins!</Text>
-          <Text style={s.text}>Eight Dublees complete. Ready for another round?</Text>{button('Start a new game', onNewGame)}</View>}
+          <Text style={s.text}>Eight Dublees complete. Ready for another round?</Text>{startCue}</View>}
         <View style={s.columns}>
           <View style={s.main}>
             <View style={s.table}>
-              <MarriageCardArea snapshot={snapshot} canAct={canAct} hidden={hidden || !allRevealed} onAction={onAction} onPoke={setPoke} />
+              <MarriageCardArea snapshot={snapshot} canAct={canAct} hidden={hidden || !allRevealed} onAction={cards.act} showActions={!mobile} onPoke={activeGame ? undefined : setPoke} />
               {snapshot.status === 'playing' && <TurnPulse personal={isTurn} text={isTurn ? `Your turn · ${pub.phase === 'must_draw' ? 'Take a card' : 'Show, finish, or discard'}` : `${name(pub.current_player_id)}’s turn`} />}
-              {actions?.kinds.includes('finish') && button('Finish round', () => onAction('FINISH'), !canAct)}
+
             </View>
 
           </View>
@@ -133,7 +145,12 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       </>}
       {!!error && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}
     </View>
-    {pub && mine && <View testID="marriage-hand-dock" style={s.handDock} onLayout={e => setWidth(Math.max(120, e.nativeEvent.layout.width - 24))}>
+    {pub && mine && activeGame && <MobileGameHand game="marriage" mobile={mobile} keepMounted open={cards.open} onToggle={cards.toggle} myTurn={isTurn}>
+    <View testID="marriage-hand-dock" style={[s.handDock, mobile && { backgroundColor: 'transparent', borderTopWidth: 0, padding: 4 }]} onLayout={e => { if (e.nativeEvent.layout.width > 48) setWidth(e.nativeEvent.layout.width - (mobile ? 8 : 24)); }}>
+      <View style={s.row}>{button('Hand tools', () => setToolsOpen(true))}{button('Poke the table', () => setPoke(null), !social.connected)}</View>
+      <ScrollView horizontal contentContainerStyle={{ gap: 8 }}>{(snapshot.players || []).filter(p => p.player_id !== snapshot.your_player_id).map(p => <View key={p.player_id}>{button(`Poke ${p.display_name || `Player ${p.player_id}`}`, () => setPoke(p.player_id), !social.connected || p.connected === false)}</View>)}</ScrollView>
+      {mobile && <View style={s.row}>{button('Take discard', () => cards.act('DRAW_CARD', { source: 'discard' }), !canAct || !actions?.drawable_sources.includes('discard'))}{button(`Take stock ${pub.stock_count}`, () => cards.act('DRAW_CARD', { source: 'stock' }), !canAct || !actions?.drawable_sources.includes('stock'))}</View>}
+      {actions?.kinds.includes('finish') && button('Finish round', () => cards.act('FINISH'), !canAct)}
       <View style={s.row}><Text style={s.heading}>Your cards · {availableHand.length}</Text>{allRevealed && button(hidden ? 'Show cards' : 'Hide cards', () => { setHidden(v => !v); setSelected([]); })}</View>
       <View testID="marriage-hand" style={[s.hand, { height: 156, width }]}>{shown.map((card, index) => {
         const back = hidden || (!allRevealed && index >= revealed);
@@ -153,10 +170,12 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         </Pressable>;
       })}</View>
       {!hidden && (!allRevealed ? <View style={s.row}>{button(`Reveal next · ${revealed}/21`, () => reveal())}{button('Reveal all cards', () => reveal(true))}</View> : <>
-          {button(selected.length === 1 ? `Discard ${physicalLabel(selected[0])}` : 'Select one card to discard', () => onAction('DISCARD_CARD', { card_id: selected[0] }),
+          {button(selected.length === 1 ? `Discard ${physicalLabel(selected[0])}` : 'Select one card to discard', () => cards.act('DISCARD_CARD', { card_id: selected[0] }),
             !canAct || selected.length !== 1 || !actions?.discardable_card_ids.includes(selected[0]))}
       </>)}
-    </View>}
+    {!!error && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}
+    </View></MobileGameHand>}
+    </View>
     {publicDisplay && <View pointerEvents="none" style={s.shownOverlay}>
       <Animated.View testID="marriage-shown-melds" style={[s.shownCards, { opacity: showOpacity, transform: [{ translateY: showTravel }] }]}>
         <Text accessibilityLiveRegion="polite" style={s.heading}>{name(publicDisplay.player_id)} showed {publicDisplay.route === 'dublee' ? 'seven Dublees' : 'three sequences / Tunnelas'}</Text>
@@ -180,13 +199,13 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
                       {!!suggestions.normal.length && button('Review three melds', () => { setGroups(suggestions.normal); setSelected([]); setToolsOpen(false); setPreview(true); }, busy)}
                     </View>}<Text style={s.small}>Tap cards, choose a group type, then add it. Submit seven Dublees or three sequences / Tunnelas together.</Text>
                     <View style={s.row}>{(['dublee', 'pure_sequence', 'tunnela'] as const).map(type => <View key={type}>{button(type === 'pure_sequence' ? 'Sequence' : type === 'dublee' ? 'Dublee' : 'Tunnela', () => setKind(type), false, kind === type)}</View>)}</View>
-                    <View style={s.row}>{button('Check selected meld', () => onAction('VALIDATE_MELD', { meld: selectedMeld }), !canAct || selected.length < 2)}
+                    <View style={s.row}>{button('Check selected meld', () => cards.act('VALIDATE_MELD', { meld: selectedMeld }), !canAct || selected.length < 2)}
                       {button(`Add group · ${selected.length} cards`, () => { setGroups(g => [...g, selectedMeld]); setSelected([]); }, selected.length < 2 || busy)}
                       {button('Clear selection', () => setSelected([]), !selected.length)}</View>
                     {snapshot.query_result?.command === 'VALIDATE_MELD' && snapshot.query_result.command_id === snapshot.action_ack?.command_id && <Text accessibilityLiveRegion="polite" style={s.success}>The selected meld is valid.</Text>}
                     {groups.map((group, i) => <View key={i} style={s.row}><Text style={[s.text, { flex: 1 }]}>{i + 1}. {group.meld_type.replace('_', ' ')} · {group.card_ids.map(physicalLabel).join('  ')}</Text>
                       {button(`Remove group ${i + 1}`, () => setGroups(g => g.filter((_, n) => n !== i)))}</View>)}
-                    {button(declaration === 'SHOW_DUBLEES' ? 'Show seven Dublees' : 'Show three melds', () => declaration && onAction(declaration, declaration === 'SHOW_DUBLEES' ? { pairs: groups } : { melds: groups }),
+                    {button(declaration === 'SHOW_DUBLEES' ? 'Show seven Dublees' : 'Show three melds', () => declaration && cards.act(declaration, declaration === 'SHOW_DUBLEES' ? { pairs: groups } : { melds: groups }),
                       !canAct || !declaration || !actions?.kinds.includes(declaration.toLowerCase()))}
                   </View>}
                 </>}
@@ -204,7 +223,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
           <Text style={s.small}>Only you can see this preview. Show these groups to reveal them to everyone.</Text>
           <MarriageMeldCards groups={groups} />
           {!!error && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}
-          {button(declaration === 'SHOW_DUBLEES' ? 'Show seven Dublees' : 'Show three melds', () => declaration && onAction(declaration, declaration === 'SHOW_DUBLEES' ? { pairs: groups } : { melds: groups }),
+          {button(declaration === 'SHOW_DUBLEES' ? 'Show seven Dublees' : 'Show three melds', () => declaration && cards.act(declaration, declaration === 'SHOW_DUBLEES' ? { pairs: groups } : { melds: groups }),
             !canAct || !declaration || !actions?.kinds.includes(declaration.toLowerCase()))}
           {!actions?.kinds.includes(declaration?.toLowerCase() || '') && <Text style={s.small}>You can show after drawing on your turn.</Text>}
         </ScrollView>

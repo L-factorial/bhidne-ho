@@ -1,6 +1,9 @@
 import { ActionCue } from '../components/ActionCue';
 import type { RuleProposalView } from '../components/RuleProposal';
-import { AppHeader } from '../components/AppHeader';
+import { GameTableHeader } from '../components/GameTableHeader';
+import { MobileGameHand } from '../components/MobileGameHand';
+import { TableStartCue } from '../components/TableStartCue';
+import { useMobileCards } from '../multiplayer/useMobileCards';
 import { type ReactNode, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -52,7 +55,8 @@ export type RoomSnapshot = {
 const suits: Record<string, string> = { S: '♠', H: '♥', D: '♦', C: '♣' };
 const face = (card: string) => card.slice(0, -1) + suits[card.slice(-1)];
 
-export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart, onSave, onNewGame, onNextDeal, social, endControl }: {
+export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart, onSave, onNewGame, onNextDeal, social, endControl, tableControl, onTableAction }: {
+  tableControl?: ReactNode; onTableAction: (command: string) => void;
   endControl?: ReactNode;
   social: { connected: boolean; phrases: PlayerPhrase[]; save: (text: string) => Promise<void>; send: (recipient: number | null, text: string) => Promise<void> };
   onNextDeal: () => void; onNewGame: () => void; onStart: () => void; onSave: (settings: NonNullable<RoomSnapshot['settings']>) => void;
@@ -61,7 +65,9 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
-  const wide = useWindowDimensions().width >= 1000;
+  const screenWidth = useWindowDimensions().width;
+  const wide = screenWidth >= 1000;
+  const mobile = screenWidth < 900;
   const [tableWidth, setTableWidth] = useState(280);
   const width = Math.max(180, Math.min(tableWidth - 24, 800));
   const [revealedDeal, setRevealedDeal] = useState<string | null>(null);
@@ -88,21 +94,35 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   const guidance = roundGuidance(snapshot);
   const playerName = (id: number) => snapshot.players?.find(p => p.player_id === id)?.display_name || `Player ${id}`;
   const game = snapshot.game, deal = snapshot.deal, mine = snapshot.private;
+  const isTurn = !!snapshot.your_player_id && game?.turn.player_id === snapshot.your_player_id;
+  const showFormation = mobile && (!game || snapshot.status === 'finished' || ['OPEN', 'LOCKED', 'COMPLETED'].includes(snapshot.table?.phase || ''));
+  const handAvailable = !!mine && mine.hand.length > 0 && !game?.finished && !snapshot.round_review;
+  const promptKey = handAvailable && (isTurn || mine?.can_accept_hand)
+    ? `${handDealKey}:${game?.phase}:${isTurn}:${game?.current_trick?.trick_number || deal?.tricks_completed || 0}` : null;
+  const cards = useMobileCards({ mobile, busy, error, promptKey, onAction });
+  const header = <GameTableHeader game="callbreak" title="Call Break" onBack={onBack} endControl={endControl}>
+    {(!wide || !game) && <GameDetails snapshot={snapshot} busy={busy} onSave={onSave} />}
+    {mobile && !showFormation && tableControl}
+  </GameTableHeader>;
+  const formation = showFormation && <View testID="callbreak-formation-controls">{tableControl}</View>;
+  const startCue = <TableStartCue snapshot={snapshot} busy={busy} onStart={onStart} onTableAction={onTableAction} onNewGame={onNewGame} />;
   if (!game || !deal) return <View style={styles.page}>
-    <AppHeader title="Call Break" actions={<>{endControl}<Pressable accessibilityRole="button" accessibilityLabel="Back to room" onPress={onBack} style={styles.back}><Text style={styles.link}>Back to room</Text></Pressable></>} />
-    <GameDetails snapshot={snapshot} busy={busy} onSave={onSave} />
+    {header}{formation}
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 20 }}>
       <Text style={styles.title}>{snapshot.players?.length}/{snapshot.capacity} players seated</Text>
       <Text style={styles.meta}>{snapshot.ready ? 'Everyone is here. The first dealer will be chosen at random.' : 'Waiting for everyone to take a seat.'}</Text>
       <Text style={styles.meta}>Each player confirms their bid and taps a card to play. No turn time limit.</Text>
-      {snapshot.is_creator ? <Pressable accessibilityRole="button" disabled={busy || !snapshot.ready || snapshot.rule_proposal?.status === 'PENDING'} accessibilityState={{ disabled: busy || !snapshot.ready || snapshot.rule_proposal?.status === 'PENDING' }} onPress={onStart} style={[styles.button, { opacity: snapshot.ready && !busy && snapshot.rule_proposal?.status !== 'PENDING' ? 1 : 0.5 }]}><ActionCue active={!busy && !!snapshot.ready && snapshot.rule_proposal?.status !== 'PENDING'} style={styles.buttonText}>{busy ? 'Starting…' : 'Start game'}</ActionCue></Pressable>
-        : <Text style={styles.status}>Waiting for the creator to start the game.</Text>}
+      <View style={{ width: '100%', maxWidth: 680, borderRadius: 24, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }}>
+        {startCue}{!snapshot.is_creator && <Text style={styles.status}>Waiting for the creator to start.</Text>}
+      </View>
       {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     </View>
   </View>;
-  if ((snapshot.round_review || game.finished) && !reveal) return <View style={styles.page}><AppHeader title="Call Break" actions={endControl} /><RoundSummary
-    snapshot={snapshot} busy={busy} error={error || snapshot.error || ''} onContinue={onNextDeal} onBack={onBack} onNewGame={onNewGame} /></View>;
-  const isTurn = !!snapshot.your_player_id && game.turn.player_id === snapshot.your_player_id;
+  if ((snapshot.round_review || game.finished) && !reveal) return <View style={styles.page}>{header}{formation}<RoundSummary
+    snapshot={snapshot} busy={busy} error={error || snapshot.error || ''} onContinue={onNextDeal} onBack={onBack} onNewGame={onNewGame}
+    hideNavigation controls={game.finished ? startCue : snapshot.round_review?.can_continue ? <View testID="callbreak-center-next-deal" style={{ minHeight: 160, alignItems: 'center', justifyContent: 'center' }}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Start next deal" disabled={busy} onPress={onNextDeal} style={styles.button}><ActionCue active={!busy} style={styles.buttonText}>Start next deal</ActionCue></Pressable>
+    </View> : <Text style={styles.meta}>Waiting for the creator to start the next deal.</Text>} /></View>;
   const showTurn = game.phase === 'PLAYING' && !game.finished && !reveal && !!game.turn.player_id;
   const players = deal.players.map(player => ({ id: String(player.player_id), name: playerName(player.player_id),
     connected: snapshot.players?.find(p => p.player_id === player.player_id)?.connected,
@@ -110,52 +130,38 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   const last = [...deal.tricks].reverse().find(trick => trick.complete);
   const trick = reveal ? completedTrick : game.current_trick;
   function action(label: string, command: string, payload = {}) {
-    return <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => onAction(command, payload)} style={styles.button}><ActionCue active={!busy} style={styles.buttonText}>{label}</ActionCue></Pressable>;
+    return <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => cards.act(command, payload)} style={styles.button}><ActionCue active={!busy} style={styles.buttonText}>{label}</ActionCue></Pressable>;
   }
+  const preparation = isTurn && ['AWAITING_SHUFFLE', 'AWAITING_CUT', 'AWAITING_DISTRIBUTION'].includes(game.phase) ? <View testID="callbreak-center-preparation" style={{ gap: 8, alignItems: 'center' }}>
+      {game.phase === 'AWAITING_SHUFFLE' && action('Shuffle deck', 'SHUFFLE_DECK')}
+      {game.phase === 'AWAITING_CUT' && <>{action('Cut in half', 'CUT_DECK', { position: 26 })}{action('Skip cut', 'SKIP_CUT')}</>}
+      {game.phase === 'AWAITING_DISTRIBUTION' && action('Deal cards', 'START_DISTRIBUTION')}
+    </View> : null;
   return <View style={styles.page}>
-    <AppHeader title="Call Break" actions={<>{endControl}<Pressable accessibilityRole="button" accessibilityLabel="Back to room" onPress={onBack} style={styles.back}><Text style={styles.link}>Back to room</Text></Pressable></>} />
-    {!wide && <GameDetails snapshot={snapshot} busy={busy} onSave={onSave} />}
-    {game.finished && <View style={styles.newGamePanel}>
-      <Text style={styles.status}>Game complete · ready for another round?</Text>
-      <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={onNewGame} style={styles.button}>
-        <Text style={styles.buttonText}>Start a new game</Text>
-      </Pressable>
-    </View>}
+    {header}{formation}
+
     <View style={[styles.workspace, wide && styles.wideBody]}>
     <View style={styles.playColumn}>
     <View style={styles.body}>
     <ScrollView style={styles.tableScroll} onLayout={event => setTableWidth(event.nativeEvent.layout.width)} contentContainerStyle={[styles.container, {
-      paddingTop: 12, paddingBottom: Math.max(insets.bottom, 16),
+      paddingTop: 12, paddingBottom: mobile && handAvailable ? 110 : Math.max(insets.bottom, 16),
     }]}><View style={{ width }}>
     <Text style={styles.meta}>Deal {deal.deal_number} of 5 · {deal.tricks_completed}/{deal.tricks_required} tricks completed · Spades trump</Text>
     {game.phase !== 'PLAYING' && game.phase !== 'BIDDING' && !reveal && <Text style={styles.meta}>{guidance.title}</Text>}
     {!!(error || snapshot.error) && <Text accessibilityRole="alert" style={styles.error}>{error || snapshot.error}</Text>}
-    <View style={styles.actions}>
-      {isTurn && game.phase === 'AWAITING_SHUFFLE' && action('Shuffle deck', 'SHUFFLE_DECK')}
-      {isTurn && game.phase === 'AWAITING_CUT' && <>{action('Cut in half', 'CUT_DECK', { position: 26 })}{action('Skip cut', 'SKIP_CUT')}</>}
-      {isTurn && game.phase === 'AWAITING_DISTRIBUTION' && action('Deal cards', 'START_DISTRIBUTION')}
-      {mine?.can_accept_hand && revealedDeal === handDealKey && action('Accept hand', 'ACCEPT_HAND')}
-      {mine?.can_claim_redeal && action('Request redeal', 'CLAIM_REDEAL')}
-    </View>
-    <CardTable width={width} players={players} dealerId={String(deal.dealer)} viewerId={snapshot.your_player_id ? String(snapshot.your_player_id) : ''}
-      onPokePlayer={snapshot.your_player_id && social.connected ? id => setPokeTarget(Number(id)) : undefined}
-      onPokeTable={snapshot.your_player_id && social.connected ? () => setPokeTarget(null) : undefined}
+    <CardTable centerControl={preparation} width={width} players={players} dealerId={String(deal.dealer)} viewerId={snapshot.your_player_id ? String(snapshot.your_player_id) : ''}
       collectionKey={reveal ? trickKey : undefined} collecting={reveal && collectingTrick === trickKey}
       winnerPlayerId={reveal ? String(completedTrick?.winner) : undefined} activePlayerId={!reveal && game.turn.player_id ? String(game.turn.player_id) : ''} plays={(trick?.plays || []).map(play => ({ playerId: String(play.player_id), card: face(play.card) }))} />
     <View testID="central-turn-notice">
       {reveal && <Text accessibilityLiveRegion="polite" style={styles.status}>{playerName(completedTrick!.winner!)} wins trick {completedTrick!.trick_number}</Text>}
       {showTurn && <TurnPulse personal={isTurn} text={isTurn ? 'Your turn' : `${playerName(game.turn.player_id!)}'s turn`} />}
     </View>
-    {!!snapshot.your_player_id && <Pressable accessibilityRole="button" accessibilityLabel="Poke the whole table"
-      disabled={!social.connected} onPress={() => setPokeTarget(null)} style={styles.pokeHint}>
-      <Text style={styles.link}>✦ Tap a player to poke · Tap cards for table talk</Text>
-    </Pressable>}
     {!!pokeNotice && <Text accessibilityLiveRegion="polite" style={styles.meta}>{pokeNotice.text}</Text>}
 
   </View></ScrollView>
 
     </View>
-    {last && <View style={styles.lastTrick}>
+    {last && (!mobile || !cards.open) && <View style={[styles.lastTrick, mobile && handAvailable && { position: 'absolute', bottom: 52, left: 0, right: 0 }]}>
       <Pressable accessibilityRole="button" accessibilityLabel="Last trick" aria-expanded={expandedLastTrick === trickKey} accessibilityState={{ expanded: expandedLastTrick === trickKey }}
         onPress={() => setExpandedLastTrick(value => value === trickKey ? null : trickKey)} style={styles.lastToggle}>
         <Text style={styles.meta}>Last trick - {playerName(last.winner!)} won</Text><Text style={styles.link}>{expandedLastTrick === trickKey ? '-' : '+'}</Text>
@@ -171,15 +177,20 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
         </View>)}
       </View>}
     </View>}
-    <View style={styles.handDock}>
+    {handAvailable && <MobileGameHand mobile={mobile} game="callbreak" keepMounted open={cards.open} onToggle={cards.toggle} myTurn={isTurn || !!mine?.can_accept_hand}>
+    <View testID="callbreak-hand-dock" style={[styles.handDock, mobile && { backgroundColor: 'transparent', borderTopWidth: 0, paddingHorizontal: 4 }]}>
     {game.phase === 'PLAYING' && !deal.tricks.some(trick => trick.complete || trick.plays.length) && !game.current_trick?.plays.length && <Text accessibilityLiveRegion="polite" style={styles.status}>Bidding complete. {isTurn ? 'You lead first.' : `${playerName(game.turn.player_id!)} leads first.`}</Text>}
-    {game.phase === 'BIDDING' && <LiveBidPrompt key={`${snapshot.match_id}-${deal.deal_number}-${deal.attempt}`} snapshot={snapshot} revealed={revealedDeal === handDealKey} busy={busy} onAction={onAction} />}
+    {game.phase === 'BIDDING' && <LiveBidPrompt key={`${snapshot.match_id}-${deal.deal_number}-${deal.attempt}`} snapshot={snapshot} revealed={revealedDeal === handDealKey} busy={busy} onAction={cards.act} />}
 
+    <ScrollView horizontal contentContainerStyle={{ gap: 8, paddingVertical: 8 }}><Pressable accessibilityRole="button" accessibilityLabel="Poke the table" disabled={!social.connected} onPress={() => setPokeTarget(null)} style={styles.button}><Text style={styles.buttonText}>Poke the table</Text></Pressable>
+      {(snapshot.players || []).filter(p => p.player_id !== snapshot.your_player_id).map(p => <Pressable key={p.player_id} accessibilityRole="button" accessibilityLabel={`Poke ${playerName(p.player_id)}`} disabled={!social.connected || p.connected === false} onPress={() => setPokeTarget(p.player_id)} style={styles.button}><Text style={styles.buttonText}>{`Poke ${playerName(p.player_id)}`}</Text></Pressable>)}
+    </ScrollView>
+    {(mine?.can_accept_hand || mine?.can_claim_redeal) && <View style={styles.actions}>{mine?.can_accept_hand && revealedDeal === handDealKey && action('Accept hand', 'ACCEPT_HAND')}{mine?.can_claim_redeal && action('Request redeal', 'CLAIM_REDEAL')}</View>}
     <Text style={[styles.title, { fontSize: 22, marginVertical: 4 }]}>{mine ? `Your hand · ${mine.hand.length} cards` : 'Spectator view'}</Text>
     {mine && <PlayerHand turnKey={`${game.phase}:${game.turn.player_id}:${game.current_trick?.trick_number}`} view={handView} onViewChange={setHandView} dealKey={handDealKey} onRevealComplete={setRevealedDeal} hand={mine.hand} legalCards={mine.legal_cards}
-      canPlay={!reveal && !busy && isTurn && game.phase === 'PLAYING'} onPlay={card => onAction('PLAY_CARD', { card })} />}
-    {!mine && <Text style={styles.meta}>Only seated players can see their own hand.</Text>}
-    </View>
+      canPlay={!reveal && !busy && isTurn && game.phase === 'PLAYING'} onPlay={card => cards.act('PLAY_CARD', { card })} />}
+    {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
+    </View></MobileGameHand>}
 
     </View>
     {wide && <View style={styles.detailsColumn}><GameDetails sidebar snapshot={snapshot} busy={busy} onSave={onSave} /></View>}

@@ -507,3 +507,30 @@ reopen it. Desktop Flush retains its table and cards layout; other games are unc
 Run `tests/browser/flush-mobile.cjs` with the backend on 8000 and exported web
 client served on 8083 (`TEST_WEB_URL` can override the web URL). It checks mobile
 controls, accepted/rejected actions, card peeking, paused chat and desktop resize.
+
+
+### Marriage and Call Break table controls
+
+Marriage and Call Break use the same three-line header menu (Back to room, theme,
+End game), without a profile button. Below 900px, statistics/rules and active
+seating controls move into the menu; invitation copying stays in the room, and
+paused chat does not reserve space. Setup seating controls remain visible.
+
+The creator's Lock/Start and Prepare next match controls pulse centrally, as does
+Call Break's Start next deal. Call Break also centers the acting player's Shuffle,
+Cut/Skip and Deal controls. Marriage deals automatically when started; its draw
+controls pulse when eligible. Existing seat, rule-approval and replacement rules
+still govern every action.
+
+Mobile Your cards expands over the table and preserves revealed cards and hand
+view choices when collapsed. It reopens for a new decision and collapses only
+after a confirmed bid, played card, accepted hand, Marriage discard or finish.
+Rejections stay visible. Marriage draws, meld checks and local card manipulation
+keep the panel open for the rest of the turn. Table and private pokes are available
+only inside Your cards during active play. Desktop keeps its permanent hand and
+Call Break statistics sidebar.
+
+`tests/browser/game-mobile.cjs` runs against the local backend on 8000 and web
+client on 8083 (override with `TEST_WEB_URL`); `TEST_GAME` optionally selects
+`marriage` or `callbreak`. It exercises real setup and play, card reveal persistence,
+rejected/confirmed actions, menu controls, paused chat and desktop resizing.

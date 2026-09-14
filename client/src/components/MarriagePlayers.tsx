@@ -13,7 +13,7 @@ const situation = (p: Player, pub: MarriagePublic) => p.finished ? 'Winner' : pu
   ? pub.phase === 'must_draw' ? 'Taking a card' : 'Showing or discarding' : 'Waiting for turn';
 const playerName = (snapshot: RoomSnapshot, id: string) => snapshot.players?.find(p => String(p.player_id) === id)?.display_name || `Player ${id}`;
 
-export function MarriagePlayers({ snapshot, onPoke, registerSeat }: { snapshot: RoomSnapshot; onPoke: (seat: number) => void; registerSeat?: (seat: string, node: View | null) => void }) {
+export function MarriagePlayers({ snapshot, onPoke, registerSeat }: { snapshot: RoomSnapshot; onPoke?: (seat: number) => void; registerSeat?: (seat: string, node: View | null) => void }) {
   const styles = useThemedStyles(createStyles);
   const [selected, setSelected] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
@@ -40,7 +40,7 @@ export function MarriagePlayers({ snapshot, onPoke, registerSeat }: { snapshot: 
             <Text style={styles.route}>{route(detail)}</Text>
             <Text style={styles.text}>{situation(detail, pub)}</Text>
             {detail.shown_melds.map((meld, i) => <View key={i} style={styles.meld}><Text style={styles.small}>{meld.meld_type.replace('_', ' ')}</Text><Text style={styles.text}>{meld.card_ids.map(physicalLabel).join('   ')}</Text></View>)}
-            {mine && detail.player_id !== mine && <Pressable accessibilityRole="button" accessibilityLabel={`Poke ${playerName(snapshot, detail.player_id)}`}
+            {onPoke && mine && detail.player_id !== mine && <Pressable accessibilityRole="button" accessibilityLabel={`Poke ${playerName(snapshot, detail.player_id)}`}
               onPress={() => { setSelected(null); onPoke(Number(detail.player_id)); }} style={styles.close}><Text style={styles.name}>Poke player</Text></Pressable>}
           </ScrollView>}
         </View>
