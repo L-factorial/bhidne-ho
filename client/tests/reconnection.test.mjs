@@ -26,7 +26,8 @@ test('reconnect uses the same credential, and ignores messages from a replaced s
   assert.equal(statuses.at(-1), 'reconnecting');
   t.mock.timers.tick(1000);
   assert.equal(sockets.length, 2);
-  assert.equal(urls[0], urls[1]);
+  assert.equal(new URL(urls[0]).searchParams.get('token'), new URL(urls[1]).searchParams.get('token'));
+  assert.equal(new URL(urls[1]).searchParams.get('resume'), '1');
   staleMessage({ data: '{"type":"CONNECTED"}' });
   assert.equal(statuses.at(-1), 'reconnecting');
   sockets[1].receive('CONNECTED');
@@ -87,4 +88,17 @@ test('session restore is per browser tab and server, leaving preserves identity,
   assert.equal(readSession('server-a').session.user_id, 'alice');
   saveSession('server-a', null);
   assert.equal(readSession('server-a'), null);
+});
+
+
+test('explicit room departure from another tab stops reconnect without a game command', t => {
+  const { connection, sockets, statuses } = fixture(t);
+  sockets[0].receive('CONNECTED');
+  sockets[0].receive('ROOM_LEFT');
+  connection.retryNow();
+  t.mock.timers.tick(60000);
+  assert.equal(statuses.at(-1), 'disconnected');
+  assert.equal(sockets.length, 1);
+  assert.equal(sockets[0].closed, true);
+  assert.deepEqual(sockets[0].sent, []);
 });

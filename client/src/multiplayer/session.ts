@@ -1,5 +1,5 @@
 export type Session = { user_id: string; token: string };
-export type Room = { room_id: string; name: string; members: string[] };
+export type Room = { room_id: string; name: string; members: string[]; connected_members?: string[] };
 export type SavedSession = { session: Session; room: Room | null; game: string | null };
 
 const memory = new Map<string, SavedSession>();

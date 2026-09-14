@@ -8,7 +8,8 @@ export const apiUrl = (process.env.EXPO_PUBLIC_API_URL || (Platform.OS === 'web'
 
 export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) { super(message); this.status = status; }
+  detail?: { code?: string; match_id?: string; requires_leave_game?: boolean };
+  constructor(status: number, message: string, detail?: ApiError["detail"]) { super(message); this.status = status; this.detail = detail; }
 }
 
 export async function request<T>(path: string, session: Session | null, body?: object, signal?: AbortSignal, method?: 'DELETE' | 'PATCH'): Promise<T> {
@@ -26,7 +27,7 @@ export async function request<T>(path: string, session: Session | null, body?: o
     const data = await response.json();
     if (!response.ok) throw new ApiError(response.status, response.status === 401
       ? 'Session expired. The server may have restarted. Sign out to start a new session.'
-      : typeof data.detail === 'string' ? data.detail : 'Could not complete this request.');
+      : typeof data.detail === 'string' ? data.detail : data.detail?.detail || 'Could not complete this request.', data.detail);
     return data;
   } finally { clearTimeout(timeout); signal?.removeEventListener('abort', abort); }
 }

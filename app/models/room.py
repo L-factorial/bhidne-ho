@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class RoomPresence(BaseModel):
     room_id: str
     members: list[str]
+    connected_members: list[str] = Field(default_factory=list)
 
 
 class RoomSummary(RoomPresence):

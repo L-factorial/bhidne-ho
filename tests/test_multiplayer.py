@@ -61,7 +61,8 @@ async def test_broadcast_isolation_exclusion_and_disconnect():
     assert alice.messages == [{"n": 2}]
     await manager.disconnect("one", alice_id)
     await manager.disconnect("one", alice_id)
-    assert await rooms.members("one") == ["bob"]
+    assert await rooms.members("one") == ["alice", "bob"]
+    assert await manager.connected_members("one") == ["bob"]
     await manager.broadcast("one", {"n": 3})
     assert bob.messages[-1] == {"n": 3}
     assert alice.messages == [{"n": 2}]
@@ -80,7 +81,8 @@ async def test_multiple_tabs_and_stale_disconnect():
     await manager.send_to_user("alice", {"hello": True})
     assert second_socket.messages == [{"hello": True}]
     await manager.disconnect("one", second)
-    assert await rooms.members("one") == []
+    assert await rooms.members("one") == ["alice"]
+    assert await manager.connected_members("one") == []
 
 
 async def test_failed_and_slow_sockets_do_not_stop_delivery():
@@ -93,7 +95,8 @@ async def test_failed_and_slow_sockets_do_not_stop_delivery():
     await manager.broadcast("one", {"hello": True})
     assert healthy.messages == [{"hello": True}]
     assert failed.closed and slow.closed
-    assert await rooms.members("one") == ["healthy"]
+    assert await rooms.members("one") == ["failed", "healthy", "slow"]
+    assert await manager.connected_members("one") == ["healthy"]
 
 
 async def test_concurrent_lifecycle_and_serialized_sends():
@@ -107,4 +110,5 @@ async def test_concurrent_lifecycle_and_serialized_sends():
     await asyncio.gather(*(manager.disconnect("one", cid) for cid in ids[:-1]))
     assert await rooms.members("one") == ["alice"]
     await manager.disconnect("one", ids[-1])
-    assert await rooms.members("one") == []
+    assert await rooms.members("one") == ["alice"]
+    assert await manager.connected_members("one") == []

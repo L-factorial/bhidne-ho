@@ -69,9 +69,8 @@ def test_manual_turns_require_the_seated_player_and_survive_reconnect(capacity):
         assert state['game']['turn']['player_id'] == capacity
         wrong = action(0, 'DRAW_CARD', revision, {'source': 'stock'}, 'takeover')
         assert wrong['action_ack']['status'] == 'rejected'
-        assert client.post(root + '/action', headers=headers[-1], json={
-            'match_id': mid, 'command_id': 'offline', 'expected_revision': revision,
-            'command': 'DRAW_CARD', 'payload': {'source': 'stock'}}).status_code == 403
+        # HTTP resync remains authorized without a live WebSocket.
+        assert client.get(root, headers=headers[-1]).status_code == 200
         with connect(capacity - 1) as returned:
             returned.receive_json()
             restored = client.get(root, headers=headers[-1]).json()

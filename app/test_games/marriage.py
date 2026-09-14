@@ -8,6 +8,13 @@ class HostedMarriageTarget(MarriageCommandTarget):
         super().__init__(adapter, seat_by_user={user: str(i + 1) for i, user in enumerate(game.users)})
         self.host, self.game = host, game
 
+    def handle_player_leave(self, user_id):
+        if self.game.ended or self.game.finished:
+            return []
+        from app.games.base import GameCommandRejected
+        raise GameCommandRejected("LEAVE_NOT_ALLOWED",
+            "Marriage does not support departure during play. The creator can end the game.")
+
     def authorize(self, user_id):
         if self.host.games.get(self.game.room_id) is not self.game or self.game.ended:
             raise CommandAccessError(409, "This game is no longer active.")

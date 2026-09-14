@@ -31,7 +31,7 @@ class RoomPokeService:
         members = await self.member(room_id, user_id)
         if recipient_user_id == user_id:
             raise HTTPException(409, "Choose another player to poke.")
-        if recipient_user_id is not None and recipient_user_id not in members:
+        if recipient_user_id is not None and recipient_user_id not in await self.connections.connected_members(room_id):
             raise HTTPException(409, "That player is offline. Try when they return.")
         state = self.states.setdefault(room_id, RoomSocialState())
         now = time.monotonic()

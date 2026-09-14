@@ -26,7 +26,7 @@ async function api(path, body, credential = session) {
       signOut();
       throw new Error('Session expired. Sign in again; a server restart clears test accounts.');
     }
-    throw new Error(typeof data.detail === 'string' ? data.detail : 'Check the form fields and try again.');
+    throw new Error(typeof data.detail === 'string' ? data.detail : data.detail?.detail || 'Check the form fields and try again.');
   }
   return data;
 }
@@ -86,14 +86,14 @@ function renderRooms() {
     const name = document.createElement('strong'); name.textContent = room.name;
     const id = document.createElement('code'); id.textContent = room.room_id;
     description.append(name, id);
-    const count = document.createElement('small'); count.textContent = `${room.members.length} online`;
+    const count = document.createElement('small'); count.textContent = `${room.connected_members?.length || 0} online`;
     button.append(description, count);
     button.onclick = () => join(room);
     $('room-list').append(button);
   }
   const current = activeRoom && rooms.find(r => r.room_id === activeRoom.room_id);
   const members = current?.members || [];
-  $('member-count').textContent = `${members.length} connected`;
+  $('member-count').textContent = `${members.length} members · ${current?.connected_members?.length || 0} online`;
   $('members').textContent = members.map(id => id === session?.user_id ? 'You' : id.slice(0, 13)).join(' · ') || '—';
   $('members').title = members.join('\n');
 }
@@ -140,6 +140,8 @@ function join(room) {
       refreshRooms();
       if (typeof refreshTestGame === 'function') refreshTestGame();
       $('message').focus();
+    } else if (data.type === 'ROOM_LEFT') {
+      leave(); refreshRooms();
     } else if (data.type === 'TEST_GAME_STATE') {
       if (typeof acceptTestSnapshot === 'function') acceptTestSnapshot(data.payload);
     } else if (data.type === 'TEST_GAME_EVENT') {
@@ -192,7 +194,13 @@ $('auth-form').onsubmit = event => {
 $('guest').onclick = () => authenticate('/auth/guest', {});
 $('signout').onclick = () => { signOut(); feedback(); };
 $('refresh').onclick = refreshRooms;
-$('leave').onclick = () => { leave(); refreshRooms(); feedback(); };
+$('leave').onclick = async () => {
+  if (!activeRoom) return;
+  try {
+    await api(`/rooms/${encodeURIComponent(activeRoom.room_id)}/leave`, {});
+    leave(); refreshRooms(); feedback();
+  } catch (error) { feedback(error.message); }
+};
 $('create-form').onsubmit = async event => {
   event.preventDefault(); feedback();
   const name = $('room-name').value.trim();

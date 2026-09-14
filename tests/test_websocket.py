@@ -36,9 +36,9 @@ def test_authenticated_message_flow_and_cleanup():
                 assert a.receive_json()["type"] == "ERROR"
                 c.send_json({"type": "INVALID"})
                 assert c.receive_json()["type"] == "ERROR"
-            assert client.portal.call(app.state.rooms.members, "one") == [bob["user_id"]]
-        assert client.portal.call(app.state.rooms.members, "one") == []
-        assert client.portal.call(app.state.rooms.members, "two") == []
+            assert set(client.portal.call(app.state.rooms.members, "one")) == {alice["user_id"], bob["user_id"]}
+        assert client.portal.call(app.state.connections.connected_members, "one") == []
+        assert client.portal.call(app.state.connections.connected_members, "two") == []
 
 
 @pytest.mark.parametrize("token", ["", "made-up", "user-123"])
@@ -64,4 +64,4 @@ def test_invalid_frames_recover_and_tabs_keep_presence():
                 first.send_bytes(b"binary")
                 assert first.receive_json()["code"] == "INVALID_MESSAGE"
             assert client.portal.call(app.state.rooms.members, "one") == [identity["user_id"]]
-        assert client.portal.call(app.state.rooms.members, "one") == []
+        assert client.portal.call(app.state.connections.connected_members, "one") == []

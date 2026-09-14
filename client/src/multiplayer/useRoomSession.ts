@@ -15,6 +15,7 @@ export function useRoomSession() {
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
   const [error, setError] = useState('');
   const [expired, setExpired] = useState(false);
+  const [leaveGameRequired, setLeaveGameRequired] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
   const connection = useRef<RoomConnection | null>(null);
 
@@ -65,8 +66,11 @@ export function useRoomSession() {
     if (!session || !room || expired) { setStatus('disconnected'); return; }
     setPokes([]);
     const transport = new RoomConnection(
-      `${apiUrl.replace(/^http/, 'ws')}/ws/rooms/${encodeURIComponent(room.room_id)}?token=${encodeURIComponent(session.token)}&heartbeat=1`,
+      `${apiUrl.replace(/^http/, 'ws')}/ws/rooms/${encodeURIComponent(room.room_id)}?token=${encodeURIComponent(session.token)}&heartbeat=1&resume=1`,
       setStatus, undefined, message => {
+        if ((message as { type?: string })?.type === 'ROOM_LEFT') {
+          setRoom(null); setGame(null); setLeaveGameRequired(null); return;
+        }
         const poke = readPoke(message, room.room_id, session.user_id);
         if (poke) setPokes(current => appendPoke(current, poke));
       },
@@ -81,28 +85,41 @@ export function useRoomSession() {
     };
   }, [session, room?.room_id, expired]);
 
-  function joinRoom(target: Room) {
+  async function joinRoom(target: Room) {
     if (!session || expired) return;
-    setStatus('connecting'); setRoom(target); setGame(null); setError('');
+    try {
+      await request(`/rooms/${encodeURIComponent(target.room_id)}/enter`, session, {});
+      setStatus('connecting'); setRoom(target); setGame(null); setLeaveGameRequired(null); setError('');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Could not enter the room.');
+    }
   }
   async function leaveRoom() {
     if (room && session && !expired) {
       try {
-        const path = `/test-games/${encodeURIComponent(room.room_id)}`;
-        const table = await request<{ game_type?: string; your_player_id?: number; match_id?: string; status: string }>(path, session);
-        if (table.game_type === 'flush' && table.your_player_id && table.status !== 'ended') {
-          await request(path + '/leave', session, { match_id: table.match_id });
-        }
+        await request(`/rooms/${encodeURIComponent(room.room_id)}/leave`, session, {});
       } catch (error) {
-        setError(error instanceof Error ? error.message : 'Could not leave the table.');
+        if (error instanceof ApiError && error.detail?.requires_leave_game) setLeaveGameRequired(error.detail.match_id || null);
+        setError(error instanceof Error ? error.message : 'Could not leave the room.');
         return false;
       }
     }
-    connection.current?.stop(); setStatus('disconnected'); setRoom(null); setGame(null); setError('');
+    connection.current?.stop(); setStatus('disconnected'); setRoom(null); setGame(null); setLeaveGameRequired(null); setError('');
     if (session && !expired) saveSession(apiUrl, { session, room: null, game: null });
     return true;
   }
+  async function leaveGameAndRoom() {
+    if (!room || !session || !leaveGameRequired) return false;
+    try {
+      await request(`/test-games/${encodeURIComponent(room.room_id)}/leave`, session, { match_id: leaveGameRequired });
+      return await leaveRoom();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Could not leave the game.');
+      return false;
+    }
+  }
   function signOut() { connection.current?.stop(); saveSession(apiUrl, null); }
-  return { session, room, rooms, game, setGame, joinRoom, leaveRoom, signOut, status, expired, error, pokes,
+  return { session, room, rooms, game, setGame, joinRoom, leaveRoom, signOut, leaveGameRequired, leaveGameAndRoom,
+    cancelLeave: () => { setLeaveGameRequired(null); setError(''); }, status, expired, error, pokes,
     retry: () => { connection.current?.retryNow(); setRetry(value => value + 1); } };
 }

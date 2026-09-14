@@ -13,12 +13,14 @@ test('private poke parsing accepts only this recipient in this room', () => {
   assert.equal(readPoke(event(), 'room', 'alice', 1000), null);
   assert.equal(readPoke(event(), 'room', 'bob', 6000), null);
   assert.equal(readPoke(event({ text: 'x'.repeat(26) }), 'room', 'bob', 1000), null);
-  assert.equal(readPoke(event({ sender_player_id: 9 }), 'room', 'bob', 1000), null);
+  assert.equal(readPoke(event({ sender_player_id: 0 }), 'room', 'bob', 1000), null);
 });
 
 test('table pokes have no private recipient and can be shown to any room member', () => {
   const broadcast = event({ scope: 'table', recipient_id: null, recipient_player_id: null });
   assert.ok(readPoke(broadcast, 'room', 'spectator', 1000));
+  // Flush retains stable seat IDs as players leave and join the table.
+  assert.ok(readPoke({ ...broadcast, sender_player_id: 19 }, 'room', 'spectator', 1000));
   assert.equal(readPoke(event({ scope: 'table' }), 'room', 'bob', 1000), null);
 });
 

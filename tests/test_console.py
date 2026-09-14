@@ -81,7 +81,9 @@ def test_created_room_is_discoverable_and_accounts_can_chat():
             assert set(snapshot['members']) == {alice['user_id'], bob['user_id']}
             a.send_json({'type': 'MESSAGE', 'payload': {'text': 'hello from account'}})
             assert b.receive_json()['sender_id'] == alice['user_id']
-        assert client.get('/rooms', headers=headers(bob)).json() == [room]
+        disconnected = client.get('/rooms', headers=headers(bob)).json()[0]
+        assert set(disconnected['members']) == {alice['user_id'], bob['user_id']}
+        assert disconnected['connected_members'] == []
         assert client.post('/rooms', headers=headers(alice), json={'name': '   '}).status_code == 422
 
 
@@ -122,4 +124,4 @@ def test_silent_heartbeat_client_is_removed_from_presence(monkeypatch):
                 socket.receive_json()
             assert error.value.code == 1001
         directory = client.get('/rooms', headers=headers(account)).json()
-        assert next(r for r in directory if r['room_id'] == room['room_id'])['members'] == []
+        assert next(r for r in directory if r['room_id'] == room['room_id'])['connected_members'] == []

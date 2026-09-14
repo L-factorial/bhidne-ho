@@ -15,11 +15,11 @@ import { FlushTable } from '../screens/FlushTable';
 import { MarriageTable } from '../screens/MarriageTable';
 
 
-export function RoomGameControl({ roomId, apiUrl, token, connected, members, connectionMessage, userId, pokes, personal, createContent, creationEnabled = true, gameType = 'callbreak' }: {
+export function RoomGameControl({ roomId, apiUrl, token, connected, members, roomMembers = members, connectionMessage, userId, pokes, personal, createContent, creationEnabled = true, gameType = 'callbreak' }: {
   gameType?: 'callbreak' | 'marriage' | 'flush';
   createContent?: ReactNode; creationEnabled?: boolean;
   userId: string; pokes: RoomPoke[]; personal: ReturnType<typeof usePlayerPhrases>;
-  roomId: string; apiUrl: string; token: string; connected: boolean; members: string[]; connectionMessage?: string;
+  roomId: string; apiUrl: string; token: string; connected: boolean; members: string[]; roomMembers?: string[]; connectionMessage?: string;
 }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
@@ -112,6 +112,18 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
       requests.current.forEach(request => request.abort());
     };
   }, [commandClient, connected, actionTick]);
+  async function returnToGame() {
+    if (busy || pending.current) return;
+    pending.current = true; const version = ++generation.current; setBusy(true); setError('');
+    try {
+      const data = await api();
+      if (alive.current && generation.current === version) {
+        setSnapshot(data); setLive(data.status !== 'empty'); setOpen(true);
+      }
+    } catch (error) {
+      if (alive.current) setError(error instanceof Error ? error.message : 'Could not restore game.');
+    } finally { pending.current = false; if (alive.current) setBusy(false); }
+  }
   async function act(join: boolean) {
     if (!canSend.current || pending.current) return;
     pending.current = true; const version = ++generation.current; setBusy(true); setError('');
@@ -126,7 +138,7 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
   }
   const canCreate = snapshot?.status === 'empty' || snapshot?.status === 'finished' || snapshot?.status === 'ended';
   const canCreateNewGame = canCreate || !!snapshot?.can_create_new_game;
-  const canEnd = !canCreate && (snapshot?.is_creator || (connected && members.length === 1 && members[0] === userId));
+  const canEnd = !canCreate && (snapshot?.is_creator || (connected && roomMembers.length === 1 && roomMembers[0] === userId));
   const selectedGameName = ({ marriage: 'Marriage', callbreak: 'Call Break', flush: 'Flush' })[gameType];
   const gameName = ({ marriage: 'Marriage', callbreak: 'Call Break', flush: 'Flush' })[(canCreate ? gameType : snapshot?.game_type) || 'callbreak'];
   const setupGameName = canCreateNewGame ? selectedGameName : gameName;
@@ -152,13 +164,13 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
     finally { pending.current = false; if (alive.current) setBusy(false); }
   }
   const actionLabel = !snapshot ? `Loading ${noun}…` : (snapshot.status === 'finished' || snapshot.status === 'ended') ? (snapshot.game_type === 'flush' ? 'Start a new table' : 'Start a new game') : canCreate ? `Create ${createNoun}`
-    : snapshot.can_join ? `Join ${noun}` : snapshot.your_player_id ? `Enter ${noun}` : `Watch ${noun}`;
+    : snapshot.can_join ? `Join ${noun}` : snapshot.your_player_id ? `Return to ${noun}` : `Watch ${noun}`;
   const summary = !snapshot ? `Loading room ${noun}…` : snapshot.status === 'empty' ? `No ${noun} yet. Create one for everyone in this room.`
     : snapshot.status === 'waiting' ? `${gameName} · ${snapshot.players?.length}/${snapshot.capacity} players ready`
     : snapshot.status === 'ended' ? `${gameName} - Ended` : snapshot.status === 'finished' ? `${gameName} - Game finished` : `${gameName} · ${snapshot.game?.phase.replaceAll('_', ' ').toLowerCase() || 'In progress'}`;
   const endControl = canEnd
     ? <EndGameControl table={snapshot?.game_type === 'flush'} key={`end-${snapshot?.match_id}`} busy={busy} onEnd={() => lobbyAction('/end')} /> : null;
-  const leaveControl = (snapshot?.status === 'waiting' || snapshot?.roster_open) && snapshot.your_player_id
+  const leaveControl = snapshot?.your_player_id
     ? <Pressable accessibilityRole="button" accessibilityLabel={`Leave ${noun}`} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => void lobbyAction('/leave')} style={styles.choice}><Text style={[styles.text, live && open && { color: colors.text }]}>{`Leave ${noun}`}</Text></Pressable> : null;
   return <>
     {!open && snapshot?.match_id && snapshot.can_join && !snapshot.your_player_id && !snapshot.is_creator && dismissedInvitation !== snapshot.match_id && <View testID="game-created-notice" style={styles.invitation}>
@@ -171,7 +183,7 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
     </View>}
     {collapsed && <View style={styles.returnPanel}>
       <Animated.View style={{ opacity: notification.opacity }}>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Go back to ${noun}`} onPress={() => setOpen(true)} style={[styles.button, !!notification.notice && styles.notified]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Go back to ${noun}`} disabled={busy} onPress={() => void returnToGame()} style={[styles.button, !!notification.notice && styles.notified]}>
           <Text style={styles.buttonText}>{notification.notice ? '✦ ' : ''}Go back to {noun}</Text>
         </Pressable>
       </Animated.View>
@@ -204,7 +216,7 @@ export function RoomGameControl({ roomId, apiUrl, token, connected, members, con
       </View>
       <Pressable accessibilityRole="button" accessibilityLabel={actionLabel} disabled={!snapshot || busy}
         accessibilityState={{ disabled: !snapshot || busy }}
-        onPress={() => { if (snapshot?.can_join) void act(true); else { setLive(!!snapshot && !canCreate); setOpen(true); } }}
+        onPress={() => { if (snapshot?.can_join) void act(true); else { void returnToGame(); } }}
         style={[styles.button, (!snapshot || busy) && { opacity: 0.5 }]}>
         <Text style={styles.buttonText}>{busy ? 'Joining…' : actionLabel}</Text>
       </Pressable>

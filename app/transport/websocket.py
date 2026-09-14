@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from app.auth.service import AuthenticationError, AuthService
 from app.models.messages import ClientMessage
+from app.multiplayer.connection_manager import RoomMembershipEnded
 from app.models.game import CommandError, GameCommand
 
 router = APIRouter()
@@ -30,12 +31,19 @@ async def room_socket(websocket: WebSocket, room_id: str) -> None:
     runtime = websocket.app.state.runtime
     websocket.app.state.provision_room(room_id)
     await websocket.accept()
-    connection_id = await connections.connect(room_id, identity.user_id, websocket)
+    try:
+        connection_id = await connections.connect(room_id, identity.user_id, websocket,
+            resume=websocket.query_params.get("resume") == "1")
+    except RoomMembershipEnded:
+        await websocket.send_json({"type": "ROOM_LEFT", "room_id": room_id})
+        await websocket.close(code=1000)
+        return
     # Opt-in keeps existing console/terminal clients compatible.
     receive_timeout = HEARTBEAT_TIMEOUT_SECONDS if websocket.query_params.get("heartbeat") == "1" else None
     try:
         await connections.send_to_connection(room_id, connection_id, {
             "type": "CONNECTED", "user_id": identity.user_id, "room_id": room_id,
+            "membership": await websocket.app.state.lifecycle.snapshot(room_id, identity.user_id),
         })
         while True:
             frame = await asyncio.wait_for(websocket.receive(), timeout=receive_timeout)
@@ -62,7 +70,10 @@ async def room_socket(websocket: WebSocket, room_id: str) -> None:
                         detail="Expected GAME_COMMAND with a command and object payload, or MESSAGE with an object payload.",
                     )
                 else:
-                    error = await runtime.handle(room_id, identity.user_id, message)
+                    if identity.user_id not in await websocket.app.state.rooms.members(room_id):
+                        error = CommandError(category="transport", code="ROOM_LEFT", detail="Enter the room before sending messages.")
+                    else:
+                        error = await runtime.handle(room_id, identity.user_id, message)
             if error is not None:
                 await connections.send_to_connection(
                     room_id, connection_id, error.model_dump(mode="json"),

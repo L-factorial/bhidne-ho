@@ -37,6 +37,8 @@ def test_room_chat_membership_validation_history_and_rate_limit():
         history = client.get(path, headers=headers[1]).json()
         assert len(history) == 100 and history[0]['text'] == '1' and history[-1]['text'] == '100'
         stack.close()
+        assert client.get(path, headers=headers[0]).status_code == 200
+        assert client.post('/rooms/chat-room/leave', headers=headers[0], json={}).status_code == 200
         assert client.get(path, headers=headers[0]).status_code == 403
 
 

@@ -74,7 +74,14 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
         <HeaderAction icon="leave" label={room && !expired ? 'Leave room' : 'Sign out'} onPress={room && !expired ? leaveRoom : signOut} />
       </View>
       {!!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{error || shared.error}</Text>}
-      {room && !expired && shared.status !== 'connected' && <Text accessibilityLiveRegion="polite" style={styles.subtitle}>Reconnecting to your room…</Text>}
+      {shared.leaveGameRequired && <View>
+        <Text style={styles.subtitle}>You are seated in a game. Leave the game and room? The game's departure rules still apply.</Text>
+        <Pressable accessibilityRole="button" disabled={busy} onPress={async () => {
+          setBusy(true); try { await shared.leaveGameAndRoom(); } finally { setBusy(false); }
+        }}><Text style={styles.subtitle}>Leave game and room</Text></Pressable>
+        <Pressable accessibilityRole="button" disabled={busy} onPress={shared.cancelLeave}><Text style={styles.subtitle}>Stay in room</Text></Pressable>
+      </View>}
+      {room && !expired && shared.status !== 'connected'  && <Text accessibilityLiveRegion="polite" style={styles.subtitle}>Reconnecting to your room…</Text>}
       {room ? <>
         <View style={styles.hero}>
           <Text style={styles.eyebrow}>YOUR ROOM</Text>
@@ -83,7 +90,7 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
         </View>
         <View style={[styles.columns, wide && styles.wideColumns]}>
           <View style={styles.mainColumn}>
-            {session && <RoomGameControl personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={roomMembers} connectionMessage={expired ? shared.error : undefined}
+            {session && <RoomGameControl personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={current?.connected_members || []} roomMembers={roomMembers} connectionMessage={expired ? shared.error : undefined}
               gameType={selectedGame} createContent={<>
             <Text style={styles.eyebrowDark}>CHOOSE A GAME</Text>
             <View style={styles.gameTabs}>
@@ -119,7 +126,7 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
               {membersOpen && roomMembers.map((member, index) => <View key={member} style={styles.member}>
                 <View style={styles.avatar}><Text style={styles.avatarText}>{member === session?.user_id ? 'Y' : String(index + 1)}</Text></View>
                 <Text style={styles.directoryName}>{member === session?.user_id ? 'You' : `Guest ${index + 1}`}</Text>
-                <Text style={styles.online}>Online</Text>
+                <Text style={styles.online}>{current?.connected_members?.includes(member) ? 'Online' : 'Offline'}</Text>
               </View>)}
             </View>
           </View>
@@ -168,7 +175,7 @@ export function SharedRoomsScreen({ onExit }: { onExit: () => void }) {
             {roomsOpen && <View>
             {session && !rooms.length && <View style={styles.comingSoon}><Text style={styles.heading}>The first table is yours.</Text><Text style={styles.description}>Create a room to get things started.</Text></View>}
             {rooms.map(item => <View key={item.room_id} style={styles.roomRow}>
-              <View style={{ flex: 1 }}><Text style={styles.directoryName}>{item.name}</Text><Text selectable style={styles.description}>Table code: {item.room_id}</Text><Text style={styles.description}>{item.members.length} connected</Text></View>
+              <View style={{ flex: 1 }}><Text style={styles.directoryName}>{item.name}</Text><Text selectable style={styles.description}>Table code: {item.room_id}</Text><Text style={styles.description}>{item.members.length} members · {item.connected_members?.length || 0} online</Text></View>
               <Pressable accessibilityRole="button" accessibilityLabel={`Enter ${item.name}`} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => joinRoom(item)} style={[styles.enterButton, busy && styles.disabled]}><Text style={styles.enterText}>Enter →</Text></Pressable>
             </View>)}
             </View>}

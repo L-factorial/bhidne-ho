@@ -7,6 +7,7 @@ export class RoomConnection {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private stopped = true;
   private attempts = 0;
+  private hasConnected = false;
   private url: string;
   private onStatus: (status: ConnectionStatus) => void;
   private makeSocket: (url: string) => Socket;
@@ -39,7 +40,7 @@ export class RoomConnection {
     if (this.stopped) return;
     this.onStatus(this.attempts ? 'reconnecting' : 'connecting');
     let socket: Socket;
-    try { socket = this.makeSocket(this.url); } catch { this.reconnect(); return; }
+    try { socket = this.makeSocket(this.hasConnected && !new URL(this.url).searchParams.has('resume') ? `${this.url}${this.url.includes('?') ? '&' : '?'}resume=1` : this.url); } catch { this.reconnect(); return; }
     this.socket = socket;
     this.timer = setTimeout(this.reconnect, 10000);
     socket.onclose = socket.onerror = () => { if (this.socket === socket) this.reconnect(); };
@@ -48,8 +49,11 @@ export class RoomConnection {
       let message;
       try { message = JSON.parse(event.data); } catch { return; }
       if (!message || typeof message !== 'object') return;
+      if (message.type === 'ROOM_LEFT') {
+        this.stop(); this.onStatus('disconnected'); this.onEvent(message); return;
+      }
       if (message.type === 'CONNECTED') {
-        this.attempts = 0; this.onStatus('connected'); this.scheduleHeartbeat(socket);
+        this.hasConnected = true; this.attempts = 0; this.onStatus('connected'); this.scheduleHeartbeat(socket);
       } else if (message.type === 'HEARTBEAT_ACK') this.scheduleHeartbeat(socket);
       else this.onEvent(message);
     };

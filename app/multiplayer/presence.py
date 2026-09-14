@@ -3,7 +3,7 @@ from app.multiplayer.room_service import RoomService
 
 
 class PresenceService:
-    """A snapshot of online room members; membership is the source of truth."""
+    """A snapshot of room membership; connectivity is separate."""
 
     def __init__(self, rooms: RoomService) -> None:
         self._rooms = rooms

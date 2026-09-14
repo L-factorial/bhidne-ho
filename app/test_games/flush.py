@@ -8,6 +8,21 @@ class HostedFlushTarget(FlushCommandTarget):
         super().__init__(adapter, seat_by_user={u: str(game.flush_seats[u]) for u in game.users})
         self.host, self.game = host, game
 
+    def handle_player_leave(self, user_id):
+        if self.game.ended or self.game.finished:
+            return []
+        # Preserve the engine's turn, preparation, show and side-show validation.
+        from uuid import uuid4
+        from app.models.action import ActionCommand
+        if self.game.flush_open:
+            return []
+        state = self.adapter.checkpoint().get_state()
+        player = next(p for p in state.players if p.player_id == self.seat_by_user[user_id])
+        if state.status.value == "finished" or player.status.value != "active":
+            return []
+        return self.apply(user_id, ActionCommand(match_id=self.game.match_id,
+            command_id=uuid4().hex, expected_revision=self.revision, command="FOLD"))
+
     def authorize(self, user_id):
         if self.host.games.get(self.game.room_id) is not self.game or self.game.ended:
             raise CommandAccessError(409, 'This game is no longer active.')

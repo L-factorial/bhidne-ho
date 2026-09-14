@@ -21,6 +21,7 @@ the shared adapter handles full gameplay; production runtime integration remains
 
 - [Shared command infrastructure](docs/shared-game-runtime.md): common runtime/client ownership and how a new game inherits reliable commands; implemented for Call Break and Echo.
 
+- [Room and game lifecycle](docs/room-game-lifecycle.md): navigation, explicit departure, preserved membership, reconnect, per-game policies, and audit results.
 - [Reliable game actions](docs/reliable-game-actions.md): command acknowledgments, safe retries across disconnects, private snapshot recovery, protocol limits, and verification.
 
 - [Web and mobile client](client/README.md): Expo/React Native welcome screen with guest and social sign-in previews. Run `cd client && npm ci && npm run web`.
@@ -65,7 +66,7 @@ python scripts/client.py demo
 Each client obtains its own identity. Wait for `CONNECTED` in each terminal, then
 type `hello` in one. Every other identity in `demo` receives the message. The sender
 does not receive an echo. Run a third client with `python scripts/client.py other`
-to check room isolation. Type `/quit` or close a client to leave.
+to check room isolation. Type `/quit` or close a client to disconnect. Room membership survives disconnect; use the explicit room-leave API to leave.
 
 For browser tabs, open `/docs` and run this in each tab's developer console:
 
@@ -133,7 +134,7 @@ app/
   multiplayer/
     connection_manager.py         # Socket lifecycle, per-socket sends, delivery
     room_service.py               # In-memory membership
-    presence.py                   # Online membership snapshots
+    presence.py                   # Room membership snapshots
     broadcaster.py                # Runtime-facing broadcast protocol
   runtime/
     game_runtime.py               # Authenticated message → server event → broadcast
@@ -168,14 +169,16 @@ GameEngine.handle_command(user_id: str, command: GameCommand) -> list[GameEvent]
 
 `connect` registers an already accepted socket and returns a unique connection ID.
 `disconnect` uses that ID, so an old connection cannot remove another tab or a
-reconnected client. Membership persists until the user's last socket in the room
-closes. Sender exclusion applies to all sockets belonging to that identity;
-`send_to_user` addresses that user's sockets across all rooms. Membership describes
-online users only, not persistent seats in a future game.
+reconnected client. Room and game membership survive the last socket closing.
+`connected_members` describes online users separately. Sender exclusion applies to
+all sockets belonging to that identity; `send_to_user` addresses sockets across rooms.
+An explicit room departure uses `RoomLifecycle.leave`, which rejects held seats in
+waiting/active tables. Game departure uses the existing `/test-games/{room_id}/leave`
+endpoint and a game-specific callback. See [the lifecycle contract](docs/room-game-lifecycle.md).
 
 The connection manager coordinates lifecycle changes under an async lock and calls
-the room service for membership changes. Application code should use the manager
-for socket lifecycle, not independently alter membership. Broadcast snapshots
+the room service for initial membership and explicit removal. Application code uses
+`RoomLifecycle` for guarded room departure and the manager for socket connectivity. Broadcast snapshots
 connections under the lock, releases it before network I/O, and sends concurrently
 to recipients. Per-socket locks serialize writes. Failed or timed-out sends remove
 only the affected connection and attempt to close it. Default send timeout is five

@@ -57,7 +57,10 @@ async def me(user: UserIdentity = Depends(current_user)):
 
 @router.get("/rooms", response_model=list[RoomSummary])
 async def list_rooms(request: Request, user: UserIdentity = Depends(current_user)):
-    return await request.app.state.rooms.list_rooms()
+    rooms = await request.app.state.rooms.list_rooms()
+    for room in rooms:
+        room.connected_members = await request.app.state.connections.connected_members(room.room_id)
+    return rooms
 
 
 @router.post("/rooms", response_model=RoomSummary, status_code=201)
@@ -65,3 +68,29 @@ async def create_room(body: CreateRoom, request: Request, user: UserIdentity = D
     room = await request.app.state.rooms.create(body.name)
     request.app.state.provision_room(room.room_id)
     return room
+
+
+@router.get("/memberships")
+async def memberships(request: Request, response: Response, user: UserIdentity = Depends(current_user)):
+    response.headers["Cache-Control"] = "no-store"
+    return await request.app.state.lifecycle.lookup(user.user_id)
+
+
+@router.get("/rooms/{room_id}")
+async def room_state(room_id: str, request: Request, response: Response, user: UserIdentity = Depends(current_user)):
+    response.headers["Cache-Control"] = "no-store"
+    return await request.app.state.lifecycle.snapshot(room_id, user.user_id)
+
+
+@router.post("/rooms/{room_id}/enter")
+async def enter_room(room_id: str, request: Request, user: UserIdentity = Depends(current_user)):
+    import re
+    if re.fullmatch(r"[A-Za-z0-9_-]{1,64}", room_id) is None:
+        raise HTTPException(422, "Invalid room ID.")
+    request.app.state.provision_room(room_id)
+    return await request.app.state.lifecycle.enter(room_id, user.user_id)
+
+
+@router.post("/rooms/{room_id}/leave")
+async def leave_room(room_id: str, request: Request, user: UserIdentity = Depends(current_user)):
+    return await request.app.state.lifecycle.leave(room_id, user.user_id)

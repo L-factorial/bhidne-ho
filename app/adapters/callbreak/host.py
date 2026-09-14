@@ -7,6 +7,13 @@ class CallBreakCommandTarget:
     def __init__(self, host, game):
         self.host, self.game = host, game
 
+    def handle_player_leave(self, user_id):
+        if self.game.ended or self.game.finished:
+            return []
+        from app.games.base import GameCommandRejected
+        raise GameCommandRejected("LEAVE_NOT_ALLOWED",
+            "Call Break does not support departure during play. The creator can end the game.")
+
     def authorize(self, user_id):
         if self.host.games.get(self.game.room_id) is not self.game or self.game.state is None or self.game.ended:
             raise CommandAccessError(409, "This game is not active. Refresh its state.")

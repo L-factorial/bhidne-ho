@@ -1,6 +1,7 @@
 """In-memory host for manually played multiplayer games."""
 
 import asyncio
+from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass, field, fields
 import json
 from random import SystemRandom
@@ -26,6 +27,7 @@ from flush import FlushGameEngine, FlushRulesConfig, FlushError
 from app.adapters.flush import FlushAdapter
 from app.test_games.flush import HostedFlushTarget
 from app.games.base import GameCommandRejected
+from app.games.lifecycle import PlayerDeparture, WaitingGameDeparture
 from app.runtime.command_runtime import CommandAccessError, CommandRuntime, CommandSession, OutgoingEvent
 
 @dataclass
@@ -33,6 +35,7 @@ class HostedGame:
     room_id: str
     capacity: int
     users: list[str]
+    departed: set[str] = field(default_factory=set)
     commands: CommandSession = field(default_factory=CommandSession)
     settings: dict = field(default_factory=lambda: {"weak_hand_enabled": True, "no_spades_enabled": True, "payments": [0, 0, 0, 0]})
     state: MatchState | None = None
@@ -94,10 +97,39 @@ class TestGameService:
         self._catalog_lock = asyncio.Lock()
         self._random = SystemRandom()
 
+    @asynccontextmanager
+    async def membership_guard(self, room_id):
+        """Coordinate room departure with replacement and roster mutations."""
+        async with self._catalog_lock:
+            game = self.games.get(room_id)
+            if game:
+                async with game.lock:
+                    yield
+            else:
+                yield
+
+    def membership(self, room_id, user_id):
+        game = self.games.get(room_id)
+        if not game:
+            return None
+        participant = user_id in game.users and user_id not in game.departed
+        seat = (game.flush_seats[user_id] if game.game_type == "flush"
+                else game.users.index(user_id) + 1) if participant else None
+        return {"game_id": game.match_id, "table_id": game.match_id,
+                "game_type": game.game_type,
+                "status": "ended" if game.ended else "finished" if game.finished else "playing" if game.started else "waiting",
+                "active": not game.ended and not game.finished,
+                "player_is_participant": participant, "seat": seat}
+
+    def _leave_target(self, game) -> PlayerDeparture:
+        if not game.started:
+            return WaitingGameDeparture()
+        return game.flush_target or game.marriage_target or CallBreakCommandTarget(self, game)
+
     def is_playing(self, room_id: str, user_id: str) -> bool:
         """Expose participation without leaking Call Break state to room services."""
         game = self.games.get(room_id)
-        return bool(game and not game.ended and game.started and not game.finished and not game.flush_open and user_id in game.users)
+        return bool(game and not game.ended and game.started and not game.finished and not game.flush_open and user_id in game.users and user_id not in game.departed)
 
     async def close(self):
         tasks = [g.task for g in self.games.values() if g.task is not None]
@@ -116,11 +148,19 @@ class TestGameService:
         return game
 
     def _snapshot(self, game, user_id):
+        result = self._game_snapshot(game, user_id)
+        result["active_game"] = self.membership(game.room_id, user_id)
+        if user_id in game.departed:
+            result["is_creator"] = False
+            result["query_result"] = None
+        return result
+
+    def _game_snapshot(self, game, user_id):
         if game.game_type == "flush":
             return self._flush_snapshot(game, user_id)
         if game.game_type == "marriage":
             return self._marriage_snapshot(game, user_id)
-        seat = game.users.index(user_id) + 1 if user_id in game.users else None
+        seat = game.users.index(user_id) + 1 if user_id in game.users and user_id not in game.departed else None
         result = {
             "room_id": game.room_id, "match_id": game.match_id, "capacity": game.capacity,
             "game_type": "callbreak",
@@ -149,7 +189,7 @@ class TestGameService:
         return result
 
     def _marriage_snapshot(self, game, user_id):
-        seat = game.users.index(user_id) + 1 if user_id in game.users else None
+        seat = game.users.index(user_id) + 1 if user_id in game.users and user_id not in game.departed else None
         result = {
             "marriage_scoring": asdict(game.marriage_scoring),
             "marriage_scoring_presets": {key: asdict(value) for key, value in SCORING_PRESETS.items()},
@@ -176,7 +216,7 @@ class TestGameService:
         return result
 
     def _flush_snapshot(self, game, user_id):
-        seat = game.flush_seats.get(user_id) if user_id in game.users else None
+        seat = game.flush_seats.get(user_id) if user_id in game.users and user_id not in game.departed else None
         result = {
             "room_id": game.room_id, "match_id": game.match_id, "game_type": "flush",
             "capacity": game.capacity, "ready": len(game.users) >= 2,
@@ -214,6 +254,7 @@ class TestGameService:
         await self._member(room_id, user_id)
         game = self._get(room_id)
         async with game.lock:
+            await self._member(room_id, user_id)
             self._creator(game, user_id, body.match_id)
             if game.game_type != "flush":
                 raise HTTPException(409, "Flush settings only apply to Flush.")
@@ -243,6 +284,7 @@ class TestGameService:
         if not game:
             return {"room_id": room_id, "status": "empty"}
         async with game.lock:
+            await self._member(room_id, user_id)
             return self._snapshot(game, user_id)
 
     async def create(self, room_id, user_id, capacity, game_type="callbreak"):
@@ -252,6 +294,7 @@ class TestGameService:
         if type(capacity) is not int or capacity not in (tuple(range(2, 11)) if game_type == "flush" else (2, 3, 4, 5) if game_type == "marriage" else (4, 5)):
             raise HTTPException(422, "Choose 2-10 players for Flush, 2-5 for Marriage or 4-5 for Call Break.")
         async with self._catalog_lock:
+            await self._member(room_id, user_id)
             existing = self.games.get(room_id)
             game = HostedGame(room_id, capacity, [user_id], game_type=game_type)
             if game_type == "flush": game.flush_seats[user_id] = 1
@@ -264,6 +307,7 @@ class TestGameService:
             else:
                 self.games[room_id] = game
         async with game.lock:
+            await self._member(room_id, user_id)
             await self._publish(game)
             return self._snapshot(game, user_id)
 
@@ -271,6 +315,7 @@ class TestGameService:
         await self._member(room_id, user_id)
         game = self._get(room_id)
         async with game.lock:
+            await self._member(room_id, user_id)
             if game.ended or match_id != game.match_id or not game.state or not self.round_summary_seconds:
                 raise HTTPException(409, "This round is no longer available.")
             if not game.users or user_id != game.users[0]:
@@ -288,6 +333,7 @@ class TestGameService:
         async with self._catalog_lock:
             game = self._get(room_id)
             async with game.lock:
+                await self._member(room_id, user_id)
                 if match_id != game.match_id:
                     raise HTTPException(409, "The game changed. Refresh before ending it.")
                 members = await self.rooms.members(room_id)
@@ -315,9 +361,10 @@ class TestGameService:
         await self._member(room_id, user_id)
         game = self._get(room_id)
         async with game.lock:
+            await self._member(room_id, user_id)
             if match_id != game.match_id or game.ended:
                 raise HTTPException(409, "Game changed. Refresh and join again.")
-            if user_id in game.users:
+            if user_id in game.users and user_id not in game.departed:
                 return self._snapshot(game, user_id)
             if (game.started and not game.flush_open) or len(game.users) >= game.capacity:
                 raise HTTPException(409, "The game is full; you can watch it.")
@@ -332,15 +379,27 @@ class TestGameService:
         async with self._catalog_lock:
             game = self._get(room_id)
             async with game.lock:
+                await self._member(room_id, user_id)
                 if match_id != game.match_id:
                     raise HTTPException(409, "The game changed. Refresh before leaving.")
-                if game.started and not game.flush_open:
-                    raise HTTPException(409, "You can only leave a game before it starts.")
-                if user_id in game.users:
+                if user_id not in game.users or user_id in game.departed:
+                    return self._snapshot(game, user_id)
+                try:
+                    events = self._leave_target(game).handle_player_leave(user_id)
+                except GameCommandRejected as error:
+                    raise HTTPException(409, {"code": error.code, "detail": error.detail}) from error
+                if game.started and game.game_type != "flush":
+                    # Fixed engine seats are historical state, not current membership.
+                    game.departed.add(user_id)
+                else:
                     game.users.remove(user_id)
-                    if not game.users:
-                        game.ended = True
-                    await self._publish(game)
+                if not game.users or all(u in game.departed for u in game.users):
+                    game.ended = True
+                game.flush_queries.pop(user_id, None)
+                game.marriage_queries.pop(user_id, None)
+                for event in events:
+                    await self._deliver(game, event)
+                await self._publish(game)
                 return self._snapshot(game, user_id)
 
     async def configure(self, room_id, user_id, body):
@@ -349,6 +408,7 @@ class TestGameService:
         if game.game_type != "callbreak":
             raise HTTPException(409, "Call Break settings only apply to Call Break.")
         async with game.lock:
+            await self._member(room_id, user_id)
             self._creator(game, user_id, body.match_id)
             game.settings = body.model_dump(exclude={"match_id"})
             await self._publish(game)
@@ -358,6 +418,7 @@ class TestGameService:
         await self._member(room_id, user_id)
         game = self._get(room_id)
         async with game.lock:
+            await self._member(room_id, user_id)
             self._creator(game, user_id, body.match_id)
             if game.game_type != "marriage":
                 raise HTTPException(409, "Marriage scoring only applies to Marriage.")
@@ -379,6 +440,7 @@ class TestGameService:
         await self._member(room_id, user_id)
         game = self._get(room_id)
         async with game.lock:
+            await self._member(room_id, user_id)
             self._creator(game, user_id, match_id, relock=True)
             if (len(game.users) < 2 if game.game_type == "flush" else len(game.users) != game.capacity):
                 raise HTTPException(409, "Wait for all players to take a seat.")
