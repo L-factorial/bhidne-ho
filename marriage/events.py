@@ -95,10 +95,15 @@ class PlayerFinished:
     revision: int
     player_id: str
     winning_pair: tuple[str, ...]
+    meld_types: tuple[MeldType, ...] = ()
+    card_groups: tuple[tuple[str, ...], ...] = ()
+    discard_card_id: str | None = None
     kind: str = field(default="PLAYER_FINISHED", init=False)
 
     def __post_init__(self):
         object.__setattr__(self, "winning_pair", tuple(self.winning_pair))
+        object.__setattr__(self, "meld_types", tuple(self.meld_types))
+        object.__setattr__(self, "card_groups", tuple(tuple(g) for g in self.card_groups))
 
 
 DomainEvent: TypeAlias = (GameStarted | TurnChanged | DiscardPileRecycled | CardDrawn | CardDiscarded

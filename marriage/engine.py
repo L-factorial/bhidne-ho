@@ -5,14 +5,14 @@ from random import Random
 
 from .deck import create_deck, deal_cards
 from .enums import DrawSource, GameStatus, QualificationRoute, TurnPhase
-from .errors import InvalidActionError, InvalidTurnError, NoDrawableCardError, UnsupportedRuleError
+from .errors import InvalidActionError, InvalidTurnError, NoDrawableCardError
 from .events import (ActionResult, CardDiscarded, CardDrawn, DiscardPileRecycled,
                      DomainEvent, GameStarted, MeldsShown, PlayerFinished, PlayerSawMaal,
                      TipluRevealed, TurnChanged)
 from .invariants import validate_game_state, validate_initial_state
 from .models import MarriageConfig, MarriageGameState, Meld, PlayerState
 from .cards import PhysicalCard
-from .completion import Capability, NORMAL_COMPLETION, eighth_pair
+from .completion import Capability, eighth_pair, normal_finish
 from .maal import MaalView, maal_view, select_tiplu
 from .melds import validate_declaration, validate_meld
 from .visibility import VisibleEvent, visible_events
@@ -205,15 +205,30 @@ class MarriageGameEngine:
         return bool(eighth_pair(find_player(self._state, player_id)))
 
     def can_finish_normal_hand(self, player_id: str) -> Capability:
-        """Explicit unsupported capability, never a fabricated winning-hand verdict."""
-        find_player(self._state, player_id)
-        return NORMAL_COMPLETION
+        """Supported rule and hand verdict; allowed actions additionally enforce turn."""
+        player = find_player(self._state, player_id)
+        possible = normal_finish(player, self._state.tiplu, self._state.config.rules) is not None
+        return Capability(True, "Valid normal-hand partition." if possible else
+                          "Requires normal qualification and a 21-card partition after drawing.", possible)
 
     def finish(self, player_id: str) -> ActionResult:
-        """Finish a validated Dublee round, preserving all 22 owned cards and six leftovers."""
+        """Revalidate and finish; normal wins atomically discard their 22nd card."""
         player = self._require_turn(player_id, TurnPhase.MUST_DISCARD, finishing=True)
         if player.route is QualificationRoute.NORMAL:
-            raise UnsupportedRuleError(NORMAL_COMPLETION.reason)
+            witness = normal_finish(player, self._state.tiplu, self._state.config.rules)
+            if witness is None:
+                raise InvalidActionError("Normal finish requires 21 cards in valid melds and one final discard.")
+            card = next(c for c in player.hand if c.card_id == witness.discard_card_id)
+            winner = replace(player, finished=True, hand=tuple(c for c in player.hand if c != card))
+            players = tuple(winner if p.player_id == player_id else p for p in self._state.players)
+            seq, rev = len(self._state.history) + 1, self._state.revision + 1
+            events = (CardDiscarded(seq, rev, player_id, card),
+                      PlayerFinished(seq + 1, rev, player_id, (),
+                                     tuple(m.meld_type for m in witness.melds),
+                                     tuple(m.card_ids for m in witness.melds), card.card_id))
+            return self._commit_turn(replace(self._state, players=players, status=GameStatus.FINISHED,
+                                             winner=player_id, normal_finish=witness,
+                                             discard=self._state.discard + (card,), must_finish=False), events)
         pair = eighth_pair(player)
         if not pair:
             raise InvalidActionError("Finish requires seven committed Dublees and a separate eighth pair.")

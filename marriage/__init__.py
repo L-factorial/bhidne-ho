@@ -7,7 +7,7 @@ from .enums import (AceSequencePolicy, ActionKind, CardType, DrawSource, GameSta
 from .errors import (CardConservationError, InvalidActionError, InvalidMeldError,
                      InvalidTurnError, MarriageError, NoDrawableCardError,
                      TipluUnavailableError, UnsupportedRuleError)
-from .models import MarriageConfig, MarriageGameState, Meld, PlayerState
+from .models import MarriageConfig, MarriageGameState, Meld, NormalFinish, PlayerState
 from .engine import MarriageGameEngine
 from .events import (ActionResult, CardDiscarded, CardDrawn, DiscardPileRecycled,
                      DomainEvent, GameStarted, TurnChanged)
@@ -35,6 +35,6 @@ __all__ = [
     "validate_card_conservation",
     "ActionKind", "AllowedActions", "BlockedDrawSource", "CardDrawn", "CardDiscarded",
     "DiscardPileRecycled", "validate_game_state",
-    "Capability", "MaalView", "VisibleEvent", "MeldsShown", "PlayerFinished",
+    "Capability", "NormalFinish", "MaalView", "VisibleEvent", "MeldsShown", "PlayerFinished",
     "PlayerSawMaal", "TipluRevealed",
 ]

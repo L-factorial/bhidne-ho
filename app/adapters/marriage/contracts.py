@@ -254,7 +254,7 @@ class OutboundEvent(BaseModel):
                 "MELDS_SHOWN": {"player_id", "route", "meld_types", "card_groups"},
                 "SEVEN_DUBLEES_SHOWN": {"player_id", "route", "meld_types", "card_groups"},
                 "TIPLU_REVEALED": set(), "PLAYER_SAW_MAAL": {"player_id"},
-                "PLAYER_FINISHED": {"player_id", "winning_pair"},
+                "PLAYER_FINISHED": {"player_id", "winning_pair", "meld_types", "card_groups", "discard_card_id"},
             }[event.kind] | {"sequence", "revision", "kind"}
             if any(value not in (None, [], ()) for key, value in self.payload["event"].items() if key not in permitted):
                 raise ValueError("Event contains fields outside its public audience contract.")

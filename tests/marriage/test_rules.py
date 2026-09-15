@@ -7,7 +7,7 @@ from marriage import (
     ActionKind, CardConservationError, DrawSource, GameStatus, InvalidActionError,
     InvalidMeldError, InvalidTurnError, MarriageGameEngine, MarriageRules, Meld,
     MeldType, PlayerState, QualificationRoute, TipluUnavailableError, TurnPhase,
-    UnsupportedRuleError, create_deck, validate_game_state,
+    create_deck, validate_game_state,
 )
 from marriage.maal import select_tiplu
 
@@ -132,15 +132,17 @@ def test_qualification_maal_permissions_one_indicator_and_committed_ownership():
     validate_game_state(game.get_state())
 
 
-def test_normal_qualification_accepts_mixed_natural_melds_and_rejects_normal_finish():
+def test_normal_qualification_accepts_mixed_natural_melds_and_finishes():
     sequence = Meld(MeldType.PURE_SEQUENCE, ("D0:AC", "D0:2C", "D0:3C"))
     groups = (sequence, Meld(MeldType.TUNNELA, copies(5, 3)), Meld(MeldType.TUNNELA, copies(6, 3)))
     game = fixture(tuple(i for m in groups for i in m.card_ids))
     assert game.validate_initial_melds("a", groups) == groups
     game.show_initial_melds("a", groups)
-    assert game.can_see_maal("a") and not game.can_finish_normal_hand("a").supported
-    unchanged(game, UnsupportedRuleError, lambda: game.finish("a"))
-    assert ActionKind.FINISH not in game.get_allowed_actions("a").kinds
+    assert game.can_see_maal("a") and game.can_finish_normal_hand("a").supported
+    assert game.can_finish_normal_hand("a").can_finish
+    assert ActionKind.FINISH in game.get_allowed_actions("a").kinds
+    game.finish("a")
+    assert len(game.get_state().players[0].hand) == 21
     validate_game_state(game.get_state())
 
 

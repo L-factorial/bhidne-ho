@@ -38,6 +38,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const [toolsOpen, setToolsOpen] = useState(false);
   const [hintsOpen, setHintsOpen] = useState(false);
   const [preview, setPreview] = useState(false);
+  const [finishPreview, setFinishPreview] = useState(false);
   const [shownPlayer, setShownPlayer] = useState<string | null>(null);
   const previousShown = useRef<string[] | null>(null);
   const showOpacity = useRef(new Animated.Value(0)).current;
@@ -90,6 +91,10 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
     ? `${snapshot.match_id}:${pub.phase}:${pub.current_player_id}` : null;
   const cards = useMobileCards({ mobile, busy, error, promptKey, onAction });
   const activeGame = snapshot.status === 'playing';
+  const normalFinish = actions?.normal_finish;
+  useEffect(() => {
+    if (!activeGame || !normalFinish || hidden || !allRevealed) setFinishPreview(false);
+  }, [activeGame, normalFinish, hidden, allRevealed]);
   const staged = groups.flatMap(g => g.card_ids);
   const hints = useMemo(() => allRevealed ? marriageSuggestions(availableHand.filter(c => !staged.includes(c.card_id))) : null,
     [handKey, allRevealed, staged.join(',')]);
@@ -146,13 +151,14 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         <View style={[s.table, { minHeight: 180 }]}>{startCue}</View>
         <Text style={s.heading}>{snapshot.players?.length}/{snapshot.capacity} players seated</Text>
         {snapshot.players?.map(p => <Text key={p.player_id} style={s.text}>{p.display_name || `Player ${p.player_id}`}{p.player_id === snapshot.your_player_id ? ' · You' : ''}</Text>)}
-        <Text style={s.text}>Build seven pairs, see Maal, then finish with an eighth pair. Normal qualification is available; normal-hand winning comes later. Open Rules to select scoring before starting.</Text>
+        <Text style={s.text}>Show three natural melds, see Maal, then complete 21 cards in sequences or sets and discard one to win. Or show seven Dublees and finish with an eighth pair. Open Rules to select scoring before starting.</Text>
         <Text style={s.text}>Each player draws, shows melds, and discards on their own turn. Play waits for disconnected players to return.</Text>
         {!snapshot.is_creator && <Text style={s.text}>Waiting for the creator to start.</Text>}
         {lobbyControl}
       </ScrollView> : <>
         {snapshot.status === 'finished' && <View style={s.panel}><Text accessibilityRole="header" style={s.heading}>{name(pub.winner)} wins!</Text>
-          <Text style={s.text}>Eight Dublees complete. Ready for another round?</Text>{startCue}</View>}
+          <Text style={s.text}>{pub.normal_finish ? 'Normal hand complete.' : 'Eight Dublees complete.'} Ready for another round?</Text>
+          {pub.normal_finish && button('View winning hand', () => setDetails('points'))}{startCue}</View>}
         <View style={s.columns}>
           <View style={s.main}>
             <View style={s.table}>
@@ -170,7 +176,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
     <View testID="marriage-hand-dock" style={[s.handDock, mobile && { backgroundColor: 'transparent', borderTopWidth: 0, padding: 4 }]} onLayout={e => { if (e.nativeEvent.layout.width > 48) setWidth(e.nativeEvent.layout.width - (mobile ? 8 : 24)); }}>
       <View style={s.row}>{button('Hand tools', () => setToolsOpen(true))}{button('Poke the table', () => setPoke(null), !social.connected)}</View>
       <ScrollView horizontal contentContainerStyle={{ gap: 8 }}>{(snapshot.players || []).filter(p => p.player_id !== snapshot.your_player_id).map(p => <View key={p.player_id}>{button(`Poke ${p.display_name || `Player ${p.player_id}`}`, () => setPoke(p.player_id), !social.connected || p.connected === false)}</View>)}</ScrollView>
-      {actions?.kinds.includes('finish') && button('Finish round', () => cards.act('FINISH'), !canAct)}
+      {actions?.kinds.includes('finish') && button('Finish round', () => normalFinish ? setFinishPreview(true) : cards.act('FINISH'), !canAct)}
       <View style={s.row}><Text style={s.heading}>Your cards · {availableHand.length}</Text>{allRevealed && button(hidden ? 'Show cards' : 'Hide cards', () => { setHidden(v => !v); setSelected([]); })}</View>
       {!mobile && hintsButton}
       <View testID="marriage-hand" style={[s.hand, { height: 156, width }]}>{shown.map((card, index) => {
@@ -262,6 +268,18 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
               </>}
             </View>}
           {!!error && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}
+        </ScrollView>
+      </View></View>
+    </Modal>
+    <Modal transparent visible={finishPreview && !!normalFinish && !hidden && allRevealed && activeGame} animationType="none" onRequestClose={() => setFinishPreview(false)}>
+      <View style={s.previewBackdrop}><View accessibilityViewIsModal testID="marriage-finish-preview" style={s.previewPanel}>
+        <View style={s.row}><Text accessibilityRole="header" style={[s.heading, { flex: 1 }]}>Your winning hand</Text>{button('Close winning preview', () => setFinishPreview(false))}</View>
+        <ScrollView contentContainerStyle={{ gap: 14 }}>
+          <Text style={s.small}>Only you can see this preview. Finishing shows these 21 cards, discards the remaining card, and calculates points.</Text>
+          {!!normalFinish && <><MarriageMeldCards groups={normalFinish.melds} />
+            <Text style={s.text}>Final discard: {physicalLabel(normalFinish.discard_card_id)}</Text></>}
+          {!!error && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}
+          {button('Confirm finish', () => cards.act('FINISH'), !canAct || !actions?.kinds.includes('finish'))}
         </ScrollView>
       </View></View>
     </Modal>

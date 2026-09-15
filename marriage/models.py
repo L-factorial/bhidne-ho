@@ -53,6 +53,16 @@ class Meld:
 
 
 @dataclass(frozen=True)
+class NormalFinish:
+    """Server-selected 21-card partition and its separate final discard."""
+    melds: tuple[Meld, ...]
+    discard_card_id: str
+
+    def __post_init__(self):
+        object.__setattr__(self, "melds", tuple(self.melds))
+
+
+@dataclass(frozen=True)
 class PlayerState:
     player_id: str
     hand: tuple[PhysicalCard, ...] = ()
@@ -111,6 +121,7 @@ class MarriageGameState:
     winning_pair: tuple[str, ...] = ()
     revision: int = 0
     history: tuple[DomainEvent, ...] = ()
+    normal_finish: NormalFinish | None = None
 
     def __post_init__(self):
         for name in ("players", "stock", "discard", "history", "winning_pair"):

@@ -4,7 +4,8 @@ The supplied Marriage V1 contract is implemented through increments 1-9. It supp
 a complete **Dublee-route round**, normal qualification through sequences/Tunnelas,
 and entitled Maal visibility. Configurable final-round scoring is now implemented;
 see [scoring rules and API](marriage-scoring.md). Normal final-hand completion and
-wildcards remain outside this contract. Points are not monetary transactions.
+wildcards are now implemented under the [normal-finish extension](marriage-normal-finish.md).
+Points are not monetary transactions.
 
 `MarriageGameEngine` is the single application entry point. Callers use immutable
 values such as `Meld`, `DrawSource`, and `MarriageRules`, but never need to manipulate
@@ -78,7 +79,7 @@ results are trusted domain information, **not broadcast payloads**.
 | `discard_card(player_id, card_id: str) -> ActionResult` | Current player in MUST_DISCARD. Throw an owned, uncommitted physical card; advance exactly one seat with wraparound. |
 | `show_initial_melds(player_id, melds: Sequence[Meld]) -> ActionResult` | Current unqualified player in MUST_DISCARD. Validate exactly three disjoint pure sequences and/or Tunnelas, commit their IDs, enter the normal route, and atomically grant Maal access. Leave an uncommitted card to discard. |
 | `show_dublees(player_id, pairs: Sequence[Meld]) -> ActionResult` | Current unqualified player in MUST_DISCARD. Validate exactly seven disjoint natural pairs, commit fourteen IDs, enter the Dublee route, and atomically grant Maal access. Does not finish the round. |
-| `finish(player_id) -> ActionResult` | Current player in MUST_DISCARD. Require seven committed Dublees and a separate eighth pair. Record the deterministic winning pair and exactly one winner. Normal-route finishing raises `UnsupportedRuleError`. |
+| `finish(player_id) -> ActionResult` | Current player in MUST_DISCARD. Validate seven committed Dublees and an eighth pair, or a normal 21-card partition. Normal wins atomically discard their 22nd card; record exactly one winner. |
 
 Shuffle and deal are one atomic `start_game()` operation. There is no separate
 shuffle/cut/deal method that can reorder an active round. A player-controlled
@@ -100,7 +101,7 @@ Client-provided face descriptions are not accepted as proof.
 | `validate_initial_melds(player_id, melds) -> tuple[Meld, ...]` | Preview the three-meld normal declaration, including disjointness and room to discard. |
 | `validate_dublees(player_id, pairs) -> tuple[Meld, ...]` | Preview exactly seven valid, disjoint natural pairs. |
 | `has_eighth_dublee(player_id) -> bool` | A Dublee-qualified seat has a pair among uncommitted cards. Does not imply it is their turn or that they have drawn. |
-| `can_finish_normal_hand(player_id) -> Capability` | Returns `supported=False` and a reason. Inspect `.supported` and `.reason`; this is an unsupported capability, not a normal-hand winning verdict. |
+| `can_finish_normal_hand(player_id) -> Capability` | Returns `supported=True`, a reason, and a `can_finish` hand verdict. Allowed actions additionally enforce turn/status. |
 | `can_see_maal(player_id) -> bool` | Qualification-based entitlement without revealing Maal. |
 | `get_allowed_actions(player_id) -> AllowedActions` | Legal moves, declaration submission windows, draw sources, discardable IDs, and blocking reasons. |
 
@@ -129,7 +130,8 @@ dublee = Meld(MeldType.DUBLEE, ("D0:9S", "D2:9S"))
   legal; empty for another seat's turn.
 - `blocked_sources`: immutable source/reason records during the draw phase.
 - `reason`: overall block or forced-finish explanation when applicable.
-- `normal_finish_unavailable_reason`: explicit unsupported-route notice.
+- `normal_finish`: private server-selected winning melds and final discard, or None.
+- `normal_finish_unavailable_reason`: retained compatibility field, now None.
 
 A restricted winning discard exposes only `FINISH`. Finished rounds expose no
 mutation kinds. Unknown IDs raise `InvalidActionError` rather than giving a spectator view.
@@ -150,7 +152,7 @@ mutation kinds. Unknown IDs raise `InvalidActionError` rather than giving a spec
 Reading Maal does not change the turn or emit repeated events. Unknown seats are rejected.
 
 Event projection is allowlisted. Shown melds, discarded cards, discard pickups, and
-winning pairs are public. Tiplu is visible only to qualified seats, including a later
+winning pairs and completed normal partitions are public. Tiplu is visible only to qualified seats, including a later
 qualifier reading older events. Cursors must be nonnegative integers; beyond the end
 returns an empty tuple. Hidden fields are redacted rather than dropping events.
 
@@ -171,12 +173,12 @@ plan; they are not claims about every table's Marriage rules.
 | Identity | `D0:7H`, `D1:7H`, `D2:7H` differ physically but share a face. `MAN:0..2` have no rank/suit. |
 | Sequence | At least three consecutive distinct natural ranks in one suit, any submitted order. Ace low: A-2-3 valid; Q-K-A and K-A-2 invalid. |
 | Tunnela / Dublee | Exactly three / two distinct physical copies of one standard face. |
-| Man / natural Maal | Man never substitutes. Standard Maal cards can form natural melds at their printed face; no wildcard or point calculation. |
+| Man / natural Maal | Qualification remains natural. Normal final partitions allow Man, Tiplu-rank cards, and Jhiplu/Poplu as wildcards; see the extension. Points use natural holdings. |
 | Tiplu | One standard card removed from stock at first qualification. Scan from top, skipping Man without removing/reordering them. Later qualifiers reuse it. |
 | Maal neighbors | Cyclic: below Ace is King, above King is Ace. Separate from sequence ordering; shared `Rank.ACE` remains 14. |
 | Qualification | Exactly three sequences/Tunnelas OR seven Dublees; mutually exclusive routes. |
 | Winning pair | Separate from all fourteen committed cards. A third copy of a committed face is only a singleton. Witness chosen by canonical ID order. |
-| Finish | Explicit after drawing. Already-held eighth pair may finish immediately after qualification. Preserve 22 owned cards: sixteen paired cards plus six leftovers. |
+| Finish | Explicit after drawing. Dublee preserves 22 cards: sixteen paired cards plus six leftovers. Normal partitions 21 cards, preserving shown groups, and discards the 22nd card. |
 
 `MarriageRules` supports `ace_sequence=LOW_ONLY`, `maal_neighbors=CYCLIC`, and:
 
@@ -215,7 +217,7 @@ all player hands + stock + discard + optional Tiplu = exactly the canonical 159 
 
 Shown melds/events are references, not ownership. `validate_game_state()` also checks
 seat/phase bounds, 21/22-card counts, qualified meld semantics, commitment ownership,
-Maal permissions, indicator stability, revision/event order, and terminal winner/pair
+Maal permissions, indicator stability, revision/event order, and terminal winner/pair/partition
 consistency. WAITING is separate because its deck has not been allocated.
 
 ## Events and errors
@@ -227,7 +229,8 @@ consistency. WAITING is separate because its deck has not been allocated.
 | Discard | `CARD_DISCARDED`, `TURN_CHANGED` |
 | First qualification | Optional recycle, then `MELDS_SHOWN` or `SEVEN_DUBLEES_SHOWN`, `TIPLU_REVEALED`, `PLAYER_SAW_MAAL` |
 | Later qualification | `MELDS_SHOWN` or `SEVEN_DUBLEES_SHOWN`, `PLAYER_SAW_MAAL` |
-| Finish | `PLAYER_FINISHED` |
+| Dublee finish | `PLAYER_FINISHED` |
+| Normal finish | `CARD_DISCARDED`, `PLAYER_FINISHED` in one revision |
 
 Each event has `sequence` and `revision`. `TIPLU_REVEALED` records indicator creation,
 not permission to broadcast its card. Use safe event methods for external consumers.
@@ -239,7 +242,7 @@ not permission to broadcast its card. Use safe event methods for external consum
 | `InvalidMeldError` / `INVALID_MELD` | Invalid natural meld, ownership, overlap, or declaration count. |
 | `NoDrawableCardError` / `NO_DRAWABLE_CARD` | Requested pile cannot provide a card. |
 | `TipluUnavailableError` / `TIPLU_UNAVAILABLE` | No eligible indicator; declaration rolls back. |
-| `UnsupportedRuleError` / `UNSUPPORTED_RULE` | Normal-route finish is outside the rule contract. |
+| `UnsupportedRuleError` / `UNSUPPORTED_RULE` | Reserved for unsupported rule extensions; normal finishing is supported. |
 | `CardConservationError` / `CARD_CONSERVATION` | Internal invariant failure, not an ordinary player rejection. |
 
 Value constructors reject malformed IDs, enums, seats, or unsupported configuration
@@ -266,8 +269,9 @@ seeded turns/refills, invalid actions and rollback, natural meld boundaries,
 qualification, Maal privacy, winning-discard policies, terminal rejection, immutability,
 and repeated complete public-API rounds.
 
-Remaining work requires separate contracts: normal final-hand partitions, wildcards,
-monetary settlement, matches, alternate gameplay rules, and stalemate resolution.
+Remaining work requires separate contracts: monetary settlement, matches,
+alternate gameplay rules, and stalemate resolution. Normal final-hand partitions
+and wildcards follow the [implemented extension](marriage-normal-finish.md).
 Final-round Maal scoring is available through `get_scores()`; see [scoring](marriage-scoring.md).
 The platform adapter supplies wire commands and shared runtime serialization;
 [lobby/UI integration](marriage-ui.md) now provides a playable first version.

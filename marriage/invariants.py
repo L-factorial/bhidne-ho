@@ -1,9 +1,10 @@
 """Ownership, startup, and active-turn invariants."""
+from dataclasses import replace
 from .deck import validate_deck
 from .enums import GameStatus, QualificationRoute, TurnPhase
 from .errors import CardConservationError, InvalidMeldError
 from .events import GameStarted, PlayerFinished, TipluRevealed, TurnChanged
-from .completion import eighth_pair
+from .completion import eighth_pair, normal_finish
 from .melds import validate_declaration
 from .models import MarriageGameState
 
@@ -28,7 +29,8 @@ def validate_initial_state(state: MarriageGameState) -> None:
     require(all(p.route == QualificationRoute.UNQUALIFIED and not p.shown_melds
                 and not p.committed_card_ids and not p.has_seen_maal and not p.finished
                 for p in state.players), "Startup players must be unqualified and unfinished.")
-    require(state.tiplu is None and state.winner is None and not state.winning_pair and state.must_finish is False,
+    require(state.tiplu is None and state.winner is None and not state.winning_pair
+            and state.normal_finish is None and state.must_finish is False,
             "Startup cannot have an indicator, winner, or forced finish.")
     require(not state.discard, "Initial discard must be empty.")
     if state.status is GameStatus.WAITING:
@@ -54,7 +56,7 @@ def validate_initial_state(state: MarriageGameState) -> None:
 
 
 def validate_game_state(state: MarriageGameState) -> None:
-    """Audit ownership, qualified melds, permissions, turns, history, and Dublee completion."""
+    """Audit ownership, qualified melds, permissions, turns, history, and both win routes."""
     if state.status is GameStatus.WAITING:
         validate_initial_state(state)
         return
@@ -69,25 +71,45 @@ def validate_game_state(state: MarriageGameState) -> None:
     require(type(state.current_seat) is int and 0 <= state.current_seat < len(state.players),
             "Invalid current seat.")
     require(isinstance(state.phase, TurnPhase), "Invalid turn phase.")
+    validate_card_conservation(state)
     if state.status is GameStatus.IN_PROGRESS:
-        require(state.winner is None and not state.winning_pair and not any(p.finished for p in state.players),
+        require(state.winner is None and not state.winning_pair and state.normal_finish is None
+                and not any(p.finished for p in state.players),
                 "Active round cannot have a winner.")
     else:
         require(state.winner == state.current_player_id and state.phase is TurnPhase.MUST_DISCARD
                 and tuple(p.player_id for p in state.players if p.finished) == (state.winner,)
                 and state.must_finish is False, "Finished round requires exactly one current-seat winner.")
-        require(bool(state.winning_pair) and state.winning_pair == eighth_pair(state.players[state.current_seat]),
-                "Winner requires a separate valid eighth pair.")
-        require(isinstance(state.history[-1], PlayerFinished)
+        winner = state.players[state.current_seat]
+        require(bool(state.history) and isinstance(state.history[-1], PlayerFinished)
                 and state.history[-1].player_id == state.winner
                 and state.history[-1].winning_pair == state.winning_pair, "Missing terminal event.")
+        event = state.history[-1]
+        if winner.route is QualificationRoute.NORMAL:
+            witness = state.normal_finish
+            require(witness is not None and not state.winning_pair and bool(state.discard),
+                    "Normal winner requires a partition and final discard.")
+            require(state.discard[-1].card_id == witness.discard_card_id,
+                    "Normal final discard must be on top of the discard pile.")
+            before = replace(winner, finished=False, hand=winner.hand + (state.discard[-1],))
+            require(normal_finish(before, state.tiplu, state.config.rules) == witness,
+                    "Normal winner requires an exact legal 21-card partition.")
+            require(event.meld_types == tuple(m.meld_type for m in witness.melds)
+                    and event.card_groups == tuple(m.card_ids for m in witness.melds)
+                    and event.discard_card_id == witness.discard_card_id, "Invalid normal finish event.")
+        else:
+            require(state.normal_finish is None and bool(state.winning_pair)
+                    and state.winning_pair == eighth_pair(winner),
+                    "Winner requires a separate valid eighth pair.")
+            require(not event.meld_types and not event.card_groups and event.discard_card_id is None,
+                    "Dublee finish cannot carry a normal partition.")
     require(type(state.must_finish) is bool, "Forced-finish flag must be boolean.")
     if state.must_finish:
         require(state.phase is TurnPhase.MUST_DISCARD and bool(eighth_pair(state.players[state.current_seat])),
                 "Forced finish requires a winning hand after drawing.")
-    validate_card_conservation(state)
     for seat, player in enumerate(state.players):
-        extra = int(seat == state.current_seat and state.phase is TurnPhase.MUST_DISCARD)
+        extra = int(seat == state.current_seat and state.phase is TurnPhase.MUST_DISCARD
+                    and state.normal_finish is None)
         require(len(player.hand) == state.config.rules.cards_per_player + extra,
                 "Hands must contain 21 cards, or 22 for the player who drew.")
         shown = tuple(card_id for meld in player.shown_melds for card_id in meld.card_ids)

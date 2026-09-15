@@ -35,6 +35,8 @@ class MeldType(str, Enum):
     PURE_SEQUENCE = "pure_sequence"
     TUNNELA = "tunnela"
     DUBLEE = "dublee"
+    SEQUENCE = "sequence"
+    SET = "set"
 
 
 class QualificationRoute(str, Enum):

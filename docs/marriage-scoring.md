@@ -3,7 +3,9 @@
 Scoring is independent of room membership, networking, money, and UI. The engine
 uses the immutable policy selected before the round and values final holdings only
 after a legal finish. Existing Dublee completion triggers this calculation.
-Normal-hand completion still needs its separate gameplay implementation.
+Normal-hand completion is also implemented; see [normal wins](marriage-normal-finish.md).
+It scores the winner's 21 retained cards, excludes the final discard, and applies
+no Dublee win bonus. The `shown` Tunnela scope counts initial qualification melds.
 
 ## Presets and custom options
 

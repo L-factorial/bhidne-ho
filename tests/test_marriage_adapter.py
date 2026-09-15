@@ -175,7 +175,7 @@ def test_complete_adapter_round_projects_qualification_and_finish():
     assert {EventName.SEVEN_DUBLEES_SHOWN, EventName.TIPLU_REVEALED, EventName.PLAYER_FINISHED} <= observed
 
 
-def test_normal_meld_commands_and_unsupported_finish_translate_correctly():
+def test_normal_meld_commands_and_finish_translate_correctly():
     from dataclasses import replace
     from marriage import PlayerState, create_deck, validate_game_state
     engine = MarriageGameEngine(("a", "b"), rng=Random(4))
@@ -200,7 +200,20 @@ def test_normal_meld_commands_and_unsupported_finish_translate_correctly():
     assert result.messages[0].message.event is EventName.MELDS_SHOWN
     assert command(game, "GET_MAAL").messages[0].message.payload["result"] is not None
     assert command(game, "GET_MAAL", actor="b").messages[0].message.payload["result"] is None
-    assert command(game, "FINISH").code == "UNSUPPORTED_RULE"
+    preview = game.snapshot("a")["view"]["actions"]["normal_finish"]
+    assert preview is not None
+    assert game.snapshot()["view"]["normal_finish"] is None
+    assert game.snapshot("b")["view"]["actions"]["normal_finish"] is None
+    assert command(game, "CAN_FINISH_NORMAL_HAND").messages[0].message.payload["result"]["can_finish"]
+    request = PlayerCommand(match_id="match", command_id="finish", expected_revision=game.revision, command="FINISH")
+    result = game.dispatch_player(request, player_id="a")
+    assert isinstance(result, AdapterResult)
+    event = next(e.message for e in result.messages if e.message.event is EventName.PLAYER_FINISHED)
+    assert event.payload["event"]["discard_card_id"] == preview["discard_card_id"]
+    assert event.payload["event"]["winning_pair"] == []
+    assert game.snapshot()["view"]["normal_finish"] == preview
+    assert sum(p["net_points"] for p in game.snapshot()["view"]["scores"]["players"]) == 0
+    assert game.dispatch_player(request, player_id="a").code == "STALE_REVISION"
 
 
 @pytest.mark.asyncio

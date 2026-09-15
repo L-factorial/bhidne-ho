@@ -2,8 +2,9 @@
 
 Marriage is selectable beside Call Break in the shared room UI. This is a first
 playable interface for the standalone V1 engine: a complete Dublee round and
-normal meld qualification, and configurable final-round points. Normal-hand winning,
-wildcard partitions, monetary settlement, and multi-round matches are not implemented.
+normal meld qualification, and configurable final-round points. Normal-hand winning
+and wildcard partitions are now supported under the [normal-finish contract](marriage-normal-finish.md).
+Monetary settlement and multi-round matches are not implemented.
 
 The thin Stats / Rules / Points row opens closable overlays. Before starting, the
 creator can select House bonus (default), Simple points, or edit every scoring value
@@ -59,8 +60,12 @@ game has no settlement. See [scoring](marriage-scoring.md) for exact rules.
    ownership, distinct physical cards, meld legality, and the action window.
 5. Qualifying unlocks your private Maal panel. Shown groups appear publicly under
    Stats and are unavailable for discarding or reuse. Finish round appears
-   when the engine offers a valid eighth Dublee. A winning-discard claim requires
-   finishing immediately. The result names the winner and offers a new game.
+   when the engine offers a valid eighth Dublee or normal-hand partition. Normal
+   wins open a private review of the 21 grouped cards and final discard; Confirm
+   finish submits it. Rejections keep the preview open. Normal winning groups
+   become public in the Points overlay after finishing. A restricted Dublee
+   winning-discard claim requires finishing immediately. The result names the
+   winner and offers a new game.
 
 Player tiles send personal pokes; Poke the table broadcasts a room phrase.
 When someone creates the next game, players still viewing the old table receive

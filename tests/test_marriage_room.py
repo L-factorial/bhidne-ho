@@ -5,6 +5,62 @@ from fastapi.testclient import TestClient
 from app.main import create_app
 
 
+def test_normal_win_http_privacy_reconnect_finish_and_receipt_retry(monkeypatch):
+    from marriage import create_deck
+    deck = {c.card_id: c for c in create_deck()}
+    groups = [{'meld_type': 'pure_sequence', 'card_ids': [f'D0:{r}{s}' for r in range(2, 9)]} for s in 'CDH']
+    hand = tuple(deck[i] for g in groups for i in g['card_ids'])
+    tiplu, last = deck['D2:8H'], deck['MAN:0']
+    rest = tuple(c for c in deck.values() if c not in hand + (tiplu, last))
+    monkeypatch.setattr('marriage.engine.deal_cards', lambda *_: ((hand, rest[:21]), rest[21:] + (tiplu, last)))
+    with TestClient(create_app()) as client, ExitStack() as sockets:
+        users = [client.post('/auth/guest').json() for _ in range(3)]
+        headers = [{'Authorization': f"Bearer {u['token']}"} for u in users]
+        room = 'normal-win'
+        for user in users:
+            sockets.enter_context(client.websocket_connect(f"/ws/rooms/{room}?token={user['token']}")).receive_json()
+        root = f'/test-games/{room}'
+        waiting = client.post(root, headers=headers[0], json={'game_type': 'marriage', 'player_count': 2}).json()
+        mid = {'match_id': waiting['match_id']}
+        client.post(root + '/join', headers=headers[1], json=mid)
+        client.post(root + '/table/lock', headers=headers[0], json=mid)
+        started = client.post(root + '/start', headers=headers[0], json=mid).json()
+
+        def action(command, revision, payload=None, actor=0):
+            body = {**mid, 'command_id': f'{command}-{revision}', 'expected_revision': revision,
+                    'command': command, 'payload': payload or {}}
+            response = client.post(root + '/action', headers=headers[actor], json=body)
+            assert response.status_code == 200, response.text
+            return response.json(), body
+
+        drawn, _ = action('DRAW_CARD', started['game']['revision'], {'source': 'stock'})
+        shown, _ = action('SHOW_INITIAL_MELDS', drawn['game']['revision'], {'melds': groups})
+        witness = shown['marriage']['private']['actions']['normal_finish']
+        assert witness['discard_card_id'] == 'MAN:0'
+        spectator = client.get(root, headers=headers[2]).json()
+        assert spectator['marriage']['private'] is None
+        assert spectator['marriage']['public']['normal_finish'] is None
+        assert client.get(root, headers=headers[1]).json()['marriage']['private']['actions']['normal_finish'] is None
+        # A fresh connection gets the same authoritative private preview.
+        with client.websocket_connect(f"/ws/rooms/{room}?token={users[0]['token']}") as reconnect:
+            reconnect.receive_json()
+            assert client.get(root, headers=headers[0]).json()['marriage']['private']['actions']['normal_finish'] == witness
+        finished, request = action('FINISH', shown['game']['revision'])
+        assert finished['action_ack']['status'] == 'accepted' and finished['status'] == 'finished'
+        assert finished['table']['phase'] == 'COMPLETED'
+        assert len(finished['marriage']['private']['hand']) == 21
+        assert finished['marriage']['public']['normal_finish'] == witness
+        assert finished['marriage']['public']['top_discard']['card_id'] == 'MAN:0'
+        assert sum(p['net_points'] for p in finished['marriage']['public']['scores']['players']) == 0
+        repeated = client.post(root + '/action', headers=headers[0], json=request).json()
+        assert repeated['action_ack'] == finished['action_ack']
+        assert repeated['game']['revision'] == finished['game']['revision']
+        assert repeated['marriage']['moves'] == finished['marriage']['moves']
+        spectator = client.get(root, headers=headers[2]).json()
+        assert spectator['marriage']['private'] is None
+        assert spectator['marriage']['public']['normal_finish'] == witness
+
+
 def test_marriage_http_lifecycle_private_hands_retries_and_room_chat_policy():
     with TestClient(create_app()) as client, ExitStack() as stack:
         users = [client.post('/auth/guest').json() for _ in range(3)]

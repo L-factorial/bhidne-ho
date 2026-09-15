@@ -9,8 +9,10 @@ export type MarriageScores = { winner: string; rules: MarriageScoringRules; tota
 }[] };
 export type MarriageCard = { card_id: string; card_type: 'standard' | 'man'; rank: number | null; suit: string | null; deck_index: number | null };
 export type MarriageMeld = { meld_type: 'pure_sequence' | 'tunnela' | 'dublee'; card_ids: string[] };
-export type MarriageActions = { kinds: string[]; drawable_sources: string[]; discardable_card_ids: string[]; blocked_sources: { source: string; reason: string }[]; reason?: string | null };
-export type MarriagePublic = { scoring_rules?: MarriageScoringRules; scores?: MarriageScores | null; revision: number; status: string; current_player_id: string | null; phase: string | null; stock_count: number; top_discard: MarriageCard | null; winner: string | null;
+export type MarriageWinningMeld = { meld_type: MarriageMeld['meld_type'] | 'sequence' | 'set'; card_ids: string[] };
+export type MarriageNormalFinish = { melds: MarriageWinningMeld[]; discard_card_id: string };
+export type MarriageActions = { kinds: string[]; drawable_sources: string[]; discardable_card_ids: string[]; blocked_sources: { source: string; reason: string }[]; reason?: string | null; normal_finish?: MarriageNormalFinish | null };
+export type MarriagePublic = { scoring_rules?: MarriageScoringRules; scores?: MarriageScores | null; normal_finish?: MarriageNormalFinish | null; revision: number; status: string; current_player_id: string | null; phase: string | null; stock_count: number; top_discard: MarriageCard | null; winner: string | null;
   players: { player_id: string; hand_count: number; route: string; shown_melds: MarriageMeld[]; has_seen_maal: boolean; finished: boolean }[] };
 export type MarriageMove = { sequence: number; revision: number; kind: 'CARD_DRAWN' | 'CARD_DISCARDED'; player_id: string; source: 'stock' | 'discard' | null; card: MarriageCard | null };
 export type MarriageView = { public: MarriagePublic; moves?: MarriageMove[]; private: { player_id: string; hand: MarriageCard[]; actions: MarriageActions;

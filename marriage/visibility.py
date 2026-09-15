@@ -24,6 +24,7 @@ class VisibleEvent:
     meld_types: tuple[MeldType, ...] = ()
     card_groups: tuple[tuple[str, ...], ...] = ()
     winning_pair: tuple[str, ...] = ()
+    discard_card_id: str | None = None
 
 
 def visible_events(state: MarriageGameState, viewer: str | None, after: int) -> tuple[VisibleEvent, ...]:
@@ -54,7 +55,9 @@ def visible_events(state: MarriageGameState, viewer: str | None, after: int) -> 
         elif isinstance(event, PlayerSawMaal):
             fields = dict(player_id=event.player_id)
         elif isinstance(event, PlayerFinished):
-            fields = dict(player_id=event.player_id, winning_pair=event.winning_pair)
+            fields = dict(player_id=event.player_id, winning_pair=event.winning_pair,
+                          meld_types=event.meld_types, card_groups=event.card_groups,
+                          discard_card_id=event.discard_card_id)
         else:
             raise InvalidActionError("Event has no safe visibility projection.")
         result.append(VisibleEvent(event.sequence, event.revision, event.kind, **fields))

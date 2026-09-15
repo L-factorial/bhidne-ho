@@ -6,8 +6,8 @@ from .scoring import RoundScore, calculate_scores
 from .scoring_rules import ScoringRules
 from .enums import ActionKind, DrawSource, GameStatus, QualificationRoute, TurnPhase
 from .errors import InvalidActionError
-from .models import MarriageGameState, Meld
-from .completion import eighth_pair
+from .models import MarriageGameState, Meld, NormalFinish
+from .completion import eighth_pair, normal_finish
 from .maal import MaalView, maal_view
 from .turns import discardable_ids, draw_source_block, find_player, turn_block
 
@@ -25,7 +25,8 @@ class AllowedActions:
     discardable_card_ids: tuple[str, ...] = ()
     blocked_sources: tuple[BlockedDrawSource, ...] = ()
     reason: str | None = None
-    normal_finish_unavailable_reason: str = "Normal-hand completion is not implemented."
+    normal_finish_unavailable_reason: str | None = None
+    normal_finish: NormalFinish | None = None
 
 
 def allowed_actions(state: MarriageGameState, player_id: str) -> AllowedActions:
@@ -49,12 +50,13 @@ def allowed_actions(state: MarriageGameState, player_id: str) -> AllowedActions:
         return AllowedActions(kinds=(ActionKind.DRAW,) if sources else (),
                               drawable_sources=tuple(sources), blocked_sources=tuple(blocked))
     ids = discardable_ids(state, player)
+    witness = normal_finish(player, state.tiplu, state.config.rules)
     kinds = [ActionKind.DISCARD] if ids else []
     if player.route is QualificationRoute.UNQUALIFIED:
         kinds.extend((ActionKind.SHOW_INITIAL_MELDS, ActionKind.SHOW_DUBLEES))
-    elif eighth_pair(player):
+    elif eighth_pair(player) or witness is not None:
         kinds.append(ActionKind.FINISH)
-    return AllowedActions(kinds=tuple(kinds), discardable_card_ids=ids)
+    return AllowedActions(kinds=tuple(kinds), discardable_card_ids=ids, normal_finish=witness)
 
 
 @dataclass(frozen=True)
@@ -79,6 +81,7 @@ class PublicGameView:
     winner: str | None
     scoring_rules: ScoringRules
     scores: RoundScore | None
+    normal_finish: NormalFinish | None = None
 
 
 @dataclass(frozen=True)
@@ -100,6 +103,7 @@ def public_view(state: MarriageGameState) -> PublicGameView:
         stock_count=len(state.stock),
         top_discard=state.discard[-1] if state.discard else None, winner=state.winner,
         scoring_rules=state.config.rules.scoring, scores=calculate_scores(state),
+        normal_finish=state.normal_finish,
     )
 
 

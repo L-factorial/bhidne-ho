@@ -58,6 +58,11 @@ export function MarriageDetails({ snapshot, section, onClose, busy, error, onSav
         <View style={styles.dialogHeader}><Text accessibilityRole="header" style={styles.heading}>{section === 'stats' ? 'Game stats' : section === 'rules' ? 'Marriage rules' : 'Points breakdown'}</Text>
           <Pressable accessibilityRole="button" accessibilityLabel="Close details" onPress={onClose} style={styles.close}><Text style={styles.name}>Close ×</Text></Pressable></View>
         <ScrollView contentContainerStyle={styles.details}>
+          {section === 'points' && pub?.normal_finish && <View testID="marriage-winning-hand" style={styles.stat}>
+            <Text style={styles.heading}>Winning hand</Text>
+            {pub.normal_finish.melds.map((meld, i) => <Text key={i} style={styles.text}>{meld.meld_type.replace('_', ' ')}: {meld.card_ids.map(physicalLabel).join('   ')}</Text>)}
+            <Text style={styles.text}>Final discard: {physicalLabel(pub.normal_finish.discard_card_id)}</Text>
+          </View>}
           {section === 'stats' ? pub ? pub.players.map(p => <View key={p.player_id} style={styles.stat}>
             <Text style={styles.name}>{playerName(snapshot, p.player_id)}</Text>
             <Text style={styles.text}>{situation(p, pub)} · {p.hand_count} cards</Text>
@@ -70,8 +75,9 @@ export function MarriageDetails({ snapshot, section, onClose, busy, error, onSav
             <Text style={styles.text}>21 cards each. Take one card, optionally show melds, then discard.</Text>
             <Text style={styles.text}>Sequence: consecutive ranks in one suit, Ace low. Tunnela: three copies of one face. Dublee: two copies.</Text>
             <Text style={styles.text}>Show seven Dublees, then finish with an eighth uncommitted pair. A winning discard must be followed by Finish.</Text>
-            <Text style={styles.text}>Three sequences / Tunnelas unlock Maal. Normal-hand winning is not available yet.</Text>
-            <Text style={styles.text}>Other players can see your shown groups and whether you have seen Maal. Your private hand and Maal faces stay private.</Text>
+            <Text style={styles.text}>Normal route: three natural sequences / Tunnelas unlock Maal and stay fixed. Complete 21 cards in melds and discard the remaining card to finish.</Text>
+            <Text style={styles.text}>After qualification, Man, every Tiplu-rank card, and Jhiplu / Poplu are wildcards. Final sequences have 3 or more cards, Ace low; sets have 3 or 4 cards of one rank in distinct suits. Three natural copies of one face also form a Tunnela. All-wild groups are allowed.</Text>
+            <Text style={styles.text}>Other players see your shown groups and completed winning hand. Your hand stays private during play, and Maal faces are shown only to qualified players.</Text>
             <MarriageScoring snapshot={snapshot} busy={busy} error={error} onSave={onSave} />
           </>}
         </ScrollView>

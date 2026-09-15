@@ -1,5 +1,9 @@
 # Standalone Marriage engine implementation plan
 
+Historical V1 plan: its normal-completion deferral is superseded by the implemented
+[normal-hand completion contract](marriage-normal-finish.md). The original scope
+and increment descriptions below document the earlier delivery sequence.
+
 Status: Increments 1-9 are implemented for the supplied V1 contract: complete
 Dublee-route rounds, normal qualification, Maal entitlement, safe queries/events,
 and a verified standalone wheel example. See the [implemented API guide](marriage.md).

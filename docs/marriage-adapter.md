@@ -5,6 +5,13 @@ The Marriage V1 protocol lives in `app/adapters/marriage/contracts.py`. Its
 payloads, engine methods, actor requirements, mutation status, and audience.
 The [standalone engine API](marriage.md) continues to own every game rule.
 
+Normal finishing uses the existing empty-payload `FINISH` command. Private allowed
+actions now include a `normal_finish` preview; completed public snapshots expose
+the winning partition. `PLAYER_FINISHED` can carry `meld_types`, `card_groups`, and
+`discard_card_id` for normal wins, or `winning_pair` for Dublee wins. The
+`CAN_FINISH_NORMAL_HAND` capability query now includes a `can_finish` verdict with
+`supported=True`. See the [normal-finish contract](marriage-normal-finish.md).
+
 `MarriageAdapter` validates and translates commands; `MarriageCommandTarget`
 maps authenticated users to fixed engine seats and plugs into the existing
 `CommandRuntime`. This reuses Call Break's shared locking, revision checks,
