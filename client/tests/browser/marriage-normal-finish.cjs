@@ -91,6 +91,12 @@ const button = (page, name) => page.getByRole('button', { name, exact: true });
       }
       const firstCard = page.getByTestId('marriage-hand').getByRole('button').first();
       await firstCard.click();
+      const secondCard = page.getByTestId('marriage-hand').getByRole('button').nth(1);
+      await secondCard.click();
+      assert.equal(await firstCard.getAttribute('aria-pressed'), 'false');
+      assert.equal(await secondCard.getAttribute('aria-pressed'), 'true');
+      assert.equal(await page.getByTestId('marriage-hand').locator('[aria-pressed="true"]').count(), 1, 'only the last tapped discard remains selected');
+      await firstCard.click();
       await guidance.waitFor({ state: 'hidden' });
       await page.getByText('Your turn · Confirm discard', { exact: true }).waitFor();
       assert.ok(await pulseRange(page.getByRole('button', { name: /^Discard / }).getByTestId('action-cue')) > 0.03, 'selected discard action pulses');

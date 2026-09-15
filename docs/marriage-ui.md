@@ -33,7 +33,10 @@ game has no settlement. See [scoring](marriage-scoring.md) for exact rules.
    Discard to pass the turn. The draw phase prompts Take a card. During discard,
    Select card to discard pulses above the expanded hand, including after reopening
    it; selecting a legal card changes the prompt to Confirm discard and pulses the
-   discard button. Reduce Motion keeps these cues static. Available moves come from the engine's player view.
+   discard button. Tapping another card replaces the discard selection; tapping the
+   selected card clears it. Hand tools > Select cards for meld enables explicit
+   multiple-card selection for manual groups; detected-group suggestions still
+   select their full group. Reduce Motion keeps these cues static. Available moves come from the engine's player view.
    The center has separate Last discard, Deck, and Maal spots. Draws travel from
    the source pile into the acting player's tile and fade away; discards travel
    from that tile to Last discard. Stock draws stay face down for every viewer.
