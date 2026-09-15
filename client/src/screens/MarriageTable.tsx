@@ -106,7 +106,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   function button(label: string, action: () => void, disabled = false, chosen = false) {
     return <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled}
       accessibilityState={{ disabled, selected: chosen }} onPress={action} style={[s.button, chosen && s.chosen, disabled && s.disabled]}>
-      {label.startsWith('Take ') || label.startsWith('Show ') && label !== 'Show cards' || label === 'Review declaration' || label.startsWith('Stage selected ') || label === 'Finish round' ? <ActionCue active={!disabled} style={s.buttonText}>{label}</ActionCue> : <Text style={s.buttonText}>{label}</Text>}</Pressable>;
+      {label.startsWith('Take ') || label.startsWith('Discard ') || label.startsWith('Show ') && label !== 'Show cards' || label === 'Review declaration' || label.startsWith('Stage selected ') || label === 'Finish round' ? <ActionCue active={!disabled} style={s.buttonText}>{label}</ActionCue> : <Text style={s.buttonText}>{label}</Text>}</Pressable>;
   }
   const shown = !allRevealed ? availableHand : [...availableHand].filter(c => mode !== 'suits' || suit === 'all' || (c.suit || 'man') === suit)
     .sort((a, b) => (a.suit || 'Z').localeCompare(b.suit || 'Z') || (a.rank || 0) - (b.rank || 0) || a.card_id.localeCompare(b.card_id));
@@ -129,7 +129,13 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
     onPress={() => setHintsOpen(true)} style={s.button}>
     <ActionCue active={!busy} style={s.buttonText}>{hints!.pairs.length} Dublees · {hints!.melds.length} meld options · Review</ActionCue>
   </Pressable>;
-  const turnPrompt = activeGame && pub && <TurnPulse personal={isTurn} text={isTurn ? `Your turn · ${pub.phase === 'must_draw' ? 'Take a card' : 'Show, finish, or discard'}` : `${name(pub.current_player_id)}’s turn`} />;
+  const canDiscard = canAct && isTurn && !!actions?.kinds.includes('discard');
+  const discardSelected = selected.length === 1 && !!actions?.discardable_card_ids.includes(selected[0]);
+  const turnInstruction = pub?.phase === 'must_draw' ? 'Take a card'
+    : actions?.kinds.includes('discard') ? (discardSelected ? 'Confirm discard' : 'Select card to discard')
+    : actions?.kinds.includes('finish') ? 'Finish round' : 'Wait for the table';
+  const turnPrompt = activeGame && pub && <TurnPulse personal={isTurn} active={isTurn && !busy}
+    text={isTurn ? `Your turn · ${turnInstruction}` : `${name(pub.current_player_id)}’s turn`} />;
   const canDraw = !busy && allRevealed && activeGame;
   const mobileHandHeader = <View testID="marriage-hand-header" onLayout={e => setMobileHeaderHeight(e.nativeEvent.layout.height)} style={{ backgroundColor: colors.surface, padding: 8, gap: 8 }}>
     {!allRevealed ? button('Reveal all cards', () => { reveal(true); cards.setOpen(true); }, busy) : isTurn && pub?.phase === 'must_draw' && <View style={s.row}>
@@ -179,6 +185,8 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       {actions?.kinds.includes('finish') && button('Finish round', () => normalFinish ? setFinishPreview(true) : cards.act('FINISH'), !canAct)}
       <View style={s.row}><Text style={s.heading}>Your cards · {availableHand.length}</Text>{allRevealed && button(hidden ? 'Show cards' : 'Hide cards', () => { setHidden(v => !v); setSelected([]); })}</View>
       {!mobile && hintsButton}
+      {!hidden && allRevealed && isTurn && actions?.kinds.includes('discard') && !discardSelected &&
+        <View testID="marriage-discard-guidance"><ActionCue active={canDiscard && (!mobile || cards.open)} style={s.heading}>Select card to discard</ActionCue></View>}
       <View testID="marriage-hand" style={[s.hand, { height: 156, width }]}>{shown.map((card, index) => {
         const back = hidden || (!allRevealed && index >= revealed);
         const locked = committed.includes(card.card_id) || staged.includes(card.card_id), checked = selected.includes(card.card_id);
@@ -211,8 +219,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         </>}
       </View>}
       {!hidden && (!allRevealed ? <View style={s.row}>{button(`Reveal next · ${revealed}/21`, () => reveal())}{!mobile && button('Reveal all cards', () => reveal(true))}</View> : <>
-          {button(selected.length === 1 ? `Discard ${physicalLabel(selected[0])}` : 'Select one card to discard', () => cards.act('DISCARD_CARD', { card_id: selected[0] }),
-            !canAct || selected.length !== 1 || !actions?.discardable_card_ids.includes(selected[0]))}
+          {discardSelected && button(`Discard ${physicalLabel(selected[0])}`, () => cards.act('DISCARD_CARD', { card_id: selected[0] }), !canDiscard)}
       </>)}
     {!!error && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}
     </View></MobileGameHand>}

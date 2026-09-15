@@ -70,8 +70,38 @@ const button = (page, name) => page.getByRole('button', { name, exact: true });
       page.on('pageerror', error => errors.push(error.message));
       await page.goto(process.env.TEST_WEB_URL || 'http://localhost:8083');
       await button(page, 'Finish round').waitFor();
+      const guidance = page.getByTestId('marriage-discard-guidance');
+      async function pulseRange(cue) {
+        const values = [];
+        for (let i = 0; i < 6; i++) {
+          values.push(await cue.evaluate(el => Number(getComputedStyle(el).opacity)));
+          await page.waitForTimeout(200);
+        }
+        return Math.max(...values) - Math.min(...values);
+      }
+      await guidance.waitFor();
+      assert.ok(await pulseRange(guidance.getByTestId('action-cue')) > 0.03, 'discard selection guidance pulses');
+      if (width < 900) {
+        await button(page, 'Collapse your cards').click();
+        await guidance.waitFor({ state: 'hidden' });
+        await page.getByText('Your turn · Select card to discard', { exact: true }).waitFor();
+        await button(page, 'Expand your cards').click();
+        await guidance.waitFor();
+        assert.ok(await pulseRange(guidance.getByTestId('action-cue')) > 0.03, 'reopening the hand restarts selection guidance');
+      }
+      const firstCard = page.getByTestId('marriage-hand').getByRole('button').first();
+      await firstCard.click();
+      await guidance.waitFor({ state: 'hidden' });
+      await page.getByText('Your turn · Confirm discard', { exact: true }).waitFor();
+      assert.ok(await pulseRange(page.getByRole('button', { name: /^Discard / }).getByTestId('action-cue')) > 0.03, 'selected discard action pulses');
+      await firstCard.click();
+      await guidance.waitFor();
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      assert.ok(await pulseRange(guidance.getByTestId('action-cue')) < 0.01, 'Reduce Motion stops selection pulsing');
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
       assert.equal(commands.length, 0);
       await button(page, 'Hide cards').click();
+      await guidance.waitFor({ state: 'hidden' });
       assert.equal(await button(page, 'Finish round').isDisabled(), true);
       await button(page, 'Show cards').click();
       await button(page, 'Finish round').click();

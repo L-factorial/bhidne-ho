@@ -30,7 +30,10 @@ game has no settlement. See [scoring](marriage-scoring.md) for exact rules.
    local screen privacy. Physical copy numbers distinguish repeated faces across
    the three packs; they do not change meld rules.
 3. On your turn, take stock or an eligible discard. Select one card and confirm
-   Discard to pass the turn. Available moves come from the engine's player view.
+   Discard to pass the turn. The draw phase prompts Take a card. During discard,
+   Select card to discard pulses above the expanded hand, including after reopening
+   it; selecting a legal card changes the prompt to Confirm discard and pulses the
+   discard button. Reduce Motion keeps these cues static. Available moves come from the engine's player view.
    The center has separate Last discard, Deck, and Maal spots. Draws travel from
    the source pile into the acting player's tile and fade away; discards travel
    from that tile to Last discard. Stock draws stay face down for every viewer.
