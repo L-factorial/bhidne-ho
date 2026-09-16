@@ -24,6 +24,8 @@ export type PlayMode = 'manual';
 type Trick = { trick_number: number; plays: { player_id: number; card: string }[]; complete: boolean; winner?: number };
 export type RoomSnapshot = {
   rule_proposal?: RuleProposalView | null; chat_enabled?: boolean;
+  table_name?: string; path?: string;
+  tables?: { match_id: string; name: string; game_type: 'callbreak' | 'marriage' | 'flush'; status: string; players: number; capacity: number }[];
   can_create_new_game?: boolean;
   roster_open?: boolean;
   table?: import('../components/TableControls').TableView;
@@ -100,7 +102,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   const promptKey = handAvailable && (isTurn || mine?.can_accept_hand)
     ? `${handDealKey}:${game?.phase}:${isTurn}:${game?.current_trick?.trick_number || deal?.tricks_completed || 0}` : null;
   const cards = useMobileCards({ mobile, busy, error, promptKey, onAction });
-  const header = <GameTableHeader game="callbreak" title="Call Break" onBack={onBack} endControl={endControl}>
+  const header = <GameTableHeader game="callbreak" title="Call Break" path={snapshot.path} onBack={onBack} endControl={endControl}>
     {(!wide || !game) && <GameDetails snapshot={snapshot} busy={busy} onSave={onSave} />}
     {mobile && !showFormation && tableControl}
   </GameTableHeader>;

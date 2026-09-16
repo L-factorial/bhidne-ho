@@ -59,7 +59,7 @@ class RuleProposals:
 
     async def vote_rules(self, room_id, user_id, body):
         await self._member(room_id, user_id)
-        game = self._get(room_id)
+        game = self._get(room_id, body.match_id)
         async with game.lock:
             await self._member(room_id, user_id, game)
             self._sync_proposal(game)

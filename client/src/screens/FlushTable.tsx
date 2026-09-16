@@ -159,6 +159,7 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onA
   </>;
   return <View style={[s.page, mobile && { padding: 8, gap: 4 }]} testID="flush-table">
     <View style={s.mobileHeader} testID={mobile ? 'flush-mobile-header' : 'flush-header'}>
+      {!!snapshot.path && <Text numberOfLines={1} style={[s.text, { fontSize: 11, opacity: 0.65 }]}>{snapshot.path}</Text>}
       <BrandIcon size={mobile ? 30 : 48} /><Text accessibilityRole="header" style={[s.title, { flex: 1 }, mobile && { fontSize: 17 }]}>Flush</Text>
       <Pressable accessibilityRole="button" accessibilityLabel="Table menu" accessibilityState={{ expanded: menuOpen }} onPress={() => setMenuOpen(v => !v)} style={s.menuToggle}>
         <View style={{ gap: 5 }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">

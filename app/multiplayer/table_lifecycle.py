@@ -23,7 +23,7 @@ class GameTableLifecycle:
             while True:
                 await asyncio.sleep(1)
                 async with game.lock:
-                    if self.games.get(game.room_id) is not game:
+                    if not self._contains(game):
                         return
                     game.table.advance(game, await self.rooms.members(game.room_id))
                     if game.table.published_sequence < len(game.table.events):
@@ -80,16 +80,14 @@ class GameTableLifecycle:
 
     async def room_departure(self, room_id, user_id):
         """Called by RoomLifecycle with the membership guard already held."""
-        game = self.games.get(room_id)
-        if not game:
-            return
-        await self._advance_table(game)
-        if user_id in game.table.seats(game) and game.table.phase == 'STARTED':
-            reject('ACTIVE_GAME_EXISTS', 'Leave the active game explicitly before leaving the room.')
-        self._remove_from_queue(game, user_id)
-        await self._release_seat(game, user_id)
-        await self._advance_table(game)
-        await self._publish(game)
+        for game in self._room_games(room_id):
+            await self._advance_table(game)
+            if user_id in game.table.seats(game) and game.table.phase == 'STARTED':
+                reject('ACTIVE_GAME_EXISTS', 'Leave the active game explicitly before leaving the room.')
+            self._remove_from_queue(game, user_id)
+            await self._release_seat(game, user_id)
+            await self._advance_table(game)
+            await self._publish(game)
 
     def _remove_from_queue(self, game, user):
         if user in game.table.queue:
@@ -101,12 +99,16 @@ class GameTableLifecycle:
 
     async def table_command(self, room_id, user_id, match_id, command, *, offer_id=None, seat_id=None, recipient=None):
         async with self._catalog_lock:
-            game = self._get(room_id)
+            if command == 'next-match':
+                replacement = next((g for g in self._room_games(room_id) if g.previous_match_id == match_id), None)
+                if replacement:
+                    return self._snapshot(replacement, user_id)
+            game = self._get(room_id, match_id)
             async with game.lock:
                 await self._member(room_id, user_id)
                 if command == 'next-match' and game.previous_match_id == match_id:
                     return self._snapshot(game, user_id)
-                if game.match_id != match_id or self.games.get(room_id) is not game:
+                if game.match_id != match_id or not self._contains(game):
                     reject('GAME_CHANGED', 'The match changed. Refresh the table.')
                 await self._advance_table(game)
                 table = game.table
@@ -115,6 +117,7 @@ class GameTableLifecycle:
                 me = view['current_user']
                 host = next((u for u in table.seats(game) if u is not None), None) == user_id
                 if command == 'join-queue':
+                    self._ensure_available(user_id, game)
                     if me['is_seated']:
                         reject('ALREADY_SEATED', 'You already have a seat.')
                     if table.phase == 'ENDED':
@@ -167,6 +170,7 @@ class GameTableLifecycle:
                     if offer.status != 'PENDING' or table.phase != 'COMPLETED':
                         reject('OFFER_NOT_PENDING', 'This offer is no longer available.')
                     if command == 'accept-seat':
+                        self._ensure_available(user_id, game)
                         if user_id in table.seats(game) or table.next_seats[offer.seat_id - 1] is not None:
                             reject('SEAT_UNAVAILABLE', 'This seat is no longer transferable.')
                         table.next_seats[offer.seat_id - 1] = user_id
@@ -196,13 +200,14 @@ class GameTableLifecycle:
                     roster = [u for u in table.seats(game) if u is not None]
                     if not set(roster).issubset(members):
                         reject('INVALID_ROSTER', 'Every seat must belong to a room member.')
-                    new = type(game)(room_id, game.capacity, roster, game_type=game.game_type,
+                    new = type(game)(room_id, game.capacity, roster, name=game.name, game_type=game.game_type,
                         settings=dict(game.settings), marriage_scoring=game.marriage_scoring, table=table,
                         previous_match_id=game.match_id)
                     table.phase = 'OPEN'
                     table.next_seats = None
                     table.releases.clear()
                     game.ended = True
+                    self.tables.setdefault(room_id, {})[new.match_id] = new
                     self.games[room_id] = new
                     table.emit('NEXT_MATCH_READY', match_id=new.match_id)
                     await self._publish(new)

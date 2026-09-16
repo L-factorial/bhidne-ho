@@ -1,7 +1,7 @@
 """In-memory host for manually played multiplayer games."""
 
 import asyncio
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import asdict, dataclass, field, fields
 import json
 from random import SystemRandom
@@ -38,6 +38,7 @@ class HostedGame:
     room_id: str
     capacity: int
     users: list[str]
+    name: str = "Table"
     table: TableState = field(default_factory=TableState)
     previous_match_id: str | None = None
     rule_proposal: dict | None = None
@@ -100,6 +101,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         self.round_summary_seconds = round_summary_seconds
         self.command_runtime = command_runtime or CommandRuntime()
         self.games: dict[str, HostedGame] = {}
+        self.tables: dict[str, dict[str, HostedGame]] = {}
         self._catalog_lock = asyncio.Lock()
         self._random = SystemRandom()
         self._offer_tasks: dict[str, asyncio.Task] = {}
@@ -108,15 +110,36 @@ class TestGameService(GameTableLifecycle, RuleProposals):
     async def membership_guard(self, room_id):
         """Coordinate room departure with replacement and roster mutations."""
         async with self._catalog_lock:
-            game = self.games.get(room_id)
-            if game:
-                async with game.lock:
-                    yield
-            else:
+            async with AsyncExitStack() as stack:
+                for game in self._room_games(room_id):
+                    await stack.enter_async_context(game.lock)
                 yield
 
+    def _room_games(self, room_id):
+        return list(self.tables.get(room_id, {}).values())
+
+    def _contains(self, game):
+        return self.tables.get(game.room_id, {}).get(game.match_id) is game
+
+    def _occupied_game(self, user_id, room_id, *, excluding=None):
+        for game in self.tables.get(room_id, {}).values():
+            if game is not excluding and not game.ended and user_id in game.table.seats(game):
+                return game
+        return None
+
+    def _ensure_available(self, user_id, game=None, room_id=None):
+        room_id = game.room_id if game else room_id
+        occupied = self._occupied_game(user_id, room_id, excluding=game)
+        if occupied:
+            raise HTTPException(409, {"code": "PLAYER_ALREADY_AT_TABLE",
+                "detail": f"Leave {occupied.room_id}/{occupied.name} before joining another table.",
+                "room_id": occupied.room_id, "match_id": occupied.match_id})
+
     def membership(self, room_id, user_id):
-        game = self.games.get(room_id)
+        games = self._room_games(room_id)
+        game = next((g for g in games if not g.ended and (user_id in g.table.seats(g) or user_id in g.table.queue
+                    or any(o.offered_to_player_id == user_id for o in g.table.pending()))), None)
+        game = game or self.games.get(room_id)
         if not game:
             return None
         view = game.table.view(game, user_id)
@@ -134,16 +157,16 @@ class TestGameService(GameTableLifecycle, RuleProposals):
 
     def is_playing(self, room_id: str, user_id: str) -> bool:
         """Expose participation without leaking Call Break state to room services."""
-        game = self.games.get(room_id)
-        return bool(game and not game.ended and game.started and not game.finished and not game.flush_open and user_id in game.users and user_id not in game.departed)
+        return any(not game.ended and game.started and not game.finished and not game.flush_open
+                   and user_id in game.users and user_id not in game.departed for game in self._room_games(room_id))
 
     def chat_blocked(self, room_id, user_id):
-        game = self.games.get(room_id)
-        return self.is_playing(room_id, user_id) and not (
+        game = next((g for g in self._room_games(room_id) if user_id in g.users and not g.ended), None)
+        return bool(game) and self.is_playing(room_id, user_id) and not (
             game.game_type == 'callbreak' and game.state and game.state.phase == Phase.DEAL_COMPLETE)
 
     async def close(self):
-        tasks = [g.task for g in self.games.values() if g.task is not None] + list(self._offer_tasks.values())
+        tasks = [g.task for room in self.tables.values() for g in room.values() if g.task is not None] + list(self._offer_tasks.values())
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
@@ -151,17 +174,24 @@ class TestGameService(GameTableLifecycle, RuleProposals):
     async def _member(self, room_id, user_id, game=None):
         if user_id not in await self.rooms.members(room_id):
             raise HTTPException(403, "Connect to this room before using its test game.")
-        if game is not None and self.games.get(room_id) is not game:
+        if game is not None and not self._contains(game):
             reject("GAME_CHANGED", "The match changed. Refresh the table.")
 
-    def _get(self, room_id):
-        game = self.games.get(room_id)
+    def _get(self, room_id, match_id=None):
+        room = self.tables.get(room_id, {})
+        game = (room.get(match_id) or self.games.get(room_id)) if match_id else self.games.get(room_id)
         if game is None:
             raise HTTPException(404, "No test game in this room.")
         return game
 
     def _snapshot(self, game, user_id):
         result = self._game_snapshot(game, user_id)
+        result["table_name"] = game.name
+        result["path"] = f"{game.room_id}/{game.name}"
+        result["tables"] = [{"match_id": g.match_id, "name": g.name, "game_type": g.game_type,
+                              "status": "ended" if g.ended else "finished" if g.finished else "playing" if g.started else "waiting",
+                              "players": len(g.table.seats(g)), "capacity": g.capacity}
+                             for g in self._room_games(game.room_id)]
         result["rule_proposal"] = self._proposal_view(game, user_id)
         result["active_game"] = self.membership(game.room_id, user_id)
         result["chat_enabled"] = not self.chat_blocked(game.room_id, user_id)
@@ -276,7 +306,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
 
     async def configure_flush(self, room_id, user_id, body):
         await self._member(room_id, user_id)
-        game = self._get(room_id)
+        game = self._get(room_id, body.match_id)
         async with game.lock:
             await self._member(room_id, user_id, game)
             self._creator(game, user_id, body.match_id)
@@ -300,17 +330,19 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             await self._publish(game)
             return self._snapshot(game, user_id)
 
-    async def snapshot(self, room_id, user_id):
+    async def snapshot(self, room_id, user_id, match_id=None):
         await self._member(room_id, user_id)
-        game = self.games.get(room_id)
+        game = self.tables.get(room_id, {}).get(match_id) if match_id else None
+        game = game or next((g for g in self._room_games(room_id) if user_id in g.table.seats(g) and not g.ended), None)
+        game = game or self.games.get(room_id)
         if not game:
-            return {"room_id": room_id, "status": "empty"}
+            return {"room_id": room_id, "status": "empty", "tables": []}
         async with game.lock:
             await self._member(room_id, user_id, game)
             await self._advance_table(game)
             return self._snapshot(game, user_id)
 
-    async def create(self, room_id, user_id, capacity, game_type="callbreak"):
+    async def create(self, room_id, user_id, capacity, game_type="callbreak", name="Table"):
         await self._member(room_id, user_id)
         if game_type not in ("callbreak", "marriage", "flush"):
             raise HTTPException(422, "Choose a supported game.")
@@ -318,19 +350,21 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             raise HTTPException(422, "Choose 2-10 players for Flush, 2-5 for Marriage or 4-5 for Call Break.")
         async with self._catalog_lock:
             await self._member(room_id, user_id)
-            existing = self.games.get(room_id)
-            game = HostedGame(room_id, capacity, [user_id], game_type=game_type)
-            if game_type == "flush": game.flush_seats[user_id] = 1
-            if existing:
-                async with existing.lock:
-                    if existing.finished and GameTablePolicy.for_game(existing.game_type, existing.capacity).requires_replacement and not existing.ended:
-                        reject('NEXT_MATCH_REQUIRED', 'Use next match to retain the table seats and waiting queue.')
-                    if not existing.replaceable:
-                        raise HTTPException(409, "This room already has a waiting or active game.")
-                    existing.ended = True
-                    self.games[room_id] = game
+            occupied = self._occupied_game(user_id, room_id)
+            if occupied and occupied.replaceable:
+                occupied.ended = True
+                occupied.table.phase = 'ENDED'
             else:
-                self.games[room_id] = game
+                self._ensure_available(user_id, room_id=room_id)
+            normalized = " ".join(name.split())
+            if not normalized or len(normalized) > 60:
+                raise HTTPException(422, "Table name must be between 1 and 60 characters.")
+            if any(g.name.casefold() == normalized.casefold() and not g.ended for g in self._room_games(room_id)):
+                raise HTTPException(409, "An open table with that name already exists in this room.")
+            game = HostedGame(room_id, capacity, [user_id], name=normalized, game_type=game_type)
+            if game_type == "flush": game.flush_seats[user_id] = 1
+            self.tables.setdefault(room_id, {})[game.match_id] = game
+            self.games[room_id] = game  # Legacy default: most recently created table.
         async with game.lock:
             await self._member(room_id, user_id, game)
             await self._publish(game)
@@ -338,7 +372,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
 
     async def next_deal(self, room_id, user_id, match_id, deal_number):
         await self._member(room_id, user_id)
-        game = self._get(room_id)
+        game = self._get(room_id, match_id)
         async with game.lock:
             await self._member(room_id, user_id, game)
             if game.ended or match_id != game.match_id or not game.state or not self.round_summary_seconds:
@@ -356,10 +390,12 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         await self._member(room_id, user_id)
         # Serialize replacement with ending, then serialize with actions and timers.
         async with self._catalog_lock:
-            game = self._get(room_id)
+            game = self._get(room_id, match_id)
             async with game.lock:
                 await self._member(room_id, user_id, game)
                 if match_id != game.match_id:
+                    raise HTTPException(409, "The game changed. Refresh before ending it.")
+                if game.ended and self.games.get(room_id) is not game:
                     raise HTTPException(409, "The game changed. Refresh before ending it.")
                 members = await self.rooms.members(room_id)
                 if user_id not in members:
@@ -386,11 +422,11 @@ class TestGameService(GameTableLifecycle, RuleProposals):
 
     async def join(self, room_id, user_id, match_id):
         await self._member(room_id, user_id)
-        game = self._get(room_id)
+        game = self._get(room_id, match_id)
         async with game.lock:
             await self._member(room_id, user_id, game)
             await self._advance_table(game)
-            if match_id != game.match_id or game.ended or self.games.get(room_id) is not game:
+            if match_id != game.match_id or game.ended or not self._contains(game):
                 reject('GAME_CHANGED', 'Game changed. Refresh and join again.')
             if user_id in game.table.seats(game):
                 return self._snapshot(game, user_id)
@@ -398,20 +434,21 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                 reject('GAME_LOCKED', 'The roster is closed. You can join the waitlist.')
             if len(game.users) >= game.capacity:
                 reject('GAME_FULL', 'The game is full. You can join the waitlist.')
+            self._ensure_available(user_id, game)
             self._seat_user(game, user_id)
             await self._publish(game)
             return self._snapshot(game, user_id)
 
     async def leave(self, room_id, user_id, match_id):
         await self._member(room_id, user_id)
-        current = self._get(room_id)
+        current = self._get(room_id, match_id)
         current.table.sync(current)
         if current.table.phase != 'STARTED':
             return await self.table_command(room_id, user_id, match_id, 'leave-seat')
         if GameTablePolicy.for_game(current.game_type, current.capacity).supports_abandonment:
             return await self.table_command(room_id, user_id, match_id, 'abandon')
         async with self._catalog_lock:
-            game = self._get(room_id)
+            game = self._get(room_id, match_id)
             async with game.lock:
                 await self._member(room_id, user_id, game)
                 if match_id != game.match_id:
@@ -438,7 +475,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
 
     async def configure(self, room_id, user_id, body):
         await self._member(room_id, user_id)
-        game = self._get(room_id)
+        game = self._get(room_id, body.match_id)
         if game.game_type != "callbreak":
             raise HTTPException(409, "Call Break settings only apply to Call Break.")
         async with game.lock:
@@ -450,7 +487,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
 
     async def configure_marriage(self, room_id, user_id, body):
         await self._member(room_id, user_id)
-        game = self._get(room_id)
+        game = self._get(room_id, body.match_id)
         async with game.lock:
             await self._member(room_id, user_id, game)
             self._creator(game, user_id, body.match_id)
@@ -472,7 +509,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
 
     async def start(self, room_id, user_id, match_id, play_mode=None, rules_revision=None):
         await self._member(room_id, user_id)
-        game = self._get(room_id)
+        game = self._get(room_id, match_id)
         async with game.lock:
             await self._member(room_id, user_id, game)
             await self._advance_table(game)
@@ -557,7 +594,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
 
     async def action(self, room_id, user_id, body):
         await self._member(room_id, user_id)
-        game = self._get(room_id)
+        game = self._get(room_id, body.match_id)
         return await self._execute_action(game, user_id, body)
 
     async def _execute_action(self, game, user_id, body):
@@ -578,7 +615,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
 
     async def poke(self, room_id, user_id, body, social):
         await self._member(room_id, user_id)
-        game = self._get(room_id)
+        game = self._get(room_id, body.match_id)
         # Pokes never acquire the gameplay lock or change revisions/deadlines.
         # Roster validation is synchronous; social delivery has its own room checks.
         if body.match_id != game.match_id or game.ended:

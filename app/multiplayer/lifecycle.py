@@ -15,8 +15,7 @@ class RoomLifecycle:
             return await self._snapshot(room_id, user_id)
 
     async def _snapshot(self, room_id, user_id):
-        hosted = self.games.games.get(room_id)
-        if hosted:
+        for hosted in self.games._room_games(room_id):
             await self.games._advance_table(hosted)
         members = await self.rooms.members(room_id)
         return {"room_id": room_id, "members": members,

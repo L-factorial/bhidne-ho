@@ -19,6 +19,7 @@ class CreateGame(BaseModel):
     model_config = ConfigDict(extra="forbid")
     player_count: Annotated[int, Field(strict=True, ge=2, le=10)]
     game_type: Literal["callbreak", "marriage", "flush"] = "callbreak"
+    name: Annotated[str, Field(min_length=1, max_length=60)] = "Table"
 
     @model_validator(mode="after")
     def capacity(self):
@@ -50,15 +51,16 @@ class GameAction(ActionCommand):
 
 
 @router.get("/{room_id}")
-async def state(room_id: str, request: Request, response: Response, user: UserIdentity = Depends(current_user)):
+async def state(room_id: str, request: Request, response: Response, match_id: str | None = None,
+                user: UserIdentity = Depends(current_user)):
     response.headers["Cache-Control"] = "no-store"
-    return await request.app.state.test_games.snapshot(room_id, user.user_id)
+    return await request.app.state.test_games.snapshot(room_id, user.user_id, match_id)
 
 
 @router.post("/{room_id}", status_code=201)
 async def create(room_id: str, body: CreateGame, request: Request, response: Response, user: UserIdentity = Depends(current_user)):
     response.headers["Cache-Control"] = "no-store"
-    return await request.app.state.test_games.create(room_id, user.user_id, body.player_count, body.game_type)
+    return await request.app.state.test_games.create(room_id, user.user_id, body.player_count, body.game_type, body.name)
 
 
 @router.post("/{room_id}/join")
