@@ -82,10 +82,10 @@ const button = (page, name) => page.getByRole('button', { name, exact: true });
       await guidance.waitFor();
       assert.ok(await pulseRange(guidance.getByTestId('action-cue')) > 0.03, 'discard selection guidance pulses');
       if (width < 900) {
-        await button(page, 'Collapse your cards').click();
+        await button(page, 'Collapse your card area').click();
         await guidance.waitFor({ state: 'hidden' });
         await page.getByText('Your turn · Select card to discard', { exact: true }).waitFor();
-        await button(page, 'Expand your cards').click();
+        await button(page, 'Expand your card area').click();
         await guidance.waitFor();
         assert.ok(await pulseRange(guidance.getByTestId('action-cue')) > 0.03, 'reopening the hand restarts selection guidance');
       }

@@ -496,16 +496,17 @@ chat restrictions still apply; active players see a compact “Paused” label.
 Flush uses one header with a three-line Table menu on the right for Back to room,
 theme and End table, with no profile button. Below 900px, the menu also holds bet
 history, rules and in-play seating controls. During play, Poke the table appears
-only in Your cards. Lock game and Start game remain visible above the table during
+only in Your card area. Lock game and Start game remain visible above the table during
 setup and between rounds. The creator also gets a pulsing button in the table's
 center; after a round it reads "Lock the table to start another game". It respects
 Reduce Motion and the same seating/rule checks as the other start controls.
 Deal cards and Cut in half / Skip cut also pulse in the center for the acting player.
 Shuffling is part of Deal cards; there is no separate shuffle action.
 Invitation copying stays in the room. Paused chat and its reserved space are hidden.
-The bottom Your cards bar expands into a translucent overlay with solid cards
-and action buttons. It opens when your turn begins; manual collapse lasts until
-the next turn. Confirmed bets/show/fold actions collapse it, rejected actions keep
+The bottom **Your card area** bar expands like a social-app message sheet over the
+fixed header and table, with a dimmed dismissible backdrop, solid cards, and action
+buttons. When collapsed, only the dock label is visible. Normal access opens only
+when the player taps the dock. Confirmed bets/show/fold actions collapse it, rejected actions keep
 it open, and seeing or peeking at cards leaves it open. Private side-show results
 reopen it. Desktop Flush retains its table and cards layout; other games are unchanged.
 
@@ -527,15 +528,14 @@ Cut/Skip and Deal controls. Marriage deals automatically when started; its draw
 controls pulse when eligible. Existing seat, rule-approval and replacement rules
 still govern every action.
 
-Mobile Your cards expands over the table and preserves revealed cards and hand
-view choices when collapsed. It reopens for a new decision and collapses only
+Mobile **Your card area** expands over the fixed header/table viewport and preserves revealed cards and hand
+view choices when collapsed. It remains user-controlled and collapses
 after a confirmed bid, played card, accepted hand, Marriage discard or finish.
 Rejections stay visible. Marriage draws, meld checks and local card manipulation
-keep the panel open for the rest of the turn. Marriage starts with Your cards
-collapsed on mobile and opens the hand after drawing. Its reveal/draw controls
-stay above the hand toggle, with the turn prompt directly above Your cards, so
-drawing does not require expanding the hand. Table and private pokes are available
-only inside Your cards during active play. Desktop keeps its permanent hand and
+keep the panel open for the rest of the turn. Marriage starts with Your card area
+collapsed on mobile and keeps it open after drawing. Its reveal/draw controls
+are inside the expanded sheet, so the collapsed dock remains label-only. Table and private pokes are available
+only inside Your card area during active play. Desktop keeps its permanent hand and
 Call Break statistics sidebar.
 
 `tests/browser/game-mobile.cjs` runs against the local backend on 8000 and web

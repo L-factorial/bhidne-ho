@@ -99,9 +99,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   const isTurn = !!snapshot.your_player_id && game?.turn.player_id === snapshot.your_player_id;
   const showFormation = mobile && (!game || snapshot.status === 'finished' || ['OPEN', 'LOCKED', 'COMPLETED'].includes(snapshot.table?.phase || ''));
   const handAvailable = !!mine && mine.hand.length > 0 && !game?.finished && !snapshot.round_review;
-  const promptKey = handAvailable && (isTurn || mine?.can_accept_hand)
-    ? `${handDealKey}:${game?.phase}:${isTurn}:${game?.current_trick?.trick_number || deal?.tricks_completed || 0}` : null;
-  const cards = useMobileCards({ mobile, busy, error, promptKey, onAction });
+  const cards = useMobileCards({ mobile, busy, error, onAction });
   const header = <GameTableHeader game="callbreak" title="Call Break" path={snapshot.path} onBack={onBack} endControl={endControl}>
     {(!wide || !game) && <GameDetails snapshot={snapshot} busy={busy} onSave={onSave} />}
     {mobile && !showFormation && tableControl}

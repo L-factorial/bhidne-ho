@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 
 // Keep local card reveal/selection actions separate from confirmed game commands.
-export function useMobileCards({ mobile, busy, error, promptKey, onAction }: {
-  mobile: boolean; busy: boolean; error: string; promptKey: string | null;
+export function useMobileCards({ mobile, busy, error, onAction }: {
+  mobile: boolean; busy: boolean; error: string;
   onAction: (command: string, payload?: object) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -14,7 +14,6 @@ export function useMobileCards({ mobile, busy, error, promptKey, onAction }: {
     pending.current = false; sawBusy.current = false;
     setOpen(!!error);
   }, [busy, error]);
-  useEffect(() => { if (promptKey) setOpen(true); }, [promptKey]);
   function act(command: string, payload?: object) {
     // These commands complete the player's current decision. Drawing and meld
     // validation leave the hand open for the rest of a Marriage turn.

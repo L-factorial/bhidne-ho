@@ -29,7 +29,6 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const mobile = useWindowDimensions().width < 900;
   const showFormation = mobile && (!snapshot.marriage || snapshot.status === 'finished' || ['OPEN', 'LOCKED', 'COMPLETED'].includes(snapshot.table?.phase || ''));
   const [width, setWidth] = useState(300);
-  const [mobileHeaderHeight, setMobileHeaderHeight] = useState(120);
   const [mode, setMode] = useState<'grid' | 'fan' | 'suits'>('grid');
   const [suit, setSuit] = useState('all');
   const [hidden, setHidden] = useState(false);
@@ -88,9 +87,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const canAct = !busy && !hidden && allRevealed && snapshot.status === 'playing';
   const name = (id: string | null) => snapshot.players?.find(p => String(p.player_id) === id)?.display_name || `Player ${id}`;
   const isTurn = !!mine && mine.player_id === pub?.current_player_id;
-  const promptKey = mine && snapshot.status === 'playing' && isTurn && pub?.phase === 'must_discard'
-    ? `${snapshot.match_id}:${pub.phase}:${pub.current_player_id}` : null;
-  const cards = useMobileCards({ mobile, busy, error, promptKey, onAction });
+  const cards = useMobileCards({ mobile, busy, error, onAction });
   const activeGame = snapshot.status === 'playing';
   const normalFinish = actions?.normal_finish;
   useEffect(() => {
@@ -138,7 +135,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const turnPrompt = activeGame && pub && <TurnPulse personal={isTurn} active={isTurn && !busy}
     text={isTurn ? `Your turn · ${turnInstruction}` : `${name(pub.current_player_id)}’s turn`} />;
   const canDraw = !busy && allRevealed && activeGame;
-  const mobileHandHeader = <View testID="marriage-hand-header" onLayout={e => setMobileHeaderHeight(e.nativeEvent.layout.height)} style={{ backgroundColor: colors.surface, padding: 8, gap: 8 }}>
+  const mobileHandHeader = <View testID="marriage-hand-header" style={{ backgroundColor: colors.surface, padding: 8, gap: 8 }}>
     {!allRevealed ? button('Reveal all cards', () => { reveal(true); cards.setOpen(true); }, busy) : isTurn && pub?.phase === 'must_draw' && <View style={s.row}>
       {button('Take discard', () => cards.act('DRAW_CARD', { source: 'discard' }), !canDraw || !actions?.drawable_sources.includes('discard'))}
       {button(`Take stock ${pub.stock_count}`, () => cards.act('DRAW_CARD', { source: 'stock' }), !canDraw || !actions?.drawable_sources.includes('stock'))}
@@ -153,7 +150,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
     {showFormation && <View testID="marriage-formation-controls">{tableControl}</View>}
     {!mobile && detailsBar}
     <View style={{ flex: 1, minHeight: 0 }}>
-    <View testID="marriage-play-area" style={[s.playArea, mobile && mine && activeGame && { paddingBottom: 60 + mobileHeaderHeight }]}>
+    <View testID="marriage-play-area" style={[s.playArea, mobile && mine && activeGame && { paddingBottom: 64 }]}>
       {!pub ? <ScrollView contentContainerStyle={s.panel}>
         <View style={[s.table, { minHeight: 180 }]}>{startCue}</View>
         <Text style={s.heading}>{snapshot.players?.length}/{snapshot.capacity} players seated</Text>

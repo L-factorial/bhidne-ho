@@ -111,7 +111,6 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onA
   const comparison = mine?.side_show;
   const preparing = pub?.status === 'awaiting_deal' || pub?.status === 'awaiting_cut';
   const myTurn = !!pub?.current_player_id && pub.current_player_id === String(snapshot.your_player_id);
-  useEffect(() => { if (myTurn && !preparing) setHandOpen(true); }, [myTurn, preparing, pub?.round_number, pub?.pending_show?.target_id, pub?.pending_side_show?.revision]);
   const doubleBet = (mine?.actions.required_bet ?? 0) * 2;
   const chips = pub?.players.find(p => p.player_id === String(snapshot.your_player_id))?.chips ?? 0;
   const canDouble = Number.isSafeInteger(doubleBet) && doubleBet > 0 && doubleBet <= chips;
