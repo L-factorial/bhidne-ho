@@ -8,7 +8,7 @@ import { BrandBanner } from '../components/BrandArt';
 import { SignInButton, SignInMethod } from '../components/SignInButton';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
-// Keep provider controls available for later; guest is the only enabled sign-in.
+// Provider controls remain visible but disabled until their test applications exist.
 const SOCIAL_SIGN_IN_ENABLED = false;
 
 export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
@@ -52,8 +52,8 @@ export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
               ))}
             </View>
             <View style={styles.divider}><View style={styles.dividerLine} /><Text style={styles.or}>or</Text><View style={styles.dividerLine} /></View>
-            <SignInButton method="guest" onPress={() => selectMethod('guest')} />
-            <Text style={styles.helper}>No account needed to play as a guest.</Text>
+            <SignInButton method="guest" label="Sign in, sign up, or play as guest" onPress={() => selectMethod('guest')} />
+            <Text style={styles.helper}>Create a Bhidne Ho account or continue without one.</Text>
             {!!notice && <View style={styles.notice} accessibilityLiveRegion="polite">
               <Text style={styles.noticeText}>{notice}</Text>
               <Pressable accessibilityRole="button" accessibilityLabel="Dismiss message" onPress={() => setNotice('')} style={styles.dismiss}>

@@ -15,7 +15,7 @@ function GoogleIcon() {
     </Svg>
   );
 }
-export function SignInButton({ method, onPress, disabled = false }: { method: SignInMethod; onPress: () => void; disabled?: boolean }) {
+export function SignInButton({ method, onPress, disabled = false, label }: { method: SignInMethod; onPress: () => void; disabled?: boolean; label?: string }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const [focused, setFocused] = useState(false);
@@ -34,7 +34,7 @@ export function SignInButton({ method, onPress, disabled = false }: { method: Si
           <FontAwesome name={method === 'Apple' ? 'apple' : method === 'Facebook' ? 'facebook-square' : 'user'} size={24} color={color} />
         )}
       </View>
-      <Text style={[styles.label, { color }]}>{method === 'guest' ? 'Play as guest' : `Continue with ${method}`}</Text>
+      <Text style={[styles.label, { color }]}>{label || (method === 'guest' ? 'Play as guest' : `Continue with ${method}`)}</Text>
       <View style={styles.balance} />
     </Pressable>
   );

@@ -24,10 +24,10 @@ export async function request<T>(path: string, session: Session | null, body?: o
       headers: { 'Content-Type': 'application/json', ...(session ? { Authorization: `Bearer ${session.token}` } : {}) },
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
-    const data = await response.json();
+    const data = response.status === 204 ? undefined : await response.json();
     if (!response.ok) throw new ApiError(response.status, response.status === 401
       ? 'Session expired. The server may have restarted. Sign out to start a new session.'
       : typeof data.detail === 'string' ? data.detail : data.detail?.detail || 'Could not complete this request.', data.detail);
-    return data;
+    return data as T;
   } finally { clearTimeout(timeout); signal?.removeEventListener('abort', abort); }
 }

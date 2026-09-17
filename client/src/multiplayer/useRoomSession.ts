@@ -31,6 +31,21 @@ export function useRoomSession() {
     finally { loginPending.current = false; setLoggingIn(false); }
   }
 
+  async function loginAccount(username: string, password: string, signup: boolean) {
+    if (loginPending.current || session) return false;
+    loginPending.current = true; setLoggingIn(true); setError('');
+    try {
+      const value = await request<Session>(signup ? '/auth/signup' : '/auth/signin', null, {
+        username: username.trim(), password,
+      });
+      setSession(value); setExpired(false);
+      return true;
+    } catch (error) {
+      setError(error instanceof Error ? error.message : `Could not ${signup ? 'create your account' : 'sign in'}. Please try again.`);
+      return false;
+    } finally { loginPending.current = false; setLoggingIn(false); }
+  }
+
   useEffect(() => {
     if (session && !expired) saveSession(apiUrl, { session, room, game });
   }, [session, room, game, expired]);
@@ -117,8 +132,15 @@ export function useRoomSession() {
       return false;
     }
   }
-  function signOut() { connection.current?.stop(); saveSession(apiUrl, null); }
-  return { loginGuest, loggingIn, session, room, rooms, game, setGame, joinRoom, leaveRoom, signOut, leaveGameRequired, leaveGameAndRoom, abandonRequired,
+  async function signOut() {
+    connection.current?.stop();
+    const active = session;
+    saveSession(apiUrl, null); setSession(null); setRoom(null); setGame(null);
+    if (active) {
+      try { await request('/auth/signout', active, {}); } catch { /* Local sign-out still succeeds offline. */ }
+    }
+  }
+  return { loginGuest, loginAccount, loggingIn, session, room, rooms, game, setGame, joinRoom, leaveRoom, signOut, leaveGameRequired, leaveGameAndRoom, abandonRequired,
     cancelLeave: () => { setLeaveGameRequired(null); setError(''); }, status, expired, error, pokes,
     retry: () => { connection.current?.retryNow(); } };
 }

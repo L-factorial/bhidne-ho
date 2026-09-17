@@ -29,7 +29,7 @@ the shared adapter handles full gameplay; production runtime integration remains
 - [Room and game lifecycle](docs/room-game-lifecycle.md): navigation, explicit departure, preserved membership, reconnect, per-game policies, and audit results.
 - [Reliable game actions](docs/reliable-game-actions.md): command acknowledgments, safe retries across disconnects, private snapshot recovery, protocol limits, and verification.
 
-- [Web and mobile client](client/README.md): Expo/React Native welcome screen with guest and social sign-in previews. Run `cd client && npm ci && npm run web`.
+- [Web and mobile client](client/README.md): Expo/React Native account signup/signin, guest entry, profiles, and disabled social sign-in previews. Run `cd client && npm ci && npm run web`.
 
 - [Call Break test console](docs/test-callbreak-console.md): creating/joining games, manual turns, private hands and test-only endpoints.
 - [Dealer, shuffle and cut flow](docs/callbreak-preparation.md): implemented preparation phases, adapter dispatch, and a runnable example.

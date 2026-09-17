@@ -35,6 +35,9 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
   const [previewSize, setPreviewSize] = useState<4 | 5>(4);
   const [linkedMatch, setLinkedMatch] = useState<string>();
   const [guestName, setGuestName] = useState('');
+  const [authMode, setAuthMode] = useState<'signin' | 'signup' | 'guest'>('guest');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const shared = useRoomSession();
   const { session, rooms, room, game, setGame, expired } = shared;
   const [gameOpen, setGameOpen] = useState(false);
@@ -55,7 +58,7 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
   function joinRoom(target: Room) {
     shared.joinRoom(target); setPreview(false); setTestingOpen(false); setError('');
   }
-  function signOut() { shared.signOut(); onExit(); }
+  function signOut() { void shared.signOut(); onExit(); }
   async function createRoom() {
     if (!session || busy || expired) return;
     if (!name.trim()) { setError('Enter a room name.'); return; }
@@ -156,15 +159,43 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
       </> : <>
         <Image source={branding.background} accessibilityLabel="Play. Connect. Bhidne Ho!" resizeMode="contain" style={{ width: '100%', maxWidth: 415, aspectRatio: 415 / 182, alignSelf: 'center', marginTop: 20, borderRadius: 16 }} />
         {!session && <View style={styles.panel}>
-          <Text style={styles.sectionTitle}>What should we call you?</Text>
-          <Text style={styles.subtitle}>This name appears in every game, room message and poke.</Text>
-          <TextInput accessibilityLabel="Guest display name" placeholder="Your display name" placeholderTextColor={colors.textMuted}
-            value={guestName} onChangeText={setGuestName} maxLength={25} editable={!shared.loggingIn}
-            style={styles.input} returnKeyType="go" onSubmitEditing={() => { if (guestName.trim()) void shared.loginGuest(guestName); }} />
-          <Pressable accessibilityRole="button" disabled={!guestName.trim() || shared.loggingIn}
-            onPress={() => void shared.loginGuest(guestName)} style={styles.button}>
-            <Text style={styles.buttonText}>{shared.loggingIn ? 'Signing in…' : 'Continue as guest'}</Text>
-          </Pressable>
+          <Text style={styles.sectionTitle}>{authMode === 'signup' ? 'Create your account' : authMode === 'signin' ? 'Welcome back' : 'Play as a guest'}</Text>
+          <View style={styles.gameTabs}>
+            {([['signin', 'Sign in'], ['signup', 'Sign up'], ['guest', 'Guest']] as const).map(([value, label]) =>
+              <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: authMode === value }}
+                onPress={() => { setAuthMode(value); setError(''); }} style={[styles.gameTab, authMode === value && styles.selectedTab]}>
+                <Text style={[styles.tabText, authMode === value && styles.selectedTabText]}>{label}</Text>
+              </Pressable>)}
+          </View>
+          {authMode === 'guest' ? <>
+            <Text style={styles.subtitle}>Choose the display name other players will see. Guest access can be lost if its session expires.</Text>
+            <TextInput accessibilityLabel="Guest display name" placeholder="Your display name" placeholderTextColor={colors.textMuted}
+              value={guestName} onChangeText={setGuestName} maxLength={25} editable={!shared.loggingIn}
+              style={styles.input} returnKeyType="go" onSubmitEditing={() => { if (guestName.trim()) void shared.loginGuest(guestName); }} />
+            <Pressable accessibilityRole="button" disabled={!guestName.trim() || shared.loggingIn}
+              onPress={() => void shared.loginGuest(guestName)} style={[styles.button, (!guestName.trim() || shared.loggingIn) && styles.disabled]}>
+              <Text style={styles.buttonText}>{shared.loggingIn ? 'Signing in…' : 'Continue as guest'}</Text>
+            </Pressable>
+          </> : <>
+            <Text style={styles.subtitle}>{authMode === 'signup'
+              ? 'Create an account so your identity and profile can follow you across sign-ins.'
+              : 'Sign in with your Bhidne Ho username and password.'}</Text>
+            <TextInput accessibilityLabel="Username" placeholder="Username" placeholderTextColor={colors.textMuted}
+              value={username} onChangeText={setUsername} maxLength={32} editable={!shared.loggingIn}
+              autoCapitalize="none" autoCorrect={false} textContentType="username" style={styles.input} />
+            <TextInput accessibilityLabel="Password" placeholder="Password" placeholderTextColor={colors.textMuted}
+              value={password} onChangeText={setPassword} maxLength={128} editable={!shared.loggingIn}
+              secureTextEntry textContentType={authMode === 'signup' ? 'newPassword' : 'password'} style={styles.input}
+              returnKeyType="go" onSubmitEditing={() => {
+                if (username.trim().length >= 3 && password.length >= 8) void shared.loginAccount(username, password, authMode === 'signup');
+              }} />
+            <Text style={styles.description}>Usernames use 3–32 letters, numbers, underscores, or hyphens. Passwords require at least 8 characters.</Text>
+            <Pressable accessibilityRole="button" disabled={username.trim().length < 3 || password.length < 8 || shared.loggingIn}
+              onPress={() => void shared.loginAccount(username, password, authMode === 'signup')}
+              style={[styles.button, (username.trim().length < 3 || password.length < 8 || shared.loggingIn) && styles.disabled]}>
+              <Text style={styles.buttonText}>{shared.loggingIn ? 'Please wait…' : authMode === 'signup' ? 'Create account' : 'Sign in'}</Text>
+            </Pressable>
+          </>}
           {!!shared.error && <Text accessibilityRole="alert" style={styles.subtitle}>{shared.error}</Text>}
         </View>}
         <View style={[styles.columns, { marginTop: 24 }]}>

@@ -7,9 +7,10 @@ layout to a stacked phone layout, including safe-area padding and scrolling on
 small screens.
 
 Apple, Google, and Facebook buttons remain visible but are dimmed and disabled.
-Only **Play as guest** is enabled. `SOCIAL_SIGN_IN_ENABLED` in
-`src/screens/WelcomeScreen.tsx` controls this temporary restriction; enabling it
-restores the existing provider placeholders, not a completed OAuth integration.
+The enabled first-party entry opens username/password **Sign in**, **Sign up**, and
+**Guest** choices. `SOCIAL_SIGN_IN_ENABLED` in `src/screens/WelcomeScreen.tsx`
+controls the provider placeholders only; it must remain false until a provider's
+client flow and test application are configured.
 
 ## Run
 
@@ -28,7 +29,7 @@ Start the backend in another terminal from the repository root:
 ```
 
 Open the local URL printed by Expo. The welcome screen needs no backend, but
-**Play as guest** now calls the backend and opens the shared room directory.
+The account and guest forms call the backend and then open the shared room directory.
 Use Expo web port 8081 or 8083 for the configured local CORS origins.
 
 The API defaults to the web page's hostname on port 8000. Set
@@ -42,8 +43,8 @@ rendering has not yet been manually verified.
 
 ## Scope
 
-Guest sign-in, room creation, room discovery, and WebSocket room membership now
-use the existing FastAPI APIs. After entering as a guest, choose **Create and
+Account signup/signin, guest entry, room creation, room discovery, and WebSocket
+room membership use the existing FastAPI APIs. After authenticating, choose **Create and
 enter room**, select an available room, or enter its ID. Other browser sessions
 see new rooms and presence counts within about two seconds. Leaving closes the
 socket. Browser sessions and the selected room/game are saved per tab in sessionStorage, so
@@ -51,8 +52,7 @@ refreshing restores the same guest and seat. Reconnection runs automatically aft
 a network interruption; the table stays visible and actions wait for a fresh snapshot.
 Native clients currently keep sessions in memory (network reconnection works, but
 restarting the native app does not restore its identity). Backend restart clears all
-rooms and sessions; expired credentials prompt sign-out rather than silently replacing the player. Accounts/social sign-in and the
-Terms/Privacy controls still show placeholders.
+rooms and sessions; expired credentials prompt sign-out rather than silently replacing the player. Social sign-in and the Terms/Privacy controls still show placeholders.
 
 The only backend change is CORS support for localhost/127.0.0.1 Expo web clients
 on ports 8081 and 8083. Existing room authentication remains required.
@@ -134,7 +134,7 @@ The hand stays in a bottom card row, while **Stats & bets**, **Rules**, and hist
 start collapsed. Stats show current bids, tricks won, total tricks, and all five
 deal scores. The creator can save redeal options and placement payments in whole
 units before starting. These are shared agreements, not payment processing.
-Social sign-in buttons remain previews; guest entry connects to the backend.
+Social sign-in buttons remain disabled previews; username/password accounts and guest entry connect to the backend.
 
 
 Bidding displays a notification above the hand for each deal, with bid controls
@@ -249,7 +249,8 @@ snapshot without changing seat ownership or game state. Names need not be unique
 same shape. Authentication determines whose profile changes. Display names are
 public to fellow room players through game snapshots; saved phrase collections
 remain private. Names are keyed by user identity across rooms and account sessions,
-but are currently in memory and reset with the backend.
+and persist when the backend is configured with PostgreSQL. Without a database URL,
+the development fallback remains in memory and resets with the backend.
 
 
 The signed-in directory has a Nepali brand header with Profile and Sign out.
