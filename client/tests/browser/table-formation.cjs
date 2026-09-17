@@ -69,7 +69,7 @@ async function api(path, user, body) {
         await waiter.page.getByTestId('live-game-overlay').waitFor({ state: 'hidden' });
         await waiter.page.getByText(/Waitlist position 1/).waitFor();
         await waiter.page.getByRole('button', { name: 'Leave room', exact: true }).click();
-        await waiter.page.getByText('YOUR SPACE', { exact: true }).waitFor();
+        await waiter.page.getByText('LOBBY', { exact: true }).waitFor();
         assert.equal((await api(root, users[0])).table.queue.length, 0);
       }
       await host.context.close(); await waiter.context.close();

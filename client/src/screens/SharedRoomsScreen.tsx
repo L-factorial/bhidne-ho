@@ -41,7 +41,7 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
   const shared = useRoomSession();
   const { session, rooms, room, game, setGame, expired } = shared;
   const [gameOpen, setGameOpen] = useState(false);
-  const chat = useRoomChat({ hideWhenBlocked: gameOpen && !wide, roomId: room?.room_id || '', session: session || { token: '', user_id: '' }, connected: !!room && !!session && !expired && shared.status === 'connected' });
+  const chat = useRoomChat({ roomId: room?.room_id || '', session: session || { token: '', user_id: '' }, connected: !!room && !!session && !expired && !gameOpen && shared.status === 'connected' });
   useEffect(() => {
     setInviteOpen(false); setMembersOpen(false);
   }, [room?.room_id]);
@@ -83,8 +83,8 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
     <View style={styles.content}>
       <AppHeader />
       <View style={styles.roomNavigation}>
-        <Text style={styles.navigationLabel}>{room && !expired ? 'ROOM LOBBY' : 'YOUR SPACE'}</Text>
-        <HeaderAction icon="leave" label={room && !expired ? (ownsCurrentRoom ? 'Exit room' : 'Leave and exit room') : 'Sign out'} onPress={room && !expired ? leaveRoom : signOut} />
+        <Text style={styles.navigationLabel}>{room && !expired ? 'ROOM' : 'LOBBY'}</Text>
+        <HeaderAction icon="leave" label={room && !expired ? 'Back to lobby' : 'Sign out'} onPress={room && !expired ? leaveRoom : signOut} />
       </View>
       {!!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{error || shared.error}</Text>}
       {shared.leaveGameRequired && <View>
@@ -109,7 +109,7 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
         </View>
         <View style={[styles.columns, wide && styles.wideColumns]}>
           <View style={styles.mainColumn}>
-            {session && <RoomGameControl chat={chat} onOpenChange={setGameOpen} requestedMatchId={linkedMatch} personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={current?.connected_members || []} roomMembers={roomMembers} connectionMessage={expired ? shared.error : undefined}
+            {session && <RoomGameControl onOpenChange={setGameOpen} requestedMatchId={linkedMatch} personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={current?.connected_members || []} roomMembers={roomMembers} connectionMessage={expired ? shared.error : undefined}
               gameType={selectedGame} createContent={<>
             <Text style={styles.eyebrowDark}>CHOOSE A GAME</Text>
             <View style={styles.gameTabs}>
@@ -172,6 +172,11 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
         </View>
       </> : <>
         <Image source={branding.background} accessibilityLabel="Play. Connect. Bhidne Ho!" resizeMode="contain" style={{ width: '100%', maxWidth: 415, aspectRatio: 415 / 182, alignSelf: 'center', marginTop: 20, borderRadius: 16 }} />
+        {session && !expired && <View style={styles.hero}>
+          <Text style={styles.eyebrow}>YOUR TABLES</Text>
+          <Text accessibilityRole="header" style={[styles.title, !wide && styles.mobileTitle]}>Find your table.</Text>
+          <Text style={styles.subtitle}>Enter one of your rooms or a room created by a friend. Private conversations stay here in the lobby.</Text>
+        </View>}
         {!session && <View style={styles.panel}>
           <Text style={styles.sectionTitle}>{authMode === 'signup' ? 'Create your account' : 'Welcome back'}</Text>
           <View style={styles.gameTabs}>

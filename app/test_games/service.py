@@ -118,6 +118,13 @@ class TestGameService(GameTableLifecycle, RuleProposals):
     def _room_games(self, room_id):
         return list(self.tables.get(room_id, {}).values())
 
+    def table_summaries(self, room_id):
+        """Public invitation/directory metadata; never includes engine or card state."""
+        return [{"match_id": game.match_id, "name": game.name, "game_type": game.game_type,
+                 "status": "ended" if game.ended else "finished" if game.finished else
+                           "playing" if game.started else "waiting"}
+                for game in self._room_games(room_id)]
+
     def _contains(self, game):
         return self.tables.get(game.room_id, {}).get(game.match_id) is game
 

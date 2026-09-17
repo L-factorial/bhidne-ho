@@ -49,3 +49,24 @@ def test_ending_table_releases_all_players_for_other_tables():
         client.post('/test-games/shared/end', headers=headers[0], json={'match_id': first['match_id']})
         assert client.post('/test-games/shared/join', headers=headers[1], json={
             'match_id': second['match_id']}).status_code == 200
+
+
+def test_new_account_can_resolve_shared_room_and_exact_game_invitation():
+    with TestClient(create_app()) as client:
+        owner = client.post('/auth/signup', json={'username': 'invite-owner', 'password': 'password123'}).json()
+        invited = client.post('/auth/signup', json={'username': 'new-phone-user', 'password': 'password123'}).json()
+        owner_header = {'Authorization': 'Bearer ' + owner['token']}
+        invited_header = {'Authorization': 'Bearer ' + invited['token']}
+        room = client.post('/rooms', headers=owner_header, json={'name': 'Friends Night'}).json()
+        client.post(f"/rooms/{room['room_id']}/enter", headers=owner_header, json={})
+        game = client.post(f"/test-games/{room['room_id']}", headers=owner_header, json={
+            'name': 'Main Table', 'game_type': 'callbreak', 'player_count': 4}).json()
+
+        # A new account does not yet have the room in its personal feed.
+        assert all(item['room_id'] != room['room_id'] for item in client.get('/rooms', headers=invited_header).json())
+        # Invitation lookup resolves the room directly without joining it.
+        preview = client.get(f"/rooms/{room['room_id']}", headers=invited_header).json()
+        assert preview['name'] == 'Friends Night'
+        assert not preview['is_member']
+        assert preview['tables'] == [{
+            'match_id': game['match_id'], 'name': 'Main Table', 'game_type': 'callbreak', 'status': 'waiting'}]

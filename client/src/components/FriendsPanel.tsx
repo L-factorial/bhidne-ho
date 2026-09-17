@@ -92,7 +92,7 @@ export function FriendsPanel({ session }: { session: Session }) {
   </View>;
 
   return <View style={styles.panel}>
-    <View style={styles.row}><Text style={styles.title}>Chat, friends, and notifications</Text>
+    <View style={styles.row}><Text style={styles.title}>Friends & private messages</Text>
       {notifications.some(item => !item.read) && <Pressable accessibilityRole="button" onPress={() => void markNotificationsRead()} style={styles.linkButton}><Text style={styles.link}>Mark read</Text></Pressable>}
     </View>
     {!!notifications.length && <View style={styles.notifications}>
@@ -101,7 +101,7 @@ export function FriendsPanel({ session }: { session: Session }) {
         <Text style={styles.detail}>{new Date(item.created_at).toLocaleString()}</Text>
       </View>)}
     </View>}
-    <Text style={styles.detail}>Find a player by username or display name. Private messages are available after they accept.</Text>
+    <Text style={styles.detail}>Chat one-to-one with accepted friends from the lobby, or find a player by username or display name.</Text>
     <View style={styles.searchRow}>
       <TextInput accessibilityLabel="Find players" value={query} onChangeText={setQuery} maxLength={50}
         autoCapitalize="none" placeholder="Username or display name" placeholderTextColor={colors.textMuted}

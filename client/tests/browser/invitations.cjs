@@ -39,7 +39,7 @@ async function api(path, user, body) {
     assert.equal(await page.evaluate(() => navigator.clipboard.readText()), gameUrl);
     assert.equal(await page.getByRole('button', { name: 'Share game link', exact: true }).count(), 0);
     await page.getByRole('button', { name: 'Leave room', exact: true }).click();
-    await page.getByText('YOUR SPACE', { exact: true }).waitFor();
+    await page.getByText('LOBBY', { exact: true }).waitFor();
     await page.goto(gameUrl);
     await page.getByTestId('live-game-overlay').waitFor();
     assert.equal((await api(`/rooms/${room.room_id}`, guest)).is_member, true);
@@ -48,9 +48,9 @@ async function api(path, user, body) {
     await page.getByRole('button', { name: 'Back to room', exact: true }).click();
     await page.getByTestId('live-game-overlay').waitFor({ state: 'hidden' });
     await page.getByRole('button', { name: 'Leave room', exact: true }).click();
-    await page.getByText('YOUR SPACE', { exact: true }).waitFor();
+    await page.getByText('LOBBY', { exact: true }).waitFor();
     await page.reload();
-    await page.getByText('YOUR SPACE', { exact: true }).waitFor();
+    await page.getByText('LOBBY', { exact: true }).waitFor();
     assert.equal((await api(`/rooms/${room.room_id}`, guest)).is_member, false);
     await page.goto(`${roomUrl}&match=obsolete`);
     await page.getByText('This game is no longer available. Ask for a new game link.', { exact: true }).waitFor();

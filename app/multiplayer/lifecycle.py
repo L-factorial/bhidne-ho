@@ -21,7 +21,8 @@ class RoomLifecycle:
         return {"room_id": room_id, "members": members,
                 "is_member": user_id in members,
                 "connected_members": await self.connections.connected_members(room_id),
-                "active_game": self.games.membership(room_id, user_id)}
+                "active_game": self.games.membership(room_id, user_id),
+                "tables": self.games.table_summaries(room_id)}
 
     async def enter(self, room_id, user_id):
         async with self.games.membership_guard(room_id):

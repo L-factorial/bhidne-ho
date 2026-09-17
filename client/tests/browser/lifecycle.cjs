@@ -58,7 +58,7 @@ async function api(path, user, body) {
       await api(root + '/end', users[0], { match_id: game.match_id });
       await api(root, users[0], { game_type: kind, player_count: count });
       await page.getByRole('button', { name: 'Leave room', exact: true }).click();
-      await page.getByText('YOUR SPACE', { exact: true }).waitFor();
+      await page.getByText('LOBBY', { exact: true }).waitFor();
       assert.equal((await api(`/rooms/${room.room_id}`, users[0])).is_member, false);
       assert.equal((await api(`/rooms/${room.room_id}`, users[0])).active_game.player_is_participant, false);
       // Simulate another offline tab with an old saved room; refresh must only resume.
@@ -66,12 +66,12 @@ async function api(path, user, body) {
         'bhidne.session.v1:http://localhost:8000', JSON.stringify({ session: user, room, game: kind })),
         { user: users[0], room, kind });
       await page.reload();
-      await page.getByText('YOUR SPACE', { exact: true }).waitFor();
+      await page.getByText('LOBBY', { exact: true }).waitFor();
       assert.equal((await api(`/rooms/${room.room_id}`, users[0])).is_member, false);
       // Intentional room entry is still available and does not seat the player.
       await page.getByRole('button', { name: 'Available rooms', exact: true }).click();
       await page.getByRole('button', { name: `Enter ${room.name}`, exact: true }).click();
-      await page.getByText('ROOM LOBBY', { exact: true }).waitFor();
+      await page.getByText('ROOM', { exact: true }).waitFor();
       const entered = await api(`/rooms/${room.room_id}`, users[0]);
       assert.equal(entered.is_member, true);
       assert.equal(entered.active_game.player_is_participant, false);

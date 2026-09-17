@@ -17,15 +17,15 @@ export function InvitationPreview({ invitation, session, join, dismiss }: {
     const controller = new AbortController(); setError(''); setBusy(true); setTarget(null);
     async function load() {
       try {
-        const rooms = await request<Room[]>('/rooms', session, undefined, controller.signal);
-        const room = rooms.find(room => room.room_id === invitation.roomId);
-        if (!room) throw new Error('This room is no longer available.');
-        const state = await request<{ active_game: { game_id: string; game_type: string; status: string } | null }>(`/rooms/${encodeURIComponent(room.room_id)}`, session, undefined, controller.signal);
-        if (invitation.matchId && (!state.active_game || state.active_game.game_id !== invitation.matchId || state.active_game.status === 'ended'))
+        const state = await request<Room & { tables?: { match_id: string; game_type: string; status: string }[] }>(
+          `/rooms/${encodeURIComponent(invitation.roomId)}`, session, undefined, controller.signal);
+        const room: Room = state;
+        const invitedGame = invitation.matchId ? state.tables?.find(table => table.match_id === invitation.matchId) : undefined;
+        if (invitation.matchId && (!invitedGame || invitedGame.status === 'ended'))
           throw new Error('This game is no longer available. Ask for a new game link.');
         if (controller.signal.aborted) return;
-        setTarget(room); setGameType(state.active_game?.game_type);
-        if (invitation.matchId && !await joinRef.current(room, state.active_game?.game_type, invitation.matchId))
+        setTarget(room); setGameType(invitedGame?.game_type);
+        if (invitation.matchId && !await joinRef.current(room, invitedGame?.game_type, invitation.matchId))
           throw new Error('Could not enter the game’s room. Try again.');
       } catch (error) { if (!controller.signal.aborted) setError(error instanceof Error ? error.message : 'Could not open invitation.'); }
       finally { if (!controller.signal.aborted) setBusy(false); }

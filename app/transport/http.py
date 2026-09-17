@@ -108,7 +108,14 @@ async def room_state(room_id: str, request: Request, response: Response, user: U
     response.headers["Cache-Control"] = "no-store"
     if not await request.app.state.rooms.can_enter(room_id, user.user_id, request.app.state.players.are_friends):
         raise HTTPException(403, "This room is for the creator's friends.")
-    return await request.app.state.lifecycle.snapshot(room_id, user.user_id)
+    state = await request.app.state.lifecycle.snapshot(room_id, user.user_id)
+    record = await request.app.state.rooms.room(room_id)
+    if record:
+        state.update({key: record[key] for key in ('name', 'creator_id', 'visibility', 'created_at')})
+    else:
+        # Ad-hoc room IDs remain supported by the low-level room API.
+        state.update({"name": room_id, "creator_id": None, "visibility": "public", "created_at": None})
+    return state
 
 
 @router.post("/rooms/{room_id}/enter")
