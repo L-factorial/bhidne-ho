@@ -21,4 +21,8 @@ The approved deployment capability runs as root to control Docker. Protect repos
 
 Every backend deployment restarts the game server. Sessions, rooms, profiles, balances and games reset. Deploy between test games; clients with expired sessions should sign out and rejoin. Rollback restores code, not in-memory data. One container and one Uvicorn worker remain mandatory.
 
+The automatic deployment intentionally uses only `deploy/compose.yaml`. PostgreSQL
+is opt-in through `deploy/compose.postgres.yaml`, so pushing database-capable code does
+not require a database password or change the current in-memory runtime.
+
 Frontend and backend workflows are independent: maintain API compatibility across deployments. Workflow failures appear in the repository Actions tab. Release directories and the previous image are retained for troubleshooting; an administrator can remove old inactive releases after testing.

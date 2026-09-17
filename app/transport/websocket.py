@@ -2,6 +2,8 @@ import asyncio
 import json
 import re
 
+from inspect import isawaitable
+
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 
@@ -20,6 +22,9 @@ async def room_socket(websocket: WebSocket, room_id: str) -> None:
     token = websocket.query_params.get("token", "")
     try:
         identity = await auth.authenticate(token)
+        profile = websocket.app.state.player_profiles.get(identity.user_id)
+        if isawaitable(profile):
+            await profile
     except AuthenticationError:
         await websocket.close(code=1008)
         return

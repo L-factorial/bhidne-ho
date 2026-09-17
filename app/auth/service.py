@@ -36,6 +36,15 @@ class GuestAuthService:
             raise AuthenticationError("Invalid guest token")
         return identity
 
+    async def revoke(self, token: str) -> None:
+        self._identities.pop(token, None)
+
+    async def issue_identity(self, user_id: str) -> GuestCredentials:
+        identity = UserIdentity(user_id=user_id)
+        token = secrets.token_urlsafe(32)
+        self._identities[token] = identity
+        return GuestCredentials(user_id=user_id, token=token)
+
 
 class UsernameTakenError(Exception):
     pass

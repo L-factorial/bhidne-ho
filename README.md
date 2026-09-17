@@ -19,6 +19,9 @@ the shared adapter handles full gameplay; production runtime integration remains
 
 - [Project TODO](TODO.md): current refinement priority and deferred backend-restart recovery.
 
+- [Authentication and profiles](docs/auth-and-profiles.md): PostgreSQL data model, local container setup, session handling, and migration to a managed database.
+- [Social sign-in](docs/social-auth.md): Google, Apple, and Facebook verification, schema, configuration, and client contract.
+
 - [Shared command infrastructure](docs/shared-game-runtime.md): common runtime/client ownership and how a new game inherits reliable commands; implemented for Call Break and Echo.
 
 - [Chat and rule approval](docs/chat-and-rule-approval.md): chat overlays, between-deal access, unanimous player votes and Flush rule details.
@@ -51,8 +54,9 @@ uvicorn app.main:app --reload --workers 1
 ```
 
 Health: `GET http://127.0.0.1:8000/health`. HTTP API docs: `/docs`.
-Use **one worker**: credentials, rooms, and sockets are process-local. Restarting
-(including reload) discards credentials and presence. Ad hoc rooms are created on first
+Use **one worker**: rooms, active games, and sockets are process-local. With
+`DATABASE_URL`, identities, sessions, and profiles survive restarts; without it they
+remain in memory. Restarting still discards presence. Ad hoc rooms are created on first
 connection and removed when empty; explicitly created rooms remain in the directory
 until restart. Rooms are open to any authenticated guest.
 

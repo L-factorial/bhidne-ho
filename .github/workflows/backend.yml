@@ -31,6 +31,6 @@ jobs:
           printf '%s\n' "$KNOWN_HOSTS" > "$RUNNER_TEMP/bhidne-ssh/known_hosts"
           chmod 600 "$RUNNER_TEMP/bhidne-ssh/key"
           trap 'rm -rf "$RUNNER_TEMP/bhidne-ssh"' EXIT
-          tar --exclude='__pycache__' --exclude='*.pyc' -czf "$RUNNER_TEMP/backend.tar.gz" Dockerfile .dockerignore pyproject.toml app card_utils callbreak marriage flush deploy/compose.yaml
+          tar --exclude='__pycache__' --exclude='*.pyc' -czf "$RUNNER_TEMP/backend.tar.gz" Dockerfile .dockerignore pyproject.toml app card_utils callbreak marriage flush deploy/compose.yaml deploy/compose.postgres.yaml
           ssh -i "$RUNNER_TEMP/bhidne-ssh/key" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/bhidne-ssh/known_hosts" root@64.227.86.254 < "$RUNNER_TEMP/backend.tar.gz"
           curl --fail --retry 3 https://api-bhidne-ho.lfactorial.com/health

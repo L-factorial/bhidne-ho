@@ -1,3 +1,5 @@
+from inspect import isawaitable
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
@@ -19,7 +21,9 @@ async def guest(request: Request, response: Response, body: GuestInput | None = 
     response.headers["Cache-Control"] = "no-store"
     credentials = await request.app.state.guests.issue_guest()
     if body is not None and body.display_name:
-        request.app.state.player_profiles.update(credentials.user_id, body.display_name)
+        saved = request.app.state.player_profiles.update(credentials.user_id, body.display_name)
+        if isawaitable(saved):
+            await saved
     return credentials
 
 bearer = HTTPBearer(auto_error=False)
@@ -30,7 +34,12 @@ async def current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
 ) -> UserIdentity:
     try:
-        return await request.app.state.auth.authenticate(credentials.credentials if credentials else "")
+        identity = await request.app.state.auth.authenticate(credentials.credentials if credentials else "")
+        # Refresh the local profile read model used by synchronous game snapshots.
+        profile = request.app.state.player_profiles.get(identity.user_id)
+        if isawaitable(profile):
+            await profile
+        return identity
     except AuthenticationError:
         raise HTTPException(401, "Sign in to continue", headers={"WWW-Authenticate": "Bearer"}) from None
 
@@ -56,6 +65,15 @@ async def sign_in(body: AccountInput, request: Request, response: Response):
 @router.get("/auth/me")
 async def me(user: UserIdentity = Depends(current_user)):
     return {"user_id": user.user_id}
+
+
+@router.post("/auth/signout", status_code=204)
+async def sign_out(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    user: UserIdentity = Depends(current_user),
+):
+    await request.app.state.auth.revoke(credentials.credentials)
 
 
 @router.get("/rooms", response_model=list[RoomSummary])

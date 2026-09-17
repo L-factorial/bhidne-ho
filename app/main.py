@@ -8,6 +8,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.auth.service import InMemoryAuthService
+from app.auth.postgres import PostgresAuthService
+from app.database import Database
 from app.games.echo import EchoCommandTarget, EchoGameEngine
 from app.runtime.game_registry import GameRegistry
 from app.multiplayer.connection_manager import ConnectionManager
@@ -18,17 +20,26 @@ from app.multiplayer.room_chat import RoomChatService
 from app.multiplayer.participation import GameParticipation
 from app.multiplayer.room_pokes import RoomPokeService
 from app.multiplayer.player_phrases import PlayerPhraseService
-from app.multiplayer.player_profiles import PlayerProfileService
+from app.multiplayer.player_profiles import PlayerProfileService, PostgresPlayerProfileService
 from app.runtime.game_runtime import GameRuntime
 from app.transport import game_actions, http, room_pokes, websocket, player_profiles, room_chat
 from app.test_games.service import TestGameService
 from app.test_games.http import router as test_game_router
+from app.social_auth.config import SocialAuthConfig
+from app.social_auth.http import router as social_auth_router
+from app.social_auth.service import SocialAuthService
+from app.social_auth.store import InMemorySocialIdentityStore, PostgresSocialIdentityStore
+from app.social_auth.verifiers import configured_verifiers
 
 
 def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        guests = InMemoryAuthService()
+        database_url = os.environ.get("DATABASE_URL")
+        database = Database(database_url) if database_url else None
+        if database:
+            await database.open()
+        guests = PostgresAuthService(database.pool) if database else InMemoryAuthService()
         rooms = RoomService()
         connections = ConnectionManager(rooms)
         app.state.guests = guests
@@ -36,7 +47,13 @@ def create_app() -> FastAPI:
         app.state.rooms = rooms
         app.state.presence = PresenceService(rooms)
         app.state.connections = connections
-        app.state.player_profiles = PlayerProfileService()
+        app.state.database = database
+        app.state.player_profiles = PostgresPlayerProfileService(database.pool) if database else PlayerProfileService()
+        social_store = (PostgresSocialIdentityStore(database.pool, guests, app.state.player_profiles)
+                        if database else InMemorySocialIdentityStore(guests, app.state.player_profiles))
+        app.state.social_auth = SocialAuthService(
+            configured_verifiers(SocialAuthConfig.from_environment()), social_store,
+        )
         app.state.player_phrases = PlayerPhraseService()
         app.state.room_pokes = RoomPokeService(rooms, connections, app.state.player_profiles)
         registry = GameRegistry()
@@ -59,6 +76,8 @@ def create_app() -> FastAPI:
         finally:
             await app.state.test_games.close()
             registry.clear()
+            if database:
+                await database.close()
         # Uvicorn closes active sockets before lifespan teardown.
 
     app = FastAPI(title="Bhidne Ho", lifespan=lifespan)
@@ -72,6 +91,7 @@ def create_app() -> FastAPI:
         allow_headers=["Authorization", "Content-Type"],
     )
     app.include_router(http.router)
+    app.include_router(social_auth_router)
     app.include_router(websocket.router)
     app.include_router(game_actions.router)
     app.include_router(room_pokes.router)

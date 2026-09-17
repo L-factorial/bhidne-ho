@@ -1,3 +1,5 @@
+from inspect import isawaitable
+
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -22,11 +24,13 @@ class ProfileInput(BaseModel):
 @router.get("/me/profile")
 async def profile(request: Request, response: Response, user: UserIdentity = Depends(current_user)):
     response.headers["Cache-Control"] = "no-store"
-    return request.app.state.player_profiles.get(user.user_id)
+    result = request.app.state.player_profiles.get(user.user_id)
+    return await result if isawaitable(result) else result
 
 
 @router.patch("/me/profile")
 async def update_profile(body: ProfileInput, request: Request, response: Response,
                          user: UserIdentity = Depends(current_user)):
     response.headers["Cache-Control"] = "no-store"
-    return request.app.state.player_profiles.update(user.user_id, body.display_name)
+    result = request.app.state.player_profiles.update(user.user_id, body.display_name)
+    return await result if isawaitable(result) else result

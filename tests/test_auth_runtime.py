@@ -18,6 +18,14 @@ async def test_guest_identity_and_invalid_credentials():
             await auth.authenticate(token)
 
 
+async def test_revoked_guest_token_is_rejected():
+    auth = GuestAuthService()
+    credentials = await auth.issue_guest()
+    await auth.revoke(credentials.token)
+    with pytest.raises(AuthenticationError):
+        await auth.authenticate(credentials.token)
+
+
 async def test_runtime_uses_authenticated_sender_and_broadcaster():
     broadcaster = AsyncMock()
     runtime = GameRuntime(broadcaster)

@@ -10,6 +10,10 @@ services:
       - "127.0.0.1:18080:8080"
     environment:
       BHIDNE_CORS_ORIGINS: https://bhidne-ho.lfactorial.com
+      GOOGLE_CLIENT_IDS: ${GOOGLE_CLIENT_IDS:-}
+      APPLE_CLIENT_IDS: ${APPLE_CLIENT_IDS:-}
+      FACEBOOK_APP_ID: ${FACEBOOK_APP_ID:-}
+      FACEBOOK_APP_SECRET: ${FACEBOOK_APP_SECRET:-}
     logging:
       driver: json-file
       options:
