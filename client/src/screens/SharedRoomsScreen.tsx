@@ -74,6 +74,7 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
     finally { if (mounted.current) setBusy(false); }
   }
   const current = rooms.find(item => item.room_id === room?.room_id) || room;
+  const ownsCurrentRoom = !!current && current.creator_id === session?.user_id;
   const roomMembers = [...new Set([...(current?.members || []), ...(room && session && shared.status === 'connected' ? [session.user_id] : [])])];
   if (room && preview) return <CallBreakTableScreen capacity={previewSize} names={['You']} tableName={room.name} onBack={() => setPreview(false)} />;
   const selectedGame = game === 'flush' || game === 'marriage' ? game : 'callbreak';
@@ -84,7 +85,7 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
       <AppHeader />
       <View style={styles.roomNavigation}>
         <Text style={styles.navigationLabel}>{room && !expired ? 'ROOM LOBBY' : 'YOUR SPACE'}</Text>
-        <HeaderAction icon="leave" label={room && !expired ? 'Leave room' : 'Sign out'} onPress={room && !expired ? leaveRoom : signOut} />
+        <HeaderAction icon="leave" label={room && !expired ? (ownsCurrentRoom ? 'Exit room' : 'Leave and exit room') : 'Sign out'} onPress={room && !expired ? leaveRoom : signOut} />
       </View>
       {!!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{error || shared.error}</Text>}
       {shared.leaveGameRequired && <View>

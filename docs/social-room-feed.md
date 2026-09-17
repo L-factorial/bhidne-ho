@@ -71,6 +71,11 @@ Room ownership does not imply table ownership. Every player who has entered the
 room is a room member and may create a game/table through `POST /test-games/{room_id}`.
 Individual game rules still determine who may configure, start, or act at a table.
 
+Exiting has ownership-aware wording in the client. An owner uses **Exit room**: this
+ends their current membership/presence but keeps the owned room in their feed. A
+non-owner uses **Leave and exit room**: this also removes their durable joined-room
+membership, so the room disappears from their feed. Neither action deletes a room.
+
 ## Current boundaries
 
 This milestone does not include posts unrelated to rooms, reactions, comments,
