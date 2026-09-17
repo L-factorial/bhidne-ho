@@ -107,6 +107,7 @@ const label = c => c.card_type === 'man' ? `Man · ${Number(c.card_id.slice(-1))
       assert.equal(await page.getByTestId('marriage-maal-spot').getAttribute('aria-label'), 'Maal hidden');
     }
     await one.getByRole('button', { name: /Take stock/ }).click();
+    await one.getByRole('button', { name: /^Confirm take stock / }).click();
     await one.getByText('Your cards · 22', { exact: true }).waitFor();
     const root = `/test-games/${room.room_id}`;
     const snap = await api(root, users[0]);
@@ -114,6 +115,7 @@ const label = c => c.card_type === 'man' ? `Man · ${Number(c.card_id.slice(-1))
     await one.getByRole('button', { name: label(card), exact: true }).click();
     await one.getByRole('button', { name: `Discard ${label(card)}`, exact: true }).click();
     await two.getByRole('button', { name: 'Take discard', exact: true }).click();
+    await two.getByRole('button', { name: 'Confirm take discard', exact: true }).click();
     await two.getByText('Your cards · 22', { exact: true }).waitFor();
     for (const page of pages) {
       await page.waitForFunction(() => window.__flights.length >= 3);

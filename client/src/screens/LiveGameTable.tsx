@@ -156,7 +156,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
       winnerPlayerId={reveal ? String(completedTrick?.winner) : undefined} activePlayerId={!reveal && game.turn.player_id ? String(game.turn.player_id) : ''} plays={(trick?.plays || []).map(play => ({ playerId: String(play.player_id), card: face(play.card) }))} />
     <View testID="central-turn-notice">
       {reveal && <Text accessibilityLiveRegion="polite" style={styles.status}>{playerName(completedTrick!.winner!)} wins trick {completedTrick!.trick_number}</Text>}
-      {showTurn && <TurnPulse personal={isTurn} text={isTurn ? 'Your turn' : `${playerName(game.turn.player_id!)}'s turn`} />}
+      {showTurn && (!mobile || !handAvailable) && <TurnPulse personal={isTurn} text={isTurn ? 'Your turn' : `${playerName(game.turn.player_id!)}'s turn`} />}
     </View>
     {!!pokeNotice && <Text accessibilityLiveRegion="polite" style={styles.meta}>{pokeNotice.text}</Text>}
 
@@ -179,7 +179,9 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
         </View>)}
       </View>}
     </View>}
-    {handAvailable && <MobileGameHand mobile={mobile} game="callbreak" keepMounted open={cards.open} onToggle={cards.toggle} myTurn={isTurn || !!mine?.can_accept_hand}>
+    {handAvailable && <MobileGameHand mobile={mobile} game="callbreak" keepMounted
+      header={showTurn ? <TurnPulse personal={isTurn} text={isTurn ? 'Your turn' : `${playerName(game.turn.player_id!)}'s turn`} /> : undefined}
+      open={cards.open} onToggle={cards.toggle} myTurn={isTurn || !!mine?.can_accept_hand}>
     <View testID="callbreak-hand-dock" style={[styles.handDock, mobile && { backgroundColor: 'transparent', borderTopWidth: 0, paddingHorizontal: 4 }]}>
     {game.phase === 'PLAYING' && !deal.tricks.some(trick => trick.complete || trick.plays.length) && !game.current_trick?.plays.length && <Text accessibilityLiveRegion="polite" style={styles.status}>Bidding complete. {isTurn ? 'You lead first.' : `${playerName(game.turn.player_id!)} leads first.`}</Text>}
     {game.phase === 'BIDDING' && <LiveBidPrompt key={`${snapshot.match_id}-${deal.deal_number}-${deal.attempt}`} snapshot={snapshot} revealed={revealedDeal === handDealKey} busy={busy} onAction={cards.act} />}

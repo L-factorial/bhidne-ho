@@ -165,6 +165,9 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onA
 
       {!!(localError || error) && <Text accessibilityRole="alert" style={s.error}>{localError || error}</Text>}
   </>;
+  const turnNotice = !!pub?.current_player_id && <TurnPulse personal={myTurn} text={myTurn
+    ? `Your turn · ${pub.pending_show ? 'Reveal or fold' : pub.pending_side_show ? 'Accept or decline side-show' : pub.status === 'awaiting_deal' ? 'Deal cards' : pub.status === 'awaiting_cut' ? 'Cut or skip' : 'Bet, show, or fold'}`
+    : `${name(pub.current_player_id)}’s turn`} />;
   return <View style={[s.page, mobile && { padding: 8, gap: 4 }]} testID="flush-table">
     <View style={s.mobileHeader} testID={mobile ? 'flush-mobile-header' : 'flush-header'}>
       <Pressable accessibilityRole="button" accessibilityLabel="Back to room" onPress={onBack} style={s.headerBack}>
@@ -188,9 +191,7 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onA
     <View style={s.mainColumn} testID="flush-main-column">
     {showFormation && <View testID="flush-formation-controls">{tableControl}</View>}
     {!wide && !mobile && <View style={s.tabs}>{button('Bet', () => setBetsOpen(true))}{button('Rules', () => setRulesOpen(true))}{!activeGame && !!snapshot.your_player_id && button('Poke the table', () => setPokeOpen(true), !social.connected)}</View>}
-    {!!pub?.current_player_id && <TurnPulse personal={myTurn} text={myTurn
-      ? `Your turn · ${pub.pending_show ? 'Reveal or fold' : pub.pending_side_show ? 'Accept or decline side-show' : pub.status === 'awaiting_deal' ? 'Deal cards' : pub.status === 'awaiting_cut' ? 'Cut or skip' : 'Bet, show, or fold'}`
-      : `${name(pub.current_player_id)}’s turn`} />}
+    {(!mobile || !mine || preparing || !!pub?.settlement) && turnNotice}
     <ScrollView style={s.playViewport} onLayout={e => {
       const { height } = e.nativeEvent.layout;
       setArenaHeight(Math.max(wide ? 370 : 280, Math.min(wide ? 560 : 370, height - 16)));
@@ -219,7 +220,7 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onA
     </>}
     {!!(localError || error) && <Text accessibilityRole="alert" style={s.error}>{localError || error}</Text>}
     </ScrollView>
-    {mine && !preparing && !pub?.settlement && <MobileFlushHand mobile={mobile} open={handOpen} onToggle={() => setHandOpen(v => !v)} myTurn={myTurn}>
+    {mine && !preparing && !pub?.settlement && <MobileFlushHand mobile={mobile} header={mobile ? turnNotice : undefined} open={handOpen} onToggle={() => setHandOpen(v => !v)} myTurn={myTurn}>
     <View style={[s.handDock, wide && s.wideHandDock, mobile && { borderTopWidth: 0 }]} testID="flush-hand-dock">
       <View style={wide && s.handCards}>
       {!mobile && <View style={s.row}><Text style={s.title}>Your cards</Text></View>}

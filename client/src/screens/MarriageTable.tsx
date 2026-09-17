@@ -39,6 +39,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const [hintsOpen, setHintsOpen] = useState(false);
   const [preview, setPreview] = useState(false);
   const [finishPreview, setFinishPreview] = useState(false);
+  const [pendingDraw, setPendingDraw] = useState<'discard' | 'stock' | null>(null);
   const [shownPlayer, setShownPlayer] = useState<string | null>(null);
   const previousShown = useRef<string[] | null>(null);
   const showOpacity = useRef(new Animated.Value(0)).current;
@@ -145,12 +146,14 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
     text={isTurn ? `Your turn · ${turnInstruction}` : `${name(pub.current_player_id)}’s turn`} />;
   const canDraw = !busy && allRevealed && activeGame;
   const mobileHandHeader = <View testID="marriage-hand-header" style={{ backgroundColor: colors.surface, padding: 8, gap: 8 }}>
-    {!allRevealed ? button('Reveal all cards', () => { reveal(true); cards.setOpen(true); }, busy) : isTurn && pub?.phase === 'must_draw' && <View style={s.row}>
-      {button('Take discard', () => cards.act('DRAW_CARD', { source: 'discard' }), !canDraw || !actions?.drawable_sources.includes('discard'))}
-      {button(`Take stock ${pub.stock_count}`, () => cards.act('DRAW_CARD', { source: 'stock' }), !canDraw || !actions?.drawable_sources.includes('stock'))}
+    {turnPrompt}
+    {!allRevealed ? button('Reveal all cards', () => { reveal(true); cards.setOpen(true); }, busy) : isTurn && pub?.phase === 'must_draw' && <View style={s.drawRow}>
+      <DrawChoice label="Take discard" card={pub.top_discard} disabled={!canDraw || !actions?.drawable_sources.includes('discard')}
+        confirming={pendingDraw === 'discard'} select={() => setPendingDraw('discard')} cancel={() => setPendingDraw(null)} confirm={() => { setPendingDraw(null); cards.act('DRAW_CARD', { source: 'discard' }); }} />
+      <DrawChoice label={`Take stock ${pub.stock_count}`} stock disabled={!canDraw || !actions?.drawable_sources.includes('stock')}
+        confirming={pendingDraw === 'stock'} select={() => setPendingDraw('stock')} cancel={() => setPendingDraw(null)} confirm={() => { setPendingDraw(null); cards.act('DRAW_CARD', { source: 'stock' }); }} />
     </View>}
     {hintsButton}
-    {turnPrompt}
   </View>;
   return <View style={s.page} testID="marriage-table">
     <GameTableHeader title="Marriage" path={snapshot.path} game="marriage" onBack={onBack} endControl={endControl}>
@@ -192,7 +195,6 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       {actions?.kinds.includes('finish') && button('Finish round', () => normalFinish ? setFinishPreview(true) : cards.act('FINISH'), !canAct)}
       <View style={s.row}><Text style={s.heading}>Your cards · {availableHand.length}</Text>{allRevealed && button(hidden ? 'Show cards' : 'Hide cards', () => { setHidden(v => !v); setSelected([]); })}</View>
       {allRevealed && <View testID="marriage-hand-piles" style={s.handPiles}>
-        <HandPile label="Discard" card={pub.top_discard} />
         <HandPile label="Maal · hold to peek" card={hidden ? null : mine.maal?.tiplu} concealed holdToPeek />
       </View>}
       {!mobile && hintsButton}
@@ -343,6 +345,29 @@ function HandPile({ label, card, concealed = false, holdToPeek = false }: {
   </View>;
 }
 
+function DrawChoice({ label, card, stock = false, disabled, confirming, select, cancel, confirm }: {
+  label: string; card?: { rank: number | null; suit: string | null } | null; stock?: boolean; disabled: boolean;
+  confirming: boolean; select: () => void; cancel: () => void; confirm: () => void;
+}) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
+  return <View style={s.drawChoice}>
+    <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled} accessibilityState={{ disabled }} onPress={select} style={[s.button, disabled && s.disabled]}>
+      <ActionCue active={!disabled} style={s.buttonText}>{label}</ActionCue>
+    </Pressable>
+    <View accessibilityLabel={stock ? 'Stock deck' : card ? `Discard ${marriageFace(card)}` : 'Discard pile empty'} style={[s.handPileCard, stock && s.cardBack]}>
+      {stock ? <MarriageCardBack /> : card ? <Text style={[s.face, { color: card.suit === 'H' || card.suit === 'D' ? colors.cardRed : card.suit === 'C' ? colors.cardClub : colors.cardInk }]}>{marriageFace(card)}</Text> : <Text style={s.small}>—</Text>}
+    </View>
+    {confirming && <View testID={`confirm-${stock ? 'stock' : 'discard'}-draw`} style={s.drawConfirmation}>
+      <Text style={s.small}>Take this {stock ? 'deck card' : 'discard'}?</Text>
+      <View style={s.row}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Confirm ${label.toLowerCase()}`} onPress={confirm} style={s.confirmButton}><Text style={s.buttonText}>Confirm</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Cancel ${label.toLowerCase()}`} onPress={cancel} style={s.button}><Text style={s.buttonText}>Cancel</Text></Pressable>
+      </View>
+    </View>}
+  </View>;
+}
+
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   shownOverlay: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 60, alignItems: 'center', justifyContent: 'center', padding: 16 },
   shownCards: { width: '100%', maxWidth: 620, maxHeight: '85%', padding: 14, gap: 12, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.cardBorder, overflow: 'hidden' },
@@ -363,6 +388,8 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   piles: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 24, minHeight: 130 }, pileFace: { fontSize: 32, backgroundColor: colors.cardFace, color: colors.cardRed, borderRadius: 8, padding: 14 },
   hand: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, position: 'relative', paddingVertical: 6 }, card: { width: 49, height: 78, borderRadius: 7, borderWidth: 2, borderColor: colors.cardBorder, backgroundColor: colors.cardFace, alignItems: 'center', justifyContent: 'center', gap: 3 },
   handPiles: { minHeight: 94, flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-start', gap: 28, paddingVertical: 4 },
+  drawRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: 16, zIndex: 30 }, drawChoice: { position: 'relative', flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 30 },
+  drawConfirmation: { position: 'absolute', zIndex: 60, top: 82, left: 0, minWidth: 190, padding: 10, gap: 8, borderRadius: 10, borderWidth: 2, borderColor: colors.cardSelectedBorder, backgroundColor: colors.surface, boxShadow: '0px 5px 16px rgba(0,0,0,0.3)' },
   handPile: { alignItems: 'center', gap: 4 }, handPileCard: { width: 52, height: 72, borderRadius: 7, borderWidth: 2, borderColor: colors.cardBorder, backgroundColor: colors.cardFace, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   discardConfirm: { position: 'absolute', zIndex: 50, width: 108, minHeight: 142, left: -28, top: -42, padding: 8, gap: 6, borderRadius: 12, borderWidth: 2, borderColor: colors.cardSelectedBorder, backgroundColor: colors.surface, alignItems: 'center', boxShadow: '0px 5px 16px rgba(0,0,0,0.3)' },
   confirmCard: { width: 52, height: 72, borderRadius: 7, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.cardFace, alignItems: 'center', justifyContent: 'center' }, confirmButton: { minHeight: 40, paddingHorizontal: 8, borderRadius: 8, backgroundColor: colors.surfaceSelected, justifyContent: 'center' },

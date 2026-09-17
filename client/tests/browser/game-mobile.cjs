@@ -98,6 +98,7 @@ async function pulse(locator) {
         await stock.click({ trial: true });
         await actor.screenshot({ path: process.env.TEMP + '/marriage-mobile-draw.png' });
         await actor.getByRole('button', { name: /^Take stock / }).click();
+        await actor.getByRole('button', { name: /^Confirm take stock / }).click();
         await stateWhen(s => s.marriage.public.phase === 'must_discard');
         await button(actor, 'Expand your card area').click();
         await button(actor, 'Collapse your card area').waitFor();
