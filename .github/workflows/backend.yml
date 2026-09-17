@@ -12,6 +12,9 @@ jobs:
   deploy:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    environment:
+      name: test
+      url: https://api-bhidne-ho.lfactorial.com
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6

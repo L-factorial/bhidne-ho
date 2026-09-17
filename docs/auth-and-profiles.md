@@ -36,6 +36,20 @@ PostgreSQL is reachable only on the Compose network and stores its files in the
 Running only `deploy/compose.yaml` does not start PostgreSQL or set `DATABASE_URL`;
 that is the safe, in-memory mode used by the current automatic test deployment.
 
+## GitHub test environment
+
+The backend workflow targets the GitHub environment `test`. Before enabling its
+PostgreSQL Compose override, create this environment-scoped Actions secret:
+
+```text
+BHIDNE_HO_POSTGRES_PASSWORD
+```
+
+Generate a URL-safe value with `openssl rand -hex 32`. Do not commit the value or
+place it in a repository-level variable. The initial environment-only deployment
+continues using in-memory authentication until the workflow is explicitly changed
+to consume this secret and start `compose.postgres.yaml`.
+
 ## Moving PostgreSQL out of Docker
 
 Provision PostgreSQL with TLS, backups, and a least-privilege application user, then
