@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import type { RoomPoke } from '../multiplayer/pokes';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
@@ -38,6 +38,7 @@ function PokeBubble({ poke, reduceMotion }: { poke: RoomPoke; reduceMotion: bool
 
 export function PokeOverlay({ pokes, matchId }: { pokes: RoomPoke[]; matchId?: string }) {
   const styles = useThemedStyles(createStyles);
+  const compact = useWindowDimensions().width < 900;
   const [reduceMotion, setReduceMotion] = useState(false);
   useEffect(() => {
     let alive = true;
@@ -45,14 +46,18 @@ export function PokeOverlay({ pokes, matchId }: { pokes: RoomPoke[]; matchId?: s
     const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
     return () => { alive = false; subscription.remove(); };
   }, []);
-  return <View pointerEvents="none" style={styles.overlay}>
-    {pokes.filter(poke => poke.match_id === matchId && poke.expires_at > Date.now()).map(poke =>
+  const visible = pokes.filter(poke => poke.match_id === matchId && poke.expires_at > Date.now()).slice(-2);
+  return <View pointerEvents="none" testID="poke-overlay" style={[styles.overlay, compact && styles.compactOverlay]}>
+    {visible.map(poke =>
       <PokeBubble key={poke.id} poke={poke} reduceMotion={reduceMotion} />)}
   </View>;
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  overlay: { position: 'absolute', top: 82, left: 12, right: 12, zIndex: 40, alignItems: 'center', gap: 8 },
+  // Keep table talk in the play surface. Mobile card drawers use zIndex 30,
+  // so an expanded hand always covers this layer instead of being obscured by it.
+  overlay: { position: 'absolute', top: '38%', left: 12, right: 12, zIndex: 24, alignItems: 'center', gap: 8 },
+  compactOverlay: { top: '32%', left: 8, right: 8 },
   bubble: { width: '100%', maxWidth: 350, borderRadius: 20, borderWidth: 2, borderColor: colors.accent,
     backgroundColor: colors.surfaceSelected, paddingHorizontal: 20, paddingVertical: 16, overflow: 'hidden',
     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.16)' },
