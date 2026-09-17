@@ -27,7 +27,7 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
   const insets = useSafeAreaInsets();
   const wide = useWindowDimensions().width >= 900;
   const [roomToolsOpen, setRoomToolsOpen] = useState(false);
-  const [roomsOpen, setRoomsOpen] = useState(false);
+  const [roomsOpen, setRoomsOpen] = useState(true);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
   const [form, setForm] = useState<'create' | 'join'>('create');
@@ -35,8 +35,7 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
   const [preview, setPreview] = useState(false);
   const [previewSize, setPreviewSize] = useState<4 | 5>(4);
   const [linkedMatch, setLinkedMatch] = useState<string>();
-  const [guestName, setGuestName] = useState('');
-  const [authMode, setAuthMode] = useState<'signin' | 'signup' | 'guest'>('guest');
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const shared = useRoomSession();
@@ -174,24 +173,15 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
       </> : <>
         <Image source={branding.background} accessibilityLabel="Play. Connect. Bhidne Ho!" resizeMode="contain" style={{ width: '100%', maxWidth: 415, aspectRatio: 415 / 182, alignSelf: 'center', marginTop: 20, borderRadius: 16 }} />
         {!session && <View style={styles.panel}>
-          <Text style={styles.sectionTitle}>{authMode === 'signup' ? 'Create your account' : authMode === 'signin' ? 'Welcome back' : 'Play as a guest'}</Text>
+          <Text style={styles.sectionTitle}>{authMode === 'signup' ? 'Create your account' : 'Welcome back'}</Text>
           <View style={styles.gameTabs}>
-            {([['signin', 'Sign in'], ['signup', 'Sign up'], ['guest', 'Guest']] as const).map(([value, label]) =>
+            {([['signin', 'Sign in'], ['signup', 'Sign up']] as const).map(([value, label]) =>
               <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: authMode === value }}
                 onPress={() => { setAuthMode(value); setError(''); }} style={[styles.gameTab, authMode === value && styles.selectedTab]}>
                 <Text style={[styles.tabText, authMode === value && styles.selectedTabText]}>{label}</Text>
               </Pressable>)}
           </View>
-          {authMode === 'guest' ? <>
-            <Text style={styles.subtitle}>Choose the display name other players will see. Guest access can be lost if its session expires.</Text>
-            <TextInput accessibilityLabel="Guest display name" placeholder="Your display name" placeholderTextColor={colors.textMuted}
-              value={guestName} onChangeText={setGuestName} maxLength={25} editable={!shared.loggingIn}
-              style={styles.input} returnKeyType="go" onSubmitEditing={() => { if (guestName.trim()) void shared.loginGuest(guestName); }} />
-            <Pressable accessibilityRole="button" disabled={!guestName.trim() || shared.loggingIn}
-              onPress={() => void shared.loginGuest(guestName)} style={[styles.button, (!guestName.trim() || shared.loggingIn) && styles.disabled]}>
-              <Text style={styles.buttonText}>{shared.loggingIn ? 'Signing in…' : 'Continue as guest'}</Text>
-            </Pressable>
-          </> : <>
+          <>
             <Text style={styles.subtitle}>{authMode === 'signup'
               ? 'Create an account so your identity and profile can follow you across sign-ins.'
               : 'Sign in with your Bhidne Ho username and password.'}</Text>
@@ -210,7 +200,7 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
               style={[styles.button, (username.trim().length < 3 || password.length < 8 || shared.loggingIn) && styles.disabled]}>
               <Text style={styles.buttonText}>{shared.loggingIn ? 'Please wait…' : authMode === 'signup' ? 'Create account' : 'Sign in'}</Text>
             </Pressable>
-          </>}
+          </>
           {!!shared.error && <Text accessibilityRole="alert" style={styles.subtitle}>{shared.error}</Text>}
         </View>}
         <View style={[styles.columns, { marginTop: 24 }]}>

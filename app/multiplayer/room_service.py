@@ -79,9 +79,11 @@ class RoomService:
                                               "visibility": "public", "created_at": None}
                 is_owner = bool(viewer_id and record["creator_id"] == viewer_id)
                 is_joined = (rid in joined or viewer_id in self._rooms.get(rid, set())) and not is_owner
-                if viewer_id and not is_owner and not is_joined:
+                is_friend = bool(viewer_id and record["creator_id"] and are_friends
+                                 and await are_friends(viewer_id, record["creator_id"]))
+                if viewer_id and not is_owner and not is_joined and not is_friend:
                     continue
-                source = "you" if is_owner else "joined" if is_joined else "public"
+                source = "you" if is_owner else "joined" if is_joined else "friend" if is_friend else "public"
                 output.append(RoomSummary(**record, members=sorted(self._rooms.get(rid, set())),
                                           feed_source=source))
             priority = {"you": 0, "joined": 1, "friend": 2, "public": 3}

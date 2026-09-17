@@ -47,7 +47,9 @@ def test_social_room_feed_and_friends_only_access():
         assert private_room["room_id"] not in room_ids(client, friend_headers)
         client.post(f"/friends/requests/{owner['user_id']}/accept", headers=friend_headers)
 
-        assert private_room["room_id"] not in room_ids(client, friend_headers)
+        friend_feed = client.get("/rooms", headers=friend_headers).json()
+        friend_item = next(room for room in friend_feed if room["room_id"] == private_room["room_id"])
+        assert friend_item["feed_source"] == "friend"
         assert client.post(f"/rooms/{private_room['room_id']}/enter", headers=friend_headers).status_code == 200
         joined_item = next(room for room in client.get("/rooms", headers=friend_headers).json()
                            if room["room_id"] == private_room["room_id"])

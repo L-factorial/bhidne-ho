@@ -167,6 +167,9 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onA
   </>;
   return <View style={[s.page, mobile && { padding: 8, gap: 4 }]} testID="flush-table">
     <View style={s.mobileHeader} testID={mobile ? 'flush-mobile-header' : 'flush-header'}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Back to room" onPress={onBack} style={s.headerBack}>
+        <Text style={s.text}>{mobile ? '← Room' : 'Back to room'}</Text>
+      </Pressable>
       {!!snapshot.path && <Text numberOfLines={1} style={[s.text, { fontSize: 11, opacity: 0.65 }]}>{snapshot.path}</Text>}
       <BrandIcon size={mobile ? 30 : 48} /><Text accessibilityRole="header" style={[s.title, { flex: 1 }, mobile && { fontSize: 17 }]}>Flush</Text>
       <Pressable accessibilityRole="button" accessibilityLabel="Table menu" accessibilityState={{ expanded: menuOpen }} onPress={() => setMenuOpen(v => !v)} style={s.menuToggle}>
@@ -303,6 +306,7 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onA
 
 const styles = (c: ThemeColors) => StyleSheet.create({
   mobileHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, borderBottomWidth: 1, borderColor: c.border, paddingBottom: 4 },
+  headerBack: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8, borderRadius: 8, backgroundColor: c.surfaceRaised },
   menuToggle: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   menuLine: { width: 22, height: 2, borderRadius: 1, backgroundColor: c.text },
   page: { flex: 1, padding: 12, gap: 8, backgroundColor: c.background },
