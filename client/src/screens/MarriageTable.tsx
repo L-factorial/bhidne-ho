@@ -87,7 +87,9 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const canAct = !busy && !hidden && allRevealed && snapshot.status === 'playing';
   const name = (id: string | null) => snapshot.players?.find(p => String(p.player_id) === id)?.display_name || `Player ${id}`;
   const isTurn = !!mine && mine.player_id === pub?.current_player_id;
-  const cards = useMobileCards({ mobile, busy, error, onAction });
+  const promptKey = mine && snapshot.status === 'playing' && isTurn
+    ? `${snapshot.match_id}:${pub?.phase}:${pub?.current_player_id}:${pub?.revision}` : null;
+  const cards = useMobileCards({ mobile, busy, error, promptKey, onAction });
   const activeGame = snapshot.status === 'playing';
   const normalFinish = actions?.normal_finish;
   useEffect(() => {

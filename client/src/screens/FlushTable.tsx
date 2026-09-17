@@ -119,6 +119,9 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onA
   const [flippedAll, setFlippedAll] = useState(false);
   const [resultOpen, setResultOpen] = useState(false);
   const comparisonOpen = !!comparison && comparison.revision > acknowledged;
+  const decisionKey = myTurn && !preparing
+    ? `${snapshot.match_id}:${pub?.round_number}:${pub?.current_player_id}:${pub?.status}:${pub?.pending_show?.target_id || ''}:${pub?.pending_side_show?.revision || ''}` : null;
+  useEffect(() => { if (mobile && decisionKey) setHandOpen(false); }, [mobile, decisionKey]);
   useEffect(() => { if (comparisonOpen) setHandOpen(true); }, [comparisonOpen, comparison?.revision]);
   useEffect(() => { setFlippedAll(false); setResultOpen(false); }, [comparison?.revision]);
   useEffect(() => { if (!flippedAll) return; const timer = setTimeout(() => setResultOpen(true), 400); return () => clearTimeout(timer); }, [flippedAll]);
@@ -130,8 +133,14 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onA
 
   const name = (id: string) => snapshot.players?.find(p => String(p.player_id) === id)?.display_name || `Player ${id}`;
   const can = (kind: string) => !busy && snapshot.status === 'playing' && !!mine?.actions.kinds.includes(kind);
-  const button = (label: string, action: () => void, disabled = false) => <Pressable accessibilityRole="button" accessibilityLabel={label}
-    disabled={disabled} accessibilityState={{ disabled }} onPress={action} style={[s.button, disabled && { opacity: 0.45 }]}>{['Deal cards', 'Cut in half', 'Skip cut'].includes(label) ? <ActionCue active={!disabled && !busy} style={s.text}>{label}</ActionCue> : <Text style={s.text}>{label}</Text>}</Pressable>;
+  const button = (label: string, action: () => void, disabled = false) => {
+    const attention = ['Deal cards', 'Cut in half', 'Skip cut', 'Reveal cards', 'Fold', 'See cards', 'Accept side-show', 'Decline side-show'].includes(label)
+      || label.startsWith('Bet ') || label.startsWith('Show ·') || label === 'Request side-show';
+    return <Pressable accessibilityRole="button" accessibilityLabel={label}
+      disabled={disabled} accessibilityState={{ disabled }} onPress={action} style={[s.button, disabled && { opacity: 0.45 }]}>
+      {attention ? <ActionCue active={!disabled && !busy} style={s.text}>{label}</ActionCue> : <Text style={s.text}>{label}</Text>}
+    </Pressable>;
+  };
   const preparationControl = activeGame && preparing && myTurn ? <View testID="flush-center-preparation" style={{ gap: 8, alignItems: 'center' }}>
     {mine?.actions.kinds.includes('deal_cards') && button('Deal cards', () => act('DEAL_CARDS'), !can('deal_cards'))}
     {mine?.actions.kinds.includes('cut_deck') && button('Cut in half', () => act('CUT_DECK', { position: 26 }), !can('cut_deck'))}

@@ -64,7 +64,9 @@ async function pulse(locator) {
         }
         for (let i = 0; i < users.length; i++) {
           state = await stateWhen(s => s.game.phase === 'BIDDING' && s.deal.players.filter(p => p.bid !== null).length === i);
-          await button(pages[state.game.turn.player_id - 1], 'Confirm bid').click();
+          const bidder = pages[state.game.turn.player_id - 1];
+          await button(bidder, 'Expand your card area').click();
+          await button(bidder, 'Confirm bid').click();
         }
         state = await stateWhen(s => s.game.phase === 'PLAYING');
       } else {
@@ -77,6 +79,7 @@ async function pulse(locator) {
       state = await api(root, users[0]);
       const actorIndex = Number(kind === 'marriage' ? state.marriage.public.current_player_id : state.game.turn.player_id) - 1;
       const actor = pages[actorIndex];
+      if (await button(actor, 'Expand your card area').isVisible()) await pulse(actor.getByTestId(`${kind}-hand-attention`));
       if (await button(actor, 'Expand your card area').isVisible()) await button(actor, 'Expand your card area').click();
       await button(actor, 'Collapse your card area').waitFor();
       const dock = actor.getByTestId(`${kind}-hand-dock`);
@@ -96,6 +99,7 @@ async function pulse(locator) {
         await actor.screenshot({ path: process.env.TEMP + '/marriage-mobile-draw.png' });
         await actor.getByRole('button', { name: /^Take stock / }).click();
         await stateWhen(s => s.marriage.public.phase === 'must_discard');
+        await button(actor, 'Expand your card area').click();
         await button(actor, 'Collapse your card area').waitFor();
         await button(actor, 'Show cards').click();
         await actor.getByTestId('marriage-hand').getByRole('button').first().click();

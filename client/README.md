@@ -505,8 +505,9 @@ Shuffling is part of Deal cards; there is no separate shuffle action.
 Invitation copying stays in the room. Paused chat and its reserved space are hidden.
 The bottom **Your card area** bar expands like a social-app message sheet over the
 fixed header and table, with a dimmed dismissible backdrop, solid cards, and action
-buttons. When collapsed, only the dock label is visible. Normal access opens only
-when the player taps the dock. Confirmed bets/show/fold actions collapse it, rejected actions keep
+buttons. When collapsed, only the dock label is visible. A new private decision
+collapses and pulses the dock with “Action needed”; the player taps it to open.
+Confirmed bets/show/fold actions collapse it, rejected actions keep
 it open, and seeing or peeking at cards leaves it open. Private side-show results
 reopen it. Desktop Flush retains its table and cards layout; other games are unchanged.
 
@@ -529,11 +530,9 @@ controls pulse when eligible. Existing seat, rule-approval and replacement rules
 still govern every action.
 
 Mobile **Your card area** expands over the fixed header/table viewport and preserves revealed cards and hand
-view choices when collapsed. It remains user-controlled and collapses
-after a confirmed bid, played card, accepted hand, Marriage discard or finish.
-Rejections stay visible. Marriage draws, meld checks and local card manipulation
-keep the panel open for the rest of the turn. Marriage starts with Your card area
-collapsed on mobile and keeps it open after drawing. Its reveal/draw controls
+view choices when collapsed. Each new bid, play, draw, or discard decision collapses
+and pulses the dock. It also collapses after a confirmed action. Rejections stay
+visible. Marriage starts with Your card area collapsed on mobile. Its reveal/draw controls
 are inside the expanded sheet, so the collapsed dock remains label-only. Table and private pokes are available
 only inside Your card area during active play. Desktop keeps its permanent hand and
 Call Break statistics sidebar.
