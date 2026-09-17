@@ -31,6 +31,11 @@ async def room_socket(websocket: WebSocket, room_id: str) -> None:
     if re.fullmatch(r"[A-Za-z0-9_-]{1,64}", room_id) is None:
         await websocket.close(code=1008)
         return
+    if not await websocket.app.state.rooms.can_enter(
+        room_id, identity.user_id, websocket.app.state.players.are_friends,
+    ):
+        await websocket.close(code=1008, reason="This room is for the creator's friends")
+        return
 
     connections = websocket.app.state.connections
     runtime = websocket.app.state.runtime

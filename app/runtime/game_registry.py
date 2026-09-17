@@ -47,3 +47,6 @@ class GameRegistry:
 
     def clear(self) -> None:
         self._games.clear()
+
+    def remove(self, room_id: str) -> None:
+        self._games.pop(room_id, None)

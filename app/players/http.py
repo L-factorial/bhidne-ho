@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 
 from app.models.chat import ChatInput
 from app.models.user import UserIdentity
-from app.players.models import DirectMessage, FriendshipSnapshot, PlayerSummary
+from app.players.models import DirectMessage, FriendNotification, FriendshipSnapshot, PlayerSummary
 from app.players.service import (
     DirectMessageRateLimited, FriendshipConflict, FriendshipDenied, PlayerNotFound,
 )
@@ -46,6 +46,17 @@ async def accept_friend(requester_id: str, request: Request, user: UserIdentity 
 async def remove_friend(other_id: str, request: Request, user: UserIdentity = Depends(current_user)):
     try: await request.app.state.players.remove(user.user_id, other_id)
     except (PlayerNotFound, FriendshipConflict) as error: raise translate(error) from None
+
+
+@router.get("/notifications", response_model=list[FriendNotification])
+async def notifications(request: Request, response: Response, user: UserIdentity = Depends(current_user)):
+    response.headers["Cache-Control"] = "no-store"
+    return await request.app.state.players.notifications(user.user_id)
+
+
+@router.post("/notifications/read", status_code=204)
+async def read_notifications(request: Request, user: UserIdentity = Depends(current_user)):
+    await request.app.state.players.read_notifications(user.user_id)
 
 
 @router.get("/friends/{friend_id}/messages", response_model=list[DirectMessage])

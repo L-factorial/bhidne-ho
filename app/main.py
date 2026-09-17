@@ -16,6 +16,7 @@ from app.multiplayer.connection_manager import ConnectionManager
 from app.multiplayer.lifecycle import RoomLifecycle
 from app.multiplayer.presence import PresenceService
 from app.multiplayer.room_service import RoomService
+from app.multiplayer.room_catalog import PostgresRoomCatalog
 from app.multiplayer.room_chat import RoomChatService
 from app.multiplayer.participation import GameParticipation
 from app.multiplayer.room_pokes import RoomPokeService
@@ -43,7 +44,7 @@ def create_app() -> FastAPI:
         if database:
             await database.open()
         guests = PostgresAuthService(database.pool) if database else InMemoryAuthService()
-        rooms = RoomService()
+        rooms = RoomService(PostgresRoomCatalog(database.pool) if database else None)
         connections = ConnectionManager(rooms)
         app.state.guests = guests
         app.state.auth = guests
@@ -74,7 +75,7 @@ def create_app() -> FastAPI:
         app.state.provision_room = provision_room
         app.state.runtime = GameRuntime(connections, registry)
         app.state.test_games = TestGameService(rooms, connections, command_runtime=app.state.runtime.commands, profiles=app.state.player_profiles, round_summary_seconds=8)
-        app.state.lifecycle = RoomLifecycle(rooms, connections, app.state.test_games)
+        app.state.lifecycle = RoomLifecycle(rooms, connections, app.state.test_games, app.state.players)
         app.state.participation = GameParticipation(app.state.test_games)
         app.state.room_chat = RoomChatService(rooms, app.state.player_profiles, app.state.participation)
         try:

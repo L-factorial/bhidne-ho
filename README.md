@@ -402,8 +402,12 @@ Additional API endpoints:
 | `POST /auth/signup` | Create a test account with `{username, password}`; returns `{username, user_id, token}` |
 | `POST /auth/signin` | Issue a new session for an existing account |
 | `GET /auth/me` | Resolve the current bearer token |
-| `POST /rooms` | Create an empty named room with `{name}` |
-| `GET /rooms` | List created and currently active rooms, including connected member IDs |
+| `POST /rooms` | Create a room with `{name, visibility}`; visibility is `public` or `friends` |
+| `GET /rooms` | The signed-in player's created and joined rooms, with live presence |
+| `DELETE /rooms/{room_id}` | Owner-only deletion of a room, memberships, and active tables |
+
+See [social room feed and visibility](docs/social-room-feed.md) for the access rules,
+PostgreSQL schema, persistence boundary, and current limitations.
 
 The last three endpoints require `Authorization: Bearer <token>`. Both account and
 guest tokens work for rooms and WebSockets. Joining remains a WebSocket operation;

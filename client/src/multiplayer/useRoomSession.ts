@@ -77,8 +77,11 @@ export function useRoomSession() {
     const transport = new RoomConnection(
       `${apiUrl.replace(/^http/, 'ws')}/ws/rooms/${encodeURIComponent(room.room_id)}?token=${encodeURIComponent(session.token)}&heartbeat=1&resume=1`,
       setStatus, undefined, message => {
-        if ((message as { type?: string })?.type === 'ROOM_LEFT') {
+      if ((message as { type?: string })?.type === 'ROOM_LEFT') {
           setRoom(null); setGame(null); setLeaveGameRequired(null); return;
+        }
+        if ((message as { type?: string })?.type === 'ROOM_DELETED') {
+          setRoom(null); setGame(null); setLeaveGameRequired(null); setError('This room was deleted by its owner.'); return;
         }
         const poke = readPoke(message, room.room_id, session.user_id);
         if (poke) setPokes(current => appendPoke(current, poke));
@@ -122,6 +125,18 @@ export function useRoomSession() {
     if (session && !expired) saveSession(apiUrl, { session, room: null, game: null });
     return true;
   }
+  async function deleteRoom() {
+    if (!room || !session || expired) return false;
+    try {
+      await request(`/rooms/${encodeURIComponent(room.room_id)}`, session, undefined, undefined, 'DELETE');
+      connection.current?.stop(); setStatus('disconnected'); setRoom(null); setGame(null); setError('');
+      saveSession(apiUrl, { session, room: null, game: null });
+      return true;
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Could not delete the room.');
+      return false;
+    }
+  }
   async function leaveGameAndRoom() {
     if (!room || !session || !leaveGameRequired) return false;
     try {
@@ -140,7 +155,7 @@ export function useRoomSession() {
       try { await request('/auth/signout', active, {}); } catch { /* Local sign-out still succeeds offline. */ }
     }
   }
-  return { loginGuest, loginAccount, loggingIn, session, room, rooms, game, setGame, joinRoom, leaveRoom, signOut, leaveGameRequired, leaveGameAndRoom, abandonRequired,
+  return { loginGuest, loginAccount, loggingIn, session, room, rooms, game, setGame, joinRoom, leaveRoom, deleteRoom, signOut, leaveGameRequired, leaveGameAndRoom, abandonRequired,
     cancelLeave: () => { setLeaveGameRequired(null); setError(''); }, status, expired, error, pokes,
     retry: () => { connection.current?.retryNow(); } };
 }

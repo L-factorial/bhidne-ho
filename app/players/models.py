@@ -19,3 +19,11 @@ class DirectMessage(BaseModel):
     recipient_id: str
     text: str
     sent_at: int
+
+
+class FriendNotification(BaseModel):
+    id: str
+    kind: str
+    actor: PlayerSummary
+    created_at: int
+    read: bool

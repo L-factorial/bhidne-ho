@@ -22,6 +22,9 @@ class PlayerSocialService:
     async def snapshot(self, user_id):
         return await self.store.snapshot(user_id)
 
+    async def are_friends(self, user_id, other_id):
+        return await self.store.are_friends(user_id, other_id)
+
     async def request_friend(self, user_id, target_id):
         if user_id == target_id:
             raise FriendshipConflict("You cannot send a friend request to yourself.")
@@ -32,6 +35,12 @@ class PlayerSocialService:
 
     async def remove(self, user_id, other_id):
         return await self.store.remove(user_id, other_id)
+
+    async def notifications(self, user_id):
+        return await self.store.notifications_for(user_id)
+
+    async def read_notifications(self, user_id):
+        return await self.store.read_notifications(user_id)
 
     async def history(self, user_id, friend_id):
         return await self.store.history(user_id, friend_id)

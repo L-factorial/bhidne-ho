@@ -84,7 +84,7 @@ async def sign_out(
 
 @router.get("/rooms", response_model=list[RoomSummary])
 async def list_rooms(request: Request, user: UserIdentity = Depends(current_user)):
-    rooms = await request.app.state.rooms.list_rooms()
+    rooms = await request.app.state.rooms.list_rooms(user.user_id, request.app.state.players.are_friends)
     for room in rooms:
         room.connected_members = await request.app.state.connections.connected_members(room.room_id)
     return rooms
@@ -92,7 +92,7 @@ async def list_rooms(request: Request, user: UserIdentity = Depends(current_user
 
 @router.post("/rooms", response_model=RoomSummary, status_code=201)
 async def create_room(body: CreateRoom, request: Request, user: UserIdentity = Depends(current_user)):
-    room = await request.app.state.rooms.create(body.name)
+    room = await request.app.state.rooms.create(body.name, user.user_id, body.visibility)
     request.app.state.provision_room(room.room_id)
     return room
 
@@ -106,6 +106,8 @@ async def memberships(request: Request, response: Response, user: UserIdentity =
 @router.get("/rooms/{room_id}")
 async def room_state(room_id: str, request: Request, response: Response, user: UserIdentity = Depends(current_user)):
     response.headers["Cache-Control"] = "no-store"
+    if not await request.app.state.rooms.can_enter(room_id, user.user_id, request.app.state.players.are_friends):
+        raise HTTPException(403, "This room is for the creator's friends.")
     return await request.app.state.lifecycle.snapshot(room_id, user.user_id)
 
 
@@ -114,6 +116,8 @@ async def enter_room(room_id: str, request: Request, user: UserIdentity = Depend
     import re
     if re.fullmatch(r"[A-Za-z0-9_-]{1,64}", room_id) is None:
         raise HTTPException(422, "Invalid room ID.")
+    if not await request.app.state.rooms.can_enter(room_id, user.user_id, request.app.state.players.are_friends):
+        raise HTTPException(403, "This room is for the creator's friends.")
     request.app.state.provision_room(room_id)
     return await request.app.state.lifecycle.enter(room_id, user.user_id)
 
@@ -121,3 +125,13 @@ async def enter_room(room_id: str, request: Request, user: UserIdentity = Depend
 @router.post("/rooms/{room_id}/leave")
 async def leave_room(room_id: str, request: Request, user: UserIdentity = Depends(current_user)):
     return await request.app.state.lifecycle.leave(room_id, user.user_id)
+
+
+@router.delete("/rooms/{room_id}", status_code=204)
+async def delete_room(room_id: str, request: Request, user: UserIdentity = Depends(current_user)):
+    room = await request.app.state.rooms.room(room_id)
+    if room is None:
+        raise HTTPException(404, "Room not found.")
+    if room["creator_id"] != user.user_id:
+        raise HTTPException(403, "Only the room owner can delete this room.")
+    await request.app.state.lifecycle.delete(room_id)

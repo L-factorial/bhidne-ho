@@ -20,7 +20,7 @@ def internal_id(value):
 class InMemoryPlayerStore:
     def __init__(self, profiles):
         self.profiles = profiles
-        self.users, self.usernames, self.friendships, self.messages = set(), {}, {}, []
+        self.users, self.usernames, self.friendships, self.messages, self.notifications = set(), {}, {}, [], []
 
     async def ensure_user(self, user_id): self.users.add(user_id)
 
@@ -56,14 +56,32 @@ class InMemoryPlayerStore:
         if not row or row != {"requested_by": requester_id, "status": "pending"}:
             raise FriendshipConflict("No incoming friend request from this player.")
         row["status"] = "accepted"
+        self.notifications.append({"id": uuid4().hex, "user_id": requester_id,
+            "kind": "friend_accepted", "actor": self.player(user_id),
+            "created_at": int(datetime.now(timezone.utc).timestamp() * 1000), "read": False})
         return self.player(requester_id)
 
     async def remove(self, user_id, other_id):
-        if self.friendships.pop(frozenset((user_id, other_id)), None) is None:
+        row = self.friendships.pop(frozenset((user_id, other_id)), None)
+        if row is None:
             raise FriendshipConflict("Friendship or request not found.")
+        if row["status"] == "pending" and row["requested_by"] == other_id:
+            self.notifications.append({"id": uuid4().hex, "user_id": other_id,
+                "kind": "friend_rejected", "actor": self.player(user_id),
+                "created_at": int(datetime.now(timezone.utc).timestamp() * 1000), "read": False})
+
+    async def notifications_for(self, user_id):
+        return [{key: value for key, value in item.items() if key != "user_id"}
+                for item in reversed(self.notifications) if item["user_id"] == user_id][:50]
+
+    async def read_notifications(self, user_id):
+        for item in self.notifications:
+            if item["user_id"] == user_id: item["read"] = True
 
     def accepted(self, user_id, friend_id):
         return self.friendships.get(frozenset((user_id, friend_id)), {}).get("status") == "accepted"
+
+    async def are_friends(self, user_id, friend_id): return self.accepted(user_id, friend_id)
 
     async def history(self, user_id, friend_id):
         if not self.accepted(user_id, friend_id): raise FriendshipDenied("Only friends can message each other.")
@@ -145,19 +163,49 @@ class PostgresPlayerStore:
         async with self.pool.connection() as connection:
             result = await connection.execute("UPDATE friendships SET status='accepted',updated_at=now() WHERE user_low=%s AND user_high=%s AND status='pending' AND requested_by=%s RETURNING user_low", (low, high, requester))
             if await result.fetchone() is None: raise FriendshipConflict("No incoming friend request from this player.")
+            await connection.execute("INSERT INTO friend_notifications (id,user_id,actor_id,kind) VALUES (%s,%s,%s,'friend_accepted')", (uuid4(), requester, current))
         return await self._get_player(requester_id)
 
     async def remove(self, user_id, other_id):
         current, other = internal_id(user_id), internal_id(other_id); low, high = sorted((current, other))
         async with self.pool.connection() as connection:
-            result = await connection.execute("DELETE FROM friendships WHERE user_low=%s AND user_high=%s RETURNING user_low", (low, high))
-            if await result.fetchone() is None: raise FriendshipConflict("Friendship or request not found.")
+            result = await connection.execute("DELETE FROM friendships WHERE user_low=%s AND user_high=%s RETURNING status,requested_by", (low, high))
+            row = await result.fetchone()
+            if row is None: raise FriendshipConflict("Friendship or request not found.")
+            if row[0] == "pending" and row[1] == other:
+                await connection.execute("INSERT INTO friend_notifications (id,user_id,actor_id,kind) VALUES (%s,%s,%s,'friend_rejected')", (uuid4(), other, current))
+
+    async def notifications_for(self, user_id):
+        async with self.pool.connection() as connection:
+            rows = await (await connection.execute("""
+                SELECT n.id,n.kind,u.id,p.display_name,a.username,
+                       extract(epoch from n.created_at)*1000,n.read_at IS NOT NULL
+                FROM friend_notifications n JOIN users u ON u.id=n.actor_id
+                JOIN user_profiles p ON p.user_id=u.id
+                LEFT JOIN account_credentials a ON a.user_id=u.id
+                WHERE n.user_id=%s ORDER BY n.created_at DESC LIMIT 50
+            """, (internal_id(user_id),))).fetchall()
+        return [{"id": str(row[0]), "kind": row[1],
+                 "actor": self.player((row[2], row[3], row[4])),
+                 "created_at": int(row[5]), "read": row[6]} for row in rows]
+
+    async def read_notifications(self, user_id):
+        async with self.pool.connection() as connection:
+            await connection.execute("UPDATE friend_notifications SET read_at=now() WHERE user_id=%s AND read_at IS NULL", (internal_id(user_id),))
 
     async def _require_friend(self, connection, user_id, friend_id):
         current, friend = internal_id(user_id), internal_id(friend_id); low, high = sorted((current, friend))
         row = await (await connection.execute("SELECT 1 FROM friendships WHERE user_low=%s AND user_high=%s AND status='accepted'", (low, high))).fetchone()
         if not row: raise FriendshipDenied("Only friends can message each other.")
         return current, friend
+
+    async def are_friends(self, user_id, friend_id):
+        try: current, friend = internal_id(user_id), internal_id(friend_id)
+        except PlayerNotFound: return False
+        low, high = sorted((current, friend))
+        async with self.pool.connection() as connection:
+            row = await (await connection.execute("SELECT 1 FROM friendships WHERE user_low=%s AND user_high=%s AND status='accepted'", (low, high))).fetchone()
+        return row is not None
 
     async def history(self, user_id, friend_id):
         async with self.pool.connection() as connection:

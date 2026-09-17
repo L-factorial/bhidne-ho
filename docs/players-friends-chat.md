@@ -13,6 +13,9 @@ accepted friends. This social layer is independent of rooms, seats, and game eng
    may cancel it.
 4. Accepted friends appear for both players. Either player may remove the friendship.
 5. Only accepted friends can read or send messages in their shared conversation.
+6. When a recipient accepts or declines a request, the requester receives a durable
+   notification. Canceling your own outgoing request and removing an existing friend
+   do not create outcome notifications.
 
 The first version has no blocks, group conversations, attachments, delivery/read
 receipts, push notifications, or presence disclosure. Direct messages are limited to
@@ -38,6 +41,15 @@ direct_messages (
   text          text,
   sent_at       timestamptz
 )
+
+friend_notifications (
+  id          uuid primary key,
+  user_id     uuid references users(id),
+  actor_id    uuid references users(id),
+  kind        text, -- friend_accepted | friend_rejected
+  created_at  timestamptz,
+  read_at     timestamptz null
+)
 ```
 
 The lower/higher UUID pair makes a friendship unique regardless of request direction.
@@ -61,6 +73,8 @@ Every endpoint requires `Authorization: Bearer <session token>`.
 | `DELETE /friends/{user_id}` | Decline, cancel, or remove |
 | `GET /friends/{user_id}/messages` | Read a friend conversation |
 | `POST /friends/{user_id}/messages` | Send `{ "text": "..." }` |
+| `GET /notifications` | Newest 50 friend-request outcome notifications |
+| `POST /notifications/read` | Mark the current user's notifications read |
 
 Friend/message responses use `Cache-Control: no-store`. Identity comes exclusively
 from the bearer session; request bodies cannot choose the sender. Invalid friendship

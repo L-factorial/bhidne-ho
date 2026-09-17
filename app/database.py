@@ -68,6 +68,36 @@ CREATE INDEX IF NOT EXISTS direct_messages_sender_recipient_time_idx
     ON direct_messages (sender_id, recipient_id, sent_at DESC);
 CREATE INDEX IF NOT EXISTS direct_messages_recipient_sender_time_idx
     ON direct_messages (recipient_id, sender_id, sent_at DESC);
+CREATE TABLE IF NOT EXISTS friend_notifications (
+    id uuid PRIMARY KEY,
+    user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    actor_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    kind text NOT NULL CHECK (kind IN ('friend_accepted', 'friend_rejected')),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    read_at timestamptz
+);
+CREATE INDEX IF NOT EXISTS friend_notifications_user_time_idx
+    ON friend_notifications(user_id, created_at DESC);
+CREATE TABLE IF NOT EXISTS rooms (
+    id text PRIMARY KEY,
+    creator_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 60),
+    visibility text NOT NULL CHECK (visibility IN ('public', 'friends')),
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS rooms_creator_time_idx ON rooms(creator_id, created_at DESC);
+CREATE TABLE IF NOT EXISTS room_memberships (
+    room_id text NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+    user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    joined_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (room_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS room_memberships_user_time_idx
+    ON room_memberships(user_id, joined_at DESC);
+CREATE TABLE IF NOT EXISTS deleted_rooms (
+    id text PRIMARY KEY,
+    deleted_at timestamptz NOT NULL DEFAULT now()
+);
 """
 
 

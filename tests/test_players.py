@@ -18,7 +18,7 @@ def test_player_search_friend_request_acceptance_and_removal():
     with TestClient(create_app()) as client:
         alice, ah = account(client, 'alice-friends', 'Alice Ace')
         bob, bh = account(client, 'bob-friends', 'Bob Buddy')
-        _, ch = account(client, 'carol-friends', 'Carol')
+        carol, ch = account(client, 'carol-friends', 'Carol')
 
         assert client.get('/players/search?q=a', headers=ah).status_code == 422
         results = client.get('/players/search?q=bob', headers=ah).json()
@@ -38,10 +38,25 @@ def test_player_search_friend_request_acceptance_and_removal():
         assert accepted.status_code == 200
         assert client.post(f"/friends/requests/{alice['user_id']}/accept", headers=bh).status_code == 409
         assert [p['user_id'] for p in client.get('/friends', headers=ah).json()['friends']] == [bob['user_id']]
+        accepted_notice = client.get('/notifications', headers=ah).json()
+        assert len(accepted_notice) == 1
+        assert accepted_notice[0]['kind'] == 'friend_accepted'
+        assert accepted_notice[0]['actor']['user_id'] == bob['user_id']
+        assert accepted_notice[0]['read'] is False
+        assert client.post('/notifications/read', headers=ah).status_code == 204
+        assert client.get('/notifications', headers=ah).json()[0]['read'] is True
 
         assert client.delete(f"/friends/{bob['user_id']}", headers=ah).status_code == 204
         assert client.get('/friends', headers=ah).json()['friends'] == []
         assert client.delete(f"/friends/{bob['user_id']}", headers=ah).status_code == 409
+
+        # A declined incoming request notifies its sender; canceling your own does not.
+        assert client.post(f"/friends/requests/{alice['user_id']}", headers=ch).status_code == 201
+        assert client.delete(f"/friends/{carol['user_id']}", headers=ah).status_code == 204
+        rejected_notice = client.get('/notifications', headers=ch).json()
+        assert len(rejected_notice) == 1
+        assert rejected_notice[0]['kind'] == 'friend_rejected'
+        assert rejected_notice[0]['actor']['user_id'] == alice['user_id']
 
 
 def test_direct_messages_are_private_friend_only_validated_and_rate_limited():

@@ -15,6 +15,7 @@ import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { ProfileScreen } from './ProfileScreen';
 import { usePlayerPhrases } from '../multiplayer/usePlayerPhrases';
 import { RoomGameControl } from '../components/RoomGameControl';
+import { FriendsPanel } from '../components/FriendsPanel';
 
 import { apiUrl, request } from '../multiplayer/api';
 import type { Room } from '../multiplayer/session';
@@ -47,9 +48,11 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
   }, [room?.room_id]);
   const personal = usePlayerPhrases(session, !!session && !expired);
   const [name, setName] = useState('');
+  const [visibility, setVisibility] = useState<'public' | 'friends'>('public');
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [deleteConfirming, setDeleteConfirming] = useState(false);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   async function leaveRoom() {
@@ -64,7 +67,7 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
     if (!name.trim()) { setError('Enter a room name.'); return; }
     setBusy(true); setError('');
     try {
-      const created = await request<Room>('/rooms', session, { name: name.trim() });
+      const created = await request<Room>('/rooms', session, { name: name.trim(), visibility });
       if (!mounted.current) return;
       setName(''); joinRoom(created);
     } catch (error) { if (mounted.current) setError(error instanceof Error ? error.message : 'Could not create room.'); }
@@ -134,6 +137,17 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
               <Text style={styles.description}>Friends enter the code on the room list, then take a seat to play.</Text>
               </View>}
             </View>
+            {room.creator_id === session?.user_id && <View style={styles.panel}>
+              <Text style={styles.sectionTitle}>Room owner controls</Text>
+              <Text style={styles.description}>Deleting closes this room and all of its active tables for everyone.</Text>
+              {deleteConfirming ? <>
+                <Text accessibilityRole="alert" style={styles.description}>Are you sure? This cannot be undone.</Text>
+                <View style={styles.gameTabs}>
+                  <Pressable accessibilityRole="button" onPress={() => setDeleteConfirming(false)} style={styles.gameTab}><Text style={styles.tabText}>Cancel</Text></Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Confirm delete room" onPress={() => { void shared.deleteRoom(); }} style={styles.dangerButton}><Text style={styles.dangerText}>Delete permanently</Text></Pressable>
+                </View>
+              </> : <Pressable accessibilityRole="button" accessibilityLabel="Delete room" onPress={() => setDeleteConfirming(true)} style={styles.dangerButton}><Text style={styles.dangerText}>Delete room</Text></Pressable>}
+            </View>}
             <View style={styles.panel}>
               <Pressable accessibilityRole="button" accessibilityLabel="Currently in the room" aria-expanded={membersOpen} accessibilityState={{ expanded: membersOpen }} onPress={() => setMembersOpen(value => !value)} style={styles.sectionToggle}>
                 <Text style={styles.sectionTitle}>Currently in the room · {roomMembers.length}</Text><Text style={styles.sectionTitle}>{membersOpen ? '-' : '+'}</Text>
@@ -210,12 +224,22 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
             </View>
             {form === 'create' ? <>
               <TextInput accessibilityLabel="Room name" value={name} onChangeText={setName} maxLength={60} placeholder="e.g. Friday friends" placeholderTextColor={colors.textMuted} style={styles.input} editable={!busy} />
+              <Text style={styles.description}>Who can discover and enter this room?</Text>
+              <View style={styles.gameTabs}>
+                {([['public', 'Public'], ['friends', 'Friends only']] as const).map(([value, label]) =>
+                  <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: visibility === value }}
+                    onPress={() => setVisibility(value)} style={[styles.gameTab, visibility === value && styles.selectedTab]}>
+                    <Text style={[styles.tabText, visibility === value && styles.selectedTabText]}>{label}</Text>
+                  </Pressable>)}
+              </View>
+              <Text style={styles.description}>{visibility === 'friends' ? 'Only you and accepted friends can see or enter it, even with its code.' : 'Every signed-in player can see and enter it.'}</Text>
               <Pressable accessibilityRole="button" disabled={!session || busy || expired} accessibilityState={{ disabled: !session || busy || expired }} onPress={createRoom} style={[styles.button, (!session || busy || expired) && styles.disabled]}><Text style={styles.buttonText}>Create and enter room</Text></Pressable>
             </> : <>
               <TextInput accessibilityLabel="Table code / room ID" value={code} onChangeText={setCode} autoCapitalize="none" autoCorrect={false} maxLength={64} placeholder="Paste a table code" placeholderTextColor={colors.textMuted} style={styles.input} editable={!busy} />
               <Pressable accessibilityRole="button" disabled={!session || busy || expired} accessibilityState={{ disabled: !session || busy || expired }} onPress={() => {
                 const target = rooms.find(item => item.room_id === code.trim());
-                if (target) joinRoom(target); else setError('Table code not found. Choose a listed room or check the code.');
+                if (code.trim()) joinRoom(target || { room_id: code.trim(), name: 'Joined room', members: [] });
+                else setError('Enter a table code.');
               }} style={[styles.button, (!session || busy || expired) && styles.disabled]}><Text style={styles.buttonText}>Enter with table code</Text></Pressable>
             </>}
             {busy && <Text accessibilityLiveRegion="polite" style={styles.description}>Entering room…</Text>}
@@ -223,17 +247,18 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
           </View>
           <View style={styles.panel}>
             <Pressable accessibilityRole="button" accessibilityLabel="Available rooms" aria-expanded={roomsOpen} accessibilityState={{ expanded: roomsOpen }} onPress={() => setRoomsOpen(value => !value)} style={styles.sectionToggle}>
-              <Text style={styles.sectionTitle}>Available rooms</Text><Text style={styles.sectionTitle}>{roomsOpen ? '-' : '+'}</Text>
+              <Text style={styles.sectionTitle}>Game room feed</Text><Text style={styles.sectionTitle}>{roomsOpen ? '-' : '+'}</Text>
             </Pressable>
             {roomsOpen && <View>
             {session && !rooms.length && <View style={styles.comingSoon}><Text style={styles.heading}>The first table is yours.</Text><Text style={styles.description}>Create a room to get things started.</Text></View>}
             {rooms.map(item => <View key={item.room_id} style={styles.roomRow}>
-              <View style={{ flex: 1 }}><Text style={styles.directoryName}>{item.name}</Text><Text selectable style={styles.description}>Table code: {item.room_id}</Text><Text style={styles.description}>{item.members.length} members · {item.connected_members?.length || 0} online</Text></View>
+              <View style={{ flex: 1 }}><Text style={styles.directoryName}>{item.name}</Text><Text style={styles.description}>{item.feed_source === 'you' ? 'Your room' : item.feed_source === 'joined' ? 'Joined room' : item.feed_source === 'friend' ? "Friend's room" : 'Public room'} · {item.visibility === 'friends' ? 'Friends only' : 'Public'}</Text><Text selectable style={styles.description}>Table code: {item.room_id}</Text><Text style={styles.description}>{item.members.length} members · {item.connected_members?.length || 0} online</Text></View>
               <Pressable accessibilityRole="button" accessibilityLabel={`Enter ${item.name}`} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => joinRoom(item)} style={[styles.enterButton, busy && styles.disabled]}><Text style={styles.enterText}>Enter →</Text></Pressable>
             </View>)}
             </View>}
           </View>
         </View>
+        {session && !expired && <View style={{ marginTop: 20 }}><FriendsPanel session={session} /></View>}
       </>}
     </View>
   </ScrollView>{room && !expired && !invitation && !gameOpen && chat}</View></HeaderProfileContext.Provider>;
@@ -254,6 +279,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   member: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 }, avatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }, avatarText: { fontFamily: fonts.medium, fontSize: 11, color: colors.accent }, online: { fontFamily: fonts.body, fontSize: 10, color: colors.textMuted, marginLeft: 'auto' },
   input: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: 8, minHeight: 48, padding: 14, fontFamily: fonts.body, color: colors.text, marginVertical: 10 },
   button: { backgroundColor: colors.surfaceSelected, minHeight: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', padding: 12 }, buttonText: { fontFamily: fonts.medium, color: colors.text, fontSize: 12 }, disabled: { opacity: 0.5 },
+  dangerButton: { minHeight: 48, borderRadius: 8, borderWidth: 1, borderColor: colors.danger, alignItems: 'center', justifyContent: 'center', padding: 12 }, dangerText: { fontFamily: fonts.medium, color: colors.danger, fontSize: 12 },
   roomRow: { flexDirection: 'row', gap: 12, alignItems: 'center', borderBottomWidth: 1, borderColor: colors.border, paddingVertical: 18 }, directoryName: { fontFamily: fonts.medium, fontSize: 14, color: colors.text, flexShrink: 1 }, enterButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 }, enterText: { fontFamily: fonts.medium, fontSize: 12, color: colors.accent },
   testing: { marginTop: 24, borderTopWidth: 1, borderColor: colors.border }, testingToggle: { minHeight: 54, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, testingBody: { gap: 16, paddingBottom: 20 },
   comingSoon: { paddingVertical: 24, gap: 10 }, footer: { fontFamily: fonts.body, fontSize: 10, color: colors.textMuted, marginVertical: 24, textAlign: 'center' }, error: { color: colors.danger, fontFamily: fonts.body, fontSize: 12, lineHeight: 20, marginVertical: 12 },

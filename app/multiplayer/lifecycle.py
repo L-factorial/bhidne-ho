@@ -7,8 +7,8 @@ from fastapi import HTTPException
 
 
 class RoomLifecycle:
-    def __init__(self, rooms, connections, games):
-        self.rooms, self.connections, self.games = rooms, connections, games
+    def __init__(self, rooms, connections, games, players=None):
+        self.rooms, self.connections, self.games, self.players = rooms, connections, games, players
 
     async def snapshot(self, room_id, user_id):
         async with self.games.membership_guard(room_id):
@@ -46,8 +46,14 @@ class RoomLifecycle:
         return state
 
     async def lookup(self, user_id):
+        friendship = self.players.are_friends if self.players else None
         return [await self.snapshot(room.room_id, user_id)
-                for room in await self.rooms.list_rooms() if user_id in room.members]
+                for room in await self.rooms.list_rooms(user_id, friendship) if user_id in room.members]
+
+    async def delete(self, room_id):
+        await self.games.delete_room(room_id)
+        await self.connections.delete_room(room_id)
+        await self.rooms.delete(room_id)
 
     async def _publish(self, room_id):
         await self.connections.broadcast(room_id, {"type": "ROOM_STATE", "payload": {

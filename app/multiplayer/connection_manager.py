@@ -44,7 +44,7 @@ class ConnectionManager:
     async def connect(self, room_id: str, user_id: str, websocket: Socket, *, resume: bool = False) -> str:
         connection = Connection(str(uuid4()), room_id, user_id, websocket)
         async with self._lock:
-            if resume and user_id not in await self._rooms.members(room_id):
+            if resume and not await self._rooms.has_membership(room_id, user_id):
                 raise RoomMembershipEnded
             await self._rooms.join(room_id, user_id)
             self._connections.setdefault(room_id, {})[connection.connection_id] = connection
@@ -82,6 +82,22 @@ class ConnectionManager:
                 try:
                     await asyncio.wait_for(connection.socket.send_json({
                         "type": "ROOM_LEFT", "room_id": room_id,
+                    }), self._send_timeout)
+                    await asyncio.wait_for(connection.socket.close(code=1000), self._send_timeout)
+                except Exception:
+                    pass
+
+    async def delete_room(self, room_id: str) -> None:
+        """Close every connection after an owner deletes the room."""
+        async with self._lock:
+            targets = list(self._connections.pop(room_id, {}).values())
+            for connection in targets:
+                connection.active = False
+        for connection in targets:
+            async with connection.send_lock:
+                try:
+                    await asyncio.wait_for(connection.socket.send_json({
+                        "type": "ROOM_DELETED", "room_id": room_id,
                     }), self._send_timeout)
                     await asyncio.wait_for(connection.socket.close(code=1000), self._send_timeout)
                 except Exception:

@@ -171,6 +171,16 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
 
+    async def delete_room(self, room_id):
+        """Discard all ephemeral tables when their containing room is deleted."""
+        async with self.membership_guard(room_id):
+            games = self.tables.pop(room_id, {})
+            self.games.pop(room_id, None)
+            tasks = [game.task for game in games.values() if game.task is not None]
+            for task in tasks:
+                task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+
     async def _member(self, room_id, user_id, game=None):
         if user_id not in await self.rooms.members(room_id):
             raise HTTPException(403, "Connect to this room before using its test game.")
