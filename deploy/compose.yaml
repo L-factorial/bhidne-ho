@@ -1,5 +1,20 @@
 name: bhidne-ho-test
 services:
+  postgres:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_DB: bhidne_ho_test
+      POSTGRES_USER: bhidne_ho_test
+    volumes:
+      - postgres-test-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bhidne_ho_test -d bhidne_ho_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
   backend:
     build:
       context: ..
@@ -8,14 +23,22 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:18080:8080"
+    env_file: .env
     environment:
-      BHIDNE_CORS_ORIGINS: https://bhidne-ho.lfactorial.com
-      GOOGLE_CLIENT_IDS: ${GOOGLE_CLIENT_IDS:-}
-      APPLE_CLIENT_IDS: ${APPLE_CLIENT_IDS:-}
-      FACEBOOK_APP_ID: ${FACEBOOK_APP_ID:-}
-      FACEBOOK_APP_SECRET: ${FACEBOOK_APP_SECRET:-}
+      BHIDNE_HO_CORS_ORIGINS: https://bhidne-ho.lfactorial.com
+      BHIDNE_HO_GOOGLE_CLIENT_IDS: ${BHIDNE_HO_GOOGLE_CLIENT_IDS:-}
+      BHIDNE_HO_APPLE_CLIENT_IDS: ${BHIDNE_HO_APPLE_CLIENT_IDS:-}
+      BHIDNE_HO_FACEBOOK_APP_ID: ${BHIDNE_HO_FACEBOOK_APP_ID:-}
+      BHIDNE_HO_FACEBOOK_APP_SECRET: ${BHIDNE_HO_FACEBOOK_APP_SECRET:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  postgres-test-data:
+    name: bhidne-ho-test-postgres-data

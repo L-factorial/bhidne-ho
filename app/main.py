@@ -35,7 +35,7 @@ from app.social_auth.verifiers import configured_verifiers
 def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        database_url = os.environ.get("DATABASE_URL")
+        database_url = os.environ.get("BHIDNE_HO_DATABASE_URL") or os.environ.get("DATABASE_URL")
         database = Database(database_url) if database_url else None
         if database:
             await database.open()
@@ -83,7 +83,8 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Bhidne Ho", lifespan=lifespan)
     # Hosted static frontend origins are explicitly configured; local Expo remains supported.
     origins = [f"http://{host}:{port}" for host in ("localhost", "127.0.0.1") for port in (8081, 8083)]
-    origins.extend(origin.strip().rstrip("/") for origin in os.environ.get("BHIDNE_CORS_ORIGINS", "").split(",") if origin.strip())
+    cors_origins = os.environ.get("BHIDNE_HO_CORS_ORIGINS") or os.environ.get("BHIDNE_CORS_ORIGINS", "")
+    origins.extend(origin.strip().rstrip("/") for origin in cors_origins.split(",") if origin.strip())
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,

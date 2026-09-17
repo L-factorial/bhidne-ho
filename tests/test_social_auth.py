@@ -5,6 +5,7 @@ from app.main import create_app
 from app.auth.service import AuthenticationError, InMemoryAuthService
 from app.multiplayer.player_profiles import PlayerProfileService
 from app.social_auth.models import VerifiedIdentity
+from app.social_auth.config import SocialAuthConfig
 from app.social_auth.service import ProviderNotConfiguredError, SocialAuthError, SocialAuthService
 from app.social_auth.store import InMemorySocialIdentityStore
 from app.social_auth.verifiers import ProviderVerificationError
@@ -77,3 +78,16 @@ def test_social_http_contract_and_provider_discovery():
         assert client.get('/auth/me', headers={'Authorization': f"Bearer {response.json()['token']}"}).status_code == 200
         assert client.post('/auth/social/apple', json={'credential': 'provider-credential-long-enough'}).status_code == 503
         assert client.post('/auth/social/not-real', json={'credential': 'provider-credential-long-enough'}).status_code == 422
+
+
+def test_social_config_prefers_canonical_bhidne_ho_names(monkeypatch):
+    monkeypatch.setenv('GOOGLE_CLIENT_IDS', 'legacy-google')
+    monkeypatch.setenv('BHIDNE_HO_GOOGLE_CLIENT_IDS', 'web-google,ios-google')
+    monkeypatch.setenv('BHIDNE_HO_APPLE_CLIENT_IDS', 'apple-service')
+    monkeypatch.setenv('BHIDNE_HO_FACEBOOK_APP_ID', 'facebook-id')
+    monkeypatch.setenv('BHIDNE_HO_FACEBOOK_APP_SECRET', 'facebook-secret')
+    config = SocialAuthConfig.from_environment()
+    assert config.google_client_ids == ('web-google', 'ios-google')
+    assert config.apple_client_ids == ('apple-service',)
+    assert config.facebook_app_id == 'facebook-id'
+    assert config.facebook_app_secret == 'facebook-secret'

@@ -1,6 +1,6 @@
 # Authentication and profile persistence
 
-Authentication and profiles are durable when `DATABASE_URL` is set. Without it,
+Authentication and profiles are durable when `BHIDNE_HO_DATABASE_URL` is set. Without it,
 the application retains its in-memory implementation for tests and disposable local
 runs. The application only knows a PostgreSQL connection URL; Docker is not part of
 the persistence API.
@@ -27,33 +27,32 @@ Create a private deployment environment file (do not commit it):
 
 ```sh
 printf 'POSTGRES_PASSWORD=replace-with-a-long-random-value\n' > deploy/.env
-docker compose --env-file deploy/.env \
-  -f deploy/compose.yaml -f deploy/compose.postgres.yaml up --build
+printf 'BHIDNE_HO_DATABASE_URL=postgresql://bhidne_ho_test:replace-with-a-long-random-value@postgres:5432/bhidne_ho_test\n' >> deploy/.env
+docker compose --env-file deploy/.env -f deploy/compose.yaml up --build
 ```
 
 PostgreSQL is reachable only on the Compose network and stores its files in the
-`postgres-data` named volume. The backend waits for the database health check.
-Running only `deploy/compose.yaml` does not start PostgreSQL or set `DATABASE_URL`;
-that is the safe, in-memory mode used by the current automatic test deployment.
+`bhidne-ho-test-postgres-data` named volume. The backend waits for the database
+health check. Outside this stack, leaving `BHIDNE_HO_DATABASE_URL` and the legacy
+`DATABASE_URL` unset selects the in-memory development implementation.
 
 ## GitHub test environment
 
-The backend workflow targets the GitHub environment `test`. Before enabling its
-PostgreSQL Compose override, create this environment-scoped Actions secret:
+The backend workflow targets the GitHub environment `test` and consumes this
+environment-scoped Actions secret:
 
 ```text
 BHIDNE_HO_POSTGRES_PASSWORD
 ```
 
 Generate a URL-safe value with `openssl rand -hex 32`. Do not commit the value or
-place it in a repository-level variable. The initial environment-only deployment
-continues using in-memory authentication until the workflow is explicitly changed
-to consume this secret and start `compose.postgres.yaml`.
+place it in a repository-level variable. The workflow writes it to a mode-0600
+release `.env`, includes that file in the encrypted SSH upload, and never prints it.
 
 ## Moving PostgreSQL out of Docker
 
 Provision PostgreSQL with TLS, backups, and a least-privilege application user, then
-set `DATABASE_URL` to the provider URL and remove the `postgres` service plus the
+set `BHIDNE_HO_DATABASE_URL` to the provider URL and remove the `postgres` service plus the
 backend `depends_on` entry. No Python code or image change is needed. For example:
 
 ```text

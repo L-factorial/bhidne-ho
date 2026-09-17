@@ -21,12 +21,16 @@ The receiver accepts a backend archive on stdin, rejects links and unexpected pa
 
 The approved deployment capability runs as root to control Docker. Protect repository write access and the two deployment secrets accordingly. To revoke it, remove the `bhidne-ho-github-actions` key from the Droplet's authorized_keys and remove the repository secret.
 
-## In-memory consequences
+## Persistence consequences
 
-Every backend deployment restarts the game server. Sessions, rooms, profiles, balances and games reset. Deploy between test games; clients with expired sessions should sign out and rejoin. Rollback restores code, not in-memory data. One container and one Uvicorn worker remain mandatory.
+Every backend deployment restarts the game server. Users, account credentials,
+sessions, and display-name profiles persist in PostgreSQL. Rooms, presence, chats,
+balances, and active games still reset, so deploy between test games. One backend
+container and one Uvicorn worker remain mandatory for the memory-resident game state.
 
-The automatic deployment intentionally uses only `deploy/compose.yaml`. PostgreSQL
-is opt-in through `deploy/compose.postgres.yaml`, so pushing database-capable code does
-not require a database password or change the current in-memory runtime.
+The automatic deployment uses PostgreSQL from `deploy/compose.yaml`. Its
+`BHIDNE_HO_POSTGRES_PASSWORD` comes from the GitHub `test` environment and is written
+to a protected, untracked `deploy/.env` before upload. PostgreSQL has no published
+host port and persists in `bhidne-ho-test-postgres-data`.
 
 Frontend and backend workflows are independent: maintain API compatibility across deployments. Workflow failures appear in the repository Actions tab. Release directories and the previous image are retained for troubleshooting; an administrator can remove old inactive releases after testing.

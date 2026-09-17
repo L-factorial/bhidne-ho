@@ -27,13 +27,18 @@ jobs:
         env:
           DEPLOY_KEY: ${{ secrets.BHIDNE_DEPLOY_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.BHIDNE_DEPLOY_KNOWN_HOSTS }}
+          POSTGRES_PASSWORD: ${{ secrets.BHIDNE_HO_POSTGRES_PASSWORD }}
         run: |
           set -euo pipefail
+          test -n "$POSTGRES_PASSWORD"
           install -m 700 -d "$RUNNER_TEMP/bhidne-ssh"
           printf '%s\n' "$DEPLOY_KEY" > "$RUNNER_TEMP/bhidne-ssh/key"
           printf '%s\n' "$KNOWN_HOSTS" > "$RUNNER_TEMP/bhidne-ssh/known_hosts"
+          umask 077
+          printf 'POSTGRES_PASSWORD=%s\n' "$POSTGRES_PASSWORD" > deploy/.env
+          printf 'BHIDNE_HO_DATABASE_URL=postgresql://bhidne_ho_test:%s@postgres:5432/bhidne_ho_test\n' "$POSTGRES_PASSWORD" >> deploy/.env
           chmod 600 "$RUNNER_TEMP/bhidne-ssh/key"
-          trap 'rm -rf "$RUNNER_TEMP/bhidne-ssh"' EXIT
-          tar --exclude='__pycache__' --exclude='*.pyc' -czf "$RUNNER_TEMP/backend.tar.gz" Dockerfile .dockerignore pyproject.toml app card_utils callbreak marriage flush deploy/compose.yaml deploy/compose.postgres.yaml
+          trap 'rm -rf "$RUNNER_TEMP/bhidne-ssh"; rm -f deploy/.env' EXIT
+          tar --exclude='__pycache__' --exclude='*.pyc' -czf "$RUNNER_TEMP/backend.tar.gz" Dockerfile .dockerignore pyproject.toml app card_utils callbreak marriage flush deploy/compose.yaml deploy/.env
           ssh -i "$RUNNER_TEMP/bhidne-ssh/key" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/bhidne-ssh/known_hosts" root@64.227.86.254 < "$RUNNER_TEMP/backend.tar.gz"
           curl --fail --retry 3 https://api-bhidne-ho.lfactorial.com/health

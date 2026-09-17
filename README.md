@@ -55,7 +55,7 @@ uvicorn app.main:app --reload --workers 1
 
 Health: `GET http://127.0.0.1:8000/health`. HTTP API docs: `/docs`.
 Use **one worker**: rooms, active games, and sockets are process-local. With
-`DATABASE_URL`, identities, sessions, and profiles survive restarts; without it they
+`BHIDNE_HO_DATABASE_URL`, identities, sessions, and profiles survive restarts; without it they
 remain in memory. Restarting still discards presence. Ad hoc rooms are created on first
 connection and removed when empty; explicitly created rooms remain in the directory
 until restart. Rooms are open to any authenticated guest.

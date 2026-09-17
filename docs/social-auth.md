@@ -46,10 +46,10 @@ addresses are never enough to link accounts.
 
 ```dotenv
 # Include every web/iOS/Android audience that can send an ID token.
-GOOGLE_CLIENT_IDS=web-id.apps.googleusercontent.com,ios-id.apps.googleusercontent.com
-APPLE_CLIENT_IDS=com.example.bhidne.web,com.example.bhidne
-FACEBOOK_APP_ID=123456789
-FACEBOOK_APP_SECRET=server-side-secret
+BHIDNE_HO_GOOGLE_CLIENT_IDS=web-id.apps.googleusercontent.com,ios-id.apps.googleusercontent.com
+BHIDNE_HO_APPLE_CLIENT_IDS=com.example.bhidne.web,com.example.bhidne
+BHIDNE_HO_FACEBOOK_APP_ID=123456789
+BHIDNE_HO_FACEBOOK_APP_SECRET=server-side-secret
 ```
 
 An unset provider stays disabled and returns HTTP 503. Keep the Facebook secret in a
@@ -74,7 +74,7 @@ ID token, so users can set or edit their display name through the profile endpoi
 
 For Facebook, configure Facebook Login for each platform and request only necessary
 permissions. The backend accepts a user access token and verifies that it belongs to
-`FACEBOOK_APP_ID`. Email can be absent and is not marked verified here.
+`BHIDNE_HO_FACEBOOK_APP_ID`. Email can be absent and is not marked verified here.
 
 ## API contract
 
