@@ -8,17 +8,33 @@ export function FlushCards({ cards, hidden = false, label = 'Your card', onCompl
   cards: string[]; tapToToggle?: boolean; autoHideMs?: number; autoReveal?: boolean; hidden?: boolean; label?: string; onComplete?: () => void;
 }) {
   const [peekAll, setPeekAll] = useState(false);
+  const [previewed, setPreviewed] = useState(false);
+  const [previewCards, setPreviewCards] = useState<number[]>([]);
   const [revealed, setRevealed] = useState<number[]>([]);
+  const previewTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const { colors } = useTheme();
+  useEffect(() => () => previewTimers.current.forEach(clearTimeout), []);
+  function preview() {
+    if (!tapToToggle || previewed || cards.length !== 3) return;
+    previewTimers.current.forEach(clearTimeout); previewTimers.current = [];
+    [0, 1, 2].forEach((index, step) => previewTimers.current.push(setTimeout(() => setPreviewCards(current => [...current, index]), step * 150)));
+    [2, 1, 0].forEach((index, step) => previewTimers.current.push(setTimeout(() => {
+      setPreviewCards(current => current.filter(value => value !== index));
+      if (index === 0) setPreviewed(true);
+    }, 780 + step * 120)));
+  }
+  useEffect(() => { if (tapToToggle && cards.length === 3 && !previewed) preview(); }, [tapToToggle, cards.join('|'), previewed]);
   useEffect(() => { if (hidden && autoHideMs > 0) setRevealed([]); }, [hidden, autoHideMs]);
   return <View testID="flush-card-arc" style={{ height: 172, width: 280, alignSelf: 'center' }}>
     {[0, 1, 2].map(index => <FlipCard key={index} card={cards[index]} index={index} label={label}
-      revealed={!hidden && (autoReveal || (tapToToggle ? peekAll : revealed.includes(index)))} disabled={tapToToggle || autoReveal || hidden || !cards[index] || revealed.includes(index)}
+      revealed={!hidden && (autoReveal || (tapToToggle ? peekAll || previewCards.includes(index) : revealed.includes(index)))} disabled={tapToToggle || autoReveal || hidden || !cards[index] || revealed.includes(index)}
       autoHideMs={autoReveal ? 0 : autoHideMs} onConceal={() => setRevealed(current => current.filter(i => i !== index))}
       onFlip={() => { const next = [...revealed, index]; setRevealed(next); if (next.length === 3) onComplete?.(); }} />)}
     {tapToToggle && cards.length === 3 && <Pressable accessibilityRole="button"
-      accessibilityLabel={peekAll ? 'Hide all three cards' : 'Peek at all three cards'}
-      accessibilityState={{ expanded: peekAll }} onPress={() => setPeekAll(value => !value)}
+      accessibilityLabel={previewed ? 'Press and hold to see cards' : 'See cards'}
+      accessibilityState={{ expanded: peekAll }}
+      onPressIn={() => { if (previewed) setPeekAll(true); }} onPressOut={() => { if (previewed) setPeekAll(false); }}
+      onPress={preview}
       style={StyleSheet.absoluteFill} />}
     {!cards.length && <Text style={{ color: colors.textMuted, textAlign: 'center', position: 'absolute', bottom: 0, width: '100%' }}>Blind · See cards when eligible</Text>}
   </View>;
@@ -43,7 +59,7 @@ function FlipCard({ card, index, label, revealed, disabled, onFlip, autoHideMs, 
     return () => { alive = false; sub.remove(); };
   }, []);
   useEffect(() => {
-    const animation = Animated.timing(progress, { toValue: revealed ? 1 : 0, duration: reduced ? 0 : 280, useNativeDriver: true });
+    const animation = Animated.timing(progress, { toValue: revealed ? 1 : 0, duration: reduced ? 0 : 160, useNativeDriver: true });
     animation.start(); return () => animation.stop();
   }, [revealed, progress, reduced]);
   return <Pressable accessibilityRole="button" accessibilityLabel={revealed ? `${label} ${index + 1}: ${card}` : `Flip ${label.toLowerCase()} ${index + 1}`}

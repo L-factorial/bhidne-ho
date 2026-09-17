@@ -3,6 +3,29 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 from app.main import create_app
+from app.multiplayer.participation import ParticipationSource
+from app.multiplayer.room_chat import RoomChatService
+from app.multiplayer.room_service import RoomService
+
+
+class AsyncProfiles:
+    async def get(self, user_id):
+        return {"display_name": "Database Player"}
+
+
+class NeverPlaying(ParticipationSource):
+    def is_playing(self, room_id, user_id):
+        return False
+
+
+async def test_room_chat_awaits_database_backed_profile_lookup():
+    rooms = RoomService()
+    await rooms.join('database-room', 'account-user')
+    chat = RoomChatService(rooms, AsyncProfiles(), NeverPlaying())
+
+    message = await chat.send('database-room', 'account-user', 'Hello')
+
+    assert message['sender_name'] == 'Database Player'
 
 
 def test_room_chat_membership_validation_history_and_rate_limit():

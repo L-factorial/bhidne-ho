@@ -4,6 +4,7 @@ Keep messages in bounded memory even after database adoption. Never archive
 chat in saved game history, analytics payloads, or durable storage.
 """
 import time
+from inspect import isawaitable
 from uuid import uuid4
 
 from app.multiplayer.participation import ParticipationSource
@@ -37,11 +38,13 @@ class RoomChatService:
         last = next((item for item in reversed(messages) if item["sender_id"] == user_id), None)
         if last and now - last["sent_at"] < 1000:
             raise ChatRateLimited("Wait a moment before sending another message.")
+        profile = self.profiles.get(user_id)
+        if isawaitable(profile):
+            profile = await profile
         message = {"id": uuid4().hex, "sender_id": user_id,
-                   "sender_name": self.profiles.get(user_id)["display_name"] or "Guest",
+                   "sender_name": profile["display_name"] or "Guest",
                    "text": text, "sent_at": now}
         messages.append(message)
         del messages[:-100]
         return message
-
 

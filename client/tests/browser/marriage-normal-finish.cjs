@@ -89,9 +89,9 @@ const button = (page, name) => page.getByRole('button', { name, exact: true });
         await guidance.waitFor();
         assert.ok(await pulseRange(guidance.getByTestId('action-cue')) > 0.03, 'reopening the hand restarts selection guidance');
       }
-      const firstCard = page.getByTestId('marriage-hand').getByRole('button').first();
+      const firstCard = page.getByTestId('marriage-hand').locator('[aria-pressed]').first();
       await firstCard.click();
-      const secondCard = page.getByTestId('marriage-hand').getByRole('button').nth(1);
+      const secondCard = page.getByTestId('marriage-hand').locator('[aria-pressed]').nth(1);
       await secondCard.click();
       assert.equal(await firstCard.getAttribute('aria-pressed'), 'false');
       assert.equal(await secondCard.getAttribute('aria-pressed'), 'true');

@@ -125,7 +125,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   dialog: { width: '100%', maxWidth: 440, padding: 16, gap: 20, borderRadius: 16, backgroundColor: colors.surface },
   dialogHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 }, heading: { flex: 1, color: colors.accent, fontFamily: fonts.medium, fontSize: 18 },
   sequence: { flexDirection: 'row', justifyContent: 'center', gap: 12 }, sequenceCard: { alignItems: 'center', gap: 8 }, largeCard: { width: 64, height: 92 },
-  area: { flex: 1, minHeight: 0, position: 'relative', gap: 8 }, spots: { flex: 1, flexDirection: 'row', gap: 8, justifyContent: 'center', alignItems: 'center' }, spot: { flex: 1, maxWidth: 150, alignItems: 'center', gap: 4 },
+  area: { flex: 1, minHeight: 0, position: 'relative', gap: 4 }, spots: { flex: 1, flexDirection: 'row', gap: 8, justifyContent: 'center', alignItems: 'flex-start', paddingTop: 4 }, spot: { flex: 1, maxWidth: 150, alignItems: 'center', gap: 4 },
   label: { color: colors.accent, fontFamily: fonts.medium, fontSize: 12 }, card: { width: 52, height: 72, backgroundColor: colors.cardFace, borderRadius: 7, borderWidth: 2, borderColor: colors.cardBorder, alignItems: 'center', justifyContent: 'center' },
   back: { backgroundColor: colors.cardBack, borderColor: colors.cardBorder }, stack: { boxShadow: `3px 3px 0 ${colors.cardBorder}` }, face: { fontFamily: fonts.medium, fontSize: 24, color: colors.cardInk }, red: { color: colors.cardRed },
   button: { minHeight: 44, padding: 7, justifyContent: 'center', backgroundColor: colors.surfaceRaised, borderRadius: 8 }, buttonText: { color: colors.text, fontFamily: fonts.medium, fontSize: 11, textAlign: 'center' },
