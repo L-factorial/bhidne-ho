@@ -44,6 +44,30 @@ CREATE TABLE IF NOT EXISTS external_identities (
     PRIMARY KEY (provider, provider_subject)
 );
 CREATE INDEX IF NOT EXISTS external_identities_user_id_idx ON external_identities(user_id);
+CREATE TABLE IF NOT EXISTS friendships (
+    user_low uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_high uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    requested_by uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status text NOT NULL CHECK (status IN ('pending', 'accepted')),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_low, user_high),
+    CHECK (user_low < user_high),
+    CHECK (requested_by = user_low OR requested_by = user_high)
+);
+CREATE INDEX IF NOT EXISTS friendships_requested_by_idx ON friendships(requested_by, status);
+CREATE TABLE IF NOT EXISTS direct_messages (
+    id uuid PRIMARY KEY,
+    sender_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    recipient_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    text text NOT NULL CHECK (char_length(text) BETWEEN 1 AND 500),
+    sent_at timestamptz NOT NULL DEFAULT now(),
+    CHECK (sender_id <> recipient_id)
+);
+CREATE INDEX IF NOT EXISTS direct_messages_sender_recipient_time_idx
+    ON direct_messages (sender_id, recipient_id, sent_at DESC);
+CREATE INDEX IF NOT EXISTS direct_messages_recipient_sender_time_idx
+    ON direct_messages (recipient_id, sender_id, sent_at DESC);
 """
 
 

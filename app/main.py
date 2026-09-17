@@ -30,6 +30,9 @@ from app.social_auth.http import router as social_auth_router
 from app.social_auth.service import SocialAuthService
 from app.social_auth.store import InMemorySocialIdentityStore, PostgresSocialIdentityStore
 from app.social_auth.verifiers import configured_verifiers
+from app.players.http import router as players_router
+from app.players.service import PlayerSocialService
+from app.players.store import InMemoryPlayerStore, PostgresPlayerStore
 
 
 def create_app() -> FastAPI:
@@ -49,6 +52,9 @@ def create_app() -> FastAPI:
         app.state.connections = connections
         app.state.database = database
         app.state.player_profiles = PostgresPlayerProfileService(database.pool) if database else PlayerProfileService()
+        app.state.players = PlayerSocialService(
+            PostgresPlayerStore(database.pool) if database else InMemoryPlayerStore(app.state.player_profiles),
+        )
         social_store = (PostgresSocialIdentityStore(database.pool, guests, app.state.player_profiles)
                         if database else InMemorySocialIdentityStore(guests, app.state.player_profiles))
         app.state.social_auth = SocialAuthService(
@@ -93,6 +99,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(http.router)
     app.include_router(social_auth_router)
+    app.include_router(players_router)
     app.include_router(websocket.router)
     app.include_router(game_actions.router)
     app.include_router(room_pokes.router)

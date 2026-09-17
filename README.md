@@ -21,6 +21,7 @@ the shared adapter handles full gameplay; production runtime integration remains
 
 - [Authentication and profiles](docs/auth-and-profiles.md): PostgreSQL data model, local container setup, session handling, and migration to a managed database.
 - [Social sign-in](docs/social-auth.md): Google, Apple, and Facebook verification, schema, configuration, and client contract.
+- [Players, friends, and direct messages](docs/players-friends-chat.md): discovery, requests, friendship rules, private-chat persistence, API, and security boundaries.
 
 - [Shared command infrastructure](docs/shared-game-runtime.md): common runtime/client ownership and how a new game inherits reliable commands; implemented for Call Break and Echo.
 

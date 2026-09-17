@@ -16,6 +16,8 @@ the persistence API.
   across sign-ins and token rotation.
 - `external_identities` maps provider subjects to internal users. Email is metadata,
   not an identity key, so matching emails are never silently linked.
+- `friendships` and `direct_messages` own durable player relationships and private
+  conversation history; see [Players, friends, and direct messages](players-friends-chat.md).
 
 The existing `user-<uuid>` public IDs remain unchanged. Rooms and active games are
 still memory-resident and require one backend worker; database persistence in this

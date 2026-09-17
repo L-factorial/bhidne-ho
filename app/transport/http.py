@@ -20,6 +20,7 @@ async def health() -> dict[str, str]:
 async def guest(request: Request, response: Response, body: GuestInput | None = None) -> GuestCredentials:
     response.headers["Cache-Control"] = "no-store"
     credentials = await request.app.state.guests.issue_guest()
+    await request.app.state.players.ensure_user(credentials.user_id)
     if body is not None and body.display_name:
         saved = request.app.state.player_profiles.update(credentials.user_id, body.display_name)
         if isawaitable(saved):
@@ -35,6 +36,7 @@ async def current_user(
 ) -> UserIdentity:
     try:
         identity = await request.app.state.auth.authenticate(credentials.credentials if credentials else "")
+        await request.app.state.players.ensure_user(identity.user_id)
         # Refresh the local profile read model used by synchronous game snapshots.
         profile = request.app.state.player_profiles.get(identity.user_id)
         if isawaitable(profile):
@@ -48,7 +50,11 @@ async def current_user(
 async def sign_up(body: AccountInput, request: Request, response: Response):
     response.headers["Cache-Control"] = "no-store"
     try:
-        return await request.app.state.auth.sign_up(body.username, body.password)
+        credentials = await request.app.state.auth.sign_up(body.username, body.password)
+        await request.app.state.players.ensure_user(credentials.user_id)
+        if hasattr(request.app.state.players.store, "usernames"):
+            request.app.state.players.store.usernames[credentials.user_id] = credentials.username
+        return credentials
     except UsernameTakenError as error:
         raise HTTPException(409, str(error)) from None
 

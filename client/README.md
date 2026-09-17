@@ -258,6 +258,10 @@ Create room / Join with code and Available rooms are independent sections, both
 collapsed by default and reset to collapsed when returning from a room. Profile
 holds the display name and private phrase collection; visible game seats use each
 player's saved name and mark the local seat You.
+Profile also contains **Players and friends**. Users can search by username or
+display name, send and manage friend requests, remove friends, and open a persistent
+one-to-one conversation with an accepted friend. Friend lists poll every three
+seconds and an open conversation polls every 1.5 seconds; room chat remains separate.
 `tests/browser/display-names.cjs` checks default collapsed sections, form toggles,
 four distinct profiles, and each saved name at all four tables using mocked data.
 

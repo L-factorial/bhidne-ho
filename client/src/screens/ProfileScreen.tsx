@@ -6,6 +6,7 @@ import type { Session } from '../multiplayer/session';
 import { PlayerPhrases } from '../components/PlayerPhrases';
 import type { usePlayerPhrases } from '../multiplayer/usePlayerPhrases';
 import { fonts, useThemedStyles, type ThemeColors } from '../theme';
+import { FriendsPanel } from '../components/FriendsPanel';
 
 export function ProfileScreen({ session, personal, onBack }: {
   session: Session; personal: ReturnType<typeof usePlayerPhrases>; onBack: () => void;
@@ -19,6 +20,7 @@ export function ProfileScreen({ session, personal, onBack }: {
       <AppHeader title="Your profile" hideProfile actions={<Pressable accessibilityRole="button" accessibilityLabel="Back from profile" onPress={onBack} style={styles.back}><Text style={styles.link}>Back</Text></Pressable>} />
       <Text style={styles.description}>Make your table talk your own. Your saved phrases are private to you.</Text>
       <DisplayNameField session={session} />
+      <FriendsPanel session={session} />
       <PlayerPhrases key={userId} userId={userId} phrases={personal.phrases} connected={true}
         loadError={personal.error} onSave={personal.save} onRemove={personal.remove} onUpdate={personal.update} />
       <Text style={styles.description}>Tap a saved phrase to edit it. Choose it while playing to send a private poke or a message to the table.</Text>
