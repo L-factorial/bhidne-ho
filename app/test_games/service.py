@@ -372,6 +372,12 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             await self._try_record_completed_ledger(game)
             return self._snapshot(game, user_id)
 
+    async def retry_completed_ledgers(self, room_id):
+        """Retry completed projections even after clients have left the game screen."""
+        for game in self._room_games(room_id):
+            async with game.lock:
+                await self._try_record_completed_ledger(game)
+
     async def create(self, room_id, user_id, capacity, game_type="callbreak", name="Table"):
         await self._member(room_id, user_id)
         if game_type not in ("callbreak", "marriage", "flush"):
@@ -437,6 +443,10 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                     return self._snapshot(game, user_id)
                 if game.finished:
                     raise HTTPException(409, "This game has already finished.")
+                # Ending a Flush table must not strand a completed round whose first
+                # ledger projection failed just before the creator pressed End.
+                game.ledger_retry_at = 0
+                await self._try_record_completed_ledger(game)
                 game.ended = True
                 game.table.queue.clear()
                 await self._advance_table(game)

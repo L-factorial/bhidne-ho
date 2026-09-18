@@ -15,7 +15,10 @@ def mapped(error):
 
 @router.get("")
 async def ledger(room_id: str, request: Request, user: UserIdentity = Depends(current_user)):
-    try: return await request.app.state.ledger.snapshot(room_id, user.user_id)
+    try:
+        await request.app.state.ledger.authorize(room_id, user.user_id)
+        await request.app.state.test_games.retry_completed_ledgers(room_id)
+        return await request.app.state.ledger.snapshot(room_id, user.user_id)
     except (PermissionError, KeyError, ValueError) as error: raise mapped(error) from None
 
 
