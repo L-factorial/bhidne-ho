@@ -21,6 +21,7 @@ class MemoryRoomCatalog:
         if room_id in self.rooms: self.memberships.add((room_id, user_id))
     async def leave(self, room_id, user_id): self.memberships.discard((room_id, user_id))
     async def joined(self, user_id): return {room_id for room_id, member in self.memberships if member == user_id}
+    async def members(self, room_id): return {member for member_room, member in self.memberships if member_room == room_id}
     async def owned(self, user_id): return {room_id for room_id, room in self.rooms.items() if room["creator_id"] == user_id}
     async def delete(self, room_id):
         self.memberships = {pair for pair in self.memberships if pair[0] != room_id}
@@ -65,6 +66,11 @@ class PostgresRoomCatalog:
         async with self.pool.connection() as connection:
             rows = await (await connection.execute("SELECT room_id FROM room_memberships WHERE user_id=%s", (internal_id(user_id),))).fetchall()
         return {row[0] for row in rows}
+
+    async def members(self, room_id):
+        async with self.pool.connection() as connection:
+            rows = await (await connection.execute("SELECT user_id FROM room_memberships WHERE room_id=%s", (room_id,))).fetchall()
+        return {public_id(row[0]) for row in rows}
 
     async def owned(self, user_id):
         async with self.pool.connection() as connection:

@@ -8,8 +8,9 @@ game rooms in this order:
 
 Rooms owned by friends and other public rooms are not listed until the player joins
 them, normally through a shared room code. Each response labels an item with
-`feed_source` (`you` or `joined`). Joined-room membership is persisted; current room occupants and online
-presence remain runtime state and are overlaid onto the persisted room metadata.
+`feed_source` (`you` or `joined`). Joined-room membership and the active member list
+are persisted. Online presence remains runtime state and is overlaid onto the
+persisted room metadata.
 
 Joining a persisted room creates a durable membership, so it remains in that
 player's feed after disconnecting or restarting the application. Explicitly leaving
@@ -52,9 +53,9 @@ room_memberships (
 )
 ```
 
-Room metadata survives application restarts. Current members, connected members,
+Room metadata and membership survive application restarts. Connected members,
 game engines, and game state are still in application memory; after a restart a
-player can enter a persisted room and its runtime state is provisioned again.
+member can re-enter the persisted room and its runtime state is provisioned again.
 
 This storage uses the normal `BHIDNE_HO_DATABASE_URL`, so it is not coupled to the
 Docker PostgreSQL container. Moving test or production to a managed PostgreSQL

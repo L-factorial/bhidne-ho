@@ -19,9 +19,9 @@ the persistence API.
 - `friendships` and `direct_messages` own durable player relationships and private
   conversation history; see [Players, friends, and direct messages](players-friends-chat.md).
 
-The existing `user-<uuid>` public IDs remain unchanged. Rooms and active games are
-still memory-resident and require one backend worker; database persistence in this
-milestone covers identity, credentials, sessions, and profiles only.
+The existing `user-<uuid>` public IDs remain unchanged. Room metadata and
+player-room membership are durable; connected presence, tables, and active games
+remain memory-resident. See [Social room feed and room visibility](social-room-feed.md).
 
 ## Local container deployment
 

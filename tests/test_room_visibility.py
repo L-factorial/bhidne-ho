@@ -3,6 +3,8 @@ from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 from app.main import create_app
+from app.multiplayer.room_catalog import MemoryRoomCatalog
+from app.multiplayer.room_service import RoomService
 from tests.test_players import account
 
 
@@ -81,3 +83,24 @@ def test_room_visibility_is_validated_and_defaults_to_public():
         assert client.post("/rooms", headers=headers, json={
             "name": "Invalid audience", "visibility": "private",
         }).status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_persisted_room_membership_survives_service_restart():
+    catalog = MemoryRoomCatalog()
+    first = RoomService(catalog)
+    room = await first.create("Durable room", "user-owner")
+    await first.join(room.room_id, "user-member")
+
+    restarted = RoomService(catalog)
+
+    assert await restarted.members(room.room_id) == ["user-member"]
+    assert await restarted.has_membership(room.room_id, "user-member")
+    listed = await restarted.list_rooms("user-member")
+    assert [(item.room_id, item.members, item.feed_source) for item in listed] == [
+        (room.room_id, ["user-member"], "joined"),
+    ]
+
+    await restarted.leave(room.room_id, "user-member")
+    assert await restarted.members(room.room_id) == []
+    assert not await restarted.has_membership(room.room_id, "user-member")

@@ -6,7 +6,12 @@ from app.multiplayer.room_catalog import MemoryRoomCatalog
 
 
 class RoomService:
-    """Room catalog, audience checks, and runtime membership; no game rules."""
+    """Room catalog and durable membership; no presence or game rules.
+
+    ``_rooms`` only supports legacy ad-hoc room IDs which have no catalog row.
+    Membership for persisted rooms is read from the catalog so it survives a
+    process restart. Socket connectivity remains owned by ConnectionManager.
+    """
 
     def __init__(self, catalog=None) -> None:
         self._rooms: dict[str, set[str]] = {}
@@ -29,12 +34,11 @@ class RoomService:
 
     async def members(self, room_id: str) -> list[str]:
         async with self._lock:
-            return sorted(self._rooms.get(room_id, set()))
+            durable = await self._catalog.members(room_id)
+            return sorted(durable | self._rooms.get(room_id, set()))
 
     async def has_membership(self, room_id: str, user_id: str) -> bool:
-        if user_id in await self.members(room_id):
-            return True
-        return room_id in await self._catalog.joined(user_id)
+        return user_id in await self.members(room_id)
 
     async def create(self, name: str, creator_id: str, visibility: str = "public") -> RoomSummary:
         async with self._lock:
@@ -78,13 +82,14 @@ class RoomService:
                 record = catalog.get(rid) or {"room_id": rid, "name": rid, "creator_id": None,
                                               "visibility": "public", "created_at": None}
                 is_owner = bool(viewer_id and record["creator_id"] == viewer_id)
-                is_joined = (rid in joined or viewer_id in self._rooms.get(rid, set())) and not is_owner
+                members = await self._catalog.members(rid) | self._rooms.get(rid, set())
+                is_joined = (rid in joined or viewer_id in members) and not is_owner
                 is_friend = bool(viewer_id and record["creator_id"] and are_friends
                                  and await are_friends(viewer_id, record["creator_id"]))
                 if viewer_id and not is_owner and not is_joined and not is_friend:
                     continue
                 source = "you" if is_owner else "joined" if is_joined else "friend" if is_friend else "public"
-                output.append(RoomSummary(**record, members=sorted(self._rooms.get(rid, set())),
+                output.append(RoomSummary(**record, members=sorted(members),
                                           feed_source=source))
             priority = {"you": 0, "joined": 1, "friend": 2, "public": 3}
             return sorted(output, key=lambda room: (priority[room.feed_source], -(room.created_at or 0), room.room_id))
