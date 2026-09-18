@@ -53,6 +53,9 @@ class PlayerSocialService:
     async def player(self, user_id, target_id):
         if user_id == target_id:
             raise PlayerNotFound("Player not found.")
+        return await self.public_player(target_id)
+
+    async def public_player(self, target_id):
         cached = self.profile_cache.get(target_id)
         if cached:
             self.profile_cache.move_to_end(target_id)

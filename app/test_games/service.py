@@ -117,6 +117,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         self.profiles = profiles
         self.players = players
         self.table_invitations: dict[str, dict] = {}
+        self.invitation_attempts: dict[str, list[float]] = {}
         self.ledger = ledger
         self.durable_runtime = durable_runtime
         self.runtime_mode = runtime_mode
@@ -403,22 +404,19 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         invitees = list(dict.fromkeys(invitees or []))
         if len(invitees) > 20:
             raise HTTPException(422, "Invite at most 20 players at once.")
-        for target_id in invitees:
-            if target_id == user_id:
-                raise HTTPException(409, "You cannot invite yourself.")
-            if not self.players:
-                raise HTTPException(409, "Player invitations are unavailable.")
-            try: await self.players.player(user_id, target_id)
-            except PlayerNotFound as error:
-                raise HTTPException(404, "Invited player not found.") from error
-            if self._occupied_game(target_id):
-                raise HTTPException(409, "An invited player is already seated at another active table.")
+        eligibility = await self.invitation_eligibility(room_id, user_id, invitees)
+        blocked = next((item for item in eligibility if not item["eligible"]), None)
+        if blocked:
+            raise HTTPException(409, blocked["reason"])
         if game_type not in ("callbreak", "marriage", "flush"):
             raise HTTPException(422, "Choose a supported game.")
         if type(capacity) is not int or capacity not in (tuple(range(2, 11)) if game_type == "flush" else (2, 3, 4, 5) if game_type == "marriage" else (4, 5)):
             raise HTTPException(422, "Choose 2-10 players for Flush, 2-5 for Marriage or 4-5 for Call Break.")
         async with self._catalog_lock:
             await self._member(room_id, user_id)
+            eligibility = await self.invitation_eligibility(room_id, user_id, invitees)
+            blocked = next((item for item in eligibility if not item["eligible"]), None)
+            if blocked: raise HTTPException(409, blocked["reason"])
             occupied = self._occupied_game(user_id, room_id)
             if occupied and occupied.room_id == room_id and occupied.replaceable:
                 await self._release_durable_players(occupied)
@@ -435,21 +433,114 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             if game_type == "flush": game.flush_seats[user_id] = 1
             self.tables.setdefault(room_id, {})[game.match_id] = game
             self.games[room_id] = game  # Legacy default: most recently created table.
-            for target_id in invitees:
-                invitation_id = uuid4().hex
-                self.table_invitations[invitation_id] = {"id": invitation_id, "room_id": room_id,
-                    "match_id": game.match_id, "table_name": game.name, "game_type": game.game_type,
-                    "inviter_id": user_id, "recipient_id": target_id, "status": "pending",
-                    "created_at": int(time() * 1000)}
+            await self._invite_players(game, user_id, invitees)
         async with game.lock:
             await self._member(room_id, user_id, game)
             await self._publish(game)
             return self._snapshot(game, user_id)
 
+    def _sync_invitation(self, item):
+        game = self.tables.get(item["room_id"], {}).get(item["match_id"])
+        if not game or game.ended:
+            if item["status"] == "pending": item["status"] = "cancelled"
+        elif item["recipient_id"] in game.table.seats(game) or item["recipient_id"] in game.table.queue:
+            if item["status"] == "pending": item["status"] = "accepted"
+        return game
+
+    async def _invitation_view(self, item):
+        room = await self.rooms.room(item["room_id"])
+        result = dict(item)
+        result["room_name"] = room["name"] if room else item["room_id"]
+        game = self.tables.get(item["room_id"], {}).get(item["match_id"])
+        result["seated"] = len(game.table.seats(game)) if game else 0
+        result["capacity"] = game.capacity if game else 0
+        result["seat_available"] = bool(game and not game.ended and not game.started and len(game.table.seats(game)) < game.capacity)
+        if self.players:
+            for field, user_id in (("inviter", item["inviter_id"]), ("recipient", item["recipient_id"])):
+                try: result[field] = await self.players.public_player(user_id)
+                except PlayerNotFound: result[field] = {"user_id": user_id, "display_name": "", "username": None}
+        return result
+
+    async def invitation_eligibility(self, room_id, user_id, player_ids, match_id=None):
+        await self._member(room_id, user_id)
+        game = self.tables.get(room_id, {}).get(match_id) if match_id else None
+        if match_id and (not game or game.ended):
+            return [{"user_id": target, "eligible": False, "reason": "Table ended"} for target in player_ids]
+        output = []
+        for target in dict.fromkeys(player_ids):
+            reason = None
+            if target == user_id: reason = "You cannot invite yourself"
+            else:
+                try: await self.players.player(user_id, target)
+                except PlayerNotFound: reason = "Player not found"
+            occupied = self._occupied_game(target) if reason is None else None
+            if game and target in game.table.seats(game): reason = "Already seated at this table"
+            elif game and target in game.table.queue: reason = "Already waiting at this table"
+            elif game and any(item["match_id"] == match_id and item["recipient_id"] == target and item["status"] == "pending" for item in self.table_invitations.values()): reason = "Already invited"
+            elif occupied: reason = "Already seated at another active table"
+            output.append({"user_id": target, "eligible": reason is None, "reason": reason})
+        return output
+
+    def _rate_limit_invitations(self, user_id, count):
+        now = monotonic()
+        attempts = [value for value in self.invitation_attempts.get(user_id, []) if now - value < 60]
+        if len(attempts) + count > 30:
+            raise HTTPException(429, "Too many invitations. Wait a minute before inviting more players.")
+        attempts.extend([now] * count)
+        self.invitation_attempts[user_id] = attempts
+
+    async def _invite_players(self, game, user_id, recipients):
+        pending = {(item["match_id"], item["recipient_id"]) for item in self.table_invitations.values() if item["status"] == "pending"}
+        self._rate_limit_invitations(user_id, sum((game.match_id, target) not in pending for target in recipients))
+        output = []
+        for target_id in recipients:
+            existing = next((item for item in self.table_invitations.values()
+                             if item["match_id"] == game.match_id and item["recipient_id"] == target_id), None)
+            if existing and existing["status"] == "pending":
+                output.append(existing); continue
+            item = existing or {"id": uuid4().hex, "room_id": game.room_id,
+                "match_id": game.match_id, "table_name": game.name, "game_type": game.game_type,
+                "inviter_id": user_id, "recipient_id": target_id}
+            item.update({"status": "pending", "created_at": int(time() * 1000)})
+            self.table_invitations[item["id"]] = item
+            output.append(item)
+        return output
+
+    async def invite_players(self, room_id, user_id, match_id, recipients):
+        await self._member(room_id, user_id)
+        game = self._get(room_id, match_id)
+        if not game.users or game.users[0] != user_id:
+            raise HTTPException(403, "Only the table creator can invite players.")
+        eligibility = await self.invitation_eligibility(room_id, user_id, recipients, match_id)
+        blocked = next((item for item in eligibility if not item["eligible"] and item["reason"] != "Already invited"), None)
+        if blocked: raise HTTPException(409, blocked["reason"])
+        invitations = await self._invite_players(game, user_id, [item["user_id"] for item in eligibility if item["eligible"]])
+        invitations.extend(item for item in self.table_invitations.values()
+                           if item["match_id"] == match_id and item["recipient_id"] in recipients
+                           and item["status"] == "pending" and item not in invitations)
+        return [await self._invitation_view(item) for item in invitations]
+
+    async def manage_invitations(self, room_id, user_id, match_id):
+        await self._member(room_id, user_id)
+        game = self._get(room_id, match_id)
+        if not game.users or game.users[0] != user_id:
+            raise HTTPException(403, "Only the table creator can manage invitations.")
+        items = [item for item in self.table_invitations.values() if item["match_id"] == match_id]
+        for item in items: self._sync_invitation(item)
+        return [await self._invitation_view(item) for item in items]
+
+    async def cancel_invitation(self, room_id, user_id, match_id, invitation_id):
+        await self.manage_invitations(room_id, user_id, match_id)
+        invitation = self.table_invitations.get(invitation_id)
+        if not invitation or invitation["match_id"] != match_id:
+            raise HTTPException(404, "Table invitation not found.")
+        if invitation["status"] == "pending": invitation["status"] = "cancelled"
+        return await self._invitation_view(invitation)
+
     async def invitations_for(self, user_id):
-        return [dict(item) for item in self.table_invitations.values()
-                if item["recipient_id"] == user_id and item["status"] == "pending"
-                and (game := self.tables.get(item["room_id"], {}).get(item["match_id"])) and not game.ended]
+        items = [item for item in self.table_invitations.values() if item["recipient_id"] == user_id]
+        for item in items: self._sync_invitation(item)
+        return [await self._invitation_view(item) for item in items if item["status"] == "pending"]
 
     async def answer_invitation(self, user_id, invitation_id, accept):
         invitation = self.table_invitations.get(invitation_id)

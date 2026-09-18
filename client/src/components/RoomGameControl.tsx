@@ -19,6 +19,8 @@ import { MarriageTable } from '../screens/MarriageTable';
 import { GameRequestError, type GameRequestDetail } from '../multiplayer/PendingGameAction';
 import { request } from '../multiplayer/api';
 
+type InvitePlayer = { user_id: string; display_name: string; username?: string | null; eligible?: boolean; reason?: string | null };
+type ManagedInvitation = { id: string; status: 'pending' | 'accepted' | 'declined' | 'cancelled'; recipient: InvitePlayer; recipient_id: string };
 
 export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, apiUrl, token, connected, members, roomMembers = members, connectionMessage, userId, pokes, personal, createContent, creationEnabled = true, gameType = 'callbreak' }: {
   chat?: ReactNode; onOpenChange?: (open: boolean) => void;
@@ -49,8 +51,9 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
   const [capacity, setCapacity] = useState(4);
   const [tableName, setTableName] = useState('');
   const [inviteQuery, setInviteQuery] = useState('');
-  const [inviteResults, setInviteResults] = useState<{ user_id: string; display_name: string; username?: string | null }[]>([]);
-  const [selectedInvitees, setSelectedInvitees] = useState<{ user_id: string; display_name: string; username?: string | null }[]>([]);
+  const [inviteResults, setInviteResults] = useState<InvitePlayer[]>([]);
+  const [selectedInvitees, setSelectedInvitees] = useState<InvitePlayer[]>([]);
+  const [managedInvitations, setManagedInvitations] = useState<ManagedInvitation[]>([]);
   const [inviteError, setInviteError] = useState('');
   const [searchingPlayers, setSearchingPlayers] = useState(false);
   useEffect(() => { if (gameType === 'callbreak') setCapacity(value => Math.max(4, value)); }, [gameType]);
@@ -223,26 +226,61 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
     ? <Pressable accessibilityRole="button" accessibilityLabel={`Leave ${noun}`} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => void lobbyAction('/leave')} style={styles.choice}><Text style={[styles.text, live && open && { color: colors.text }]}>{`Leave ${noun}`}</Text></Pressable> : null;
   const ruleReview = snapshot?.rule_proposal && <RuleProposal key={snapshot.rule_proposal.id} proposal={snapshot.rule_proposal} busy={busy} vote={accept => void lobbyAction('/rule-vote', { proposal_id: snapshot.rule_proposal!.id, accept })} />;
   const activeTables = snapshot?.tables?.filter(table => table.status !== 'ended') || [];
+  async function eligiblePlayers(players: InvitePlayer[], signal?: AbortSignal) {
+    if (!players.length) return [];
+    const eligibility = await request<{ user_id: string; eligible: boolean; reason?: string | null }[]>(
+      `/test-games/${encodeURIComponent(roomId)}/invitations/eligibility`, { user_id: userId, token },
+      { player_ids: players.map(player => player.user_id), ...(live && snapshot?.match_id ? { match_id: snapshot.match_id } : {}) }, signal);
+    return players.map(player => ({ ...player, ...eligibility.find(item => item.user_id === player.user_id) }));
+  }
   useEffect(() => {
-    if (!open || live || inviteQuery.trim().length < 2) { setInviteResults([]); return; }
+    if (!open || inviteQuery.trim().length < 2) { setInviteResults([]); return; }
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const players = await request<typeof inviteResults>(`/players/search?q=${encodeURIComponent(inviteQuery.trim())}`, { user_id: userId, token }, undefined, controller.signal);
-        setInviteResults(players); setInviteError('');
+        const players = await request<InvitePlayer[]>(`/players/search?q=${encodeURIComponent(inviteQuery.trim())}`, { user_id: userId, token }, undefined, controller.signal);
+        setInviteResults(await eligiblePlayers(players, controller.signal)); setInviteError('');
       } catch (error) { if (!controller.signal.aborted) setInviteError(error instanceof Error ? error.message : 'Could not search recent players.'); }
     }, 250);
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [inviteQuery, live, open, token, userId]);
+  }, [inviteQuery, live, open, roomId, snapshot?.match_id, token, userId]);
   async function searchDirectory() {
     if (inviteQuery.trim().length < 2 || searchingPlayers) return;
     setSearchingPlayers(true); setInviteError('');
     try {
-      const players = await request<typeof inviteResults>(`/players/directory?q=${encodeURIComponent(inviteQuery.trim())}`, { user_id: userId, token });
-      setInviteResults(players);
+      const players = await request<InvitePlayer[]>(`/players/directory?q=${encodeURIComponent(inviteQuery.trim())}`, { user_id: userId, token });
+      setInviteResults(await eligiblePlayers(players));
       if (!players.length) setInviteError('No player found with that exact name, username, or user ID.');
     } catch (error) { setInviteError(error instanceof Error ? error.message : 'Could not search the player directory.'); }
     finally { setSearchingPlayers(false); }
+  }
+  useEffect(() => {
+    if (!snapshot?.is_creator || !snapshot.match_id || snapshot.status === 'ended') { setManagedInvitations([]); return; }
+    const controller = new AbortController(); let timer: ReturnType<typeof setTimeout>;
+    async function refreshInvitations() {
+      try {
+        const values = await request<ManagedInvitation[]>(`/test-games/${encodeURIComponent(roomId)}/invitations/manage?match_id=${encodeURIComponent(snapshot!.match_id!)}`, { user_id: userId, token }, undefined, controller.signal);
+        if (!controller.signal.aborted) setManagedInvitations(values);
+      } catch { /* The main game refresh reports authorization and connectivity failures. */ }
+      if (!controller.signal.aborted) timer = setTimeout(refreshInvitations, 5000);
+    }
+    void refreshInvitations();
+    return () => { controller.abort(); clearTimeout(timer); };
+  }, [roomId, snapshot?.is_creator, snapshot?.match_id, snapshot?.status, token, userId]);
+  async function updateInvitation(player: InvitePlayer) {
+    if (!snapshot?.match_id || player.eligible === false) return;
+    try {
+      const values = await request<ManagedInvitation[]>(`/test-games/${encodeURIComponent(roomId)}/invitations`, { user_id: userId, token }, { match_id: snapshot.match_id, recipients: [player.user_id] });
+      setManagedInvitations(current => [...current.filter(item => !values.some(value => value.id === item.id)), ...values]);
+      setInviteQuery(''); setInviteResults([]);
+    } catch (error) { setInviteError(error instanceof Error ? error.message : 'Could not invite this player.'); }
+  }
+  async function cancelManaged(invitation: ManagedInvitation) {
+    if (!snapshot?.match_id) return;
+    try {
+      const value = await request<ManagedInvitation>(`/test-games/${encodeURIComponent(roomId)}/invitations/cancel`, { user_id: userId, token }, { match_id: snapshot.match_id, invitation_id: invitation.id });
+      setManagedInvitations(current => current.map(item => item.id === value.id ? value : item));
+    } catch (error) { setInviteError(error instanceof Error ? error.message : 'Could not cancel this invitation.'); }
   }
   return <>
     {!open && lifecycleControl}
@@ -361,6 +399,16 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
           {ruleReview}
           {!mobileGame && lifecycleControl}
           {!mobileGame && snapshot.game_type === 'callbreak' && leaveControl}
+          {snapshot.is_creator && snapshot.status !== 'ended' && <View style={styles.invitation}>
+            <Text style={styles.summary}>Invited players</Text>
+            {!managedInvitations.length && <Text style={styles.note}>No players invited yet.</Text>}
+            {managedInvitations.map(invitation => <View key={invitation.id} style={styles.bar}><Text style={styles.text}>{invitation.recipient?.display_name || invitation.recipient?.username || invitation.recipient_id} · {invitation.status}</Text>
+              {invitation.status === 'pending' ? <Pressable accessibilityRole="button" onPress={() => void cancelManaged(invitation)} style={styles.choice}><Text style={styles.text}>Cancel</Text></Pressable>
+                : invitation.status === 'declined' || invitation.status === 'cancelled' ? <Pressable accessibilityRole="button" onPress={() => void updateInvitation(invitation.recipient)} style={styles.choice}><Text style={styles.text}>Reinvite</Text></Pressable> : null}</View>)}
+            <TextInput accessibilityLabel="Find more players to invite" value={inviteQuery} onChangeText={setInviteQuery} maxLength={64} placeholder="Name, username, or user ID" placeholderTextColor={colors.textMuted} autoCapitalize="none" autoCorrect={false} returnKeyType="search" onSubmitEditing={() => void searchDirectory()} style={[styles.choice, { color: colors.text }]} />
+            <Pressable accessibilityRole="button" disabled={searchingPlayers || inviteQuery.trim().length < 2} onPress={() => void searchDirectory()} style={styles.choice}><Text style={styles.text}>Search directory</Text></Pressable>
+            {inviteResults.map(player => <Pressable key={player.user_id} accessibilityRole="button" disabled={player.eligible === false} onPress={() => void updateInvitation(player)} style={[styles.choice, player.eligible === false && { opacity: 0.5 }]}><Text style={styles.text}>{player.display_name || player.username || player.user_id} · {player.eligible === false ? player.reason : 'Invite'}</Text></Pressable>)}
+          </View>}
         </ScrollView>
         {chat}
         <PokeOverlay pokes={pokes} matchId={snapshot.match_id} />
@@ -397,9 +445,9 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
             {!!selectedInvitees.length && <View style={styles.choices}>{selectedInvitees.map(player => <Pressable key={player.user_id} accessibilityRole="button" accessibilityLabel={`Remove ${player.display_name || player.username || player.user_id}`} onPress={() => setSelectedInvitees(current => current.filter(item => item.user_id !== player.user_id))} style={styles.choice}>
               <Text style={styles.text}>{player.display_name || player.username || player.user_id} · Remove</Text>
             </Pressable>)}</View>}
-            {!!inviteResults.length && <View>{inviteResults.filter(player => !selectedInvitees.some(selected => selected.user_id === player.user_id)).map(player => <Pressable key={player.user_id} accessibilityRole="button" accessibilityLabel={`Invite ${player.display_name || player.username || player.user_id}`} onPress={() => setSelectedInvitees(current => [...current, player])} style={styles.choice}>
+            {!!inviteResults.length && <View>{inviteResults.filter(player => !selectedInvitees.some(selected => selected.user_id === player.user_id)).map(player => <Pressable key={player.user_id} accessibilityRole="button" disabled={player.eligible === false} accessibilityLabel={`Invite ${player.display_name || player.username || player.user_id}`} onPress={() => setSelectedInvitees(current => [...current, player])} style={[styles.choice, player.eligible === false && { opacity: 0.5 }]}>
               <Text style={styles.summary}>{player.display_name || player.username || 'Player'}</Text>
-              <Text style={styles.note}>{player.username ? `@${player.username} · ` : ''}{player.user_id}</Text>
+              <Text style={styles.note}>{player.username ? `@${player.username} · ` : ''}{player.user_id}{player.eligible === false ? ` · ${player.reason}` : ''}</Text>
             </Pressable>)}</View>}
             {!!inviteError && <Text accessibilityRole="alert" style={styles.error}>{inviteError}</Text>}
             <Text style={styles.text}>{gameType === 'flush' ? '2–10 players · the creator locks the seated roster when ready.' : 'Players'}</Text>

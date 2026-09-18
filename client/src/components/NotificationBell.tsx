@@ -8,7 +8,7 @@ import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 type Player = { user_id: string; display_name: string; username?: string | null };
 type Notification = { id: string; kind: 'friend_request' | 'friend_accepted' | 'friend_rejected'; actor: Player; created_at: number; read: boolean };
 type FriendSnapshot = { incoming: Player[] };
-type TableInvitation = { id: string; room_id: string; match_id: string; table_name: string; game_type: 'callbreak' | 'marriage' | 'flush'; inviter_id: string; created_at: number };
+type TableInvitation = { id: string; room_id: string; room_name: string; match_id: string; table_name: string; game_type: 'callbreak' | 'marriage' | 'flush'; inviter_id: string; inviter?: Player; created_at: number; seated: number; capacity: number; seat_available: boolean };
 
 const playerName = (player: Player) => player.display_name || player.username || player.user_id;
 
@@ -85,7 +85,7 @@ export function NotificationBell({ session, onOpenTable }: { session: Session; o
             {!items.length && !tableInvitations.length && <View style={styles.empty}><Text style={styles.name}>You’re all caught up</Text><Text style={styles.detail}>Friend and room activity will appear here.</Text></View>}
             {tableInvitations.map(invitation => <View key={invitation.id} style={[styles.notice, styles.unread]}>
               <View style={styles.avatar}><Text style={styles.avatarText}>♠</Text></View>
-              <View style={{ flex: 1 }}><Text style={styles.name}>You were invited to {invitation.table_name}.</Text><Text style={styles.detail}>{invitation.game_type} · Opening does not take a seat.</Text></View>
+              <View style={{ flex: 1 }}><Text style={styles.name}>{invitation.inviter ? playerName(invitation.inviter) : 'A player'} invited you to {invitation.table_name}.</Text><Text style={styles.detail}>{invitation.room_name} · {invitation.game_type} · {invitation.seated}/{invitation.capacity} seated · {invitation.seat_available ? 'Seat available' : 'Watch or join the waitlist'} · Opening does not take a seat.</Text></View>
               <View style={styles.requestActions}>
                 <Pressable accessibilityRole="button" onPress={() => void answerTable(invitation, true)} style={styles.accept}><Text style={styles.acceptText}>Open table</Text></Pressable>
                 <Pressable accessibilityRole="button" onPress={() => void answerTable(invitation, false)} style={styles.decline}><Text style={styles.link}>Decline</Text></Pressable>
