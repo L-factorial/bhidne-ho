@@ -1,6 +1,6 @@
 import { useRoomChat } from '../components/RoomChat';
 import { InvitationPreview } from '../components/InvitationPreview';
-import { ShareLink } from '../components/ShareLink';
+import { CopyRoomCode, ShareLink } from '../components/ShareLink';
 import type { Invitation } from '../multiplayer/invitations';
 import { AppHeader, HeaderProfileContext } from '../components/AppHeader';
 import { HeaderAction } from '../components/HeaderAction';
@@ -29,7 +29,6 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
   const [roomToolsOpen, setRoomToolsOpen] = useState(false);
   const [roomsOpen, setRoomsOpen] = useState(false);
   const [lobbyTab, setLobbyTab] = useState<'rooms' | 'players'>('rooms');
-  const [inviteOpen, setInviteOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
   const [form, setForm] = useState<'create' | 'join'>('create');
   const [testingOpen, setTestingOpen] = useState(false);
@@ -44,7 +43,7 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
   const [gameOpen, setGameOpen] = useState(false);
   const chat = useRoomChat({ roomId: room?.room_id || '', session: session || { token: '', user_id: '' }, connected: !!room && !!session && !expired && !gameOpen && shared.status === 'connected' });
   useEffect(() => {
-    setInviteOpen(false); setMembersOpen(false);
+    setMembersOpen(false);
   }, [room?.room_id]);
   const personal = usePlayerPhrases(session, !!session && !expired);
   const [name, setName] = useState('');
@@ -102,11 +101,10 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
         <View style={styles.roomMasthead}>
           <View style={styles.roomIdentity}>
             <Text accessibilityRole="header" style={[styles.roomTitle, !wide && styles.mobileRoomTitle]}>{room.name}</Text>
-            <Text style={styles.subtitle}>{roomMembers.length} {roomMembers.length === 1 ? 'player' : 'players'} · Invite friends to take a seat.</Text>
+            <Text style={styles.subtitle}>{roomMembers.length} {roomMembers.length === 1 ? 'room member' : 'room members'}</Text>
           </View>
           <View style={styles.roomActions}>
             <HeaderAction icon="leave" label="Back to lobby" onPress={leaveRoom} />
-            <ShareLink roomId={room.room_id} />
           </View>
         </View>
         <View style={[styles.columns, wide && styles.wideColumns]}>
@@ -131,14 +129,10 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
           </View>
           <View style={[styles.sideColumn, wide && styles.fixedSide]}>
             <View style={styles.panel}>
-              <Pressable accessibilityRole="button" accessibilityLabel="Invite a friend" aria-expanded={inviteOpen} accessibilityState={{ expanded: inviteOpen }} onPress={() => setInviteOpen(value => !value)} style={styles.sectionToggle}>
-                <Text style={styles.sectionTitle}>Invite a friend</Text><Text style={styles.sectionTitle}>{inviteOpen ? '-' : '+'}</Text>
-              </Pressable>
-              {inviteOpen && <View>
-              <Text style={styles.description}>Share this table code to bring everyone into the same room.</Text>
+              <Text style={styles.sectionTitle}>Invite people</Text>
+              <Text style={styles.description}>Share the room link or code. After entering, each person can choose a table to play or watch.</Text>
               <View style={styles.codeBox}><Text style={styles.codeLabel}>TABLE CODE</Text><Text selectable accessibilityLabel={`Table code ${room.room_id}`} style={styles.code}>{room.room_id}</Text></View>
-              <Text style={styles.description}>Friends enter the code on the room list, then take a seat to play.</Text>
-              </View>}
+              <View style={styles.gameTabs}><ShareLink roomId={room.room_id} /><CopyRoomCode roomId={room.room_id} /></View>
             </View>
             {room.creator_id === session?.user_id && <View style={styles.panel}>
               <Text style={styles.sectionTitle}>Room owner controls</Text>
@@ -152,8 +146,8 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
               </> : <Pressable accessibilityRole="button" accessibilityLabel="Delete room" onPress={() => setDeleteConfirming(true)} style={styles.dangerButton}><Text style={styles.dangerText}>Delete room</Text></Pressable>}
             </View>}
             <View style={styles.panel}>
-              <Pressable accessibilityRole="button" accessibilityLabel="Currently in the room" aria-expanded={membersOpen} accessibilityState={{ expanded: membersOpen }} onPress={() => setMembersOpen(value => !value)} style={styles.sectionToggle}>
-                <Text style={styles.sectionTitle}>Currently in the room · {roomMembers.length}</Text><Text style={styles.sectionTitle}>{membersOpen ? '-' : '+'}</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel="Room members" aria-expanded={membersOpen} accessibilityState={{ expanded: membersOpen }} onPress={() => setMembersOpen(value => !value)} style={styles.sectionToggle}>
+                <Text style={styles.sectionTitle}>Room members · {roomMembers.length}</Text><Text style={styles.sectionTitle}>{membersOpen ? '-' : '+'}</Text>
               </Pressable>
               {membersOpen && roomMembers.map((member, index) => <View key={member} style={styles.member}>
                 <View style={styles.avatar}><Text style={styles.avatarText}>{member === session?.user_id ? 'Y' : String(index + 1)}</Text></View>

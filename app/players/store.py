@@ -28,6 +28,16 @@ class InMemoryPlayerStore:
         return {"user_id": user_id, "display_name": self.profiles.get(user_id)["display_name"],
                 "username": self.usernames.get(user_id)}
 
+    async def get_player(self, user_id):
+        if user_id not in self.users: raise PlayerNotFound("Player not found.")
+        return self.player(user_id)
+
+    async def find_exact(self, user_id, query):
+        needle = query.casefold()
+        return [self.player(other) for other in sorted(self.users) if other != user_id and
+                ((self.profiles.get(other)["display_name"] or "").casefold() == needle
+                 or (self.usernames.get(other) or "").casefold() == needle)][:20]
+
     async def search(self, user_id, query):
         needle = query.casefold()
         return [self.player(other) for other in sorted(self.users) if other != user_id and
@@ -113,6 +123,21 @@ class PostgresPlayerStore:
             row = await result.fetchone()
         if row is None: raise PlayerNotFound("Player not found.")
         return self.player(row)
+
+    async def get_player(self, user_id):
+        return await self._get_player(user_id)
+
+    async def find_exact(self, user_id, query):
+        async with self.pool.connection() as connection:
+            result = await connection.execute("""
+                SELECT u.id, p.display_name, a.username FROM users u
+                JOIN user_profiles p ON p.user_id = u.id
+                LEFT JOIN account_credentials a ON a.user_id = u.id
+                WHERE u.id <> %s AND (lower(p.display_name) = lower(%s) OR lower(a.username) = lower(%s))
+                ORDER BY CASE WHEN lower(a.username) = lower(%s) THEN 0 ELSE 1 END,
+                         p.display_name, a.username LIMIT 20
+            """, (internal_id(user_id), query, query, query))
+            return [self.player(row) for row in await result.fetchall()]
 
     async def search(self, user_id, query):
         async with self.pool.connection() as connection:

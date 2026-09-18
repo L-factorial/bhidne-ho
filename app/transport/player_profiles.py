@@ -33,4 +33,6 @@ async def update_profile(body: ProfileInput, request: Request, response: Respons
                          user: UserIdentity = Depends(current_user)):
     response.headers["Cache-Control"] = "no-store"
     result = request.app.state.player_profiles.update(user.user_id, body.display_name)
-    return await result if isawaitable(result) else result
+    saved = await result if isawaitable(result) else result
+    await request.app.state.players.refresh_player(user.user_id)
+    return saved

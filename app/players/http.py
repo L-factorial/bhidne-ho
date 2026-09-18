@@ -24,6 +24,24 @@ async def search_players(request: Request, q: str = Query(min_length=2, max_leng
     return await request.app.state.players.search(user.user_id, q.strip())
 
 
+@router.get("/players/directory", response_model=list[PlayerSummary])
+async def search_directory(request: Request, response: Response,
+                           q: str = Query(min_length=2, max_length=64),
+                           user: UserIdentity = Depends(current_user)):
+    response.headers["Cache-Control"] = "no-store"
+    return await request.app.state.players.directory_search(user.user_id, q.strip())
+
+
+@router.get("/players/{player_id}", response_model=PlayerSummary)
+async def player(player_id: str, request: Request, response: Response,
+                 user: UserIdentity = Depends(current_user)):
+    response.headers["Cache-Control"] = "no-store"
+    if not player_id.startswith("user-") or len(player_id) > 64:
+        raise HTTPException(404, "Player not found.")
+    try: return await request.app.state.players.player(user.user_id, player_id)
+    except PlayerNotFound as error: raise translate(error) from None
+
+
 @router.get("/friends", response_model=FriendshipSnapshot)
 async def friends(request: Request, response: Response, user: UserIdentity = Depends(current_user)):
     response.headers["Cache-Control"] = "no-store"

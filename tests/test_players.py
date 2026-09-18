@@ -21,9 +21,19 @@ def test_player_search_friend_request_acceptance_and_removal():
         carol, ch = account(client, 'carol-friends', 'Carol')
 
         assert client.get('/players/search?q=a', headers=ah).status_code == 422
-        results = client.get('/players/search?q=bob', headers=ah).json()
+        with patch.object(client.app.state.players.store, 'search',
+                          side_effect=AssertionError('autocomplete must not query storage')):
+            results = client.get('/players/search?q=bob', headers=ah).json()
         assert results == [{'user_id': bob['user_id'], 'display_name': 'Bob Buddy', 'username': 'bob-friends'}]
         assert client.get('/players/search?q=alice', headers=ah).json() == []
+        exact = client.get(f"/players/{bob['user_id']}", headers=ah)
+        assert exact.status_code == 200 and exact.json() == results[0]
+        client.app.state.players.profile_cache.pop(bob['user_id'])
+        assert client.get('/players/search?q=bob', headers=ah).json() == []
+        assert client.get('/players/directory?q=bob-friends', headers=ah).json() == results
+        assert client.get('/players/search?q=bob', headers=ah).json() == results
+        assert client.get('/players/directory?q=Bob%20Buddy', headers=ah).json() == results
+        assert client.get(f"/players/directory?q={bob['user_id']}", headers=ah).json() == results
 
         requested = client.post(f"/friends/requests/{bob['user_id']}", headers=ah)
         assert requested.status_code == 201 and requested.json()['user_id'] == bob['user_id']
@@ -94,5 +104,7 @@ def test_player_endpoints_require_authentication_and_reject_unknown_users():
         unknown = 'user-00000000-0000-0000-0000-000000000000'
         assert client.get('/friends').status_code == 401
         assert client.get('/players/search?q=known').status_code == 401
+        assert client.get(f'/players/{unknown}', headers=headers).status_code == 404
+        assert client.get('/players/not-a-user-id', headers=headers).status_code == 404
         assert client.post(f'/friends/requests/{unknown}', headers=headers).status_code == 404
         assert client.post('/friends/requests/not-an-id', headers=headers).status_code == 404

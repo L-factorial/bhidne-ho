@@ -27,6 +27,7 @@ async def guest(request: Request, response: Response, body: GuestInput | None = 
         saved = request.app.state.player_profiles.update(credentials.user_id, body.display_name)
         if isawaitable(saved):
             await saved
+    await request.app.state.players.refresh_player(credentials.user_id)
     return credentials
 
 bearer = HTTPBearer(auto_error=False)
@@ -57,6 +58,7 @@ async def sign_up(body: AccountInput, request: Request, response: Response):
         if hasattr(request.app.state.players.store, "usernames"):
             request.app.state.players.store.usernames[credentials.user_id] = credentials.username
         request.app.state.player_profiles.remember_username(credentials.user_id, credentials.username)
+        await request.app.state.players.refresh_player(credentials.user_id)
         return credentials
     except UsernameTakenError as error:
         raise HTTPException(409, str(error)) from None
@@ -68,6 +70,8 @@ async def sign_in(body: AccountInput, request: Request, response: Response):
     try:
         credentials = await request.app.state.auth.sign_in(body.username, body.password)
         request.app.state.player_profiles.remember_username(credentials.user_id, credentials.username)
+        await request.app.state.players.ensure_user(credentials.user_id)
+        await request.app.state.players.refresh_player(credentials.user_id)
         return credentials
     except AuthenticationError as error:
         raise HTTPException(401, str(error)) from None

@@ -216,6 +216,7 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
   const leaveControl = !snapshot?.table?.current_user.can_leave_seat && !snapshot?.table?.current_user.can_abandon_match && snapshot?.your_player_id
     ? <Pressable accessibilityRole="button" accessibilityLabel={`Leave ${noun}`} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => void lobbyAction('/leave')} style={styles.choice}><Text style={[styles.text, live && open && { color: colors.text }]}>{`Leave ${noun}`}</Text></Pressable> : null;
   const ruleReview = snapshot?.rule_proposal && <RuleProposal key={snapshot.rule_proposal.id} proposal={snapshot.rule_proposal} busy={busy} vote={accept => void lobbyAction('/rule-vote', { proposal_id: snapshot.rule_proposal!.id, accept })} />;
+  const activeTables = snapshot?.tables?.filter(table => table.status !== 'ended') || [];
   return <>
     {!open && lifecycleControl}
     {!open && snapshot?.match_id && snapshot.can_join && !snapshot.your_player_id && !snapshot.is_creator && dismissedInvitation !== snapshot.match_id && <View testID="game-created-notice" style={styles.invitation}>
@@ -252,10 +253,17 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
       <Pressable accessibilityRole="button" accessibilityLabel={`Join a ${noun}`} aria-expanded={joinOpen} accessibilityState={{ expanded: joinOpen }} onPress={() => setJoinOpen(value => !value)} style={styles.sectionToggle}>
         <Text style={styles.summary}>{`Join a ${noun}`}</Text><Text style={styles.summary}>{joinOpen ? '-' : '+'}</Text>
       </Pressable>
-      {joinOpen && (!snapshot?.tables?.length ? <Text style={styles.text}>No active {noun} to join. Create a {noun} to get started.</Text> : <>
-    {snapshot.tables.map(table => <Pressable key={table.match_id} accessibilityRole="button" onPress={async () => {
-      try { setSnapshot(await api(`?match_id=${encodeURIComponent(table.match_id)}`)); } catch (error) { setError(error instanceof Error ? error.message : 'Could not open table.'); }
-    }} style={styles.choice}><Text style={styles.text}>{table.name} · {table.game_type} · {table.players}/{table.capacity} · {table.status}</Text></Pressable>)}
+      {joinOpen && (!activeTables.length ? <Text style={styles.text}>No active {noun} to join or watch. Create a {noun} to get started.</Text> : <>
+    {activeTables.map(table => <Pressable key={table.match_id} accessibilityRole="link" accessibilityLabel={`Open ${table.name}`} onPress={async () => {
+      try {
+        const selected = await api(`?match_id=${encodeURIComponent(table.match_id)}`);
+        setSnapshot(selected); setLive(true); setOpen(true);
+      } catch (error) { setError(error instanceof Error ? error.message : 'Could not open table.'); }
+    }} style={styles.choice}>
+      <Text style={styles.summary}>{table.name}</Text>
+      <Text style={styles.text}>{table.game_type} · {table.players}/{table.capacity} seated · {table.status}</Text>
+      <Text style={styles.joinHint}>Open table</Text>
+    </Pressable>)}
     <View style={styles.bar}>
       <View style={{ flex: 1, minWidth: 150 }}>
         <Text style={styles.summary}>{summary}</Text>
