@@ -7,19 +7,24 @@ import { fonts, useTheme } from '../theme';
 
 export const HeaderProfileContext = createContext<((close: () => void) => ReactNode) | null>(null);
 
-export function AppHeader({ title, actions, hideProfile = false }: { title?: string; actions?: ReactNode; hideProfile?: boolean }) {
+export function AppHeader({ title, actions, inlineActions, hideProfile = false }: {
+  title?: string; actions?: ReactNode; inlineActions?: ReactNode; hideProfile?: boolean;
+}) {
   const { colors } = useTheme();
   const compact = useWindowDimensions().width < 900;
   const renderProfile = useContext(HeaderProfileContext);
   const [profileOpen, setProfileOpen] = useState(false);
-  return <View style={{ padding: 12, gap: 10, borderBottomWidth: 1, borderColor: colors.border, backgroundColor: colors.background }}>
+  return <View style={{ paddingHorizontal: compact ? 4 : 12, paddingVertical: compact ? 6 : 10, gap: 8,
+    borderBottomWidth: 1, borderColor: colors.border, backgroundColor: colors.background }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-        <BrandIcon size={48} />
+        <BrandIcon size={compact ? 38 : 44} />
+        {!title && <Text style={{ color: colors.text, fontFamily: fonts.medium, fontSize: compact ? 16 : 18 }}>Bhidne Ho</Text>}
         {!!title && <Text accessibilityRole="header" style={{ flexShrink: 1, color: colors.text, fontFamily: fonts.medium, fontSize: 18 }}>{title}</Text>}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
         <ThemeToggle />
+        {inlineActions}
         {!hideProfile && renderProfile && <HeaderAction icon="profile" label="Profile" compact={compact} onPress={() => setProfileOpen(true)} />}
       </View>
     </View>

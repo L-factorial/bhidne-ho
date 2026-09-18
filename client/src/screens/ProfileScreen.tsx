@@ -8,8 +8,8 @@ import type { usePlayerPhrases } from '../multiplayer/usePlayerPhrases';
 import { fonts, useThemedStyles, type ThemeColors } from '../theme';
 import { FriendsPanel } from '../components/FriendsPanel';
 
-export function ProfileScreen({ session, personal, onBack }: {
-  session: Session; personal: ReturnType<typeof usePlayerPhrases>; onBack: () => void;
+export function ProfileScreen({ session, personal, onBack, onSignOut }: {
+  session: Session; personal: ReturnType<typeof usePlayerPhrases>; onBack: () => void; onSignOut?: () => void;
 }) {
   const styles = useThemedStyles(createStyles);
   const userId = session.user_id;
@@ -20,6 +20,7 @@ export function ProfileScreen({ session, personal, onBack }: {
       <AppHeader title="Your profile" hideProfile actions={<Pressable accessibilityRole="button" accessibilityLabel="Back from profile" onPress={onBack} style={styles.back}><Text style={styles.link}>Back</Text></Pressable>} />
       <Text style={styles.description}>Make your table talk your own. Your saved phrases are private to you.</Text>
       <DisplayNameField session={session} />
+      {onSignOut && <Pressable accessibilityRole="button" onPress={onSignOut} style={styles.signOut}><Text style={styles.signOutText}>Sign out</Text></Pressable>}
       <FriendsPanel session={session} />
       <PlayerPhrases key={userId} userId={userId} phrases={personal.phrases} connected={true}
         loadError={personal.error} onSave={personal.save} onRemove={personal.remove} onUpdate={personal.update} />
@@ -33,5 +34,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   title: { fontFamily: fonts.display, fontSize: 36, color: colors.text },
   back: { minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center' },
   link: { fontFamily: fonts.medium, color: colors.accent, fontSize: 14 },
+  signOut: { minHeight: 46, borderWidth: 1, borderColor: colors.border, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }, signOutText: { fontFamily: fonts.medium, color: colors.textMuted, fontSize: 13 },
   description: { fontFamily: fonts.body, color: colors.text, fontSize: 13, lineHeight: 22 },
 });

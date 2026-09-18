@@ -2,12 +2,13 @@
 
 import asyncio
 from contextlib import AsyncExitStack, asynccontextmanager
+from copy import deepcopy
 from dataclasses import asdict, dataclass, field, fields
 import json
 import logging
 from random import SystemRandom
 from time import monotonic
-from uuid import NAMESPACE_URL, uuid4, uuid5
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from fastapi import HTTPException
 from pydantic import ValidationError, TypeAdapter
@@ -36,6 +37,8 @@ from app.multiplayer.rule_proposals import RuleProposals
 from app.games.lifecycle import PlayerDeparture, WaitingGameDeparture
 from app.runtime.command_runtime import CommandAccessError, CommandRuntime, CommandSession, OutgoingEvent
 from app.ledger import GameLedgerAmount, GameLedgerResult
+from app.durable_games import HostedEngineDefinition
+from app.durable_games.store import DurableGameConflict, StaleGameOwner
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +75,9 @@ class HostedGame:
     marriage_scoring: ScoringRules = field(default_factory=ScoringRules)
     ledgered_games: set[str] = field(default_factory=set)
     ledger_retry_at: float = 0
+    durable_definition: object | None = None
+    durable_ownership: object | None = None
+    durable_game_id: object | None = None
 
     @property
     def started(self):
@@ -116,6 +122,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         self.tables: dict[str, dict[str, HostedGame]] = {}
         self._catalog_lock = asyncio.Lock()
         self._random = SystemRandom()
+        self.instance_id = uuid4().hex
         self._offer_tasks: dict[str, asyncio.Task] = {}
 
     @asynccontextmanager
@@ -571,6 +578,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             if play_mode not in (None, "manual"):
                 raise HTTPException(422, "Games support manual multiplayer only.")
             play_mode = "manual"
+            start_checkpoint = self._start_checkpoint(game)
             if game.game_type == "flush":
                 from app.adapters.flush import PlayerCommand as FlushCommand, AdapterResult as FlushResult
                 if rules_revision != game.flush_rules_revision or type(rules_revision) is not int:
@@ -578,7 +586,6 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                 seats = tuple(str(game.flush_seats[u]) for u in game.users)
                 owner = str(game.flush_seats[user_id])
                 if game.flush_target:
-                    from copy import deepcopy
                     engine = deepcopy(game.flush_target.adapter.checkpoint())
                     old = engine.get_state()
                     balances = {**game.flush_balances, **{p.player_id: p.chips for p in old.players}}
@@ -601,6 +608,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                 game.flush_queries = {}
                 game.table.phase = 'STARTED'
                 game.table.emit('GAME_STARTED', match_id=game.match_id)
+                await self._start_durable_state(game, start_checkpoint)
                 await self._publish(game)
                 return self._snapshot(game, user_id)
             if game.game_type == "marriage":
@@ -616,6 +624,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                 game.table.phase = 'STARTED'
                 game.table.emit('GAME_STARTED', match_id=game.match_id)
                 game.play_mode = play_mode
+                await self._start_durable_state(game, start_checkpoint)
                 for event in outcome.messages:
                     recipient = game.marriage_target.user_by_seat[event.recipient_player_id] if event.recipient_player_id else None
                     await self._deliver(game, OutgoingEvent(event.message.model_dump(mode="json"), recipient))
@@ -628,7 +637,10 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                                       initial_dealer=self._random.randint(1, game.capacity))
             game.table.phase = 'STARTED'
             game.table.emit('GAME_STARTED', match_id=game.match_id)
-            await self._controllers(game)
+            initial_events = self._apply_controllers(game)
+            await self._start_durable_state(game, start_checkpoint)
+            for event in initial_events:
+                await self._deliver(game, event)
             await self._publish(game)
             return self._snapshot(game, user_id)
 
@@ -646,7 +658,10 @@ class TestGameService(GameTableLifecycle, RuleProposals):
 
         try:
             result = await self.command_runtime.execute(
-                game.commands, game.flush_target or game.marriage_target or CallBreakCommandTarget(self, game), user_id, body, deliver)
+                game.commands, game.flush_target or game.marriage_target or CallBreakCommandTarget(self, game),
+                user_id, body, deliver,
+                commit=(lambda: self._commit_durable_state(game, user_id, body))
+                if self.runtime_mode == "durable" else None)
             await self._try_record_completed_ledger(game)
             return result
         except CommandAccessError as error:
@@ -654,6 +669,86 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         except GameCommandRejected as error:
             # Legacy requests without command IDs keep their HTTP rejection shape.
             raise HTTPException(409, error.detail) from error
+
+    def _engine_state(self, game):
+        if game.flush_target:
+            state = game.flush_target.adapter.checkpoint().get_state()
+        elif game.marriage_target:
+            state = game.marriage_target.adapter.checkpoint().get_state()
+        else:
+            state = game.state
+        return {"revision": state.revision,
+                "value": TypeAdapter(type(state)).dump_python(state, mode="json")}
+
+    def _locked_rules(self, game):
+        if game.game_type == "flush":
+            return {"rules": asdict(game.flush_rules), "starting_chips": game.flush_starting_chips}
+        if game.game_type == "marriage":
+            return {"scoring": asdict(game.marriage_scoring)}
+        return dict(game.settings)
+
+    @staticmethod
+    def _start_checkpoint(game):
+        return {
+            "table": deepcopy(game.table),
+            "state": game.state,
+            "play_mode": game.play_mode,
+            "flush_target": game.flush_target,
+            "flush_queries": game.flush_queries,
+            "flush_balances": game.flush_balances,
+            "marriage_target": game.marriage_target,
+            "durable_definition": game.durable_definition,
+            "durable_ownership": game.durable_ownership,
+            "durable_game_id": game.durable_game_id,
+        }
+
+    @staticmethod
+    def _restore_failed_start(game, checkpoint):
+        for name, value in checkpoint.items():
+            setattr(game, name, value)
+
+    async def _start_durable_state(self, game, start_checkpoint):
+        if self.runtime_mode != "durable":
+            return
+        definition = HostedEngineDefinition(game.game_type)
+        previous_game_id = game.durable_game_id
+        durable_game_id = uuid4() if game.game_type == "flush" else UUID(game.match_id)
+        players = tuple((user, seat) for seat, user in enumerate(game.users, 1))
+        released_previous = False
+        try:
+            if previous_game_id is not None:
+                await self.durable_runtime.store.release_players(previous_game_id)
+                released_previous = True
+            started = await self.durable_runtime.start_owned(durable_game_id, game.room_id, definition,
+                start_command_id=f"start:{durable_game_id.hex}", owner_instance_id=self.instance_id,
+                players=players, initial_state=self._engine_state(game),
+                rules=self._locked_rules(game), lease_seconds=30)
+        except Exception:
+            self._restore_failed_start(game, start_checkpoint)
+            if released_previous:
+                await self.durable_runtime.store.reserve_players(previous_game_id, game.room_id, players)
+            raise
+        game.durable_definition = definition
+        game.durable_ownership = started.ownership
+        game.durable_game_id = durable_game_id
+
+    async def _commit_durable_state(self, game, user_id, command):
+        store = self.durable_runtime.store
+        ownership = game.durable_ownership
+        if ownership is None:
+            ownership = await store.acquire(game.durable_game_id, self.instance_id, 30)
+        else:
+            try:
+                ownership = await store.renew(ownership, 30)
+            except StaleGameOwner:
+                ownership = await store.acquire(game.durable_game_id, self.instance_id, 30)
+        game.durable_ownership = ownership
+        payload = {"command_payload": command.payload, "authoritative_state": self._engine_state(game)}
+        result = await store.execute(game.durable_game_id, game.durable_definition, actor_id=user_id,
+            command_id=command.command_id, expected_revision=command.expected_revision,
+            command=str(command.command), payload=payload, ownership=ownership)
+        if result.receipt.status != "accepted":
+            raise DurableGameConflict(result.receipt.detail or "Durable command was rejected.")
 
     async def _record_completed_ledger(self, game):
         """Publish an engine-authored, zero-sum result once per completed game/round."""

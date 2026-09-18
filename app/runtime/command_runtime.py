@@ -63,7 +63,8 @@ class CommandRuntime:
 
     async def execute(self, session: CommandSession, target: CommandTarget, user_id: str,
                       command: ActionCommand,
-                      deliver: Callable[[list[OutgoingEvent]], Awaitable[None]]) -> dict:
+                      deliver: Callable[[list[OutgoingEvent]], Awaitable[None]],
+                      commit: Callable[[], Awaitable[None]] | None = None) -> dict:
         async with session.lock:
             if command.match_id != session.match_id:
                 raise CommandAccessError(409, "This game is not active. Refresh its state.")
@@ -86,6 +87,8 @@ class CommandRuntime:
                 # Validate serialization before committing, while rollback is possible.
                 for event in events:
                     json.dumps(event.message, allow_nan=False)
+                if commit is not None:
+                    await commit()
                 receipt = (ActionAcknowledgment(command_id=command.command_id, status="accepted",
                     revision=target.revision).model_dump(exclude_none=True) if command.command_id else None)
             except GameCommandRejected as error:

@@ -8,7 +8,6 @@ import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 type Player = { user_id: string; display_name: string; username?: string | null };
 type Snapshot = { friends: Player[]; incoming: Player[]; outgoing: Player[] };
 type Message = { id: string; sender_id: string; recipient_id: string; text: string; sent_at: number };
-type Notification = { id: string; kind: 'friend_accepted' | 'friend_rejected'; actor: Player; created_at: number; read: boolean };
 const empty: Snapshot = { friends: [], incoming: [], outgoing: [] };
 const label = (player: Player) => player.display_name || player.username || 'Player';
 
@@ -19,18 +18,13 @@ export function FriendsPanel({ session }: { session: Session }) {
   const [query, setQuery] = useState(''), [results, setResults] = useState<Player[]>([]);
   const [selected, setSelected] = useState<Player | null>(null);
   const [messages, setMessages] = useState<Message[]>([]), [draft, setDraft] = useState('');
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   const sending = useRef(false);
 
   async function refresh(signal?: AbortSignal) {
-    const [value, notices] = await Promise.all([
-      request<Snapshot>('/friends', session, undefined, signal),
-      request<Notification[]>('/notifications', session, undefined, signal),
-    ]);
+    const value = await request<Snapshot>('/friends', session, undefined, signal);
     if (!signal?.aborted) {
       setSnapshot(value);
-      setNotifications(notices);
       if (selected && !value.friends.some(friend => friend.user_id === selected.user_id)) setSelected(null);
     }
   }
@@ -79,12 +73,6 @@ export function FriendsPanel({ session }: { session: Session }) {
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'Could not send message.'); }
     finally { sending.current = false; setBusy(false); }
   }
-  async function markNotificationsRead() {
-    try {
-      await request('/notifications/read', session, {});
-      setNotifications(current => current.map(item => ({ ...item, read: true })));
-    } catch (failure) { setError(failure instanceof Error ? failure.message : 'Could not update notifications.'); }
-  }
   const related = new Set([...snapshot.friends, ...snapshot.incoming, ...snapshot.outgoing].map(player => player.user_id));
   const row = (player: Player, action: ReactNode) => <View key={player.user_id} style={styles.row}>
     <View style={{ flex: 1 }}><Text style={styles.name}>{label(player)}</Text>
@@ -92,16 +80,8 @@ export function FriendsPanel({ session }: { session: Session }) {
   </View>;
 
   return <View style={styles.panel}>
-    <View style={styles.row}><Text style={styles.title}>Friends & private messages</Text>
-      {notifications.some(item => !item.read) && <Pressable accessibilityRole="button" onPress={() => void markNotificationsRead()} style={styles.linkButton}><Text style={styles.link}>Mark read</Text></Pressable>}
-    </View>
-    {!!notifications.length && <View style={styles.notifications}>
-      {notifications.map(item => <View key={item.id} style={[styles.notice, !item.read && styles.unread]}>
-        <Text style={styles.name}>{label(item.actor)} {item.kind === 'friend_accepted' ? 'accepted your friend request.' : 'declined your friend request.'}</Text>
-        <Text style={styles.detail}>{new Date(item.created_at).toLocaleString()}</Text>
-      </View>)}
-    </View>}
-    <Text style={styles.detail}>Chat one-to-one with accepted friends from the lobby, or find a player by username or display name.</Text>
+    <View style={styles.row}><Text style={styles.title}>Players</Text></View>
+    <Text style={styles.detail}>Find a player by username or display name, manage requests, and message your connections.</Text>
     <View style={styles.searchRow}>
       <TextInput accessibilityLabel="Find players" value={query} onChangeText={setQuery} maxLength={50}
         autoCapitalize="none" placeholder="Username or display name" placeholderTextColor={colors.textMuted}
@@ -154,7 +134,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   smallButton: { minHeight: 40, paddingHorizontal: 10, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceSelected },
   linkButton: { minHeight: 40, paddingHorizontal: 8, justifyContent: 'center' }, buttonText: { fontFamily: fonts.medium, fontSize: 11, color: colors.text }, link: { fontFamily: fonts.medium, fontSize: 11, color: colors.accent }, disabled: { opacity: 0.5 },
   conversation: { gap: 10, borderTopWidth: 1, borderColor: colors.border, paddingTop: 12 }, history: { maxHeight: 280 },
-  notifications: { gap: 6 }, notice: { borderRadius: 8, padding: 10, backgroundColor: colors.background }, unread: { borderWidth: 1, borderColor: colors.accent },
   message: { alignSelf: 'flex-start', maxWidth: '85%', backgroundColor: colors.background, padding: 10, borderRadius: 10, marginVertical: 4 }, mine: { alignSelf: 'flex-end', backgroundColor: colors.surfaceSelected },
   messageText: { fontFamily: fonts.body, fontSize: 13, lineHeight: 19, color: colors.text }, error: { fontFamily: fonts.body, fontSize: 12, color: colors.danger },
 });

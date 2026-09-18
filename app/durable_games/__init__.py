@@ -2,9 +2,10 @@
 
 from .models import CanonicalGameEvent, DurableGameDefinition, ProposedGameEvent
 from .runtime import DurableCommandRuntime
+from .hosted import HostedEngineDefinition
 from .store import InMemoryGameStore, PostgresGameStore
 
 __all__ = [
     "CanonicalGameEvent", "DurableCommandRuntime", "DurableGameDefinition",
-    "InMemoryGameStore", "PostgresGameStore", "ProposedGameEvent",
+    "InMemoryGameStore", "PostgresGameStore", "ProposedGameEvent", "HostedEngineDefinition",
 ]
