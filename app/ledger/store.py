@@ -1,8 +1,23 @@
 from copy import deepcopy
 from datetime import datetime, timezone
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from .models import GameLedgerResult
+
+
+def _database_user_id(user_id: str) -> UUID:
+    try:
+        return UUID(user_id.removeprefix("user-"))
+    except (AttributeError, ValueError) as error:
+        raise ValueError("Ledger players require durable user IDs.") from error
+
+
+def _application_user_id(user_id) -> str:
+    return f"user-{user_id}"
+
+
+def _application_object_id(value) -> str:
+    return value.hex if isinstance(value, UUID) else UUID(str(value)).hex
 
 
 def now():
@@ -97,47 +112,53 @@ class PostgresLedgerStore:
             if row:
                 await connection.executemany(
                     "INSERT INTO game_ledger_entries (game_id,player_id,amount) VALUES (%s,%s,%s)",
-                    [(result.game_id, item.player_id, item.amount) for item in result.amounts])
+                    [(result.game_id, _database_user_id(item.player_id), item.amount)
+                     for item in result.amounts])
                 return
             existing = await (await connection.execute(
                 "SELECT room_id,table_id::text,game_type FROM ledger_games WHERE game_id=%s", (result.game_id,))).fetchone()
             amounts = await (await connection.execute(
                 "SELECT player_id::text,amount FROM game_ledger_entries WHERE game_id=%s ORDER BY player_id",
                 (result.game_id,))).fetchall()
-            expected = (result.room_id, result.table_id, result.game_type)
-            if tuple(existing) != expected or [(r[0], r[1]) for r in amounts] != sorted(
+            expected = (result.room_id, _application_object_id(result.table_id), result.game_type)
+            existing = (existing[0], _application_object_id(existing[1]), existing[2])
+            if tuple(existing) != expected or [(_application_user_id(r[0]), r[1]) for r in amounts] != sorted(
                     [(x.player_id, x.amount) for x in result.amounts]):
                 raise ValueError("Game result already exists with different values.")
 
     async def room_games(self, room_id):
         async with self.pool.connection() as connection:
             rows = await (await connection.execute(
-                "SELECT g.game_id,g.room_id,g.table_id,g.game_type,e.player_id::text,e.amount "
+                "SELECT g.game_id,g.room_id,g.table_id,g.game_type,e.player_id,e.amount "
                 "FROM ledger_games g JOIN game_ledger_entries e USING(game_id) WHERE g.room_id=%s "
                 "ORDER BY g.created_at,e.player_id", (room_id,))).fetchall()
         games = {}
         for game_id, room, table, kind, player, amount in rows:
-            games.setdefault(str(game_id), {"game_id": str(game_id), "room_id": room, "table_id": str(table),
-                "game_type": kind, "amounts": []})["amounts"].append({"player_id": player, "amount": amount})
+            games.setdefault(_application_object_id(game_id), {"game_id": _application_object_id(game_id),
+                "room_id": room, "table_id": _application_object_id(table),
+                "game_type": kind, "amounts": []})["amounts"].append({
+                    "player_id": _application_user_id(player), "amount": amount})
         return list(games.values())
 
     async def room_batches(self, room_id):
         async with self.pool.connection() as connection:
             batches = await (await connection.execute(
-                "SELECT batch_id,table_id,scope,game_id,status,created_by::text,created_at,idempotency_key FROM settlement_batches "
+                "SELECT batch_id,table_id,scope,game_id,status,created_by,created_at,idempotency_key FROM settlement_batches "
                 "WHERE room_id=%s ORDER BY created_at DESC", (room_id,))).fetchall()
             result = []
             for row in batches:
                 transfers = await (await connection.execute(
-                    "SELECT transfer_id,payer_id::text,payee_id::text,amount,status,marked_paid_at,resolved_at "
+                    "SELECT transfer_id,payer_id,payee_id,amount,status,marked_paid_at,resolved_at "
                     "FROM settlement_transfers WHERE batch_id=%s ORDER BY transfer_id", (row[0],))).fetchall()
                 games = await (await connection.execute(
                     "SELECT game_id FROM settlement_games WHERE batch_id=%s", (row[0],))).fetchall()
-                result.append({"batch_id": str(row[0]), "room_id": room_id, "table_id": str(row[1]),
-                    "scope": row[2], "game_id": str(row[3]) if row[3] else None, "status": row[4],
-                    "created_by": row[5], "created_at": row[6].isoformat(), "idempotency_key": row[7],
-                    "games": [str(x[0]) for x in games],
-                    "transfers": [{"transfer_id": str(t[0]), "payer_id": t[1], "payee_id": t[2],
+                result.append({"batch_id": str(row[0]), "room_id": room_id,
+                    "table_id": _application_object_id(row[1]), "scope": row[2],
+                    "game_id": _application_object_id(row[3]) if row[3] else None, "status": row[4],
+                    "created_by": _application_user_id(row[5]), "created_at": row[6].isoformat(), "idempotency_key": row[7],
+                    "games": [_application_object_id(x[0]) for x in games],
+                    "transfers": [{"transfer_id": str(t[0]), "payer_id": _application_user_id(t[1]),
+                        "payee_id": _application_user_id(t[2]),
                         "amount": t[3], "status": t[4], "marked_paid_at": t[5].isoformat() if t[5] else None,
                         "resolved_at": t[6].isoformat() if t[6] else None} for t in transfers]})
             return result
@@ -155,7 +176,7 @@ class PostgresLedgerStore:
             await connection.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (room_id + ':' + request.table_id,))
             old = await (await connection.execute(
                 "SELECT batch_id FROM settlement_batches WHERE created_by=%s AND idempotency_key=%s",
-                (user_id, request.idempotency_key))).fetchone()
+                (_database_user_id(user_id), request.idempotency_key))).fetchone()
             if old:
                 return next(x for x in await self.room_batches(room_id) if x["batch_id"] == str(old[0]))
             ids = [game["game_id"] for game in games]
@@ -167,13 +188,15 @@ class PostgresLedgerStore:
             await connection.execute(
                 "INSERT INTO settlement_batches(batch_id,room_id,table_id,scope,game_id,status,created_by,idempotency_key) "
                 "VALUES(%s,%s,%s,%s,%s,'OPEN',%s,%s)",
-                (batch_id, room_id, request.table_id, request.scope, request.game_id, user_id, request.idempotency_key))
+                (batch_id, room_id, request.table_id, request.scope, request.game_id,
+                 _database_user_id(user_id), request.idempotency_key))
             await connection.executemany("INSERT INTO settlement_games(batch_id,game_id) VALUES(%s,%s)",
                                          [(batch_id, game["game_id"]) for game in games])
             await connection.executemany(
                 "INSERT INTO settlement_transfers(transfer_id,batch_id,payer_id,payee_id,amount,status) "
                 "VALUES(%s,%s,%s,%s,%s,'OPEN')",
-                [(uuid4(), batch_id, payer, payee, amount) for payer, payee, amount in transfers])
+                [(uuid4(), batch_id, _database_user_id(payer), _database_user_id(payee), amount)
+                 for payer, payee, amount in transfers])
         return next(x for x in await self.room_batches(room_id) if x["batch_id"] == str(batch_id))
 
     async def act(self, batch_id, transfer_id, user_id, action, idempotency_key):
@@ -181,14 +204,15 @@ class PostgresLedgerStore:
             await connection.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (batch_id,))
             prior = await (await connection.execute(
                 "SELECT 1 FROM settlement_actions WHERE actor_id=%s AND action=%s AND idempotency_key=%s",
-                (user_id, action, idempotency_key))).fetchone()
+                (_database_user_id(user_id), action, idempotency_key))).fetchone()
             row = await (await connection.execute(
-                "SELECT b.room_id,t.payer_id::text,t.payee_id::text,t.status FROM settlement_transfers t "
+                "SELECT b.room_id,t.payer_id,t.payee_id,t.status FROM settlement_transfers t "
                 "JOIN settlement_batches b USING(batch_id) WHERE t.batch_id=%s AND t.transfer_id=%s",
                 (batch_id, transfer_id))).fetchone()
             if not row: raise KeyError("Transfer not found.")
             if not prior:
-                room_id, payer, payee, status = row
+                room_id, payer_value, payee_value, status = row
+                payer, payee = _application_user_id(payer_value), _application_user_id(payee_value)
                 if action == "mark-paid":
                     if payer != user_id: raise PermissionError("Only the payer can mark this transfer paid.")
                     if status != "OPEN": raise ValueError("Only an open transfer can be marked paid.")
@@ -199,7 +223,7 @@ class PostgresLedgerStore:
                     await connection.execute("UPDATE settlement_transfers SET status='RESOLVED',resolved_at=now() WHERE transfer_id=%s", (transfer_id,))
                 else: raise ValueError("Unknown settlement action.")
                 await connection.execute("INSERT INTO settlement_actions(actor_id,action,idempotency_key,transfer_id) VALUES(%s,%s,%s,%s)",
-                                         (user_id, action, idempotency_key, transfer_id))
+                                         (_database_user_id(user_id), action, idempotency_key, transfer_id))
                 await connection.execute("UPDATE settlement_batches b SET status=CASE "
                     "WHEN NOT EXISTS(SELECT 1 FROM settlement_transfers t WHERE t.batch_id=b.batch_id AND t.status<>'RESOLVED') THEN 'RESOLVED' "
                     "WHEN EXISTS(SELECT 1 FROM settlement_transfers t WHERE t.batch_id=b.batch_id AND t.status='RESOLVED') THEN 'PARTIALLY_RESOLVED' ELSE 'OPEN' END WHERE batch_id=%s", (batch_id,))

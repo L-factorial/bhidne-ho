@@ -2,6 +2,7 @@ import pytest
 
 from app.ledger import GameLedgerAmount, GameLedgerResult, InMemoryLedgerStore, LedgerService
 from app.ledger.models import CreateSettlement
+from app.ledger.store import _application_object_id, _application_user_id, _database_user_id
 
 
 class Rooms:
@@ -68,3 +69,14 @@ def test_game_results_must_be_zero_sum_and_unique_per_player():
         GameLedgerResult(room_id="room", table_id="table", game_id="bad", game_type="flush",
             amounts=[GameLedgerAmount(player_id="alice", amount=1),
                      GameLedgerAmount(player_id="alice", amount=-1)])
+
+
+def test_postgres_ledger_identity_boundary_round_trips_application_user_ids():
+    user_id = "user-12345678-1234-5678-1234-567812345678"
+    assert _application_user_id(_database_user_id(user_id)) == user_id
+    with pytest.raises(ValueError, match="durable user IDs"):
+        _database_user_id("guest-without-a-uuid")
+    assert _application_object_id("12345678123456781234567812345678") == \
+        "12345678123456781234567812345678"
+    assert _application_object_id("12345678-1234-5678-1234-567812345678") == \
+        "12345678123456781234567812345678"
