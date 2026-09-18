@@ -14,7 +14,10 @@ from app.multiplayer.table import GameTablePolicy, reject
 class GameTableLifecycle:
     async def _advance_table(self, game):
         self._sync_proposal(game)
+        previous_phase = game.table.phase
         game.table.advance(game, await self.rooms.members(game.room_id))
+        if previous_phase == 'STARTED' and game.table.phase in ('OPEN', 'COMPLETED', 'ENDED'):
+            await self._release_durable_players(game)
         if game.table.pending() and game.table.table_id not in self._offer_tasks:
             self._offer_tasks[game.table.table_id] = asyncio.create_task(self._expire_offers(game))
 
@@ -57,6 +60,8 @@ class GameTableLifecycle:
         policy = GameTablePolicy.for_game(game.game_type, game.capacity)
         if table.phase == 'STARTED':
             reject('ACTIVE_MATCH_EXISTS', 'Use the explicit active-match departure action.')
+        if table.phase == 'LOCKED':
+            reject('ROSTER_LOCKED', 'The locked roster remains reserved until the game is ended.')
         if table.phase == 'COMPLETED' and policy.requires_replacement:
             seat = seats.index(user) + 1
             table.next_seats[seat - 1] = None
@@ -142,6 +147,7 @@ class GameTableLifecycle:
                         reject('NOT_ENOUGH_PLAYERS', 'Seat enough players before locking the roster.')
                     if not set(game.users).issubset(await self.rooms.members(room_id)):
                         reject('INVALID_ROSTER', 'All seated players must be room members.')
+                    await self._reserve_table_players(game)
                     table.phase = 'LOCKED'
                     table.emit('GAME_LOCKED', match_id=match_id)
                 elif command == 'leave-seat':
@@ -188,6 +194,7 @@ class GameTableLifecycle:
                     # TODO: Penalty policy intentionally deferred. No score/chip deductions.
                     # End the incomplete match: the engine has no safe live seat substitution.
                     game.departed.add(user_id)
+                    await self._release_durable_players(game)
                     game.ended = True
                     table.phase = 'ENDED'
                     table.emit('PLAYER_LEFT_ACTIVE_MATCH', user_id=user_id, match_id=match_id,
@@ -203,6 +210,7 @@ class GameTableLifecycle:
                     new = type(game)(room_id, game.capacity, roster, name=game.name, game_type=game.game_type,
                         settings=dict(game.settings), marriage_scoring=game.marriage_scoring, table=table,
                         previous_match_id=game.match_id)
+                    await self._release_durable_players(game)
                     table.phase = 'OPEN'
                     table.next_seats = None
                     table.releases.clear()

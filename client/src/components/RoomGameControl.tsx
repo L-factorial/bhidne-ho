@@ -16,6 +16,8 @@ import { EndGameControl } from './EndGameControl';
 import { PokeOverlay } from './PokeOverlay';
 import { FlushTable } from '../screens/FlushTable';
 import { MarriageTable } from '../screens/MarriageTable';
+import { GameRequestError, type GameRequestDetail } from '../multiplayer/PendingGameAction';
+import { request } from '../multiplayer/api';
 
 
 export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, apiUrl, token, connected, members, roomMembers = members, connectionMessage, userId, pokes, personal, createContent, creationEnabled = true, gameType = 'callbreak' }: {
@@ -36,6 +38,7 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
   const [joinOpen, setJoinOpen] = useState(false);
   const [dismissedInvitation, setDismissedInvitation] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [seatConflict, setSeatConflict] = useState<GameRequestDetail | null>(null);
   useEffect(() => { onOpenChange?.(open); }, [open, onOpenChange]);
   useEffect(() => () => onOpenChange?.(false), [onOpenChange]);
   const [live, setLive] = useState(false);
@@ -149,8 +152,28 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
         enteredMatch.current = data.match_id || null;
         setSnapshot(data); setLive(true); setOpen(true);
       }
-    } catch (error) { if (alive.current && generation.current === version) setError(error instanceof Error ? error.message : 'Cannot update game.'); }
+    } catch (error) {
+      if (alive.current && generation.current === version) {
+        if (error instanceof GameRequestError && error.detail?.code === 'PLAYER_ALREADY_AT_TABLE') {
+          setSeatConflict(error.detail); setOpen(false);
+        }
+        setError(error instanceof Error ? error.message : 'Cannot update game.');
+      }
+    }
     finally { pending.current = false; if (alive.current) setBusy(false); }
+  }
+  async function leavePreviousTable() {
+    if (!seatConflict?.room_id || !seatConflict.match_id || pending.current) return;
+    pending.current = true; setBusy(true); setError('');
+    try {
+      const command = seatConflict.departure_command === 'abandon' ? 'table/abandon' : 'leave';
+      await request(`/test-games/${encodeURIComponent(seatConflict.room_id)}/${command}`,
+        { user_id: userId, token }, { match_id: seatConflict.match_id });
+      setSeatConflict(null);
+      setError('Previous table left. You can now take a seat here.');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Could not leave the previous table.');
+    } finally { pending.current = false; setBusy(false); }
   }
   const mobileGame = mobile;
   const canCreate = snapshot?.status === 'empty' || (snapshot?.status === 'finished' && !snapshot.table?.requires_replacement) || snapshot?.status === 'ended';
@@ -259,6 +282,18 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
     {!!actionNotice && !open && <Text accessibilityLiveRegion="polite" style={styles.note}>{actionNotice}</Text>}
     {!!error && !open && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     {!open && <PokeOverlay pokes={pokes} matchId={snapshot?.match_id} />}
+    <Modal transparent visible={!!seatConflict} animationType="fade" onRequestClose={() => setSeatConflict(null)}>
+      <View style={styles.overlay}><View accessibilityViewIsModal style={styles.modal}><View style={styles.body}>
+        <Text accessibilityRole="header" style={styles.title}>{seatConflict?.departure_command === 'abandon' ? 'Abandon active game?' : 'Leave previous table?'}</Text>
+        <Text style={styles.text}>You can visit this room, but each account can occupy only one table at a time.</Text>
+        <Text style={styles.text}>{actionError}</Text>
+        {seatConflict?.departure_command === 'abandon' && <Text style={styles.error}>Abandoning stops the active match for everyone at that table.</Text>}
+        <Pressable accessibilityRole="button" disabled={pendingAction} onPress={() => void leavePreviousTable()} style={styles.button}>
+          <Text style={styles.buttonText}>{seatConflict?.departure_command === 'abandon' ? 'Abandon previous game' : 'Leave previous table'}</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={() => setSeatConflict(null)} style={styles.choice}><Text style={styles.text}>Stay as observer</Text></Pressable>
+      </View></View></View>
+    </Modal>
     <Modal transparent visible={open} animationType="fade" onRequestClose={collapseGame}>
       {live && snapshot ? <View testID="live-game-backdrop" style={[styles.liveBackdrop, {
         paddingTop: insets.top, paddingBottom: insets.bottom,

@@ -78,6 +78,7 @@ class HostedGame:
     durable_definition: object | None = None
     durable_ownership: object | None = None
     durable_game_id: object | None = None
+    durable_table_reserved: bool = False
 
     @property
     def started(self):
@@ -147,19 +148,23 @@ class TestGameService(GameTableLifecycle, RuleProposals):
     def _contains(self, game):
         return self.tables.get(game.room_id, {}).get(game.match_id) is game
 
-    def _occupied_game(self, user_id, room_id, *, excluding=None):
-        for game in self.tables.get(room_id, {}).values():
-            if game is not excluding and not game.ended and user_id in game.table.seats(game):
-                return game
+    def _occupied_game(self, user_id, room_id=None, *, excluding=None):
+        for room in self.tables.values():
+            for game in room.values():
+                if game is not excluding and not game.ended and user_id in game.table.seats(game):
+                    return game
         return None
 
     def _ensure_available(self, user_id, game=None, room_id=None):
         room_id = game.room_id if game else room_id
         occupied = self._occupied_game(user_id, room_id, excluding=game)
         if occupied:
+            current = occupied.table.view(occupied, user_id)['current_user']
             raise HTTPException(409, {"code": "PLAYER_ALREADY_AT_TABLE",
                 "detail": f"Leave {occupied.room_id}/{occupied.name} before joining another table.",
-                "room_id": occupied.room_id, "match_id": occupied.match_id})
+                "room_id": occupied.room_id, "match_id": occupied.match_id,
+                "requires_leave_game": True,
+                "departure_command": "abandon" if current['can_abandon_match'] else "leave"})
 
     def membership(self, room_id, user_id):
         games = self._room_games(room_id)
@@ -192,7 +197,10 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             game.game_type == 'callbreak' and game.state and game.state.phase == Phase.DEAL_COMPLETE)
 
     async def close(self):
-        tasks = [g.task for room in self.tables.values() for g in room.values() if g.task is not None] + list(self._offer_tasks.values())
+        games = [game for room in self.tables.values() for game in room.values()]
+        for game in games:
+            await self._release_durable_players(game)
+        tasks = [g.task for g in games if g.task is not None] + list(self._offer_tasks.values())
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
@@ -202,6 +210,8 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         async with self.membership_guard(room_id):
             games = self.tables.pop(room_id, {})
             self.games.pop(room_id, None)
+            for game in games.values():
+                await self._release_durable_players(game)
             tasks = [game.task for game in games.values() if game.task is not None]
             for task in tasks:
                 task.cancel()
@@ -394,7 +404,8 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         async with self._catalog_lock:
             await self._member(room_id, user_id)
             occupied = self._occupied_game(user_id, room_id)
-            if occupied and occupied.replaceable:
+            if occupied and occupied.room_id == room_id and occupied.replaceable:
+                await self._release_durable_players(occupied)
                 occupied.ended = True
                 occupied.table.phase = 'ENDED'
             else:
@@ -454,6 +465,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                 # ledger projection failed just before the creator pressed End.
                 game.ledger_retry_at = 0
                 await self._try_record_completed_ledger(game)
+                await self._release_durable_players(game)
                 game.ended = True
                 game.table.queue.clear()
                 await self._advance_table(game)
@@ -469,22 +481,23 @@ class TestGameService(GameTableLifecycle, RuleProposals):
 
     async def join(self, room_id, user_id, match_id):
         await self._member(room_id, user_id)
-        game = self._get(room_id, match_id)
-        async with game.lock:
-            await self._member(room_id, user_id, game)
-            await self._advance_table(game)
-            if match_id != game.match_id or game.ended or not self._contains(game):
-                reject('GAME_CHANGED', 'Game changed. Refresh and join again.')
-            if user_id in game.table.seats(game):
+        async with self._catalog_lock:
+            game = self._get(room_id, match_id)
+            async with game.lock:
+                await self._member(room_id, user_id, game)
+                await self._advance_table(game)
+                if match_id != game.match_id or game.ended or not self._contains(game):
+                    reject('GAME_CHANGED', 'Game changed. Refresh and join again.')
+                if user_id in game.table.seats(game):
+                    return self._snapshot(game, user_id)
+                if game.table.phase != 'OPEN':
+                    reject('GAME_LOCKED', 'The roster is closed. You can join the waitlist.')
+                if len(game.users) >= game.capacity:
+                    reject('GAME_FULL', 'The game is full. You can join the waitlist.')
+                self._ensure_available(user_id, game)
+                self._seat_user(game, user_id)
+                await self._publish(game)
                 return self._snapshot(game, user_id)
-            if game.table.phase != 'OPEN':
-                reject('GAME_LOCKED', 'The roster is closed. You can join the waitlist.')
-            if len(game.users) >= game.capacity:
-                reject('GAME_FULL', 'The game is full. You can join the waitlist.')
-            self._ensure_available(user_id, game)
-            self._seat_user(game, user_id)
-            await self._publish(game)
-            return self._snapshot(game, user_id)
 
     async def leave(self, room_id, user_id, match_id):
         await self._member(room_id, user_id)
@@ -513,6 +526,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                     game.users.remove(user_id)
                 if not game.users or all(u in game.departed for u in game.users):
                     game.ended = True
+                    await self._release_durable_players(game)
                 game.flush_queries.pop(user_id, None)
                 game.marriage_queries.pop(user_id, None)
                 for event in events:
@@ -700,6 +714,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             "durable_definition": game.durable_definition,
             "durable_ownership": game.durable_ownership,
             "durable_game_id": game.durable_game_id,
+            "durable_table_reserved": game.durable_table_reserved,
         }
 
     @staticmethod
@@ -713,9 +728,14 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         definition = HostedEngineDefinition(game.game_type)
         previous_game_id = game.durable_game_id
         durable_game_id = uuid4() if game.game_type == "flush" else UUID(game.match_id)
-        players = tuple((user, seat) for seat, user in enumerate(game.users, 1))
+        players = tuple((user, game.flush_seats[user] if game.game_type == "flush" else seat)
+                        for seat, user in enumerate(game.users, 1))
         released_previous = False
+        reserved_here = False
         try:
+            if not game.durable_table_reserved:
+                await self._reserve_table_players(game)
+                reserved_here = True
             if previous_game_id is not None:
                 await self.durable_runtime.store.release_players(previous_game_id)
                 released_previous = True
@@ -723,14 +743,41 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                 start_command_id=f"start:{durable_game_id.hex}", owner_instance_id=self.instance_id,
                 players=players, initial_state=self._engine_state(game),
                 rules=self._locked_rules(game), lease_seconds=30)
-        except Exception:
+        except Exception as error:
             self._restore_failed_start(game, start_checkpoint)
+            if reserved_here:
+                await self.durable_runtime.store.release_table(game.table.table_id)
             if released_previous:
                 await self.durable_runtime.store.reserve_players(previous_game_id, game.room_id, players)
+            if isinstance(error, DurableGameConflict):
+                raise HTTPException(409,
+                    "A seated player is still assigned to another active game. "
+                    "End or abandon that game, then try again.") from error
             raise
         game.durable_definition = definition
         game.durable_ownership = started.ownership
         game.durable_game_id = durable_game_id
+
+    async def _release_durable_players(self, game):
+        if self.runtime_mode == "durable":
+            if game.durable_game_id is not None:
+                await self.durable_runtime.store.release_players(game.durable_game_id)
+            if game.durable_table_reserved:
+                await self.durable_runtime.store.release_table(game.table.table_id)
+                game.durable_table_reserved = False
+
+    async def _reserve_table_players(self, game):
+        if self.runtime_mode != "durable" or game.durable_table_reserved:
+            return
+        players = tuple((user, game.flush_seats[user] if game.game_type == "flush" else seat)
+                        for seat, user in enumerate(game.table.seats(game), 1) if user is not None)
+        try:
+            await self.durable_runtime.store.reserve_table(
+                game.table.table_id, game.match_id, game.room_id, game.game_type, players)
+        except DurableGameConflict as error:
+            raise HTTPException(409,
+                "A seated player is still assigned to another table. Leave or abandon it, then try again.") from error
+        game.durable_table_reserved = True
 
     async def _commit_durable_state(self, game, user_id, command):
         store = self.durable_runtime.store

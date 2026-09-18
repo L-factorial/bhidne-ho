@@ -141,7 +141,30 @@ class InMemoryGameStore:
     def __init__(self):
         self.games: dict[UUID, _MemoryGame] = {}
         self.active_players: dict[str, tuple[UUID, str, int]] = {}
+        self.active_table_players: dict[str, tuple[str, str, str, str, int]] = {}
         self._catalog_lock = asyncio.Lock()
+
+    async def reserve_table(self, table_id: str, match_id: str, room_id: str, game_type: str,
+                            players: tuple[tuple[str, int], ...]):
+        _validate_players(players)
+        async with self._catalog_lock:
+            if any(user in self.active_table_players and self.active_table_players[user][0] != table_id
+                   for user, _ in players):
+                raise DurableGameConflict("A player is already participating at another table.")
+            if any(user in self.active_players for user, _ in players):
+                raise DurableGameConflict("A player is already participating in another active game.")
+            expected = {(user, seat) for user, seat in players}
+            stored = {(user, value[4]) for user, value in self.active_table_players.items()
+                      if value[0] == table_id}
+            if stored and stored != expected:
+                raise DurableGameConflict("The locked table reservation has a different roster.")
+            for user, seat in players:
+                self.active_table_players[user] = (table_id, match_id, room_id, game_type, seat)
+
+    async def release_table(self, table_id: str):
+        async with self._catalog_lock:
+            self.active_table_players = {user: value for user, value in self.active_table_players.items()
+                                         if value[0] != table_id}
 
     async def create(self, game_id: UUID, room_id: str, definition: DurableGameDefinition,
                      initial_state: Any = _UNSET, rules: Any = _UNSET):
@@ -365,6 +388,41 @@ def _decide(definition, loaded, actor_id, command_id, expected_revision, command
 class PostgresGameStore:
     def __init__(self, pool):
         self.pool = pool
+
+    async def reserve_table(self, table_id: str, match_id: str, room_id: str, game_type: str,
+                            players: tuple[tuple[str, int], ...]):
+        _validate_players(players)
+        try:
+            async with self.pool.connection() as connection:
+                async with connection.transaction():
+                    user_ids = [_internal_user_id(user) for user, _ in players]
+                    active = await (await connection.execute("""
+                        SELECT user_id FROM active_game_players WHERE user_id = ANY(%s)
+                    """, (user_ids,))).fetchone()
+                    if active:
+                        raise DurableGameConflict("A player is already participating in another active game.")
+                    for user_id, seat in players:
+                        await connection.execute("""
+                            INSERT INTO active_table_players
+                                (user_id,table_id,match_id,room_id,game_type,seat)
+                            VALUES (%s,%s,%s,%s,%s,%s)
+                            ON CONFLICT (user_id) DO UPDATE SET seat=EXCLUDED.seat
+                            WHERE active_table_players.table_id=EXCLUDED.table_id
+                              AND active_table_players.match_id=EXCLUDED.match_id
+                        """, (_internal_user_id(user_id), table_id, match_id, room_id, game_type, seat))
+                    rows = await (await connection.execute("""
+                        SELECT user_id,seat FROM active_table_players
+                        WHERE table_id=%s ORDER BY seat
+                    """, (table_id,))).fetchall()
+                    stored = {(f"user-{row[0]}", row[1]) for row in rows}
+                    if stored != set(players):
+                        raise DurableGameConflict("The table is reserved by a different roster.")
+        except UniqueViolation as error:
+            raise DurableGameConflict("A player or seat is already reserved at another table.") from error
+
+    async def release_table(self, table_id: str):
+        async with self.pool.connection() as connection:
+            await connection.execute("DELETE FROM active_table_players WHERE table_id=%s", (table_id,))
 
     async def create(self, game_id: UUID, room_id: str, definition: DurableGameDefinition,
                      initial_state: Any = _UNSET, rules: Any = _UNSET):

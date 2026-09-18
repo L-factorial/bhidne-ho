@@ -100,3 +100,5 @@ def test_named_guests_visible_in_every_game_and_room_chat():
             assert [p['display_name'] for p in joined['players']] == ['Prajwal', 'Sita']
             message = client.post(f'/rooms/{room}/chat', headers=headers[0], json={'text': 'Hello!'}).json()
             assert message['sender_name'] == 'Prajwal'
+            assert client.post(root + '/end', headers=headers[0], json={
+                'match_id': game['match_id']}).status_code == 200

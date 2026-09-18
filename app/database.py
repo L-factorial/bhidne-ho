@@ -267,6 +267,21 @@ MIGRATIONS = (
         CREATE INDEX player_phrases_user_time_idx ON player_phrases(user_id,created_at,id);
         CREATE UNIQUE INDEX player_phrases_user_text_idx ON player_phrases(user_id,lower(text));
     """),
+    (7, """
+        CREATE TABLE active_table_players (
+            user_id uuid PRIMARY KEY REFERENCES users(id) ON DELETE RESTRICT,
+            table_id uuid NOT NULL,
+            match_id uuid NOT NULL,
+            room_id text NOT NULL REFERENCES rooms(id) ON DELETE RESTRICT,
+            game_type text NOT NULL CHECK (game_type IN ('callbreak','marriage','flush')),
+            seat integer NOT NULL CHECK (seat > 0),
+            reserved_at timestamptz NOT NULL DEFAULT now(),
+            UNIQUE (table_id, seat),
+            UNIQUE (table_id, user_id)
+        );
+        CREATE INDEX active_table_players_room_table_idx
+            ON active_table_players(room_id, table_id);
+    """),
 )
 
 

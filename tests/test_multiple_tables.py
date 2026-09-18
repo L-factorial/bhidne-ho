@@ -51,6 +51,37 @@ def test_ending_table_releases_all_players_for_other_tables():
             'match_id': second['match_id']}).status_code == 200
 
 
+def test_table_seats_are_exclusive_across_rooms_but_room_entry_is_allowed():
+    with TestClient(create_app()) as client:
+        user = client.post('/auth/guest').json()
+        other = client.post('/auth/guest').json()
+        headers = {'Authorization': 'Bearer ' + user['token']}
+        other_headers = {'Authorization': 'Bearer ' + other['token']}
+        for room in ('first-room', 'second-room'):
+            assert client.post(f'/rooms/{room}/enter', headers=headers, json={}).status_code == 200
+            assert client.post(f'/rooms/{room}/enter', headers=other_headers, json={}).status_code == 200
+
+        first = client.post('/test-games/first-room', headers=headers, json={
+            'name': 'First', 'game_type': 'callbreak', 'player_count': 4}).json()
+        second = client.post('/test-games/second-room', headers=other_headers, json={
+            'name': 'Second', 'game_type': 'callbreak', 'player_count': 4}).json()
+
+        blocked = client.post('/test-games/second-room/join', headers=headers, json={
+            'match_id': second['match_id']})
+        assert blocked.status_code == 409
+        assert blocked.json()['detail'] == {
+            'code': 'PLAYER_ALREADY_AT_TABLE',
+            'detail': 'Leave first-room/First before joining another table.',
+            'room_id': 'first-room', 'match_id': first['match_id'],
+            'requires_leave_game': True, 'departure_command': 'leave',
+        }
+
+        assert client.post('/test-games/first-room/leave', headers=headers, json={
+            'match_id': first['match_id']}).status_code == 200
+        assert client.post('/test-games/second-room/join', headers=headers, json={
+            'match_id': second['match_id']}).status_code == 200
+
+
 def test_new_account_can_resolve_shared_room_and_exact_game_invitation():
     with TestClient(create_app()) as client:
         owner = client.post('/auth/signup', json={'username': 'invite-owner', 'password': 'password123'}).json()

@@ -152,7 +152,7 @@ async def test_explicit_lock_then_start_freezes_roster_without_dealing(kind, pla
 
 
 @pytest.mark.parametrize('kind', ['marriage', 'flush'])
-async def test_lock_minimum_start_membership_validation_and_leave_reopens(kind):
+async def test_lock_minimum_start_membership_validation_and_roster_stays_reserved(kind):
     host, game, life = await make(kind, 4, seated=1)
     try:
         with pytest.raises(HTTPException) as error:
@@ -168,12 +168,12 @@ async def test_lock_minimum_start_membership_validation_and_leave_reopens(kind):
         assert not game.started
         await host.rooms.join('r', 'u1')
         await cmd(host, game, 'u2', 'join-queue')
-        await cmd(host, game, 'u1', 'leave-seat')
-        assert game.table.phase == 'OPEN' and game.users == ['u0', 'u2']
-        with pytest.raises(HTTPException):
-            await host.start('r', 'u0', game.match_id, rules_revision=0)
-        await cmd(host, game, 'u2', 'leave-seat')
-        assert not (await host.snapshot('r', 'u0'))['table']['current_user']['can_lock']
+        with pytest.raises(HTTPException) as error:
+            await cmd(host, game, 'u1', 'leave-seat')
+        assert error.value.detail['code'] == 'ROSTER_LOCKED'
+        assert game.table.phase == 'LOCKED' and game.users == ['u0', 'u1']
+        await host.end('r', 'u0', game.match_id)
+        assert game.ended
     finally:
         await host.close()
 

@@ -134,7 +134,7 @@ class TableState:
                 'can_lock': policy.requires_explicit_lock and open_ and host and valid and not rules_pending,
                 'can_start': host and valid and not rules_pending and not pending and not self.releases and
                     (self.phase == 'LOCKED' if policy.requires_explicit_lock else open_),
-                'can_leave_seat': seated and self.phase in ('OPEN', 'LOCKED', 'COMPLETED', 'ENDED'),
+                'can_leave_seat': seated and self.phase in ('OPEN', 'COMPLETED', 'ENDED'),
                 'can_abandon_match': seated and self.phase == 'STARTED' and policy.supports_abandonment,
                 'is_in_active_match': seated and self.phase == 'STARTED',
                 'can_next_match': host and self.phase == 'COMPLETED' and valid and not self.releases,
