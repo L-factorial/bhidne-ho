@@ -98,23 +98,23 @@ async def test_personal_phrases_without_room_isolation_duplicates_and_capacity()
     with pytest.raises(HTTPException) as error:
         await social.remove_phrase('u1', first['id'])
     assert error.value.status_code == 404
-    for number in range(23): await social.add_phrase('u0', f'Phrase {number}')
+    for number in range(24): await social.add_phrase('u0', f'Phrase {number}')
     with pytest.raises(HTTPException) as error:
         await social.add_phrase('u0', 'Too many')
     assert error.value.status_code == 409
     await social.remove_phrase('u0', first['id'])
-    assert len(await social.phrases('u0')) == 23
+    assert len(await social.phrases('u0')) == 24
     assert await social.phrases('u1') == [other]
 
 
-@pytest.mark.parametrize('text', ['', '   ', 'a' * 26, '😏' * 26, 'bad\x00text'])
+@pytest.mark.parametrize('text', ['', '   ', 'a' * 31, '😏' * 31, 'bad\x00text'])
 def test_phrase_validation_rejects_empty_long_and_control_text(text):
     with pytest.raises(ValidationError): PlayerPhraseInput(text=text)
 
 
-def test_phrase_validation_accepts_25_characters_and_unicode():
-    assert PlayerPhraseInput(text='a' * 25).text == 'a' * 25
-    assert PlayerPhraseInput(text='😏' * 25).text == '😏' * 25
+def test_phrase_validation_accepts_30_characters_and_unicode():
+    assert PlayerPhraseInput(text='a' * 30).text == 'a' * 30
+    assert PlayerPhraseInput(text='😏' * 30).text == '😏' * 30
     assert PlayerPhraseInput(text='  nice   hand! ').text == 'nice hand!'
 
 
@@ -135,12 +135,12 @@ def test_http_phrases_and_pokes_enforce_membership_identity_and_length():
         assert client.get('/me/phrases', headers=headers[1]).json() == []
         assert client.get('/me/phrases', headers=headers[0]).json()[-1]['text'] == 'Nice hand!'
         assert client.delete('/me/phrases/' + phrase.json()['id'], headers=headers[1]).status_code == 404
-        assert client.post('/me/phrases', headers=headers[0], json={'text': 'x' * 26}).status_code == 422
+        assert client.post('/me/phrases', headers=headers[0], json={'text': 'x' * 31}).status_code == 422
         mid = client.post('/test-games/room', headers=headers[0], json={'player_count': 4}).json()['match_id']
         client.post('/test-games/room/join', headers=headers[1], json={'match_id': mid})
         body = {'match_id': mid, 'recipient_player_id': 2, 'text': 'Poke!'}
         assert client.post('/test-games/room/poke', headers=headers[0], json={**body, 'sender_id': users[1]['user_id']}).status_code == 422
-        assert client.post('/test-games/room/poke', headers=headers[0], json={**body, 'text': 'x' * 26}).status_code == 422
+        assert client.post('/test-games/room/poke', headers=headers[0], json={**body, 'text': 'x' * 31}).status_code == 422
         sent = client.post('/test-games/room/poke', headers=headers[0], json=body)
         assert sent.status_code == 200 and sent.json()['scope'] == 'private'
         removed = client.delete('/me/phrases/' + phrase.json()['id'], headers=headers[0])
@@ -155,7 +155,7 @@ def test_personal_phrase_update_preserves_id_and_enforces_owner_length_and_dupli
         path = '/me/phrases/' + phrase['id']
         assert client.patch(path, json={'text': 'After'}).status_code == 401
         assert client.patch(path, headers=headers[1], json={'text': 'After'}).status_code == 404
-        for text in ['', 'x' * 26]:
+        for text in ['', 'x' * 31]:
             assert client.patch(path, headers=headers[0], json={'text': text}).status_code == 422
         changed = client.patch(path, headers=headers[0], json={'text': 'After'})
         assert changed.status_code == 200 and changed.headers['cache-control'] == 'no-store'

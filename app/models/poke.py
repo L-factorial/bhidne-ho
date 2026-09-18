@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class PlayerPhraseInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    text: str = Field(min_length=1, max_length=25)
+    text: str = Field(min_length=1, max_length=30)
 
     @field_validator("text")
     @classmethod

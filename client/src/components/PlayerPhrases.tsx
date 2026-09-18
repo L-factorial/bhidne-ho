@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { limitPokeText, pokeTextLength, type PlayerPhrase } from '../multiplayer/pokes';
+import { limitPokeText, PLAYER_PHRASE_LIMIT, POKE_TEXT_LIMIT, pokeTextLength, type PlayerPhrase } from '../multiplayer/pokes';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 export function PlayerPhrases({ phrases, userId, connected, loadError, onSave, onRemove, onUpdate }: {
@@ -26,7 +26,7 @@ export function PlayerPhrases({ phrases, userId, connected, loadError, onSave, o
       <Text style={styles.title}>My goofy phrases · {phrases.length}</Text><Text style={styles.title}>{open ? '−' : '+'}</Text>
     </Pressable>
     {open && <View style={styles.body}>
-      <Text style={styles.note}>Your keywords. Your inside jokes. Create phrases up to 25 characters. Use them later in any Call Break room by tapping a player or the card area.</Text>
+      <Text style={styles.note}>Your keywords and inside jokes. Save up to {PLAYER_PHRASE_LIMIT} phrases, each up to {POKE_TEXT_LIMIT} characters, and use them from Poke the table during any game.</Text>
       <View style={styles.phrases}>{phrases.map(phrase => <View key={phrase.id} style={styles.chip}>
         <Pressable accessibilityRole="button" accessibilityLabel={`Edit phrase ${phrase.text}`} disabled={busy || !connected}
           onPress={() => { setEditing(phrase.id); setText(phrase.text); setError(''); }} style={{ minHeight: 44, justifyContent: 'center', flexShrink: 1 }}>
@@ -37,12 +37,12 @@ export function PlayerPhrases({ phrases, userId, connected, loadError, onSave, o
       </View>)}</View>
       {editing && <View style={styles.toggle}><Text style={styles.note}>Editing phrase</Text>
         <Pressable accessibilityRole="button" accessibilityLabel="Cancel editing" disabled={busy} onPress={() => { setEditing(null); setText(''); setError(''); }} style={styles.remove}><Text style={styles.note}>Cancel</Text></Pressable></View>}
-      <TextInput accessibilityLabel="New personal phrase, 25 characters maximum" value={text} onChangeText={value => setText(limitPokeText(value))}
-        maxLength={50} editable={!busy && connected} placeholder="A keyword or punchline…" placeholderTextColor={colors.textMuted} style={styles.input}
+      <TextInput accessibilityLabel={`New personal phrase, ${POKE_TEXT_LIMIT} characters maximum`} value={text} onChangeText={value => setText(limitPokeText(value))}
+        maxLength={60} editable={!busy && connected && (!!editing || phrases.length < PLAYER_PHRASE_LIMIT)} placeholder="A keyword or punchline…" placeholderTextColor={colors.textMuted} style={styles.input}
         returnKeyType="done" onSubmitEditing={() => void change()} />
-      <View style={styles.toggle}><Text style={styles.note}>{pokeTextLength(text)}/25 · Only you can see your collection</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="Save personal phrase" disabled={busy || !connected || !text.trim()}
-          onPress={() => void change()} style={[styles.add, (busy || !connected || !text.trim()) && { opacity: 0.45 }]}><Text style={styles.addText}>{busy ? 'Saving…' : editing ? 'Update' : 'Save'}</Text></Pressable></View>
+      <View style={styles.toggle}><Text style={styles.note}>{pokeTextLength(text)}/{POKE_TEXT_LIMIT} · {phrases.length}/{PLAYER_PHRASE_LIMIT} saved</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="Save personal phrase" disabled={busy || !connected || !text.trim() || (!editing && phrases.length >= PLAYER_PHRASE_LIMIT)}
+          onPress={() => void change()} style={[styles.add, (busy || !connected || !text.trim() || (!editing && phrases.length >= PLAYER_PHRASE_LIMIT)) && { opacity: 0.45 }]}><Text style={styles.addText}>{busy ? 'Saving…' : editing ? 'Update' : 'Save'}</Text></Pressable></View>
       {!!(error || loadError) && <Text accessibilityRole="alert" style={styles.error}>{error || loadError}</Text>}
     </View>}
   </View>;

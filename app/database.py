@@ -257,6 +257,16 @@ MIGRATIONS = (
             created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(actor_id,action,idempotency_key)
         );
     """),
+    (6, """
+        CREATE TABLE player_phrases (
+            id uuid PRIMARY KEY,
+            user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            text text NOT NULL CHECK(char_length(text) BETWEEN 1 AND 30),
+            created_at timestamptz NOT NULL DEFAULT now()
+        );
+        CREATE INDEX player_phrases_user_time_idx ON player_phrases(user_id,created_at,id);
+        CREATE UNIQUE INDEX player_phrases_user_text_idx ON player_phrases(user_id,lower(text));
+    """),
 )
 
 

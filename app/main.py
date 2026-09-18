@@ -21,7 +21,7 @@ from app.multiplayer.room_catalog import PostgresRoomCatalog
 from app.multiplayer.room_chat import RoomChatService
 from app.multiplayer.participation import GameParticipation
 from app.multiplayer.room_pokes import RoomPokeService
-from app.multiplayer.player_phrases import PlayerPhraseService
+from app.multiplayer.player_phrases import PlayerPhraseService, PostgresPlayerPhraseService
 from app.multiplayer.player_profiles import PlayerProfileService, PostgresPlayerProfileService
 from app.runtime.game_runtime import GameRuntime
 from app.transport import game_actions, http, room_pokes, websocket, player_profiles, room_chat
@@ -81,7 +81,7 @@ def create_app() -> FastAPI:
         app.state.social_auth = SocialAuthService(
             configured_verifiers(SocialAuthConfig.from_environment()), social_store,
         )
-        app.state.player_phrases = PlayerPhraseService()
+        app.state.player_phrases = PostgresPlayerPhraseService(database.pool) if database else PlayerPhraseService()
         app.state.room_pokes = RoomPokeService(rooms, connections, app.state.player_profiles)
         registry = GameRegistry()
         app.state.game_registry = registry

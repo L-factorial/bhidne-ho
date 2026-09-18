@@ -24,7 +24,7 @@ export function ProfileScreen({ session, personal, onBack, onSignOut }: {
       <FriendsPanel session={session} />
       <PlayerPhrases key={userId} userId={userId} phrases={personal.phrases} connected={true}
         loadError={personal.error} onSave={personal.save} onRemove={personal.remove} onUpdate={personal.update} />
-      <Text style={styles.description}>Tap a saved phrase to edit it. Choose it while playing to send a private poke or a message to the table.</Text>
+      <Text style={styles.description}>Tap a saved phrase to edit it. During any game, open Poke the table to choose a saved phrase or add a new one without leaving the table.</Text>
     </View>
   </ScrollView>;
 }

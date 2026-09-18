@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { BackHandler, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { limitPokeText, pokeTextLength, QUICK_POKES, type PlayerPhrase } from '../multiplayer/pokes';
+import { limitPokeText, PLAYER_PHRASE_LIMIT, POKE_TEXT_LIMIT, pokeTextLength, type PlayerPhrase } from '../multiplayer/pokes';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 export function PokeComposer({ recipient, recipientName, phrases, connected, onClose, onSend, onSave }: {
@@ -24,7 +24,8 @@ export function PokeComposer({ recipient, recipientName, phrases, connected, onC
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const target = recipient === null ? 'everyone' : recipientName || `Player ${recipient}`;
-  const options = [...new Set([...phrases.map(p => p.text), ...QUICK_POKES])];
+  const options = [...new Set(phrases.map(p => p.text))];
+  const alreadySaved = options.some(phrase => phrase.toLocaleLowerCase() === text.trim().toLocaleLowerCase());
   async function submit(save: boolean) {
     if (pending.current || !connected || !text.trim()) return;
     pending.current = true; setBusy(true); setError(''); setNotice('');
@@ -43,18 +44,19 @@ export function PokeComposer({ recipient, recipientName, phrases, connected, onC
       </View><Pressable accessibilityRole="button" accessibilityLabel="Close poke composer" onPress={onClose} style={styles.close}><Text style={styles.closeText}>×</Text></Pressable></View>
       <Text style={styles.note}>{recipient === null ? 'Everyone in this room will see it.' : `Only ${target} will see this message.`}</Text>
       <ScrollView style={{ maxHeight: 190 }} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.phrases}>
+        {!options.length && <Text style={styles.note}>You have no saved goofy phrases yet. Write one below and save it for this and future games.</Text>}
         {options.map(phrase => <Pressable key={phrase} accessibilityRole="button" accessibilityState={{ selected: text === phrase }}
           onPress={() => { setText(phrase); setError(''); setNotice(''); }} style={[styles.chip, text === phrase && styles.selected]}>
           <Text style={[styles.chipText, text === phrase && { color: colors.text }]}>{phrase}</Text>
         </Pressable>)}
       </ScrollView>
-      <TextInput accessibilityLabel="Poke message, 25 characters maximum" placeholder="Your own little punchline…" placeholderTextColor={colors.textMuted}
+      <TextInput accessibilityLabel={`Poke message, ${POKE_TEXT_LIMIT} characters maximum`} placeholder="Your own little punchline…" placeholderTextColor={colors.textMuted}
         value={text} onChangeText={value => { setText(limitPokeText(value)); setNotice(''); setError(''); }}
         style={styles.input} maxLength={50} editable={!busy} returnKeyType="send" onSubmitEditing={() => void submit(false)} />
-      <View style={styles.between}><Text style={styles.note}>{pokeTextLength(text)}/25 characters</Text>
-        <Pressable accessibilityRole="button" disabled={busy || !connected || !text.trim()} onPress={() => void submit(true)} style={styles.save}>
-          <Text style={styles.saveText}>+ Save to my phrases</Text>
-        </Pressable></View>
+      <View style={styles.between}><Text style={styles.note}>{pokeTextLength(text)}/{POKE_TEXT_LIMIT} · {phrases.length}/{PLAYER_PHRASE_LIMIT} saved</Text>
+        {!alreadySaved && <Pressable accessibilityRole="button" disabled={busy || !connected || !text.trim() || phrases.length >= PLAYER_PHRASE_LIMIT} onPress={() => void submit(true)} style={[styles.save, (busy || !connected || !text.trim() || phrases.length >= PLAYER_PHRASE_LIMIT) && { opacity: 0.45 }]}>
+          <Text style={styles.saveText}>+ Save phrase</Text>
+        </Pressable>}</View>
       {!!notice && <Text accessibilityLiveRegion="polite" style={styles.success}>{notice}</Text>}
       {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
       {!connected && <Text style={styles.error}>Reconnecting… send when you’re back.</Text>}
