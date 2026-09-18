@@ -83,10 +83,6 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
   }]}>
     <View style={styles.content}>
       <AppHeader inlineActions={session && !expired ? <NotificationBell session={session} /> : null} />
-      {room && !expired && <View style={styles.roomNavigation}>
-        <Text style={styles.navigationLabel}>ROOM</Text>
-        <HeaderAction icon="leave" label="Back to lobby" onPress={leaveRoom} />
-      </View>}
       {!!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{error || shared.error}</Text>}
       {shared.leaveGameRequired && <View>
         <Text style={styles.subtitle}>{shared.abandonRequired ? 'Abandon the active match and leave the room? The match will stop for everyone.' : 'You are seated in a game. Leave the game and room? The game’s departure rules still apply.'}</Text>
@@ -102,11 +98,15 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
           if (joined) { setLinkedMatch(matchId); dismissInvitation?.(); }
           return joined;
         }} /> : room ? <>
-        <View style={styles.hero}>
-          <Text style={styles.eyebrow}>YOUR ROOM</Text>
-          <ShareLink roomId={room.room_id} />
-          <Text accessibilityRole="header" style={[styles.title, !wide && styles.mobileTitle]}>{room.name}</Text>
-          <Text style={styles.subtitle}>{roomMembers.length} {roomMembers.length === 1 ? 'player' : 'players'} in the room · Invite friends to take a seat.</Text>
+        <View style={styles.roomMasthead}>
+          <View style={styles.roomIdentity}>
+            <Text accessibilityRole="header" style={[styles.roomTitle, !wide && styles.mobileRoomTitle]}>{room.name}</Text>
+            <Text style={styles.subtitle}>{roomMembers.length} {roomMembers.length === 1 ? 'player' : 'players'} · Invite friends to take a seat.</Text>
+          </View>
+          <View style={styles.roomActions}>
+            <HeaderAction icon="leave" label="Back to lobby" onPress={leaveRoom} />
+            <ShareLink roomId={room.room_id} />
+          </View>
         </View>
         <View style={[styles.columns, wide && styles.wideColumns]}>
           <View style={styles.mainColumn}>
@@ -270,8 +270,9 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.background }, container: { alignItems: 'center', paddingHorizontal: 20 }, content: { width: '100%', maxWidth: 1120 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  roomNavigation: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 14 },
-  navigationLabel: { fontFamily: fonts.medium, fontSize: 10, letterSpacing: 2, color: colors.textMuted },
+  roomMasthead: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 14, paddingVertical: 20, borderBottomWidth: 1, borderColor: colors.border },
+  roomIdentity: { flex: 1, minWidth: 210, gap: 5 }, roomTitle: { fontFamily: fonts.display, fontSize: 36, lineHeight: 42, color: colors.text }, mobileRoomTitle: { fontSize: 27, lineHeight: 33 },
+  roomActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   header: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16, borderBottomWidth: 1, borderColor: colors.border, paddingBottom: 18 },
   brand: { fontFamily: fonts.body, fontSize: 26, color: colors.accent }, textButton: { minHeight: 44, justifyContent: 'center' }, lightText: { fontFamily: fonts.medium, fontSize: 12, color: colors.accent },
   hero: { paddingVertical: 32, gap: 10 }, eyebrow: { fontFamily: fonts.medium, fontSize: 9, letterSpacing: 2, color: colors.accent }, title: { fontFamily: fonts.display, fontSize: 52, color: colors.text }, mobileTitle: { fontSize: 38 }, subtitle: { fontFamily: fonts.body, fontSize: 13, lineHeight: 23, color: colors.textMuted },

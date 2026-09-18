@@ -1,5 +1,4 @@
-import { BrandIcon } from '../components/BrandArt';
-import { ThemeToggle } from '../components/ThemeToggle';
+import { GameTableHeader } from '../components/GameTableHeader';
 import { MobileFlushHand } from '../components/MobileFlushHand';
 import { ActionCue } from '../components/ActionCue';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
@@ -45,7 +44,6 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onA
   const wide = width >= 1100;
   const mobile = width < 900;
   const showFormation = mobile && !!snapshot.table && (['OPEN', 'LOCKED', 'COMPLETED'].includes(snapshot.table.phase) || !!snapshot.roster_open);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [handOpen, setHandOpen] = useState(false);
   const submitted = useRef(false);
   const sawBusy = useRef(false);
@@ -169,24 +167,11 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onA
     ? `Your turn · ${pub.pending_show ? 'Reveal or fold' : pub.pending_side_show ? 'Accept or decline side-show' : pub.status === 'awaiting_deal' ? 'Deal cards' : pub.status === 'awaiting_cut' ? 'Cut or skip' : 'Bet, show, or fold'}`
     : `${name(pub.current_player_id)}’s turn`} />;
   return <View style={[s.page, mobile && { padding: 8, gap: 4 }]} testID="flush-table">
-    <View style={s.mobileHeader} testID={mobile ? 'flush-mobile-header' : 'flush-header'}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Back to room" onPress={onBack} style={s.headerBack}>
-        <Text style={s.text}>{mobile ? '← Room' : 'Back to room'}</Text>
-      </Pressable>
-      {!!snapshot.path && <Text numberOfLines={1} style={[s.text, { fontSize: 11, opacity: 0.65 }]}>{snapshot.path}</Text>}
-      <BrandIcon size={mobile ? 30 : 48} /><Text accessibilityRole="header" style={[s.title, { flex: 1 }, mobile && { fontSize: 17 }]}>Flush</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="Table menu" accessibilityState={{ expanded: menuOpen }} onPress={() => setMenuOpen(v => !v)} style={s.menuToggle}>
-        <View style={{ gap: 5 }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          {[0, 1, 2].map(line => <View key={line} style={s.menuLine} />)}
-        </View>
-      </Pressable>
-    </View>
-    {menuOpen && <ScrollView style={{ maxHeight: '40%', flexGrow: 0 }} testID="flush-mobile-menu" contentContainerStyle={{ gap: 8, padding: 8 }}>
-      <View style={s.row}>{button('Back to room', onBack)}<ThemeToggle /></View>
-      {mobile && <View style={s.row}>{button('Bet history', () => { setMenuOpen(false); setBetsOpen(true); })}{button('Rules', () => { setMenuOpen(false); setRulesOpen(true); })}
-      {!activeGame && !!snapshot.your_player_id && button('Poke the table', () => { setMenuOpen(false); setPokeOpen(true); }, !social.connected)}</View>}
-      {mobile && !showFormation && tableControl}<View style={{ borderTopWidth: 1, borderColor: s.handDock.borderColor, paddingTop: 4 }}>{endControl}</View>
-    </ScrollView>}
+    <GameTableHeader title="Flush" path={snapshot.path} game="flush" onBack={onBack} endControl={endControl} mobileTestIds>
+      {closeMenu => <>{mobile && <View style={s.row}>{button('Bet history', () => { closeMenu(); setBetsOpen(true); })}{button('Rules', () => { closeMenu(); setRulesOpen(true); })}
+      {!activeGame && !!snapshot.your_player_id && button('Poke the table', () => { closeMenu(); setPokeOpen(true); }, !social.connected)}</View>}
+      {mobile && !showFormation && tableControl}</>}
+    </GameTableHeader>
     <View style={[s.body, wide && s.wideBody]}>
     <View style={s.mainColumn} testID="flush-main-column">
     {showFormation && <View testID="flush-formation-controls">{tableControl}</View>}
@@ -306,10 +291,6 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onA
 }
 
 const styles = (c: ThemeColors) => StyleSheet.create({
-  mobileHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, borderBottomWidth: 1, borderColor: c.border, paddingBottom: 4 },
-  headerBack: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8, borderRadius: 8, backgroundColor: c.surfaceRaised },
-  menuToggle: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  menuLine: { width: 22, height: 2, borderRadius: 1, backgroundColor: c.text },
   page: { flex: 1, padding: 12, gap: 8, backgroundColor: c.background },
   body: { flex: 1, minHeight: 0, gap: 16 },
   wideBody: { flexDirection: 'row' },

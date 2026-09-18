@@ -4,14 +4,16 @@ import { BrandIcon } from './BrandArt';
 import { ThemeToggle } from './ThemeToggle';
 import { fonts, useTheme } from '../theme';
 
-export function GameTableHeader({ title, path, game, onBack, endControl, children }: {
-  title: string; path?: string; game: string; onBack: () => void; endControl?: ReactNode; children?: ReactNode;
+export function GameTableHeader({ title, path, game, onBack, endControl, children, mobileTestIds = false }: {
+  title: string; path?: string; game: string; onBack: () => void; endControl?: ReactNode;
+  children?: ReactNode | ((closeMenu: () => void) => ReactNode);
+  mobileTestIds?: boolean;
 }) {
   const { colors } = useTheme();
   const mobile = useWindowDimensions().width < 900;
   const [open, setOpen] = useState(false);
   return <>
-    <View testID={`${game}-header`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 8, borderBottomWidth: 1, borderColor: colors.border }}>
+    <View testID={`${game}-${mobile && mobileTestIds ? 'mobile-' : ''}header`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 8, borderBottomWidth: 1, borderColor: colors.border }}>
       <BrandIcon size={mobile ? 30 : 48} />
       <View style={{ flex: 1 }}><Text accessibilityRole="header" style={{ fontFamily: fonts.medium, fontSize: mobile ? 17 : 20, color: colors.text }}>{title}</Text>
         {!!path && <Text numberOfLines={1} style={{ fontFamily: fonts.body, fontSize: 11, color: colors.textMuted }}>{path}</Text>}
@@ -23,13 +25,13 @@ export function GameTableHeader({ title, path, game, onBack, endControl, childre
         </View>
       </Pressable>
     </View>
-    {open && <ScrollView testID={`${game}-menu`} style={{ maxHeight: '40%', flexGrow: 0 }} contentContainerStyle={{ padding: 8, gap: 8 }} nestedScrollEnabled>
+    {open && <ScrollView testID={`${game}-${mobile && mobileTestIds ? 'mobile-' : ''}menu`} style={{ maxHeight: '40%', flexGrow: 0 }} contentContainerStyle={{ padding: 8, gap: 8 }} nestedScrollEnabled>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <Pressable accessibilityRole="button" accessibilityLabel="Back to room" onPress={onBack} style={{ padding: 12, minHeight: 44, borderRadius: 8, backgroundColor: colors.surfaceRaised }}>
           <Text style={{ color: colors.text, fontFamily: fonts.body }}>Back to room</Text>
         </Pressable><ThemeToggle />
       </View>
-      {children}
+      {typeof children === 'function' ? children(() => setOpen(false)) : children}
       <View style={{ borderTopWidth: 1, borderColor: colors.border, paddingTop: 4 }}>{endControl}</View>
     </ScrollView>}
   </>;
