@@ -27,7 +27,7 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
   const insets = useSafeAreaInsets();
   const wide = useWindowDimensions().width >= 900;
   const [roomToolsOpen, setRoomToolsOpen] = useState(false);
-  const [roomsOpen, setRoomsOpen] = useState(true);
+  const [roomsOpen, setRoomsOpen] = useState(false);
   const [lobbyTab, setLobbyTab] = useState<'rooms' | 'players'>('rooms');
   const [inviteOpen, setInviteOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
@@ -74,6 +74,7 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
     finally { if (mounted.current) setBusy(false); }
   }
   const current = rooms.find(item => item.room_id === room?.room_id) || room;
+  const availableRooms = rooms.filter(item => item.feed_source === 'you' || item.feed_source === 'joined' || item.feed_source === 'friend');
   const ownsCurrentRoom = !!current && current.creator_id === session?.user_id;
   const roomMembers = [...new Set([...(current?.members || []), ...(room && session && shared.status === 'connected' ? [session.user_id] : [])])];
   if (room && preview) return <CallBreakTableScreen capacity={previewSize} names={['You']} tableName={room.name} onBack={() => setPreview(false)} />;
@@ -217,11 +218,7 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
           {!!shared.error && <Text accessibilityRole="alert" style={styles.subtitle}>{shared.error}</Text>}
         </View>}
         {lobbyTab === 'rooms' && <View style={[styles.columns, !session && { marginTop: 24 }]}>
-          <View style={styles.panel}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Create room / Join with code" aria-expanded={roomToolsOpen} accessibilityState={{ expanded: roomToolsOpen }} onPress={() => setRoomToolsOpen(value => !value)} style={styles.sectionToggle}>
-              <Text style={styles.sectionTitle}>Create room / Join with code</Text><Text style={styles.sectionTitle}>{roomToolsOpen ? '-' : '+'}</Text>
-            </Pressable>
-            {roomToolsOpen && <View>
+          {roomToolsOpen && <View style={styles.panel}>
             <View style={styles.gameTabs}>
               <Pressable accessibilityRole="button" accessibilityState={{ selected: form === 'create' }} onPress={() => setForm('create')} style={[styles.gameTab, form === 'create' && styles.selectedTab]}><Text style={[styles.tabText, form === 'create' && styles.selectedTabText]}>Create room</Text></Pressable>
               <Pressable accessibilityRole="button" accessibilityState={{ selected: form === 'join' }} onPress={() => setForm('join')} style={[styles.gameTab, form === 'join' && styles.selectedTab]}><Text style={[styles.tabText, form === 'join' && styles.selectedTabText]}>Join with code</Text></Pressable>
@@ -247,18 +244,19 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
               }} style={[styles.button, (!session || busy || expired) && styles.disabled]}><Text style={styles.buttonText}>Enter with table code</Text></Pressable>
             </>}
             {busy && <Text accessibilityLiveRegion="polite" style={styles.description}>Entering room…</Text>}
-            </View>}
-          </View>
+          </View>}
           <View style={styles.panel}>
             <Pressable accessibilityRole="button" accessibilityLabel="Available rooms" aria-expanded={roomsOpen} accessibilityState={{ expanded: roomsOpen }} onPress={() => setRoomsOpen(value => !value)} style={styles.sectionToggle}>
-              <Text style={styles.sectionTitle}>Game room feed</Text><Text style={styles.sectionTitle}>{roomsOpen ? '-' : '+'}</Text>
+              <Text style={styles.sectionTitle}>Available rooms · {availableRooms.length}</Text><Text style={styles.sectionTitle}>{roomsOpen ? '-' : '+'}</Text>
             </Pressable>
             {roomsOpen && <View>
-            {session && !rooms.length && <View style={styles.comingSoon}><Text style={styles.heading}>The first table is yours.</Text><Text style={styles.description}>Create a room to get things started.</Text></View>}
-            {rooms.map(item => <View key={item.room_id} style={styles.roomRow}>
-              <View style={{ flex: 1 }}><Text style={styles.directoryName}>{item.name}</Text><Text style={styles.description}>{item.feed_source === 'you' ? 'Your room' : item.feed_source === 'joined' ? 'Joined room' : item.feed_source === 'friend' ? "Friend's room" : 'Public room'} · {item.visibility === 'friends' ? 'Friends only' : 'Public'}</Text><Text selectable style={styles.description}>Table code: {item.room_id}</Text><Text style={styles.description}>{item.members.length} members · {item.connected_members?.length || 0} online</Text></View>
+            {session && !availableRooms.length && <View style={styles.comingSoon}><Text style={styles.heading}>No available rooms yet.</Text><Text style={styles.description}>Create a room or join one with a code to keep it here.</Text></View>}
+            <ScrollView nestedScrollEnabled style={styles.availableRooms} contentContainerStyle={{ gap: 8 }}>
+            {availableRooms.map(item => <View key={item.room_id} style={styles.roomRow}>
+              <View style={{ flex: 1 }}><Text style={styles.directoryName}>{item.name}</Text><Text style={styles.description}>{item.feed_source === 'you' ? 'Created by you' : item.feed_source === 'joined' ? 'Joined room' : "Friend's room"} · {item.visibility === 'friends' ? 'Friends only' : 'Public'}</Text><Text selectable style={styles.description}>Table code: {item.room_id}</Text><Text style={styles.description}>{item.members.length} members · {item.connected_members?.length || 0} online</Text></View>
               <Pressable accessibilityRole="button" accessibilityLabel={`Enter ${item.name}`} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => joinRoom(item)} style={[styles.enterButton, busy && styles.disabled]}><Text style={styles.enterText}>Enter →</Text></Pressable>
             </View>)}
+            </ScrollView>
             </View>}
           </View>
         </View>}
@@ -287,7 +285,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   input: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: 8, minHeight: 48, padding: 14, fontFamily: fonts.body, color: colors.text, marginVertical: 10 },
   button: { backgroundColor: colors.surfaceSelected, minHeight: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', padding: 12 }, buttonText: { fontFamily: fonts.medium, color: colors.text, fontSize: 12 }, disabled: { opacity: 0.5 },
   dangerButton: { minHeight: 48, borderRadius: 8, borderWidth: 1, borderColor: colors.danger, alignItems: 'center', justifyContent: 'center', padding: 12 }, dangerText: { fontFamily: fonts.medium, color: colors.danger, fontSize: 12 },
-  roomRow: { flexDirection: 'row', gap: 12, alignItems: 'center', borderBottomWidth: 1, borderColor: colors.border, paddingVertical: 18 }, directoryName: { fontFamily: fonts.medium, fontSize: 14, color: colors.text, flexShrink: 1 }, enterButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 }, enterText: { fontFamily: fonts.medium, fontSize: 12, color: colors.accent },
+  availableRooms: { maxHeight: 420 }, roomRow: { flexDirection: 'row', gap: 12, alignItems: 'center', borderBottomWidth: 1, borderColor: colors.border, paddingVertical: 18 }, directoryName: { fontFamily: fonts.medium, fontSize: 14, color: colors.text, flexShrink: 1 }, enterButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 }, enterText: { fontFamily: fonts.medium, fontSize: 12, color: colors.accent },
   testing: { marginTop: 24, borderTopWidth: 1, borderColor: colors.border }, testingToggle: { minHeight: 54, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, testingBody: { gap: 16, paddingBottom: 20 },
   comingSoon: { paddingVertical: 24, gap: 10 }, footer: { fontFamily: fonts.body, fontSize: 10, color: colors.textMuted, marginVertical: 24, textAlign: 'center' }, error: { color: colors.danger, fontFamily: fonts.body, fontSize: 12, lineHeight: 20, marginVertical: 12 },
 });
