@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import Svg, { Path } from 'react-native-svg';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { useTranslation } from 'react-i18next';
 
 export type SignInMethod = 'Apple' | 'Google' | 'Facebook' | 'account';
 function GoogleIcon() {
@@ -17,12 +18,14 @@ function GoogleIcon() {
 }
 export function SignInButton({ method, onPress, disabled = false, label }: { method: SignInMethod; onPress: () => void; disabled?: boolean; label?: string }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = useThemedStyles(createStyles);
   const [focused, setFocused] = useState(false);
   const backgroundColor = { Apple: '#141414', Google: '#FFFFFF', Facebook: '#0866FF', account: colors.primary }[method];
   const color = method === 'Google' ? '#242424' : '#FFFFFF';
+  const text = label || (method === 'account' ? t('welcome.account') : `Continue with ${method}`);
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={method === 'account' ? 'Sign in or create account' : `Continue with ${method}`}
+    <Pressable accessibilityRole="button" accessibilityLabel={text}
       disabled={disabled} accessibilityState={{ disabled }}
       onPress={onPress} onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)} style={({ pressed }) => [
@@ -34,7 +37,7 @@ export function SignInButton({ method, onPress, disabled = false, label }: { met
           <FontAwesome name={method === 'Apple' ? 'apple' : method === 'Facebook' ? 'facebook-square' : 'user'} size={24} color={color} />
         )}
       </View>
-      <Text style={[styles.label, { color }]}>{label || (method === 'account' ? 'Sign in or create account' : `Continue with ${method}`)}</Text>
+      <Text style={[styles.label, { color }]}>{text}</Text>
       <View style={styles.balance} />
     </Pressable>
   );

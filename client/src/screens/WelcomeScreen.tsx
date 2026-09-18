@@ -7,12 +7,15 @@ import { branding } from '../branding';
 import { BrandBanner } from '../components/BrandArt';
 import { SignInButton, SignInMethod } from '../components/SignInButton';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { LanguageToggle } from '../components/LanguageToggle';
+import { useTranslation } from 'react-i18next';
 
 // Provider controls remain visible but disabled until their test applications exist.
 const SOCIAL_SIGN_IN_ENABLED = false;
 
 export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = useThemedStyles(createStyles);
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -32,38 +35,38 @@ export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
       }]}>
         <View style={[styles.layout, wide && styles.wideLayout]}>
           <View style={[styles.brandSide, wide && styles.wideBrand]}>
-            <ThemeToggle />
+            <View style={{ flexDirection: 'row', gap: 8 }}><LanguageToggle /><ThemeToggle /></View>
             {wide ? <Image source={branding.splash} accessibilityLabel="Bhidne Ho — friends playing cards in Nepal. More than a game, it’s our time." resizeMode="contain" style={{ width: '100%', aspectRatio: 507 / 953, maxHeight: 760, marginTop: 16, borderRadius: 20 }} /> : <>
               <BrandBanner />
               <View style={styles.mobileIntro}>
-                <Text accessibilityRole="header" style={styles.mobileHeading}>Take your seat.</Text>
-                <Text style={styles.mobileSubtitle}>Call Break, Marriage and Flush with friends.</Text>
+                <Text accessibilityRole="header" style={styles.mobileHeading}>{t('welcome.heading')}</Text>
+                <Text style={styles.mobileSubtitle}>{t('welcome.subtitle')}</Text>
               </View>
             </>}
           </View>
           <View style={[styles.panel, wide ? styles.widePanel : styles.mobilePanel]}>
             {wide && <View style={styles.intro}>
-              <Text accessibilityRole="header" style={styles.heading}>Take your seat.</Text>
-              <Text style={styles.subtitle}>Call Break, Marriage and Flush with friends.</Text>
+              <Text accessibilityRole="header" style={styles.heading}>{t('welcome.heading')}</Text>
+              <Text style={styles.subtitle}>{t('welcome.subtitle')}</Text>
             </View>}
             <View style={styles.buttons}>
               {(['Apple', 'Google', 'Facebook'] as const).map(method => (
                 <SignInButton key={method} method={method} disabled={!SOCIAL_SIGN_IN_ENABLED} onPress={() => selectMethod(method)} />
               ))}
             </View>
-            <View style={styles.divider}><View style={styles.dividerLine} /><Text style={styles.or}>or</Text><View style={styles.dividerLine} /></View>
+            <View style={styles.divider}><View style={styles.dividerLine} /><Text style={styles.or}>{t('welcome.or')}</Text><View style={styles.dividerLine} /></View>
             <SignInButton method="account" onPress={() => selectMethod('account')} />
-            <Text style={styles.helper}>Sign in with your Bhidne Ho account or create a new one.</Text>
+            <Text style={styles.helper}>{t('welcome.helper')}</Text>
             {!!notice && <View style={styles.notice} accessibilityLiveRegion="polite">
               <Text style={styles.noticeText}>{notice}</Text>
-              <Pressable accessibilityRole="button" accessibilityLabel="Dismiss message" onPress={() => setNotice('')} style={styles.dismiss}>
-                <Text style={styles.dismissText}>Dismiss</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel={t('welcome.dismissMessage')} onPress={() => setNotice('')} style={styles.dismiss}>
+                <Text style={styles.dismissText}>{t('welcome.dismiss')}</Text>
               </Pressable>
             </View>}
             <View style={[styles.footer, wide && styles.wideFooter]}>
-              <Pressable accessibilityRole="button" onPress={() => setNotice('Terms will be available before account sign-in launches.')} style={styles.footerButton}><Text style={styles.footerText}>Terms</Text></Pressable>
+              <Pressable accessibilityRole="button" onPress={() => setNotice(t('welcome.termsNotice'))} style={styles.footerButton}><Text style={styles.footerText}>{t('welcome.terms')}</Text></Pressable>
               <Text style={styles.footerSeparator}>|</Text>
-              <Pressable accessibilityRole="button" onPress={() => setNotice('The privacy policy will be available before account sign-in launches.')} style={styles.footerButton}><Text style={styles.footerText}>Privacy</Text></Pressable>
+              <Pressable accessibilityRole="button" onPress={() => setNotice(t('welcome.privacyNotice'))} style={styles.footerButton}><Text style={styles.footerText}>{t('welcome.privacy')}</Text></Pressable>
             </View>
           </View>
         </View>

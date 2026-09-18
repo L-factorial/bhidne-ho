@@ -13,10 +13,13 @@ import { WelcomeScreen } from './src/screens/WelcomeScreen';
 import { apiUrl } from './src/multiplayer/api';
 import { readSession } from './src/multiplayer/session';
 import { SharedRoomsScreen } from './src/screens/SharedRoomsScreen';
+import { LanguageProvider } from './src/i18n/LanguageProvider';
+import { useTranslation } from 'react-i18next';
 
-export default function App() { return <ThemeProvider><AppContent /></ThemeProvider>; }
+export default function App() { return <LanguageProvider><ThemeProvider><AppContent /></ThemeProvider></LanguageProvider>; }
 
 function AppContent() {
+  const { t } = useTranslation();
   const { mode, colors } = useTheme();
   const [invitation, setInvitation] = useState<Invitation | null>(() => Platform.OS === 'web' ? readInvitation(globalThis.location.href) : null);
   const [inRooms, setInRooms] = useState(() => !!readSession(apiUrl) || !!invitation);
@@ -32,7 +35,7 @@ function AppContent() {
   }
   const [loaded, error] = useFonts({ Inter_400Regular, Inter_500Medium });
   if (!loaded && !error) return <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
-    <Image source={branding.icon} accessibilityLabel="Loading Bhidne Ho" resizeMode="contain" style={{ width: 160, height: 160, borderRadius: 24 }} />
+    <Image source={branding.icon} accessibilityLabel={t('common.loading')} resizeMode="contain" style={{ width: 160, height: 160, borderRadius: 24 }} />
   </View>;
   return (
     <SafeAreaProvider>

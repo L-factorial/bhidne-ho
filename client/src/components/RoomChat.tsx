@@ -5,11 +5,13 @@ import { usePong } from '../notifications/usePong';
 import { ApiError, request } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { useTranslation } from 'react-i18next';
 
 type Message = { id: string; sender_id: string; sender_name: string; text: string; sent_at: number };
 
 export function useRoomChat({ roomId, session, connected, hideWhenBlocked = false }: { hideWhenBlocked?: boolean; roomId: string; session: Session; connected: boolean }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = useThemedStyles(createStyles);
   const [open, setOpen] = useState(false);
   const [blocked, setBlocked] = useState(false);
@@ -108,32 +110,32 @@ export function useRoomChat({ roomId, session, connected, hideWhenBlocked = fals
       }]} />}
     <View style={[styles.card, unread > 0 && { borderColor: colors.accent, borderWidth: 2 }]}>
       <View style={styles.header}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Room chat" accessibilityHint={blocked ? 'Chat is paused while you are playing.' : unread ? `${unread} unread messages` : 'Expand or minimize room chat'}
+        <Pressable accessibilityRole="button" accessibilityLabel={t('chat.title')} accessibilityHint={blocked ? t('chat.hintPaused') : unread ? t('chat.hintUnread', { count: unread }) : t('chat.hintToggle')}
           aria-expanded={open} accessibilityState={{ expanded: open, disabled: blocked }} disabled={blocked}
           onPress={() => { if (open) setOpen(false); else openChat(); }} style={[styles.toggle, { flex: 1 }]}>
-          <Text style={styles.heading}>Room chat{blocked ? ' · Paused' : ''}</Text>
-          {unread > 0 ? <Text testID="chat-unread" accessibilityLiveRegion="polite" style={styles.badge}>{unread} new</Text>
+          <Text style={styles.heading}>{t('chat.title')}{blocked ? ` · ${t('chat.paused')}` : ''}</Text>
+          {unread > 0 ? <Text testID="chat-unread" accessibilityLiveRegion="polite" style={styles.badge}>{t('chat.unread', { count: unread })}</Text>
             : <Text style={styles.heading}>{open ? '−' : '⌃'}</Text>}
         </Pressable>
-        {open && <Pressable accessibilityRole="button" accessibilityLabel="Close chat" onPress={() => setOpen(false)} style={styles.close}><Text style={styles.heading}>×</Text></Pressable>}
+        {open && <Pressable accessibilityRole="button" accessibilityLabel={t('chat.close')} onPress={() => setOpen(false)} style={styles.close}><Text style={styles.heading}>×</Text></Pressable>}
       </View>
       {open && !blocked && <View testID="room-chat-window" style={[styles.chatBody, { height: panelHeight }]}>
-      <Pressable accessibilityRole="button" accessibilityLabel={muted ? 'Unmute chat notifications' : 'Mute chat notifications'} onPress={() => { prepare(); setMuted(value => !value); }}><Text style={styles.note}>{muted ? 'Chat sound off' : 'Chat sound on'}</Text></Pressable>
+      <Pressable accessibilityRole="button" onPress={() => { prepare(); setMuted(value => !value); }}><Text style={styles.note}>{t(muted ? 'chat.soundOff' : 'chat.soundOn')}</Text></Pressable>
       <ScrollView ref={scroll} testID="room-chat-history" nestedScrollEnabled style={{ flex: 1, minHeight: 0 }} scrollEventThrottle={16}
         onScroll={({ nativeEvent: { contentOffset, contentSize, layoutMeasurement } }) => { followLatest.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 40; }}
         onContentSizeChange={() => { if (followLatest.current) scroll.current?.scrollToEnd({ animated: false }); }}>
-        {!messages.length && <Text style={styles.note}>Drop a goofy line. Challenge your friends. Get the game going!</Text>}
+        {!messages.length && <Text style={styles.note}>{t('chat.empty')}</Text>}
         {messages.map(message => <View key={message.id} style={styles.message}>
-          <Text style={styles.author}>{message.sender_id === session.user_id ? `${message.sender_name} (You)` : message.sender_name} · {new Date(message.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+          <Text style={styles.author}>{message.sender_id === session.user_id ? `${message.sender_name} (${t('chat.you')})` : message.sender_name} · {new Date(message.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
           <Text selectable style={styles.text}>{message.text}</Text>
         </View>)}
       </ScrollView>
-      {!connected && <Text style={styles.note}>Reconnecting to room...</Text>}
+      {!connected && <Text style={styles.note}>{t('chat.reconnecting')}</Text>}
       {!!(error || loadError) && <Text accessibilityRole="alert" style={styles.error}>{error || loadError}</Text>}
-      <TextInput accessibilityLabel="Room chat message" placeholder="Got a bold prediction or a punchline?" multiline value={draft} onChangeText={setDraft} editable={!busy} style={styles.input} />
+      <TextInput accessibilityLabel={t('chat.title')} placeholder={t('chat.placeholder')} multiline value={draft} onChangeText={setDraft} editable={!busy} style={styles.input} />
       <Text style={styles.note}>{length}/500</Text>
       <Pressable accessibilityRole="button" accessibilityLabel="Send chat message" disabled={busy || !connected || !draft.trim() || length > 500} accessibilityState={{ disabled: busy || !connected || !draft.trim() || length > 500 }} onPress={() => void send()} style={[styles.send, (busy || !connected || !draft.trim() || length > 500) && { opacity: 0.5 }]}>
-        <Text style={styles.sendText}>{busy ? 'Sending...' : 'Send'}</Text>
+        <Text style={styles.sendText}>{t(busy ? 'chat.sending' : 'chat.send')}</Text>
       </Pressable>
       </View>}
     </View>

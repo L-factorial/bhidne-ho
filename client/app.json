@@ -23,7 +23,8 @@
           "recordAudioAndroid": false,
           "enableBackgroundPlayback": false
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "scheme": "bhidneho"
   }

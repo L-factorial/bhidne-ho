@@ -4,6 +4,8 @@ import { BrandIcon } from './BrandArt';
 import { HeaderAction } from './HeaderAction';
 import { ThemeToggle } from './ThemeToggle';
 import { fonts, useTheme } from '../theme';
+import { LanguageToggle } from './LanguageToggle';
+import { useTranslation } from 'react-i18next';
 
 export const HeaderProfileContext = createContext<((close: () => void) => ReactNode) | null>(null);
 
@@ -11,6 +13,7 @@ export function AppHeader({ title, actions, inlineActions, hideProfile = false }
   title?: string; actions?: ReactNode; inlineActions?: ReactNode; hideProfile?: boolean;
 }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const compact = useWindowDimensions().width < 900;
   const renderProfile = useContext(HeaderProfileContext);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -23,9 +26,10 @@ export function AppHeader({ title, actions, inlineActions, hideProfile = false }
         {!!title && <Text accessibilityRole="header" style={{ flexShrink: 1, color: colors.text, fontFamily: fonts.medium, fontSize: 18 }}>{title}</Text>}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <LanguageToggle />
         <ThemeToggle />
         {inlineActions}
-        {!hideProfile && renderProfile && <HeaderAction icon="profile" label="Profile" compact={compact} onPress={() => setProfileOpen(true)} />}
+        {!hideProfile && renderProfile && <HeaderAction icon="profile" label={t('common.profile')} compact={compact} onPress={() => setProfileOpen(true)} />}
       </View>
     </View>
     {!!actions && <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>{actions}</View>}
