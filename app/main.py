@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from app.auth.service import InMemoryAuthService
 from app.auth.postgres import PostgresAuthService
 from app.database import Database
+from app.durable_games import DurableCommandRuntime, InMemoryGameStore, PostgresGameStore
 from app.games.echo import EchoCommandTarget, EchoGameEngine
 from app.runtime.game_registry import GameRegistry
 from app.multiplayer.connection_manager import ConnectionManager
@@ -52,6 +53,9 @@ def create_app() -> FastAPI:
         app.state.presence = PresenceService(rooms)
         app.state.connections = connections
         app.state.database = database
+        app.state.durable_game_runtime = DurableCommandRuntime(
+            PostgresGameStore(database.pool) if database else InMemoryGameStore(),
+        )
         app.state.player_profiles = PostgresPlayerProfileService(database.pool) if database else PlayerProfileService()
         app.state.players = PlayerSocialService(
             PostgresPlayerStore(database.pool) if database else InMemoryPlayerStore(app.state.player_profiles),

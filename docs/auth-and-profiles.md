@@ -61,9 +61,10 @@ backend `depends_on` entry. No Python code or image change is needed. For exampl
 postgresql://bhidne_app:password@managed-host:5432/bhidne_ho?sslmode=require
 ```
 
-The startup schema is intentionally idempotent for this first milestone. Before the
-first schema evolution, adopt versioned migrations (for example Alembic) and run them
-as a release step rather than granting the runtime user schema-changing privileges.
+Schema changes are installed through the application's append-only numbered
+migrations under a PostgreSQL advisory lock. A later deployment hardening step may
+move migration execution into a separate release command so the runtime database
+role no longer needs schema-changing privileges.
 
 ## Next security increments
 
