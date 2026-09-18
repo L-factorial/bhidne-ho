@@ -1,8 +1,10 @@
 import pytest
+from types import SimpleNamespace
 
 from app.ledger import GameLedgerAmount, GameLedgerResult, InMemoryLedgerStore, LedgerService
 from app.ledger.models import CreateSettlement
 from app.ledger.store import _application_object_id, _application_user_id, _database_user_id
+from app.test_games.service import TestGameService as GameService
 
 
 class Rooms:
@@ -80,3 +82,21 @@ def test_postgres_ledger_identity_boundary_round_trips_application_user_ids():
         "12345678123456781234567812345678"
     assert _application_object_id("12345678-1234-5678-1234-567812345678") == \
         "12345678123456781234567812345678"
+
+
+@pytest.mark.asyncio
+async def test_ledger_projection_failure_does_not_fail_an_already_committed_game_action(monkeypatch):
+    service = GameService(Rooms(), connections=None)
+    game = SimpleNamespace(game_type="flush", match_id="finished-game", ledger_retry_at=0)
+    attempts = 0
+
+    async def unavailable(_game):
+        nonlocal attempts
+        attempts += 1
+        raise ConnectionError("database unavailable")
+
+    monkeypatch.setattr(service, "_record_completed_ledger", unavailable)
+    await service._try_record_completed_ledger(game)
+    await service._try_record_completed_ledger(game)
+    assert attempts == 1
+    assert game.ledger_retry_at > 0

@@ -23,12 +23,28 @@ def test_profile_names_are_owned_validated_and_visible_at_table():
         mid = client.post('/test-games/room', headers=headers[0], json={'player_count': 4}).json()['match_id']
         client.post('/test-games/room/join', headers=headers[1], json={'match_id': mid})
         def snapshot(): return client.get('/test-games/room', headers=headers[1]).json()
-        assert [p['display_name'] for p in snapshot()['players']] == ['Ace Player', 'Player 2']
+        assert [p['display_name'] for p in snapshot()['players']] == ['Ace Player', users[1]['user_id']]
         client.patch('/me/profile', headers=headers[0], json={'display_name': 'New name'})
         assert snapshot()['players'][0]['display_name'] == 'New name'
         assert snapshot()['match_id'] == mid
         client.patch('/me/profile', headers=headers[0], json={'display_name': ''})
-        assert snapshot()['players'][0]['display_name'] == 'Player 1'
+        assert snapshot()['players'][0]['display_name'] == users[0]['user_id']
+
+
+def test_signup_username_is_the_game_name_when_profile_name_is_empty():
+    with TestClient(create_app()) as client:
+        accounts = [client.post('/auth/signup', json={
+            'username': username, 'password': 'test-password-123'}).json()
+            for username in ('table-alice', 'table-bob')]
+        headers = [{'Authorization': f"Bearer {account['token']}"} for account in accounts]
+        room = client.post('/rooms', headers=headers[0], json={'name': 'Names'}).json()['room_id']
+        for values in headers:
+            assert client.post(f'/rooms/{room}/enter', headers=values).status_code == 200
+        game = client.post(f'/test-games/{room}', headers=headers[0], json={
+            'game_type': 'marriage', 'player_count': 2}).json()
+        joined = client.post(f'/test-games/{room}/join', headers=headers[1], json={
+            'match_id': game['match_id']}).json()
+        assert [player['display_name'] for player in joined['players']] == ['table-alice', 'table-bob']
 
 
 def test_account_profile_survives_sign_in_with_another_token():

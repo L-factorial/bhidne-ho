@@ -5,6 +5,7 @@ from uuid import UUID
 class PlayerProfileService:
     def __init__(self):
         self.names: dict[str, str] = {}
+        self.usernames: dict[str, str] = {}
 
     def get(self, user_id):
         return {"display_name": self.names.get(user_id, "")}
@@ -13,8 +14,12 @@ class PlayerProfileService:
         self.names[user_id] = display_name
         return self.get(user_id)
 
+    def remember_username(self, user_id, username):
+        if username:
+            self.usernames[user_id] = username
+
     def name(self, user_id, seat):
-        return self.names.get(user_id) or f"Player {seat}"
+        return self.names.get(user_id) or self.usernames.get(user_id) or user_id
 
 
 class PostgresPlayerProfileService(PlayerProfileService):
@@ -30,12 +35,16 @@ class PostgresPlayerProfileService(PlayerProfileService):
 
     async def get(self, user_id):
         async with self.pool.connection() as connection:
-            result = await connection.execute(
-                "SELECT display_name FROM user_profiles WHERE user_id = %s", (self._uuid(user_id),)
-            )
+            result = await connection.execute("""
+                SELECT p.display_name,a.username FROM user_profiles p
+                LEFT JOIN account_credentials a ON a.user_id=p.user_id
+                WHERE p.user_id=%s
+            """, (self._uuid(user_id),))
             row = await result.fetchone()
         value = row[0] if row else ""
         self.names[user_id] = value
+        if row and row[1]:
+            self.usernames[user_id] = row[1]
         return {"display_name": value}
 
     async def update(self, user_id, display_name):

@@ -56,6 +56,7 @@ async def sign_up(body: AccountInput, request: Request, response: Response):
         await request.app.state.players.ensure_user(credentials.user_id)
         if hasattr(request.app.state.players.store, "usernames"):
             request.app.state.players.store.usernames[credentials.user_id] = credentials.username
+        request.app.state.player_profiles.remember_username(credentials.user_id, credentials.username)
         return credentials
     except UsernameTakenError as error:
         raise HTTPException(409, str(error)) from None
@@ -65,7 +66,9 @@ async def sign_up(body: AccountInput, request: Request, response: Response):
 async def sign_in(body: AccountInput, request: Request, response: Response):
     response.headers["Cache-Control"] = "no-store"
     try:
-        return await request.app.state.auth.sign_in(body.username, body.password)
+        credentials = await request.app.state.auth.sign_in(body.username, body.password)
+        request.app.state.player_profiles.remember_username(credentials.user_id, credentials.username)
+        return credentials
     except AuthenticationError as error:
         raise HTTPException(401, str(error)) from None
 

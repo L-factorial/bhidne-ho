@@ -4,7 +4,9 @@ import asyncio
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import asdict, dataclass, field, fields
 import json
+import logging
 from random import SystemRandom
+from time import monotonic
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from fastapi import HTTPException
@@ -34,6 +36,8 @@ from app.multiplayer.rule_proposals import RuleProposals
 from app.games.lifecycle import PlayerDeparture, WaitingGameDeparture
 from app.runtime.command_runtime import CommandAccessError, CommandRuntime, CommandSession, OutgoingEvent
 from app.ledger import GameLedgerAmount, GameLedgerResult
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class HostedGame:
@@ -67,6 +71,7 @@ class HostedGame:
     marriage_moves: list[dict] = field(default_factory=list)
     marriage_scoring: ScoringRules = field(default_factory=ScoringRules)
     ledgered_games: set[str] = field(default_factory=set)
+    ledger_retry_at: float = 0
 
     @property
     def started(self):
@@ -364,6 +369,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         async with game.lock:
             await self._member(room_id, user_id, game)
             await self._advance_table(game)
+            await self._try_record_completed_ledger(game)
             return self._snapshot(game, user_id)
 
     async def create(self, room_id, user_id, capacity, game_type="callbreak", name="Table"):
@@ -631,7 +637,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         try:
             result = await self.command_runtime.execute(
                 game.commands, game.flush_target or game.marriage_target or CallBreakCommandTarget(self, game), user_id, body, deliver)
-            await self._record_completed_ledger(game)
+            await self._try_record_completed_ledger(game)
             return result
         except CommandAccessError as error:
             raise HTTPException(error.status, error.detail) from error
@@ -672,6 +678,23 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             game_id=game_id, game_type=game.game_type,
             amounts=[GameLedgerAmount(player_id=player, amount=amount) for player, amount in amounts.items()]))
         game.ledgered_games.add(game_id)
+
+    async def _try_record_completed_ledger(self, game):
+        """Keep an already-committed game command independent from its ledger projection.
+
+        Until the real engines use the atomic durable runtime, a ledger/database failure
+        must not cause clients to retry a command whose engine mutation already succeeded.
+        Snapshots retry the idempotent projection with a small backoff.
+        """
+        if monotonic() < game.ledger_retry_at:
+            return
+        try:
+            await self._record_completed_ledger(game)
+            game.ledger_retry_at = 0
+        except Exception:
+            game.ledger_retry_at = monotonic() + 5
+            logger.exception("Completed %s game %s; ledger projection will be retried",
+                             game.game_type, game.match_id)
 
     async def poke(self, room_id, user_id, body, social):
         await self._member(room_id, user_id)
