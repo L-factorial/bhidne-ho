@@ -56,9 +56,11 @@ uvicorn app.main:app --reload --workers 1
 ```
 
 Health: `GET http://127.0.0.1:8000/health`. HTTP API docs: `/docs`.
-Use **one worker**: rooms, active games, and sockets are process-local. With
-`BHIDNE_HO_DATABASE_URL`, identities, sessions, and profiles survive restarts; without it they
-remain in memory. Restarting still discards presence. Ad hoc rooms are created on first
+Use **one worker** while the legacy in-memory game runtime is selected. The default
+`BHIDNE_HO_GAME_RUNTIME_MODE=durable` requires `BHIDNE_HO_DATABASE_URL` (or `DATABASE_URL`)
+and refuses startup when PostgreSQL is unavailable. Explicitly set
+`BHIDNE_HO_GAME_RUNTIME_MODE=memory` only as an emergency rollback; there is no silent fallback.
+Restarting still discards presence. Ad hoc rooms are created on first
 connection and removed when empty; explicitly created rooms remain in the directory
 until restart. Guest issuance is temporarily disabled by default.
 

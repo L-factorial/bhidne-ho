@@ -43,6 +43,15 @@ def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         database_url = os.environ.get("BHIDNE_HO_DATABASE_URL") or os.environ.get("DATABASE_URL")
+        game_runtime_mode = os.environ.get("BHIDNE_HO_GAME_RUNTIME_MODE", "durable").strip().lower()
+        if game_runtime_mode not in {"durable", "memory"}:
+            raise RuntimeError("BHIDNE_HO_GAME_RUNTIME_MODE must be 'durable' or 'memory'.")
+        if game_runtime_mode == "durable" and not database_url:
+            raise RuntimeError(
+                "Durable game runtime requires PostgreSQL. Configure BHIDNE_HO_DATABASE_URL, "
+                "or explicitly set BHIDNE_HO_GAME_RUNTIME_MODE=memory for emergency rollback."
+            )
+        app.state.game_runtime_mode = game_runtime_mode
         app.state.guest_login_enabled = os.environ.get("BHIDNE_HO_GUEST_LOGIN_ENABLED") == "1"
         database = Database(database_url) if database_url else None
         if database:
@@ -56,9 +65,9 @@ def create_app() -> FastAPI:
         app.state.presence = PresenceService(rooms)
         app.state.connections = connections
         app.state.database = database
-        app.state.durable_game_runtime = DurableCommandRuntime(
-            PostgresGameStore(database.pool) if database else InMemoryGameStore(),
-        )
+        game_store = (PostgresGameStore(database.pool)
+                      if game_runtime_mode == "durable" else InMemoryGameStore())
+        app.state.durable_game_runtime = DurableCommandRuntime(game_store)
         app.state.player_profiles = PostgresPlayerProfileService(database.pool) if database else PlayerProfileService()
         app.state.players = PlayerSocialService(
             PostgresPlayerStore(database.pool) if database else InMemoryPlayerStore(app.state.player_profiles),
@@ -86,7 +95,8 @@ def create_app() -> FastAPI:
         app.state.provision_room = provision_room
         app.state.runtime = GameRuntime(connections, registry)
         app.state.test_games = TestGameService(rooms, connections, command_runtime=app.state.runtime.commands,
-            profiles=app.state.player_profiles, round_summary_seconds=8, ledger=app.state.ledger)
+            profiles=app.state.player_profiles, round_summary_seconds=8, ledger=app.state.ledger,
+            durable_runtime=app.state.durable_game_runtime, runtime_mode=game_runtime_mode)
         app.state.lifecycle = RoomLifecycle(rooms, connections, app.state.test_games, app.state.players)
         app.state.participation = GameParticipation(app.state.test_games)
         app.state.room_chat = RoomChatService(rooms, app.state.player_profiles, app.state.participation)

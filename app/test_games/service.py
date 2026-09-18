@@ -98,10 +98,13 @@ class HostedGame:
 
 
 class TestGameService(GameTableLifecycle, RuleProposals):
-    def __init__(self, rooms, connections, command_runtime=None, profiles=None, round_summary_seconds=0, ledger=None):
+    def __init__(self, rooms, connections, command_runtime=None, profiles=None, round_summary_seconds=0,
+                 ledger=None, durable_runtime=None, runtime_mode="memory"):
         self.rooms, self.connections = rooms, connections
         self.profiles = profiles
         self.ledger = ledger
+        self.durable_runtime = durable_runtime
+        self.runtime_mode = runtime_mode
         self.round_summary_seconds = round_summary_seconds
         self.command_runtime = command_runtime or CommandRuntime()
         self.games: dict[str, HostedGame] = {}

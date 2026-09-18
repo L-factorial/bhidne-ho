@@ -9,6 +9,22 @@ from app.main import create_app
 from fastapi.testclient import TestClient
 
 
+def test_durable_game_runtime_is_default_and_refuses_start_without_postgres(monkeypatch):
+    monkeypatch.delenv("BHIDNE_HO_GAME_RUNTIME_MODE", raising=False)
+    monkeypatch.delenv("BHIDNE_HO_DATABASE_URL", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    with pytest.raises(RuntimeError, match="Durable game runtime requires PostgreSQL"):
+        with TestClient(create_app()):
+            pass
+
+
+def test_game_runtime_mode_rejects_unknown_values(monkeypatch):
+    monkeypatch.setenv("BHIDNE_HO_GAME_RUNTIME_MODE", "fallback")
+    with pytest.raises(RuntimeError, match="must be 'durable' or 'memory'"):
+        with TestClient(create_app()):
+            pass
+
+
 def test_guest_http_login_is_disabled_unless_explicitly_enabled(monkeypatch):
     monkeypatch.setenv("BHIDNE_HO_GUEST_LOGIN_ENABLED", "0")
     with TestClient(create_app()) as client:
