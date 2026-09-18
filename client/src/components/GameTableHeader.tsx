@@ -1,11 +1,12 @@
 import { type ReactNode, useState } from 'react';
 import { Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { BrandIcon } from './BrandArt';
+import { ShareLink } from './ShareLink';
 import { ThemeToggle } from './ThemeToggle';
 import { fonts, useTheme } from '../theme';
 
-export function GameTableHeader({ title, path, game, onBack, endControl, children, mobileTestIds = false }: {
-  title: string; path?: string; game: string; onBack: () => void; endControl?: ReactNode;
+export function GameTableHeader({ title, path, game, roomId, matchId, onBack, endControl, children, mobileTestIds = false }: {
+  title: string; path?: string; game: string; roomId?: string; matchId?: string; onBack: () => void; endControl?: ReactNode;
   children?: ReactNode | ((closeMenu: () => void) => ReactNode);
   mobileTestIds?: boolean;
 }) {
@@ -18,6 +19,11 @@ export function GameTableHeader({ title, path, game, onBack, endControl, childre
       <View style={{ flex: 1 }}><Text accessibilityRole="header" style={{ fontFamily: fonts.medium, fontSize: mobile ? 17 : 20, color: colors.text }}>{title}</Text>
         {!!path && <Text numberOfLines={1} style={{ fontFamily: fonts.body, fontSize: 11, color: colors.textMuted }}>{path}</Text>}
       </View>
+      <Pressable accessibilityRole="button" accessibilityLabel="Back to lobby" onPress={onBack}
+        style={{ minWidth: 44, minHeight: 44, paddingHorizontal: mobile ? 8 : 12, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: colors.surfaceRaised }}>
+        <Text style={{ color: colors.text, fontFamily: fonts.body }}>{mobile ? '←' : 'Back to lobby'}</Text>
+      </Pressable>
+      {!!roomId && <ShareLink roomId={roomId} matchId={matchId} compact={mobile} />}
       <Pressable accessibilityRole="button" accessibilityLabel="Table menu" accessibilityState={{ expanded: open }} onPress={() => setOpen(v => !v)}
         style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
         <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ gap: 5 }}>
@@ -27,9 +33,7 @@ export function GameTableHeader({ title, path, game, onBack, endControl, childre
     </View>
     {open && <ScrollView testID={`${game}-${mobile && mobileTestIds ? 'mobile-' : ''}menu`} style={{ maxHeight: '40%', flexGrow: 0 }} contentContainerStyle={{ padding: 8, gap: 8 }} nestedScrollEnabled>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Back to room" onPress={onBack} style={{ padding: 12, minHeight: 44, borderRadius: 8, backgroundColor: colors.surfaceRaised }}>
-          <Text style={{ color: colors.text, fontFamily: fonts.body }}>Back to room</Text>
-        </Pressable><ThemeToggle />
+        <ThemeToggle />
       </View>
       {typeof children === 'function' ? children(() => setOpen(false)) : children}
       <View style={{ borderTopWidth: 1, borderColor: colors.border, paddingTop: 4 }}>{endControl}</View>

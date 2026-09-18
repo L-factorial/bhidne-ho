@@ -264,7 +264,7 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
         paddingTop: insets.top, paddingBottom: insets.bottom,
         paddingLeft: insets.left, paddingRight: insets.right,
       }]}><View accessibilityViewIsModal testID="live-game-overlay" style={[styles.liveOverlay, mobileGame && !chat && { paddingBottom: 0 }]}>
-        {snapshot.status === 'ended' ? <View style={styles.body}><GameTableHeader title={gameName} path={snapshot.path} game={snapshot.game_type || 'callbreak'} onBack={collapseGame} />
+        {snapshot.status === 'ended' ? <View style={styles.body}><GameTableHeader title={gameName} path={snapshot.path} game={snapshot.game_type || 'callbreak'} roomId={roomId} matchId={snapshot.match_id} onBack={collapseGame} />
           <Text style={[styles.title, { color: colors.text }]}>{snapshot.game_type === 'flush' ? 'Table ended' : 'Game ended'}</Text>
           <Text style={[styles.text, { color: colors.text }]}>{snapshot.game_type === 'flush' ? 'This table has ended. The room is still open for a new table.' : 'This game has ended. The room is still open for another round.'}</Text>
           <Pressable accessibilityRole="button" onPress={() => { setLive(false); setOpen(true); }} style={styles.button}><Text style={styles.buttonText}>{snapshot.game_type === 'flush' ? 'Start a new table' : 'Start a new game'}</Text></Pressable>
@@ -289,7 +289,6 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
           {(!connected || !synced) && <Text accessibilityRole="alert" style={styles.connectionNotice}>{connectionMessage || (!connected ? 'Reconnecting… Your seat is saved.' : 'Updating game…')}</Text>}
           {!!actionNotice && <Text accessibilityLiveRegion="polite" style={styles.connectionNotice}>{actionNotice}</Text>}
           {ruleReview}
-          {!mobileGame && snapshot.match_id && snapshot.status !== 'ended' && <ShareLink roomId={roomId} matchId={snapshot.match_id} />}
           {!mobileGame && lifecycleControl}
           {!mobileGame && snapshot.game_type === 'callbreak' && leaveControl}
         </ScrollView>

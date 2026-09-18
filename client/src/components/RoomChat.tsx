@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { AccessibilityInfo, Animated, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePong } from '../notifications/usePong';
 import { ApiError, request } from '../multiplayer/api';
@@ -15,6 +15,8 @@ export function useRoomChat({ roomId, session, connected, hideWhenBlocked = fals
   const [blocked, setBlocked] = useState(false);
   const [unread, setUnread] = useState(0);
   const [muted, setMuted] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(true);
+  const attention = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const wide = screenWidth >= 900;
@@ -25,6 +27,23 @@ export function useRoomChat({ roomId, session, connected, hideWhenBlocked = fals
   notification.current = { open, muted, play };
   const previousIds = useRef<Set<string> | null>(null);
   function openChat() { prepare(); setUnread(0); followLatest.current = true; setOpen(true); }
+
+  useEffect(() => {
+    let mounted = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then(value => { if (mounted) setReduceMotion(value); }).catch(() => {});
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => { mounted = false; subscription.remove(); };
+  }, []);
+  useEffect(() => {
+    attention.setValue(unread > 0 && !open && !blocked ? 1 : 0);
+    if (!unread || open || blocked || reduceMotion) return;
+    const animation = Animated.loop(Animated.sequence([
+      Animated.timing(attention, { toValue: 0, duration: 700, useNativeDriver: true }),
+      Animated.timing(attention, { toValue: 1, duration: 700, useNativeDriver: true }),
+    ]));
+    animation.start();
+    return () => { animation.stop(); attention.setValue(0); };
+  }, [attention, blocked, open, reduceMotion, unread]);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState('');
@@ -80,6 +99,13 @@ export function useRoomChat({ roomId, session, connected, hideWhenBlocked = fals
   if (blocked && hideWhenBlocked) return null;
   return <KeyboardAvoidingView testID="chat-dock" behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     style={[styles.dock, { bottom: Math.max(8, insets.bottom), right: wide ? 16 : 8, left: wide ? undefined : 8, width: wide ? 340 : undefined }]}>
+    <Animated.View style={styles.attentionWrap}>
+    {unread > 0 && !open && !blocked && <Animated.View testID="chat-attention-pulse" pointerEvents="none"
+      accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[StyleSheet.absoluteFill, styles.attentionGlow, {
+        backgroundColor: colors.accent,
+        opacity: attention.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.38] }),
+        transform: [{ scale: attention.interpolate({ inputRange: [0, 1], outputRange: [1.01, 1.055] }) }],
+      }]} />}
     <View style={[styles.card, unread > 0 && { borderColor: colors.accent, borderWidth: 2 }]}>
       <View style={styles.header}>
         <Pressable accessibilityRole="button" accessibilityLabel="Room chat" accessibilityHint={blocked ? 'Chat is paused while you are playing.' : unread ? `${unread} unread messages` : 'Expand or minimize room chat'}
@@ -111,10 +137,13 @@ export function useRoomChat({ roomId, session, connected, hideWhenBlocked = fals
       </Pressable>
       </View>}
     </View>
+    </Animated.View>
   </KeyboardAvoidingView>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   dock: { position: 'absolute', zIndex: 50, elevation: 12 },
+  attentionWrap: { borderRadius: 12 },
+  attentionGlow: { borderRadius: 12, shadowColor: colors.accent, shadowOpacity: 0.7, shadowRadius: 14, shadowOffset: { width: 0, height: 0 } },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12 },
   close: { minWidth: 44, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   badge: { color: colors.text, backgroundColor: colors.surfaceSelected, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, fontSize: 12 },

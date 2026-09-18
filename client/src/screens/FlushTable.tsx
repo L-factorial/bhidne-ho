@@ -167,7 +167,7 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onA
     ? `Your turn · ${pub.pending_show ? 'Reveal or fold' : pub.pending_side_show ? 'Accept or decline side-show' : pub.status === 'awaiting_deal' ? 'Deal cards' : pub.status === 'awaiting_cut' ? 'Cut or skip' : 'Bet, show, or fold'}`
     : `${name(pub.current_player_id)}’s turn`} />;
   return <View style={[s.page, mobile && { padding: 8, gap: 4 }]} testID="flush-table">
-    <GameTableHeader title="Flush" path={snapshot.path} game="flush" onBack={onBack} endControl={endControl} mobileTestIds>
+    <GameTableHeader title="Flush" path={snapshot.path} game="flush" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack} endControl={endControl} mobileTestIds>
       {closeMenu => <>{mobile && <View style={s.row}>{button('Bet history', () => { closeMenu(); setBetsOpen(true); })}{button('Rules', () => { closeMenu(); setRulesOpen(true); })}
       {!activeGame && !!snapshot.your_player_id && button('Poke the table', () => { closeMenu(); setPokeOpen(true); }, !social.connected)}</View>}
       {mobile && !showFormation && tableControl}</>}

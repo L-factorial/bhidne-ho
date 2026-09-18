@@ -156,7 +156,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
     {hintsButton}
   </View>;
   return <View style={s.page} testID="marriage-table">
-    <GameTableHeader title="Marriage" path={snapshot.path} game="marriage" onBack={onBack} endControl={endControl}>
+    <GameTableHeader title="Marriage" path={snapshot.path} game="marriage" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack} endControl={endControl}>
       {mobile && detailsBar}{mobile && !showFormation && tableControl}
     </GameTableHeader>
     {showFormation && <View testID="marriage-formation-controls">{tableControl}</View>}
