@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 from app.ledger import GameLedgerAmount, GameLedgerResult, InMemoryLedgerStore, LedgerService
 from app.ledger.models import CreateSettlement
-from app.ledger.store import _application_object_id, _application_user_id, _database_user_id
+from app.ledger.store import _application_object_id, _application_user_id, _database_user_id, _executemany
 from app.test_games.service import TestGameService as GameService
 
 
@@ -82,6 +82,28 @@ def test_postgres_ledger_identity_boundary_round_trips_application_user_ids():
         "12345678123456781234567812345678"
     assert _application_object_id("12345678-1234-5678-1234-567812345678") == \
         "12345678123456781234567812345678"
+
+
+@pytest.mark.asyncio
+async def test_postgres_bulk_writes_use_an_async_cursor():
+    calls = []
+
+    class Cursor:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_):
+            pass
+
+        async def executemany(self, query, params):
+            calls.append((query, params))
+
+    class Connection:
+        def cursor(self):
+            return Cursor()
+
+    await _executemany(Connection(), "INSERT INTO example VALUES (%s)", [(1,), (2,)])
+    assert calls == [("INSERT INTO example VALUES (%s)", [(1,), (2,)])]
 
 
 @pytest.mark.asyncio

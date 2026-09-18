@@ -24,6 +24,12 @@ def now():
     return datetime.now(timezone.utc).isoformat()
 
 
+async def _executemany(connection, query, params):
+    """Run a bulk statement through psycopg's async cursor API."""
+    async with connection.cursor() as cursor:
+        await cursor.executemany(query, params)
+
+
 class InMemoryLedgerStore:
     def __init__(self):
         self.games: dict[str, dict] = {}
@@ -110,7 +116,7 @@ class PostgresLedgerStore:
                 "ON CONFLICT (game_id) DO NOTHING RETURNING game_id",
                 (result.game_id, result.room_id, result.table_id, result.game_type))).fetchone()
             if row:
-                await connection.executemany(
+                await _executemany(connection,
                     "INSERT INTO game_ledger_entries (game_id,player_id,amount) VALUES (%s,%s,%s)",
                     [(result.game_id, _database_user_id(item.player_id), item.amount)
                      for item in result.amounts])
@@ -190,9 +196,10 @@ class PostgresLedgerStore:
                 "VALUES(%s,%s,%s,%s,%s,'OPEN',%s,%s)",
                 (batch_id, room_id, request.table_id, request.scope, request.game_id,
                  _database_user_id(user_id), request.idempotency_key))
-            await connection.executemany("INSERT INTO settlement_games(batch_id,game_id) VALUES(%s,%s)",
-                                         [(batch_id, game["game_id"]) for game in games])
-            await connection.executemany(
+            await _executemany(connection,
+                "INSERT INTO settlement_games(batch_id,game_id) VALUES(%s,%s)",
+                [(batch_id, game["game_id"]) for game in games])
+            await _executemany(connection,
                 "INSERT INTO settlement_transfers(transfer_id,batch_id,payer_id,payee_id,amount,status) "
                 "VALUES(%s,%s,%s,%s,%s,'OPEN')",
                 [(uuid4(), batch_id, _database_user_id(payer), _database_user_id(payee), amount)
