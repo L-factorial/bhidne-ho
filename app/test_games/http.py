@@ -20,6 +20,7 @@ class CreateGame(BaseModel):
     player_count: Annotated[int, Field(strict=True, ge=2, le=10)]
     game_type: Literal["callbreak", "marriage", "flush"] = "callbreak"
     name: Annotated[str, Field(min_length=1, max_length=60)] = "Table"
+    invitees: list[str] = Field(default_factory=list, max_length=20)
 
     @model_validator(mode="after")
     def capacity(self):
@@ -50,6 +51,22 @@ class GameAction(ActionCommand):
         return self
 
 
+@router.get("/invitations")
+async def invitations(request: Request, response: Response, user: UserIdentity = Depends(current_user)):
+    response.headers["Cache-Control"] = "no-store"
+    return await request.app.state.test_games.invitations_for(user.user_id)
+
+
+@router.post("/invitations/{invitation_id}/accept")
+async def accept_invitation(invitation_id: str, request: Request, user: UserIdentity = Depends(current_user)):
+    return await request.app.state.test_games.answer_invitation(user.user_id, invitation_id, True)
+
+
+@router.post("/invitations/{invitation_id}/decline")
+async def decline_invitation(invitation_id: str, request: Request, user: UserIdentity = Depends(current_user)):
+    return await request.app.state.test_games.answer_invitation(user.user_id, invitation_id, False)
+
+
 @router.get("/{room_id}")
 async def state(room_id: str, request: Request, response: Response, match_id: str | None = None,
                 user: UserIdentity = Depends(current_user)):
@@ -60,7 +77,7 @@ async def state(room_id: str, request: Request, response: Response, match_id: st
 @router.post("/{room_id}", status_code=201)
 async def create(room_id: str, body: CreateGame, request: Request, response: Response, user: UserIdentity = Depends(current_user)):
     response.headers["Cache-Control"] = "no-store"
-    return await request.app.state.test_games.create(room_id, user.user_id, body.player_count, body.game_type, body.name)
+    return await request.app.state.test_games.create(room_id, user.user_id, body.player_count, body.game_type, body.name, body.invitees)
 
 
 @router.post("/{room_id}/join")

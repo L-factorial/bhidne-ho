@@ -101,3 +101,34 @@ def test_new_account_can_resolve_shared_room_and_exact_game_invitation():
         assert not preview['is_member']
         assert preview['tables'] == [{
             'match_id': game['match_id'], 'name': 'Main Table', 'game_type': 'callbreak', 'status': 'waiting'}]
+
+
+def test_table_invitation_adds_room_access_but_never_assigns_a_seat():
+    with TestClient(create_app()) as client:
+        owner = client.post('/auth/signup', json={'username': 'table-owner', 'password': 'password123'}).json()
+        invited = client.post('/auth/signup', json={'username': 'table-guest', 'password': 'password123'}).json()
+        owner_headers = {'Authorization': 'Bearer ' + owner['token']}
+        invited_headers = {'Authorization': 'Bearer ' + invited['token']}
+        room = client.post('/rooms', headers=owner_headers, json={
+            'name': 'Invite room', 'visibility': 'friends'}).json()
+        client.post(f"/rooms/{room['room_id']}/enter", headers=owner_headers, json={})
+
+        game = client.post(f"/test-games/{room['room_id']}", headers=owner_headers, json={
+            'name': 'Invitation table', 'game_type': 'callbreak', 'player_count': 4,
+            'invitees': [invited['user_id'], invited['user_id']],
+        })
+        assert game.status_code == 201
+        invitation = client.get('/test-games/invitations', headers=invited_headers).json()
+        assert len(invitation) == 1
+        assert invitation[0]['match_id'] == game.json()['match_id']
+        assert client.get(f"/rooms/{room['room_id']}", headers=invited_headers).status_code == 403
+
+        accepted = client.post(f"/test-games/invitations/{invitation[0]['id']}/accept",
+                               headers=invited_headers, json={})
+        assert accepted.status_code == 200
+        snapshot = client.get(f"/test-games/{room['room_id']}", headers=invited_headers,
+                              params={'match_id': game.json()['match_id']}).json()
+        assert snapshot['your_player_id'] is None
+        assert snapshot['table']['current_user']['is_seated'] is False
+        assert snapshot['table']['current_user']['is_queued'] is False
+        assert client.get('/test-games/invitations', headers=invited_headers).json() == []

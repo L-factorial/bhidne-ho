@@ -48,6 +48,11 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
   const enteredMatch = useRef<string | null>(null);
   const [capacity, setCapacity] = useState(4);
   const [tableName, setTableName] = useState('');
+  const [inviteQuery, setInviteQuery] = useState('');
+  const [inviteResults, setInviteResults] = useState<{ user_id: string; display_name: string; username?: string | null }[]>([]);
+  const [selectedInvitees, setSelectedInvitees] = useState<{ user_id: string; display_name: string; username?: string | null }[]>([]);
+  const [inviteError, setInviteError] = useState('');
+  const [searchingPlayers, setSearchingPlayers] = useState(false);
   useEffect(() => { if (gameType === 'callbreak') setCapacity(value => Math.max(4, value)); }, [gameType]);
   const [pendingAction, setBusy] = useState(false);
   const [formationBlocked, setFormationBlocked] = useState(false);
@@ -147,10 +152,11 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
     if (!canSend.current || pending.current) return;
     pending.current = true; const version = ++generation.current; setBusy(true); setError('');
     try {
-      const data = await api(join ? '/join' : '', join ? { match_id: snapshot?.match_id } : { player_count: gameType === 'flush' ? 10 : capacity, game_type: gameType, name: tableName.trim() });
+      const data = await api(join ? '/join' : '', join ? { match_id: snapshot?.match_id } : { player_count: gameType === 'flush' ? 10 : capacity, game_type: gameType, name: tableName.trim(), invitees: selectedInvitees.map(player => player.user_id) });
       if (alive.current && generation.current === version) {
         enteredMatch.current = data.match_id || null;
         setSnapshot(data); setLive(true); setOpen(true);
+        if (!join) { setSelectedInvitees([]); setInviteQuery(''); setInviteResults([]); }
       }
     } catch (error) {
       if (alive.current && generation.current === version) {
@@ -217,6 +223,27 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
     ? <Pressable accessibilityRole="button" accessibilityLabel={`Leave ${noun}`} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => void lobbyAction('/leave')} style={styles.choice}><Text style={[styles.text, live && open && { color: colors.text }]}>{`Leave ${noun}`}</Text></Pressable> : null;
   const ruleReview = snapshot?.rule_proposal && <RuleProposal key={snapshot.rule_proposal.id} proposal={snapshot.rule_proposal} busy={busy} vote={accept => void lobbyAction('/rule-vote', { proposal_id: snapshot.rule_proposal!.id, accept })} />;
   const activeTables = snapshot?.tables?.filter(table => table.status !== 'ended') || [];
+  useEffect(() => {
+    if (!open || live || inviteQuery.trim().length < 2) { setInviteResults([]); return; }
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const players = await request<typeof inviteResults>(`/players/search?q=${encodeURIComponent(inviteQuery.trim())}`, { user_id: userId, token }, undefined, controller.signal);
+        setInviteResults(players); setInviteError('');
+      } catch (error) { if (!controller.signal.aborted) setInviteError(error instanceof Error ? error.message : 'Could not search recent players.'); }
+    }, 250);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [inviteQuery, live, open, token, userId]);
+  async function searchDirectory() {
+    if (inviteQuery.trim().length < 2 || searchingPlayers) return;
+    setSearchingPlayers(true); setInviteError('');
+    try {
+      const players = await request<typeof inviteResults>(`/players/directory?q=${encodeURIComponent(inviteQuery.trim())}`, { user_id: userId, token });
+      setInviteResults(players);
+      if (!players.length) setInviteError('No player found with that exact name, username, or user ID.');
+    } catch (error) { setInviteError(error instanceof Error ? error.message : 'Could not search the player directory.'); }
+    finally { setSearchingPlayers(false); }
+  }
   return <>
     {!open && lifecycleControl}
     {!open && snapshot?.match_id && snapshot.can_join && !snapshot.your_player_id && !snapshot.is_creator && dismissedInvitation !== snapshot.match_id && <View testID="game-created-notice" style={styles.invitation}>
@@ -360,6 +387,21 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
             <Text style={styles.text}>Table name</Text>
             <TextInput accessibilityLabel="Table name" value={tableName} onChangeText={setTableName} maxLength={60} placeholder="Friday night"
               placeholderTextColor={colors.textMuted} style={[styles.choice, { color: colors.text }]} />
+            <Text style={styles.text}>Invite players (optional)</Text>
+            <TextInput accessibilityLabel="Find players to invite" value={inviteQuery} onChangeText={setInviteQuery} maxLength={64}
+              placeholder="Name, username, or user ID" placeholderTextColor={colors.textMuted} autoCapitalize="none" autoCorrect={false}
+              returnKeyType="search" onSubmitEditing={() => void searchDirectory()} style={[styles.choice, { color: colors.text }]} />
+            <Pressable accessibilityRole="button" disabled={searchingPlayers || inviteQuery.trim().length < 2} onPress={() => void searchDirectory()} style={[styles.choice, (searchingPlayers || inviteQuery.trim().length < 2) && { opacity: 0.5 }]}>
+              <Text style={styles.text}>{searchingPlayers ? 'Searching…' : 'Search directory'}</Text>
+            </Pressable>
+            {!!selectedInvitees.length && <View style={styles.choices}>{selectedInvitees.map(player => <Pressable key={player.user_id} accessibilityRole="button" accessibilityLabel={`Remove ${player.display_name || player.username || player.user_id}`} onPress={() => setSelectedInvitees(current => current.filter(item => item.user_id !== player.user_id))} style={styles.choice}>
+              <Text style={styles.text}>{player.display_name || player.username || player.user_id} · Remove</Text>
+            </Pressable>)}</View>}
+            {!!inviteResults.length && <View>{inviteResults.filter(player => !selectedInvitees.some(selected => selected.user_id === player.user_id)).map(player => <Pressable key={player.user_id} accessibilityRole="button" accessibilityLabel={`Invite ${player.display_name || player.username || player.user_id}`} onPress={() => setSelectedInvitees(current => [...current, player])} style={styles.choice}>
+              <Text style={styles.summary}>{player.display_name || player.username || 'Player'}</Text>
+              <Text style={styles.note}>{player.username ? `@${player.username} · ` : ''}{player.user_id}</Text>
+            </Pressable>)}</View>}
+            {!!inviteError && <Text accessibilityRole="alert" style={styles.error}>{inviteError}</Text>}
             <Text style={styles.text}>{gameType === 'flush' ? '2–10 players · the creator locks the seated roster when ready.' : 'Players'}</Text>
             <View style={[styles.choices, { flexWrap: 'wrap' }]}>{(gameType === 'flush' ? [] : gameType !== 'callbreak' ? [2, 3, 4, 5] : [4, 5]).map(size => <Pressable key={size} accessibilityRole="button" accessibilityState={{ selected: capacity === size }}
               onPress={() => setCapacity(size)} style={[styles.choice, size === capacity && { borderColor: colors.accent }]}>

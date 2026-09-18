@@ -96,7 +96,8 @@ def create_app() -> FastAPI:
         app.state.runtime = GameRuntime(connections, registry)
         app.state.test_games = TestGameService(rooms, connections, command_runtime=app.state.runtime.commands,
             profiles=app.state.player_profiles, round_summary_seconds=8, ledger=app.state.ledger,
-            durable_runtime=app.state.durable_game_runtime, runtime_mode=game_runtime_mode)
+            durable_runtime=app.state.durable_game_runtime, runtime_mode=game_runtime_mode,
+            players=app.state.players)
         app.state.lifecycle = RoomLifecycle(rooms, connections, app.state.test_games, app.state.players)
         app.state.participation = GameParticipation(app.state.test_games)
         app.state.room_chat = RoomChatService(rooms, app.state.player_profiles, app.state.participation)

@@ -57,8 +57,8 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
   async function leaveRoom() {
     if (!await shared.leaveRoom()) return; setRoomToolsOpen(false); setRoomsOpen(false); setPreview(false); setTestingOpen(false); setError('');
   }
-  function joinRoom(target: Room) {
-    shared.joinRoom(target); setPreview(false); setTestingOpen(false); setError('');
+  function joinRoom(target: Room, targetGame?: 'callbreak' | 'marriage' | 'flush') {
+    shared.joinRoom(target, targetGame); setPreview(false); setTestingOpen(false); setError('');
   }
   function signOut() { void shared.signOut(); onExit(); }
   async function createRoom() {
@@ -82,7 +82,10 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
     paddingTop: Math.max(insets.top, 24), paddingBottom: Math.max(insets.bottom, 28) + (room ? 64 : 0),
   }]}>
     <View style={styles.content}>
-      <AppHeader inlineActions={session && !expired ? <NotificationBell session={session} /> : null} />
+      <AppHeader inlineActions={session && !expired ? <NotificationBell session={session} onOpenTable={invited => {
+        setLinkedMatch(invited.match_id);
+        joinRoom({ room_id: invited.room_id, name: invited.table_name, members: [] }, invited.game_type);
+      }} /> : null} />
       {!!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{error || shared.error}</Text>}
       {shared.leaveGameRequired && <View>
         <Text style={styles.subtitle}>{shared.abandonRequired ? 'Abandon the active match and leave the room? The match will stop for everyone.' : 'You are seated in a game. Leave the game and room? The game’s departure rules still apply.'}</Text>

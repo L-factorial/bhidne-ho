@@ -7,7 +7,7 @@ from dataclasses import asdict, dataclass, field, fields
 import json
 import logging
 from random import SystemRandom
-from time import monotonic
+from time import monotonic, time
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from fastapi import HTTPException
@@ -39,6 +39,7 @@ from app.runtime.command_runtime import CommandAccessError, CommandRuntime, Comm
 from app.ledger import GameLedgerAmount, GameLedgerResult
 from app.durable_games import HostedEngineDefinition
 from app.durable_games.store import DurableGameConflict, StaleGameOwner
+from app.players.service import PlayerNotFound
 
 logger = logging.getLogger(__name__)
 
@@ -111,9 +112,11 @@ class HostedGame:
 
 class TestGameService(GameTableLifecycle, RuleProposals):
     def __init__(self, rooms, connections, command_runtime=None, profiles=None, round_summary_seconds=0,
-                 ledger=None, durable_runtime=None, runtime_mode="memory"):
+                 ledger=None, durable_runtime=None, runtime_mode="memory", players=None):
         self.rooms, self.connections = rooms, connections
         self.profiles = profiles
+        self.players = players
+        self.table_invitations: dict[str, dict] = {}
         self.ledger = ledger
         self.durable_runtime = durable_runtime
         self.runtime_mode = runtime_mode
@@ -395,8 +398,21 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             async with game.lock:
                 await self._try_record_completed_ledger(game)
 
-    async def create(self, room_id, user_id, capacity, game_type="callbreak", name="Table"):
+    async def create(self, room_id, user_id, capacity, game_type="callbreak", name="Table", invitees=None):
         await self._member(room_id, user_id)
+        invitees = list(dict.fromkeys(invitees or []))
+        if len(invitees) > 20:
+            raise HTTPException(422, "Invite at most 20 players at once.")
+        for target_id in invitees:
+            if target_id == user_id:
+                raise HTTPException(409, "You cannot invite yourself.")
+            if not self.players:
+                raise HTTPException(409, "Player invitations are unavailable.")
+            try: await self.players.player(user_id, target_id)
+            except PlayerNotFound as error:
+                raise HTTPException(404, "Invited player not found.") from error
+            if self._occupied_game(target_id):
+                raise HTTPException(409, "An invited player is already seated at another active table.")
         if game_type not in ("callbreak", "marriage", "flush"):
             raise HTTPException(422, "Choose a supported game.")
         if type(capacity) is not int or capacity not in (tuple(range(2, 11)) if game_type == "flush" else (2, 3, 4, 5) if game_type == "marriage" else (4, 5)):
@@ -419,10 +435,35 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             if game_type == "flush": game.flush_seats[user_id] = 1
             self.tables.setdefault(room_id, {})[game.match_id] = game
             self.games[room_id] = game  # Legacy default: most recently created table.
+            for target_id in invitees:
+                invitation_id = uuid4().hex
+                self.table_invitations[invitation_id] = {"id": invitation_id, "room_id": room_id,
+                    "match_id": game.match_id, "table_name": game.name, "game_type": game.game_type,
+                    "inviter_id": user_id, "recipient_id": target_id, "status": "pending",
+                    "created_at": int(time() * 1000)}
         async with game.lock:
             await self._member(room_id, user_id, game)
             await self._publish(game)
             return self._snapshot(game, user_id)
+
+    async def invitations_for(self, user_id):
+        return [dict(item) for item in self.table_invitations.values()
+                if item["recipient_id"] == user_id and item["status"] == "pending"
+                and (game := self.tables.get(item["room_id"], {}).get(item["match_id"])) and not game.ended]
+
+    async def answer_invitation(self, user_id, invitation_id, accept):
+        invitation = self.table_invitations.get(invitation_id)
+        if not invitation or invitation["recipient_id"] != user_id or invitation["status"] != "pending":
+            raise HTTPException(404, "Table invitation not found.")
+        game = self.tables.get(invitation["room_id"], {}).get(invitation["match_id"])
+        if not game or game.ended:
+            invitation["status"] = "cancelled"
+            raise HTTPException(409, "This table is no longer active.")
+        invitation["status"] = "accepted" if accept else "declined"
+        if not accept:
+            return {"status": "declined"}
+        await self.rooms.join(invitation["room_id"], user_id)
+        return {key: invitation[key] for key in ("room_id", "match_id", "table_name", "game_type")}
 
     async def next_deal(self, room_id, user_id, match_id, deal_number):
         await self._member(room_id, user_id)
