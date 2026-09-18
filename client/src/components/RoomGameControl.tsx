@@ -20,7 +20,6 @@ import { GameRequestError, type GameRequestDetail } from '../multiplayer/Pending
 import { request } from '../multiplayer/api';
 
 type InvitePlayer = { user_id: string; display_name: string; username?: string | null; eligible?: boolean; reason?: string | null };
-type ManagedInvitation = { id: string; status: 'pending' | 'accepted' | 'declined' | 'cancelled'; recipient: InvitePlayer; recipient_id: string };
 
 export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, apiUrl, token, connected, members, roomMembers = members, connectionMessage, userId, pokes, personal, createContent, creationEnabled = true, gameType = 'callbreak' }: {
   chat?: ReactNode; onOpenChange?: (open: boolean) => void;
@@ -53,7 +52,6 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
   const [inviteQuery, setInviteQuery] = useState('');
   const [inviteResults, setInviteResults] = useState<InvitePlayer[]>([]);
   const [selectedInvitees, setSelectedInvitees] = useState<InvitePlayer[]>([]);
-  const [managedInvitations, setManagedInvitations] = useState<ManagedInvitation[]>([]);
   const [inviteError, setInviteError] = useState('');
   const [searchingPlayers, setSearchingPlayers] = useState(false);
   useEffect(() => { if (gameType === 'callbreak') setCapacity(value => Math.max(4, value)); }, [gameType]);
@@ -230,11 +228,11 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
     if (!players.length) return [];
     const eligibility = await request<{ user_id: string; eligible: boolean; reason?: string | null }[]>(
       `/test-games/${encodeURIComponent(roomId)}/invitations/eligibility`, { user_id: userId, token },
-      { player_ids: players.map(player => player.user_id), ...(live && snapshot?.match_id ? { match_id: snapshot.match_id } : {}) }, signal);
+      { player_ids: players.map(player => player.user_id) }, signal);
     return players.map(player => ({ ...player, ...eligibility.find(item => item.user_id === player.user_id) }));
   }
   useEffect(() => {
-    if (!open || inviteQuery.trim().length < 2) { setInviteResults([]); return; }
+    if (!open || live || inviteQuery.trim().length < 2) { setInviteResults([]); return; }
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
@@ -243,7 +241,7 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
       } catch (error) { if (!controller.signal.aborted) setInviteError(error instanceof Error ? error.message : 'Could not search recent players.'); }
     }, 250);
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [inviteQuery, live, open, roomId, snapshot?.match_id, token, userId]);
+  }, [inviteQuery, live, open, roomId, token, userId]);
   async function searchDirectory() {
     if (inviteQuery.trim().length < 2 || searchingPlayers) return;
     setSearchingPlayers(true); setInviteError('');
@@ -254,36 +252,7 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
     } catch (error) { setInviteError(error instanceof Error ? error.message : 'Could not search the player directory.'); }
     finally { setSearchingPlayers(false); }
   }
-  useEffect(() => {
-    if (!snapshot?.is_creator || !snapshot.match_id || snapshot.status === 'ended') { setManagedInvitations([]); return; }
-    const controller = new AbortController(); let timer: ReturnType<typeof setTimeout>;
-    async function refreshInvitations() {
-      try {
-        const values = await request<ManagedInvitation[]>(`/test-games/${encodeURIComponent(roomId)}/invitations/manage?match_id=${encodeURIComponent(snapshot!.match_id!)}`, { user_id: userId, token }, undefined, controller.signal);
-        if (!controller.signal.aborted) setManagedInvitations(values);
-      } catch { /* The main game refresh reports authorization and connectivity failures. */ }
-      if (!controller.signal.aborted) timer = setTimeout(refreshInvitations, 5000);
-    }
-    void refreshInvitations();
-    return () => { controller.abort(); clearTimeout(timer); };
-  }, [roomId, snapshot?.is_creator, snapshot?.match_id, snapshot?.status, token, userId]);
-  async function updateInvitation(player: InvitePlayer) {
-    if (!snapshot?.match_id || player.eligible === false) return;
-    try {
-      const values = await request<ManagedInvitation[]>(`/test-games/${encodeURIComponent(roomId)}/invitations`, { user_id: userId, token }, { match_id: snapshot.match_id, recipients: [player.user_id] });
-      setManagedInvitations(current => [...current.filter(item => !values.some(value => value.id === item.id)), ...values]);
-      setInviteQuery(''); setInviteResults([]);
-    } catch (error) { setInviteError(error instanceof Error ? error.message : 'Could not invite this player.'); }
-  }
-  async function cancelManaged(invitation: ManagedInvitation) {
-    if (!snapshot?.match_id) return;
-    try {
-      const value = await request<ManagedInvitation>(`/test-games/${encodeURIComponent(roomId)}/invitations/cancel`, { user_id: userId, token }, { match_id: snapshot.match_id, invitation_id: invitation.id });
-      setManagedInvitations(current => current.map(item => item.id === value.id ? value : item));
-    } catch (error) { setInviteError(error instanceof Error ? error.message : 'Could not cancel this invitation.'); }
-  }
   return <>
-    {!open && lifecycleControl}
     {!open && snapshot?.match_id && snapshot.can_join && !snapshot.your_player_id && !snapshot.is_creator && dismissedInvitation !== snapshot.match_id && <View testID="game-created-notice" style={styles.invitation}>
       <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.summary}>A new {gameName} {noun} is ready!</Text>
       <Text style={styles.text}>Someone in your room created a {noun}. Take a seat to play.</Text>
@@ -399,16 +368,6 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
           {ruleReview}
           {!mobileGame && lifecycleControl}
           {!mobileGame && snapshot.game_type === 'callbreak' && leaveControl}
-          {snapshot.is_creator && snapshot.status !== 'ended' && <View style={styles.invitation}>
-            <Text style={styles.summary}>Invited players</Text>
-            {!managedInvitations.length && <Text style={styles.note}>No players invited yet.</Text>}
-            {managedInvitations.map(invitation => <View key={invitation.id} style={styles.bar}><Text style={styles.text}>{invitation.recipient?.display_name || invitation.recipient?.username || invitation.recipient_id} · {invitation.status}</Text>
-              {invitation.status === 'pending' ? <Pressable accessibilityRole="button" onPress={() => void cancelManaged(invitation)} style={styles.choice}><Text style={styles.text}>Cancel</Text></Pressable>
-                : invitation.status === 'declined' || invitation.status === 'cancelled' ? <Pressable accessibilityRole="button" onPress={() => void updateInvitation(invitation.recipient)} style={styles.choice}><Text style={styles.text}>Reinvite</Text></Pressable> : null}</View>)}
-            <TextInput accessibilityLabel="Find more players to invite" value={inviteQuery} onChangeText={setInviteQuery} maxLength={64} placeholder="Name, username, or user ID" placeholderTextColor={colors.textMuted} autoCapitalize="none" autoCorrect={false} returnKeyType="search" onSubmitEditing={() => void searchDirectory()} style={[styles.choice, { color: colors.text }]} />
-            <Pressable accessibilityRole="button" disabled={searchingPlayers || inviteQuery.trim().length < 2} onPress={() => void searchDirectory()} style={styles.choice}><Text style={styles.text}>Search directory</Text></Pressable>
-            {inviteResults.map(player => <Pressable key={player.user_id} accessibilityRole="button" disabled={player.eligible === false} onPress={() => void updateInvitation(player)} style={[styles.choice, player.eligible === false && { opacity: 0.5 }]}><Text style={styles.text}>{player.display_name || player.username || player.user_id} · {player.eligible === false ? player.reason : 'Invite'}</Text></Pressable>)}
-          </View>}
         </ScrollView>
         {chat}
         <PokeOverlay pokes={pokes} matchId={snapshot.match_id} />

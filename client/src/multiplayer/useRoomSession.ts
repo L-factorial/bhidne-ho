@@ -98,6 +98,15 @@ export function useRoomSession() {
       return false;
     }
   }
+  function enterRoom(target: Room, selectedGame: string | null = null) {
+    if (!session || expired) return false;
+    setStatus('connecting'); setRoom(target); setGame(selectedGame); setLeaveGameRequired(null); setError('');
+    return true;
+  }
+  function exitRoom() {
+    connection.current?.stop(); setStatus('disconnected'); setRoom(null); setGame(null); setLeaveGameRequired(null); setError('');
+    if (session && !expired) saveSession(apiUrl, { session, room: null, game: null });
+  }
   async function leaveRoom() {
     if (room && session && !expired) {
       try {
@@ -145,7 +154,7 @@ export function useRoomSession() {
       try { await request('/auth/signout', active, {}); } catch { /* Local sign-out still succeeds offline. */ }
     }
   }
-  return { loginAccount, loggingIn, session, room, rooms, game, setGame, joinRoom, leaveRoom, deleteRoom, signOut, leaveGameRequired, leaveGameAndRoom, abandonRequired,
+  return { loginAccount, loggingIn, session, room, rooms, game, setGame, joinRoom, enterRoom, exitRoom, leaveRoom, deleteRoom, signOut, leaveGameRequired, leaveGameAndRoom, abandonRequired,
     cancelLeave: () => { setLeaveGameRequired(null); setError(''); }, status, expired, error, pokes,
     retry: () => { connection.current?.retryNow(); } };
 }

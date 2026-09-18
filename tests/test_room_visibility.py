@@ -67,6 +67,9 @@ def test_social_room_feed_and_friends_only_access():
         assert [room["feed_source"] for room in owner_feed[:2]] == ["you", "you"]
 
         assert client.delete(f"/rooms/{private_room['room_id']}", headers=friend_headers).status_code == 403
+        assert client.delete(f"/rooms/{private_room['room_id']}", headers=owner_headers).status_code == 409
+        assert client.post(f"/test-games/{private_room['room_id']}/end", headers=friend_headers,
+                           json={"match_id": table.json()["match_id"]}).status_code == 200
         assert client.delete(f"/rooms/{private_room['room_id']}", headers=owner_headers).status_code == 204
         assert private_room["room_id"] not in room_ids(client, owner_headers)
         assert private_room["room_id"] not in room_ids(client, friend_headers)
@@ -85,6 +88,39 @@ def test_room_visibility_is_validated_and_defaults_to_public():
         }).status_code == 422
 
 
+def test_room_creation_invitations_are_private_and_acceptance_only_adds_membership():
+    with TestClient(create_app()) as client:
+        owner, owner_headers = account(client, "invite-room-owner", "Owner")
+        invited, invited_headers = account(client, "invite-room-player", "Invited")
+        other, other_headers = account(client, "invite-room-other", "Other")
+        created = client.post("/rooms", headers=owner_headers, json={
+            "name": "Invited room", "visibility": "friends",
+            "invitees": [invited["user_id"], invited["user_id"], other["user_id"]],
+        })
+        assert created.status_code == 201
+        room = created.json()
+
+        invited_items = client.get("/room-invitations", headers=invited_headers).json()
+        other_items = client.get("/room-invitations", headers=other_headers).json()
+        assert len(invited_items) == len(other_items) == 1
+        assert invited_items[0]["room_name"] == "Invited room"
+        assert invited_items[0]["inviter"]["username"] == "invite-room-owner"
+        assert invited_items[0]["id"] != other_items[0]["id"]
+        assert client.get(f"/rooms/{room['room_id']}", headers=invited_headers).status_code == 403
+
+        accepted = client.post(f"/room-invitations/{invited_items[0]['id']}/accept",
+                               headers=invited_headers, json={})
+        assert accepted.status_code == 200
+        state = client.get(f"/rooms/{room['room_id']}", headers=invited_headers)
+        assert state.status_code == 200 and state.json()["is_member"] is True
+        assert client.get(f"/test-games/{room['room_id']}", headers=invited_headers).json()["status"] == "empty"
+        assert client.get("/room-invitations", headers=invited_headers).json() == []
+
+        assert client.post(f"/room-invitations/{other_items[0]['id']}/decline",
+                           headers=other_headers, json={}).status_code == 200
+        assert client.get("/room-invitations", headers=other_headers).json() == []
+
+
 @pytest.mark.asyncio
 async def test_persisted_room_membership_survives_service_restart():
     catalog = MemoryRoomCatalog()
@@ -94,13 +130,13 @@ async def test_persisted_room_membership_survives_service_restart():
 
     restarted = RoomService(catalog)
 
-    assert await restarted.members(room.room_id) == ["user-member"]
+    assert await restarted.members(room.room_id) == ["user-member", "user-owner"]
     assert await restarted.has_membership(room.room_id, "user-member")
     listed = await restarted.list_rooms("user-member")
     assert [(item.room_id, item.members, item.feed_source) for item in listed] == [
-        (room.room_id, ["user-member"], "joined"),
+        (room.room_id, ["user-member", "user-owner"], "joined"),
     ]
 
     await restarted.leave(room.room_id, "user-member")
-    assert await restarted.members(room.room_id) == []
+    assert await restarted.members(room.room_id) == ["user-owner"]
     assert not await restarted.has_membership(room.room_id, "user-member")

@@ -9,28 +9,31 @@ type Player = { user_id: string; display_name: string; username?: string | null 
 type Notification = { id: string; kind: 'friend_request' | 'friend_accepted' | 'friend_rejected'; actor: Player; created_at: number; read: boolean };
 type FriendSnapshot = { incoming: Player[] };
 type TableInvitation = { id: string; room_id: string; room_name: string; match_id: string; table_name: string; game_type: 'callbreak' | 'marriage' | 'flush'; inviter_id: string; inviter?: Player; created_at: number; seated: number; capacity: number; seat_available: boolean };
+type RoomInvitation = { id: string; room_id: string; room_name: string; inviter_id: string; inviter?: Player };
 
 const playerName = (player: Player) => player.display_name || player.username || player.user_id;
 
-export function NotificationBell({ session, onOpenTable }: { session: Session; onOpenTable?: (invitation: TableInvitation) => void }) {
+export function NotificationBell({ session, onOpenTable, onOpenRoom }: { session: Session; onOpenTable?: (invitation: TableInvitation) => void; onOpenRoom?: (invitation: RoomInvitation) => void }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const compact = useWindowDimensions().width < 900;
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Notification[]>([]);
   const [tableInvitations, setTableInvitations] = useState<TableInvitation[]>([]);
+  const [roomInvitations, setRoomInvitations] = useState<RoomInvitation[]>([]);
   const [error, setError] = useState('');
 
   async function refresh(signal?: AbortSignal) {
     try {
-      const [value, friends, invitations] = await Promise.all([
+      const [value, friends, invitations, rooms] = await Promise.all([
         request<Notification[]>('/notifications', session, undefined, signal),
         request<FriendSnapshot>('/friends', session, undefined, signal),
         request<TableInvitation[]>('/test-games/invitations', session, undefined, signal),
+        request<RoomInvitation[]>('/room-invitations', session, undefined, signal),
       ]);
       const requests = friends.incoming.map(actor => ({ id: `request:${actor.user_id}`, kind: 'friend_request' as const,
         actor, created_at: Date.now(), read: false }));
-      if (!signal?.aborted) { setItems([...requests, ...value]); setTableInvitations(invitations); setError(''); }
+      if (!signal?.aborted) { setItems([...requests, ...value]); setTableInvitations(invitations); setRoomInvitations(rooms); setError(''); }
     } catch (failure) {
       if (!signal?.aborted) setError(failure instanceof Error ? failure.message : 'Could not load notifications.');
     }
@@ -64,7 +67,14 @@ export function NotificationBell({ session, onOpenTable }: { session: Session; o
       if (accept) { setOpen(false); onOpenTable?.(invitation); }
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'Could not update the table invitation.'); }
   }
-  const unread = items.filter(item => !item.read).length + tableInvitations.length;
+  async function answerRoom(invitation: RoomInvitation, accept: boolean) {
+    try {
+      await request(`/room-invitations/${encodeURIComponent(invitation.id)}/${accept ? 'accept' : 'decline'}`, session, {});
+      setRoomInvitations(current => current.filter(item => item.id !== invitation.id));
+      if (accept) { setOpen(false); onOpenRoom?.(invitation); }
+    } catch (failure) { setError(failure instanceof Error ? failure.message : 'Could not update the room invitation.'); }
+  }
+  const unread = items.filter(item => !item.read).length + tableInvitations.length + roomInvitations.length;
   return <>
     <Pressable accessibilityRole="button" accessibilityLabel={`Notifications${unread ? `, ${unread} unread` : ''}`}
       onPress={() => setOpen(true)} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
@@ -82,7 +92,15 @@ export function NotificationBell({ session, onOpenTable }: { session: Session; o
           </View>
           {!!unread && <Pressable accessibilityRole="button" onPress={() => void markAllRead()} style={styles.markRead}><Text style={styles.link}>Mark all as read</Text></Pressable>}
           <ScrollView style={styles.list}>
-            {!items.length && !tableInvitations.length && <View style={styles.empty}><Text style={styles.name}>You’re all caught up</Text><Text style={styles.detail}>Friend and room activity will appear here.</Text></View>}
+            {!items.length && !tableInvitations.length && !roomInvitations.length && <View style={styles.empty}><Text style={styles.name}>You’re all caught up</Text><Text style={styles.detail}>Friend and room activity will appear here.</Text></View>}
+            {roomInvitations.map(invitation => <View key={invitation.id} style={[styles.notice, styles.unread]}>
+              <View style={styles.avatar}><Text style={styles.avatarText}>R</Text></View>
+              <View style={{ flex: 1 }}><Text style={styles.name}>{invitation.inviter ? playerName(invitation.inviter) : 'A player'} invited you to {invitation.room_name}.</Text><Text style={styles.detail}>Accepting adds this room to your memberships.</Text></View>
+              <View style={styles.requestActions}>
+                <Pressable accessibilityRole="button" onPress={() => void answerRoom(invitation, true)} style={styles.accept}><Text style={styles.acceptText}>Open room</Text></Pressable>
+                <Pressable accessibilityRole="button" onPress={() => void answerRoom(invitation, false)} style={styles.decline}><Text style={styles.link}>Decline</Text></Pressable>
+              </View>
+            </View>)}
             {tableInvitations.map(invitation => <View key={invitation.id} style={[styles.notice, styles.unread]}>
               <View style={styles.avatar}><Text style={styles.avatarText}>♠</Text></View>
               <View style={{ flex: 1 }}><Text style={styles.name}>{invitation.inviter ? playerName(invitation.inviter) : 'A player'} invited you to {invitation.table_name}.</Text><Text style={styles.detail}>{invitation.room_name} · {invitation.game_type} · {invitation.seated}/{invitation.capacity} seated · {invitation.seat_available ? 'Seat available' : 'Watch or join the waitlist'} · Opening does not take a seat.</Text></View>

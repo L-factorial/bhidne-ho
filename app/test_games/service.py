@@ -142,6 +142,9 @@ class TestGameService(GameTableLifecycle, RuleProposals):
     def _room_games(self, room_id):
         return list(self.tables.get(room_id, {}).values())
 
+    def has_active_tables(self, room_id):
+        return any(not game.ended for game in self._room_games(room_id))
+
     def table_summaries(self, room_id):
         """Public invitation/directory metadata; never includes engine or card state."""
         return [{"match_id": game.match_id, "name": game.name, "game_type": game.game_type,
@@ -461,11 +464,8 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                 except PlayerNotFound: result[field] = {"user_id": user_id, "display_name": "", "username": None}
         return result
 
-    async def invitation_eligibility(self, room_id, user_id, player_ids, match_id=None):
+    async def invitation_eligibility(self, room_id, user_id, player_ids):
         await self._member(room_id, user_id)
-        game = self.tables.get(room_id, {}).get(match_id) if match_id else None
-        if match_id and (not game or game.ended):
-            return [{"user_id": target, "eligible": False, "reason": "Table ended"} for target in player_ids]
         output = []
         for target in dict.fromkeys(player_ids):
             reason = None
@@ -474,10 +474,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                 try: await self.players.player(user_id, target)
                 except PlayerNotFound: reason = "Player not found"
             occupied = self._occupied_game(target) if reason is None else None
-            if game and target in game.table.seats(game): reason = "Already seated at this table"
-            elif game and target in game.table.queue: reason = "Already waiting at this table"
-            elif game and any(item["match_id"] == match_id and item["recipient_id"] == target and item["status"] == "pending" for item in self.table_invitations.values()): reason = "Already invited"
-            elif occupied: reason = "Already seated at another active table"
+            if occupied: reason = "Already seated at another active table"
             output.append({"user_id": target, "eligible": reason is None, "reason": reason})
         return output
 
@@ -505,37 +502,6 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             self.table_invitations[item["id"]] = item
             output.append(item)
         return output
-
-    async def invite_players(self, room_id, user_id, match_id, recipients):
-        await self._member(room_id, user_id)
-        game = self._get(room_id, match_id)
-        if not game.users or game.users[0] != user_id:
-            raise HTTPException(403, "Only the table creator can invite players.")
-        eligibility = await self.invitation_eligibility(room_id, user_id, recipients, match_id)
-        blocked = next((item for item in eligibility if not item["eligible"] and item["reason"] != "Already invited"), None)
-        if blocked: raise HTTPException(409, blocked["reason"])
-        invitations = await self._invite_players(game, user_id, [item["user_id"] for item in eligibility if item["eligible"]])
-        invitations.extend(item for item in self.table_invitations.values()
-                           if item["match_id"] == match_id and item["recipient_id"] in recipients
-                           and item["status"] == "pending" and item not in invitations)
-        return [await self._invitation_view(item) for item in invitations]
-
-    async def manage_invitations(self, room_id, user_id, match_id):
-        await self._member(room_id, user_id)
-        game = self._get(room_id, match_id)
-        if not game.users or game.users[0] != user_id:
-            raise HTTPException(403, "Only the table creator can manage invitations.")
-        items = [item for item in self.table_invitations.values() if item["match_id"] == match_id]
-        for item in items: self._sync_invitation(item)
-        return [await self._invitation_view(item) for item in items]
-
-    async def cancel_invitation(self, room_id, user_id, match_id, invitation_id):
-        await self.manage_invitations(room_id, user_id, match_id)
-        invitation = self.table_invitations.get(invitation_id)
-        if not invitation or invitation["match_id"] != match_id:
-            raise HTTPException(404, "Table invitation not found.")
-        if invitation["status"] == "pending": invitation["status"] = "cancelled"
-        return await self._invitation_view(invitation)
 
     async def invitations_for(self, user_id):
         items = [item for item in self.table_invitations.values() if item["recipient_id"] == user_id]

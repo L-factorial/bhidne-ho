@@ -71,7 +71,7 @@ def test_created_room_is_private_to_owner_feed_until_joined_and_accounts_can_cha
         room_response = client.post('/rooms', headers=headers(alice), json={'name': '  Test table  '})
         assert room_response.status_code == 201
         room = room_response.json()
-        assert room['name'] == 'Test table' and room['members'] == []
+        assert room['name'] == 'Test table' and room['members'] == [alice['user_id']]
         assert client.get('/rooms', headers=headers(bob)).json() == []
         url = f"/ws/rooms/{room['room_id']}?token="
         with client.websocket_connect(url + alice['token']) as a, client.websocket_connect(url + bob['token']) as b:

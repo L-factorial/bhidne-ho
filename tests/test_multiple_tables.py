@@ -112,6 +112,9 @@ def test_table_invitation_adds_room_access_but_never_assigns_a_seat():
         room = client.post('/rooms', headers=owner_headers, json={
             'name': 'Invite room', 'visibility': 'friends'}).json()
         client.post(f"/rooms/{room['room_id']}/enter", headers=owner_headers, json={})
+        eligibility = client.post(f"/test-games/{room['room_id']}/invitations/eligibility",
+                                  headers=owner_headers, json={'player_ids': [invited['user_id']]}).json()
+        assert eligibility == [{'user_id': invited['user_id'], 'eligible': True, 'reason': None}]
 
         game = client.post(f"/test-games/{room['room_id']}", headers=owner_headers, json={
             'name': 'Invitation table', 'game_type': 'callbreak', 'player_count': 4,
@@ -123,26 +126,6 @@ def test_table_invitation_adds_room_access_but_never_assigns_a_seat():
         assert invitation[0]['match_id'] == game.json()['match_id']
         assert invitation[0]['room_name'] == 'Invite room'
         assert invitation[0]['inviter']['username'] == 'table-owner'
-        managed = client.get(f"/test-games/{room['room_id']}/invitations/manage",
-                             headers=owner_headers, params={'match_id': game.json()['match_id']}).json()
-        assert len(managed) == 1 and managed[0]['status'] == 'pending'
-        assert managed[0]['recipient']['username'] == 'table-guest'
-        assert client.get(f"/test-games/{room['room_id']}/invitations/manage",
-                          headers=invited_headers, params={'match_id': game.json()['match_id']}).status_code == 403
-        eligibility = client.post(f"/test-games/{room['room_id']}/invitations/eligibility",
-                                  headers=owner_headers, json={'match_id': game.json()['match_id'],
-                                  'player_ids': [invited['user_id']]}).json()
-        assert eligibility == [{'user_id': invited['user_id'], 'eligible': False, 'reason': 'Already invited'}]
-        repeated = client.post(f"/test-games/{room['room_id']}/invitations", headers=owner_headers,
-                               json={'match_id': game.json()['match_id'], 'recipients': [invited['user_id']]}).json()
-        assert [item['id'] for item in repeated] == [invitation[0]['id']]
-        cancelled = client.post(f"/test-games/{room['room_id']}/invitations/cancel", headers=owner_headers,
-                                json={'match_id': game.json()['match_id'], 'invitation_id': invitation[0]['id']}).json()
-        assert cancelled['status'] == 'cancelled'
-        assert client.get('/test-games/invitations', headers=invited_headers).json() == []
-        invitation = client.post(f"/test-games/{room['room_id']}/invitations", headers=owner_headers,
-                                 json={'match_id': game.json()['match_id'], 'recipients': [invited['user_id']]}).json()
-        assert len(invitation) == 1 and invitation[0]['id'] == cancelled['id']
         assert client.get(f"/rooms/{room['room_id']}", headers=invited_headers).status_code == 403
 
         accepted = client.post(f"/test-games/invitations/{invitation[0]['id']}/accept",

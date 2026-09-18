@@ -39,15 +39,6 @@ class JoinGame(BaseModel):
 class InvitationCandidates(BaseModel):
     model_config = ConfigDict(extra="forbid")
     player_ids: list[str] = Field(min_length=1, max_length=20)
-    match_id: str | None = None
-
-
-class InvitePlayers(JoinGame):
-    recipients: list[str] = Field(min_length=1, max_length=20)
-
-
-class CancelInvitation(JoinGame):
-    invitation_id: Annotated[str, Field(min_length=1, max_length=64)]
 
 
 class StartGame(JoinGame):
@@ -84,26 +75,7 @@ async def decline_invitation(invitation_id: str, request: Request, user: UserIde
 @router.post("/{room_id}/invitations/eligibility")
 async def invitation_eligibility(room_id: str, body: InvitationCandidates, request: Request,
                                  user: UserIdentity = Depends(current_user)):
-    return await request.app.state.test_games.invitation_eligibility(room_id, user.user_id, body.player_ids, body.match_id)
-
-
-@router.get("/{room_id}/invitations/manage")
-async def manage_invitations(room_id: str, match_id: str, request: Request, response: Response,
-                             user: UserIdentity = Depends(current_user)):
-    response.headers["Cache-Control"] = "no-store"
-    return await request.app.state.test_games.manage_invitations(room_id, user.user_id, match_id)
-
-
-@router.post("/{room_id}/invitations")
-async def invite_players(room_id: str, body: InvitePlayers, request: Request,
-                         user: UserIdentity = Depends(current_user)):
-    return await request.app.state.test_games.invite_players(room_id, user.user_id, body.match_id, body.recipients)
-
-
-@router.post("/{room_id}/invitations/cancel")
-async def cancel_invitation(room_id: str, body: CancelInvitation, request: Request,
-                            user: UserIdentity = Depends(current_user)):
-    return await request.app.state.test_games.cancel_invitation(room_id, user.user_id, body.match_id, body.invitation_id)
+    return await request.app.state.test_games.invitation_eligibility(room_id, user.user_id, body.player_ids)
 
 
 @router.get("/{room_id}")

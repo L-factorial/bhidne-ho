@@ -7,6 +7,7 @@ from app.auth.models import AccountCredentials, AccountInput, GuestCredentials, 
 from app.auth.service import AuthenticationError, UsernameTakenError
 from app.models.room import CreateRoom, RoomSummary
 from app.models.user import UserIdentity
+from app.players.service import PlayerNotFound
 
 router = APIRouter()
 
@@ -101,9 +102,32 @@ async def list_rooms(request: Request, user: UserIdentity = Depends(current_user
 
 @router.post("/rooms", response_model=RoomSummary, status_code=201)
 async def create_room(body: CreateRoom, request: Request, user: UserIdentity = Depends(current_user)):
+    invitees = list(dict.fromkeys(body.invitees))
+    for target_id in invitees:
+        if target_id == user.user_id: raise HTTPException(409, "You cannot invite yourself.")
+        try: await request.app.state.players.player(user.user_id, target_id)
+        except PlayerNotFound as error: raise HTTPException(404, "Invited player not found.") from error
     room = await request.app.state.rooms.create(body.name, user.user_id, body.visibility)
+    await request.app.state.rooms.invite(room.room_id, user.user_id, invitees)
     request.app.state.provision_room(room.room_id)
     return room
+
+
+@router.get("/room-invitations")
+async def room_invitations(request: Request, response: Response, user: UserIdentity = Depends(current_user)):
+    response.headers["Cache-Control"] = "no-store"
+    items = await request.app.state.rooms.invitations_for(user.user_id)
+    for item in items:
+        item["inviter"] = await request.app.state.players.public_player(item["inviter_id"])
+    return items
+
+
+@router.post("/room-invitations/{invitation_id}/{answer}")
+async def answer_room_invitation(invitation_id: str, answer: str, request: Request,
+                                 user: UserIdentity = Depends(current_user)):
+    if answer not in ("accept", "decline"): raise HTTPException(404, "Unknown invitation action.")
+    try: return await request.app.state.rooms.answer_invitation(user.user_id, invitation_id, answer == "accept")
+    except ValueError as error: raise HTTPException(404, str(error)) from None
 
 
 @router.get("/memberships")
@@ -140,6 +164,9 @@ async def enter_room(room_id: str, request: Request, user: UserIdentity = Depend
 
 @router.post("/rooms/{room_id}/leave")
 async def leave_room(room_id: str, request: Request, user: UserIdentity = Depends(current_user)):
+    room = await request.app.state.rooms.room(room_id)
+    if room and room["creator_id"] == user.user_id:
+        raise HTTPException(409, "Room owners cannot leave their room. Delete it after ending every active table.")
     return await request.app.state.lifecycle.leave(room_id, user.user_id)
 
 
@@ -150,4 +177,6 @@ async def delete_room(room_id: str, request: Request, user: UserIdentity = Depen
         raise HTTPException(404, "Room not found.")
     if room["creator_id"] != user.user_id:
         raise HTTPException(403, "Only the room owner can delete this room.")
+    if request.app.state.test_games.has_active_tables(room_id):
+        raise HTTPException(409, "End every active table before deleting this room.")
     await request.app.state.lifecycle.delete(room_id)
