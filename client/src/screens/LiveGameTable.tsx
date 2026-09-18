@@ -181,7 +181,9 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     </View>}
     {handAvailable && <MobileGameHand mobile={mobile} game="callbreak" keepMounted
       header={showTurn ? <TurnPulse personal={isTurn} text={isTurn ? 'Your turn' : `${playerName(game.turn.player_id!)}'s turn`} /> : undefined}
-      open={cards.open} onToggle={cards.toggle} myTurn={isTurn || !!mine?.can_accept_hand}>
+      open={cards.open} onToggle={cards.toggle} myTurn={isTurn}
+      attention={isTurn || !!mine?.can_accept_hand || !!mine?.can_claim_redeal}
+      attentionText={mine?.can_accept_hand || mine?.can_claim_redeal ? 'Review your cards · Accept or request redeal' : undefined}>
     <View testID="callbreak-hand-dock" style={[styles.handDock, mobile && { backgroundColor: 'transparent', borderTopWidth: 0, paddingHorizontal: 4 }]}>
     {game.phase === 'PLAYING' && !deal.tricks.some(trick => trick.complete || trick.plays.length) && !game.current_trick?.plays.length && <Text accessibilityLiveRegion="polite" style={styles.status}>Bidding complete. {isTurn ? 'You lead first.' : `${playerName(game.turn.player_id!)} leads first.`}</Text>}
     {game.phase === 'BIDDING' && <LiveBidPrompt key={`${snapshot.match_id}-${deal.deal_number}-${deal.attempt}`} snapshot={snapshot} revealed={revealedDeal === handDealKey} busy={busy} onAction={cards.act} />}

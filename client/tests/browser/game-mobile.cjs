@@ -53,6 +53,7 @@ async function pulse(locator) {
         }
         await stateWhen(s => s.game.phase === 'HAND_REVIEW');
         for (const page of pages) {
+          await pulse(page.getByTestId('callbreak-hand-attention'));
           await button(page, 'Expand your card area').click();
           await button(page, 'Collapse your card area').waitFor();
           await button(page, 'Flip all cards').click();
@@ -60,6 +61,7 @@ async function pulse(locator) {
           await page.waitForTimeout(1100); assert.equal(await button(page, 'Expand your card area').isVisible(), true);
           await button(page, 'Expand your card area').click();
           assert.equal(await button(page, 'Flip all cards').count(), 0, 'reveal state survives collapse');
+          await pulse(button(page, 'Accept hand').getByTestId('action-cue'));
           await button(page, 'Accept hand').click();
         }
         for (let i = 0; i < users.length; i++) {
