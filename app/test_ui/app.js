@@ -178,20 +178,19 @@ $('signup-mode').onclick = () => setMode(true);
 $('signin-mode').onclick = () => setMode(false);
 async function authenticate(path, body) {
   feedback();
-  $('auth-submit').disabled = $('guest').disabled = true;
+  $('auth-submit').disabled = true;
   try {
     const value = await api(path, body, null);
     saveSession(value);
     $('password').value = '';
     await refreshRooms();
   } catch (error) { feedback(error.message); }
-  finally { $('auth-submit').disabled = $('guest').disabled = false; }
+  finally { $('auth-submit').disabled = false; }
 }
 $('auth-form').onsubmit = event => {
   event.preventDefault();
   authenticate(signingUp ? '/auth/signup' : '/auth/signin', {username: $('username').value, password: $('password').value});
 };
-$('guest').onclick = () => authenticate('/auth/guest', {});
 $('signout').onclick = () => { signOut(); feedback(); };
 $('refresh').onclick = refreshRooms;
 $('leave').onclick = async () => {

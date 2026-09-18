@@ -11,7 +11,7 @@
 <header><a class="brand" href="/">♠ <span>Bhidne Ho</span></a><span class="badge">TEST CONSOLE</span><a class="docs" href="/docs" target="_blank" rel="noopener">API docs ↗</a></header>
 <main>
   <div class="intro"><div><p class="eyebrow">MULTIPLAYER WORKBENCH</p><h1>A place to test the connection.</h1><p>Open a second tab, join the same room, and start a conversation.</p></div><span class="environment">● Local / in-memory</span></div>
-  <p class="notice">Test accounts and rooms reset when the server restarts. Use a different account or guest in each tab to test message delivery.</p>
+  <p class="notice">Test accounts and rooms reset when the in-memory server restarts. Use a different account in each tab to test message delivery.</p>
   <div id="feedback" role="alert" hidden></div>
   <div class="workspace">
     <aside>
@@ -23,7 +23,6 @@
             <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required minlength="8" maxlength="128" placeholder="At least 8 characters">
             <button id="auth-submit" class="primary full">Sign in</button>
           </form>
-          <button id="guest" class="secondary full">Continue as guest</button>
         </div>
         <div id="signed-in" hidden><strong id="account-name"></strong><code id="user-id"></code><button id="signout" class="secondary full">Sign out of this tab</button></div>
       </section>
@@ -44,7 +43,7 @@
   </div>
   <section class="panel game-panel" aria-labelledby="game-heading">
     <div class="section-title"><h2 id="game-heading">04 / Call Break test game</h2><span class="badge">3s AUTO PLAY · TEST ONLY</span></div>
-    <p class="muted">Create a game inside your room, then join from distinct accounts or guests. The first dealer is chosen at random. Each player makes their own moves, with no turn time limit.</p>
+    <p class="muted">Create a game inside your room, then join from distinct accounts. The first dealer is chosen at random. Each player makes their own moves, with no turn time limit.</p>
     <div class="game-toolbar"><label for="game-size">Players</label><select id="game-size"><option value="4">4 players · 13 cards</option><option value="5">5 players · 10 cards</option></select><button id="create-game" class="primary" disabled>Create Call Break game</button><button id="join-game" class="secondary" hidden>Join game</button></div>
     <p id="game-status" role="status">Connect to a room to create or join a game.</p>
     <div id="game-roster" class="game-roster"></div>

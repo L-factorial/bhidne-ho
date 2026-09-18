@@ -21,16 +21,6 @@ export function useRoomSession() {
 
   const [loggingIn, setLoggingIn] = useState(false);
   const loginPending = useRef(false);
-  async function loginGuest(displayName: string) {
-    if (loginPending.current || session) return;
-    loginPending.current = true; setLoggingIn(true); setError('');
-    try {
-      const value = await request<Session>('/auth/guest', null, { display_name: displayName.trim() });
-      setSession(value);
-    } catch (error) { setError(error instanceof Error ? error.message : 'Could not sign in. Please try again.'); }
-    finally { loginPending.current = false; setLoggingIn(false); }
-  }
-
   async function loginAccount(username: string, password: string, signup: boolean) {
     if (loginPending.current || session) return false;
     loginPending.current = true; setLoggingIn(true); setError('');
@@ -155,7 +145,7 @@ export function useRoomSession() {
       try { await request('/auth/signout', active, {}); } catch { /* Local sign-out still succeeds offline. */ }
     }
   }
-  return { loginGuest, loginAccount, loggingIn, session, room, rooms, game, setGame, joinRoom, leaveRoom, deleteRoom, signOut, leaveGameRequired, leaveGameAndRoom, abandonRequired,
+  return { loginAccount, loggingIn, session, room, rooms, game, setGame, joinRoom, leaveRoom, deleteRoom, signOut, leaveGameRequired, leaveGameAndRoom, abandonRequired,
     cancelLeave: () => { setLeaveGameRequired(null); setError(''); }, status, expired, error, pokes,
     retry: () => { connection.current?.retryNow(); } };
 }

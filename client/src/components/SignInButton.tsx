@@ -4,7 +4,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import Svg, { Path } from 'react-native-svg';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
-export type SignInMethod = 'Apple' | 'Google' | 'Facebook' | 'guest';
+export type SignInMethod = 'Apple' | 'Google' | 'Facebook' | 'account';
 function GoogleIcon() {
   return (
     <Svg width={22} height={22} viewBox="0 0 48 48">
@@ -19,10 +19,10 @@ export function SignInButton({ method, onPress, disabled = false, label }: { met
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const [focused, setFocused] = useState(false);
-  const backgroundColor = { Apple: '#141414', Google: '#FFFFFF', Facebook: '#0866FF', guest: colors.primary }[method];
+  const backgroundColor = { Apple: '#141414', Google: '#FFFFFF', Facebook: '#0866FF', account: colors.primary }[method];
   const color = method === 'Google' ? '#242424' : '#FFFFFF';
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={method === 'guest' ? 'Play as guest' : `Continue with ${method}`}
+    <Pressable accessibilityRole="button" accessibilityLabel={method === 'account' ? 'Sign in or create account' : `Continue with ${method}`}
       disabled={disabled} accessibilityState={{ disabled }}
       onPress={onPress} onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)} style={({ pressed }) => [
@@ -34,7 +34,7 @@ export function SignInButton({ method, onPress, disabled = false, label }: { met
           <FontAwesome name={method === 'Apple' ? 'apple' : method === 'Facebook' ? 'facebook-square' : 'user'} size={24} color={color} />
         )}
       </View>
-      <Text style={[styles.label, { color }]}>{label || (method === 'guest' ? 'Play as guest' : `Continue with ${method}`)}</Text>
+      <Text style={[styles.label, { color }]}>{label || (method === 'account' ? 'Sign in or create account' : `Continue with ${method}`)}</Text>
       <View style={styles.balance} />
     </Pressable>
   );

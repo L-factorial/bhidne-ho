@@ -35,12 +35,15 @@ from app.social_auth.verifiers import configured_verifiers
 from app.players.http import router as players_router
 from app.players.service import PlayerSocialService
 from app.players.store import InMemoryPlayerStore, PostgresPlayerStore
+from app.ledger import LedgerService, InMemoryLedgerStore, PostgresLedgerStore
+from app.ledger.http import router as ledger_router
 
 
 def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         database_url = os.environ.get("BHIDNE_HO_DATABASE_URL") or os.environ.get("DATABASE_URL")
+        app.state.guest_login_enabled = os.environ.get("BHIDNE_HO_GUEST_LOGIN_ENABLED") == "1"
         database = Database(database_url) if database_url else None
         if database:
             await database.open()
@@ -60,6 +63,10 @@ def create_app() -> FastAPI:
         app.state.players = PlayerSocialService(
             PostgresPlayerStore(database.pool) if database else InMemoryPlayerStore(app.state.player_profiles),
         )
+        app.state.ledger = LedgerService(
+            PostgresLedgerStore(database.pool) if database else InMemoryLedgerStore(),
+            rooms, app.state.player_profiles,
+        )
         social_store = (PostgresSocialIdentityStore(database.pool, guests, app.state.player_profiles)
                         if database else InMemorySocialIdentityStore(guests, app.state.player_profiles))
         app.state.social_auth = SocialAuthService(
@@ -78,7 +85,8 @@ def create_app() -> FastAPI:
 
         app.state.provision_room = provision_room
         app.state.runtime = GameRuntime(connections, registry)
-        app.state.test_games = TestGameService(rooms, connections, command_runtime=app.state.runtime.commands, profiles=app.state.player_profiles, round_summary_seconds=8)
+        app.state.test_games = TestGameService(rooms, connections, command_runtime=app.state.runtime.commands,
+            profiles=app.state.player_profiles, round_summary_seconds=8, ledger=app.state.ledger)
         app.state.lifecycle = RoomLifecycle(rooms, connections, app.state.test_games, app.state.players)
         app.state.participation = GameParticipation(app.state.test_games)
         app.state.room_chat = RoomChatService(rooms, app.state.player_profiles, app.state.participation)
@@ -111,6 +119,7 @@ def create_app() -> FastAPI:
     app.include_router(room_chat.router)
     app.include_router(player_profiles.router)
     app.include_router(test_game_router)
+    app.include_router(ledger_router)
     static = Path(__file__).parent / "test_ui"
     app.mount("/test-ui", StaticFiles(directory=static), name="test-ui")
 

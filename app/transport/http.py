@@ -19,6 +19,8 @@ async def health() -> dict[str, str]:
 @router.post("/auth/guest", response_model=GuestCredentials, status_code=201)
 async def guest(request: Request, response: Response, body: GuestInput | None = None) -> GuestCredentials:
     response.headers["Cache-Control"] = "no-store"
+    if not request.app.state.guest_login_enabled:
+        raise HTTPException(403, "Guest login is temporarily disabled. Sign in or create an account.")
     credentials = await request.app.state.guests.issue_guest()
     await request.app.state.players.ensure_user(credentials.user_id)
     if body is not None and body.display_name:

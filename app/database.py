@@ -219,6 +219,44 @@ MIGRATIONS = (
             BEFORE UPDATE OF rules_schema_version, rules, rules_digest ON games
             FOR EACH ROW EXECUTE FUNCTION reject_started_game_rule_change();
     """),
+    (5, """
+        CREATE TABLE ledger_games (
+            game_id uuid PRIMARY KEY, room_id text NOT NULL REFERENCES rooms(id) ON DELETE RESTRICT,
+            table_id uuid NOT NULL, game_type text NOT NULL, created_at timestamptz NOT NULL DEFAULT now()
+        );
+        CREATE INDEX ledger_games_room_table_idx ON ledger_games(room_id,table_id,created_at);
+        CREATE TABLE game_ledger_entries (
+            game_id uuid NOT NULL REFERENCES ledger_games(game_id) ON DELETE RESTRICT,
+            player_id uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT, amount bigint NOT NULL,
+            PRIMARY KEY(game_id,player_id)
+        );
+        CREATE TABLE settlement_batches (
+            batch_id uuid PRIMARY KEY, room_id text NOT NULL REFERENCES rooms(id) ON DELETE RESTRICT,
+            table_id uuid NOT NULL, scope text NOT NULL CHECK(scope IN ('game','table')), game_id uuid,
+            status text NOT NULL CHECK(status IN ('OPEN','PARTIALLY_RESOLVED','RESOLVED','CANCELLED')),
+            created_by uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT, idempotency_key text NOT NULL,
+            created_at timestamptz NOT NULL DEFAULT now(), UNIQUE(created_by,idempotency_key),
+            CHECK((scope='game')=(game_id IS NOT NULL))
+        );
+        CREATE TABLE settlement_games (
+            batch_id uuid NOT NULL REFERENCES settlement_batches(batch_id) ON DELETE RESTRICT,
+            game_id uuid NOT NULL UNIQUE REFERENCES ledger_games(game_id) ON DELETE RESTRICT,
+            PRIMARY KEY(batch_id,game_id)
+        );
+        CREATE TABLE settlement_transfers (
+            transfer_id uuid PRIMARY KEY, batch_id uuid NOT NULL REFERENCES settlement_batches(batch_id) ON DELETE RESTRICT,
+            payer_id uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+            payee_id uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT, amount bigint NOT NULL CHECK(amount>0),
+            status text NOT NULL CHECK(status IN ('OPEN','MARKED_PAID','RESOLVED','DISPUTED','CANCELLED')),
+            marked_paid_at timestamptz, resolved_at timestamptz, CHECK(payer_id<>payee_id)
+        );
+        CREATE INDEX settlement_transfers_party_idx ON settlement_transfers(payer_id,payee_id,status);
+        CREATE TABLE settlement_actions (
+            actor_id uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT, action text NOT NULL,
+            idempotency_key text NOT NULL, transfer_id uuid NOT NULL REFERENCES settlement_transfers(transfer_id),
+            created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(actor_id,action,idempotency_key)
+        );
+    """),
 )
 
 

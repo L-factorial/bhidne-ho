@@ -5,6 +5,16 @@ import pytest
 from app.auth.service import AuthenticationError, GuestAuthService
 from app.models.messages import ClientMessage
 from app.runtime.game_runtime import GameRuntime
+from app.main import create_app
+from fastapi.testclient import TestClient
+
+
+def test_guest_http_login_is_disabled_unless_explicitly_enabled(monkeypatch):
+    monkeypatch.setenv("BHIDNE_HO_GUEST_LOGIN_ENABLED", "0")
+    with TestClient(create_app()) as client:
+        response = client.post("/auth/guest")
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Guest login is temporarily disabled. Sign in or create an account."
 
 
 async def test_guest_identity_and_invalid_credentials():

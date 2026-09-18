@@ -2,13 +2,13 @@
 
 Expo + React Native + TypeScript starter for web, Android, and iOS. The first
 screen implements the midnight blue, copper, and ivory welcome design with
-Apple, Google, Facebook, and guest buttons. It adapts from a two-column desktop
+Apple, Google, Facebook, and first-party account buttons. It adapts from a two-column desktop
 layout to a stacked phone layout, including safe-area padding and scrolling on
 small screens.
 
 Apple, Google, and Facebook buttons remain visible but are dimmed and disabled.
-The enabled first-party entry opens username/password **Sign in**, **Sign up**, and
-**Guest** choices. `SOCIAL_SIGN_IN_ENABLED` in `src/screens/WelcomeScreen.tsx`
+The enabled first-party entry opens username/password **Sign in** and **Sign up**.
+Guest login is temporarily disabled. `SOCIAL_SIGN_IN_ENABLED` in `src/screens/WelcomeScreen.tsx`
 controls the provider placeholders only; it must remain false until a provider's
 client flow and test application are configured.
 
@@ -29,7 +29,7 @@ Start the backend in another terminal from the repository root:
 ```
 
 Open the local URL printed by Expo. The welcome screen needs no backend, but
-The account and guest forms call the backend and then open the shared room directory.
+The account form calls the backend and then opens the shared room directory.
 Use Expo web port 8081 or 8083 for the configured local CORS origins.
 
 The API defaults to the web page's hostname on port 8000. Set
@@ -43,12 +43,12 @@ rendering has not yet been manually verified.
 
 ## Scope
 
-Account signup/signin, guest entry, room creation, room discovery, and WebSocket
+Account signup/signin, room creation, room discovery, and WebSocket
 room membership use the existing FastAPI APIs. After authenticating, choose **Create and
 enter room**, select an available room, or enter its ID. Other browser sessions
 see new rooms and presence counts within about two seconds. Leaving closes the
 socket. Browser sessions and the selected room/game are saved per tab in sessionStorage, so
-refreshing restores the same guest and seat. Reconnection runs automatically after
+refreshing restores the same account and seat. Reconnection runs automatically after
 a network interruption; the table stays visible and actions wait for a fresh snapshot.
 Native clients currently keep sessions in memory (network reconnection works, but
 restarting the native app does not restore its identity). Backend restart clears all

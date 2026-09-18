@@ -16,6 +16,7 @@ import { ProfileScreen } from './ProfileScreen';
 import { usePlayerPhrases } from '../multiplayer/usePlayerPhrases';
 import { RoomGameControl } from '../components/RoomGameControl';
 import { FriendsPanel } from '../components/FriendsPanel';
+import { RoomLedger } from '../components/RoomLedger';
 
 import { apiUrl, request } from '../multiplayer/api';
 import type { Room } from '../multiplayer/session';
@@ -109,6 +110,7 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
         </View>
         <View style={[styles.columns, wide && styles.wideColumns]}>
           <View style={styles.mainColumn}>
+            {session && <RoomLedger roomId={room.room_id} session={session} />}
             {session && <RoomGameControl onOpenChange={setGameOpen} requestedMatchId={linkedMatch} personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={current?.connected_members || []} roomMembers={roomMembers} connectionMessage={expired ? shared.error : undefined}
               gameType={selectedGame} createContent={<>
             <Text style={styles.eyebrowDark}>CHOOSE A GAME</Text>

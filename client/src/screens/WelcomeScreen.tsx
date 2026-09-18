@@ -19,9 +19,9 @@ export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
   const wide = width >= 1024;
   const [notice, setNotice] = useState('');
   function selectMethod(method: SignInMethod) {
-    if (method === 'guest') { onEnterLobby(); return; }
+    if (method === 'account') { onEnterLobby(); return; }
     if (!SOCIAL_SIGN_IN_ENABLED) return;
-    setNotice(`${method} sign-in is coming next. Choose Play as guest to preview the lobby.`);
+    setNotice(`${method} sign-in is coming next. Use a Bhidne Ho account for now.`);
   }
   return (
     <LinearGradient colors={[colors.surface, colors.background, colors.background]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.page}>
@@ -52,8 +52,8 @@ export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
               ))}
             </View>
             <View style={styles.divider}><View style={styles.dividerLine} /><Text style={styles.or}>or</Text><View style={styles.dividerLine} /></View>
-            <SignInButton method="guest" label="Sign in, sign up, or play as guest" onPress={() => selectMethod('guest')} />
-            <Text style={styles.helper}>Create a Bhidne Ho account or continue without one.</Text>
+            <SignInButton method="account" onPress={() => selectMethod('account')} />
+            <Text style={styles.helper}>Sign in with your Bhidne Ho account or create a new one.</Text>
             {!!notice && <View style={styles.notice} accessibilityLiveRegion="polite">
               <Text style={styles.noticeText}>{notice}</Text>
               <Pressable accessibilityRole="button" accessibilityLabel="Dismiss message" onPress={() => setNotice('')} style={styles.dismiss}>

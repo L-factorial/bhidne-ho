@@ -5,7 +5,7 @@ from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import asdict, dataclass, field, fields
 import json
 from random import SystemRandom
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from fastapi import HTTPException
 from pydantic import ValidationError, TypeAdapter
@@ -21,6 +21,7 @@ from app.adapters.callbreak.host import CallBreakCommandTarget
 from marriage import MarriageGameEngine
 from marriage.rules import MarriageRules
 from marriage.scoring_rules import ScoringRules, SCORING_PRESETS
+from marriage.scoring import calculate_scores as calculate_marriage_scores
 from app.adapters.marriage import MarriageAdapter
 from app.test_games.marriage import HostedMarriageTarget
 from flush import FlushGameEngine, FlushRulesConfig, FlushError
@@ -32,6 +33,7 @@ from app.multiplayer.table_lifecycle import GameTableLifecycle
 from app.multiplayer.rule_proposals import RuleProposals
 from app.games.lifecycle import PlayerDeparture, WaitingGameDeparture
 from app.runtime.command_runtime import CommandAccessError, CommandRuntime, CommandSession, OutgoingEvent
+from app.ledger import GameLedgerAmount, GameLedgerResult
 
 @dataclass
 class HostedGame:
@@ -64,6 +66,7 @@ class HostedGame:
     marriage_queries: dict = field(default_factory=dict)
     marriage_moves: list[dict] = field(default_factory=list)
     marriage_scoring: ScoringRules = field(default_factory=ScoringRules)
+    ledgered_games: set[str] = field(default_factory=set)
 
     @property
     def started(self):
@@ -95,9 +98,10 @@ class HostedGame:
 
 
 class TestGameService(GameTableLifecycle, RuleProposals):
-    def __init__(self, rooms, connections, command_runtime=None, profiles=None, round_summary_seconds=0):
+    def __init__(self, rooms, connections, command_runtime=None, profiles=None, round_summary_seconds=0, ledger=None):
         self.rooms, self.connections = rooms, connections
         self.profiles = profiles
+        self.ledger = ledger
         self.round_summary_seconds = round_summary_seconds
         self.command_runtime = command_runtime or CommandRuntime()
         self.games: dict[str, HostedGame] = {}
@@ -622,13 +626,49 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             await self._publish(game)
 
         try:
-            return await self.command_runtime.execute(
+            result = await self.command_runtime.execute(
                 game.commands, game.flush_target or game.marriage_target or CallBreakCommandTarget(self, game), user_id, body, deliver)
+            await self._record_completed_ledger(game)
+            return result
         except CommandAccessError as error:
             raise HTTPException(error.status, error.detail) from error
         except GameCommandRejected as error:
             # Legacy requests without command IDs keep their HTTP rejection shape.
             raise HTTPException(409, error.detail) from error
+
+    async def _record_completed_ledger(self, game):
+        """Publish an engine-authored, zero-sum result once per completed game/round."""
+        if not self.ledger:
+            return
+        amounts, game_id = None, game.match_id
+        if game.marriage_target:
+            state = game.marriage_target.adapter.checkpoint().get_state()
+            scores = calculate_marriage_scores(state) if state.status.value == "finished" else None
+            if scores:
+                amounts = {game.users[int(row.player_id) - 1]: row.net_points for row in scores.players}
+        elif game.flush_target:
+            state = game.flush_target.adapter.checkpoint().get_state()
+            if state.settlement:
+                game_id = uuid5(NAMESPACE_URL, f"bhidne-ho:{game.match_id}:flush:{state.round_number}").hex
+                user_by_seat = {str(seat): user for user, seat in game.flush_seats.items()}
+                amounts = {user_by_seat[player.player_id]: player.chips - state.config.initial_chips[index]
+                           for index, player in enumerate(state.players)}
+        elif game.state and game.state.phase == Phase.MATCH_COMPLETE:
+            # Placement bets are unambiguous only when every final score differs.
+            ranked = sorted(enumerate(game.state.score_tenths), key=lambda row: (-row[1], row[0]))
+            if len({score for _, score in ranked}) == len(ranked):
+                amounts = dict.fromkeys(game.users, 0)
+                winner = game.users[ranked[0][0]]
+                for place, (index, _) in enumerate(ranked[1:], 1):
+                    payment = game.settings["payments"][place - 1]
+                    amounts[game.users[index]] -= payment
+                    amounts[winner] += payment
+        if not amounts or game_id in game.ledgered_games:
+            return
+        await self.ledger.record_game(GameLedgerResult(room_id=game.room_id, table_id=game.table.table_id,
+            game_id=game_id, game_type=game.game_type,
+            amounts=[GameLedgerAmount(player_id=player, amount=amount) for player, amount in amounts.items()]))
+        game.ledgered_games.add(game_id)
 
     async def poke(self, room_id, user_id, body, social):
         await self._member(room_id, user_id)
