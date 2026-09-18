@@ -282,6 +282,11 @@ MIGRATIONS = (
         CREATE INDEX active_table_players_room_table_idx
             ON active_table_players(room_id, table_id);
     """),
+    (8, """
+        INSERT INTO room_memberships (room_id, user_id, joined_at)
+        SELECT id, creator_id, created_at FROM rooms
+        ON CONFLICT (room_id, user_id) DO NOTHING;
+    """),
 )
 
 
