@@ -2,9 +2,9 @@
 
 Flush now uses the shared room host, reliable command runtime, and client room UI.
 Create a Flush game for 2–10 players, review/edit rules at the waiting table, and
-start once every seat is full. The initial room preset gives each player 1,000
-in-game chips, a boot of 5, and a blind stake of 1. These are round-local test
-chips, not a persisted wallet. All supported engine rules are shown in the editor;
+start after locking at least two seats. The initial room preset uses a boot of 5
+and a blind stake of 1. Betting is unbounded; contributions and winnings are
+recorded as points for later settlement. All supported engine rules are shown in the editor;
 SHOW's final-two requirement is read-only.
 
 ## Commands and adapter ownership
@@ -58,16 +58,15 @@ prohibited; reconnect restores the same seat, turn, rules, and authorized cards.
 | --- | --- |
 | POST /test-games/{room_id} | `{game_type: "flush", player_count: 2..5}` |
 | POST /test-games/{room_id}/join | `{match_id}` |
-| POST /test-games/{room_id}/flush-settings | `{match_id, rules_revision, rules, starting_chips}` |
+| POST /test-games/{room_id}/flush-settings | `{match_id, rules_revision, rules}` |
 | POST /test-games/{room_id}/start | `{match_id, rules_revision}`; optional manual play mode |
 | POST /test-games/{room_id}/action | Reliable command envelope above |
 | GET /test-games/{room_id} | Authorized snapshot |
 | POST /test-games/{room_id}/end | `{match_id}`; creator only |
 
-Settings require the complete rules dictionary, with no extra fields, and a
-starting-chip amount from 0 to 1,000,000. Domain validation checks settings and
-dependent fields; room seat count must fit configured player limits and starting
-chips must cover boot. Ace/tie enum values use their documented string forms.
+Settings require the complete rules dictionary, with no extra fields. Domain
+validation checks settings and dependent fields; room seat count must fit
+configured player limits. Ace/tie enum values use their documented string forms.
 
 The creator alone can save settings during WAITING. Saved settings increment
 `rules_revision`, starting at zero. Edits and startup share the game lock. A stale
@@ -78,7 +77,7 @@ A failed start installs no engine or partial debit. After start, both the server
 and UI reject rule edits. Everyone can continue reviewing the locked settings.
 A new game has a fresh match ID and its own editable default rules.
 
-Snapshots expose `flush_settings: {rules, rules_revision, starting_chips, locked}`
+Snapshots expose `flush_settings: {rules, rules_revision, locked}`
 and, after startup, `flush: {public, private}`. Spectators receive `private: null`.
 Common `game` metadata supplies revision, current player, and terminal winners for
 shared client synchronization. `query_result` is stored per requester. Existing
@@ -142,13 +141,13 @@ Run `node tests/browser/flush-side-show.cjs` with the same server and Playwright
 setup for a real three-session test of the ellipse, coin flights, grid, per-card
 flips, target response, private outcomes, and reconnect without replay.
 
-Betting minimums: new rooms start with blind 1 and seen 2 (default multiplier 2). A blind bet sets the seen minimum to amount × multiplier. A seen bet sets the seen minimum to that exact amount and the blind minimum to ceil(amount / multiplier). Bets below the current minimum or above available chips reject atomically. Boot and final-show fees do not raise the stake.
+Betting minimums: new rooms start with blind 1 and seen 2 (default multiplier 2). A blind bet sets the seen minimum to amount × multiplier. A seen bet sets the seen minimum to that exact amount and the blind minimum to ceil(amount / multiplier). Bets below the current minimum reject atomically. There is no bankroll limit. Boot and final-show fees do not raise the stake.
 
 Manual preparation: START_GAME locks the round and enters awaiting_deal with the dealer
 as current player. DEAL_CARDS shuffles the hidden deck and enters awaiting_cut for the
 next seated player. CUT_DECK(position: 1–51) rotates the deck, or SKIP_CUT leaves its order
 unchanged; either choice deals the cards, collects boot once, and starts betting.
-Before then, no cards are dealt and no chips are debited. Commands use the same reliable
+Before then, no cards are dealt and no contributions are recorded. Commands use the same reliable
 revision/receipt handling as bets, and reconnects preserve the pending preparation step.
 The table shows a pulsing current-player name to everyone and a personal Your turn prompt,
 with steady text for reduced-motion preferences.
@@ -160,8 +159,8 @@ available. The previous winner deals if still seated; otherwise the creator deal
 If the creator leaves, the next seated player becomes creator. Explicit Leave room also
 leaves the table between rounds; reconnects alone do not remove seats.
 
-Stable participant IDs retain departed players' net results and balances. Returning players
-recover their balance; newcomers receive the configured starting chips. The Bet grid includes
+Stable participant IDs retain departed players' net results. Returning players keep
+their result history; newcomers start with no prior contributions. The Bet grid includes
 all participants, one signed column per completed round, and running totals. Roster changes
 and locking are serialized. Hosted START_NEXT_ROUND commands are rejected: relocking is a
 creator-only room operation. Rules remain locked for the table's lifetime.

@@ -15,7 +15,7 @@ def main():
     sys.path.insert(0, str(wheel))
     import flush
     assert str(wheel) in flush.__file__
-    engine = flush.FlushGameEngine(['a', 'b'], initial_chips={'a': 100, 'b': 100},
+    engine = flush.FlushGameEngine(['a', 'b'],
         rules=flush.FlushRulesConfig(5, 10), rng=Random(7))
     engine.start_game()
     engine.deal_cards(engine.get_state().current_player_id)

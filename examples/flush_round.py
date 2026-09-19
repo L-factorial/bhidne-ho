@@ -5,7 +5,7 @@ from flush import FlushGameEngine, FlushRulesConfig
 
 def main():
     engine = FlushGameEngine(
-        ['alice', 'bob'], initial_chips={'alice': 100, 'bob': 100},
+        ['alice', 'bob'],
         rules=FlushRulesConfig(boot_amount=5, initial_blind_bet=10), rng=Random(7),
     )
     engine.start_game()

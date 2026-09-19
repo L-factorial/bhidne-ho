@@ -62,7 +62,7 @@ async function api(route, user, body) {
     let state = await api(root, users[0]);
     const first = state.game.turn.player_id - 1, second = 1 - first;
     for (const i of [first, second]) {
-      const button = pages[i].getByRole('button', { name: i === first ? 'Bet double · 20 chips' : 'Bet minimum · 20 chips', exact: true });
+      const button = pages[i].getByRole('button', { name: i === first ? 'Bet double · 20 points' : 'Bet minimum · 20 points', exact: true });
       await button.click();
       await pages[i].getByText('Blind · See cards when eligible', { exact: true }).waitFor();
     }
@@ -89,7 +89,7 @@ async function api(route, user, body) {
     await spectator.getByRole('button', {name:'Join a table',exact:true}).click();
     await spectator.getByRole('button', {name:'Watch table',exact:true}).click();
     await spectator.getByTestId('flush-table').waitFor();
-    await pages[first].getByRole('button', { name: 'Show · 40 chips', exact: true }).click();
+    await pages[first].getByRole('button', { name: 'Show · 40 points', exact: true }).click();
     for (const page of [...pages, spectator]) {
       await page.getByTestId('flush-final-show').waitFor();
       assert.equal(await page.getByTestId('flush-final-show').getByRole('button', {name:/shown card [123]:/}).count(), 3);
@@ -139,7 +139,7 @@ async function api(route, user, body) {
     await pages[winner].reload();
     await pages[winner].getByRole('button', {name:'Deal cards',exact:true}).click();
     await pages[1 - winner].getByRole('button', {name:'Skip cut',exact:true}).click();
-    await pages[1 - winner].getByRole('button', {name:'Bet minimum · 10 chips',exact:true}).waitFor();
+    await pages[1 - winner].getByRole('button', {name:'Bet minimum · 10 points',exact:true}).waitFor();
     state = await api(root, users[0]);
     assert.equal(state.match_id, preparation.match_id);
     assert.equal(state.flush.public.round_number, 2);

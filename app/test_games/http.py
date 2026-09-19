@@ -157,7 +157,6 @@ async def next_deal(room_id: str, body: NextDeal, request: Request, response: Re
 class FlushSettings(JoinGame):
     rules_revision: Annotated[int, Field(strict=True, ge=0)]
     rules: dict
-    starting_chips: Annotated[int, Field(strict=True, ge=0, le=1000000)]
 
 
 @router.post('/{room_id}/flush-settings')

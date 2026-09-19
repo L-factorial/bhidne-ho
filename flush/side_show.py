@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from card_utils import Card
 from .enums import PlayerStatus, Visibility
 from .turns import require_turn, active_players, required_bet, Eligibility
-from .errors import InvalidActionError, InvalidTurnError, InsufficientChipsError
+from .errors import InvalidActionError, InvalidTurnError
 
 
 @dataclass(frozen=True)
@@ -59,10 +59,8 @@ def evaluate_side_show_eligibility(state, player_id):
             raise InvalidActionError('Use Show when only two players remain.')
         if previous_seen_player(state, player_id) is None:
             raise InvalidActionError('No previous active seen player is available.')
-        if p.chips < required_bet(state, p):
-            raise InsufficientChipsError('Not enough chips for the side-show bet.')
         return Eligibility(True)
-    except (InvalidActionError, InvalidTurnError, InsufficientChipsError) as error:
+    except (InvalidActionError, InvalidTurnError) as error:
         return Eligibility(False, str(error), error.code)
 
 

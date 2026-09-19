@@ -8,7 +8,7 @@ from flush import (FlushGameEngine, FlushRulesConfig, RequestSideShow, AcceptSid
 
 
 def game():
-    e = FlushGameEngine(['a', 'b', 'c', 'd'], initial_chips=dict.fromkeys('abcd', 1000),
+    e = FlushGameEngine(['a', 'b', 'c', 'd'],
         rules=FlushRulesConfig(5, 10, allow_side_show=True, minimum_bet_rounds_before_side_show=0), rng=Random(2))
     e.start_game()
     e.deal_cards(e.get_state().current_player_id)
@@ -40,6 +40,18 @@ def test_request_pauses_turns_decline_advances_without_revealing():
     assert e.get_state().pending_side_show is None
     assert not e.get_state().side_shows
     assert all(e.get_player_view(p).side_show is None for p in 'abcd')
+
+
+def test_side_show_records_large_contribution_without_a_balance():
+    e = game()
+    e.bet('b', 1000000)
+    before = e.get_state().pot
+    assert 'request_side_show' in e.get_allowed_actions('c').kinds
+    e.request_side_show('c')
+    assert e.get_state().pot == before + 1000000
+    e.decline_side_show('b')
+    assert e.get_state().current_player_id == 'd'
+    validate_game_state(e.get_state())
 
 
 def test_accept_privacy_loser_folds_and_round_continues():
@@ -89,7 +101,7 @@ def test_previous_seen_skips_blind_and_folded_and_needs_three_active():
 
 
 def test_side_show_is_opt_in_and_blind_cannot_request():
-    e = FlushGameEngine(['a','b','c'], initial_chips=dict.fromkeys('abc', 100), rules=FlushRulesConfig(5,10))
+    e = FlushGameEngine(['a','b','c'], rules=FlushRulesConfig(5,10))
     e.start_game()
     e.deal_cards(e.get_state().current_player_id)
     e.skip_cut(e.get_state().current_player_id)
@@ -100,7 +112,7 @@ def test_side_show_is_opt_in_and_blind_cannot_request():
 @pytest.mark.parametrize('threshold', [0, 1, 3, 5])
 @pytest.mark.parametrize('blind_first', [False, True])
 def test_side_show_requires_completed_personal_bets(threshold, blind_first):
-    e = FlushGameEngine(['a', 'b', 'c'], initial_chips=dict.fromkeys('abc', 1000),
+    e = FlushGameEngine(['a', 'b', 'c'],
         dealer_id='b', rules=FlushRulesConfig(5, 10, allow_side_show=True,
                               minimum_bet_rounds_before_side_show=threshold))
     e.start_game()

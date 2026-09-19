@@ -5,7 +5,7 @@ from flush import FlushGameEngine, FlushRulesConfig, GameStatus, FlushError, Ter
 
 @pytest.mark.parametrize('reveal', [False, True])
 def test_final_show_broadcasts_requester_only_then_waits_for_response(reveal):
-    e = FlushGameEngine(['a','b','c'], initial_chips=dict.fromkeys('abc', 100),
+    e = FlushGameEngine(['a','b','c'],
         rules=FlushRulesConfig(5, minimum_blind_rounds_before_show=0))
     e.start_game(); e.deal_cards('a'); e.skip_cut('b'); e.fold('b')
     before = e.get_state()

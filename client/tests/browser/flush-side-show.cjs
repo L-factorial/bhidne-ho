@@ -65,7 +65,7 @@ async function api(route, user, body) {
       await peek.waitFor(); await peek.hover(); await page.mouse.down();
       assert.equal(await page.getByRole('button', {name:/^Your card \d:/}).count(), 3);
       await page.mouse.up();
-      await page.getByRole('button', {name:'Bet minimum · 20 chips',exact:true}).click();
+      await page.getByRole('button', {name:'Bet minimum · 20 points',exact:true}).click();
       await page.getByTestId('flush-coin-flight').waitFor();
       await page.getByTestId('flush-coin-flight').waitFor({state:'hidden'});
     }

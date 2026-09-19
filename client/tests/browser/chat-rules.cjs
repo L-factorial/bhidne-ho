@@ -43,7 +43,7 @@ async function api(path, user, body) {
       async function propose() {
         if (kind === 'callbreak') return api(root + '/settings', users[0], { ...body, weak_hand_enabled: false });
         if (kind === 'marriage') return api(root + '/marriage-settings', users[0], { ...body, scoring: { ...initial.marriage_scoring, seen_payment: 7 } });
-        return api(root + '/flush-settings', users[0], { ...body, rules_revision: 0, starting_chips: 500, rules: { ...initial.flush_settings.rules, initial_blind_bet: 7 } });
+        return api(root + '/flush-settings', users[0], { ...body, rules_revision: 0, rules: { ...initial.flush_settings.rules, initial_blind_bet: 7 } });
       }
       await propose();
       for (const page of [player, viewer]) await page.getByRole('button', { name: 'Review rule change', exact: true }).click();

@@ -13,7 +13,7 @@ def validate_game_state(state):
     for p in state.players:
         require(isinstance(p.status, PlayerStatus) and isinstance(p.visibility, Visibility), 'Invalid player flags.')
         require(all(type(v) is int and v >= 0 for v in
-                    (p.chips, p.total_contribution, p.blind_bet_count, p.turn_bet_count)), 'Invalid player accounting.')
+                    (p.total_contribution, p.blind_bet_count, p.turn_bet_count)), 'Invalid player accounting.')
         require(p.blind_bet_count <= p.turn_bet_count, 'Invalid betting counters.')
     require(type(state.round_number) is int and state.round_number >= 1, 'Invalid round number.')
     require(len(state.round_results) == state.round_number - (state.status is not GameStatus.FINISHED),
@@ -24,16 +24,21 @@ def validate_game_state(state):
         require(len({p.player_id for p in result.net_changes}) == len(result.net_changes)
                 and all(type(p.amount) is int for p in result.net_changes)
                 and sum(p.amount for p in result.net_changes) == 0, 'Invalid round net changes.')
-    if state.status is GameStatus.FINISHED:
-        require(tuple(p.amount for p in state.round_results[-1].net_changes) ==
-                tuple(p.chips - initial for p, initial in zip(state.players, state.config.initial_chips)),
-                'Ledger differs from settled balances.')
     require(state.pot == sum(p.total_contribution for p in state.players), 'Pot differs from contributions.')
-    require(sum(p.chips for p in state.players) + state.held_pot == sum(state.config.initial_chips),
-            'Chips were created or lost.')
-    payouts = {p.player_id: p.amount for p in state.settlement.payouts} if state.settlement else {}
-    require(all(p.chips == initial - p.total_contribution + payouts.get(p.player_id, 0)
-                for p, initial in zip(state.players, state.config.initial_chips)), 'Individual chip balance mismatch.')
+    contributions = dict.fromkeys(state.config.player_ids, 0)
+    for event in state.history:
+        if event.revision >= state.round_start_revision and event.kind in (
+                'BOOT_COLLECTED', 'BET_PLACED', 'SHOW_REQUESTED', 'SIDE_SHOW_REQUESTED'):
+            require(event.player_id in contributions and type(event.amount) is int and event.amount >= 0,
+                    'Invalid contribution event.')
+            contributions[event.player_id] += event.amount
+    require(all(p.total_contribution == contributions[p.player_id] for p in state.players),
+            'Individual contribution differs from recorded actions.')
+    if state.status is GameStatus.FINISHED:
+        payouts = {p.player_id: p.amount for p in state.settlement.payouts}
+        require(tuple((p.player_id, p.amount) for p in state.round_results[-1].net_changes) ==
+                tuple((p.player_id, payouts.get(p.player_id, 0) - p.total_contribution) for p in state.players),
+                'Ledger differs from payouts minus contributions.')
     if state.pending_show:
         request = state.pending_show
         require(state.status is GameStatus.IN_PROGRESS and state.pending_side_show is None,

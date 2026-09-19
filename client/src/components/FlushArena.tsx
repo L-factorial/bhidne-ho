@@ -59,7 +59,7 @@ export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot
   const index = current ? players.findIndex(p => p.player_id === current.player_id) : -1;
   return <View style={[s.arena, { height }]} onLayout={e => setWidth(e.nativeEvent.layout.width)} testID="flush-arena">
     <View style={[s.ellipse, { left: 34, width: Math.max(100, width - 68), top: 48, height: height - 96 }]} />
-    {!centerControl && <View style={[s.pot, { left: width / 2 - 58, top: height / 2 - 29 }]}><Text style={s.caption}>TOTAL POT</Text><Text testID="flush-pot" accessibilityLiveRegion="polite" style={s.potValue}>{potBeforeFlights(pub?.pot || 0, pending)}</Text><Text style={s.caption}>chips</Text></View>}
+    {!centerControl && <View style={[s.pot, { left: width / 2 - 58, top: height / 2 - 29 }]}><Text style={s.caption}>TOTAL POT</Text><Text testID="flush-pot" accessibilityLiveRegion="polite" style={s.potValue}>{potBeforeFlights(pub?.pot || 0, pending)}</Text><Text style={s.caption}>points</Text></View>}
     {players.map((p, i) => {
       const pos = playerPosition(i, players.length, width, height), folded = p.status !== 'active';
       const name = snapshot.players?.find(row => String(row.player_id) === p.player_id)?.display_name || `Player ${p.player_id}`;

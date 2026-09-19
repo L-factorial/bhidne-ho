@@ -7,13 +7,13 @@ export type FlushRules = {
   sequence_ace_policy: 'akq_first_a23_second' | 'a23_first' | 'a23_lowest';
   tie_policy: 'requester_loses' | 'split';
 };
-export type FlushSettings = { rules: FlushRules; starting_chips: number; rules_revision: number; locked: boolean };
+export type FlushSettings = { rules: FlushRules; rules_revision: number; locked: boolean };
 export type FlushView = {
   folds?: { sequence: number; revision: number; player_id: string }[];
   participants?: { player_id: string; display_name: string }[];
   bets?: import('./flushTable').FlushBet[];
   public: { pending_show: { requester_id: string; target_id: string } | null; revealed_hands: { player_id: string; cards: {rank: number; suit: string}[] }[]; round_number: number; next_dealer_id: string | null; round_results: { round_number: number; winner_ids: string[]; net_changes: { player_id: string; amount: number }[] }[]; pending_side_show: { requester_id: string; target_id: string; revision: number } | null; status: string; current_player_id: string | null; current_blind_bet: number; current_seen_bet: number; pot: number;
-    players: { player_id: string; status: string; visibility: string; chips: number; blind_bet_count: number; turn_bet_count: number; total_contribution: number }[];
+    players: { player_id: string; status: string; visibility: string; blind_bet_count: number; turn_bet_count: number; total_contribution: number }[];
     settlement: { winner_ids: string[]; payouts: { player_id: string; amount: number }[];
       shown_hands: { player_id: string; cards: { rank: number; suit: string }[] }[] } | null };
   private: { side_show: { opponent_id: string; opponent_cards: string[]; won: boolean; revision: number } | null; cards: string[]; actions: { kinds: string[]; required_bet: number; show_cost: number;

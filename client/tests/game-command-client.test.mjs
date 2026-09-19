@@ -92,3 +92,18 @@ test('a late duplicate acknowledgment cannot clear a newer pending intention', a
   finish(); await old;
   assert.equal(pending.request, next);
 });
+
+test('selected table stays pinned during polling and commands across table switches', async () => {
+  const urls = [];
+  let match = 'first';
+  const transport = createHttpGameTransport('http://local/test-games/room', 'token', async (url, options) => {
+    urls.push(url);
+    if (options.body) assert.equal(JSON.parse(options.body).match_id, match);
+    return { ok: true, json: async () => ({ match_id: match }) };
+  }, () => match);
+  await transport.snapshot(signal());
+  await transport.action({ match_id: match }, signal());
+  match = 'second';
+  await transport.snapshot(signal());
+  assert.deepEqual(urls, ['http://local/test-games/room?match_id=first', 'http://local/test-games/room/action', 'http://local/test-games/room?match_id=second']);
+});

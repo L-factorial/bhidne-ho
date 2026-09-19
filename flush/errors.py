@@ -13,10 +13,6 @@ class InvalidTurnError(FlushError):
     code = 'INVALID_TURN'
 
 
-class InsufficientChipsError(FlushError):
-    code = 'INSUFFICIENT_CHIPS'
-
-
 class UnsupportedRuleError(FlushError):
     code = 'UNSUPPORTED_RULE'
 

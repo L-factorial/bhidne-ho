@@ -6,14 +6,14 @@ import pytest
 
 from flush import (FlushGameEngine, FlushRulesConfig, GameStatus, Visibility, PlayerStatus,
                    Bet, SeeCards, Fold, Show, RevealCards, FlushError, InvalidActionError, InvalidTurnError,
-                   InsufficientChipsError, UnsupportedRuleError, TiePolicy, TerminationReason,
+                   UnsupportedRuleError, TiePolicy, TerminationReason,
                    validate_game_state, Card)
 from card_utils import standard_52
 
 
-def engine(n=2, chips=1000, seed=7, **rules):
+def engine(n=2, seed=7, **rules):
     ids = tuple(f'p{i}' for i in range(n))
-    e = FlushGameEngine(ids, initial_chips=dict.fromkeys(ids, chips),
+    e = FlushGameEngine(ids,
                         rules=FlushRulesConfig(boot_amount=rules.pop('boot_amount', 10),
                                               initial_blind_bet=rules.pop('initial_blind_bet', 10), **rules), rng=Random(seed))
     e.start_game()
@@ -42,7 +42,7 @@ def test_start_conservation_boot_turn_and_privacy(n):
     validate_game_state(s)
     assert s.current_player_id == 'p1' and s.revision == 3
     assert s.pot == 10 * n and len(s.stock) == 52 - 3 * n
-    assert all(p.chips == 990 and p.blind_bet_count == p.turn_bet_count == 0
+    assert all(p.total_contribution == 10 and p.blind_bet_count == p.turn_bet_count == 0
                and p.visibility is Visibility.BLIND and p.status is PlayerStatus.ACTIVE for p in s.players)
     assert all(e.get_player_view(p.player_id).cards == () for p in s.players)
     public = e.get_public_view().to_dict()
@@ -73,13 +73,12 @@ def test_seeing_is_immediate_regardless_of_side_show_threshold_and_retains_turn(
     assert e.get_state().players[1].turn_bet_count == 1
 
 
-def test_custom_multiplier_zero_boot_insufficient_bets_and_turns():
-    e = engine(chips=10, boot_amount=0, minimum_bet_rounds_before_side_show=0,
+def test_custom_multiplier_zero_boot_and_turns():
+    e = engine(boot_amount=0, minimum_bet_rounds_before_side_show=0,
                blind_to_seen_bet_multiplier=3)
     e.see_cards('p1')
     assert e.get_allowed_actions('p1').required_bet == 30
-    assert 'bet' not in e.get_allowed_actions('p1').kinds
-    unchanged(e, lambda: e.bet('p1', 30), InsufficientChipsError)
+    assert 'bet' in e.get_allowed_actions('p1').kinds
     unchanged(e, lambda: e.bet('p0', 10), InvalidTurnError)
     e.fold('p1')
     assert e.get_state().settlement.winner_ids == ('p0',)
@@ -90,6 +89,42 @@ def test_custom_multiplier_zero_boot_insufficient_bets_and_turns():
 def test_invalid_bets_are_atomic(amount):
     e = engine()
     unchanged(e, lambda: e.bet('p1', amount))
+
+
+def test_four_players_reduced_to_two_can_keep_betting_and_show():
+    e = engine(4)
+    e.see_cards('p1')
+    e.bet('p1', 512)
+    e.fold('p2')
+    e.fold('p3')
+    e.bet('p0', 256)
+    view = e.get_player_view('p1')
+    assert view.public.current_player_id == 'p1'
+    assert len(view.cards) == 3
+    assert view.actions.required_bet == view.actions.show_cost == 512
+    assert set(view.actions.kinds) == {'fold', 'bet', 'show'}
+    e.bet('p1', 1000000)
+    e.bet('p0', 500000)
+    assert set(e.get_allowed_actions('p1').kinds) == {'fold', 'bet', 'show'}
+    e.show('p1')
+    e.reveal_cards('p0')
+    assert e.get_state().status is GameStatus.FINISHED
+    assert sum(p.amount for p in e.get_state().round_results[-1].net_changes) == 0
+    validate_game_state(e.get_state())
+
+
+def test_large_boot_and_repeated_losses_do_not_prevent_another_round():
+    e = engine(boot_amount=1000000)
+    for round_number in range(1, 4):
+        e.fold('p1')
+        result = e.get_state().round_results[-1]
+        assert result.round_number == round_number
+        assert [p.amount for p in result.net_changes] == [1000000, -1000000]
+        assert 'chips' not in e.get_public_view().to_dict()['players'][0]
+        e.start_next_round('p0')
+        e.deal_cards('p0')
+        e.skip_cut('p1')
+        assert 'bet' in e.get_allowed_actions('p1').kinds
 
 
 def test_fold_skips_players_and_terminal_actions_are_rejected():
@@ -106,7 +141,7 @@ def test_fold_skips_players_and_terminal_actions_are_rejected():
     assert s.status is GameStatus.FINISHED and s.current_player_id is None
     assert s.settlement.reason is TerminationReason.LAST_PLAYER_REMAINING
     assert s.settlement.winning_hand is None and not s.settlement.shown_hands
-    assert s.held_pot == 0 and sum(p.chips for p in s.players) == 4000
+    assert s.held_pot == 0 and sum(p.amount for p in s.round_results[-1].net_changes) == 0
     for action in (Bet(10), SeeCards(), Fold(), Show(), object()):
         unchanged(e, lambda: e.apply_action('p0', action))
     assert all(not e.get_player_view(p.player_id).cards for p in s.players)
@@ -131,7 +166,7 @@ def test_show_eligibility_cost_and_reveals_only_final_two(blind):
     after = e.get_state()
     assert after.pot == before.pot + cost
     assert after.players[2].blind_bet_count == 1  # show is not a qualifying bet
-    assert sum(p.chips for p in after.players) == 3000
+    assert sum(p.amount for p in after.round_results[-1].net_changes) == 0
     shown = e.get_public_view().to_dict()['settlement']['shown_hands']
     assert {h['player_id'] for h in shown} == {'p0', 'p2'}
     assert 'p1' not in {p for p, cards in e.get_visible_events()[-1].shown_hands}
@@ -148,10 +183,11 @@ def test_show_flags(rules, seen):
     unchanged(e, lambda: e.show('p1'))
 
 
-def test_show_affordability_and_free_show():
-    e = engine(chips=10, minimum_blind_rounds_before_show=0)
-    unchanged(e, lambda: e.show('p1'), InsufficientChipsError)
-    e = engine(chips=10, minimum_blind_rounds_before_show=0, show_cost_multiplier=0)
+def test_paid_and_free_show():
+    e = engine(minimum_blind_rounds_before_show=0)
+    e.show('p1')
+    assert e.get_state().pot == 30
+    e = engine(minimum_blind_rounds_before_show=0, show_cost_multiplier=0)
     e.show('p1')
     assert e.get_state().pot == 20
 
@@ -184,13 +220,11 @@ def test_equal_hands_ties_and_odd_chips(policy, winners, payouts):
 
 def test_rules_and_inputs_are_frozen_deterministic_and_queries_pure():
     ids = ['a', 'b']
-    chips = dict.fromkeys(ids, 100)
     rng = Random(9)
     rules = FlushRulesConfig(1, 2)
-    a = FlushGameEngine(ids, initial_chips=chips, rules=rules, rng=rng)
-    b = FlushGameEngine(ids, initial_chips=chips, rules=rules, rng=Random(9))
+    a = FlushGameEngine(ids, rules=rules, rng=rng)
+    b = FlushGameEngine(ids, rules=rules, rng=Random(9))
     ids.reverse()
-    chips['a'] = 0
     rng.random()
     with pytest.raises(FrozenInstanceError):
         rules.boot_amount = 99
@@ -202,7 +236,7 @@ def test_rules_and_inputs_are_frozen_deterministic_and_queries_pure():
     b.skip_cut(b.get_state().current_player_id)
     for _ in range(10):
         unchanged(a, lambda: a.bet('unknown', 2))
-        a.get_player_view('a').to_dict()['public']['players'][0]['chips'] = -1
+        a.get_player_view('a').to_dict()['public']['players'][0]['total_contribution'] = -1
         a.get_public_view()
         a.get_visible_events()
         bet(a)
@@ -210,9 +244,8 @@ def test_rules_and_inputs_are_frozen_deterministic_and_queries_pure():
         assert a.get_state() == b.get_state()
 
 
-def test_rejected_start_and_all_waiting_commands_leave_rng_untouched():
-    e = FlushGameEngine(['a', 'b'], initial_chips={'a': 2, 'b': 20}, rules=FlushRulesConfig(10, 10), rng=Random(0))
-    unchanged(e, e.start_game, InsufficientChipsError)
+def test_all_waiting_commands_leave_rng_untouched():
+    e = FlushGameEngine(['a', 'b'], rules=FlushRulesConfig(10, 10), rng=Random(0))
     for action in (Bet(10), SeeCards(), Fold(), Show()):
         unchanged(e, lambda: e.apply_action('a', action))
     assert not e.get_public_view().rules_locked
@@ -264,7 +297,6 @@ def test_raises_update_both_minimums_without_lowering_stake(multiplier):
     assert e.get_public_view().current_seen_bet == raised
     assert e.get_allowed_actions('p0').required_bet == 5
     unchanged(e, lambda: e.bet('p0', 4))
-    unchanged(e, lambda: e.bet('p0', 10000))
     e.see_cards('p0')
     assert e.get_allowed_actions('p0').required_bet == raised
     e.bet('p0', raised)

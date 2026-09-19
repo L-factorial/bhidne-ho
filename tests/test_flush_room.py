@@ -24,11 +24,12 @@ def test_flush_room_settings_lock_privacy_turns_and_retries(capacity):
         waiting = post('', 0, {'game_type': 'flush', 'player_count': capacity}).json()
         mid = waiting['match_id']
         settings = waiting['flush_settings']
-        body = {'match_id': mid, 'rules_revision': 0, 'starting_chips': 1000,
+        assert 'starting_chips' not in settings
+        body = {'match_id': mid, 'rules_revision': 0,
                 'rules': {**settings['rules'], 'minimum_bet_rounds_before_side_show': 0}}
         assert post('/flush-settings', 1, body).status_code == 403
         for invalid in ({'boot_amount': True}, {'unknown': 3}, {'show_only_when_two_players_remain': False},
-                        {'maximum_players': capacity - 1}, {'boot_amount': 1001}):
+                        {'maximum_players': capacity - 1}, {'boot_amount': -1}):
             assert post('/flush-settings', 0, {**body, 'rules': {**body['rules'], **invalid}}).status_code == 422
         saved = post('/flush-settings', 0, body)
         assert saved.status_code == 200, saved.text
@@ -91,7 +92,7 @@ async def test_concurrent_save_start_and_failed_start_are_atomic(start_first):
     state = await host.create('r', 'a', 2, 'flush')
     mid = state['match_id']
     await host.join('r', 'b', mid)
-    body = FlushSettings(match_id=mid, rules_revision=0, rules=state['flush_settings']['rules'], starting_chips=200)
+    body = FlushSettings(match_id=mid, rules_revision=0, rules=state['flush_settings']['rules'])
     async def lock_and_start():
         await host.table_command('r', 'a', mid, 'lock')
         return await host.start('r', 'a', mid, rules_revision=0)
@@ -103,13 +104,6 @@ async def test_concurrent_save_start_and_failed_start_are_atomic(start_first):
     if not game.started:
         from app.test_games.http import RuleVote
         await host.vote_rules('r', 'b', RuleVote(match_id=mid, proposal_id=game.rule_proposal['id'], accept=True))
-        # Defense in depth: corrupt an internal bankroll, then verify startup installs nothing.
-        await host.table_command('r', 'a', mid, 'lock')
-        game.flush_starting_chips = 0
-        with pytest.raises(HTTPException):
-            await host.start('r', 'a', mid, rules_revision=game.flush_rules_revision)
-        assert game.flush_target is None and not game.started
-        game.flush_starting_chips = 200
         await host.table_command('r', 'a', mid, 'lock')
         await host.start('r', 'a', mid, rules_revision=game.flush_rules_revision)
     before = game.flush_target.adapter.revision
@@ -161,7 +155,7 @@ async def test_flush_join_and_lock_race_freezes_one_roster(join_first):
     await host.close()
 
 
-async def test_between_round_seating_creator_transfer_and_balance_history():
+async def test_between_round_seating_creator_transfer_and_ledger_history():
     rooms = RoomService(); host = Host(rooms, Delivery())
     for user in ['a', 'b', 'c']: await rooms.join('changing', user)
     waiting = await host.create('changing', 'a', 10, 'flush'); mid = waiting['match_id']
@@ -172,7 +166,6 @@ async def test_between_round_seating_creator_transfer_and_balance_history():
     e = game.flush_target.adapter.checkpoint()
     e.deal_cards(e.get_state().current_player_id); e.skip_cut(e.get_state().current_player_id)
     e.fold(e.get_state().current_player_id)
-    balances = {p.player_id: p.chips for p in e.get_state().players}
     before = e.get_state().round_results
     assert (await host.snapshot('changing', 'a'))['roster_open']
     await host.leave('changing', 'a', mid)
@@ -186,8 +179,7 @@ async def test_between_round_seating_creator_transfer_and_balance_history():
     assert not locked['roster_open']
     current = game.flush_target.adapter.checkpoint()
     assert current.get_state().config.player_ids == ('2', '3')
-    assert current.get_state().players[0].chips == balances['2']
-    assert current.get_state().players[1].chips == 1000
+    assert all(p.total_contribution == 0 for p in current.get_state().players)
     assert current.get_state().round_results == before
     assert current.get_state().round_number == 2
     with pytest.raises(HTTPException): await host.join('changing', 'a', mid)
@@ -197,7 +189,7 @@ async def test_between_round_seating_creator_transfer_and_balance_history():
     await host.table_command('changing', 'b', mid, 'lock')
     await host.start('changing', 'b', mid, rules_revision=0)
     final = game.flush_target.adapter.checkpoint().get_state()
-    assert final.players[-1].player_id == '1' and final.players[-1].chips == balances['1']
+    assert final.players[-1].player_id == '1'
     assert len(final.round_results) == 2
     await host.close()
 
@@ -265,3 +257,37 @@ async def test_flush_replacement_and_next_round_cannot_both_start(replace_first)
     assert current['game_type'] == ('marriage' if replace_first else 'flush')
     if not replace_first: assert not current['can_create_new_game']
     await host.close()
+
+
+async def test_unbounded_flush_results_reach_settlement_ledger_once():
+    from app.ledger import InMemoryLedgerStore, LedgerService
+    rooms = RoomService()
+    for user in ('a', 'b'):
+        await rooms.join('ledger-flush', user)
+    ledger = LedgerService(InMemoryLedgerStore(), rooms)
+    host = Host(rooms, Delivery(), ledger=ledger)
+    try:
+        waiting = await host.create('ledger-flush', 'a', 2, 'flush')
+        mid = waiting['match_id']
+        await host.join('ledger-flush', 'b', mid)
+        await host.table_command('ledger-flush', 'a', mid, 'lock')
+        await host.start('ledger-flush', 'a', mid, rules_revision=0)
+        game = host.games['ledger-flush']
+        e = game.flush_target.adapter.checkpoint()
+        e.deal_cards(e.get_state().current_player_id)
+        e.skip_cut(e.get_state().current_player_id)
+        loser = e.get_state().current_player_id
+        e.bet(loser, 1000000)
+        winner = e.get_state().current_player_id
+        e.bet(winner, 1000000)
+        e.fold(loser)
+        await host._record_completed_ledger(game)
+        await host._record_completed_ledger(game)
+        view = await ledger.snapshot('ledger-flush', 'a')
+        users = {str(seat): user for user, seat in game.flush_seats.items()}
+        assert {row['player_id']: row['amount'] for row in view['balances']} == {
+            users[winner]: 1000005, users[loser]: -1000005,
+        }
+        assert view['tables'][0]['game_count'] == 1
+    finally:
+        await host.close()

@@ -11,7 +11,7 @@ configurable. Room settings/editor/locking and adapters are now implemented; see
 ## Scope and repository fit
 
 Build one manually played Flush round with a fixed seated roster. The engine owns
-cards, turns, blind/seen eligibility, integer chips, contributions, hand comparison,
+cards, turns, blind/seen eligibility, integer points, contributions, hand comparison,
 and terminal settlement. No autoplay, timers, bots, networking, sessions, rooms,
 databases, cash transfers, or UI belong in this increment.
 
@@ -56,28 +56,26 @@ unknown or unsupported policies instead of silently ignoring them.
 | `initial_blind_bet` | Positive integer, explicitly configured independently of boot |
 | `sequence_ace_policy` | Pending: AKQ highest/A23 second, A23 highest, or A23 lowest |
 | `tie_policy` | Pending: requester loses or split pot |
-| `bet_policy` | Any whole-chip amount at least the current minimum, up to available chips |
+| `bet_policy` | Any whole-point amount at least the current minimum, without a bankroll limit |
 | `show_cost_multiplier` | Proposed 1 × requester's required bet; zero may support free-show variant |
 
 Validate exact integer types (booleans are not amounts), positive stakes, nonnegative
-thresholds, coherent player limits, supported enums, and chip balances before use.
-Reject NaN, infinity, fractional amounts, negative balances, and unknown IDs.
+thresholds, coherent player limits, supported enums, before use.
+Reject NaN, infinity, fractional amounts, negative contributions, and unknown IDs.
 
 Additional proposed decisions:
 
 - `SEE_CARDS` is current-player-only, does not advance the turn, and is rejected
   when already seen. No existing Flush convention overrides the supplied example.
-- Caller supplies each seat's initial chips and a dealer ID; default dealer is
+- Caller supplies the seated player IDs and a dealer ID; default dealer is
   the first roster seat. First betting player is the next seat after the dealer,
   matching Call Break's circular betting convention. Deal three passes beginning
   at that seat. Random dealer selection belongs to a future host.
-- When boot is enabled, all seats must afford it or startup rejects atomically.
-  Startup collects boot automatically, without consuming a turn or incrementing
+- When boot is enabled, completing the deal records boot automatically, without consuming a turn or incrementing
   either bet counter. With zero boot, startup collects nothing; circular betting
   still begins at the configured positive initial blind stake.
-- V1 has no all-in, side pots, credit, top-ups, or automatic folds. An unaffordable
-  bet/show rejects and the player may fold. A zero-chip active seat still receives
-  its turn so the engine cannot stall by skipping it without settlement.
+- Betting is unbounded. Each active player receives a turn regardless of prior
+  contributions; there are no balances, top-ups, all-ins, or automatic folds.
 - Show cost, if adopted, is debited once as part of the same terminal transaction.
   It is a contribution, not a qualifying blind betting turn.
 - `turn_bet_count` counts accepted BET actions, including blind and seen bets.
@@ -86,7 +84,7 @@ Additional proposed decisions:
   the two compared hands. Folded/out hands and undealt cards remain hidden forever.
 - For equal ranks, never use suit or arbitrary roster order as an undocumented
   tie breaker. If split is selected, return multiple winners and explicit payouts;
-  allocate any odd chip clockwise after the dealer among tied winners.
+  allocate any odd point clockwise after the dealer among tied winners.
 
 ### Confirmed show restriction and blind eligibility
 
@@ -129,7 +127,7 @@ permission logic into the standalone engine:
    edits. A failed edit preserves the previous valid configuration.
 3. Start includes the match ID and the rules revision the creator reviewed.
    Under the same room lock used for settings changes, verify creator ownership,
-   a full roster, revision, and chip affordability. Construct the engine with a
+   a valid roster and revision. Construct the engine with a
    frozen copy of those saved rules, and collect boot/deal atomically.
 4. After successful start, reject every settings change on the server, including
    requests from the creator. Disabled UI inputs alone are insufficient. Failed
@@ -151,8 +149,8 @@ edits, reconnect, and starting a new game with a distinct rules snapshot.
 
 ### Betting extension boundary
 
-`BET(amount)` accepts a whole-chip amount at least the actor's current minimum,
-up to their available chips. New rooms start at blind 1 / seen 2. Blind bets set
+`BET(amount)` accepts a whole-point amount at least the actor's current minimum,
+without a bankroll limit. New rooms start at blind 1 / seen 2. Blind bets set
 the seen minimum to amount × configured multiplier. Seen bets set the seen minimum
 to that exact amount and blind minimum to ceil(amount / multiplier). Both minimums
 are published, so an odd seen bet stays exact until the next blind bet updates it.
@@ -162,9 +160,9 @@ Boot is collected once and does not change the betting minimums.
 
 Proposed immutable domain types:
 
-- `FlushRulesConfig`, `FlushConfig`: rules, ordered seats, initial chips, dealer.
+- `FlushRulesConfig`, `FlushConfig`: rules, ordered seats, dealer.
 - `PlayerState`: ID, three-card tuple, ACTIVE/FOLDED/OUT status, BLIND/SEEN
-  visibility, chips, total contribution, blind-bet and total-bet counters.
+  visibility, total contribution, blind-bet and total-bet counters.
 - `FlushGameState`: config, players, undealt stock, phase, current seat, blind
   stake, historical pot, revision, event history, and optional settlement.
 - `RoundSettlement`: termination reason, ordered winners, payouts, compared hands
@@ -187,7 +185,7 @@ PLAYING --SHOW--> FINISHED
 ```
 
 Validate, stage a candidate, audit it, and commit state/revision/events/RNG together.
-Each accepted action increments revision once. Rejections preserve chips, cards,
+Each accepted action increments revision once. Rejections preserve contributions, cards,
 turn, stake, counters, history, event sequence, and RNG state. Terminal state has
 no current player and rejects every mutation, including another start.
 
@@ -200,7 +198,7 @@ fixtures; deterministic tests are not a promise of cryptographic fairness.
 ## Public API and visibility
 
 ```python
-FlushGameEngine(player_ids, *, initial_chips, rules, rng=None, dealer_id=None)
+FlushGameEngine(player_ids, *, rules, rng=None, dealer_id=None)
 engine.start_game()
 engine.apply_action(player_id, action)
 engine.bet(player_id, amount)
@@ -216,7 +214,7 @@ engine.get_state()  # trusted server diagnostics only
 `evaluate_see_eligibility` and `evaluate_show_eligibility` return a typed allowed
 flag and stable rejection reason. Queries and mutation handlers use the same
 helpers so offered actions cannot contradict domain validation. Available actions
-include required bet/show cost and affordability without inspecting hidden ranks.
+include required bet/show cost and eligibility without inspecting hidden ranks.
 
 Public/player views must be explicit allowlists, never raw-state serialization
 followed by field removal. Include only safe primitives, enums, and immutable
@@ -260,23 +258,24 @@ the evaluator; equality is a valid comparison result.
 
 ## Accounting and invariants
 
-Use integer in-game chip units only. No payment gateway or wallet abstraction.
+Use integer point units only. No payment gateway or wallet abstraction.
 Retain `pot == sum(total_contribution)` as historical round accounting, including
 boot and show cost. Before settlement the pot is held; after settlement it is
 credited once and the held balance is zero. Derive held pot from settlement status
 rather than clearing contributions or counting the historical pot twice.
 
 ```text
-Before settlement: sum(player.chips) + pot == sum(initial_chips)
-After settlement:  sum(player.chips) == sum(initial_chips)
-                   sum(payouts) == pot == sum(contributions)
+Throughout: pot == sum(contributions)
+After settlement: sum(payouts) == pot
+                  net_result = payout - contribution
+                  sum(net_results) == 0
 ```
 
 Audit canonical card conservation: all hands plus stock equal the exact standard
 52-card multiset. Folded hands remain in ownership storage; view/event references
 are not extra card locations. Every started seat retains three cards.
 
-Audit nonnegative chips/contributions, monotone counters, blind count <= total
+Audit nonnegative contributions, monotone counters, blind count <= total
 bet count, exactly one actionable active seat while playing, at least two active
 seats while playing, consistent terminal reason/winners, and no unsettled terminal
 pot. Unknown/malformed actions and wrong-turn requests do not alter state.
@@ -302,11 +301,11 @@ Call Break or Marriage gameplay, shared card types, runtime, HTTP routes, or UI.
 
 | Increment | Work | Acceptance gate |
 | --- | --- | --- |
-| 1 | Freeze rule decisions; foundation, actions, errors, exports, packaging | Strict rules/seats/chips validation; immutable types; import independence |
+| 1 | Freeze rule decisions; foundation, actions, errors, exports, packaging | Strict rules/seats/contributions validation; immutable types; import independence |
 | 2 | Transactional startup, boot, dealer ordering, view/event skeleton, audits | Three unique cards per seat; blind views hide cards; exact boot accounting; seeded reproducibility; rejected startup unchanged |
 | 3 | Betting, seeing, folding, eligibility, turn helpers | Seeing is immediate; personal bet counts below the configured minimum reject side-show; multiplier tests; explicit fold; skips folded seats; no hidden-card leak |
 | 4 | Independent evaluator | Every category/tie breaker; all Ace policies; permutation invariance; equal hands; malformed input |
-| 5 | Show and both terminal paths with settlement | Exactly-two eligibility; blind thresholds/flags; cost/affordability; correct payouts/ties; fold-win privacy; terminal rejection |
+| 5 | Show and both terminal paths with settlement | Exactly-two eligibility; blind thresholds/flags; cost accounting; correct payouts/ties; fold-win privacy; terminal rejection |
 | 6 | Contract hardening and standalone release | Adversarial state/action matrix; deterministic simulations; full regression suite; example and wheel/import verification |
 
 Introduce privacy and invariants during startup, not as a final patch after
@@ -318,7 +317,7 @@ separate plan after this core contract is stable.
 
 - Default seats 2–5 plus configured limits and the 17-seat deck capacity boundary.
 - All actions in WAITING/PLAYING/FINISHED, wrong/unknown/folded actor, wrong amount,
-  repeated seeing, insufficient boot/bet/show chips, and all rule-toggle boundaries.
+  repeated seeing, unbounded boot/bet/show contributions, and all rule-toggle boundaries.
 - Seeing retains turn; boot, show, folds, failed bets, and seen bets never increment
   blind eligibility. Test nondefault multiplier/thresholds, including zero threshold.
 - Two-person show with all blind/seen combinations; three-plus show rejected;
@@ -329,7 +328,7 @@ separate plan after this core contract is stable.
   states; check exact permitted cards and absence of stock, ranks, and private
   evaluator metadata. Test immutable snapshots and invalid-event fail-closed paths.
 - Audit after every accepted action and assert full state/RNG equality after every
-  rejection. Seeded legal/illegal interleavings must conserve cards and chips.
+  rejection. Seeded legal/illegal interleavings must conserve cards and zero-sum results.
 - Static import boundary and `python -I -S` standalone scenario; build/install a
   wheel outside the repo to verify package inclusion, not just local imports.
 - Run `python -m pytest tests/flush -q`, then the existing full backend suite.
@@ -349,4 +348,4 @@ fee, decline, tie, turn, and privacy semantics.
 
 Seeing your own cards is available on your turn immediately, without prior bets. The configurable personal bet minimum applies only to requesting side-show.
 
-Betting minimums: new rooms start with blind 1 and seen 2 (default multiplier 2). A blind bet sets the seen minimum to amount × multiplier. A seen bet sets the seen minimum to that exact amount and the blind minimum to ceil(amount / multiplier). Bets below the current minimum or above available chips reject atomically. Boot and final-show fees do not raise the stake.
+Betting minimums: new rooms start with blind 1 and seen 2 (default multiplier 2). A blind bet sets the seen minimum to amount × multiplier. A seen bet sets the seen minimum to that exact amount and the blind minimum to ceil(amount / multiplier). Bets below the current minimum reject atomically. There is no bankroll limit. Boot and final-show fees do not raise the stake.

@@ -22,7 +22,7 @@ async def propose(host, game):
             scoring={**snapshot['marriage_scoring'], 'seen_payment': 7}))
     settings = snapshot['flush_settings']
     return await host.configure_flush('r', 'u0', FlushSettings(match_id=game.match_id,
-        rules_revision=settings['rules_revision'], rules={**settings['rules'], 'initial_blind_bet': 7}, starting_chips=500))
+        rules_revision=settings['rules_revision'], rules={**settings['rules'], 'initial_blind_bet': 7}))
 
 
 def current(snapshot):

@@ -9,7 +9,7 @@ from app.adapters.flush.contracts import OutboundEvent, RoutedEvent, COMMAND_SPE
 
 
 def adapter():
-    return FlushAdapter(FlushGameEngine(['1', '2'], initial_chips={'1': 100, '2': 100},
+    return FlushAdapter(FlushGameEngine(['1', '2'],
         rules=FlushRulesConfig(5, 10, minimum_bet_rounds_before_side_show=0, minimum_blind_rounds_before_show=0),
         rng=Random(4)), match_id='m', owner_player_id='1')
 
@@ -136,7 +136,7 @@ async def test_side_show_target_authorization_retry_and_private_unicast():
     from app.runtime.game_registry import GameRegistry
     from app.runtime.command_runtime import CommandRuntime
     from app.models.action import ReliableActionCommand
-    e = FlushGameEngine(['1','2','3'], initial_chips=dict.fromkeys(['1','2','3'], 1000),
+    e = FlushGameEngine(['1','2','3'],
         rules=FlushRulesConfig(5, 10, allow_side_show=True, minimum_bet_rounds_before_side_show=0), rng=Random(5))
     a = FlushAdapter(e, match_id='side', owner_player_id='1')
     registry = GameRegistry()

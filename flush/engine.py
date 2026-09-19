@@ -1,5 +1,4 @@
 """Marriage-style transactional facade. Callers serialize use of each instance."""
-from collections.abc import Mapping
 from dataclasses import replace
 from random import Random
 from card_utils import standard_52, shuffle, deal
@@ -7,7 +6,7 @@ from .actions import RevealCards, StartNextRound, DealCards, CutDeck, SkipCut, B
 from .side_show import SideShowRequest, SideShowResult, evaluate_side_show_eligibility, previous_seen_player
 from .evaluator import FlushHandEvaluator
 from .enums import GameStatus, PlayerStatus, Visibility
-from .errors import InvalidActionError, InsufficientChipsError
+from .errors import InvalidActionError
 from .events import ActionResult, DomainEvent, ShownHand
 from .models import FlushConfig, FlushGameState, PlayerState, RoundResult, Payout, ShowRequest
 from .invariants import validate_game_state
@@ -24,23 +23,20 @@ class FlushGameEngine:
     Rules are frozen at construction; no command changes them. Authentication,
     command receipts, expected-revision checks, and concurrency belong to the host.
     """
-    def __init__(self, player_ids, *, initial_chips, rules, rng=None, dealer_id=None):
+    def __init__(self, player_ids, *, rules, rng=None, dealer_id=None):
         if isinstance(player_ids, (str, bytes)):
             raise ValueError('Supply a sequence of player IDs.')
         ids = tuple(player_ids)
         if not ids or any(not isinstance(p, str) or not p.strip() for p in ids):
             raise ValueError('Players must have nonempty string IDs.')
-        if not isinstance(initial_chips, Mapping) or set(initial_chips) != set(ids):
-            raise ValueError('Supply initial chips mapped to exactly the seated player IDs.')
-        config = FlushConfig(ids, tuple(initial_chips[p] for p in ids), rules,
+        config = FlushConfig(ids, rules,
                              ids[0] if dealer_id is None else dealer_id)
         if rng is not None and not isinstance(rng, Random):
             raise ValueError('rng must be a random.Random instance.')
         self._rng = Random()
         if rng is not None:
             self._rng.setstate(rng.getstate())
-        self._state = FlushGameState(config, tuple(PlayerState(p, chips) for p, chips in
-                                                  zip(ids, config.initial_chips)))
+        self._state = FlushGameState(config, tuple(PlayerState(p) for p in ids))
         validate_game_state(self._state)
 
     def get_state(self):
@@ -80,9 +76,6 @@ class FlushGameEngine:
         state = self._state
         if state.status is not GameStatus.WAITING:
             raise InvalidActionError('Game has already started.')
-        boot = state.config.rules.boot_amount
-        if any(p.chips < boot for p in state.players):
-            raise InsufficientChipsError('Every player must afford the boot.')
         candidate = replace(state, status=GameStatus.AWAITING_DEAL,
                             current_seat=state.config.player_ids.index(state.config.dealer_id))
         return self._commit(candidate, [('GAME_STARTED', {}),
@@ -91,16 +84,13 @@ class FlushGameEngine:
     def start_next_round(self, player_id):
         return self.prepare_next_round(player_id)
 
-    def prepare_next_round(self, player_id, *, player_ids=None, initial_chips=None):
+    def prepare_next_round(self, player_id, *, player_ids=None):
         state = self._state
         if state.status is not GameStatus.FINISHED or (player_ids is None and player_id != state.settlement.winner_ids[0]):
             raise InvalidActionError('Only the previous winner can start the next round.')
         ids = tuple(player_ids) if player_ids is not None else state.config.player_ids
-        balances = initial_chips if initial_chips is not None else {p.player_id: p.chips for p in state.players}
-        config = FlushConfig(ids, tuple(balances[p] for p in ids), state.config.rules, player_id)
-        if any(chips < state.config.rules.boot_amount for chips in config.initial_chips):
-            raise InsufficientChipsError('Every player must afford the boot for the next round.')
-        candidate = FlushGameState(config, tuple(PlayerState(p, balances[p]) for p in ids),
+        config = FlushConfig(ids, state.config.rules, player_id)
+        candidate = FlushGameState(config, tuple(PlayerState(p) for p in ids),
             status=GameStatus.AWAITING_DEAL, current_seat=config.player_ids.index(player_id),
             revision=state.revision, history=state.history, round_number=state.round_number + 1,
             round_start_revision=state.revision + 1, round_results=state.round_results)
@@ -137,7 +127,7 @@ class FlushGameEngine:
         players = list(state.players)
         for offset, cards in enumerate(hands):
             seat = (first + offset) % len(players)
-            players[seat] = replace(players[seat], cards=cards, chips=players[seat].chips - boot,
+            players[seat] = replace(players[seat], cards=cards,
                                     total_contribution=boot)
         candidate = replace(state, players=tuple(players), stock=stock, status=GameStatus.IN_PROGRESS,
                             current_seat=first, current_blind_bet=state.config.rules.initial_blind_bet,
@@ -159,9 +149,7 @@ class FlushGameEngine:
         p = require_turn(state, player_id)
         if type(amount) is not int or amount < required_bet(state, p):
             raise InvalidActionError('Bet must be a whole number at least the current minimum.')
-        if p.chips < amount:
-            raise InsufficientChipsError('Not enough chips to bet; you may fold.')
-        candidate = self._replace_player(replace(p, chips=p.chips - amount,
+        candidate = self._replace_player(replace(p,
             total_contribution=p.total_contribution + amount, turn_bet_count=p.turn_bet_count + 1,
             blind_bet_count=p.blind_bet_count + int(p.visibility is Visibility.BLIND)))
         multiplier = state.config.rules.blind_to_seen_bet_multiplier
@@ -180,9 +168,10 @@ class FlushGameEngine:
 
     def _finish(self, candidate, events):
         result = candidate.settlement
+        payouts = {p.player_id: p.amount for p in result.payouts}
         ledger = RoundResult(candidate.round_number, result.winner_ids,
-            tuple(Payout(p.player_id, p.chips - initial)
-                  for p, initial in zip(candidate.players, candidate.config.initial_chips)))
+            tuple(Payout(p.player_id, payouts.get(p.player_id, 0) - p.total_contribution)
+                  for p in candidate.players))
         candidate = replace(candidate, round_results=candidate.round_results + (ledger,))
         return self._commit(candidate, events + [('ROUND_FINISHED', {
             'winner_ids': result.winner_ids, 'amount': candidate.pot, 'shown_hands': result.shown_hands})])
@@ -202,7 +191,7 @@ class FlushGameEngine:
         require_eligible(self.can_show(player_id))
         p = require_turn(self._state, player_id)
         cost = show_cost(self._state, p)
-        candidate = self._replace_player(replace(p, chips=p.chips - cost,
+        candidate = self._replace_player(replace(p,
                                                 total_contribution=p.total_contribution + cost))
         target = next(p for p in active_players(candidate) if p.player_id != player_id)
         shown = (ShownHand(player_id, p.cards),)
@@ -239,7 +228,7 @@ class FlushGameEngine:
         p = require_turn(state, player_id)
         target = previous_seen_player(state, player_id)
         amount = required_bet(state, p)
-        candidate = self._replace_player(replace(p, chips=p.chips - amount,
+        candidate = self._replace_player(replace(p,
             total_contribution=p.total_contribution + amount, turn_bet_count=p.turn_bet_count + 1))
         candidate = replace(candidate, pot=candidate.pot + amount,
             pending_side_show=SideShowRequest(player_id, target.player_id, state.revision + 1),

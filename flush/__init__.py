@@ -12,7 +12,7 @@ from .events import ActionResult, DomainEvent, ShownHand
 from .queries import AllowedActions, PlayerView, PublicGameView, PublicPlayerView
 from .visibility import VisibleEvent
 from .turns import Eligibility, evaluate_see_eligibility, evaluate_show_eligibility
-from .errors import (FlushError, InvalidActionError, InvalidTurnError, InsufficientChipsError,
+from .errors import (FlushError, InvalidActionError, InvalidTurnError,
                      UnsupportedRuleError, InvariantError)
 from .invariants import validate_game_state
 
@@ -26,6 +26,6 @@ __all__ = [
     'FlushHandEvaluator', 'FlushHandResult', 'ActionResult', 'DomainEvent', 'ShownHand',
     'AllowedActions', 'PlayerView', 'PublicGameView', 'PublicPlayerView', 'VisibleEvent',
     'Eligibility', 'evaluate_see_eligibility', 'evaluate_show_eligibility',
-    'FlushError', 'InvalidActionError', 'InvalidTurnError', 'InsufficientChipsError',
+    'FlushError', 'InvalidActionError', 'InvalidTurnError',
     'UnsupportedRuleError', 'InvariantError', 'validate_game_state',
 ]

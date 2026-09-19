@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from .enums import GameStatus, PlayerStatus, Visibility
-from .errors import InvalidActionError, InvalidTurnError, InsufficientChipsError
+from .errors import InvalidActionError, InvalidTurnError
 
 
 def find_player(state, player_id):
@@ -78,15 +78,13 @@ def evaluate_show_eligibility(state, player_id):
                 raise InvalidActionError('Too many active players for blind show.')
         elif not rules.allow_seen_show:
             raise InvalidActionError('Seen show is disabled.')
-        if player.chips < show_cost(state, player):
-            raise InsufficientChipsError('Not enough chips to show.')
         return Eligibility(True)
-    except (InvalidActionError, InvalidTurnError, InsufficientChipsError) as error:
+    except (InvalidActionError, InvalidTurnError) as error:
         return Eligibility(False, str(error), error.code)
 
 
 def require_eligible(result):
     if not result.allowed:
-        error = {'INVALID_TURN': InvalidTurnError, 'INSUFFICIENT_CHIPS': InsufficientChipsError}.get(
+        error = {'INVALID_TURN': InvalidTurnError}.get(
             result.code, InvalidActionError)
         raise error(result.reason)

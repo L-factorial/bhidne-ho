@@ -5,13 +5,12 @@ from .enums import GameStatus, PlayerStatus, Visibility, TerminationReason
 from .events import DomainEvent, ShownHand, ShownHand
 from .evaluator import FlushHandResult
 from .side_show import SideShowRequest, SideShowResult
-from .rules import FlushRulesConfig, integer
+from .rules import FlushRulesConfig
 
 
 @dataclass(frozen=True)
 class FlushConfig:
     player_ids: tuple[str, ...]
-    initial_chips: tuple[int, ...]
     rules: FlushRulesConfig
     dealer_id: str
 
@@ -19,7 +18,6 @@ class FlushConfig:
         if isinstance(self.player_ids, (str, bytes)):
             raise ValueError('Supply a sequence of player IDs.')
         object.__setattr__(self, 'player_ids', tuple(self.player_ids))
-        object.__setattr__(self, 'initial_chips', tuple(self.initial_chips))
         if not isinstance(self.rules, FlushRulesConfig):
             raise ValueError('FlushRulesConfig is required.')
         if any(not isinstance(p, str) or not p.strip() for p in self.player_ids):
@@ -30,16 +28,11 @@ class FlushConfig:
             raise ValueError('Player count is outside configured limits.')
         if self.dealer_id not in self.player_ids:
             raise ValueError('Dealer must occupy a seat.')
-        if len(self.initial_chips) != len(self.player_ids):
-            raise ValueError('Supply initial chips for every seat.')
-        for chips in self.initial_chips:
-            integer(chips, 'initial_chips')
 
 
 @dataclass(frozen=True)
 class PlayerState:
     player_id: str
-    chips: int
     cards: tuple[Card, ...] = ()
     status: PlayerStatus = PlayerStatus.ACTIVE
     visibility: Visibility = Visibility.BLIND

@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def new():
-    return FlushGameEngine(['a', 'b'], initial_chips={'a': 100, 'b': 100},
+    return FlushGameEngine(['a', 'b'],
                            rules=FlushRulesConfig(5, 10, minimum_bet_rounds_before_side_show=0,
                                                   minimum_blind_rounds_before_show=0), rng=Random(12))
 
@@ -31,7 +31,7 @@ import sys
 sys.path.insert(0, sys.argv[1])
 from flush import FlushGameEngine, FlushRulesConfig
 from random import Random
-engine = FlushGameEngine(['a', 'b'], initial_chips={'a': 100, 'b': 100}, rules=FlushRulesConfig(5, 10), rng=Random(1))
+engine = FlushGameEngine(['a', 'b'], rules=FlushRulesConfig(5, 10), rng=Random(1))
 engine.start_game()
 engine.deal_cards(engine.get_state().current_player_id)
 engine.skip_cut(engine.get_state().current_player_id)
@@ -89,7 +89,7 @@ def test_audit_detects_card_accounting_and_turn_corruption():
     s = e.get_state()
     for broken in (replace(s, stock=s.stock[:-1]), replace(s, pot=s.pot + 1),
                    replace(s, current_seat=8), replace(s, current_blind_bet=20),
-                   replace(s, players=(replace(s.players[0], chips=96), replace(s.players[1], chips=94)))):
+                   replace(s, players=(replace(s.players[0], total_contribution=6), replace(s.players[1], total_contribution=4)))):
         with pytest.raises(InvariantError):
             validate_game_state(broken)
 
@@ -125,9 +125,7 @@ def test_privacy_matrix_fold_win_and_event_cursors():
         e.get_visible_events()
 
 
-@pytest.mark.parametrize('ids,balances', [(['a'], {'a': 100}), (['a', 'a'], {'a': 100}),
-    (['a', 'b'], {'a': 100}), (['a', 'b'], {'a': 100, 'b': True}),
-    (['a', 'b'], {'a': 100, 'b': -1}), (['a', ''], {'a': 100, '': 100})])
-def test_bad_rosters_and_balances(ids, balances):
+@pytest.mark.parametrize('ids', [['a'], ['a', 'a'], ['a', '']])
+def test_bad_rosters(ids):
     with pytest.raises(ValueError):
-        FlushGameEngine(ids, initial_chips=balances, rules=FlushRulesConfig(5, 10))
+        FlushGameEngine(ids, rules=FlushRulesConfig(5, 10))

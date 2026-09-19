@@ -25,7 +25,7 @@ type Trick = { trick_number: number; plays: { player_id: number; card: string }[
 export type RoomSnapshot = {
   rule_proposal?: RuleProposalView | null; chat_enabled?: boolean;
   room_id?: string; table_name?: string; path?: string;
-  tables?: { match_id: string; name: string; game_type: 'callbreak' | 'marriage' | 'flush'; status: string; players: number; capacity: number }[];
+  tables?: import('../multiplayer/tableNavigation').TableSummary[];
   can_create_new_game?: boolean;
   roster_open?: boolean;
   table?: import('../components/TableControls').TableView;

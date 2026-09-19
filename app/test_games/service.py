@@ -66,10 +66,8 @@ class HostedGame:
     flush_target: object | None = None
     flush_queries: dict = field(default_factory=dict)
     flush_seats: dict = field(default_factory=dict)
-    flush_balances: dict = field(default_factory=dict)
     flush_rules: FlushRulesConfig = field(default_factory=lambda: FlushRulesConfig(5, 1))
     flush_rules_revision: int = 0
-    flush_starting_chips: int = 1000
     marriage_target: object | None = None
     marriage_queries: dict = field(default_factory=dict)
     marriage_moves: list[dict] = field(default_factory=list)
@@ -241,10 +239,19 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         result = self._game_snapshot(game, user_id)
         result["table_name"] = game.name
         result["path"] = f"{game.room_id}/{game.name}"
-        result["tables"] = [{"match_id": g.match_id, "name": g.name, "game_type": g.game_type,
-                              "status": "ended" if g.ended else "finished" if g.finished else "playing" if g.started else "waiting",
-                              "players": len(g.table.seats(g)), "capacity": g.capacity}
-                             for g in self._room_games(game.room_id)]
+        result["tables"] = []
+        for hosted in self._room_games(game.room_id):
+            view = hosted.table.view(hosted, user_id)
+            result["tables"].append({
+                "match_id": hosted.match_id, "name": hosted.name, "game_type": hosted.game_type,
+                "status": "ended" if hosted.ended else "finished" if hosted.finished else "playing" if hosted.started else "waiting",
+                "players": len(view["seated_players"]), "capacity": hosted.capacity,
+                "phase": view["phase"], "queue_size": len(view["queue"]),
+                "current_user": view["current_user"],
+                "seated_players": [{"seat_id": seat["seat_id"], "display_name":
+                    self.profiles.name(seat["user_id"], seat["seat_id"]) if self.profiles else f"Player {seat['seat_id']}"}
+                    for seat in view["seated_players"]],
+            })
         result["rule_proposal"] = self._proposal_view(game, user_id)
         result["active_game"] = self.membership(game.room_id, user_id)
         result["chat_enabled"] = not self.chat_blocked(game.room_id, user_id)
@@ -337,7 +344,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             "can_join": not game.ended and game.flush_open and seat is None and len(game.users) < game.capacity,
             "play_mode": "manual", "remaining_ms": None, "error": game.error,
             "flush_settings": {"rules": asdict(game.flush_rules), "rules_revision": game.flush_rules_revision,
-                "starting_chips": game.flush_starting_chips, "locked": game.started or game.ended},
+                "locked": game.started or game.ended},
         }
         if game.flush_target:
             adapter = game.flush_target.adapter
@@ -375,11 +382,9 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                     raise ValueError("Flush tables require limits of 2 to 10 players.")
                 if not rules.minimum_players <= game.capacity <= rules.maximum_players:
                     raise ValueError("Player limits must include this room's seat count.")
-                if rules.boot_amount > body.starting_chips:
-                    raise ValueError("Starting chips must cover the boot for every player.")
             except (ValueError, TypeError, FlushError) as error:
                 raise HTTPException(422, str(error)) from error
-            self._propose(game, user_id, {"rules": asdict(rules), "starting_chips": body.starting_chips})
+            self._propose(game, user_id, {"rules": asdict(rules)})
             await self._publish(game)
             return self._snapshot(game, user_id)
 
@@ -700,18 +705,15 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                 if game.flush_target:
                     engine = deepcopy(game.flush_target.adapter.checkpoint())
                     old = engine.get_state()
-                    balances = {**game.flush_balances, **{p.player_id: p.chips for p in old.players}}
                     dealer = next((p for p in old.settlement.winner_ids if p in seats), owner)
                     try:
-                        engine.prepare_next_round(dealer, player_ids=seats,
-                            initial_chips={p: balances.get(p, game.flush_starting_chips) for p in seats})
+                        engine.prepare_next_round(dealer, player_ids=seats)
                     except (FlushError, ValueError) as error:
                         raise HTTPException(409, str(error)) from error
                     adapter = FlushAdapter(engine, match_id=game.match_id, owner_player_id=owner)
-                    game.flush_balances = balances
                 else:
                     adapter = FlushAdapter(FlushGameEngine(seats,
-                        initial_chips=dict.fromkeys(seats, game.flush_starting_chips), rules=game.flush_rules,
+                        rules=game.flush_rules,
                         dealer_id=self._random.choice(seats)), match_id=game.match_id, owner_player_id=owner)
                     outcome = adapter.dispatch_player(FlushCommand(match_id=game.match_id, command_id=uuid4().hex,
                         expected_revision=0, command="START_GAME"), player_id=owner)
@@ -794,7 +796,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
 
     def _locked_rules(self, game):
         if game.game_type == "flush":
-            return {"rules": asdict(game.flush_rules), "starting_chips": game.flush_starting_chips}
+            return {"rules": asdict(game.flush_rules)}
         if game.game_type == "marriage":
             return {"scoring": asdict(game.marriage_scoring)}
         return dict(game.settings)
@@ -807,7 +809,6 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             "play_mode": game.play_mode,
             "flush_target": game.flush_target,
             "flush_queries": game.flush_queries,
-            "flush_balances": game.flush_balances,
             "marriage_target": game.marriage_target,
             "durable_definition": game.durable_definition,
             "durable_ownership": game.durable_ownership,
@@ -910,8 +911,8 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             if state.settlement:
                 game_id = uuid5(NAMESPACE_URL, f"bhidne-ho:{game.match_id}:flush:{state.round_number}").hex
                 user_by_seat = {str(seat): user for user, seat in game.flush_seats.items()}
-                amounts = {user_by_seat[player.player_id]: player.chips - state.config.initial_chips[index]
-                           for index, player in enumerate(state.players)}
+                amounts = {user_by_seat[row.player_id]: row.amount
+                           for row in state.round_results[-1].net_changes}
         elif game.state and game.state.phase == Phase.MATCH_COMPLETE:
             # Placement bets are unambiguous only when every final score differs.
             ranked = sorted(enumerate(game.state.score_tenths), key=lambda row: (-row[1], row[0]))

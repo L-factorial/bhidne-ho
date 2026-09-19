@@ -1,4 +1,5 @@
-import { ShareLink } from './ShareLink';
+import { TableCard } from './TableCard';
+import type { TableEntry } from '../multiplayer/tableNavigation';
 import { RuleProposal } from './RuleProposal';
 import { TableControls } from './TableControls';
 import { GameTableHeader } from './GameTableHeader';
@@ -35,9 +36,7 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
   const insets = useSafeAreaInsets();
   const social = useRoomPokes(roomId, userId, token, connected);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [joinOpen, setJoinOpen] = useState(false);
-  const [dismissedInvitation, setDismissedInvitation] = useState<string | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [seatConflict, setSeatConflict] = useState<GameRequestDetail | null>(null);
   useEffect(() => { onOpenChange?.(open); }, [open, onOpenChange]);
@@ -46,7 +45,6 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
   const collapsed = !open && live && !!snapshot && snapshot.status !== 'empty';
   const notification = useGameNotification(snapshot, collapsed);
   function collapseGame() { notification.prepare(); setOpen(false); }
-  const enteredMatch = useRef<string | null>(null);
   const [capacity, setCapacity] = useState(4);
   const [tableName, setTableName] = useState('');
   const [inviteQuery, setInviteQuery] = useState('');
@@ -58,7 +56,11 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
   const [pendingAction, setBusy] = useState(false);
   const [formationBlocked, setFormationBlocked] = useState(false);
   const base = `${apiUrl}/test-games/${encodeURIComponent(roomId)}`;
-  const transport = useMemo(() => createHttpGameTransport<Snapshot>(base, token), [base, token]);
+  const selectedMatch = useRef<string | undefined>(requestedMatchId);
+  const transport = useMemo(() => createHttpGameTransport<Snapshot>(base, token, globalThis.fetch, () => selectedMatch.current), [base, token]);
+  useEffect(() => {
+    if (requestedMatchId) { selectedMatch.current = requestedMatchId; setActionTick(v => v + 1); }
+  }, [requestedMatchId]);
   const commandClient = useMemo(() => new GameCommandClient(transport), [transport]);
   const [actionTick, setActionTick] = useState(0);
   const [actionNotice, setActionNotice] = useState('');
@@ -75,11 +77,6 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
   const visibleSnapshot = snapshot ? { ...snapshot, players: snapshot.players?.map(player => ({
     ...player, connected: members.includes(player.user_id) && (player.player_id !== snapshot.your_player_id || connected),
   })) } : null;
-  useEffect(() => {
-    if ((snapshot?.ready || snapshot?.game) && snapshot.your_player_id && snapshot.match_id !== enteredMatch.current) {
-      enteredMatch.current = snapshot.match_id || null; setLive(true); setOpen(true);
-    }
-  }, [snapshot?.match_id, snapshot?.ready, snapshot?.game, snapshot?.your_player_id]);
   const openedInvitation = useRef<string | null>(null);
   useEffect(() => {
     if (requestedMatchId && snapshot?.match_id === requestedMatchId && openedInvitation.current !== requestedMatchId) {
@@ -141,7 +138,7 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
     if (busy || pending.current) return;
     pending.current = true; const version = ++generation.current; setBusy(true); setError('');
     try {
-      const data = await api();
+      const data = await api(selectedMatch.current ? `?match_id=${encodeURIComponent(selectedMatch.current)}` : '');
       if (alive.current && generation.current === version) {
         setSnapshot(data); setLive(data.status !== 'empty'); setOpen(true);
       }
@@ -153,9 +150,9 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
     if (!canSend.current || pending.current) return;
     pending.current = true; const version = ++generation.current; setBusy(true); setError('');
     try {
-      const data = await api(join ? '/join' : '', join ? { match_id: snapshot?.match_id } : { player_count: gameType === 'flush' ? 10 : capacity, game_type: gameType, name: tableName.trim(), invitees: selectedInvitees.map(player => player.user_id) });
+      const data = await api(join ? '/join' : '', join ? { match_id: snapshot?.match_id } : { player_count: gameType === 'flush' ? 10 : capacity, game_type: gameType, name: tableName.trim() || `${selectedGameName} table`, invitees: selectedInvitees.map(player => player.user_id) });
       if (alive.current && generation.current === version) {
-        enteredMatch.current = data.match_id || null;
+        selectedMatch.current = data.match_id;
         setSnapshot(data); setLive(true); setOpen(true);
         if (!join) { setSelectedInvitees([]); setInviteQuery(''); setInviteResults([]); }
       }
@@ -184,13 +181,10 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
   }
   const mobileGame = mobile;
   const canCreate = snapshot?.status === 'empty' || (snapshot?.status === 'finished' && !snapshot.table?.requires_replacement) || snapshot?.status === 'ended';
-  const canCreateNewGame = true;
   const canEnd = !canCreate && (snapshot?.is_creator || (connected && roomMembers.length === 1 && roomMembers[0] === userId));
   const selectedGameName = ({ marriage: 'Marriage', callbreak: 'Call Break', flush: 'Flush' })[gameType];
   const gameName = ({ marriage: 'Marriage', callbreak: 'Call Break', flush: 'Flush' })[(canCreate ? gameType : snapshot?.game_type) || 'callbreak'];
-  const setupGameName = canCreateNewGame ? selectedGameName : gameName;
   const noun = (canCreate ? gameType : snapshot?.game_type) === 'flush' ? 'table' : 'game';
-  const createNoun = gameType === 'flush' ? 'table' : 'game';
   async function gameAction(command: string, payload: object = {}) {
     if (!canSend.current || !snapshot?.game || !snapshot.match_id || pending.current) return;
     if (!commandClient.submit(snapshot, command, payload)) return;
@@ -204,17 +198,12 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
     try {
       const data = await api(suffix, { match_id: snapshot.match_id, ...payload });
       if (alive.current && generation.current === version) {
-        setSnapshot(data);
-        if (suffix === '/leave' || suffix === '/table/leave-seat' || suffix === '/table/abandon') { setOpen(false); setLive(false); enteredMatch.current = null; }
+        selectedMatch.current = data.match_id; setSnapshot(data);
+        if (suffix === '/leave' || suffix === '/table/leave-seat' || suffix === '/table/abandon') { setOpen(false); setLive(false); }
       }
     } catch (error) { if (alive.current && generation.current === version) setError(error instanceof Error ? error.message : 'Could not update game.'); }
     finally { pending.current = false; if (alive.current) setBusy(false); }
   }
-  const actionLabel = !snapshot ? `Loading ${noun}…` : (snapshot.status === 'finished' || snapshot.status === 'ended') ? (snapshot.game_type === 'flush' ? 'Start a new table' : 'Start a new game') : canCreate ? `Create ${createNoun}`
-    : snapshot.can_join ? `Join ${noun}` : snapshot.your_player_id ? `Return to ${noun}` : `Watch ${noun}`;
-  const summary = !snapshot ? `Loading room ${noun}…` : snapshot.status === 'empty' ? `No ${noun} yet. Create one for everyone in this room.`
-    : snapshot.status === 'waiting' ? `${gameName} · ${snapshot.players?.length}/${snapshot.capacity} players ready`
-    : snapshot.status === 'ended' ? `${gameName} - Ended` : snapshot.status === 'finished' ? `${gameName} - Game finished` : `${gameName} · ${snapshot.game?.phase.replaceAll('_', ' ').toLowerCase() || 'In progress'}`;
   const endControl = canEnd
     ? <EndGameControl table={snapshot?.game_type === 'flush'} key={`end-${snapshot?.match_id}`} busy={busy} onEnd={() => lobbyAction('/end')} /> : null;
   const lifecycleControl = snapshot?.table ? <TableControls table={snapshot.table} members={roomMembers} userId={userId} busy={busy} formationBlocked={formationBlocked}
@@ -223,7 +212,6 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
   const leaveControl = !snapshot?.table?.current_user.can_leave_seat && !snapshot?.table?.current_user.can_abandon_match && snapshot?.your_player_id
     ? <Pressable accessibilityRole="button" accessibilityLabel={`Leave ${noun}`} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => void lobbyAction('/leave')} style={styles.choice}><Text style={[styles.text, live && open && { color: colors.text }]}>{`Leave ${noun}`}</Text></Pressable> : null;
   const ruleReview = snapshot?.rule_proposal && <RuleProposal key={snapshot.rule_proposal.id} proposal={snapshot.rule_proposal} busy={busy} vote={accept => void lobbyAction('/rule-vote', { proposal_id: snapshot.rule_proposal!.id, accept })} />;
-  const activeTables = snapshot?.tables?.filter(table => table.status !== 'ended') || [];
   async function eligiblePlayers(players: InvitePlayer[], signal?: AbortSignal) {
     if (!players.length) return [];
     const eligibility = await request<{ user_id: string; eligible: boolean; reason?: string | null }[]>(
@@ -252,75 +240,37 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
     } catch (error) { setInviteError(error instanceof Error ? error.message : 'Could not search the player directory.'); }
     finally { setSearchingPlayers(false); }
   }
+  async function enterTable(matchId: string, action: TableEntry) {
+    if (busy || pending.current) return;
+    pending.current = true; const version = ++generation.current; setBusy(true); setError('');
+    try {
+      const data = await api(action === 'seat' ? '/join' : action === 'queue' ? '/table/join-queue' : `?match_id=${encodeURIComponent(matchId)}`,
+        action === 'watch' ? undefined : { match_id: matchId });
+      if (!alive.current || generation.current !== version) return;
+      selectedMatch.current = data.match_id;
+      setSnapshot(data); setLive(true); setOpen(true);
+    } catch (failure) {
+      if (!alive.current || generation.current !== version) return;
+      setError(failure instanceof Error ? failure.message : 'Could not enter this table.');
+      if (failure instanceof GameRequestError && failure.detail?.code === 'PLAYER_ALREADY_AT_TABLE') setSeatConflict(failure.detail);
+    } finally {
+      pending.current = false;
+      if (alive.current) { setBusy(false); setActionTick(v => v + 1); }
+    }
+  }
   return <>
-    {!open && snapshot?.match_id && snapshot.can_join && !snapshot.your_player_id && !snapshot.is_creator && dismissedInvitation !== snapshot.match_id && <View testID="game-created-notice" style={styles.invitation}>
-      <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.summary}>A new {gameName} {noun} is ready!</Text>
-      <Text style={styles.text}>Someone in your room created a {noun}. Take a seat to play.</Text>
-      <View style={styles.choices}>
-        <Pressable accessibilityRole="button" onPress={() => { setJoinOpen(true); setDismissedInvitation(snapshot.match_id!); }} style={styles.button}><Text style={styles.buttonText}>{`View ${noun}`}</Text></Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Dismiss ${noun} notification`} onPress={() => setDismissedInvitation(snapshot.match_id!)} style={styles.choice}><Text style={styles.text}>Dismiss</Text></Pressable>
-      </View>
-    </View>}
-    {!open && <>{ruleReview}{snapshot?.match_id && snapshot.status !== 'ended' && <ShareLink roomId={roomId} matchId={snapshot.match_id} />}</>}
-    {collapsed && <View style={styles.returnPanel}>
-      <Animated.View style={{ opacity: notification.opacity }}>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Return to ${noun}`} disabled={busy} onPress={() => void returnToGame()} style={[styles.button, !!notification.notice && styles.notified]}>
-          <Text style={styles.buttonText}>{notification.notice ? '✦ ' : ''}Return to {noun}</Text>
-        </Pressable>
-      </Animated.View>
-      {!!notification.notice && <Text accessibilityLiveRegion="polite" style={styles.text}>{notification.notice}</Text>}
-      <Pressable accessibilityRole="button" accessibilityLabel={notification.muted ? 'Unmute game notifications' : 'Mute game notifications'} onPress={notification.toggleSound} style={styles.choice}><Text style={styles.note}>{notification.muted ? 'Sound off' : 'Sound on · pong'}</Text></Pressable>
-    </View>}
-    <View style={styles.roomCard}>
-      <Pressable accessibilityRole="button" accessibilityLabel={`Create a ${createNoun}`} aria-expanded={createOpen} accessibilityState={{ expanded: createOpen }} onPress={() => setCreateOpen(value => !value)} style={styles.sectionToggle}>
-        <Text style={styles.summary}>{`Create a ${createNoun}`}</Text><Text style={styles.summary}>{createOpen ? '-' : '+'}</Text>
-      </Pressable>
-      {createOpen && <View style={{ gap: 12 }}>
-        {createContent}
-        {canCreateNewGame && !canCreate && <Text style={styles.text}>The Flush round is complete. Create a new game here, or enter the existing table to continue playing.</Text>}
-        {canCreateNewGame ? <Pressable accessibilityRole="button" accessibilityLabel={`Create ${createNoun}`} disabled={busy || !creationEnabled} accessibilityState={{ disabled: busy || !creationEnabled }} onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, (busy || !creationEnabled) && { opacity: 0.5 }]}>
-          <Text style={styles.buttonText}>{`Create ${createNoun}`}</Text>
-        </Pressable> : <Text style={styles.text}>{!snapshot ? `Loading ${noun}…` : `A ${noun} is already open. Expand Join a ${noun} to enter it.`}</Text>}
-      </View>}
-    </View>
-    <View style={styles.roomCard}>
-      <Pressable accessibilityRole="button" accessibilityLabel={`Join a ${noun}`} aria-expanded={joinOpen} accessibilityState={{ expanded: joinOpen }} onPress={() => setJoinOpen(value => !value)} style={styles.sectionToggle}>
-        <Text style={styles.summary}>{`Join a ${noun}`}</Text><Text style={styles.summary}>{joinOpen ? '-' : '+'}</Text>
-      </Pressable>
-      {joinOpen && (!activeTables.length ? <Text style={styles.text}>No active {noun} to join or watch. Create a {noun} to get started.</Text> : <>
-    {activeTables.map(table => <Pressable key={table.match_id} accessibilityRole="link" accessibilityLabel={`Open ${table.name}`} onPress={async () => {
-      try {
-        const selected = await api(`?match_id=${encodeURIComponent(table.match_id)}`);
-        setSnapshot(selected); setLive(true); setOpen(true);
-      } catch (error) { setError(error instanceof Error ? error.message : 'Could not open table.'); }
-    }} style={styles.choice}>
-      <Text style={styles.summary}>{table.name}</Text>
-      <Text style={styles.text}>{table.game_type} · {table.players}/{table.capacity} seated · {table.status}</Text>
-      <Text style={styles.joinHint}>Open table</Text>
-    </Pressable>)}
-    <View style={styles.bar}>
-      <View style={{ flex: 1, minWidth: 150 }}>
-        <Text style={styles.summary}>{summary}</Text>
-        {snapshot?.status === 'waiting' && <Text style={styles.joinHint}>{snapshot.your_player_id
-          ? `Your seat: player ${snapshot.your_player_id}. Waiting for other players.`
-          : `You are in the room. Join the ${noun} to take a seat.`}</Text>}
-      </View>
-      <Pressable accessibilityRole="button" accessibilityLabel={actionLabel} disabled={!snapshot || busy}
-        accessibilityState={{ disabled: !snapshot || busy }}
-        onPress={() => { if (snapshot?.can_join) void act(true); else { void returnToGame(); } }}
-        style={[styles.button, (!snapshot || busy) && { opacity: 0.5 }]}>
-        <Text style={styles.buttonText}>{busy ? 'Joining…' : actionLabel}</Text>
+    <View style={[styles.sectionToggle, { marginVertical: 16 }]}>
+      <Text accessibilityRole="header" style={styles.title}>Tables</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel="Create table" disabled={busy || !creationEnabled} onPress={() => { setLive(false); setOpen(true); }} style={styles.button}>
+        <Text style={styles.buttonText}>+ Create table</Text>
       </Pressable>
     </View>
-      </>)}
-    </View>
-    {!open && endControl}
-    {!open && leaveControl}
-    {!collapsed && !open && snapshot?.status !== 'ended' && snapshot?.game?.phase === 'BIDDING' && !!snapshot.your_player_id && <View style={styles.bidNotice}>
-      <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={styles.text}>Deal {snapshot.deal?.deal_number} · {snapshot.game.turn.player_id === snapshot.your_player_id ? 'Your turn to bid' : 'Bidding is open'}</Text>
-      <Pressable accessibilityRole="button" onPress={() => { setLive(true); setOpen(true); }} style={styles.button}><Text style={styles.buttonText}>View cards & bidding</Text></Pressable>
-    </View>}
-    {snapshot?.status === 'finished' && <Pressable accessibilityRole="button" onPress={() => { setLive(true); setOpen(true); }} style={styles.choice}><Text style={styles.text}>{snapshot?.game_type === 'marriage' ? 'View game result' : 'View final scores'}</Text></Pressable>}
+    {!snapshot && <Text style={styles.text}>Loading tables…</Text>}
+    {snapshot && !snapshot.tables?.length && <Text style={styles.text}>No tables yet. Choose a game and bring everyone together.</Text>}
+    {snapshot?.tables?.map(table => <TableCard key={table.match_id} table={table} busy={busy} enter={action => void enterTable(table.match_id, action)} />)}
+    {collapsed && !!notification.notice && <Animated.View style={{ opacity: notification.opacity }}>
+      <Pressable accessibilityRole="button" onPress={() => void returnToGame()} style={styles.choice}><Text style={styles.text}>{notification.notice} · Return to table</Text></Pressable>
+    </Animated.View>}
     {!!actionNotice && !open && <Text accessibilityLiveRegion="polite" style={styles.note}>{actionNotice}</Text>}
     {!!error && !open && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     {!open && <PokeOverlay pokes={pokes} matchId={snapshot?.match_id} />}
@@ -373,27 +323,15 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
         <PokeOverlay pokes={pokes} matchId={snapshot.match_id} />
       </View></View> :
       <View style={styles.overlay}><View accessibilityViewIsModal style={styles.modal}>
-        <ScrollView contentContainerStyle={styles.body}>
-          <Text accessibilityRole="header" style={styles.title}>{canCreateNewGame ? `Create a ${selectedGameName} ${createNoun}` : snapshot?.can_join ? `Join this ${gameName} ${noun}` : `${gameName} ${noun}`}</Text>
-          <Text style={styles.text}>{summary}</Text>
-          {endControl}
-          {leaveControl}
-          {!connected && <Text accessibilityRole="alert" style={styles.modalError}>{connectionMessage || 'Reconnecting… Your seat is saved.'}</Text>}
-          {snapshot?.can_join && !canCreateNewGame && <>
-            <Text style={styles.text}>{(snapshot.capacity || 0) - (snapshot.players?.length || 0)} seats available. Take a seat to play with this room.</Text>
-            <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => act(true)} style={styles.button}><Text style={styles.buttonText}>{`Join ${noun}`}</Text></Pressable>
-          </>}
-          <View style={styles.codePanel}>
-            <Text style={styles.text}>Table code</Text>
-            <Text selectable accessibilityLabel={`Table code ${roomId}`} style={styles.code}>{roomId}</Text>
-            <Text style={styles.note}>Share this code. Friends can paste it into “Table code / room ID” on the room list, enter the room, then choose “Join {noun}”.</Text>
-          </View>
-          {!!error && <Text accessibilityRole="alert" style={styles.modalError}>{error}</Text>}
-          {!!snapshot?.error && <Text accessibilityRole="alert" style={styles.modalError}>{snapshot.error}</Text>}
-          {canCreateNewGame ? <>
-            <Text style={styles.text}>Table name</Text>
-            <TextInput accessibilityLabel="Table name" value={tableName} onChangeText={setTableName} maxLength={60} placeholder="Friday night"
-              placeholderTextColor={colors.textMuted} style={[styles.choice, { color: colors.text }]} />
+        <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+          <Text accessibilityRole="header" style={styles.title}>Create table</Text>
+          {createContent}
+          <Text style={styles.text}>{gameType === 'flush' ? '2–10 players · lock the seated roster when ready.' : 'Seats'}</Text>
+          <View style={[styles.choices, { flexWrap: 'wrap' }]}>{(gameType === 'flush' ? [] : gameType === 'marriage' ? [2, 3, 4, 5] : [4, 5]).map(size => <Pressable key={size} accessibilityRole="button" accessibilityState={{ selected: capacity === size }}
+            onPress={() => setCapacity(size)} style={[styles.choice, { minHeight: 48 }, size === capacity && { borderColor: colors.accent }]}><Text style={styles.text}>{size} players</Text></Pressable>)}</View>
+          <Pressable accessibilityRole="button" accessibilityState={{ expanded: advancedOpen }} onPress={() => setAdvancedOpen(v => !v)} style={styles.choice}><Text style={styles.text}>Table details {advancedOpen ? '−' : '+'}</Text></Pressable>
+          {advancedOpen && <>
+            <Text style={styles.text}>Table name (optional)</Text><TextInput accessibilityLabel="Table name" value={tableName} onChangeText={setTableName} maxLength={60} placeholder={`${selectedGameName} table`} placeholderTextColor={colors.textMuted} style={[styles.choice, { color: colors.text }]} />
             <Text style={styles.text}>Invite players (optional)</Text>
             <TextInput accessibilityLabel="Find players to invite" value={inviteQuery} onChangeText={setInviteQuery} maxLength={64}
               placeholder="Name, username, or user ID" placeholderTextColor={colors.textMuted} autoCapitalize="none" autoCorrect={false}
@@ -409,19 +347,10 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
               <Text style={styles.note}>{player.username ? `@${player.username} · ` : ''}{player.user_id}{player.eligible === false ? ` · ${player.reason}` : ''}</Text>
             </Pressable>)}</View>}
             {!!inviteError && <Text accessibilityRole="alert" style={styles.error}>{inviteError}</Text>}
-            <Text style={styles.text}>{gameType === 'flush' ? '2–10 players · the creator locks the seated roster when ready.' : 'Players'}</Text>
-            <View style={[styles.choices, { flexWrap: 'wrap' }]}>{(gameType === 'flush' ? [] : gameType !== 'callbreak' ? [2, 3, 4, 5] : [4, 5]).map(size => <Pressable key={size} accessibilityRole="button" accessibilityState={{ selected: capacity === size }}
-              onPress={() => setCapacity(size)} style={[styles.choice, size === capacity && { borderColor: colors.accent }]}>
-              <Text style={styles.text}>{size} players</Text>
-            </Pressable>)}</View>
-            <Pressable accessibilityRole="button" disabled={busy || !tableName.trim()} accessibilityState={{ disabled: busy || !tableName.trim() }} onPress={() => act(false)} style={styles.button}><Text style={styles.buttonText}>Create {selectedGameName} {createNoun}</Text></Pressable>
-          </> : <>
-            {snapshot?.players?.map(player => <Text key={player.player_id} style={styles.player}>Seat {player.player_id} · {player.player_id === snapshot.your_player_id ? 'You' : player.display_name || `Player ${player.player_id}`}</Text>)}
-            {!!snapshot?.your_player_id && <Text style={styles.text}>You are seated as player {snapshot.your_player_id}.</Text>}
-            {snapshot?.status === 'waiting' && <Text style={styles.text}>{snapshot.game_type === 'flush' ? 'At least 2 players are required. The creator can lock the table with the players currently seated; seating reopens after the round.' : `Waiting for ${(snapshot.capacity || 0) - (snapshot.players?.length || 0)} more players. The table opens when all seats are filled. The creator then starts the ${noun}.`}</Text>}
-            {snapshot?.status === 'playing' && !snapshot.your_player_id && <Text style={styles.text}>The game is full. You are watching its status.</Text>}
           </>}
-          <Text style={styles.note}>{setupGameName === 'Flush' ? 'Three private cards each. Review chip and blind/seen rules before starting. Rules lock for the round; show requires the final two players.' : setupGameName === 'Marriage' ? '21 cards each. Each player makes their own moves; turns wait until the player acts. Complete seven Dublees and an eighth pair to win. Normal qualification is available; normal-hand winning comes later. Set scoring rules at the table before starting.' : 'The creator can set rules and placement bets at the table before starting. Each player confirms their own bids and card choices. Turns have no time limit.'}</Text>
+          <Text style={styles.note}>Review advanced rules at the table before starting. Rule changes still require player approval.</Text>
+          {!!error && <Text accessibilityRole="alert" style={styles.modalError}>{error}</Text>}
+          <Pressable accessibilityRole="button" accessibilityLabel="Create this table" disabled={busy || !creationEnabled} accessibilityState={{ disabled: busy || !creationEnabled }} onPress={() => void act(false)} style={styles.button}><Text style={styles.buttonText}>Create table</Text></Pressable>
           <Pressable accessibilityRole="button" onPress={() => setOpen(false)} style={styles.choice}><Text style={styles.text}>Back to room</Text></Pressable>
         </ScrollView>
       </View></View>}

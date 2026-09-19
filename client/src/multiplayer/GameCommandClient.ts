@@ -33,7 +33,7 @@ export class GameCommandClient<T extends GameSnapshot> {
 }
 
 export function createHttpGameTransport<T extends GameSnapshot>(baseUrl: string, token: string,
-  fetcher: typeof fetch = globalThis.fetch): GameCommandTransport<T> & {
+  fetcher: typeof fetch = globalThis.fetch, selectedMatch: () => string | undefined = () => undefined): GameCommandTransport<T> & {
     request(suffix?: string, body?: object, signal?: AbortSignal): Promise<T>;
   } {
   async function request(suffix = '', body?: object, signal?: AbortSignal): Promise<T> {
@@ -57,6 +57,6 @@ export function createHttpGameTransport<T extends GameSnapshot>(baseUrl: string,
       clearTimeout(timeout); signal?.removeEventListener('abort', abort);
     }
   }
-  return { request, snapshot: signal => request('', undefined, signal),
+  return { request, snapshot: signal => { const match = selectedMatch(); return request(match ? `?match_id=${encodeURIComponent(match)}` : '', undefined, signal); },
     action: (body, signal) => request('/action', body, signal) };
 }

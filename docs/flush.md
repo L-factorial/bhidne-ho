@@ -13,7 +13,6 @@ from flush import FlushGameEngine, FlushRulesConfig, Bet
 
 engine = FlushGameEngine(
     ['alice', 'bob'],
-    initial_chips={'alice': 1000, 'bob': 1000},
     rules=FlushRulesConfig(boot_amount=5, initial_blind_bet=10),
     rng=Random(7),  # deterministic fixture; omit for an independently seeded round
 )
@@ -28,7 +27,7 @@ private = engine.get_player_view('alice').to_dict()  # still blind: cards == []
 
 The dealer defaults to the first seat. Betting and three-pass dealing begin at
 the next seat clockwise. Optional `dealer_id` must identify a seated player.
-The engine clones the supplied RNG state and copies input rosters/balances.
+The engine clones the supplied RNG state and copies input rosters.
 Callers cannot change a round by mutating those inputs afterward.
 
 ## Rules, fixed for the round
@@ -57,10 +56,11 @@ implemented outside the engine; see [adapter and room controls](flush-adapter.md
 Ace ordering, tie settlement, and show cost are explicit initial house-policy
 choices, not claims of universal Flush rules. Alternative Ace policies are
 `A23_FIRST` and `A23_LOWEST`. `TiePolicy.SPLIT` divides the pot equally, assigning
-any odd chip clockwise after the dealer among tied winners. Suits never break ties.
+any odd point clockwise after the dealer among tied winners. Suits never break ties.
 
 Exact integer amounts are required; bools, fractional amounts, and negative
-balances are rejected. Every player must afford boot before startup can succeed.
+contributions are rejected. Betting has no balance limit; results are recorded as
+net points for later settlement outside the platform.
 Boot is collected automatically once, not as the first BET, and counts toward
 neither betting counter. No player move is automated.
 
@@ -71,13 +71,13 @@ neither betting counter. No player move is automated.
 | `start_game()` | Lock the round and wait for the dealer |
 | `deal_cards(player_id)` | Dealer shuffles and passes to the next seat for cutting |
 | `cut_deck(player_id, position)` / `skip_cut(player_id)` | Next seat cuts or skips, then cards are dealt and boot collected |
-| `bet(player_id, amount)` | Debit at least the current minimum, update blind/seen minimums, and advance one active seat |
+| `bet(player_id, amount)` | Contribute at least the current minimum, update blind/seen minimums, and advance one active seat |
 | `see_cards(player_id)` | Current blind player qualifies after personal blind threshold; retain turn |
 | `fold(player_id)` | Mark folded, skip future turns; settle immediately if one remains |
 | `request_side_show(player_id)` | Pay one seen bet and request the previous active seen player |
 | `accept_side_show(player_id)` / `decline_side_show(player_id)` | Only the requested target responds; play resumes after requester |
 | `can_side_show(player_id)` | Side-show eligibility |
-| `show(player_id)` | Validate final-two eligibility and affordability, debit show cost, compare, settle |
+| `show(player_id)` | Validate final-two eligibility, record show cost, compare, settle |
 | `apply_action(player_id, action)` | Dispatch typed `Bet`, `SeeCards`, `Fold`, or `Show` to the same methods |
 | `get_state()` | Immutable trusted authoritative state, including every hand and stock |
 | `get_public_view()` | Safe public snapshot, no private cards during play |
@@ -87,7 +87,7 @@ neither betting counter. No player move is automated.
 | `get_visible_events(player_id=None, after=0)` | Safe events after an exclusive sequence cursor; None means spectator |
 
 All mutations return `ActionResult(revision, events)`. A rejection raises a
-`FlushError` subclass with a stable `code`, and changes nothing: state, chips,
+`FlushError` subclass with a stable `code`, and changes nothing: state, contributions,
 turn, history, revision, and RNG remain unchanged. Invalid construction raises
 `ValueError`; unsupported rules raise `UnsupportedRuleError`. Audit failures
 raise `InvariantError` and prevent a candidate state from being committed.
@@ -97,8 +97,8 @@ Only the current ACTIVE seat may act, including SEE_CARDS. Seen players pay
 stake. Bets may meet or exceed the current minimum. `turn_bet_count` counts all successful BET actions;
 `blind_bet_count` counts only those made while blind. Other players' actions,
 boot, seeing, folding, show costs, and rejected actions do not increment it.
-Insufficient-chip bets or shows reject; folding remains possible. No automatic
-folds, all-in states, side pots, or credit are implied.
+Players can bet and show without a bankroll. Turn, minimum-bet, and show
+eligibility rules still apply. No automatic folds or all-in states are needed.
 
 SHOW always requires exactly two active players. Blind show additionally checks
 the configured permission, personal threshold, and inclusive active-player maximum.
@@ -122,9 +122,9 @@ remain available for inspection. `RoundSettlement` holds reason, winner IDs,
 payouts, and SHOW's compared hands/winning evaluated result. Fold wins have no
 winning evaluated hand or revealed cards. Multiple winners are possible under SPLIT.
 
-Before settlement, `sum(chips) + pot == sum(initial_chips)`. After settlement,
-`sum(chips) == sum(initial_chips)` and `sum(payouts) == pot == sum(contributions)`.
-Audits also enforce each player's individual balance and exact conservation of
+`pot == sum(contributions)` throughout the round. At settlement,
+`sum(payouts) == pot` and each net result is payout minus contribution;
+net results sum to zero. Audits enforce individual contribution history and exact conservation of
 all 52 canonical cards across hands and stock. Folded players retain their cards
 in trusted state, but cannot act again. Finished games reject every mutation.
 
@@ -194,13 +194,13 @@ dismissal are presentation only; they never delay or authorize an engine action.
 
 Seeing your own cards is available on your turn immediately, without prior bets. The configurable personal bet minimum applies only to requesting side-show.
 
-Betting minimums: new rooms start with blind 1 and seen 2 (default multiplier 2). A blind bet sets the seen minimum to amount × multiplier. A seen bet sets the seen minimum to that exact amount and the blind minimum to ceil(amount / multiplier). Bets below the current minimum or above available chips reject atomically. Boot and final-show fees do not raise the stake.
+Betting minimums: new rooms start with blind 1 and seen 2 (default multiplier 2). A blind bet sets the seen minimum to amount × multiplier. A seen bet sets the seen minimum to that exact amount and the blind minimum to ceil(amount / multiplier). Bets below the current minimum reject atomically. There is no bankroll limit. Boot and final-show fees do not raise the stake.
 
 Manual preparation: START_GAME locks the round and enters awaiting_deal with the dealer
 as current player. DEAL_CARDS shuffles the hidden deck and enters awaiting_cut for the
 next seated player. CUT_DECK(position: 1–51) rotates the deck, or SKIP_CUT leaves its order
 unchanged; either choice deals the cards, collects boot once, and starts betting.
-Before then, no cards are dealt and no chips are debited. Commands use the same reliable
+Before then, no cards are dealt and no contributions are recorded. Commands use the same reliable
 revision/receipt handling as bets, and reconnects preserve the pending preparation step.
 The table shows a pulsing current-player name to everyone and a personal Your turn prompt,
 with steady text for reduced-motion preferences.
@@ -212,8 +212,8 @@ available. The previous winner deals if still seated; otherwise the creator deal
 If the creator leaves, the next seated player becomes creator. Explicit Leave room also
 leaves the table between rounds; reconnects alone do not remove seats.
 
-Stable participant IDs retain departed players' net results and balances. Returning players
-recover their balance; newcomers receive the configured starting chips. The Bet grid includes
+Stable participant IDs retain departed players' net results. Returning players keep
+their result history; newcomers start with no prior contributions. The Bet grid includes
 all participants, one signed column per completed round, and running totals. Roster changes
 and locking are serialized. Hosted START_NEXT_ROUND commands are rejected: relocking is a
 creator-only room operation. Rules remain locked for the table's lifetime.

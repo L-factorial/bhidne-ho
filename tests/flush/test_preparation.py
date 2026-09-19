@@ -7,7 +7,7 @@ from flush import (FlushGameEngine, FlushRulesConfig, GameStatus, FlushError,
 
 
 def game():
-    return FlushGameEngine(['a', 'b', 'c'], initial_chips=dict.fromkeys('abc', 100),
+    return FlushGameEngine(['a', 'b', 'c'],
                            rules=FlushRulesConfig(5), rng=Random(4), dealer_id='c')
 
 
@@ -36,7 +36,7 @@ def test_manual_dealer_then_next_player_cut_or_skip(cut):
     reject(e, lambda: e.fold('a'))
     for bad in (True, 0, 52, 2.5): reject(e, lambda: e.cut_deck('a', bad))
     state = e.get_state()
-    assert state.pot == 0 and all(p.chips == 100 and not p.cards for p in state.players)
+    assert state.pot == 0 and all(p.total_contribution == 0 and not p.cards for p in state.players)
     for viewer in 'abc':
         safe = json.dumps(e.get_player_view(viewer).to_dict())
         assert 'stock' not in safe and e.get_player_view(viewer).cards == ()
@@ -47,7 +47,7 @@ def test_manual_dealer_then_next_player_cut_or_skip(cut):
     assert tuple(p.cards for p in e.get_state().players) == tuple(expected)
     assert e.get_state().stock == stock
     assert e.get_state().current_player_id == 'a'
-    assert e.get_state().pot == 15 and all(p.chips == 95 for p in e.get_state().players)
+    assert e.get_state().pot == 15 and all(p.total_contribution == 5 for p in e.get_state().players)
     reject(e, lambda: e.skip_cut('a'))
     reject(e, lambda: e.start_game())
 
@@ -66,7 +66,7 @@ def test_shuffle_failure_rolls_back_randomness(monkeypatch):
     assert e.get_state() == control.get_state()
 
 
-def test_winner_continues_same_table_with_carried_balances_and_net_history():
+def test_winner_continues_same_table_with_net_history():
     e = game()
     e.start_game(); e.deal_cards('c'); e.skip_cut('a')
     e.bet('a', 3); e.fold('b'); e.fold('c')
@@ -79,7 +79,7 @@ def test_winner_continues_same_table_with_carried_balances_and_net_history():
     second = e.get_state()
     assert second.round_number == 2 and second.config.dealer_id == 'a'
     assert second.round_results == first.round_results
-    assert [p.chips for p in second.players] == [110, 95, 95]
+    assert all(p.total_contribution == 0 for p in second.players)
     assert second.pot == 0 and second.revision == first.revision + 1
     assert all(not p.cards and p.turn_bet_count == 0 for p in second.players)
     reject(e, lambda: e.start_next_round('a'))
@@ -90,4 +90,4 @@ def test_winner_continues_same_table_with_carried_balances_and_net_history():
     assert len(e.get_public_view().round_results) == 2
     assert [sum(r.net_changes[i].amount for r in e.get_public_view().round_results)
             for i in range(3)] == [20, -10, -10]
-    assert [p.chips for p in e.get_state().players] == [120, 90, 90]
+    assert sum(p.amount for r in e.get_state().round_results for p in r.net_changes) == 0

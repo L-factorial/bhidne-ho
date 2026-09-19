@@ -137,3 +137,29 @@ def test_table_invitation_adds_room_access_but_never_assigns_a_seat():
         assert snapshot['table']['current_user']['is_seated'] is False
         assert snapshot['table']['current_user']['is_queued'] is False
         assert client.get('/test-games/invitations', headers=invited_headers).json() == []
+
+
+def test_directory_actions_are_viewer_specific_and_do_not_expose_hands():
+    with TestClient(create_app()) as client:
+        headers = [{'Authorization': 'Bearer ' + client.post('/auth/guest', json={'display_name': 'Player 1'}).json()['token']} for _ in range(3)]
+        for h in headers:
+            client.post('/rooms/cards/enter', headers=h, json={})
+        created = client.post('/test-games/cards', headers=headers[0], json={
+            'name': 'Friends', 'game_type': 'marriage', 'player_count': 2}).json()
+        mid = created['match_id']
+        def card(index):
+            return client.get('/test-games/cards', headers=headers[index]).json()['tables'][0]
+        assert card(0)['current_user']['is_seated']
+        assert card(1)['current_user']['can_join']
+        assert card(1)['phase'] == 'OPEN'
+        assert card(1)['seated_players'] == [{'seat_id': 1, 'display_name': 'Player 1'}]
+        client.post('/test-games/cards/join', headers=headers[1], json={'match_id': mid})
+        assert card(2)['players'] == 2
+        assert not card(2)['current_user']['can_join']
+        assert card(2)['current_user']['can_queue']
+        client.post('/test-games/cards/table/join-queue', headers=headers[2], json={'match_id': mid})
+        assert card(2)['current_user']['queue_position'] == 1
+        assert card(0)['queue_size'] == 1
+        client.post('/test-games/cards/table/lock', headers=headers[0], json={'match_id': mid})
+        assert card(2)['phase'] == 'LOCKED'
+        assert 'cards' not in str(card(2)['seated_players'])

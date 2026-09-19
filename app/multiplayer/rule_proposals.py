@@ -37,7 +37,6 @@ class RuleProposals:
             game.marriage_scoring = ScoringRules.from_dict(settings)
         else:
             game.flush_rules = TypeAdapter(FlushRulesConfig).validate_json(json.dumps(settings['rules']), strict=True)
-            game.flush_starting_chips = settings['starting_chips']
             game.flush_rules_revision += 1
         proposal['status'] = 'ACCEPTED'
         game.table.emit('RULE_CHANGE_ACCEPTED', proposal_id=proposal['id'])
@@ -47,8 +46,7 @@ class RuleProposals:
         if game.rule_proposal and game.rule_proposal['status'] == 'PENDING':
             raise HTTPException(409, 'Resolve the pending rule proposal before submitting another.')
         current = (game.settings if game.game_type == 'callbreak' else asdict(game.marriage_scoring)
-                   if game.game_type == 'marriage' else {'rules': asdict(game.flush_rules),
-                                                       'starting_chips': game.flush_starting_chips})
+                   if game.game_type == 'marriage' else {'rules': asdict(game.flush_rules)})
         game.rule_proposal = {'id': uuid4().hex, 'match_id': game.match_id, 'proposer': user_id,
                               'status': 'PENDING', 'voters': list(game.users), 'accepted': [user_id],
                               'rejected_by': None, 'previous': deepcopy(current), 'proposed': deepcopy(proposed)}

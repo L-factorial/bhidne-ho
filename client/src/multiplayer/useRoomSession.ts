@@ -5,12 +5,15 @@ import { readSession, saveSession, type Room, type Session } from './session';
 import { RoomConnection, type ConnectionStatus } from './RoomConnection';
 import { appendPoke, readPoke, type RoomPoke } from './pokes';
 
+type Membership = { room_id: string; tables: { status: string }[]; active_game: { game_id: string; game_type: 'callbreak' | 'marriage' | 'flush'; status: string; player_is_participant: boolean } | null };
+
 export function useRoomSession() {
   const [pokes, setPokes] = useState<RoomPoke[]>([]);
   const [saved] = useState(() => readSession(apiUrl));
   const [session, setSession] = useState<Session | null>(saved?.session || null);
   const [room, setRoom] = useState<Room | null>(saved?.room || null);
   const [game, setGame] = useState<string | null>(saved?.game || null);
+  const [memberships, setMemberships] = useState<Membership[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
   const [error, setError] = useState('');
@@ -47,6 +50,10 @@ export function useRoomSession() {
     async function refresh() {
       try {
         const result = await request<Room[]>('/rooms', session, undefined, controller.signal);
+        try {
+          const values = await request<Membership[]>('/memberships', session, undefined, controller.signal);
+          if (!controller.signal.aborted) setMemberships(values);
+        } catch { /* Room navigation remains available if activity cannot be loaded. */ }
         if (!controller.signal.aborted) { setRooms(result); setError(''); }
       } catch (error) {
         if (!controller.signal.aborted) {
@@ -154,7 +161,7 @@ export function useRoomSession() {
       try { await request('/auth/signout', active, {}); } catch { /* Local sign-out still succeeds offline. */ }
     }
   }
-  return { loginAccount, loggingIn, session, room, rooms, game, setGame, joinRoom, enterRoom, exitRoom, leaveRoom, deleteRoom, signOut, leaveGameRequired, leaveGameAndRoom, abandonRequired,
+  return { loginAccount, loggingIn, session, room, rooms, memberships, game, setGame, joinRoom, enterRoom, exitRoom, leaveRoom, deleteRoom, signOut, leaveGameRequired, leaveGameAndRoom, abandonRequired,
     cancelLeave: () => { setLeaveGameRequired(null); setError(''); }, status, expired, error, pokes,
     retry: () => { connection.current?.retryNow(); } };
 }

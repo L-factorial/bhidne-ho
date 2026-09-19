@@ -26,7 +26,6 @@ class PublicPlayerView:
     status: PlayerStatus
     visibility: Visibility
     card_count: int
-    chips: int
     total_contribution: int
     blind_bet_count: int
     turn_bet_count: int
@@ -83,8 +82,7 @@ def allowed_actions(state, player_id):
     side_show = evaluate_side_show_eligibility(state, player_id)
     target = previous_seen_player(state, player_id)
     kinds = []
-    if (state.status is GameStatus.FINISHED and player_id == state.settlement.winner_ids[0]
-            and all(p.chips >= state.config.rules.boot_amount for p in state.players)):
+    if (state.status is GameStatus.FINISHED and player_id == state.settlement.winner_ids[0]):
         kinds.append('start_next_round')
     if state.current_player_id == player_id:
         if state.status is GameStatus.AWAITING_DEAL:
@@ -94,8 +92,7 @@ def allowed_actions(state, player_id):
     if (state.status is GameStatus.IN_PROGRESS and player.status is PlayerStatus.ACTIVE
             and state.current_player_id == player_id and state.pending_side_show is None and state.pending_show is None):
         kinds.append('fold')
-        if player.chips >= required_bet(state, player):
-            kinds.append('bet')
+        kinds.append('bet')
         if see.allowed:
             kinds.append('see_cards')
         if show.allowed:
@@ -112,7 +109,7 @@ def allowed_actions(state, player_id):
 def public_view(state):
     return PublicGameView(state.status, state.revision, state.config.rules, state.config.rules.ruleset_id,
                           state.status is not GameStatus.WAITING,
-                          tuple(PublicPlayerView(p.player_id, p.status, p.visibility, len(p.cards), p.chips,
+                          tuple(PublicPlayerView(p.player_id, p.status, p.visibility, len(p.cards),
                                 p.total_contribution, p.blind_bet_count, p.turn_bet_count) for p in state.players),
                           state.config.dealer_id, state.current_player_id, state.current_blind_bet, state.current_seen_bet,
                           state.pot, state.held_pot, state.settlement, state.pending_side_show, state.round_number, state.round_results,
