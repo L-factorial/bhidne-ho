@@ -1,3 +1,4 @@
+import { FlushMenu } from '../components/FlushMenu';
 import { GameTableHeader } from '../components/GameTableHeader';
 import { ActionCue } from '../components/ActionCue';
 import { type ReactNode, useEffect, useState } from 'react';
@@ -148,13 +149,12 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onA
       : `Waiting for ${name(pub.current_player_id)}`
     : pub?.settlement ? 'Round complete' : `${snapshot.players?.length || 0}/${snapshot.capacity} players seated`;
   return <View style={[s.page, mobile && { padding: 8, gap: 4 }]} testID="flush-table">
-    <GameTableHeader title="Flush" compact path={snapshot.path} game="flush" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack} endControl={endControl} mobileTestIds>
-      {closeMenu => <>
-        <View style={s.row}>{button('Bet history', () => { closeMenu(); setBetsOpen(true); })}{button('Rules', () => { closeMenu(); setRulesOpen(true); })}
-          {!!snapshot.your_player_id && button('Poke the table', () => { closeMenu(); setPokeOpen(true); }, !social.connected)}
-        </View>
-        {tableControl}{lobbyControl}
-      </>}
+    <GameTableHeader title="Flush" compact path={snapshot.path} game="flush" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack} mobileTestIds drawerMetadata={<View style={{ gap: 4, paddingBottom: 8 }}>
+      <Text selectable style={s.status}>{snapshot.room_id}</Text>
+      <Text style={s.status}>{snapshot.table?.seated_players.length ?? snapshot.players?.length ?? 0}/{snapshot.table?.max_players ?? snapshot.capacity} players · {snapshot.table?.phase.toLowerCase() || snapshot.status}</Text>
+    </View>}>
+      {closeMenu => <FlushMenu snapshot={snapshot} close={closeMenu} rules={() => setRulesOpen(true)} history={() => setBetsOpen(true)}
+        poke={() => setPokeOpen(true)} canPoke={social.connected} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl} />}
     </GameTableHeader>
     <View style={s.mainColumn} testID="flush-main-column">
       <ScrollView style={s.playViewport} onLayout={e => setArenaHeight(Math.max(280, e.nativeEvent.layout.height))}

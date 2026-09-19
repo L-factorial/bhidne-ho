@@ -206,11 +206,13 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
   }
   const endControl = canEnd
     ? <EndGameControl table={snapshot?.game_type === 'flush'} key={`end-${snapshot?.match_id}`} busy={busy} onEnd={() => lobbyAction('/end')} /> : null;
-  const lifecycleControl = snapshot?.table ? <TableControls table={snapshot.table} members={roomMembers} userId={userId} busy={busy} formationBlocked={formationBlocked}
+  const lifecycleControl = snapshot?.table ? <TableControls menuSection={snapshot.game_type === 'flush' ? 'manage' : undefined} table={snapshot.table} members={roomMembers} userId={userId} busy={busy} formationBlocked={formationBlocked}
     act={(command, payload) => lobbyAction(`/table/${command}`, payload)}
     start={() => lobbyAction('/start', { play_mode: 'manual', rules_revision: snapshot.flush_settings?.rules_revision })} /> : null;
+  const flushLeaveControl = snapshot?.table ? <TableControls menuSection="leave" table={snapshot.table} members={roomMembers} userId={userId} busy={busy}
+    act={(command, payload) => lobbyAction(`/table/${command}`, payload)} start={() => lobbyAction('/start')} /> : null;
   const leaveControl = !snapshot?.table?.current_user.can_leave_seat && !snapshot?.table?.current_user.can_abandon_match && snapshot?.your_player_id
-    ? <Pressable accessibilityRole="button" accessibilityLabel={`Leave ${noun}`} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => void lobbyAction('/leave')} style={styles.choice}><Text style={[styles.text, live && open && { color: colors.text }]}>{`Leave ${noun}`}</Text></Pressable> : null;
+    ? <Pressable accessibilityRole="button" accessibilityLabel={snapshot.game_type === 'flush' ? 'Leave Table' : `Leave ${noun}`} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => void lobbyAction('/leave')} style={snapshot.game_type === 'flush' ? { minHeight: 44, padding: 10, justifyContent: 'center' } : styles.choice}><Text style={[styles.text, live && open && { color: colors.text }, snapshot.game_type === 'flush' && { color: colors.danger }]}>{snapshot.game_type === 'flush' ? 'Leave Table' : `Leave ${noun}`}</Text></Pressable> : null;
   const ruleReview = snapshot?.rule_proposal && <RuleProposal key={snapshot.rule_proposal.id} proposal={snapshot.rule_proposal} busy={busy} vote={accept => void lobbyAction('/rule-vote', { proposal_id: snapshot.rule_proposal!.id, accept })} />;
   async function eligiblePlayers(players: InvitePlayer[], signal?: AbortSignal) {
     if (!players.length) return [];
@@ -303,7 +305,7 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
         </View> : snapshot.game_type === 'flush' ? <FlushTable onLock={() => void lobbyAction('/table/lock')} tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onFormationBlocked={setFormationBlocked} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={error}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: text => social.send(snapshot.match_id!, null, text) }}
           onSave={payload => lobbyAction('/flush-settings', payload)} onStart={rules_revision => lobbyAction('/start', { rules_revision })}
-          onAction={gameAction} onBack={collapseGame} onNewGame={() => { setLive(false); setOpen(true); }} lobbyControl={leaveControl}
+          onAction={gameAction} onBack={collapseGame} onNewGame={() => { setLive(false); setOpen(true); }} lobbyControl={<>{flushLeaveControl}{leaveControl}</>}
           endControl={canEnd ? <EndGameControl table compact busy={busy} onEnd={() => lobbyAction('/end')} /> : null} />
         : snapshot.game_type === 'marriage' ? <MarriageTable tableControl={lifecycleControl} onTableAction={command => void lobbyAction(`/table/${command}`)} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={error} lobbyControl={leaveControl} onSave={scoring => lobbyAction('/marriage-settings', { scoring })}
           onAction={gameAction} onStart={() => lobbyAction('/start', { play_mode: 'manual' })} onBack={collapseGame}

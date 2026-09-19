@@ -57,6 +57,34 @@ async function api(path, user, body) {
    assert.ok(Math.abs(own.x+own.width/2-arena.x-arena.width/2)<2,'own seat bottom center');
    assert.ok(own.y>arena.y+arena.height/2);
    assert.ok(await p.getByRole('button',{name:/^Bet minimum/}).isEnabled());
+   const beforeState=await api(root,users[i]);
+   await p.getByTestId('flush-arena').evaluate(el=>{globalThis.testFlushArena=el;});
+   let socketOpens=0;const opened=()=>socketOpens++;p.on('websocket',opened);
+   await button(p,'Table menu').click();
+   const drawer=p.getByTestId('flush-menu-drawer');await drawer.waitFor();
+   assert.deepEqual(await p.getByTestId('flush-arena').boundingBox(),arena,'drawer must not move/resize table');
+   assert.deepEqual(await p.getByTestId('flush-hand-dock').boundingBox(),dock,'drawer must not move cards/actions');
+   const bounds=await drawer.boundingBox();
+   assert.ok(Math.abs(bounds.x+bounds.width-viewport.width)<1);
+   if(viewport.width<900) assert.ok(bounds.width>=viewport.width*.75 && bounds.width<=viewport.width*.85);
+   assert.equal(await p.getByText(/Your seat /).count(),0);
+   await button(p,'Players & waiting queue').click();await p.getByTestId('flush-menu-players').waitFor();
+   await button(p,'Players & waiting queue').click();
+   await p.context().grantPermissions(['clipboard-read','clipboard-write']);
+   await button(p,'Copy Invite Link').click();
+   await drawer.getByText('Link copied. Paste it into any messaging app.',{exact:true}).waitFor();
+   assert.deepEqual(await drawer.boundingBox(),bounds,'copy confirmation must not resize drawer');
+   const invite=new URL(await p.evaluate(()=>navigator.clipboard.readText()));
+   assert.equal(invite.searchParams.get('room'),room.room_id);assert.equal(invite.searchParams.get('match'),game.match_id);
+   await p.waitForTimeout(250);
+   await p.screenshot({path:`/tmp/flush-menu-${viewport.width}.png`});
+   await button(p,'Close table menu').click();await drawer.waitFor({state:'hidden'});
+   await button(p,'Table menu').click();await drawer.waitFor();
+   await p.getByTestId('flush-menu-backdrop').click({position:{x:4,y:100}});await drawer.waitFor({state:'hidden'});
+   await button(p,'Table menu').click();await drawer.waitFor();await p.keyboard.press('Escape');await drawer.waitFor({state:'hidden'});
+   assert.equal(await p.getByTestId('flush-arena').evaluate(el=>el===globalThis.testFlushArena),true,'same mounted arena');
+   assert.equal(socketOpens,0,'menu must not reconnect websocket');p.off('websocket',opened);
+   assert.deepEqual((await api(root,users[i])).flush,beforeState.flush,'menu must not change game state');
    await p.screenshot({path:`/tmp/flush-layout-${viewport.width}.png`});
   }
   // Rejection leaves the actions visible and retryable.
@@ -92,6 +120,23 @@ async function api(path, user, body) {
   await owner.getByTestId('flush-center-start').waitFor();
   await button(owner,'Table menu').click();await button(owner,'Rules').click();await owner.getByTestId('flush-rules').waitFor();await button(owner,'Close Flush rules').click();
   await button(owner,'Table menu').click();await button(owner,'Bet history').click();await owner.getByTestId('flush-bet-grid').waitFor();await button(owner,'Close Bet').click();
+  await button(owner,'Table menu').click();
+  const menu=owner.getByTestId('flush-menu-drawer');
+  await button(menu,'Switch to dark mode').click();await button(menu,'Switch to light mode').click();
+  await menu.getByRole('button',{name:/Switch language to/}).click();
+  await menu.getByRole('button').filter({hasText:/^English$/}).click();
+  await button(owner,'Poke the table').click();
+  await owner.getByRole('button',{name:'Close poke composer',exact:true}).click();
+  await button(owner,'Table menu').click();await button(owner,'End table').click();
+  await button(owner,'Keep playing').click();
+  await button(owner,'Close table menu').click();
+  await button(pages[2],'Table menu').click();await button(pages[2],'Leave Table').click();
+  for(let retry=0;retry<100;retry++) {
+    const state=await api(root,users[2]);
+    if(!state.table.current_user.is_seated) break;
+    if(retry===99) throw new Error('Leave Table did not release the seat');
+    await new Promise(resolve=>setTimeout(resolve,100));
+  }
   assert.deepEqual(errors,[]);
   console.log('PASS: responsive dock, own seat, legal actions, reconnect, rejected bet, blind/seen privacy, private side-show, final show, results, rules/history');
  } finally {await browser.close();}
