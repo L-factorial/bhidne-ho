@@ -33,7 +33,7 @@ export function CardTable({ players, viewerId, activePlayerId, width, plays, pen
     return () => animation.stop();
   }, [collecting, collectionKey, reduceMotion, progress]);
   return <View style={{ width }}><TableSeatLayout testID="card-table" players={players} viewerId={viewerId} compact={compact}
-    renderSeat={player => <PlayerSeat name={player.name} mine={player.id === viewerId} active={player.id === activePlayerId}
+    renderSeat={player => <PlayerSeat playerId={Number(player.id)} name={player.name} mine={player.id === viewerId} active={player.id === activePlayerId}
       connected={player.connected} avatarUrl={player.avatarUrl} compact={compact} dealer={dealerId === player.id}
       status={!showScores ? player.cardsRemaining ? `${player.cardsRemaining} cards` : 'Waiting' : compact ? `${player.bid || '—'} / ${player.tricks}` : `Bid ${player.bid || '—'} · Won ${player.tricks}`}
       testID={player.id === viewerId ? 'your-seat' : 'opponent-seat'}

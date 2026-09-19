@@ -19,6 +19,7 @@ from app.multiplayer.presence import PresenceService
 from app.multiplayer.room_service import RoomService
 from app.multiplayer.room_catalog import PostgresRoomCatalog
 from app.multiplayer.room_chat import RoomChatService
+from app.multiplayer.table_social import TableSocialService
 from app.multiplayer.participation import GameParticipation
 from app.multiplayer.room_pokes import RoomPokeService
 from app.multiplayer.player_phrases import PlayerPhraseService, PostgresPlayerPhraseService
@@ -98,6 +99,7 @@ def create_app() -> FastAPI:
             profiles=app.state.player_profiles, round_summary_seconds=8, ledger=app.state.ledger,
             durable_runtime=app.state.durable_game_runtime, runtime_mode=game_runtime_mode,
             players=app.state.players)
+        app.state.table_social = TableSocialService(app.state.test_games, rooms, connections, app.state.player_profiles, app.state.room_pokes)
         app.state.lifecycle = RoomLifecycle(rooms, connections, app.state.test_games, app.state.players)
         app.state.participation = GameParticipation(app.state.test_games)
         app.state.room_chat = RoomChatService(rooms, app.state.player_profiles, app.state.participation)

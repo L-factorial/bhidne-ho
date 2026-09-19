@@ -1,3 +1,4 @@
+import { useSocialHandAnchor } from '../components/TableSocial';
 import { EndedTableNotice } from '../components/EndedTableNotice';
 import { FlushMenu } from '../components/FlushMenu';
 import { GameTableHeader } from '../components/GameTableHeader';
@@ -51,6 +52,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   const settings = snapshot.flush_settings!;
   const [rulesOpen, setRulesOpen] = useState(false);
   const [betsOpen, setBetsOpen] = useState(false);
+  const socialAnchor = useSocialHandAnchor();
   const [pokeOpen, setPokeOpen] = useState(false);
   const [arenaHeight, setArenaHeight] = useState(280);
   const [draft, setDraft] = useState<Record<string, string | number | boolean>>({ ...settings.rules });
@@ -182,7 +184,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
           height={arenaHeight} />
       </ScrollView>
       {pub && <View pointerEvents="none" style={s.notice}><FlushFoldNotice key={`folds:${snapshot.match_id}`} snapshot={snapshot} /></View>}
-      <View style={s.handDock} testID="flush-hand-dock">
+      <View ref={socialAnchor.ref} onLayout={socialAnchor.onLayout} style={s.handDock} testID="flush-hand-dock">
         <FlushTurnCue scope={`${snapshot.match_id}:${snapshot.your_player_id}`} decision={decision?.key ?? null} personal={myTurn} ready={connectionReady} />
         {!ended && mine && !preparing && !pub?.settlement && <View style={s.cards} testID="flush-own-cards">
           <View style={s.scaledCards}><FlushCards tapToToggle key={pub?.round_number} cards={mine.cards} /></View>

@@ -1,3 +1,4 @@
+import { useTableSocial } from './TableSocial';
 import { type ReactNode, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { fonts, useTheme } from '../theme';
@@ -11,6 +12,7 @@ export function GameMenu({ snapshot, close, rules, history, poke, canPoke, back,
   gameActions?: { label: string; action: () => void }[]; gameContent?: ReactNode; pokePlayer?: (id: number) => void;
   canPoke: boolean; back: () => void; tableControl?: ReactNode; leaveControl?: ReactNode; endControl?: ReactNode;
 }) {
+  const tableSocial = useTableSocial();
   const { colors } = useTheme();
   const ended = snapshot.status === 'ended' || snapshot.table?.phase === 'ENDED';
   const [playersOpen, setPlayersOpen] = useState(false);
@@ -25,6 +27,7 @@ export function GameMenu({ snapshot, close, rules, history, poke, canPoke, back,
   const open = (action: () => void) => { close(); action(); };
   return <>
     {section('TABLE')}
+    {tableSocial?.canRead && row('Table Chat', () => open(tableSocial.openChat))}
     {row('Players & waiting queue', () => setPlayersOpen(value => !value), false, playersOpen)}
     {playersOpen && <View style={{ gap: 8 }} testID={`${snapshot.game_type}-menu-players`}>
       {snapshot.players?.map(player => <Text key={player.player_id} style={{ color: colors.text, fontFamily: fonts.body }}>

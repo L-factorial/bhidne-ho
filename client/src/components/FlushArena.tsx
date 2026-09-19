@@ -1,5 +1,6 @@
+import { PlayerSocialEffect, useTableSocial } from './TableSocial';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { flushDecision } from '../multiplayer/flushDecision';
 import Svg, { Circle, Ellipse, G, Path } from 'react-native-svg';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
@@ -37,6 +38,7 @@ function PlayerFace({ seen, folded }: { seen: boolean; folded: boolean }) {
   </Svg>;
 }
 export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot: RoomSnapshot; height?: number; centerControl?: ReactNode }) {
+  const social = useTableSocial();
   const s = useThemedStyles(styles);
   const { colors } = useTheme();
   const [width, setWidth] = useState(300);
@@ -73,10 +75,15 @@ export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot
       const pos = playerPosition(i, players.length, width, height), folded = p.status !== 'active';
       const lastBet = bets.filter(b => b.player_id === p.player_id && b.kind === 'BET_PLACED').at(-1);
       const name = snapshot.players?.find(row => String(row.player_id) === p.player_id)?.display_name || `Player ${p.player_id}`;
+      const target = !!social?.pokeMode && social.eligible(Number(p.player_id));
       return <View key={p.player_id} testID={`flush-seat-${p.player_id}`} style={[s.seat, { left: pos.x - 40, top: pos.y - 38, opacity: folded ? 0.4 : 1 }]}>
-        <View style={[s.icon, p.player_id === decision?.actor && s.current]}><PlayerFace seen={p.visibility === 'seen'} folded={folded} /><Text accessibilityLabel={`${p.turn_bet_count} bets`} style={s.count}>{p.turn_bet_count}</Text>
+        <PlayerSocialEffect playerId={Number(p.player_id)} />
+        <Pressable accessibilityRole={target ? 'button' : undefined} accessibilityLabel={target ? `Poke ${name}` : name} disabled={!target}
+          onTouchStart={event => { if (target) event.stopPropagation(); }} onPointerDown={event => { if (target) event.stopPropagation(); }} onPress={() => social?.poke(Number(p.player_id))}
+          style={[s.icon, p.player_id === decision?.actor && s.current, target && {borderColor:colors.accent}]}>
+          {target && <Text style={{position:'absolute',right:-8,top:-8}}>👋</Text>}<PlayerFace seen={p.visibility === 'seen'} folded={folded} /><Text accessibilityLabel={`${p.turn_bet_count} bets`} style={s.count}>{p.turn_bet_count}</Text>
           {p.player_id === decision?.actor && <Text testID="flush-active-turn" style={s.turnLabel}>TURN</Text>}
-          {p.player_id === pub?.dealer_id && <Text accessibilityLabel="Dealer" style={s.dealer}>D</Text>}</View>
+          {p.player_id === pub?.dealer_id && <Text accessibilityLabel="Dealer" style={s.dealer}>D</Text>}</Pressable>
         <Text testID={`flush-turn-name-${p.player_id}`} numberOfLines={1} style={s.name}>{name}{p.player_id === String(snapshot.your_player_id) ? ' · You' : ''}</Text>
         <Text style={s.caption}>{folded ? 'Folded' : `${p.visibility}${lastBet ? ` · ${lastBet.amount}` : ''}`}</Text>
       </View>;

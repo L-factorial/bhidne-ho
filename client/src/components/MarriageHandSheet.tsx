@@ -1,3 +1,4 @@
+import { useSocialHandAnchor } from './TableSocial';
 import type { ReactNode, RefObject } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import type { HandSnap } from '../multiplayer/marriageWorkspace';
@@ -8,6 +9,7 @@ export function MarriageHandSheet({ mobile, anchor, snap, onSnap, instruction, a
   mobile: boolean; snap: HandSnap; onSnap: (snap: HandSnap) => void;
   instruction: string; attention: boolean; header: ReactNode; footer?: ReactNode; children: ReactNode;
 }) {
+  const socialAnchor = useSocialHandAnchor(anchor);
   const { colors } = useTheme();
   const open = snap !== 'collapsed';
   const controls = <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -26,9 +28,9 @@ export function MarriageHandSheet({ mobile, anchor, snap, onSnap, instruction, a
   // This footer takes layout space; it never floats over the final row of cards.
   const actionFooter = footer ? <View testID="marriage-hand-footer" style={{ flexShrink: 0,
     borderTopWidth: 1, borderColor: colors.border, padding: 10, paddingBottom: 12, gap: 6 }}>{footer}</View> : null;
-  if (!mobile) return <View ref={anchor} style={{ maxHeight: '60%', minHeight: 0 }}>{header}
+  if (!mobile) return <View onLayout={socialAnchor.onLayout} ref={anchor} style={{ maxHeight: '60%', minHeight: 0 }}>{header}
     <ScrollView style={{ minHeight: 0 }} contentContainerStyle={{ paddingBottom: 16 }}>{children}</ScrollView>{actionFooter}</View>;
-  return <View ref={anchor} testID="marriage-mobile-hand" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 30,
+  return <View onLayout={socialAnchor.onLayout} ref={anchor} testID="marriage-mobile-hand" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 30,
     height: snap === 'expanded' ? '74%' : snap === 'peek' ? '38%' : 62,
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
     borderTopLeftRadius: 18, borderTopRightRadius: 18, overflow: 'hidden' }}>

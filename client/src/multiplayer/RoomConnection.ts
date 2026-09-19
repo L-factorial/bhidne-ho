@@ -4,6 +4,11 @@ type Socket = Pick<WebSocket, 'onmessage' | 'onclose' | 'onerror' | 'send' | 'cl
 // Transport only: no game commands, seats, hands, or game-specific state.
 export class RoomConnection {
   private socket: Socket | null = null;
+  private ready = false;
+  send(message: object) {
+    if (!this.ready || !this.socket || this.stopped) return false;
+    try { this.socket.send(JSON.stringify(message)); return true; } catch { return false; }
+  }
   private timer: ReturnType<typeof setTimeout> | undefined;
   private stopped = true;
   private attempts = 0;
@@ -27,6 +32,7 @@ export class RoomConnection {
     if (!this.stopped) { this.disposeSocket(); this.connect(); }
   }
   private disposeSocket() {
+    this.ready = false;
     clearTimeout(this.timer);
     const socket = this.socket; this.socket = null;
     if (socket) { socket.onmessage = null; socket.onclose = null; socket.onerror = null; socket.close(); }
@@ -53,7 +59,7 @@ export class RoomConnection {
         this.stop(); this.onStatus('disconnected'); this.onEvent(message); return;
       }
       if (message.type === 'CONNECTED') {
-        this.hasConnected = true; this.attempts = 0; this.onStatus('connected'); this.scheduleHeartbeat(socket);
+        this.ready = true; this.hasConnected = true; this.attempts = 0; this.onStatus('connected'); this.scheduleHeartbeat(socket);
       } else if (message.type === 'HEARTBEAT_ACK') this.scheduleHeartbeat(socket);
       else this.onEvent(message);
     };

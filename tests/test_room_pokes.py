@@ -167,15 +167,16 @@ def test_personal_phrase_update_preserves_id_and_enforces_owner_length_and_dupli
 
 
 @pytest.mark.parametrize('started', [False, True])
-async def test_flush_only_allows_table_pokes(started):
+async def test_flush_allows_targeted_and_legacy_table_pokes(started):
     host, social, _, sockets, _ = await social_table('flush', started)
     game = host.games['room']
     before = await host.snapshot('room', 'u0')
-    with pytest.raises(HTTPException) as error:
-        await host.poke('room', 'u0', CallBreakPokeInput(
-            match_id=game.match_id, recipient_player_id=2, text='Hey!'), social)
-    assert error.value.status_code == 403
-    assert all(not socket.messages for socket in sockets)
+    private = await host.poke('room', 'u0', CallBreakPokeInput(
+        match_id=game.match_id, recipient_player_id=2, text='Hey!'), social)
+    assert private['scope'] == 'private'
+    assert [len(socket.messages) for socket in sockets] == [0, 1, 0, 0, 0, 1, 0]
+    for socket in sockets: socket.messages.clear()
+    social.states['room'].last_poke.clear()
     ack = await host.poke('room', 'u0', CallBreakPokeInput(
         match_id=game.match_id, text='Your move!'), social)
     assert ack['scope'] == 'table'

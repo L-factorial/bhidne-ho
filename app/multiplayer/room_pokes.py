@@ -28,12 +28,14 @@ class RoomPokeService:
         return members
 
     async def send(self, room_id, user_id, *, match_id, sender_player_id, recipient_user_id,
-                   recipient_player_id, text):
+                   recipient_player_id, text, validate=None):
         members = await self.member(room_id, user_id)
         if recipient_user_id == user_id:
             raise HTTPException(409, "Choose another player to poke.")
         if recipient_user_id is not None and recipient_user_id not in await self.connections.connected_members(room_id):
             raise HTTPException(409, "That player is offline. Try when they return.")
+        if validate is not None:
+            validate()
         state = self.states.setdefault(room_id, RoomSocialState())
         now = time.monotonic()
         if now - state.last_poke.get(user_id, float("-inf")) < self.cooldown_seconds:

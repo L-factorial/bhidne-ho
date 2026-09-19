@@ -18,4 +18,4 @@ class PlayerPhraseInput(BaseModel):
 
 class CallBreakPokeInput(PlayerPhraseInput):
     match_id: str = Field(min_length=1, max_length=128)
-    recipient_player_id: Annotated[int, Field(strict=True, ge=1, le=5)] | None = None
+    recipient_player_id: Annotated[int, Field(strict=True, ge=1)] | None = None

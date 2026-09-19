@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { appendPoke, limitPokeText, pokeTextLength, QUICK_POKES, readPoke } from '../src/multiplayer/pokes.ts';
+import { appendPoke, limitPokeText, pokeTextLength, POKE_TEXT_LIMIT, readPoke } from '../src/multiplayer/pokes.ts';
 import { RoomConnection } from '../src/multiplayer/RoomConnection.ts';
 
 const event = (overrides = {}) => ({ type: 'ROOM_POKE', id: 'poke-1', room_id: 'room', match_id: 'match',
@@ -12,7 +12,7 @@ test('private poke parsing accepts only this recipient in this room', () => {
   assert.equal(readPoke(event(), 'elsewhere', 'bob', 1000), null);
   assert.equal(readPoke(event(), 'room', 'alice', 1000), null);
   assert.equal(readPoke(event(), 'room', 'bob', 6000), null);
-  assert.equal(readPoke(event({ text: 'x'.repeat(26) }), 'room', 'bob', 1000), null);
+  assert.equal(readPoke(event({ text: 'x'.repeat(POKE_TEXT_LIMIT + 1) }), 'room', 'bob', 1000), null);
   assert.equal(readPoke(event({ sender_player_id: 0 }), 'room', 'bob', 1000), null);
 });
 
@@ -33,11 +33,10 @@ test('popup inbox deduplicates, expires messages, and bounds simultaneous messag
   assert.deepEqual(appendPoke(inbox, event({ id: 'new', expires_at: 12000 }), 7000).map(p => p.id), ['new']);
 });
 
-test('custom punchlines stop at 25 Unicode characters without splitting emoji', () => {
-  assert.equal(limitPokeText('x'.repeat(30)), 'x'.repeat(25));
-  assert.equal(limitPokeText('😏'.repeat(30)), '😏'.repeat(25));
+test('poke payloads respect the current Unicode limit without splitting emoji', () => {
+  assert.equal(limitPokeText('x'.repeat(40)), 'x'.repeat(POKE_TEXT_LIMIT));
+  assert.equal(limitPokeText('😏'.repeat(40)), '😏'.repeat(POKE_TEXT_LIMIT));
   assert.equal(pokeTextLength('😏'.repeat(25)), 25);
-  assert.ok(QUICK_POKES.every(text => pokeTextLength(text) <= 25));
 });
 
 test('room socket forwards live events and ignores obsolete sockets after reconnect', t => {

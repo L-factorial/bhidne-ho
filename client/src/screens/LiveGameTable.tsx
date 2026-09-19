@@ -74,7 +74,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   const wide = screenWidth >= 1000;
   const mobile = screenWidth < 900;
   const [tableWidth, setTableWidth] = useState(280);
-  const width = Math.max(180, Math.min(tableWidth - 24, 800));
+  const width = Math.max(180, Math.min(Math.min(tableWidth, screenWidth) - 24, 800));
   const [revealedDeal, setRevealedDeal] = useState<string | null>(null);
   const handDealKey = `${snapshot.match_id}:${snapshot.deal?.deal_number}:${snapshot.deal?.attempt}`;
   const [expandedLastTrick, setExpandedLastTrick] = useState<string | null>(null);

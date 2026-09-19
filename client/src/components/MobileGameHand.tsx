@@ -1,3 +1,4 @@
+import { useSocialHandAnchor } from './TableSocial';
 import { type ReactNode, useEffect, useRef } from 'react';
 import { AccessibilityInfo, Animated, Pressable, ScrollView, Text, View } from 'react-native';
 import { fonts, useTheme } from '../theme';
@@ -8,6 +9,7 @@ export function MobileGameHand({ mobile, open, onToggle, docked = false, desktop
   game?: string; keepMounted?: boolean;
   mobile: boolean; open: boolean; onToggle: () => void; myTurn: boolean; children: ReactNode;
 }) {
+  const socialAnchor = useSocialHandAnchor();
   const { colors } = useTheme();
   const content = useRef<ScrollView>(null);
   useEffect(() => { if (desktopDrawer && open) content.current?.scrollTo({ y: 0, animated: false }); }, [desktopDrawer, open]);
@@ -39,7 +41,7 @@ export function MobileGameHand({ mobile, open, onToggle, docked = false, desktop
   return <>
     {open && !docked && <Pressable testID={`${game}-hand-backdrop`} accessibilityRole="button" accessibilityLabel="Close your card area"
       onPress={onToggle} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 29, backgroundColor: colors.overlay }} />}
-    <Animated.View testID={`${game}-mobile-hand`} style={{ position: docked ? 'relative' : 'absolute', bottom: 0, left: 0, right: 0,
+    <Animated.View ref={socialAnchor.ref} onLayout={socialAnchor.onLayout} testID={`${game}-mobile-hand`} style={{ position: docked ? 'relative' : 'absolute', bottom: 0, left: 0, right: 0,
     maxHeight: docked ? '44%' : '88%', flexShrink: 0, zIndex: 30, elevation: 16, transform: [{ translateY: slide }], borderWidth: 1, borderColor: colors.border,
     borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden', backgroundColor: colors.surface }}>
     <View style={{ alignItems: 'center', paddingTop: 7, backgroundColor: colors.surface }}>

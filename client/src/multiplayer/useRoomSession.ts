@@ -1,3 +1,4 @@
+import { TableSocialChannel } from './TableSocialChannel';
 import { useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import { apiUrl, ApiError, request } from './api';
@@ -8,6 +9,7 @@ import { appendPoke, readPoke, type RoomPoke } from './pokes';
 type Membership = { room_id: string; tables: { status: string }[]; active_game: { game_id: string; game_type: 'callbreak' | 'marriage' | 'flush'; status: string; player_is_participant: boolean } | null };
 
 export function useRoomSession() {
+  const [socialChannel] = useState(() => new TableSocialChannel());
   const [pokes, setPokes] = useState<RoomPoke[]>([]);
   const [saved] = useState(() => readSession(apiUrl));
   const [session, setSession] = useState<Session | null>(saved?.session || null);
@@ -80,16 +82,17 @@ export function useRoomSession() {
         if ((message as { type?: string })?.type === 'ROOM_DELETED') {
           setRoom(null); setGame(null); setLeaveGameRequired(null); setError('This room was deleted by its owner.'); return;
         }
+        socialChannel.receive(message);
         const poke = readPoke(message, room.room_id, session.user_id);
         if (poke) setPokes(current => appendPoke(current, poke));
       },
     );
-    connection.current = transport; transport.start();
+    connection.current = transport; socialChannel.send = message => transport.send(message); transport.start();
     const wake = () => transport.retryNow();
     const subscription = AppState.addEventListener('change', state => { if (state === 'active') wake(); });
     if (Platform.OS === 'web') globalThis.addEventListener('online', wake);
     return () => {
-      transport.stop(); connection.current = null; subscription.remove();
+      transport.stop(); socialChannel.send = () => false; connection.current = null; subscription.remove();
       if (Platform.OS === 'web') globalThis.removeEventListener('online', wake);
     };
   }, [session, room?.room_id, expired]);
@@ -161,7 +164,7 @@ export function useRoomSession() {
       try { await request('/auth/signout', active, {}); } catch { /* Local sign-out still succeeds offline. */ }
     }
   }
-  return { loginAccount, loggingIn, session, room, rooms, memberships, game, setGame, joinRoom, enterRoom, exitRoom, leaveRoom, deleteRoom, signOut, leaveGameRequired, leaveGameAndRoom, abandonRequired,
+  return { socialChannel, loginAccount, loggingIn, session, room, rooms, memberships, game, setGame, joinRoom, enterRoom, exitRoom, leaveRoom, deleteRoom, signOut, leaveGameRequired, leaveGameAndRoom, abandonRequired,
     cancelLeave: () => { setLeaveGameRequired(null); setError(''); }, status, expired, error, pokes,
     retry: () => { connection.current?.retryNow(); } };
 }

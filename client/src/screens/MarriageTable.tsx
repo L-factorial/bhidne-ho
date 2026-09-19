@@ -1,3 +1,4 @@
+import { useTableSocial } from '../components/TableSocial';
 import { TurnIndicator } from '../components/TurnIndicator';
 import { EndedTableNotice } from '../components/EndedTableNotice';
 import { GameMenu, GameMenuMetadata } from '../components/GameMenu';
@@ -43,6 +44,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const [finishPreview, setFinishPreview] = useState(false);
   const [sortBy, setSortBy] = useState<'suit' | 'rank'>('suit');
   const handAnchor = useRef<View>(null);
+  const tableSocial = useTableSocial();
   const [shownPlayer, setShownPlayer] = useState<string | null>(null);
   const previousShown = useRef<string[] | null>(null);
   const showOpacity = useRef(new Animated.Value(0)).current;
@@ -194,7 +196,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
           <View style={s.main}>
             <View style={s.table}>
               <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}><MarriageCardArea snapshot={snapshot} handAnchor={handAnchor} canAct={!busy && activeGame} onAction={cards.act} onPoke={activeGame || ended ? undefined : setPoke} /></ScrollView>
-              {turnPrompt}
+              <View style={tableSocial?.canRead ? { marginBottom: 60 } : undefined}>{turnPrompt}</View>
               {ended && <View testID="ended-table-overlay" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center', zIndex: 70 }}>{endedNotice}</View>}
 
             </View>

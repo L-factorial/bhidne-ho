@@ -947,6 +947,15 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             logger.exception("Completed %s game %s; ledger projection will be retried",
                              game.game_type, game.match_id)
 
+    def social_roster(self, room_id, match_id):
+        game = self._get(room_id, match_id)
+        if game.match_id != match_id or game.ended:
+            raise HTTPException(409, "This table is no longer available.")
+        users = game.table.next_seats if game.table.next_seats is not None else game.users
+        seats = {user: game.flush_seats[user] if game.game_type == 'flush' else index + 1
+                 for index, user in enumerate(users) if user is not None and user not in game.departed}
+        return seats, list(game.table.queue)
+
     async def poke(self, room_id, user_id, body, social):
         await self._member(room_id, user_id)
         game = self._get(room_id, body.match_id)
@@ -954,16 +963,16 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         # Roster validation is synchronous; social delivery has its own room checks.
         if body.match_id != game.match_id or game.ended:
             raise HTTPException(409, "The game changed. Reopen the table to send a poke.")
-        if user_id not in game.users:
+        seats, _ = self.social_roster(room_id, body.match_id)
+        if user_id not in seats:
             raise HTTPException(403, "Take a seat before sending a poke.")
         recipient = body.recipient_player_id
-        if game.game_type == "flush" and recipient is not None:
-            raise HTTPException(403, "Flush only allows pokes to the whole table.")
-        if recipient is not None and recipient > len(game.users):
+        target = next((user for user, seat in seats.items() if seat == recipient), None)
+        if recipient is not None and target is None:
             raise HTTPException(409, "That seat is empty.")
         return await social.send(room_id, user_id, match_id=game.match_id,
-            sender_player_id=game.flush_seats[user_id] if game.game_type == "flush" else game.users.index(user_id) + 1,
-            recipient_user_id=game.users[recipient - 1] if recipient else None,
+            sender_player_id=seats[user_id],
+            recipient_user_id=target,
             recipient_player_id=recipient, text=body.text)
 
     def _apply_player(self, game, actor, command, payload=None, *, command_id=None):

@@ -15,6 +15,8 @@ the shared adapter handles full gameplay; production runtime integration remains
 - [Marriage UI and room integration](docs/marriage-ui.md): playable room flow, hand views, meld controls, private Maal, supported completion, and browser checks.
 - [Standalone Marriage engine plan](docs/marriage-engine-plan.md): independent domain design, proposed rule decisions, incremental implementation gates, and tests; adapters and UI deferred.
 
+- [In-game table chat and targeted pokes](docs/table-social.md): table-only access, shared social controls, ephemeral command delivery, and browser checks.
+
 - [Room pokes and punchlines](docs/room-pokes.md): private player pokes, table messages, custom 25-character phrases, and popup behavior.
 
 - [Project TODO](TODO.md): current refinement priority and deferred backend-restart recovery.

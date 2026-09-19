@@ -1,3 +1,5 @@
+import { TableSocialProvider } from './TableSocial';
+import type { TableSocialChannel } from '../multiplayer/TableSocialChannel';
 import { TableCard } from './TableCard';
 import type { TableEntry } from '../multiplayer/tableNavigation';
 import { RuleProposal } from './RuleProposal';
@@ -21,8 +23,8 @@ import { request } from '../multiplayer/api';
 
 type InvitePlayer = { user_id: string; display_name: string; username?: string | null; eligible?: boolean; reason?: string | null };
 
-export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, apiUrl, token, connected, members, roomMembers = members, connectionMessage, userId, pokes, personal, createContent, creationEnabled = true, gameType = 'callbreak' }: {
-  chat?: ReactNode; onOpenChange?: (open: boolean) => void;
+export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMatchId, roomId, apiUrl, token, connected, members, roomMembers = members, connectionMessage, userId, pokes, personal, createContent, creationEnabled = true, gameType = 'callbreak' }: {
+  socialChannel?: TableSocialChannel; chat?: ReactNode; onOpenChange?: (open: boolean) => void;
   requestedMatchId?: string;
   gameType?: 'callbreak' | 'marriage' | 'flush';
   createContent?: ReactNode; creationEnabled?: boolean;
@@ -297,6 +299,7 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
         paddingTop: insets.top, paddingBottom: insets.bottom,
         paddingLeft: insets.left, paddingRight: insets.right,
       }]}><View accessibilityViewIsModal testID="live-game-overlay" style={[styles.liveOverlay, (mobileGame || snapshot.game_type === 'flush') && !chat && { paddingBottom: 0 }]}>
+        <TableSocialProvider key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} channel={socialChannel} connected={connected} userId={userId} pokes={pokes}>
         {snapshot.game_type === 'flush' ? <FlushTable connectionReady={connected && synced} onLock={() => void lobbyAction('/table/lock')} tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onFormationBlocked={setFormationBlocked} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={error}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: text => social.send(snapshot.match_id!, null, text) }}
           onSave={payload => lobbyAction('/flush-settings', payload)} onStart={rules_revision => lobbyAction('/start', { rules_revision })}
@@ -320,7 +323,7 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
           {snapshot.status !== 'ended' && snapshot.rule_proposal?.status === 'PENDING' && ruleReview}
         </ScrollView>
         {chat}
-        <PokeOverlay pokes={pokes} matchId={snapshot.match_id} />
+        </TableSocialProvider>
       </View></View> :
       <View style={styles.overlay}><View accessibilityViewIsModal style={styles.modal}>
         <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">

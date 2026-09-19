@@ -11,6 +11,7 @@ from app.auth.service import AuthenticationError, AuthService
 from app.models.messages import ClientMessage
 from app.multiplayer.connection_manager import RoomMembershipEnded
 from app.models.game import CommandError, GameCommand
+from app.models.table_social import TableSocialCommand
 
 router = APIRouter()
 HEARTBEAT_TIMEOUT_SECONDS = 30
@@ -69,6 +70,17 @@ async def room_socket(websocket: WebSocket, room_id: str) -> None:
                     await connections.send_to_connection(
                         room_id, connection_id, {"type": "HEARTBEAT_ACK"},
                     )
+                    continue
+                if isinstance(data, dict) and data.get("type") in {"TABLE_CHAT_SEND", "TABLE_CHAT_HISTORY", "TABLE_POKE_SEND"}:
+                    try:
+                        social_command = TableSocialCommand.model_validate(data)
+                    except ValidationError:
+                        response = {"type": "TABLE_SOCIAL_ACK", "room_id": room_id,
+                            "match_id": data.get("match_id"), "command_id": data.get("command_id"),
+                            "status": "rejected", "detail": "Invalid social command."}
+                    else:
+                        response = await websocket.app.state.table_social.handle(room_id, identity.user_id, social_command)
+                    await connections.send_to_connection(room_id, connection_id, response)
                     continue
                 is_command = isinstance(data, dict) and data.get("type") == "GAME_COMMAND"
                 try:
