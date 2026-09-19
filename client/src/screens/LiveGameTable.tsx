@@ -1,3 +1,5 @@
+import { EndedTableNotice } from '../components/EndedTableNotice';
+import { GameMenu, GameMenuMetadata } from '../components/GameMenu';
 import { ActionCue } from '../components/ActionCue';
 import type { RuleProposalView } from '../components/RuleProposal';
 import { GameTableHeader } from '../components/GameTableHeader';
@@ -57,14 +59,16 @@ export type RoomSnapshot = {
 const suits: Record<string, string> = { S: '♠', H: '♥', D: '♦', C: '♣' };
 const face = (card: string) => card.slice(0, -1) + suits[card.slice(-1)];
 
-export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart, onSave, onNewGame, onNextDeal, social, endControl, tableControl, onTableAction }: {
+export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart, onSave, onNewGame, onNextDeal, social, endControl, tableControl, lobbyControl, onTableAction }: {
   tableControl?: ReactNode; onTableAction: (command: string) => void;
-  endControl?: ReactNode;
+  endControl?: ReactNode; lobbyControl?: ReactNode;
   social: { connected: boolean; phrases: PlayerPhrase[]; save: (text: string) => Promise<void>; send: (recipient: number | null, text: string) => Promise<void> };
   onNextDeal: () => void; onNewGame: () => void; onStart: () => void; onSave: (settings: NonNullable<RoomSnapshot['settings']>) => void;
   snapshot: RoomSnapshot; busy: boolean; error: string; onAction: (command: string, payload?: object) => void; onBack: () => void;
 }) {
   const { colors } = useTheme();
+  const ended = snapshot.status === 'ended';
+  const endedNotice = <EndedTableNotice onBack={onBack} onNewGame={onNewGame} />;
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const screenWidth = useWindowDimensions().width;
@@ -96,20 +100,26 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   const guidance = roundGuidance(snapshot);
   const playerName = (id: number) => snapshot.players?.find(p => p.player_id === id)?.display_name || `Player ${id}`;
   const game = snapshot.game, deal = snapshot.deal, mine = snapshot.private;
-  const isTurn = !!snapshot.your_player_id && game?.turn.player_id === snapshot.your_player_id;
-  const showFormation = mobile && (!game || snapshot.status === 'finished' || ['OPEN', 'LOCKED', 'COMPLETED'].includes(snapshot.table?.phase || ''));
-  const handAvailable = !!mine && mine.hand.length > 0 && !game?.finished && !snapshot.round_review;
+  const isTurn = !ended && !!snapshot.your_player_id && game?.turn.player_id === snapshot.your_player_id;
+  const handAvailable = !ended && !!mine && mine.hand.length > 0 && !game?.finished && !snapshot.round_review;
   const promptKey = handAvailable && (isTurn || mine?.can_accept_hand)
     ? `${handDealKey}:${game?.phase}:${isTurn}:${game?.current_trick?.trick_number || deal?.tricks_completed || 0}` : null;
   const cards = useMobileCards({ mobile, busy, error, promptKey, onAction });
-  const header = <GameTableHeader game="callbreak" title="Call Break" path={snapshot.path} roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack} endControl={endControl}>
-    {(!wide || !game) && <GameDetails snapshot={snapshot} busy={busy} onSave={onSave} />}
-    {mobile && !showFormation && tableControl}
+  const header = <GameTableHeader compact game="callbreak" title="Call Break" path={snapshot.path} roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack}
+    drawerMetadata={<GameMenuMetadata snapshot={snapshot} />}>
+    {close => <GameMenu snapshot={snapshot} close={close} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl}
+      poke={() => setPokeTarget(null)} pokePlayer={setPokeTarget} canPoke={social.connected}
+      gameContent={<GameDetails snapshot={snapshot} busy={busy} onSave={onSave} />} />}
   </GameTableHeader>;
-  const formation = showFormation && <View testID="callbreak-formation-controls">{tableControl}</View>;
-  const startCue = <TableStartCue snapshot={snapshot} busy={busy} onStart={onStart} onTableAction={onTableAction} onNewGame={onNewGame} />;
+  const socialOverlay = !ended && pokeTarget !== undefined && <PokeComposer recipient={pokeTarget} recipientName={snapshot.players?.find(p => p.player_id === pokeTarget)?.display_name} phrases={social.phrases} connected={social.connected}
+    onClose={() => setPokeTarget(undefined)} onSave={social.save} onSend={async text => {
+      await social.send(pokeTarget, text);
+      setPokeNotice({ text: pokeTarget === null ? 'Sent to the table ✦' : `Poke sent to ${playerName(pokeTarget)} ✦`, at: Date.now() });
+    }} />;
+  const startCue = ended ? endedNotice : <TableStartCue snapshot={snapshot} busy={busy} onStart={onStart} onTableAction={onTableAction} onNewGame={onNewGame} />;
+  if (ended && (!game || !deal)) return <View style={styles.page}>{header}<View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>{endedNotice}</View></View>;
   if (!game || !deal) return <View style={styles.page}>
-    {header}{formation}
+    {header}
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 20 }}>
       <Text style={styles.title}>{snapshot.players?.length}/{snapshot.capacity} players seated</Text>
       <Text style={styles.meta}>{snapshot.ready ? 'Everyone is here. The first dealer will be chosen at random.' : 'Waiting for everyone to take a seat.'}</Text>
@@ -118,14 +128,14 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
         {startCue}{!snapshot.is_creator && <Text style={styles.status}>Waiting for the creator to start.</Text>}
       </View>
       {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
-    </View>
+    </View>{socialOverlay}
   </View>;
-  if ((snapshot.round_review || game.finished) && !reveal) return <View style={styles.page}>{header}{formation}<RoundSummary
+  if (!ended && (snapshot.round_review || game.finished) && !reveal) return <View style={styles.page}>{header}<RoundSummary
     snapshot={snapshot} busy={busy} error={error || snapshot.error || ''} onContinue={onNextDeal} onBack={onBack} onNewGame={onNewGame}
     hideNavigation controls={game.finished ? startCue : snapshot.round_review?.can_continue ? <View testID="callbreak-center-next-deal" style={{ minHeight: 160, alignItems: 'center', justifyContent: 'center' }}>
       <Pressable accessibilityRole="button" accessibilityLabel="Start next deal" disabled={busy} onPress={onNextDeal} style={styles.button}><ActionCue active={!busy} style={styles.buttonText}>Start next deal</ActionCue></Pressable>
-    </View> : <Text style={styles.meta}>Waiting for the creator to start the next deal.</Text>} /></View>;
-  const showTurn = game.phase === 'PLAYING' && !game.finished && !reveal && !!game.turn.player_id;
+    </View> : <Text style={styles.meta}>Waiting for the creator to start the next deal.</Text>} />{socialOverlay}</View>;
+  const showTurn = !ended && game.phase === 'PLAYING' && !game.finished && !reveal && !!game.turn.player_id;
   const players = deal.players.map(player => ({ id: String(player.player_id), name: playerName(player.player_id),
     connected: snapshot.players?.find(p => p.player_id === player.player_id)?.connected,
     bid: player.bid ?? 0, tricks: Math.max(0, player.tricks_won - (reveal && completedTrick?.winner === player.player_id ? 1 : 0)), cardsRemaining: player.cards_remaining }));
@@ -140,7 +150,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
       {game.phase === 'AWAITING_DISTRIBUTION' && action('Deal cards', 'START_DISTRIBUTION')}
     </View> : null;
   return <View style={styles.page}>
-    {header}{formation}
+    {header}
 
     <View style={[styles.workspace, wide && styles.wideBody]}>
     <View style={styles.playColumn}>
@@ -149,13 +159,13 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
       paddingTop: 12, paddingBottom: mobile && handAvailable ? 110 : Math.max(insets.bottom, 16),
     }]}><View style={{ width }}>
     <Text style={styles.meta}>Deal {deal.deal_number} of 5 · {deal.tricks_completed}/{deal.tricks_required} tricks completed · Spades trump</Text>
-    {game.phase !== 'PLAYING' && game.phase !== 'BIDDING' && !reveal && <Text style={styles.meta}>{guidance.title}</Text>}
+    {!ended && game.phase !== 'PLAYING' && game.phase !== 'BIDDING' && !reveal && <Text style={styles.meta}>{guidance.title}</Text>}
     {!!(error || snapshot.error) && <Text accessibilityRole="alert" style={styles.error}>{error || snapshot.error}</Text>}
-    <CardTable centerControl={preparation} width={width} players={players} dealerId={String(deal.dealer)} viewerId={snapshot.your_player_id ? String(snapshot.your_player_id) : ''}
+    <CardTable centerControl={ended ? endedNotice : preparation} width={width} players={players} dealerId={String(deal.dealer)} viewerId={snapshot.your_player_id ? String(snapshot.your_player_id) : ''}
       collectionKey={reveal ? trickKey : undefined} collecting={reveal && collectingTrick === trickKey}
-      winnerPlayerId={reveal ? String(completedTrick?.winner) : undefined} activePlayerId={!reveal && game.turn.player_id ? String(game.turn.player_id) : ''} plays={(trick?.plays || []).map(play => ({ playerId: String(play.player_id), card: face(play.card) }))} />
+      winnerPlayerId={reveal ? String(completedTrick?.winner) : undefined} activePlayerId={!ended && !reveal && game.turn.player_id ? String(game.turn.player_id) : ''} plays={(trick?.plays || []).map(play => ({ playerId: String(play.player_id), card: face(play.card) }))} />
     <View testID="central-turn-notice">
-      {reveal && <Text accessibilityLiveRegion="polite" style={styles.status}>{playerName(completedTrick!.winner!)} wins trick {completedTrick!.trick_number}</Text>}
+      {!ended && reveal && <Text accessibilityLiveRegion="polite" style={styles.status}>{playerName(completedTrick!.winner!)} wins trick {completedTrick!.trick_number}</Text>}
       {showTurn && (!mobile || !handAvailable) && <TurnPulse personal={isTurn} text={isTurn ? 'Your turn' : `${playerName(game.turn.player_id!)}'s turn`} />}
     </View>
     {!!pokeNotice && <Text accessibilityLiveRegion="polite" style={styles.meta}>{pokeNotice.text}</Text>}
@@ -188,9 +198,6 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     {game.phase === 'PLAYING' && !deal.tricks.some(trick => trick.complete || trick.plays.length) && !game.current_trick?.plays.length && <Text accessibilityLiveRegion="polite" style={styles.status}>Bidding complete. {isTurn ? 'You lead first.' : `${playerName(game.turn.player_id!)} leads first.`}</Text>}
     {game.phase === 'BIDDING' && <LiveBidPrompt key={`${snapshot.match_id}-${deal.deal_number}-${deal.attempt}`} snapshot={snapshot} revealed={revealedDeal === handDealKey} busy={busy} onAction={cards.act} />}
 
-    <ScrollView horizontal contentContainerStyle={{ gap: 8, paddingVertical: 8 }}><Pressable accessibilityRole="button" accessibilityLabel="Poke the table" disabled={!social.connected} onPress={() => setPokeTarget(null)} style={styles.button}><Text style={styles.buttonText}>Poke the table</Text></Pressable>
-      {(snapshot.players || []).filter(p => p.player_id !== snapshot.your_player_id).map(p => <Pressable key={p.player_id} accessibilityRole="button" accessibilityLabel={`Poke ${playerName(p.player_id)}`} disabled={!social.connected || p.connected === false} onPress={() => setPokeTarget(p.player_id)} style={styles.button}><Text style={styles.buttonText}>{`Poke ${playerName(p.player_id)}`}</Text></Pressable>)}
-    </ScrollView>
     {(mine?.can_accept_hand || mine?.can_claim_redeal) && <View style={styles.actions}>{mine?.can_accept_hand && revealedDeal === handDealKey && action('Accept hand', 'ACCEPT_HAND')}{mine?.can_claim_redeal && action('Request redeal', 'CLAIM_REDEAL')}</View>}
     <Text style={[styles.title, { fontSize: 22, marginVertical: 4 }]}>{mine ? `Your hand · ${mine.hand.length} cards` : 'Spectator view'}</Text>
     {mine && <PlayerHand turnKey={`${game.phase}:${game.turn.player_id}:${game.current_trick?.trick_number}`} view={handView} onViewChange={setHandView} dealKey={handDealKey} onRevealComplete={setRevealedDeal} hand={mine.hand} legalCards={mine.legal_cards}
@@ -199,19 +206,13 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     </View></MobileGameHand>}
 
     </View>
-    {wide && <View style={styles.detailsColumn}><GameDetails sidebar snapshot={snapshot} busy={busy} onSave={onSave} /></View>}
     </View>
-    {pokeTarget !== undefined && <PokeComposer recipient={pokeTarget} recipientName={snapshot.players?.find(p => p.player_id === pokeTarget)?.display_name} phrases={social.phrases} connected={social.connected}
-      onClose={() => setPokeTarget(undefined)} onSave={social.save} onSend={async text => {
-        await social.send(pokeTarget, text);
-        setPokeNotice({ text: pokeTarget === null ? 'Sent to the table ✦' : `Poke sent to ${playerName(pokeTarget)} ✦`, at: Date.now() });
-      }} />}
+    {socialOverlay}
   </View>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   workspace: { flex: 1, minHeight: 0 },
   playColumn: { flex: 1, minHeight: 0, minWidth: 0 },
-  detailsColumn: { width: 360, minHeight: 0, borderLeftWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   lastTrick: { position: 'relative', zIndex: 20, flexShrink: 0, borderTopWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 20 },
   lastToggle: { minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   lastCards: { position: 'absolute', bottom: '100%', left: 0, right: 0, flexDirection: 'row', gap: 6, padding: 14, backgroundColor: colors.surface, borderTopLeftRadius: 12, borderTopRightRadius: 12, borderWidth: 1, borderColor: colors.border },

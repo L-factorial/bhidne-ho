@@ -73,9 +73,9 @@ export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot
       const lastBet = bets.filter(b => b.player_id === p.player_id && b.kind === 'BET_PLACED').at(-1);
       const name = snapshot.players?.find(row => String(row.player_id) === p.player_id)?.display_name || `Player ${p.player_id}`;
       return <View key={p.player_id} testID={`flush-seat-${p.player_id}`} style={[s.seat, { left: pos.x - 40, top: pos.y - 38, opacity: folded ? 0.4 : 1 }]}>
-        <View style={[s.icon, p.player_id === pub?.current_player_id && s.current]}><PlayerFace seen={p.visibility === 'seen'} folded={folded} /><Text accessibilityLabel={`${p.turn_bet_count} bets`} style={s.count}>{p.turn_bet_count}</Text>
+        <View style={[s.icon, snapshot.status === 'playing' && p.player_id === pub?.current_player_id && s.current]}><PlayerFace seen={p.visibility === 'seen'} folded={folded} /><Text accessibilityLabel={`${p.turn_bet_count} bets`} style={s.count}>{p.turn_bet_count}</Text>
           {p.player_id === pub?.dealer_id && <Text accessibilityLabel="Dealer" style={s.dealer}>D</Text>}</View>
-        <TurnPulse active={p.player_id === pub?.current_player_id} testID={`flush-turn-name-${p.player_id}`} numberOfLines={1} style={s.name}>{name}{p.player_id === String(snapshot.your_player_id) ? ' · You' : ''}</TurnPulse>
+        <TurnPulse active={snapshot.status === 'playing' && p.player_id === pub?.current_player_id} testID={`flush-turn-name-${p.player_id}`} numberOfLines={1} style={s.name}>{name}{p.player_id === String(snapshot.your_player_id) ? ' · You' : ''}</TurnPulse>
         <Text style={s.caption}>{folded ? 'Folded' : `${p.visibility}${lastBet ? ` · ${lastBet.amount}` : ''}`}</Text>
       </View>;
     })}

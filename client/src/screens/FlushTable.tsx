@@ -1,3 +1,4 @@
+import { EndedTableNotice } from '../components/EndedTableNotice';
 import { FlushMenu } from '../components/FlushMenu';
 import { GameTableHeader } from '../components/GameTableHeader';
 import { ActionCue } from '../components/ActionCue';
@@ -39,6 +40,8 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onA
   onBack: () => void; onNewGame: () => void;
 }) {
   const s = useThemedStyles(styles);
+  const ended = snapshot.status === 'ended';
+  const endedNotice = <EndedTableNotice onBack={onBack} onNewGame={onNewGame} />;
   const width = useWindowDimensions().width;
   const mobile = width < 900;
   const act = onAction;
@@ -59,7 +62,7 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onA
     const saved = { ...settings.rules };
     if (!dirty || Object.entries(saved).every(([key, value]) => String(draft[key]) === String(value))) reload();
   }, [settings.rules_revision]);
-  const editable = snapshot.is_creator && !settings.locked && !busy && snapshot.rule_proposal?.status !== 'PENDING';
+  const editable = !ended && snapshot.is_creator && !settings.locked && !busy && snapshot.rule_proposal?.status !== 'PENDING';
   useEffect(() => { if (snapshot.rule_proposal) reload(); }, [snapshot.rule_proposal?.id, snapshot.rule_proposal?.status]);
   const shownRules = settings.locked ? { ...settings.rules } : draft;
   function edit(key: string, value: string | boolean) { setDraft(v => ({ ...v, [key]: value })); setDirty(true); setLocalError(''); }
@@ -86,18 +89,18 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onA
         <ActionCue active={!formationDisabled} style={[s.title, { textAlign: 'center' }]}>{centerLabel}</ActionCue>
       </Pressable> : null;
   const [finalShowOpen, setFinalShowOpen] = useState(false);
-  const finalStage = pub?.pending_show ? 'pending' : pub?.settlement ? 'result' : null;
+  const finalStage = ended ? null : pub?.pending_show ? 'pending' : pub?.settlement ? 'result' : null;
   useEffect(() => { setFinalShowOpen(finalStage !== null); }, [snapshot.match_id, pub?.round_number, finalStage]);
   const comparison = mine?.side_show;
   const preparing = pub?.status === 'awaiting_deal' || pub?.status === 'awaiting_cut';
-  const myTurn = !!pub?.current_player_id && pub.current_player_id === String(snapshot.your_player_id);
+  const myTurn = !ended && !!pub?.current_player_id && pub.current_player_id === String(snapshot.your_player_id);
   const doubleBet = (mine?.actions.required_bet ?? 0) * 2;
   const canDouble = Number.isSafeInteger(doubleBet) && doubleBet > 0;
   const ackKey = `bhidne.flush-side-show:${snapshot.match_id}:${snapshot.your_player_id}`;
   const [acknowledged, setAcknowledged] = useState(() => { try { return Number(globalThis.sessionStorage?.getItem(ackKey) || 0); } catch { return 0; } });
   const [flippedAll, setFlippedAll] = useState(false);
   const [resultOpen, setResultOpen] = useState(false);
-  const comparisonOpen = !!comparison && comparison.revision > acknowledged;
+  const comparisonOpen = !ended && !!comparison && comparison.revision > acknowledged;
   useEffect(() => { setFlippedAll(false); setResultOpen(false); }, [comparison?.revision]);
   useEffect(() => { if (!flippedAll) return; const timer = setTimeout(() => setResultOpen(true), 400); return () => clearTimeout(timer); }, [flippedAll]);
   function acknowledge() {
@@ -142,7 +145,7 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onA
       {!!(localError || error) && <Text accessibilityRole="alert" style={s.error}>{localError || error}</Text>}
   </>;
   const available = (kind: string) => snapshot.status === 'playing' && !!mine?.actions.kinds.includes(kind);
-  const turnText = pub?.pending_side_show
+  const turnText = ended ? 'Table ended' : pub?.pending_side_show
     ? `${name(pub.pending_side_show.requester_id)} requests a side-show with ${name(pub.pending_side_show.target_id)}`
     : pub?.current_player_id ? myTurn
       ? `Your turn · ${pub.pending_show ? 'Reveal or fold' : pub.status === 'awaiting_deal' ? 'Deal cards' : pub.status === 'awaiting_cut' ? 'Cut or skip' : 'Choose an action'}`
@@ -160,14 +163,14 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onA
       <ScrollView style={s.playViewport} onLayout={e => setArenaHeight(Math.max(280, e.nativeEvent.layout.height))}
         contentContainerStyle={s.playArea}>
         <FlushArena key={`${snapshot.match_id}:${pub?.round_number || 0}`} snapshot={snapshot}
-          centerControl={centerControl || preparationControl || (!snapshot.table && snapshot.status === 'waiting'
+          centerControl={ended ? endedNotice : centerControl || preparationControl || (!snapshot.table && snapshot.status === 'waiting'
             ? snapshot.is_creator ? <FlushLockButton onPress={() => onStart(baseRevision)} disabled={busy || !snapshot.ready || dirty || stale} />
               : <Text style={s.text}>Waiting for the creator to lock the table.</Text> : undefined)}
           height={arenaHeight} />
       </ScrollView>
       {pub && <View pointerEvents="none" style={s.notice}><FlushFoldNotice key={`folds:${snapshot.match_id}`} snapshot={snapshot} /></View>}
       <View style={s.handDock} testID="flush-hand-dock">
-        {mine && !preparing && !pub?.settlement && <View style={s.cards} testID="flush-own-cards">
+        {!ended && mine && !preparing && !pub?.settlement && <View style={s.cards} testID="flush-own-cards">
           <View style={s.scaledCards}><FlushCards tapToToggle key={pub?.round_number} cards={mine.cards} /></View>
         </View>}
         <Text accessibilityLiveRegion="polite" style={[s.status, myTurn && s.yourTurn]}>{turnText}</Text>
@@ -197,7 +200,7 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onA
         {comparison && <FlushCards key={`side-${comparison.revision}`} cards={comparison.opponent_cards} label="Opponent card" onComplete={() => setFlippedAll(true)} />}
       </View></View>
     </Modal>
-    {pokeOpen && <PokeComposer recipient={null} connected={social.connected} phrases={social.phrases} onSave={social.save}
+    {!ended && pokeOpen && <PokeComposer recipient={null} connected={social.connected} phrases={social.phrases} onSave={social.save}
       onSend={social.send} onClose={() => setPokeOpen(false)} />}
     <Modal transparent visible={rulesOpen} onRequestClose={() => setRulesOpen(false)}>
       <View style={s.backdrop}><View style={s.modal} accessibilityViewIsModal><View style={s.row}><Text style={s.title}>Rules</Text>{button('Close Flush rules', () => setRulesOpen(false))}</View><Text style={s.text}>Boot is paid by every player each hand; 0 disables it. Betting is unbounded; net points are recorded for settlement after play. Side-show counts each player’s own bets.</Text>

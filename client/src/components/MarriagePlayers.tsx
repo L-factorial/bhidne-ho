@@ -24,9 +24,9 @@ export function MarriagePlayers({ snapshot, onPoke, registerSeat }: { snapshot: 
       {pub.players.map(p => <Pressable ref={node => registerSeat?.(p.player_id, node)} key={p.player_id}
         testID={`marriage-player-${p.player_id}`} accessibilityRole="button"
         accessibilityLabel={`${playerName(snapshot, p.player_id)}${p.player_id === mine ? ', You' : ''}, ${p.has_seen_maal ? 'Maal seen' : 'Maal not seen'}. View player details`}
-        onPress={() => setSelected(p.player_id)} style={[styles.seat, p.has_seen_maal && styles.seenSeat, pub.current_player_id === p.player_id && styles.active]}>
+        onPress={() => setSelected(p.player_id)} style={[styles.seat, p.has_seen_maal && styles.seenSeat, snapshot.status !== 'ended' && pub.current_player_id === p.player_id && styles.active]}>
         <Text numberOfLines={1} style={[styles.name, { flexShrink: 1 }]}>{playerName(snapshot, p.player_id)}{p.player_id === mine ? ' · You' : ''}</Text>
-        {pub.current_player_id === p.player_id && <Text style={styles.small}>● Turn</Text>}
+        {snapshot.status !== 'ended' && pub.current_player_id === p.player_id && <Text style={styles.small}>● Turn</Text>}
       </Pressable>)}
     </View>
     <Modal transparent visible={!!detail} animationType="none" onRequestClose={() => setSelected(null)}>
@@ -38,7 +38,7 @@ export function MarriagePlayers({ snapshot, onPoke, registerSeat }: { snapshot: 
             <Text style={styles.text}>{detail.hand_count} cards{snapshot.players?.find(p => String(p.player_id) === detail.player_id)?.connected === false ? ' · Offline' : ''}</Text>
             <Text style={styles.text}>{detail.has_seen_maal ? 'Maal seen' : 'Maal not seen'}</Text>
             <Text style={styles.route}>{route(detail)}</Text>
-            <Text style={styles.text}>{situation(detail, pub)}</Text>
+            <Text style={styles.text}>{snapshot.status === 'ended' ? 'Table ended' : situation(detail, pub)}</Text>
             {detail.shown_melds.map((meld, i) => <View key={i} style={styles.meld}><Text style={styles.small}>{meld.meld_type.replace('_', ' ')}</Text><Text style={styles.text}>{meld.card_ids.map(physicalLabel).join('   ')}</Text></View>)}
             {onPoke && mine && detail.player_id !== mine && <Pressable accessibilityRole="button" accessibilityLabel={`Poke ${playerName(snapshot, detail.player_id)}`}
               onPress={() => { setSelected(null); onPoke(Number(detail.player_id)); }} style={styles.close}><Text style={styles.name}>Poke player</Text></Pressable>}

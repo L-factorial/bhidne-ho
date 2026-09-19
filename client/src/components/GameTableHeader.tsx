@@ -49,9 +49,9 @@ export function GameTableHeader({ title, path, game, roomId, matchId, onBack, en
     </View>
     {!!drawerMetadata && <Modal transparent visible={open} animationType="fade" onRequestClose={() => setOpen(false)}>
       <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end' }}>
-        <Pressable testID="flush-menu-backdrop" accessibilityRole="button" accessibilityLabel="Close table menu backdrop"
+        <Pressable testID={`${game}-menu-backdrop`} accessibilityRole="button" accessibilityLabel="Close table menu backdrop"
           onPress={() => setOpen(false)} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: colors.overlay }} />
-        <View testID="flush-menu-drawer" accessibilityViewIsModal style={{ width: '82%', maxWidth: 400, height: '100%', backgroundColor: colors.surface, padding: 18, paddingTop: Math.max(18, insets.top), paddingBottom: Math.max(18, insets.bottom) }}>
+        <View testID={`${game}-menu-drawer`} accessibilityViewIsModal style={{ width: '82%', maxWidth: 400, height: '100%', backgroundColor: colors.surface, padding: 18, paddingTop: Math.max(18, insets.top), paddingBottom: Math.max(18, insets.bottom) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Text accessibilityRole="header" style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 20 }}>{title}</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="Close table menu" onPress={() => setOpen(false)}
