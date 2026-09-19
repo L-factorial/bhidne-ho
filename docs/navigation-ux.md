@@ -8,8 +8,11 @@ or framework. Invitation URLs continue to use `?room=…&match=…`.
 Room cards are visible immediately and open on a single tap. Enter opens an
 existing membership; Join calls the membership endpoint before opening the room.
 Create Room opens a compact modal with a name and optional privacy/invitations,
-then opens the created room. Room pages put the table list first and keep ledger,
-invitation, membership, and owner controls available below/on the side.
+then opens the created room. Room pages devote the central area to tables. A persistent Chat / Members / More
+toolbar provides secondary actions. Members opens presence and invitation controls;
+More opens the ledger and the existing owner/departure controls. These sheets and
+the toolbar are hidden while a game view is open. The empty state has one centered
+Create Table action; populated rooms keep creation beside the Tables heading.
 
 Table cards show game, phase, occupied seats, names, and queue status. Actions
 come from backend permissions: Take Seat, Watch, Join Queue, Return to Table,
@@ -50,3 +53,9 @@ selection, and a last-seat race at mobile width, plus a desktop screenshot.
 
 Focused unit tests cover action selection and selected-match requests; backend
 tests verify viewer-specific directory fields and queue/lock transitions.
+
+`client/tests/browser/room-floor.cjs` checks the empty state and toolbar geometry,
+Members/invitations, direct ledger entry, owner-delete cancellation, explicit
+non-owner departure, chat draft/unread retention, paused-chat permissions, and
+the gameplay boundary. It also captures mobile and desktop room layouts.
+The room-floor refactor does not change backend contracts or gameplay components.

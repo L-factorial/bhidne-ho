@@ -1,0 +1,30 @@
+import { type ReactNode, useEffect } from 'react';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { fonts, useTheme } from '../theme';
+
+export function RoomSheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: ReactNode }) {
+  const { colors: c } = useTheme();
+  const wide = useWindowDimensions().width >= 900;
+  const insets = useSafeAreaInsets();
+  useEffect(() => {
+    if (!visible || Platform.OS !== 'web') return;
+    const previous = document.activeElement as HTMLElement | null;
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.preventDefault(); onClose(); } };
+    document.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('keydown', escape); previous?.focus?.(); };
+  }, [visible]);
+  return <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose} onShow={() => {
+    if (Platform.OS === 'web') (document.querySelector('[data-testid="room-sheet-close"]') as HTMLElement | null)?.focus();
+  }}>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: c.overlay, justifyContent: wide ? 'center' : 'flex-end', alignItems: 'center', padding: wide ? 24 : 0, paddingTop: Math.max(24, insets.top) }}>
+      <View testID="room-sheet" accessibilityViewIsModal style={{ width: '100%', maxWidth: wide ? 640 : undefined, maxHeight: '90%', backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, borderBottomLeftRadius: wide ? 20 : 0, borderBottomRightRadius: wide ? 20 : 0, paddingBottom: Math.max(16, insets.bottom) }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 12, borderBottomWidth: 1, borderColor: c.border }}>
+          <Text accessibilityRole="header" style={{ flex: 1, fontFamily: fonts.medium, color: c.text, fontSize: 20 }}>{title}</Text>
+          <Pressable testID="room-sheet-close" accessibilityRole="button" accessibilityLabel="Close room panel" onPress={onClose} style={{ minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: c.text, fontSize: 24 }}>×</Text></Pressable>
+        </View>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 12 }}>{children}</ScrollView>
+      </View>
+    </KeyboardAvoidingView>
+  </Modal>;
+}

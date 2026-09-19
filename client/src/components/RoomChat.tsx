@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePong } from '../notifications/usePong';
@@ -9,11 +9,13 @@ import { useTranslation } from 'react-i18next';
 
 type Message = { id: string; sender_id: string; sender_name: string; text: string; sent_at: number };
 
-export function useRoomChat({ roomId, session, connected, hideWhenBlocked = false }: { hideWhenBlocked?: boolean; roomId: string; session: Session; connected: boolean }) {
+export function useRoomChat({ roomId, session, connected, hideWhenBlocked = false, expanded, onExpandedChange, renderLauncher, bottomOffset = 0 }: { expanded?: boolean; onExpandedChange?: (open: boolean) => void; renderLauncher?: (state: { open: boolean; unread: number; blocked: boolean; toggle: () => void }) => ReactNode; bottomOffset?: number; hideWhenBlocked?: boolean; roomId: string; session: Session; connected: boolean }) {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const styles = useThemedStyles(createStyles);
-  const [open, setOpen] = useState(false);
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = expanded ?? localOpen;
+  const setOpen = (value: boolean) => { setLocalOpen(value); onExpandedChange?.(value); };
   const [blocked, setBlocked] = useState(false);
   const [unread, setUnread] = useState(0);
   const [muted, setMuted] = useState(false);
@@ -99,8 +101,9 @@ export function useRoomChat({ roomId, session, connected, hideWhenBlocked = fals
     } finally { sending.current = false; setBusy(false); }
   }
   if (blocked && hideWhenBlocked) return null;
-  return <KeyboardAvoidingView testID="chat-dock" behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    style={[styles.dock, { bottom: Math.max(8, insets.bottom), right: wide ? 16 : 8, left: wide ? undefined : 8, width: wide ? 340 : undefined }]}>
+  return <>{renderLauncher?.({ open, unread, blocked, toggle: () => { if (open) setOpen(false); else if (!blocked) openChat(); } })}
+    {(!renderLauncher || open) && <KeyboardAvoidingView testID="chat-dock" behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    style={[styles.dock, { bottom: Math.max(8, insets.bottom) + bottomOffset, right: wide ? 16 : 8, left: wide ? undefined : 8, width: wide ? 340 : undefined }]}>
     <Animated.View style={styles.attentionWrap}>
     {unread > 0 && !open && !blocked && <Animated.View testID="chat-attention-pulse" pointerEvents="none"
       accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[StyleSheet.absoluteFill, styles.attentionGlow, {
@@ -140,7 +143,7 @@ export function useRoomChat({ roomId, session, connected, hideWhenBlocked = fals
       </View>}
     </View>
     </Animated.View>
-  </KeyboardAvoidingView>;
+  </KeyboardAvoidingView>}</>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   dock: { position: 'absolute', zIndex: 50, elevation: 12 },

@@ -1,3 +1,5 @@
+import { RoomToolbar } from '../components/RoomToolbar';
+import { RoomSheet } from '../components/RoomSheet';
 import { RoomCard } from '../components/RoomCard';
 import { useRoomChat } from '../components/RoomChat';
 import { InvitationPreview } from '../components/InvitationPreview';
@@ -32,7 +34,7 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
   const [roomOptionsOpen, setRoomOptionsOpen] = useState(false);
   const [lobbyTab, setLobbyTab] = useState<'rooms' | 'players'>('rooms');
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [membersOpen, setMembersOpen] = useState(false);
+  const [roomPanel, setRoomPanel] = useState<'chat' | 'members' | 'more' | 'ledger' | null>(null);
   const [form, setForm] = useState<'create' | 'join'>('create');
   const [linkedMatch, setLinkedMatch] = useState<string>();
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
@@ -41,10 +43,14 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
   const shared = useRoomSession();
   const { session, rooms, room, game, setGame, expired } = shared;
   const [gameOpen, setGameOpen] = useState(false);
-  const chat = useRoomChat({ roomId: room?.room_id || '', session: session || { token: '', user_id: '' }, connected: !!room && !!session && !expired && !gameOpen && shared.status === 'connected' });
+  const chat = useRoomChat({ roomId: room?.room_id || '', session: session || { token: '', user_id: '' }, connected: !!room && !!session && !expired && !gameOpen && shared.status === 'connected',
+    expanded: roomPanel === 'chat', onExpandedChange: open => setRoomPanel(current => open ? 'chat' : current === 'chat' ? null : current), bottomOffset: 56,
+    renderLauncher: ({ unread, blocked, toggle }) => <RoomToolbar panel={roomPanel} unread={unread} chatBlocked={blocked} onChat={toggle} onMembers={() => setRoomPanel('members')} onMore={() => setRoomPanel('more')} />,
+  });
   useEffect(() => {
-    setInviteOpen(false); setMembersOpen(false);
+    setInviteOpen(false); setRoomPanel(null);
   }, [room?.room_id]);
+  useEffect(() => { if (gameOpen) setRoomPanel(null); }, [gameOpen]);
   const personal = usePlayerPhrases(session, !!session && !expired);
   const [name, setName] = useState('');
   const [visibility, setVisibility] = useState<'public' | 'friends'>('public');
@@ -110,22 +116,15 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
 
   const roomMembers = [...new Set([...(current?.members || []), ...(room && session && shared.status === 'connected' ? [session.user_id] : [])])];
   const selectedGame = game === 'flush' || game === 'marriage' ? game : 'callbreak';
-  return <HeaderProfileContext.Provider value={session && !expired ? close => <ProfileScreen session={session} personal={personal} onBack={close} onSignOut={signOut} /> : null}><View style={{ flex: 1 }}><ScrollView style={styles.page} contentContainerStyle={[styles.container, {
+  return <HeaderProfileContext.Provider value={session && !expired ? close => <ProfileScreen session={session} personal={personal} onBack={close} onSignOut={signOut} /> : null}><View style={{ flex: 1 }}><ScrollView style={styles.page} contentContainerStyle={[styles.container, room && { flexGrow: 1 }, {
     paddingTop: Math.max(insets.top, 24), paddingBottom: Math.max(insets.bottom, 28) + (room ? 64 : 0),
   }]}>
-    <View style={styles.content}>
+    <View style={[styles.content, room && { flexGrow: 1 }]}>
       <AppHeader inlineActions={session && !expired ? <NotificationBell session={session} onOpenTable={invited => {
         setLinkedMatch(invited.match_id);
         enterRoom({ room_id: invited.room_id, name: invited.table_name, members: [] }, invited.game_type);
       }} onOpenRoom={invited => enterRoom({ room_id: invited.room_id, name: invited.room_name, members: [] })} /> : null} />
       {!!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{error || shared.error}</Text>}
-      {shared.leaveGameRequired && <View>
-        <Text style={styles.subtitle}>{shared.abandonRequired ? 'Abandon the active match and leave the room? The match will stop for everyone.' : 'You are seated in a game. Leave the game and room? The game’s departure rules still apply.'}</Text>
-        <Pressable accessibilityRole="button" disabled={busy} onPress={async () => {
-          setBusy(true); try { await shared.leaveGameAndRoom(); } finally { setBusy(false); }
-        }}><Text style={styles.subtitle}>{shared.abandonRequired ? 'Abandon match and leave room' : 'Leave game and room'}</Text></Pressable>
-        <Pressable accessibilityRole="button" disabled={busy} onPress={shared.cancelLeave}><Text style={styles.subtitle}>Stay in room</Text></Pressable>
-      </View>}
       {room && !expired && shared.status !== 'connected'  && <Text accessibilityLiveRegion="polite" style={styles.subtitle}>Reconnecting to your room…</Text>}
       {invitation && session ? <InvitationPreview key={`${invitation.roomId}:${invitation.matchId}`} invitation={invitation} session={session}
         dismiss={() => dismissInvitation?.()} join={async (target, gameType, matchId) => {
@@ -142,7 +141,7 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
             <HeaderAction icon="leave" label="Back to lobby" onPress={() => { setLinkedMatch(undefined); shared.exitRoom(); }} />
           </View>
         </View>
-        <View style={[styles.columns, wide && styles.wideColumns]}>
+        <View style={[styles.columns, { flex: 1 }]}>
           <View style={styles.mainColumn}>
             {session && <RoomGameControl onOpenChange={setGameOpen} requestedMatchId={linkedMatch} personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={current?.connected_members || []} roomMembers={roomMembers} connectionMessage={expired ? shared.error : undefined}
               gameType={selectedGame} createContent={<>
@@ -161,8 +160,14 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
                 : <Text style={styles.description}>Two to ten players. Bet blind or seen, pack, and show when two players remain.</Text>}
               </>} />}
           </View>
-          <View style={[styles.sideColumn, wide && styles.fixedSide]}>
-            {session && <RoomLedger roomId={room.room_id} session={session} />}
+        </View>
+        {session && <RoomSheet visible={!gameOpen && roomPanel !== null && roomPanel !== 'chat'} title={roomPanel === 'members' ? `Members · ${roomMembers.length}` : roomPanel === 'ledger' ? 'Ledger & settlements' : 'Room options'} onClose={() => setRoomPanel(null)}>
+          {roomPanel === 'members' && <>
+            {roomMembers.map((member, index) => <View key={member} style={styles.member}>
+              <View style={styles.avatar}><Text style={styles.avatarText}>{member === session.user_id ? 'Y' : String(index + 1)}</Text></View>
+              <Text style={styles.directoryName}>{member === session.user_id ? 'You' : `Guest ${index + 1}`}</Text>
+              <Text style={styles.online}>{current?.connected_members?.includes(member) ? 'Online' : 'Offline'}</Text>
+            </View>)}
             <View style={styles.panel}>
               <Pressable accessibilityRole="button" accessibilityLabel="Invite people" aria-expanded={inviteOpen} accessibilityState={{ expanded: inviteOpen }} onPress={() => setInviteOpen(value => !value)} style={styles.sectionToggle}>
                 <Text style={styles.sectionTitle}>Invite people</Text><Text style={styles.sectionTitle}>{inviteOpen ? '-' : '+'}</Text>
@@ -173,7 +178,10 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
                 <View style={styles.gameTabs}><ShareLink roomId={room.room_id} /><CopyRoomCode roomId={room.room_id} /></View>
               </View>}
             </View>
-            {room.creator_id === session?.user_id && <View style={styles.panel}>
+          </>}
+          {roomPanel === 'more' && <>
+            <Pressable accessibilityRole="button" accessibilityLabel="Ledger & settlements" onPress={() => setRoomPanel('ledger')} style={styles.button}><Text style={styles.buttonText}>Ledger & settlements →</Text></Pressable>
+            {current?.creator_id === session?.user_id && <View style={styles.panel}>
               <Text style={styles.sectionTitle}>Room owner controls</Text>
               <Text style={styles.description}>You can delete this room after every active table has ended.</Text>
               {deleteConfirming ? <>
@@ -184,23 +192,22 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
                 </View>
               </> : <Pressable accessibilityRole="button" accessibilityLabel="Delete room" onPress={() => setDeleteConfirming(true)} style={styles.dangerButton}><Text style={styles.dangerText}>Delete room</Text></Pressable>}
             </View>}
-            {room.creator_id !== session?.user_id && <View style={styles.panel}>
+            {current?.creator_id !== session?.user_id && <View style={styles.panel}>
               <Text style={styles.sectionTitle}>Room membership</Text>
               <Text style={styles.description}>Leave this room to remove it from your rooms. You can join it again later if you still have access.</Text>
               <Pressable accessibilityRole="button" accessibilityLabel="Leave room membership" onPress={() => void leaveMembership()} style={styles.dangerButton}><Text style={styles.dangerText}>Leave room</Text></Pressable>
             </View>}
-            <View style={styles.panel}>
-              <Pressable accessibilityRole="button" accessibilityLabel="Room members" aria-expanded={membersOpen} accessibilityState={{ expanded: membersOpen }} onPress={() => setMembersOpen(value => !value)} style={styles.sectionToggle}>
-                <Text style={styles.sectionTitle}>Room members · {roomMembers.length}</Text><Text style={styles.sectionTitle}>{membersOpen ? '-' : '+'}</Text>
-              </Pressable>
-              {membersOpen && roomMembers.map((member, index) => <View key={member} style={styles.member}>
-                <View style={styles.avatar}><Text style={styles.avatarText}>{member === session?.user_id ? 'Y' : String(index + 1)}</Text></View>
-                <Text style={styles.directoryName}>{member === session?.user_id ? 'You' : `Guest ${index + 1}`}</Text>
-                <Text style={styles.online}>{current?.connected_members?.includes(member) ? 'Online' : 'Offline'}</Text>
-              </View>)}
-            </View>
-          </View>
-        </View>
+      {shared.leaveGameRequired && <View>
+        <Text style={styles.subtitle}>{shared.abandonRequired ? 'Abandon the active match and leave the room? The match will stop for everyone.' : 'You are seated in a game. Leave the game and room? The game’s departure rules still apply.'}</Text>
+        <Pressable accessibilityRole="button" disabled={busy} onPress={async () => {
+          setBusy(true); try { await shared.leaveGameAndRoom(); } finally { setBusy(false); }
+        }}><Text style={styles.subtitle}>{shared.abandonRequired ? 'Abandon match and leave room' : 'Leave game and room'}</Text></Pressable>
+        <Pressable accessibilityRole="button" disabled={busy} onPress={shared.cancelLeave}><Text style={styles.subtitle}>Stay in room</Text></Pressable>
+      </View>}
+            {!!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{error || shared.error}</Text>}
+          </>}
+          {roomPanel === 'ledger' && <RoomLedger roomId={room.room_id} session={session} embedded />}
+        </RoomSheet>}
       </> : <>
         {session && !expired && <View style={styles.hero}>
           <Text style={styles.eyebrow}>YOUR LOBBY</Text>

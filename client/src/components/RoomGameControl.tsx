@@ -261,12 +261,17 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
   return <>
     <View style={[styles.sectionToggle, { marginVertical: 16 }]}>
       <Text accessibilityRole="header" style={styles.title}>Tables</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="Create table" disabled={busy || !creationEnabled} onPress={() => { setLive(false); setOpen(true); }} style={styles.button}>
+      {!!snapshot?.tables?.length && <Pressable accessibilityRole="button" accessibilityLabel="Create table" disabled={busy || !creationEnabled} onPress={() => { setLive(false); setOpen(true); }} style={styles.button}>
         <Text style={styles.buttonText}>+ Create table</Text>
-      </Pressable>
+      </Pressable>}
     </View>
     {!snapshot && <Text style={styles.text}>Loading tables…</Text>}
-    {snapshot && !snapshot.tables?.length && <Text style={styles.text}>No tables yet. Choose a game and bring everyone together.</Text>}
+    {snapshot && !snapshot.tables?.length && <View testID="room-empty-tables" style={{ flexGrow: 1, minHeight: 260, alignItems: 'center', justifyContent: 'center', paddingVertical: 32, gap: 24 }}>
+      <Text style={[styles.text, { textAlign: 'center', maxWidth: 320, fontSize: 17, lineHeight: 26 }]}>No tables yet. Start a table and invite your friends.</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel="Create table" disabled={busy || !creationEnabled} accessibilityState={{ disabled: busy || !creationEnabled }} onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 48, paddingHorizontal: 24, opacity: busy || !creationEnabled ? 0.5 : 1 }]}>
+        <Text style={[styles.buttonText, { color: colors.onPrimary, fontSize: 15 }]}>+ Create table</Text>
+      </Pressable>
+    </View>}
     {snapshot?.tables?.map(table => <TableCard key={table.match_id} table={table} busy={busy} enter={action => void enterTable(table.match_id, action)} />)}
     {collapsed && !!notification.notice && <Animated.View style={{ opacity: notification.opacity }}>
       <Pressable accessibilityRole="button" onPress={() => void returnToGame()} style={styles.choice}><Text style={styles.text}>{notification.notice} · Return to table</Text></Pressable>
