@@ -13,7 +13,7 @@ export function MarriageHandSheet({ mobile, anchor, snap, onSnap, instruction, a
   const controls = <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
     <Pressable accessibilityRole="button" accessibilityLabel={open ? 'Collapse your card area' : 'Expand your card area'}
       accessibilityState={{ expanded: open }} onPress={() => onSnap(open ? 'collapsed' : 'expanded')}
-      style={{ flex: 1, minHeight: 54, paddingHorizontal: 12, justifyContent: 'center' }}>
+      style={{ flex: 1, minHeight: 54, paddingHorizontal: 12, justifyContent: 'center', backgroundColor: attention ? colors.turnSurface : colors.surface }}>
       <Text accessibilityLiveRegion="polite" style={{ fontFamily: fonts.medium, fontSize: 14, color: attention ? colors.turnText : colors.text }}>{instruction}</Text>
     </Pressable>
     {(['peek', 'expanded'] as const).map(value => <Pressable key={value} accessibilityRole="button"

@@ -1,15 +1,16 @@
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const assert = require('node:assert/strict');
+const { checkThemes } = require('./theme-check.cjs');
 const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8096';
 const button = (page, name) => page.getByRole('button', { name, exact: true });
 async function api(path, user, body) {
   const r = await fetch(site + path, { method: body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', ...(user ? { Authorization: `Bearer ${user.token}` } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
   const value = await r.json(); assert.ok(r.ok, JSON.stringify(value)); return value;
 }
-async function pulse(locator) {
+async function stableCue(locator) {
   await locator.waitFor(); const values = [];
   for (let i = 0; i < 5; i++) { values.push(await locator.evaluate(el => Number(getComputedStyle(el).opacity))); await new Promise(r => setTimeout(r, 250)); }
-  assert.ok(Math.max(...values) - Math.min(...values) > 0.03, 'control pulses');
+  assert.ok(values.every(value => value === 1), 'action text stays readable without continuous flashing');
 }
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
@@ -30,14 +31,20 @@ async function pulse(locator) {
         const context = await browser.newContext({ viewport: { width: i ? 390 : 360, height: i ? 844 : 740 } }); contexts.push(context);
         await context.addInitScript(({ user, room, kind, site }) => sessionStorage.setItem(`bhidne.session.v1:${site}`, JSON.stringify({ session: user, room, game: kind })), { user, room, kind, site });
         const page = await context.newPage(); page.setDefaultTimeout(15000); pages.push(page); page.on('pageerror', e => errors.push(e.message));
-        await page.goto(site); await page.getByRole('button',{name:/^Return to table ·/}).click(); await page.getByTestId(`${kind}-header`).waitFor();
+        await page.goto(site);
+        if(i===0) for(const mode of ['dark','light']) {
+          await page.getByRole('button',{name:`Switch to ${mode} mode`,exact:true}).click();
+          await page.waitForFunction(mode=>document.documentElement.dataset.theme===mode,mode);
+          await page.screenshot({path:`/tmp/theme-room-${kind}-${mode}.png`});
+        }
+        await page.getByRole('button',{name:/^Return to table ·/}).click(); await page.getByTestId(`${kind}-header`).waitFor();
         const overlay = page.getByTestId('live-game-overlay');
         assert.equal(await overlay.getByRole('button', { name: 'Profile', exact: true }).count(), 0);
         assert.equal(await overlay.getByRole('button', { name: 'Copy game link', exact: true }).count(), 0);
         assert.equal(await button(page, 'Back to room').count(), 0);
       }
       const owner = pages[0], cue = owner.getByTestId(`${kind}-center-start`);
-      await pulse(cue.getByTestId('action-cue'));
+      await stableCue(cue.getByTestId('action-cue'));
       assert.equal(await pages[1].getByTestId(`${kind}-center-start`).count(), 0);
       await button(owner, 'Table menu').click(); await button(owner, 'Back to room').waitFor();
       await button(owner, 'End game').waitFor(); await button(owner, 'Close table menu').click();
@@ -48,7 +55,7 @@ async function pulse(locator) {
         for (const [phase, label] of [['AWAITING_SHUFFLE', 'Shuffle deck'], ['AWAITING_CUT', 'Cut in half'], ['AWAITING_DISTRIBUTION', 'Deal cards']]) {
           state = await stateWhen(s => s.game.phase === phase);
           const actor = pages[state.game.turn.player_id - 1], preparation = actor.getByTestId('callbreak-center-preparation');
-          await pulse(preparation.getByRole('button', { name: label, exact: true }).getByTestId('action-cue'));
+          await stableCue(preparation.getByRole('button', { name: label, exact: true }).getByTestId('action-cue'));
           await button(actor, label).click();
         }
         await stateWhen(s => s.game.phase === 'HAND_REVIEW');
@@ -61,7 +68,7 @@ async function pulse(locator) {
           await page.waitForTimeout(1100); assert.equal(await button(page, 'Expand your card area').isVisible(), true);
           await button(page, 'Expand your card area').click();
           assert.equal(await button(page, 'Flip all cards').count(), 0, 'reveal state survives collapse');
-          await pulse(button(page, 'Accept hand').getByTestId('action-cue'));
+          await stableCue(button(page, 'Accept hand').getByTestId('action-cue'));
           await button(page, 'Accept hand').click();
         }
         for (let i = 0; i < users.length; i++) {
@@ -85,6 +92,7 @@ async function pulse(locator) {
       if (kind === 'callbreak' && await button(actor, 'Expand your card area').isVisible()) assert.equal(await actor.getByTestId('callbreak-hand-attention').evaluate(el=>getComputedStyle(el).opacity),'1');
       if (await button(actor, 'Expand your card area').isVisible()) await button(actor, 'Expand your card area').click();
       await button(actor, 'Collapse your card area').waitFor();
+      await checkThemes(actor, `${kind}-turn`);
       const dock = actor.getByTestId(`${kind}-hand-dock`);
       const table=actor.getByTestId(kind==='marriage'?'marriage-play-area':'card-table');
       await actor.emulateMedia({reducedMotion:'reduce'});
@@ -158,6 +166,7 @@ async function pulse(locator) {
       }
       await play().click(); await button(actor, 'Expand your card area').waitFor();
       await actor.getByTestId('chat-dock').waitFor({ state: 'hidden' });
+      await checkThemes(actor, `${kind}-waiting`);
       await actor.screenshot({ path: '/tmp' + `/${kind}-mobile-collapsed.png` });
       await button(actor, 'Expand your card area').click(); await actor.screenshot({ path: '/tmp' + `/${kind}-mobile-expanded.png` });
       if (kind === 'marriage') {

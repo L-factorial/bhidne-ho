@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
-import { fonts, useThemedStyles, type ThemeColors } from '../theme';
+import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { ActionCue } from './ActionCue';
 
 export function LiveBidPrompt({ snapshot, busy, onAction, revealed }: {
   revealed: boolean; snapshot: RoomSnapshot; busy: boolean; onAction: (command: string, payload: object) => void;
 }) {
+  const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const [amount, setAmount] = useState(1);
   const maximum = snapshot.rules?.bid_max || 13;
@@ -24,7 +25,7 @@ export function LiveBidPrompt({ snapshot, busy, onAction, revealed }: {
       <Pressable accessibilityRole="button" accessibilityLabel="Decrease bid" disabled={busy || amount <= 1} onPress={() => setAmount(value => Math.max(1, value - 1))} style={styles.button}><Text style={styles.label}>−</Text></Pressable>
       <Text accessibilityLabel={`Selected bid ${amount}`} style={styles.amount}>{amount}</Text>
       <Pressable accessibilityRole="button" accessibilityLabel="Increase bid" disabled={busy || amount >= maximum} onPress={() => setAmount(value => Math.min(maximum, value + 1))} style={styles.button}><Text style={styles.label}>+</Text></Pressable>
-      <Pressable accessibilityRole="button" disabled={busy} onPress={() => onAction('PLACE_BID', { amount })} style={styles.button}><ActionCue active={!busy} style={styles.label}>{busy ? 'Submitting…' : 'Confirm bid'}</ActionCue></Pressable>
+      <Pressable accessibilityRole="button" disabled={busy} onPress={() => onAction('PLACE_BID', { amount })} style={({ pressed }) => [styles.button, { backgroundColor: pressed ? colors.primaryPressed : colors.primary }]}><ActionCue active={!busy} style={[styles.label, { color: colors.onPrimary }]}>{busy ? 'Submitting…' : 'Confirm bid'}</ActionCue></Pressable>
       <Text style={styles.text}>Your bid is submitted only when you confirm.</Text>
     </View>}
   </View>;

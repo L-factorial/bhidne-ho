@@ -64,7 +64,7 @@ export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot
   return <View style={[s.arena, { height }]} onLayout={e => setWidth(e.nativeEvent.layout.width)} testID="flush-arena">
     <Svg pointerEvents="none" width={width} height={height} style={StyleSheet.absoluteFill}>
       <Ellipse cx={width / 2} cy={height / 2} rx={Math.max(60, width / 2 - 44)} ry={height / 2 - 52}
-        fill={colors.surface} stroke={colors.border} strokeWidth={2} />
+        fill={colors.table} stroke={colors.border} strokeWidth={2} />
     </Svg>
     {!centerControl && <View style={[s.pot, { left: width / 2 - 58, top: height / 2 - 60 }]}><Text style={s.caption}>TOTAL POT</Text><Text testID="flush-pot" accessibilityLiveRegion="polite" style={s.potValue}>{potBeforeFlights(pub?.pot || 0, pending)}</Text><Text style={s.caption}>points</Text>
       {pub && <><Text style={s.caption}>Round {pub.round_number}</Text><Text style={s.caption}>Blind {pub.current_blind_bet} · Seen {pub.current_seen_bet}</Text></>}
@@ -109,6 +109,6 @@ const styles = (c: ThemeColors) => StyleSheet.create({
   icon: { width: 64, height: 48, borderRadius: 28, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent', backgroundColor: c.background },
   dealer: { position: 'absolute', left: -5, bottom: 0, color: c.text, backgroundColor: c.surfaceSelected, borderRadius: 9, minWidth: 18, textAlign: 'center', fontSize: 11 },
   turnLabel: { position: 'absolute', top: -13, color: c.turnText, backgroundColor: c.turnSurface, borderRadius: 4, paddingHorizontal: 4, fontSize: 9, fontFamily: fonts.medium },
-  current: { borderColor: c.turnText, borderWidth: 3, backgroundColor: c.turnSurface }, count: { position: 'absolute', right: -3, top: -5, color: c.text, backgroundColor: c.surfaceSelected, borderRadius: 10, minWidth: 18, textAlign: 'center', fontSize: 12 },
+  current: { borderColor: c.attention, borderWidth: 3, backgroundColor: c.turnSurface }, count: { position: 'absolute', right: -3, top: -5, color: c.text, backgroundColor: c.surfaceSelected, borderRadius: 10, minWidth: 18, textAlign: 'center', fontSize: 12 },
   name: { color: c.text, fontFamily: fonts.medium, fontSize: 12 }, caption: { color: c.textMuted, fontFamily: fonts.body, fontSize: 10 },
 });

@@ -30,7 +30,7 @@ export function GameTableHeader({ title, path, game, roomId, matchId, onBack, en
     return () => globalThis.removeEventListener('keyup', escape, true);
   }, [open, !!drawerMetadata]);
   return <>
-    <View testID={`${game}-${mobile && mobileTestIds ? 'mobile-' : ''}header`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 8, borderBottomWidth: 1, borderColor: colors.border }}>
+    <View testID={`${game}-${mobile && mobileTestIds ? 'mobile-' : ''}header`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 8, backgroundColor: colors.header, borderBottomWidth: 1, borderColor: colors.border }}>
       <BrandIcon size={small ? 30 : 48} />
       <View style={{ flex: 1 }}><Text accessibilityRole="header" style={{ fontFamily: fonts.medium, fontSize: small ? 17 : 20, color: colors.text }}>{title}</Text>
         {!!path && !compact && <Text numberOfLines={1} style={{ fontFamily: fonts.body, fontSize: 11, color: colors.textMuted }}>{path}</Text>}

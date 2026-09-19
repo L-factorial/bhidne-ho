@@ -225,10 +225,10 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   newGamePanel: { padding: 16, gap: 8, borderBottomWidth: 1, borderColor: colors.border },
   overlayHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderColor: colors.border, minHeight: 60 },
   overlayTitle: { fontFamily: fonts.display, fontSize: 23, color: colors.text, flexShrink: 1 },
-  body: { flex: 1, minHeight: 0 }, wideBody: { flexDirection: 'row' }, tableScroll: { flex: 1, minHeight: 0, minWidth: 0 },
+  body: { backgroundColor: colors.table, flex: 1, minHeight: 0 }, wideBody: { flexDirection: 'row' }, tableScroll: { flex: 1, minHeight: 0, minWidth: 0 },
   page: { flex: 1, backgroundColor: colors.background }, container: { alignItems: 'center' }, back: { minHeight: 44, justifyContent: 'center' }, link: { color: colors.accent, fontFamily: fonts.medium, fontSize: 12 },
   title: { fontFamily: fonts.display, fontSize: 28, color: colors.text, marginVertical: 12 }, meta: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 11, lineHeight: 20 }, status: { fontFamily: fonts.medium, fontSize: 13, color: colors.accent, marginVertical: 12 }, error: { color: colors.danger, fontFamily: fonts.body, fontSize: 12 },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, paddingVertical: 10 }, button: { minHeight: 44, minWidth: 44, padding: 12, borderRadius: 8, backgroundColor: colors.surfaceSelected, justifyContent: 'center', alignItems: 'center' }, buttonText: { color: colors.text, fontFamily: fonts.medium, fontSize: 12 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, paddingVertical: 10 }, button: { minHeight: 44, minWidth: 44, padding: 12, borderRadius: 8, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' }, buttonText: { color: colors.onPrimary, fontFamily: fonts.medium, fontSize: 12 },
   handDock: { paddingHorizontal: 20, paddingBottom: 8, borderTopWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
 
 });

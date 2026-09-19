@@ -86,7 +86,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   mobileIntro: { alignItems: 'center', marginTop: 13, gap: 6 },
   mobileHeading: { fontFamily: fonts.display, fontSize: 31, color: colors.text },
   mobileSubtitle: { fontFamily: fonts.body, fontSize: 14, color: colors.textMuted },
-  panel: { backgroundColor: colors.surface, borderRadius: 22, boxShadow: '0px 18px 60px rgba(0, 0, 0, 0.2)' },
+  panel: { backgroundColor: colors.surface, borderRadius: 22, boxShadow: `0px 18px 60px ${colors.shadow}` },
   widePanel: { width: 480, paddingHorizontal: 44, paddingTop: 48, paddingBottom: 24, justifyContent: 'center', minHeight: 660 },
   mobilePanel: { marginTop: 22, width: '100%', padding: 22, borderRadius: 20 },
   intro: { alignItems: 'center', marginBottom: 48 },

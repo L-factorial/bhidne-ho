@@ -135,7 +135,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   sequence: { flexDirection: 'row', justifyContent: 'center', gap: 12 }, sequenceCard: { alignItems: 'center', gap: 8 }, largeCard: { width: 64, height: 92 },
   area: { flex: 1, minHeight: 360, justifyContent: 'center', position: 'relative', gap: 4 }, spots: { width: '100%', maxWidth: 260, flexDirection: 'row', gap: 8, justifyContent: 'center', alignItems: 'flex-start', paddingTop: 4 }, spot: { flex: 1, maxWidth: 150, alignItems: 'center', gap: 4 },
   label: { color: colors.accent, fontFamily: fonts.medium, fontSize: 12 }, card: { width: 52, height: 72, backgroundColor: colors.cardFace, borderRadius: 7, borderWidth: 2, borderColor: colors.cardBorder, alignItems: 'center', justifyContent: 'center' },
-  legal: { borderColor: colors.turnText, borderWidth: 3, boxShadow: `0px 0px 9px ${colors.turnSurface}` },
+  legal: { borderColor: colors.attention, borderWidth: 3, boxShadow: `0px 0px 9px ${colors.turnSurface}` },
   back: { backgroundColor: colors.cardBack, borderColor: colors.cardBorder }, stack: { boxShadow: `3px 3px 0 ${colors.cardBorder}` }, face: { fontFamily: fonts.medium, fontSize: 24, color: colors.cardInk }, red: { color: colors.cardRed },
   button: { minHeight: 44, padding: 7, justifyContent: 'center', backgroundColor: colors.surfaceRaised, borderRadius: 8 }, buttonText: { color: colors.text, fontFamily: fonts.medium, fontSize: 11, textAlign: 'center' },
   disabled: { opacity: 0.42 }, caption: { minHeight: 44, padding: 9, color: colors.textMuted, fontFamily: fonts.body, fontSize: 11 }, flying: { position: 'absolute', left: 0, top: 0, zIndex: 50, elevation: 12 },

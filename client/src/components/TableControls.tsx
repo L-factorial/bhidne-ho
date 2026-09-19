@@ -1,7 +1,7 @@
 import { ActionCue } from './ActionCue';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { fonts, useTheme } from '../theme';
+import { fonts, primaryAction, useTheme } from '../theme';
 
 export type TableView = {
   table_id: string; phase: 'OPEN' | 'LOCKED' | 'STARTED' | 'COMPLETED' | 'ENDED';
@@ -24,8 +24,8 @@ export function TableControls({ table, members, userId, busy, act, start, format
   const me = table.current_user, offer = me.replacement_offer;
   const button = (label: string, action: () => void, disabled = false) => <Pressable accessibilityRole="button"
     accessibilityLabel={label} disabled={busy || disabled} onPress={action}
-    style={{ padding: 10, minHeight: 44, justifyContent: 'center', opacity: busy || disabled ? 0.45 : 1 }}>
-    {['Lock game', 'Start game'].includes(label) ? <ActionCue active={!busy && !disabled} style={{ color: colors.accent, fontFamily: fonts.medium }}>{label}</ActionCue> : <Text style={{ color: menuSection === 'leave' ? colors.danger : colors.accent, fontFamily: fonts.medium }}>{label}</Text>}
+    style={({ pressed }) => [{ padding: 10, minHeight: 44, borderRadius: 8, justifyContent: 'center', opacity: busy || disabled ? 0.45 : 1 }, ['Lock game', 'Start game', 'Accept seat', 'Prepare next match'].includes(label) && primaryAction(colors, pressed)]}>
+    {['Lock game', 'Start game'].includes(label) ? <ActionCue active={!busy && !disabled} style={{ color: colors.onPrimary, fontFamily: fonts.medium }}>{label}</ActionCue> : <Text style={{ color: menuSection === 'leave' || label === 'Confirm abandon match' ? colors.danger : ['Accept seat', 'Prepare next match'].includes(label) ? colors.onPrimary : colors.text, fontFamily: fonts.medium }}>{label}</Text>}
   </Pressable>;
   return <View testID="table-lifecycle" style={{ backgroundColor: colors.surface, padding: 8, gap: 4 }}>
     {!menuSection && <Text style={{ color: colors.textMuted, fontFamily: fonts.body }}>

@@ -153,7 +153,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   close: { minWidth: 44, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   badge: { color: colors.text, backgroundColor: colors.surfaceSelected, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, fontSize: 12 },
   chatBody: { gap: 8, overflow: 'hidden', padding: 12, borderTopWidth: 1, borderColor: colors.border },
-  card: { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', boxShadow: '0px 4px 18px rgba(0,0,0,0.2)' },
+  card: { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', boxShadow: `0px 4px 18px ${colors.shadow}` },
   toggle: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   heading: { fontFamily: fonts.medium, fontSize: 14, color: colors.text },
   message: { paddingVertical: 10, borderBottomWidth: 1, borderColor: colors.border, gap: 5 },
@@ -162,6 +162,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   note: { fontFamily: fonts.body, fontSize: 11, color: colors.textMuted },
   error: { color: colors.danger, fontFamily: fonts.body, fontSize: 12 },
   input: { height: 70, flexShrink: 0, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, backgroundColor: colors.surface, color: colors.text, fontFamily: fonts.body },
-  send: { minHeight: 44, flexShrink: 0, backgroundColor: colors.surfaceSelected, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  sendText: { color: colors.text, fontFamily: fonts.medium, fontSize: 12 },
+  send: { minHeight: 44, flexShrink: 0, backgroundColor: colors.primary, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  sendText: { color: colors.onPrimary, fontFamily: fonts.medium, fontSize: 12 },
 });

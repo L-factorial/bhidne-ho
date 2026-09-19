@@ -1,6 +1,7 @@
 // Run against the local app with the memory game runtime.
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const assert = require('node:assert/strict');
+const { checkThemes } = require('./theme-check.cjs');
 const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8096';
 async function api(path, user, body) {
   const response = await fetch(site + path, { method: body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', ...(user ? { Authorization: `Bearer ${user.token}` } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
@@ -42,6 +43,7 @@ async function api(path, user, body) {
   let i=await current('awaiting_deal');await button(pages[i],'Deal cards').click();
   i=await current('awaiting_cut');await button(pages[i],'Skip cut').waitFor();await pages[i].reload();await pages[i].getByRole('button',{name:/^Return to table ·/}).click();await button(pages[i],'Skip cut').click();
   i=await current('in_progress');await pages[i].getByTestId('flush-own-cards').waitFor();
+  await checkThemes(pages[i], 'flush-active');
   for (const p of pages) {
    assert.equal(await p.getByRole('button',{name:/^Your card \d:/}).count(),0,'blind cards remain hidden');
    assert.equal(await p.getByTestId('flush-mobile-hand').count(),0);

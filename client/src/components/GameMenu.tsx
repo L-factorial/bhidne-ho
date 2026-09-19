@@ -50,7 +50,7 @@ export function GameMenu({ snapshot, close, rules, history, poke, canPoke, back,
       <Text style={{ color: colors.text, fontFamily: fonts.body }}>Language</Text><LanguageToggle />
     </View>
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48 }}>
-      <Text style={{ color: colors.text, fontFamily: fonts.body }}>Appearance</Text><ThemeToggle />
+      <Text style={{ color: colors.text, fontFamily: fonts.body }}>Appearance</Text><ThemeToggle showSystem />
     </View>
     <View style={{ marginTop: 'auto', paddingTop: 16 }}>
       <View style={{ borderTopWidth: 1, borderColor: colors.border, paddingTop: 8 }}>{ended ? <>{row(snapshot.game_type === 'flush' ? 'End table' : 'End game', () => {}, true)}{row('Leave Table', () => {}, true)}</> : <>{endControl}{leaveControl}</>}</View>

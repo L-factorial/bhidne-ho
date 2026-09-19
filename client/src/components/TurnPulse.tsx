@@ -28,5 +28,5 @@ export function TurnPulse({ text, personal = false, active = true, children, sty
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   text: { color: colors.turnText, fontFamily: fonts.medium, fontWeight: 'bold', fontSize: 18, textAlign: 'center', paddingVertical: 8 },
-  personal: { fontSize: 22, backgroundColor: colors.turnSurface, borderColor: colors.turnText, borderWidth: 1, borderRadius: 8, paddingHorizontal: 16 },
+  personal: { fontSize: 22, backgroundColor: colors.turnSurface, borderColor: colors.attention, borderWidth: 1, borderRadius: 8, paddingHorizontal: 16 },
 });

@@ -137,8 +137,8 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
       </View>
     </ScrollView>}
     {selectedCard && <View style={styles.selector}>
-      <Pressable accessibilityRole="button" accessibilityLabel={`Play ${selectedCard}`} onPress={confirmCard} style={[styles.option, styles.confirm]}>
-        <Text style={styles.optionText}>Play {selectedCard.slice(0, -1)}{suits[suitOf(selectedCard)]}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Play ${selectedCard}`} onPress={confirmCard} style={({ pressed }) => [styles.option, styles.confirm, pressed && { backgroundColor: colors.primaryPressed }]}>
+        <Text style={[styles.optionText, { color: colors.onPrimary }]}>Play {selectedCard.slice(0, -1)}{suits[suitOf(selectedCard)]}</Text>
       </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel="Cancel card selection" onPress={() => setChosen(null)} style={styles.option}><Text style={styles.optionText}>Cancel</Text></Pressable>
     </View>}
@@ -153,7 +153,7 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
         return <Pressable key={suit} accessibilityRole="radio" accessibilityLabel={`${suit === 'all' ? 'All suits' : suitNames[suit]}, ${count} cards`}
           accessibilityState={{ checked: selectedSuit === suit, disabled: count === 0 }} aria-checked={selectedSuit === suit} disabled={count === 0}
           onPress={() => setSelection({ dealKey, suit })} style={[styles.option, selectedSuit === suit && styles.selected, count === 0 && { opacity: 0.4 }]}>
-          <Text style={[styles.optionText, suit === 'C' && { color: colors.success }]}>{suit === 'all' ? 'All' : suits[suit]} {count}</Text>
+          <Text style={[styles.optionText, suit === 'C' && { color: colors.text }]}>{suit === 'all' ? 'All' : suits[suit]} {count}</Text>
         </Pressable>;
       })}
     </View>}
@@ -177,7 +177,7 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   chosen: { borderColor: colors.cardSelectedBorder, borderWidth: 3, backgroundColor: colors.cardSelected },
   chosenGrid: { borderColor: colors.cardSelectedBorder, borderWidth: 3, backgroundColor: colors.cardSelected, transform: [{ translateY: -4 }] },
-  confirm: { backgroundColor: colors.surfaceSelected, borderColor: colors.accent },
+  confirm: { backgroundColor: colors.primary, borderColor: colors.primary },
   cardBack: { backgroundColor: colors.cardBack, borderColor: colors.cardBorder },
   backMark: { color: colors.accent, fontSize: 25, fontWeight: 'bold' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingVertical: 8, justifyContent: 'center' },
@@ -188,8 +188,8 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   empty: { color: colors.text, fontFamily: fonts.body, fontSize: 12, padding: 8 },
   scroll: { flexGrow: 1, justifyContent: 'center' },
   card: { position: 'absolute', width: 64, height: 170, borderRadius: 8, backgroundColor: colors.cardFace,
-    borderWidth: 2, borderColor: colors.cardBorder, boxShadow: '0px 3px 6px rgba(0, 0, 0, 0.25)' },
-  legal: { borderColor: colors.accent },
+    borderWidth: 2, borderColor: colors.cardBorder, boxShadow: `0px 3px 6px ${colors.shadow}` },
+  legal: { borderColor: colors.attention },
   corner: { position: 'absolute', top: 3, left: 5, alignItems: 'center' },
   rank: { fontFamily: fonts.medium, fontSize: 17, lineHeight: 21, color: colors.cardInk },
   smallSuit: { fontSize: 23, lineHeight: 27, fontWeight: 'bold', color: colors.cardInk },

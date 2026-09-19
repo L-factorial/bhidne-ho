@@ -7,7 +7,7 @@ import { marriageDecision, marriageHandSnap, marriageHandLayout, type HandSnap }
 import { TableStartCue } from '../components/TableStartCue';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { fonts, primaryAction, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { useMarriageReveal } from '../multiplayer/useMarriageReveal';
 import { MarriageCardArea } from '../components/MarriageCardArea';
 import { MarriageMeldCards } from '../components/MarriageMeldCards';
@@ -117,9 +117,10 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const declaration = canSubmitMarriage(groups);
   const selectedMeld = { meld_type: kind, card_ids: selected };
   function button(label: string, action: () => void, disabled = false, chosen = false) {
+    const primary = /^(Finish round|Confirm finish|Show three melds|Show seven Dublees)$/.test(label);
     return <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled}
-      accessibilityState={{ disabled, selected: chosen }} onPress={action} style={[s.button, chosen && s.chosen, disabled && s.disabled]}>
-      <Text style={s.buttonText}>{label}</Text></Pressable>;
+      accessibilityState={{ disabled, selected: chosen }} onPress={action} style={({ pressed }) => [s.button, chosen && s.chosen, primary && primaryAction(colors, pressed), disabled && s.disabled]}>
+      <Text style={[s.buttonText, primary && { color: colors.onPrimary }]}>{label}</Text></Pressable>;
   }
   const shown = !allRevealed ? availableHand : [...availableHand].filter(c => mode !== 'suits' || suit === 'all' || (c.suit || 'man') === suit)
     .sort((a, b) => (sortBy === 'rank' ? (a.rank || 0) - (b.rank || 0) : (a.suit || 'Z').localeCompare(b.suit || 'Z')) || (a.rank || 0) - (b.rank || 0) || (a.suit || 'Z').localeCompare(b.suit || 'Z') || a.card_id.localeCompare(b.card_id));
@@ -164,7 +165,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
     {!!error && <Text accessibilityRole="alert" style={[s.small, { color: colors.danger }]}>{error}</Text>}
     <Pressable testID="marriage-discard-action" accessibilityRole="button" accessibilityLabel={`Discard ${physicalLabel(selectedCard.card_id)}`}
       disabled={!canDiscard} accessibilityState={{ disabled: !canDiscard }} onPress={() => cards.act('DISCARD_CARD', { card_id: selectedCard.card_id })}
-      style={[s.button, s.chosen, !canDiscard && s.disabled]}><Text style={s.buttonText}>{busy ? 'Sending…' : `Discard ${marriageFace(selectedCard)}`}</Text></Pressable>
+      style={({ pressed }) => [s.button, primaryAction(colors, pressed), !canDiscard && s.disabled]}><Text style={[s.buttonText, { color: colors.onPrimary }]}>{busy ? 'Sending…' : `Discard ${marriageFace(selectedCard)}`}</Text></Pressable>
   </>;
   useEffect(() => {
     if (error && !busy && selectedCard && decision === 'DISCARD_REQUIRED') setSnap('expanded');
@@ -340,7 +341,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   shownCards: { width: '100%', maxWidth: 620, maxHeight: '85%', padding: 14, gap: 12, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.cardBorder, overflow: 'hidden' },
   previewBackdrop: { flex: 1, backgroundColor: colors.overlay, padding: 20, justifyContent: 'center', alignItems: 'center' },
   previewPanel: { width: '100%', maxWidth: 640, maxHeight: '90%', backgroundColor: colors.surface, borderRadius: 16, padding: 16, gap: 16 },
-  playArea: { flex: 1, minHeight: 0, padding: 8, gap: 6 }, handDock: { flexShrink: 0, padding: 12, gap: 6, backgroundColor: colors.surface, borderTopWidth: 1, borderColor: colors.border },
+  playArea: { backgroundColor: colors.table, flex: 1, minHeight: 0, padding: 8, gap: 6 }, handDock: { flexShrink: 0, padding: 12, gap: 6, backgroundColor: colors.surface, borderTopWidth: 1, borderColor: colors.border },
   page: { flex: 1, minHeight: 0, backgroundColor: colors.background }, header: { padding: 12, gap: 8, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
   title: { flex: 1, minWidth: 140, color: colors.accent, fontFamily: fonts.medium, fontSize: 18 }, content: { padding: 12, gap: 12, paddingBottom: 30 },
   columns: { flex: 1, minHeight: 0 }, main: { flex: 1, minHeight: 0, minWidth: 0 }, panel: { backgroundColor: colors.surface, borderRadius: 14, padding: 14, gap: 12 },

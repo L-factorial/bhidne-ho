@@ -31,8 +31,8 @@ export function PlayerSeat({ name, mine = false, active = false, connected = tru
     onPress={onPress} disabled={!onPress} accessibilityLabel={`${name}${mine ? ', You' : ''}${active ? ', current turn' : ''}${dealer ? ', dealer' : ''}${status ? `, ${status}` : ''}${!connected ? ', disconnected' : ''}`}
     style={{ width: '100%', alignItems: 'center', gap: 2 }}>
     <Animated.View style={{ transform: [{ scale }], width: size, height: size, borderRadius: size / 2, borderWidth: active ? 3 : 1,
-      borderColor: active ? colors.turnText : colors.border, borderStyle: connected ? 'solid' : 'dashed',
-      backgroundColor: active ? colors.turnSurface : colors.surfaceSelected, alignItems: 'center', justifyContent: 'center' }}>
+      borderColor: active ? colors.attention : colors.border, borderStyle: connected ? 'solid' : 'dashed',
+      backgroundColor: active ? colors.turnSurface : colors.surface, alignItems: 'center', justifyContent: 'center' }}>
       {avatarUrl && failedImage !== avatarUrl ? <Image source={{ uri: avatarUrl }} onError={() => setFailedImage(avatarUrl)}
         style={{ width: size - 6, height: size - 6, borderRadius: size / 2 }} /> : <Text style={{ color: colors.accent, fontFamily: fonts.medium, fontSize: compact ? 12 : 16 }}>{initials}</Text>}
     </Animated.View>

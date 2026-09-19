@@ -286,8 +286,8 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
         <Text style={styles.text}>You can visit this room, but each account can occupy only one table at a time.</Text>
         <Text style={styles.text}>{actionError}</Text>
         {seatConflict?.departure_command === 'abandon' && <Text style={styles.error}>Abandoning stops the active match for everyone at that table.</Text>}
-        <Pressable accessibilityRole="button" disabled={pendingAction} onPress={() => void leavePreviousTable()} style={styles.button}>
-          <Text style={styles.buttonText}>{seatConflict?.departure_command === 'abandon' ? 'Abandon previous game' : 'Leave previous table'}</Text>
+        <Pressable accessibilityRole="button" disabled={pendingAction} onPress={() => void leavePreviousTable()} style={[styles.button, { backgroundColor: colors.dangerSurface, borderWidth: 1, borderColor: colors.danger }]}>
+          <Text style={[styles.buttonText, { color: colors.danger }]}>{seatConflict?.departure_command === 'abandon' ? 'Abandon previous game' : 'Leave previous table'}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" onPress={() => setSeatConflict(null)} style={styles.choice}><Text style={styles.text}>Stay as observer</Text></Pressable>
       </View></View></View>
@@ -372,7 +372,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   code: { fontFamily: fonts.medium, fontSize: 22, color: colors.text, letterSpacing: 1 },
   joinHint: { fontFamily: fonts.body, fontSize: 12, lineHeight: 21, color: colors.textMuted, marginTop: 8 },
   bar: { gap: 18, paddingTop: 24, paddingBottom: 8 }, summary: { color: colors.text, fontFamily: fonts.medium, fontSize: 14, lineHeight: 23 },
-  button: { minHeight: 44, padding: 12, borderRadius: 8, backgroundColor: colors.surfaceSelected, alignItems: 'center', justifyContent: 'center' }, buttonText: { fontFamily: fonts.medium, fontSize: 12, color: colors.text },
+  button: { minHeight: 44, padding: 12, borderRadius: 8, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }, buttonText: { fontFamily: fonts.medium, fontSize: 12, color: colors.onPrimary },
   error: { color: colors.danger, padding: 12, fontFamily: fonts.body, fontSize: 12 }, overlay: { flex: 1, paddingHorizontal: 20, paddingVertical: 48, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.overlay }, modal: { maxWidth: 480, width: '100%', maxHeight: '100%', borderRadius: 18, backgroundColor: colors.surface }, body: { padding: 24, gap: 16 },
   title: { fontFamily: fonts.display, fontSize: 30, color: colors.text }, text: { fontFamily: fonts.body, color: colors.text, fontSize: 13, lineHeight: 22 }, choices: { flexDirection: 'row', gap: 12 }, choice: { minHeight: 44, padding: 10, borderWidth: 1, borderColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }, player: { fontFamily: fonts.medium, fontSize: 13, color: colors.text }, note: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 11, lineHeight: 19 }, modalError: { fontFamily: fonts.body, color: colors.danger, fontSize: 12 },
 });

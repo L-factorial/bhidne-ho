@@ -78,6 +78,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   selected: { backgroundColor: colors.surfaceSelected }, chipText: { color: colors.text, fontSize: 12, fontFamily: fonts.medium },
   input: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, minHeight: 48, fontSize: 15, fontFamily: fonts.body, color: colors.text },
   between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, save: { minHeight: 44, justifyContent: 'center' }, saveText: { color: colors.accent, fontFamily: fonts.medium, fontSize: 12 },
-  send: { minHeight: 48, borderRadius: 12, backgroundColor: colors.surfaceSelected, alignItems: 'center', justifyContent: 'center' }, sendText: { color: colors.text, fontFamily: fonts.medium, fontSize: 13 },
+  send: { minHeight: 48, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }, sendText: { color: colors.text, fontFamily: fonts.medium, fontSize: 13 },
   success: { color: colors.success, fontFamily: fonts.body, fontSize: 11 }, error: { color: colors.danger, fontFamily: fonts.body, fontSize: 12 },
 });

@@ -41,7 +41,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   fan: { width: 370, height: 280 },
   compactFan: { transform: [{ scale: 0.65 }], marginTop: -37 },
   card: { position: 'absolute', width: 120, height: 184, borderRadius: 12,
-    borderWidth: 1, borderColor: colors.cardBorder, padding: 11, boxShadow: '0px 12px 22px rgba(0, 0, 0, 0.24)' },
+    borderWidth: 1, borderColor: colors.cardBorder, padding: 11, boxShadow: `0px 12px 22px ${colors.shadow}` },
   corner: { alignSelf: 'flex-start', alignItems: 'center' },
   bottomCorner: { position: 'absolute', right: 11, bottom: 11, alignItems: 'center', transform: [{ rotate: '180deg' }] },
   rank: { fontFamily: fonts.display, fontSize: 29, lineHeight: 30, color: colors.cardInk },

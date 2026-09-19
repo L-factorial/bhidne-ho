@@ -5,7 +5,7 @@ import { FlushTurnCue } from '../components/FlushTurnCue';
 import { flushDecision } from '../multiplayer/flushDecision';
 import { type ReactNode, useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
-import { fonts, useThemedStyles, type ThemeColors } from '../theme';
+import { fonts, primaryAction, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import type { RoomSnapshot } from './LiveGameTable';
 import { FlushFoldNotice } from '../components/FlushFoldNotice';
 import { FlushLockButton } from '../components/FlushLockButton';
@@ -41,6 +41,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   onStart: (revision: number) => void; onAction: (command: string, payload?: object) => void;
   onBack: () => void; onNewGame: () => void;
 }) {
+  const { colors } = useTheme();
   const s = useThemedStyles(styles);
   const ended = snapshot.status === 'ended';
   const endedNotice = <EndedTableNotice onBack={onBack} onNewGame={onNewGame} />;
@@ -87,8 +88,8 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   const centerControl = snapshot.is_creator && snapshot.status !== 'ended' && (locking || starting)
     ? <Pressable testID="flush-center-start" accessibilityRole="button" accessibilityLabel={centerLabel}
         disabled={formationDisabled} accessibilityState={{ disabled: formationDisabled }}
-        onPress={() => locking ? onLock() : onStart(baseRevision)} style={[s.button, { maxWidth: 220 }, formationDisabled && { opacity: 0.45 }]}>
-        <Text style={[s.title, { textAlign: 'center' }]}>{centerLabel}</Text>
+        onPress={() => locking ? onLock() : onStart(baseRevision)} style={({ pressed }) => [s.button, primaryAction(colors, pressed), { maxWidth: 220 }, formationDisabled && { opacity: 0.45 }]}>
+        <Text style={[s.title, { textAlign: 'center', color: colors.onPrimary }]}>{centerLabel}</Text>
       </Pressable> : null;
   const [finalShowOpen, setFinalShowOpen] = useState(false);
   const finalStage = ended ? null : pub?.pending_show ? 'pending' : pub?.settlement ? 'result' : null;
@@ -119,10 +120,12 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   const name = (id: string) => snapshot.players?.find(p => String(p.player_id) === id)?.display_name || `Player ${id}`;
   const can = (kind: string) => !busy && snapshot.status === 'playing' && !!mine?.actions.kinds.includes(kind);
   const button = (label: string, action: () => void, disabled = false) => {
+    const primary = /^(Bet minimum|Show ·|Deal cards|Reveal cards|Accept side-show)/.test(label);
+    const legal = /^(Bet |Show ·|Request side-show|See cards|Reveal cards|Accept side-show|Decline side-show)/.test(label);
     const caption = label.replace('Bet minimum ·', `${visibility === 'Blind' ? 'Blind' : 'Bet'} ·`).replace('Bet double ·', 'Double ·');
     return <Pressable accessibilityRole="button" accessibilityLabel={label}
-      disabled={disabled} accessibilityState={{ disabled }} onPress={action} style={[s.button, label === 'Fold' && s.fold, disabled && { opacity: 0.45 }]}>
-      <Text style={[s.text, label === 'Fold' && s.error]}>{caption}</Text>
+      disabled={disabled} accessibilityState={{ disabled }} onPress={action} style={({ pressed }) => [s.button, legal && !disabled && { borderColor: colors.attention }, primary && primaryAction(colors, pressed), label === 'Fold' && s.fold, disabled && { opacity: 0.45 }]}>
+      <Text style={[s.text, primary && { color: colors.onPrimary }, label === 'Fold' && s.error]}>{caption}</Text>
     </Pressable>;
   };
   const preparationControl = activeGame && preparing && myTurn ? <View testID="flush-center-preparation" style={{ gap: 8, alignItems: 'center' }}>
@@ -264,12 +267,12 @@ const styles = (c: ThemeColors) => StyleSheet.create({
   page: { flex: 1, padding: 12, gap: 8, backgroundColor: c.background },
   mainColumn: { flex: 1, minWidth: 0, minHeight: 0 },
   playViewport: { flex: 1, minHeight: 0 },
-  playArea: { flexGrow: 1 },
-  handDock: { flexShrink: 0, borderTopWidth: 1, borderColor: c.border, paddingTop: 4, paddingBottom: 8, gap: 6, alignItems: 'center' },
+  playArea: { flexGrow: 1, backgroundColor: c.table },
+  handDock: { backgroundColor: c.surface, flexShrink: 0, borderTopWidth: 1, borderColor: c.border, paddingTop: 4, paddingBottom: 8, gap: 6, alignItems: 'center' },
   cards: { width: 224, height: 128, alignItems: 'center', justifyContent: 'center' },
   scaledCards: { width: 280, height: 172, transform: [{ scale: 0.75 }] },
   status: { color: c.textMuted, fontFamily: fonts.body, fontSize: 13, textAlign: 'center' },
-  yourTurn: { color: c.turnText, fontFamily: fonts.medium },
+  yourTurn: { color: c.turnText, fontFamily: fonts.medium, backgroundColor: c.turnSurface, borderWidth: 1, borderColor: c.attention, borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, width: '100%', maxWidth: 900 },
   notice: { position: 'absolute', top: 0, left: 72, right: 72 },
   backdrop: { flex: 1, backgroundColor: c.overlay, alignItems: 'center', justifyContent: 'center', padding: 16 },

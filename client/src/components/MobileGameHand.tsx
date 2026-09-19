@@ -43,10 +43,10 @@ export function MobileGameHand({ mobile, open, onToggle, docked = false, myTurn,
     <View style={{ alignItems: 'center', paddingTop: 7, backgroundColor: colors.surface }}>
       <View style={{ width: 38, height: 4, borderRadius: 2, backgroundColor: colors.border }} />
     </View>
-    <Animated.View testID={`${game}-hand-attention`} style={{ opacity: attentionOpacity, borderTopWidth: attention && !open ? 2 : 0, borderColor: colors.accent }}>
+    <Animated.View testID={`${game}-hand-attention`} style={{ opacity: attentionOpacity, borderTopWidth: attention && !open ? 2 : 0, borderColor: colors.attention }}>
     <Pressable accessibilityRole="button" accessibilityLabel={open ? 'Collapse your card area' : 'Expand your card area'}
       accessibilityState={{ expanded: open }} onPress={onToggle}
-      style={{ minHeight: 50, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.surface }}>
+      style={{ minHeight: 50, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: attention ? colors.turnSurface : colors.surface }}>
       <Text accessibilityLiveRegion={attention && !open ? 'polite' : 'none'} style={{ fontFamily: fonts.medium, color: attention ? colors.turnText : colors.text }}>{attentionText || `Your card area${myTurn ? ' · Action needed' : ''}`}</Text>
       <Text style={{ color: colors.text, fontSize: 22 }}>{open ? '⌄' : '⌃'}</Text>
     </Pressable>

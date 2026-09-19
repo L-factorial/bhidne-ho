@@ -30,6 +30,6 @@ export function FlushTurnCue({ scope, decision, personal, ready }: {
     return () => { animation.stop(); opacity.setValue(0); };
   }, [scope, decision, personal, ready, reduced, opacity]);
   return <Animated.View pointerEvents="none" testID="flush-turn-cue" style={[StyleSheet.absoluteFill, {
-    opacity, borderWidth: 2, borderColor: colors.turnText, borderRadius: 10,
+    opacity, borderWidth: 2, borderColor: colors.attention, borderRadius: 10,
   }]} />;
 }

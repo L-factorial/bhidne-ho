@@ -45,7 +45,7 @@ export function SignInButton({ method, onPress, disabled = false, label }: { met
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   button: { minHeight: 56, borderRadius: 11, paddingHorizontal: 20, paddingVertical: 15,
     flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: 'transparent' },
-  google: { borderColor: colors.surfaceRaised, boxShadow: '0px 3px 8px rgba(16, 35, 56, 0.05)' },
+  google: { borderColor: colors.surfaceRaised, boxShadow: `0px 3px 8px ${colors.shadow}` },
   focused: { outlineWidth: 3, outlineColor: colors.accent, outlineOffset: 4 },
   icon: { width: 26, alignItems: 'center' }, balance: { width: 26 },
   label: { flex: 1, textAlign: 'center', fontFamily: fonts.medium, fontSize: 15 },
