@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { PlayerSeat } from './PlayerSeat';
+import { TableSeatLayout } from './TableSeatLayout';
+import { useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
@@ -13,22 +15,21 @@ const situation = (p: Player, pub: MarriagePublic) => p.finished ? 'Winner' : pu
   ? pub.phase === 'must_draw' ? 'Taking a card' : 'Showing or discarding' : 'Waiting for turn';
 const playerName = (snapshot: RoomSnapshot, id: string) => snapshot.players?.find(p => String(p.player_id) === id)?.display_name || `Player ${id}`;
 
-export function MarriagePlayers({ snapshot, onPoke, registerSeat }: { snapshot: RoomSnapshot; onPoke?: (seat: number) => void; registerSeat?: (seat: string, node: View | null) => void }) {
+export function MarriagePlayers({ snapshot, onPoke, registerSeat, children }: { children?: ReactNode; snapshot: RoomSnapshot; onPoke?: (seat: number) => void; registerSeat?: (seat: string, node: View | null) => void }) {
   const styles = useThemedStyles(createStyles);
   const [selected, setSelected] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
   const pub = snapshot.marriage!.public, mine = snapshot.marriage?.private?.player_id;
   const detail = pub.players.find(p => p.player_id === selected);
   return <>
-    <View testID="marriage-player-grid" style={styles.grid}>
-      {pub.players.map(p => <Pressable ref={node => registerSeat?.(p.player_id, node)} key={p.player_id}
-        testID={`marriage-player-${p.player_id}`} accessibilityRole="button"
-        accessibilityLabel={`${playerName(snapshot, p.player_id)}${p.player_id === mine ? ', You' : ''}, ${p.has_seen_maal ? 'Maal seen' : 'Maal not seen'}. View player details`}
-        onPress={() => setSelected(p.player_id)} style={[styles.seat, p.has_seen_maal && styles.seenSeat, snapshot.status !== 'ended' && pub.current_player_id === p.player_id && styles.active]}>
-        <Text numberOfLines={1} style={[styles.name, { flexShrink: 1 }]}>{playerName(snapshot, p.player_id)}{p.player_id === mine ? ' · You' : ''}</Text>
-        {snapshot.status !== 'ended' && pub.current_player_id === p.player_id && <Text style={styles.small}>● Turn</Text>}
-      </Pressable>)}
-    </View>
+    <TableSeatLayout fill testID="marriage-player-grid" players={pub.players.map(player => ({ ...player, id: player.player_id }))} viewerId={mine || ''}
+      renderSeat={p => <PlayerSeat name={playerName(snapshot, p.player_id)} mine={p.player_id === mine}
+        active={snapshot.status === 'playing' && pub.current_player_id === p.player_id}
+        status={`${p.hand_count} cards`} connected={snapshot.players?.find(row => String(row.player_id) === p.player_id)?.connected}
+        avatarUrl={snapshot.players?.find(row => String(row.player_id) === p.player_id)?.avatar_url}
+        registerSeat={node => registerSeat?.(p.player_id, node)} testID={`marriage-player-${p.player_id}`} onPress={() => setSelected(p.player_id)} />}>
+      {children}
+    </TableSeatLayout>
     <Modal transparent visible={!!detail} animationType="none" onRequestClose={() => setSelected(null)}>
       <View style={[styles.backdrop, { paddingTop: Math.max(16, insets.top), paddingBottom: Math.max(16, insets.bottom) }]}>
         <View accessibilityViewIsModal testID="marriage-player-details" style={styles.dialog}>
@@ -87,9 +88,7 @@ export function MarriageDetails({ snapshot, section, onClose, busy, error, onSav
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
-  seat: { flexBasis: '45%', flexGrow: 1, minWidth: 0, minHeight: 44, padding: 8, borderRadius: 12, borderWidth: 3, borderColor: colors.maalUnseen, backgroundColor: colors.surface, justifyContent: 'center', flexDirection: 'row', alignItems: 'center', gap: 4 },
-  seenSeat: { borderColor: colors.maalSeen }, active: { backgroundColor: colors.surfaceSelected }, name: { fontFamily: fonts.medium, color: colors.text, fontSize: 14 },
+  name: { fontFamily: fonts.medium, color: colors.text, fontSize: 14 },
   small: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 11, lineHeight: 16 },
   route: { fontFamily: fonts.medium, color: colors.accent, fontSize: 11, lineHeight: 15 }, seen: { color: colors.success },
   backdrop: { flex: 1, paddingHorizontal: 16, backgroundColor: colors.overlay, alignItems: 'center', justifyContent: 'center' },

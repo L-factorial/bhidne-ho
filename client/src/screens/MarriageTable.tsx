@@ -1,3 +1,4 @@
+import { TurnIndicator } from '../components/TurnIndicator';
 import { EndedTableNotice } from '../components/EndedTableNotice';
 import { GameMenu, GameMenuMetadata } from '../components/GameMenu';
 import { GameTableHeader } from '../components/GameTableHeader';
@@ -152,9 +153,8 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const turnInstruction = decision === 'DRAW_REQUIRED' ? 'Your turn · Draw a card'
     : decision === 'DISCARD_REQUIRED' ? 'Your turn · Choose a card to discard'
     : decision === 'FINISH_REQUIRED' ? 'Your turn · Finish round' : `Your cards · ${hand.length}`;
-  const turnPrompt = activeGame && pub && <Text testID="marriage-turn-instruction" accessibilityLiveRegion="polite" style={[s.text, { textAlign: 'center', color: isTurn ? colors.turnText : colors.textMuted }]}>
-    {isTurn && decision !== 'WAITING' ? turnInstruction : `${name(pub.current_player_id)}’s turn`}
-  </Text>;
+  const turnPrompt = activeGame && pub && <TurnIndicator testID="marriage-turn-instruction" personal={isTurn}
+    text={isTurn && decision !== 'WAITING' ? turnInstruction : `${name(pub.current_player_id)}’s turn`} />;
   const mobileHandHeader = <View testID="marriage-hand-header" style={{ backgroundColor: colors.surface, paddingHorizontal: 10, gap: 4 }}>
     {!mobile && turnPrompt}
     {actions?.kinds.includes('finish') && button('Finish round', () => normalFinish ? setFinishPreview(true) : cards.act('FINISH'), !canAct)}
@@ -192,7 +192,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         <View style={s.columns}>
           <View style={s.main}>
             <View style={s.table}>
-              <MarriageCardArea snapshot={snapshot} handAnchor={handAnchor} canAct={!busy && activeGame} onAction={cards.act} onPoke={activeGame || ended ? undefined : setPoke} />
+              <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}><MarriageCardArea snapshot={snapshot} handAnchor={handAnchor} canAct={!busy && activeGame} onAction={cards.act} onPoke={activeGame || ended ? undefined : setPoke} /></ScrollView>
               {turnPrompt}
               {ended && <View testID="ended-table-overlay" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center', zIndex: 70 }}>{endedNotice}</View>}
 
@@ -344,7 +344,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   page: { flex: 1, minHeight: 0, backgroundColor: colors.background }, header: { padding: 12, gap: 8, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
   title: { flex: 1, minWidth: 140, color: colors.accent, fontFamily: fonts.medium, fontSize: 18 }, content: { padding: 12, gap: 12, paddingBottom: 30 },
   columns: { flex: 1, minHeight: 0 }, main: { flex: 1, minHeight: 0, minWidth: 0 }, panel: { backgroundColor: colors.surface, borderRadius: 14, padding: 14, gap: 12 },
-  table: { flex: 1, minHeight: 0, backgroundColor: colors.surface, borderRadius: 18, padding: 8, gap: 4, borderWidth: 1, borderColor: colors.border },
+  table: { flex: 1, minHeight: 0, padding: 4, gap: 4 },
   seats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, seat: { flexGrow: 1, flexBasis: 130, minWidth: 0, padding: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, gap: 5 }, activeSeat: { borderColor: colors.turnText, borderWidth: 2 },
   player: { fontFamily: fonts.medium, color: colors.text, fontSize: 16 }, text: { fontFamily: fonts.body, color: colors.text, fontSize: 13, lineHeight: 21 },
   small: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 12, lineHeight: 19 }, heading: { fontFamily: fonts.medium, color: colors.accent, fontSize: 16 },

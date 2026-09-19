@@ -1,10 +1,12 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, StyleSheet, Text, View } from 'react-native';
+import { PlayerSeat } from './PlayerSeat';
+import { TableSeatLayout } from './TableSeatLayout';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
-export type TablePlayer = { id: string; name: string; bid: number; tricks: number; cardsRemaining: number; connected?: boolean };
+export type TablePlayer = { id: string; name: string; bid: number; tricks: number; cardsRemaining: number; connected?: boolean; avatarUrl?: string };
 type Props = {
-  centerControl?: ReactNode;
+  centerControl?: ReactNode; compact?: boolean; showScores?: boolean;
   players: TablePlayer[]; viewerId: string; activePlayerId: string; width: number;
   plays: { playerId: string; card: string }[];
   winnerPlayerId?: string; collecting?: boolean; collectionKey?: string;
@@ -12,7 +14,7 @@ type Props = {
   onPokePlayer?: (playerId: string) => void; onPokeTable?: () => void;
 };
 
-export function CardTable({ players, viewerId, activePlayerId, width, plays, pendingBidPlayerId, dealerId, winnerPlayerId, collecting = false, collectionKey, onPokePlayer, onPokeTable, centerControl }: Props) {
+export function CardTable({ players, viewerId, activePlayerId, width, plays, pendingBidPlayerId, dealerId, winnerPlayerId, collecting = false, collectionKey, onPokePlayer, onPokeTable, centerControl, compact = false, showScores = true }: Props) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const progress = useRef(new Animated.Value(0)).current;
@@ -30,62 +32,46 @@ export function CardTable({ players, viewerId, activePlayerId, width, plays, pen
     animation.start();
     return () => animation.stop();
   }, [collecting, collectionKey, reduceMotion, progress]);
-  const rowWidth = Math.max(width, players.length * 64);
-  const pitch = (rowWidth + 6) / players.length;
-  const winnerIndex = players.findIndex(player => player.id === winnerPlayerId);
-  return <ScrollView horizontal style={{ width }} contentContainerStyle={styles.scroll}
-    accessibilityLabel="Players in seat order and their played cards">
-    <View testID="card-table" style={[styles.row, { width: Math.max(width, players.length * 64) }]}>
-      {players.map((player, index) => {
-        const mine = player.id === viewerId, active = player.id === activePlayerId;
-        const bidPending = pendingBidPlayerId === player.id || player.bid === 0;
-        const playIndex = plays.findIndex(play => play.playerId === player.id);
-        const play = plays[playIndex];
-        return <View key={player.id} style={styles.column}>
-          <Pressable testID={mine ? 'your-seat' : 'opponent-seat'}
-            accessibilityRole={onPokePlayer && !mine ? 'button' : undefined}
-            accessibilityHint={onPokePlayer && !mine ? 'Send this player a private poke' : undefined}
-            disabled={!onPokePlayer || mine || player.connected === false} onPress={() => onPokePlayer?.(player.id)}
-            accessibilityLabel={`${mine ? 'You' : player.name}${dealerId === player.id ? ', dealer' : ''}, ${bidPending ? 'bid pending' : `bid ${player.bid}, ${player.tricks} tricks won`}${active ? ', current turn' : ''}${player.connected === false ? ', disconnected' : ''}`}
-            style={[styles.seat, active && styles.active, player.connected === false && styles.disconnected]}>
-            <Text numberOfLines={1} style={styles.name}>{mine ? `${player.name} · You` : player.name}</Text>
-            <View style={styles.scoreStrip}>
-              <Text style={styles.stats}>{bidPending ? 'Bid —' : `Bid ${player.bid}`}</Text>
-              <Text style={styles.stats}>Won {player.tricks}</Text>
-            </View>
-          </Pressable>
-          <Pressable style={styles.playArea} accessibilityRole={onPokeTable ? 'button' : undefined}
-            accessibilityLabel={onPokeTable ? 'Poke everyone at the table' : undefined}
-            disabled={!onPokeTable} onPress={onPokeTable}>
-            {play ? <View accessibilityLabel={`${mine ? 'You' : player.name} played ${play.card}${playIndex === 0 ? ', led this trick' : ''}`}>
-              <Animated.View testID={player.id === winnerPlayerId ? 'winning-card' : undefined} style={[styles.playedCard, player.id === winnerPlayerId && { borderWidth: 3, borderColor: colors.cardSelectedBorder, backgroundColor: colors.cardSelected }, { opacity: progress.interpolate({ inputRange: [0, 0.8, 1], outputRange: [1, 1, 0] }), transform: reduceMotion ? [] : [{ translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [0, winnerIndex < 0 ? 0 : (winnerIndex - index) * pitch] }) }, { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, -104] }) }, { scale: progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0.35] }) }] }]}>
+  return <View style={{ width }}><TableSeatLayout testID="card-table" players={players} viewerId={viewerId} compact={compact}
+    renderSeat={player => <PlayerSeat name={player.name} mine={player.id === viewerId} active={player.id === activePlayerId}
+      connected={player.connected} avatarUrl={player.avatarUrl} compact={compact} dealer={dealerId === player.id}
+      status={!showScores ? player.cardsRemaining ? `${player.cardsRemaining} cards` : 'Waiting' : compact ? `${player.bid || '—'} / ${player.tricks}` : `Bid ${player.bid || '—'} · Won ${player.tricks}`}
+      testID={player.id === viewerId ? 'your-seat' : 'opponent-seat'}
+      onPress={onPokePlayer && player.id !== viewerId && player.connected !== false ? () => onPokePlayer(player.id) : undefined} />}>
+    {(layout, ordered) => {
+      const winnerIndex = ordered.findIndex(player => player.id === winnerPlayerId);
+      const winner = layout.positions[winnerIndex];
+      return <View testID="current-trick-area" style={{ position: 'absolute', left: layout.center.x - 72, top: layout.center.y - 57, width: 144, height: 114 }}>
+        {centerControl || <>
+          {!plays.length && <Text style={[styles.empty, { textAlign: 'center', paddingTop: 42, fontSize: 12 }]}>Current trick</Text>}
+          {plays.map((play, playIndex) => {
+            const index = ordered.findIndex(player => player.id === play.playerId);
+            const player = ordered[index];
+            const columns = ordered.length > 4 ? 3 : 2;
+            const x = 72 + (playIndex % columns - (columns - 1) / 2) * 46, y = 28 + Math.floor(playIndex / columns) * 58;
+            return <View key={play.playerId} accessibilityLabel={`${player?.id === viewerId ? 'You' : player?.name} played ${play.card}${playIndex === 0 ? ', led this trick' : ''}`}
+              style={{ position: 'absolute', left: x - 20, top: y - 28 }}>
+              <Animated.View testID={play.playerId === winnerPlayerId ? 'winning-card' : 'trick-card'} style={[styles.playedCard,
+                play.playerId === winnerPlayerId && { borderWidth: 3, borderColor: colors.cardSelectedBorder, backgroundColor: colors.cardSelected },
+                { opacity: progress.interpolate({ inputRange: [0, .8, 1], outputRange: [1, 1, 0] }), transform: reduceMotion ? [] : [
+                  { translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [0, winner ? winner.x - (layout.center.x - 72 + x) : 0] }) },
+                  { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, winner ? winner.y - (layout.center.y - 57 + y) : 0] }) },
+                  { scale: progress.interpolate({ inputRange: [0, 1], outputRange: [1, .35] }) }] }]}>
                 <Text style={[styles.playedText, /[♥♦]/.test(play.card) && styles.red, play.card.endsWith('♣') && styles.club]}>{play.card}</Text>
+                <Text style={styles.playOrder}>{play.playerId === winnerPlayerId ? 'Won' : playIndex === 0 ? 'Led' : playIndex + 1}</Text>
               </Animated.View>
-              <Text style={styles.playOrder}>{player.id === winnerPlayerId ? 'Winner' : playIndex === 0 ? 'Led' : `Play ${playIndex + 1}`} </Text>
-            </View> : <Text style={styles.empty}>{active ? '•••' : '—'}</Text>}
-          </Pressable>
-        </View>;
-      })}
-    {!!centerControl && <View pointerEvents="box-none" style={{ position: 'absolute', top: 82, bottom: 0, left: 40, right: 40, alignItems: 'center', justifyContent: 'center' }}>{centerControl}</View>}
-    </View>
-  </ScrollView>;
+            </View>;
+          })}
+        </>}
+      </View>;
+    }}
+  </TableSeatLayout></View>;
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  scroll: { flexGrow: 1 },
-  row: { flexDirection: 'row', gap: 6, paddingVertical: 8 },
-  column: { flex: 1, minWidth: 0, alignItems: 'center' },
-  seat: { width: '100%', minHeight: 72, borderWidth: 2, borderColor: 'transparent', borderRadius: 10,
-    backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2, paddingVertical: 6, gap: 4 },
-  disconnected: { borderColor: colors.border, borderStyle: 'dashed' },
-  active: { borderColor: colors.turnText, backgroundColor: colors.turnSurface },
-  name: { color: colors.text, fontFamily: fonts.medium, fontSize: 13 },
-  stats: { color: colors.accent, fontFamily: fonts.medium, fontSize: 13 },
-  scoreStrip: { alignItems: 'center', gap: 3 },
-  playArea: { width: '100%', minHeight: 142, paddingTop: 16, alignItems: 'center', justifyContent: 'center' },
-  playedCard: { width: 54, height: 80, borderRadius: 8, backgroundColor: colors.cardFace,
+  playedCard: { width: 40, height: 56, borderRadius: 8, backgroundColor: colors.cardFace,
     alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.cardBorder },
-  playedText: { fontFamily: fonts.display, fontSize: 28, color: colors.cardInk },
+  playedText: { fontFamily: fonts.display, fontSize: 20, color: colors.cardInk },
   red: { color: colors.cardRed },
   club: { color: colors.cardClub },
   playOrder: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 10, textAlign: 'center', marginTop: 6 },

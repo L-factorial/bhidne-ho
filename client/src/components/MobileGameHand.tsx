@@ -2,8 +2,8 @@ import { type ReactNode, useEffect, useRef } from 'react';
 import { AccessibilityInfo, Animated, Pressable, ScrollView, Text, View } from 'react-native';
 import { fonts, useTheme } from '../theme';
 
-export function MobileGameHand({ mobile, open, onToggle, myTurn, attention = myTurn, attentionText, children, game = 'flush', keepMounted = false, header }: {
-  header?: ReactNode;
+export function MobileGameHand({ mobile, open, onToggle, docked = false, myTurn, attention = myTurn, attentionText, children, game = 'flush', keepMounted = false, header }: {
+  header?: ReactNode; docked?: boolean;
   attention?: boolean; attentionText?: string;
   game?: string; keepMounted?: boolean;
   mobile: boolean; open: boolean; onToggle: () => void; myTurn: boolean; children: ReactNode;
@@ -23,7 +23,7 @@ export function MobileGameHand({ mobile, open, onToggle, myTurn, attention = myT
     let active = true;
     let loop: Animated.CompositeAnimation | undefined;
     attentionOpacity.setValue(1);
-    if (attention && !open) AccessibilityInfo.isReduceMotionEnabled().then(reduced => {
+    if (attention && !open && !docked) AccessibilityInfo.isReduceMotionEnabled().then(reduced => {
       if (!active || reduced) return;
       loop = Animated.loop(Animated.sequence([
         Animated.timing(attentionOpacity, { toValue: 0.58, duration: 650, useNativeDriver: true }),
@@ -32,13 +32,13 @@ export function MobileGameHand({ mobile, open, onToggle, myTurn, attention = myT
       loop.start();
     });
     return () => { active = false; loop?.stop(); attentionOpacity.stopAnimation(); attentionOpacity.setValue(1); };
-  }, [attention, open, attentionOpacity]);
+  }, [attention, open, attentionOpacity, docked]);
   if (!mobile) return <>{children}</>;
   return <>
-    {open && <Pressable testID={`${game}-hand-backdrop`} accessibilityRole="button" accessibilityLabel="Close your card area"
+    {open && !docked && <Pressable testID={`${game}-hand-backdrop`} accessibilityRole="button" accessibilityLabel="Close your card area"
       onPress={onToggle} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 29, backgroundColor: colors.overlay }} />}
-    <Animated.View testID={`${game}-mobile-hand`} style={{ position: 'absolute', bottom: 0, left: 0, right: 0,
-    maxHeight: '88%', zIndex: 30, elevation: 16, transform: [{ translateY: slide }], borderWidth: 1, borderColor: colors.border,
+    <Animated.View testID={`${game}-mobile-hand`} style={{ position: docked ? 'relative' : 'absolute', bottom: 0, left: 0, right: 0,
+    maxHeight: docked ? '44%' : '88%', flexShrink: 0, zIndex: 30, elevation: 16, transform: [{ translateY: slide }], borderWidth: 1, borderColor: colors.border,
     borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden', backgroundColor: colors.surface }}>
     <View style={{ alignItems: 'center', paddingTop: 7, backgroundColor: colors.surface }}>
       <View style={{ width: 38, height: 4, borderRadius: 2, backgroundColor: colors.border }} />

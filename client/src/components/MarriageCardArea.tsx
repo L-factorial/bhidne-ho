@@ -82,7 +82,7 @@ export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAncho
   const legalSource = (source: string) => canAct && !!mine?.actions.kinds.includes('draw') && !!mine.actions.drawable_sources.includes(source);
   useEffect(() => { if (!privateMaal) setMaalOpen(false); }, [privateMaal]);
   return <View ref={area} style={styles.area}>
-    <MarriagePlayers snapshot={snapshot} onPoke={onPoke} registerSeat={(id, node) => { if (node) seats.current.set(id, node); else seats.current.delete(id); }} />
+    <MarriagePlayers snapshot={snapshot} onPoke={onPoke} registerSeat={(id, node) => { if (node) seats.current.set(id, node); else seats.current.delete(id); }}>
     <View testID="marriage-card-spots" style={styles.spots}>
       <View style={styles.spot}><Text style={styles.label}>Last discard</Text>
         <Pressable ref={discard} testID="marriage-discard-spot" accessibilityRole="button" accessibilityLabel="Take discard"
@@ -107,6 +107,7 @@ export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAncho
         <Text style={styles.caption}>{privateMaal ? 'View Maal' : 'Hidden'}</Text>
       </View>
     </View>
+    </MarriagePlayers>
     <Modal transparent visible={maalOpen && !!privateMaal} animationType="none" onRequestClose={() => setMaalOpen(false)}>
       <View style={[styles.backdrop, { paddingTop: Math.max(16, insets.top), paddingBottom: Math.max(16, insets.bottom) }]}>
         <View accessibilityViewIsModal testID="marriage-maal-details" style={styles.dialog}>
@@ -132,7 +133,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   dialog: { width: '100%', maxWidth: 440, padding: 16, gap: 20, borderRadius: 16, backgroundColor: colors.surface },
   dialogHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 }, heading: { flex: 1, color: colors.accent, fontFamily: fonts.medium, fontSize: 18 },
   sequence: { flexDirection: 'row', justifyContent: 'center', gap: 12 }, sequenceCard: { alignItems: 'center', gap: 8 }, largeCard: { width: 64, height: 92 },
-  area: { flex: 1, minHeight: 0, position: 'relative', gap: 4 }, spots: { flex: 1, flexDirection: 'row', gap: 8, justifyContent: 'center', alignItems: 'flex-start', paddingTop: 4 }, spot: { flex: 1, maxWidth: 150, alignItems: 'center', gap: 4 },
+  area: { flex: 1, minHeight: 360, justifyContent: 'center', position: 'relative', gap: 4 }, spots: { width: '100%', maxWidth: 260, flexDirection: 'row', gap: 8, justifyContent: 'center', alignItems: 'flex-start', paddingTop: 4 }, spot: { flex: 1, maxWidth: 150, alignItems: 'center', gap: 4 },
   label: { color: colors.accent, fontFamily: fonts.medium, fontSize: 12 }, card: { width: 52, height: 72, backgroundColor: colors.cardFace, borderRadius: 7, borderWidth: 2, borderColor: colors.cardBorder, alignItems: 'center', justifyContent: 'center' },
   legal: { borderColor: colors.turnText, borderWidth: 3, boxShadow: `0px 0px 9px ${colors.turnSurface}` },
   back: { backgroundColor: colors.cardBack, borderColor: colors.cardBorder }, stack: { boxShadow: `3px 3px 0 ${colors.cardBorder}` }, face: { fontFamily: fonts.medium, fontSize: 24, color: colors.cardInk }, red: { color: colors.cardRed },

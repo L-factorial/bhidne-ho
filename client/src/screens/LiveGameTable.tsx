@@ -10,7 +10,7 @@ import { type ReactNode, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardTable } from '../components/CardTable';
-import { TurnPulse } from '../components/TurnPulse';
+import { TurnIndicator } from '../components/TurnIndicator';
 import { PlayerHand, type HandView } from '../components/PlayerHand';
 import { LiveBidPrompt } from '../components/LiveBidPrompt';
 import { GameDetails } from '../components/GameDetails';
@@ -41,7 +41,7 @@ export type RoomSnapshot = {
   action_ack?: ActionAck;
   round_review?: { deal_number: number; can_continue: boolean };
   status: 'empty' | 'waiting' | 'playing' | 'finished' | 'ended'; match_id?: string; capacity?: number;
-  players?: { player_id: number; user_id: string; display_name?: string; connected?: boolean }[]; your_player_id?: number | null; can_join?: boolean;
+  players?: { player_id: number; user_id: string; display_name?: string; avatar_url?: string; connected?: boolean }[]; your_player_id?: number | null; can_join?: boolean;
   play_mode?: PlayMode; remaining_ms?: number | null; error?: string | null;
   game?: { revision: number; phase: string; finished: boolean; winners: number[]; turn: { player_id: number | null };
     current_trick: Trick | null; scores_tenths: number[] };
@@ -71,7 +71,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   const endedNotice = <EndedTableNotice onBack={onBack} onNewGame={onNewGame} />;
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
-  const screenWidth = useWindowDimensions().width;
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const wide = screenWidth >= 1000;
   const mobile = screenWidth < 900;
   const [tableWidth, setTableWidth] = useState(280);
@@ -137,6 +137,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     </View> : <Text style={styles.meta}>Waiting for the creator to start the next deal.</Text>} />{socialOverlay}</View>;
   const showTurn = !ended && game.phase === 'PLAYING' && !game.finished && !reveal && !!game.turn.player_id;
   const players = deal.players.map(player => ({ id: String(player.player_id), name: playerName(player.player_id),
+    avatarUrl: snapshot.players?.find(p => p.player_id === player.player_id)?.avatar_url,
     connected: snapshot.players?.find(p => p.player_id === player.player_id)?.connected,
     bid: player.bid ?? 0, tricks: Math.max(0, player.tricks_won - (reveal && completedTrick?.winner === player.player_id ? 1 : 0)), cardsRemaining: player.cards_remaining }));
   const last = [...deal.tricks].reverse().find(trick => trick.complete);
@@ -156,17 +157,17 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     <View style={styles.playColumn}>
     <View style={styles.body}>
     <ScrollView style={styles.tableScroll} onLayout={event => setTableWidth(event.nativeEvent.layout.width)} contentContainerStyle={[styles.container, {
-      paddingTop: 12, paddingBottom: mobile && handAvailable ? 110 : Math.max(insets.bottom, 16),
+      paddingTop: mobile && cards.open ? 0 : 8, paddingBottom: 4,
     }]}><View style={{ width }}>
     <Text style={styles.meta}>Deal {deal.deal_number} of 5 · {deal.tricks_completed}/{deal.tricks_required} tricks completed · Spades trump</Text>
     {!ended && game.phase !== 'PLAYING' && game.phase !== 'BIDDING' && !reveal && <Text style={styles.meta}>{guidance.title}</Text>}
     {!!(error || snapshot.error) && <Text accessibilityRole="alert" style={styles.error}>{error || snapshot.error}</Text>}
-    <CardTable centerControl={ended ? endedNotice : preparation} width={width} players={players} dealerId={String(deal.dealer)} viewerId={snapshot.your_player_id ? String(snapshot.your_player_id) : ''}
+    <CardTable showScores={game.phase === 'BIDDING' || game.phase === 'PLAYING'} compact={mobile && cards.open && screenHeight < 760} centerControl={ended ? endedNotice : preparation} width={width} players={players} dealerId={String(deal.dealer)} viewerId={snapshot.your_player_id ? String(snapshot.your_player_id) : ''}
       collectionKey={reveal ? trickKey : undefined} collecting={reveal && collectingTrick === trickKey}
       winnerPlayerId={reveal ? String(completedTrick?.winner) : undefined} activePlayerId={!ended && !reveal && game.turn.player_id ? String(game.turn.player_id) : ''} plays={(trick?.plays || []).map(play => ({ playerId: String(play.player_id), card: face(play.card) }))} />
     <View testID="central-turn-notice">
       {!ended && reveal && <Text accessibilityLiveRegion="polite" style={styles.status}>{playerName(completedTrick!.winner!)} wins trick {completedTrick!.trick_number}</Text>}
-      {showTurn && (!mobile || !handAvailable) && <TurnPulse personal={isTurn} text={isTurn ? 'Your turn' : `${playerName(game.turn.player_id!)}'s turn`} />}
+      {showTurn && (!mobile || !cards.open) && <TurnIndicator personal={isTurn} text={isTurn ? 'Your turn · Choose a card to play' : `${playerName(game.turn.player_id!)}'s turn`} />}
     </View>
     {!!pokeNotice && <Text accessibilityLiveRegion="polite" style={styles.meta}>{pokeNotice.text}</Text>}
 
@@ -189,11 +190,10 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
         </View>)}
       </View>}
     </View>}
-    {handAvailable && <MobileGameHand mobile={mobile} game="callbreak" keepMounted
-      header={showTurn ? <TurnPulse personal={isTurn} text={isTurn ? 'Your turn' : `${playerName(game.turn.player_id!)}'s turn`} /> : undefined}
+    {handAvailable && <MobileGameHand docked mobile={mobile} game="callbreak" keepMounted
       open={cards.open} onToggle={cards.toggle} myTurn={isTurn}
       attention={isTurn || !!mine?.can_accept_hand || !!mine?.can_claim_redeal}
-      attentionText={mine?.can_accept_hand || mine?.can_claim_redeal ? 'Review your cards · Accept or request redeal' : undefined}>
+      attentionText={mine?.can_accept_hand || mine?.can_claim_redeal ? 'Review your cards · Accept or request redeal' : isTurn ? game.phase === 'BIDDING' ? 'Your turn · Make your call' : 'Your turn · Choose a card to play' : `Your cards · ${mine?.hand.length || 0}`}>
     <View testID="callbreak-hand-dock" style={[styles.handDock, mobile && { backgroundColor: 'transparent', borderTopWidth: 0, paddingHorizontal: 4 }]}>
     {game.phase === 'PLAYING' && !deal.tricks.some(trick => trick.complete || trick.plays.length) && !game.current_trick?.plays.length && <Text accessibilityLiveRegion="polite" style={styles.status}>Bidding complete. {isTurn ? 'You lead first.' : `${playerName(game.turn.player_id!)} leads first.`}</Text>}
     {game.phase === 'BIDDING' && <LiveBidPrompt key={`${snapshot.match_id}-${deal.deal_number}-${deal.attempt}`} snapshot={snapshot} revealed={revealedDeal === handDealKey} busy={busy} onAction={cards.act} />}

@@ -53,7 +53,7 @@ async function pulse(locator) {
         }
         await stateWhen(s => s.game.phase === 'HAND_REVIEW');
         for (const page of pages) {
-          await pulse(page.getByTestId('callbreak-hand-attention'));
+          assert.equal(await page.getByTestId('callbreak-hand-attention').evaluate(el=>getComputedStyle(el).opacity),'1');
           await button(page, 'Expand your card area').click();
           await button(page, 'Collapse your card area').waitFor();
           await button(page, 'Flip all cards').click();
@@ -82,7 +82,7 @@ async function pulse(locator) {
       state = await api(root, users[0]);
       const actorIndex = Number(kind === 'marriage' ? state.marriage.public.current_player_id : state.game.turn.player_id) - 1;
       const actor = pages[actorIndex];
-      if (kind === 'callbreak' && await button(actor, 'Expand your card area').isVisible()) await pulse(actor.getByTestId(`${kind}-hand-attention`));
+      if (kind === 'callbreak' && await button(actor, 'Expand your card area').isVisible()) assert.equal(await actor.getByTestId('callbreak-hand-attention').evaluate(el=>getComputedStyle(el).opacity),'1');
       if (await button(actor, 'Expand your card area').isVisible()) await button(actor, 'Expand your card area').click();
       await button(actor, 'Collapse your card area').waitFor();
       const dock = actor.getByTestId(`${kind}-hand-dock`);
