@@ -76,13 +76,13 @@ async function pulse(locator) {
         for (const page of pages) {
           await button(page, 'Expand your card area').waitFor();
           await button(page, 'Expand your card area').click();
-          await button(page, 'Reveal all cards').click();
+          await button(page, 'Reveal cards').click();
         }
       }
       state = await api(root, users[0]);
       const actorIndex = Number(kind === 'marriage' ? state.marriage.public.current_player_id : state.game.turn.player_id) - 1;
       const actor = pages[actorIndex];
-      if (await button(actor, 'Expand your card area').isVisible()) await pulse(actor.getByTestId(`${kind}-hand-attention`));
+      if (kind === 'callbreak' && await button(actor, 'Expand your card area').isVisible()) await pulse(actor.getByTestId(`${kind}-hand-attention`));
       if (await button(actor, 'Expand your card area').isVisible()) await button(actor, 'Expand your card area').click();
       await button(actor, 'Collapse your card area').waitFor();
       const dock = actor.getByTestId(`${kind}-hand-dock`);
@@ -131,14 +131,11 @@ async function pulse(locator) {
         const collapsed = await button(actor, 'Expand your card area').boundingBox();
         assert.ok(collapsed.height <= 64, 'collapsed card area remains a compact dock');
         assert.equal(await actor.getByTestId('marriage-hand-header').isVisible(), false, 'collapsed dock hides card controls');
-        await button(actor, 'Expand your card area').click();
         const stock = actor.getByRole('button', { name: /^Take stock / });
         await stock.click({ trial: true });
         await actor.screenshot({ path: '/tmp' + '/marriage-mobile-draw.png' });
         await actor.getByRole('button', { name: /^Take stock / }).click();
-        await actor.getByRole('button', { name: /^Confirm take stock / }).click();
         await stateWhen(s => s.marriage.public.phase === 'must_discard');
-        await button(actor, 'Expand your card area').click();
         await button(actor, 'Collapse your card area').waitFor();
         await button(actor, 'Show cards').click();
         await actor.getByTestId('marriage-hand').getByRole('button').first().click();
@@ -152,7 +149,7 @@ async function pulse(locator) {
       }
       const play = () => kind === 'marriage' ? actor.getByRole('button', { name: /^Discard / }) : actor.getByRole('button', { name: /^Play / });
       await actor.route('**/test-games/*/action', route => route.fulfill({ status: 422, contentType: 'application/json', body: JSON.stringify({ detail: 'Test rejected action' }) }));
-      await play().click(); await dock.getByText('Test rejected action', { exact: true }).waitFor();
+      await play().click(); await (kind === 'marriage' ? actor.getByTestId('marriage-hand-header') : dock).getByText('Test rejected action', { exact: true }).waitFor();
       await button(actor, 'Collapse your card area').waitFor();
       await actor.unroute('**/test-games/*/action');
       if (kind === 'callbreak') {

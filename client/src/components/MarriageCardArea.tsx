@@ -1,5 +1,5 @@
 import { ActionCue } from './ActionCue';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { AccessibilityInfo, Animated, Easing, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
@@ -33,9 +33,9 @@ function FlyingCard({ move, origin, destination, done }: { move: MarriageMove; o
     }]}>{move.card ? <Text style={[styles.face, move.card.suit === 'H' || move.card.suit === 'D' ? styles.red : null]}>{marriageFace(move.card)}</Text> : <MarriageCardBack />}</Animated.View>;
 }
 
-export function MarriageCardArea({ snapshot, canAct, hidden, onAction, onPoke, showActions = true }: {
-  showActions?: boolean;
-  snapshot: RoomSnapshot; canAct: boolean; hidden: boolean;
+export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAnchor }: {
+  handAnchor?: RefObject<View | null>;
+  snapshot: RoomSnapshot; canAct: boolean;
   onAction: (command: string, payload?: object) => void; onPoke?: (seat: number) => void;
 }) {
   const styles = useThemedStyles(createStyles);
@@ -66,7 +66,7 @@ export function MarriageCardArea({ snapshot, canAct, hidden, onAction, onPoke, s
   useEffect(() => {
     if (!current) return;
     if (reduced) { setQueue([]); setFlight(null); return; }
-    const player = seats.current.get(current.player_id), pile = current.kind === 'CARD_DISCARDED' || current.source === 'discard' ? discard.current : stock.current;
+    const player = current.player_id === mine?.player_id && handAnchor?.current ? handAnchor.current : seats.current.get(current.player_id), pile = current.kind === 'CARD_DISCARDED' || current.source === 'discard' ? discard.current : stock.current;
     const root = area.current;
     if (!player || !pile || !root) { finish(); return; }
     let cancelled = false;
@@ -78,25 +78,32 @@ export function MarriageCardArea({ snapshot, canAct, hidden, onAction, onPoke, s
     });
     return () => { cancelled = true; };
   }, [current, reduced, finish]);
-  const privateMaal = !hidden ? mine?.maal : null;
+  const privateMaal = mine?.maal;
+  const legalSource = (source: string) => canAct && !!mine?.actions.kinds.includes('draw') && !!mine.actions.drawable_sources.includes(source);
   useEffect(() => { if (!privateMaal) setMaalOpen(false); }, [privateMaal]);
   return <View ref={area} style={styles.area}>
     <MarriagePlayers snapshot={snapshot} onPoke={onPoke} registerSeat={(id, node) => { if (node) seats.current.set(id, node); else seats.current.delete(id); }} />
     <View testID="marriage-card-spots" style={styles.spots}>
       <View style={styles.spot}><Text style={styles.label}>Last discard</Text>
-        <View ref={discard} testID="marriage-discard-spot" style={styles.card}><Text style={[styles.face, pub.top_discard?.suit === 'H' || pub.top_discard?.suit === 'D' ? styles.red : null]}>
-          {current?.kind === 'CARD_DISCARDED' ? '' : pub.top_discard ? marriageFace(pub.top_discard) : '—'}</Text></View>
-        {showActions && <Pressable accessibilityRole="button" accessibilityLabel="Take discard" disabled={!canAct || !mine?.actions.drawable_sources.includes('discard')}
-          onPress={() => onAction('DRAW_CARD', { source: 'discard' })} style={[styles.button, (!canAct || !mine?.actions.drawable_sources.includes('discard')) && styles.disabled]}><ActionCue active={canAct && !!mine?.actions.drawable_sources.includes('discard')} style={styles.buttonText}>Take discard</ActionCue></Pressable>}
+        <Pressable ref={discard} testID="marriage-discard-spot" accessibilityRole="button" accessibilityLabel="Take discard"
+          disabled={!legalSource('discard')} accessibilityState={{ disabled: !legalSource('discard') }}
+          onPress={() => onAction('DRAW_CARD', { source: 'discard' })} style={[styles.card, legalSource('discard') && styles.legal]}>
+          <Text style={[styles.face, pub.top_discard?.suit === 'H' || pub.top_discard?.suit === 'D' ? styles.red : null]}>
+            {current?.kind === 'CARD_DISCARDED' ? '' : pub.top_discard ? marriageFace(pub.top_discard) : '—'}</Text>
+        </Pressable>
+        {legalSource('discard') && <ActionCue active style={styles.caption}>Tap to draw</ActionCue>}
       </View>
       <View style={styles.spot}><Text style={styles.label}>Deck · {pub.stock_count}</Text>
-        <View ref={stock} testID="marriage-stock-spot" style={[styles.card, styles.back, styles.stack]}><MarriageCardBack /></View>
-        {showActions && <Pressable accessibilityRole="button" accessibilityLabel={`Take stock · ${pub.stock_count}`} disabled={!canAct || !mine?.actions.drawable_sources.includes('stock')}
-          onPress={() => onAction('DRAW_CARD', { source: 'stock' })} style={[styles.button, (!canAct || !mine?.actions.drawable_sources.includes('stock')) && styles.disabled]}><ActionCue active={canAct && !!mine?.actions.drawable_sources.includes('stock')} style={styles.buttonText}>Take stock</ActionCue></Pressable>}
+        <Pressable ref={stock} testID="marriage-stock-spot" accessibilityRole="button" accessibilityLabel={`Take stock · ${pub.stock_count}`}
+          disabled={!legalSource('stock')} accessibilityState={{ disabled: !legalSource('stock') }}
+          onPress={() => onAction('DRAW_CARD', { source: 'stock' })} style={[styles.card, styles.back, styles.stack, legalSource('stock') && styles.legal]}>
+          <MarriageCardBack />
+        </Pressable>
+        {legalSource('stock') && <ActionCue active style={styles.caption}>Tap to draw</ActionCue>}
       </View>
       <View style={styles.spot}><Text style={styles.label}>Maal</Text>
-        <Pressable accessibilityRole="button" disabled={!privateMaal} accessibilityState={{ disabled: !privateMaal }} onPress={() => setMaalOpen(true)} accessibilityHint={privateMaal ? 'Show Maal and the marriage sequence' : undefined} testID="marriage-maal-spot" accessibilityLabel={privateMaal ? 'View Maal' : 'Maal hidden'} style={[styles.card, styles.back]}>
-          <MarriageCardBack /></Pressable>
+        <Pressable accessibilityRole="button" disabled={!privateMaal} accessibilityState={{ disabled: !privateMaal }} onPress={() => setMaalOpen(true)} accessibilityHint={privateMaal ? 'Show Maal and the marriage sequence' : undefined} testID="marriage-maal-spot" accessibilityLabel={privateMaal ? 'View Maal' : 'Maal hidden'} style={[styles.card, !privateMaal && styles.back]}>
+          {privateMaal ? <Text style={[styles.face, (privateMaal.tiplu.suit === 'H' || privateMaal.tiplu.suit === 'D') && styles.red]}>{marriageFace(privateMaal.tiplu)}</Text> : <MarriageCardBack />}</Pressable>
         <Text style={styles.caption}>{privateMaal ? 'View Maal' : 'Hidden'}</Text>
       </View>
     </View>
@@ -127,6 +134,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   sequence: { flexDirection: 'row', justifyContent: 'center', gap: 12 }, sequenceCard: { alignItems: 'center', gap: 8 }, largeCard: { width: 64, height: 92 },
   area: { flex: 1, minHeight: 0, position: 'relative', gap: 4 }, spots: { flex: 1, flexDirection: 'row', gap: 8, justifyContent: 'center', alignItems: 'flex-start', paddingTop: 4 }, spot: { flex: 1, maxWidth: 150, alignItems: 'center', gap: 4 },
   label: { color: colors.accent, fontFamily: fonts.medium, fontSize: 12 }, card: { width: 52, height: 72, backgroundColor: colors.cardFace, borderRadius: 7, borderWidth: 2, borderColor: colors.cardBorder, alignItems: 'center', justifyContent: 'center' },
+  legal: { borderColor: colors.turnText, borderWidth: 3, boxShadow: `0px 0px 9px ${colors.turnSurface}` },
   back: { backgroundColor: colors.cardBack, borderColor: colors.cardBorder }, stack: { boxShadow: `3px 3px 0 ${colors.cardBorder}` }, face: { fontFamily: fonts.medium, fontSize: 24, color: colors.cardInk }, red: { color: colors.cardRed },
   button: { minHeight: 44, padding: 7, justifyContent: 'center', backgroundColor: colors.surfaceRaised, borderRadius: 8 }, buttonText: { color: colors.text, fontFamily: fonts.medium, fontSize: 11, textAlign: 'center' },
   disabled: { opacity: 0.42 }, caption: { minHeight: 44, padding: 9, color: colors.textMuted, fontFamily: fonts.body, fontSize: 11 }, flying: { position: 'absolute', left: 0, top: 0, zIndex: 50, elevation: 12 },
