@@ -5,12 +5,11 @@ import type { RuleProposalView } from '../components/RuleProposal';
 import { GameTableHeader } from '../components/GameTableHeader';
 import { MobileGameHand } from '../components/MobileGameHand';
 import { TableStartCue } from '../components/TableStartCue';
-import { useMobileCards } from '../multiplayer/useMobileCards';
+import { useCallBreakHand } from '../multiplayer/useCallBreakHand';
 import { type ReactNode, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardTable } from '../components/CardTable';
-import { TurnIndicator } from '../components/TurnIndicator';
 import { PlayerHand, type HandView } from '../components/PlayerHand';
 import { LiveBidPrompt } from '../components/LiveBidPrompt';
 import { GameDetails } from '../components/GameDetails';
@@ -104,7 +103,8 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   const handAvailable = !ended && !!mine && mine.hand.length > 0 && !game?.finished && !snapshot.round_review;
   const promptKey = handAvailable && (isTurn || mine?.can_accept_hand)
     ? `${handDealKey}:${game?.phase}:${isTurn}:${game?.current_trick?.trick_number || deal?.tricks_completed || 0}` : null;
-  const cards = useMobileCards({ mobile, busy, error, promptKey, onAction });
+  const cards = useCallBreakHand({ deal: handDealKey, turn: !reveal && !busy ? promptKey : null,
+    revision: game?.revision ?? 0, hand: mine?.hand ?? [], busy, error }, onAction);
   const header = <GameTableHeader compact game="callbreak" title="Call Break" path={snapshot.path} roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack}
     drawerMetadata={<GameMenuMetadata snapshot={snapshot} />}>
     {close => <GameMenu snapshot={snapshot} close={close} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl}
@@ -135,7 +135,6 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     hideNavigation controls={game.finished ? startCue : snapshot.round_review?.can_continue ? <View testID="callbreak-center-next-deal" style={{ minHeight: 160, alignItems: 'center', justifyContent: 'center' }}>
       <Pressable accessibilityRole="button" accessibilityLabel="Start next deal" disabled={busy} onPress={onNextDeal} style={styles.button}><ActionCue active={!busy} style={styles.buttonText}>Start next deal</ActionCue></Pressable>
     </View> : <Text style={styles.meta}>Waiting for the creator to start the next deal.</Text>} />{socialOverlay}</View>;
-  const showTurn = !ended && game.phase === 'PLAYING' && !game.finished && !reveal && !!game.turn.player_id;
   const players = deal.players.map(player => ({ id: String(player.player_id), name: playerName(player.player_id),
     avatarUrl: snapshot.players?.find(p => p.player_id === player.player_id)?.avatar_url,
     connected: snapshot.players?.find(p => p.player_id === player.player_id)?.connected,
@@ -167,7 +166,6 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
       winnerPlayerId={reveal ? String(completedTrick?.winner) : undefined} activePlayerId={!ended && !reveal && game.turn.player_id ? String(game.turn.player_id) : ''} plays={(trick?.plays || []).map(play => ({ playerId: String(play.player_id), card: face(play.card) }))} />
     <View testID="central-turn-notice">
       {!ended && reveal && <Text accessibilityLiveRegion="polite" style={styles.status}>{playerName(completedTrick!.winner!)} wins trick {completedTrick!.trick_number}</Text>}
-      {showTurn && (!mobile || !cards.open) && <TurnIndicator personal={isTurn} text={isTurn ? 'Your turn · Choose a card to play' : `${playerName(game.turn.player_id!)}'s turn`} />}
     </View>
     {!!pokeNotice && <Text accessibilityLiveRegion="polite" style={styles.meta}>{pokeNotice.text}</Text>}
 
@@ -190,17 +188,17 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
         </View>)}
       </View>}
     </View>}
-    {handAvailable && <MobileGameHand docked mobile={mobile} game="callbreak" keepMounted
+    {handAvailable && <MobileGameHand docked desktopDrawer mobile={mobile} game="callbreak" keepMounted
       open={cards.open} onToggle={cards.toggle} myTurn={isTurn}
       attention={isTurn || !!mine?.can_accept_hand || !!mine?.can_claim_redeal}
-      attentionText={mine?.can_accept_hand || mine?.can_claim_redeal ? 'Review your cards · Accept or request redeal' : isTurn ? game.phase === 'BIDDING' ? 'Your turn · Make your call' : 'Your turn · Choose a card to play' : `Your cards · ${mine?.hand.length || 0}`}>
+      attentionText={mine?.can_accept_hand || mine?.can_claim_redeal ? 'Review your cards · Accept or request redeal' : isTurn ? game.phase === 'BIDDING' ? 'Your turn · Make your call' : 'Your turn · Play a card' : `Your cards · ${mine?.hand.length || 0}`}>
     <View testID="callbreak-hand-dock" style={[styles.handDock, mobile && { backgroundColor: 'transparent', borderTopWidth: 0, paddingHorizontal: 4 }]}>
     {game.phase === 'PLAYING' && !deal.tricks.some(trick => trick.complete || trick.plays.length) && !game.current_trick?.plays.length && <Text accessibilityLiveRegion="polite" style={styles.status}>Bidding complete. {isTurn ? 'You lead first.' : `${playerName(game.turn.player_id!)} leads first.`}</Text>}
     {game.phase === 'BIDDING' && <LiveBidPrompt key={`${snapshot.match_id}-${deal.deal_number}-${deal.attempt}`} snapshot={snapshot} revealed={revealedDeal === handDealKey} busy={busy} onAction={cards.act} />}
 
     {(mine?.can_accept_hand || mine?.can_claim_redeal) && <View style={styles.actions}>{mine?.can_accept_hand && revealedDeal === handDealKey && action('Accept hand', 'ACCEPT_HAND')}{mine?.can_claim_redeal && action('Request redeal', 'CLAIM_REDEAL')}</View>}
     <Text style={[styles.title, { fontSize: 22, marginVertical: 4 }]}>{mine ? `Your hand · ${mine.hand.length} cards` : 'Spectator view'}</Text>
-    {mine && <PlayerHand turnKey={`${game.phase}:${game.turn.player_id}:${game.current_trick?.trick_number}`} view={handView} onViewChange={setHandView} dealKey={handDealKey} onRevealComplete={setRevealedDeal} hand={mine.hand} legalCards={mine.legal_cards}
+    {mine && <PlayerHand compactControls turnKey={`${game.phase}:${game.turn.player_id}:${game.current_trick?.trick_number}`} view={handView} onViewChange={setHandView} dealKey={handDealKey} onRevealComplete={setRevealedDeal} hand={mine.hand} legalCards={mine.legal_cards}
       canPlay={!reveal && !busy && isTurn && game.phase === 'PLAYING'} onPlay={card => cards.act('PLAY_CARD', { card })} />}
     {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     </View></MobileGameHand>}
@@ -212,7 +210,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   workspace: { flex: 1, minHeight: 0 },
-  playColumn: { flex: 1, minHeight: 0, minWidth: 0 },
+  playColumn: { flex: 1, minHeight: 0, minWidth: 0, width: '100%', maxWidth: 1000, alignSelf: 'center' },
   lastTrick: { position: 'relative', zIndex: 20, flexShrink: 0, borderTopWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 20 },
   lastToggle: { minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   lastCards: { position: 'absolute', bottom: '100%', left: 0, right: 0, flexDirection: 'row', gap: 6, padding: 14, backgroundColor: colors.surface, borderTopLeftRadius: 12, borderTopRightRadius: 12, borderWidth: 1, borderColor: colors.border },
@@ -225,7 +223,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   newGamePanel: { padding: 16, gap: 8, borderBottomWidth: 1, borderColor: colors.border },
   overlayHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderColor: colors.border, minHeight: 60 },
   overlayTitle: { fontFamily: fonts.display, fontSize: 23, color: colors.text, flexShrink: 1 },
-  body: { backgroundColor: colors.table, flex: 1, minHeight: 0 }, wideBody: { flexDirection: 'row' }, tableScroll: { flex: 1, minHeight: 0, minWidth: 0 },
+  body: { backgroundColor: colors.table, flex: 1, minHeight: 0 }, wideBody: { flexDirection: 'row', justifyContent: 'center' }, tableScroll: { flex: 1, minHeight: 0, minWidth: 0 },
   page: { flex: 1, backgroundColor: colors.background }, container: { alignItems: 'center' }, back: { minHeight: 44, justifyContent: 'center' }, link: { color: colors.accent, fontFamily: fonts.medium, fontSize: 12 },
   title: { fontFamily: fonts.display, fontSize: 28, color: colors.text, marginVertical: 12 }, meta: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 11, lineHeight: 20 }, status: { fontFamily: fonts.medium, fontSize: 13, color: colors.accent, marginVertical: 12 }, error: { color: colors.danger, fontFamily: fonts.body, fontSize: 12 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, paddingVertical: 10 }, button: { minHeight: 44, minWidth: 44, padding: 12, borderRadius: 8, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' }, buttonText: { color: colors.onPrimary, fontFamily: fonts.medium, fontSize: 12 },

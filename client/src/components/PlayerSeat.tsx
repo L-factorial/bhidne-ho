@@ -37,8 +37,8 @@ export function PlayerSeat({ name, mine = false, active = false, connected = tru
         style={{ width: size - 6, height: size - 6, borderRadius: size / 2 }} /> : <Text style={{ color: colors.accent, fontFamily: fonts.medium, fontSize: compact ? 12 : 16 }}>{initials}</Text>}
     </Animated.View>
     <Text numberOfLines={1} style={{ maxWidth: '100%', color: colors.text, fontFamily: fonts.medium, fontSize: compact ? 11 : 12 }}>{name}</Text>
-    <Text numberOfLines={1} style={{ color: active ? colors.turnText : colors.textMuted, fontFamily: fonts.medium, fontSize: 10 }}>
-      {active ? mine ? compact ? '● YOU' : '● YOUR TURN' : '● TURN' : !connected ? 'Offline' : mine ? 'YOU' : dealer ? 'Dealer' : status}
+    <Text numberOfLines={1} style={{ color: active ? colors.turnText : colors.textMuted, fontFamily: fonts.medium, fontSize: compact ? 8 : 10 }}>
+      {active ? mine ? '● YOUR TURN' : '● TURN' : !connected ? 'Offline' : mine ? 'YOU' : dealer ? 'Dealer' : status}
     </Text>
     {(active || mine || !connected || dealer) && !!status && <Text numberOfLines={1} style={{ color: colors.textMuted, fontSize: 10 }}>{!connected && active ? `Offline · ${status}` : status}</Text>}
   </Pressable>;

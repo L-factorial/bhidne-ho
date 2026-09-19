@@ -23,8 +23,8 @@ export type HandView = 'fan' | 'suits' | 'grid';
 const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 const suitOf = (card: string) => card.slice(-1);
 
-export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', onViewChange, onRevealComplete, turnKey = '', dealKey = '' }: {
-  turnKey?: string;
+export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', onViewChange, onRevealComplete, turnKey = '', dealKey = '', compactControls = false }: {
+  turnKey?: string; compactControls?: boolean;
   onRevealComplete?: (dealKey: string | null) => void;
   view?: HandView; onViewChange?: (view: HandView) => void; dealKey?: string;
   hand: string[]; legalCards: string[]; canPlay: boolean; onPlay: (card: string) => void;
@@ -44,8 +44,11 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
   const isRevealed = (card: string) => revealed.dealKey === dealKey && revealed.cards.includes(card);
   const revealing = hand.some(card => !isRevealed(card));
   const fullyRevealed = hand.length > 0 && !revealing;
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const [hovered, setHovered] = useState<string | null>(null);
   const [chosen, setChosen] = useState<{ key: string; card: string } | null>(null);
   const choiceKey = `${dealKey}:${turnKey}`;
+  useEffect(() => { setOptionsOpen(false); setHovered(null); }, [choiceKey]);
   const [hiddenDeal, setHiddenDeal] = useState<string | null>(null);
   useEffect(() => { setHiddenDeal(null); }, [dealKey]);
   const hidden = fullyRevealed && hiddenDeal === dealKey;
@@ -101,7 +104,8 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
         const suit = suitOf(card), faceUp = isRevealed(card), enabled = faceUp && canPlay && legalCards.includes(card);
         return <Pressable key={card} accessibilityRole="button" accessibilityLabel={faceUp ? `Select ${card}` : `Reveal card ${index + 1}`}
           accessibilityHint={faceUp ? `${card.slice(0, -1)} of ${suitNames[suit]}` : 'Turn this card face up without playing it'} disabled={faceUp && !enabled} accessibilityState={{ disabled: faceUp && !enabled, selected: selectedCard === card }} aria-pressed={selectedCard === card}
-          onPress={() => { if (enabled) selectCard(card); }} style={[styles.gridCard, !faceUp && styles.cardBack, enabled && styles.legal, selectedCard === card && styles.chosenGrid, faceUp && canPlay && !enabled && { opacity: 0.55 }]}>
+          onHoverIn={() => { if (enabled) setHovered(card); }} onHoverOut={() => setHovered(null)}
+          onPress={() => { if (enabled) selectCard(card); }} style={[styles.gridCard, enabled && hovered === card && { transform: [{ translateY: -4 }] }, !faceUp && styles.cardBack, enabled && styles.legal, selectedCard === card && styles.chosenGrid, faceUp && canPlay && !enabled && { opacity: 0.55 }]}>
           {faceUp ? <>
           <Text style={[styles.gridRank, /[HD]/.test(suit) && styles.red, suit === 'C' && styles.club]}>{card.slice(0, -1)}{suits[suit]}</Text>
           <Text style={[styles.suitName, /[HD]/.test(suit) && styles.red, suit === 'C' && styles.club]}>{suitNames[suit]}</Text>
@@ -120,10 +124,11 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
           return <Pressable key={card} accessibilityRole="button" accessibilityLabel={revealing ? `Reveal next card from position ${index + 1}` : `Select ${card}`}
             accessibilityHint={revealing ? (faceUp ? `${card} is revealed. Reveal the next card in dealt order.` : 'Reveal the next card in dealt order without playing it') : undefined}
             accessibilityState={{ disabled: !revealing && !enabled, selected: selectedCard === card }} aria-pressed={selectedCard === card} disabled={!revealing && !enabled} onPress={() => { if (revealing) revealNext(); else if (enabled) selectCard(card); }}
+            onHoverIn={() => { if (enabled) setHovered(card); }} onHoverOut={() => setHovered(null)}
             style={({ pressed }) => [styles.card, !faceUp && styles.cardBack, enabled && styles.legal, selectedCard === card && styles.chosen, {
               // Keep the bottom pivots within 36px: the entire base stays under two card widths.
               left: fanWidth / 2 - 32 + position * 18,
-              top: 18 - (selectedCard === card ? 15 : enabled ? 7 : 0) - (pressed ? 5 : 0),
+              top: 18 - (selectedCard === card ? 15 : enabled ? 7 : 0) - (pressed || (enabled && hovered === card) ? 5 : 0),
               transformOrigin: 'bottom center',
               transform: [{ rotate: `${angle}deg` }],
               opacity: !revealing && faceUp && canPlay && !legal ? 0.55 : 1,
@@ -157,6 +162,13 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
         </Pressable>;
       })}
     </View>}
+    {!revealing && compactControls && <View style={{ alignItems: 'flex-end' }}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Hand options" accessibilityState={{ expanded: optionsOpen }}
+        onPress={() => setOptionsOpen(value => !value)} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={styles.optionText}>•••</Text>
+      </Pressable>
+    </View>}
+    {(!compactControls || optionsOpen) && <>
     {!revealing && hand.length > 0 && <View style={styles.selector}>
       <Pressable accessibilityRole="button" accessibilityLabel="Hide cards" onPress={() => setHiddenDeal(dealKey)} style={styles.option}><Text style={styles.optionText}>Hide cards</Text></Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel="Shuffle suits" onPress={shuffleGroups} style={styles.option}>
@@ -171,6 +183,7 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
         <Text style={styles.optionText}>{mode === 'fan' ? 'Sorted fan' : mode === 'suits' ? 'Suit fan' : 'Grid'}</Text>
       </Pressable>)}
     </View>}
+    </>}
   </View>;
 }
 
