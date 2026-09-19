@@ -295,12 +295,12 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
       {live && snapshot ? <View testID="live-game-backdrop" style={[styles.liveBackdrop, {
         paddingTop: insets.top, paddingBottom: insets.bottom,
         paddingLeft: insets.left, paddingRight: insets.right,
-      }]}><View accessibilityViewIsModal testID="live-game-overlay" style={[styles.liveOverlay, mobileGame && !chat && { paddingBottom: 0 }]}>
+      }]}><View accessibilityViewIsModal testID="live-game-overlay" style={[styles.liveOverlay, (mobileGame || snapshot.game_type === 'flush') && !chat && { paddingBottom: 0 }]}>
         {snapshot.status === 'ended' ? <View style={styles.body}><GameTableHeader title={gameName} path={snapshot.path} game={snapshot.game_type || 'callbreak'} roomId={roomId} matchId={snapshot.match_id} onBack={collapseGame} />
           <Text style={[styles.title, { color: colors.text }]}>{snapshot.game_type === 'flush' ? 'Table ended' : 'Game ended'}</Text>
           <Text style={[styles.text, { color: colors.text }]}>{snapshot.game_type === 'flush' ? 'This table has ended. The room is still open for a new table.' : 'This game has ended. The room is still open for another round.'}</Text>
           <Pressable accessibilityRole="button" onPress={() => { setLive(false); setOpen(true); }} style={styles.button}><Text style={styles.buttonText}>{snapshot.game_type === 'flush' ? 'Start a new table' : 'Start a new game'}</Text></Pressable>
-        </View> : snapshot.game_type === 'flush' ? <FlushTable onLock={() => void lobbyAction('/table/lock')} tableControl={lifecycleControl} onFormationBlocked={setFormationBlocked} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={error}
+        </View> : snapshot.game_type === 'flush' ? <FlushTable onLock={() => void lobbyAction('/table/lock')} tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onFormationBlocked={setFormationBlocked} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={error}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: text => social.send(snapshot.match_id!, null, text) }}
           onSave={payload => lobbyAction('/flush-settings', payload)} onStart={rules_revision => lobbyAction('/start', { rules_revision })}
           onAction={gameAction} onBack={collapseGame} onNewGame={() => { setLive(false); setOpen(true); }} lobbyControl={leaveControl}
@@ -320,8 +320,8 @@ export function RoomGameControl({ chat, onOpenChange, requestedMatchId, roomId, 
           </View>}
           {(!connected || !synced) && <Text accessibilityRole="alert" style={styles.connectionNotice}>{connectionMessage || (!connected ? 'Reconnecting… Your seat is saved.' : 'Updating game…')}</Text>}
           {!!actionNotice && <Text accessibilityLiveRegion="polite" style={styles.connectionNotice}>{actionNotice}</Text>}
-          {ruleReview}
-          {!mobileGame && lifecycleControl}
+          {(snapshot.game_type !== 'flush' || snapshot.rule_proposal?.status === 'PENDING') && ruleReview}
+          {!mobileGame && snapshot.game_type !== 'flush' && lifecycleControl}
           {!mobileGame && snapshot.game_type === 'callbreak' && leaveControl}
         </ScrollView>
         {chat}

@@ -12,7 +12,7 @@ export type FlushView = {
   folds?: { sequence: number; revision: number; player_id: string }[];
   participants?: { player_id: string; display_name: string }[];
   bets?: import('./flushTable').FlushBet[];
-  public: { pending_show: { requester_id: string; target_id: string } | null; revealed_hands: { player_id: string; cards: {rank: number; suit: string}[] }[]; round_number: number; next_dealer_id: string | null; round_results: { round_number: number; winner_ids: string[]; net_changes: { player_id: string; amount: number }[] }[]; pending_side_show: { requester_id: string; target_id: string; revision: number } | null; status: string; current_player_id: string | null; current_blind_bet: number; current_seen_bet: number; pot: number;
+  public: { dealer_id?: string; pending_show: { requester_id: string; target_id: string } | null; revealed_hands: { player_id: string; cards: {rank: number; suit: string}[] }[]; round_number: number; next_dealer_id: string | null; round_results: { round_number: number; winner_ids: string[]; net_changes: { player_id: string; amount: number }[] }[]; pending_side_show: { requester_id: string; target_id: string; revision: number } | null; status: string; current_player_id: string | null; current_blind_bet: number; current_seen_bet: number; pot: number;
     players: { player_id: string; status: string; visibility: string; blind_bet_count: number; turn_bet_count: number; total_contribution: number }[];
     settlement: { winner_ids: string[]; payouts: { player_id: string; amount: number }[];
       shown_hands: { player_id: string; cards: { rank: number; suit: string }[] }[] } | null };

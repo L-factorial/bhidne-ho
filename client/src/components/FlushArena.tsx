@@ -1,10 +1,10 @@
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, StyleSheet, Text, View } from 'react-native';
 import { TurnPulse } from './TurnPulse';
 import Svg, { Circle, Ellipse, G, Path } from 'react-native-svg';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
-import { newBets, playerPosition, potBeforeFlights, type FlushBet } from '../multiplayer/flushTable';
+import { minimumArenaHeight, newBets, playerPosition, potBeforeFlights, type FlushBet } from '../multiplayer/flushTable';
 
 function PlayerFace({ seen, folded }: { seen: boolean; folded: boolean }) {
   const { colors } = useTheme();
@@ -38,6 +38,7 @@ function PlayerFace({ seen, folded }: { seen: boolean; folded: boolean }) {
 }
 export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot: RoomSnapshot; height?: number; centerControl?: ReactNode }) {
   const s = useThemedStyles(styles);
+  const { colors } = useTheme();
   const [width, setWidth] = useState(300);
   const [pending, setPending] = useState<FlushBet[]>([]);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -55,18 +56,27 @@ export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot
   useEffect(() => { if (reduceMotion) setPending([]); }, [reduceMotion]);
   const own = roster.findIndex(p => p.player_id === String(snapshot.your_player_id));
   const players = own < 0 ? roster : [...roster.slice(own), ...roster.slice(0, own)];
+  const minimumHeight = useMemo(() => minimumArenaHeight(players.length, width), [players.length, width]);
+  height = Math.max(height, minimumHeight);
   const current = pending[0];
   const index = current ? players.findIndex(p => p.player_id === current.player_id) : -1;
   return <View style={[s.arena, { height }]} onLayout={e => setWidth(e.nativeEvent.layout.width)} testID="flush-arena">
-    <View style={[s.ellipse, { left: 34, width: Math.max(100, width - 68), top: 48, height: height - 96 }]} />
-    {!centerControl && <View style={[s.pot, { left: width / 2 - 58, top: height / 2 - 29 }]}><Text style={s.caption}>TOTAL POT</Text><Text testID="flush-pot" accessibilityLiveRegion="polite" style={s.potValue}>{potBeforeFlights(pub?.pot || 0, pending)}</Text><Text style={s.caption}>points</Text></View>}
+    <Svg pointerEvents="none" width={width} height={height} style={StyleSheet.absoluteFill}>
+      <Ellipse cx={width / 2} cy={height / 2} rx={Math.max(60, width / 2 - 44)} ry={height / 2 - 52}
+        fill={colors.surface} stroke={colors.border} strokeWidth={2} />
+    </Svg>
+    {!centerControl && <View style={[s.pot, { left: width / 2 - 58, top: height / 2 - 60 }]}><Text style={s.caption}>TOTAL POT</Text><Text testID="flush-pot" accessibilityLiveRegion="polite" style={s.potValue}>{potBeforeFlights(pub?.pot || 0, pending)}</Text><Text style={s.caption}>points</Text>
+      {pub && <><Text style={s.caption}>Round {pub.round_number}</Text><Text style={s.caption}>Blind {pub.current_blind_bet} · Seen {pub.current_seen_bet}</Text></>}
+    </View>}
     {players.map((p, i) => {
       const pos = playerPosition(i, players.length, width, height), folded = p.status !== 'active';
+      const lastBet = bets.filter(b => b.player_id === p.player_id && b.kind === 'BET_PLACED').at(-1);
       const name = snapshot.players?.find(row => String(row.player_id) === p.player_id)?.display_name || `Player ${p.player_id}`;
       return <View key={p.player_id} testID={`flush-seat-${p.player_id}`} style={[s.seat, { left: pos.x - 40, top: pos.y - 38, opacity: folded ? 0.4 : 1 }]}>
-        <View style={[s.icon, p.player_id === pub?.current_player_id && s.current]}><PlayerFace seen={p.visibility === 'seen'} folded={folded} /><Text style={s.count}>{p.turn_bet_count}</Text></View>
+        <View style={[s.icon, p.player_id === pub?.current_player_id && s.current]}><PlayerFace seen={p.visibility === 'seen'} folded={folded} /><Text accessibilityLabel={`${p.turn_bet_count} bets`} style={s.count}>{p.turn_bet_count}</Text>
+          {p.player_id === pub?.dealer_id && <Text accessibilityLabel="Dealer" style={s.dealer}>D</Text>}</View>
         <TurnPulse active={p.player_id === pub?.current_player_id} testID={`flush-turn-name-${p.player_id}`} numberOfLines={1} style={s.name}>{name}{p.player_id === String(snapshot.your_player_id) ? ' · You' : ''}</TurnPulse>
-        <Text style={s.caption}>{folded ? 'Folded' : `${p.visibility} · bet ${p.turn_bet_count}`}</Text>
+        <Text style={s.caption}>{folded ? 'Folded' : `${p.visibility}${lastBet ? ` · ${lastBet.amount}` : ''}`}</Text>
       </View>;
     })}
     {!!centerControl && <View pointerEvents="box-none" style={{ position: 'absolute', left: 56, right: 56, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>{centerControl}</View>}
@@ -92,10 +102,10 @@ function CoinFlight({ bet, from, to, onFinish }: { bet: FlushBet; from: { x: num
 }
 const styles = (c: ThemeColors) => StyleSheet.create({
   arena: { height: 370, flexShrink: 0, width: '100%', maxWidth: 1040, alignSelf: 'center' },
-  ellipse: { position: 'absolute', top: 62, height: 238, borderRadius: 160, backgroundColor: c.surface, borderColor: c.border, borderWidth: 2 },
   pot: { position: 'absolute', top: 151, width: 116, alignItems: 'center' }, potValue: { color: c.text, fontFamily: fonts.medium, fontSize: 32 },
   seat: { position: 'absolute', width: 80, alignItems: 'center', gap: 3 },
   icon: { width: 64, height: 48, borderRadius: 28, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent', backgroundColor: c.background },
+  dealer: { position: 'absolute', left: -5, bottom: 0, color: c.text, backgroundColor: c.surfaceSelected, borderRadius: 9, minWidth: 18, textAlign: 'center', fontSize: 11 },
   current: { borderColor: c.turnText }, count: { position: 'absolute', right: -3, top: -5, color: c.text, backgroundColor: c.surfaceSelected, borderRadius: 10, minWidth: 18, textAlign: 'center', fontSize: 12 },
   name: { color: c.text, fontFamily: fonts.medium, fontSize: 12 }, caption: { color: c.textMuted, fontFamily: fonts.body, fontSize: 10 },
 });
