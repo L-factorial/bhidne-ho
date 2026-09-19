@@ -1,7 +1,8 @@
 import { EndedTableNotice } from '../components/EndedTableNotice';
 import { FlushMenu } from '../components/FlushMenu';
 import { GameTableHeader } from '../components/GameTableHeader';
-import { ActionCue } from '../components/ActionCue';
+import { FlushTurnCue } from '../components/FlushTurnCue';
+import { flushDecision } from '../multiplayer/flushDecision';
 import { type ReactNode, useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { fonts, useThemedStyles, type ThemeColors } from '../theme';
@@ -29,7 +30,8 @@ const choices = {
   tie_policy: [['requester_loses', 'Show requester loses'], ['split', 'Split pot']],
 };
 
-export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onAction, onBack, onNewGame, endControl, lobbyControl, social, onFormationBlocked, tableControl }: {
+export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onStart, onLock, onAction, onBack, onNewGame, endControl, lobbyControl, social, onFormationBlocked, tableControl }: {
+  connectionReady: boolean;
   tableControl?: ReactNode;
   onLock: () => void;
   onFormationBlocked?: (blocked: boolean) => void;
@@ -86,14 +88,19 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onA
     ? <Pressable testID="flush-center-start" accessibilityRole="button" accessibilityLabel={centerLabel}
         disabled={formationDisabled} accessibilityState={{ disabled: formationDisabled }}
         onPress={() => locking ? onLock() : onStart(baseRevision)} style={[s.button, { maxWidth: 220 }, formationDisabled && { opacity: 0.45 }]}>
-        <ActionCue active={!formationDisabled} style={[s.title, { textAlign: 'center' }]}>{centerLabel}</ActionCue>
+        <Text style={[s.title, { textAlign: 'center' }]}>{centerLabel}</Text>
       </Pressable> : null;
   const [finalShowOpen, setFinalShowOpen] = useState(false);
   const finalStage = ended ? null : pub?.pending_show ? 'pending' : pub?.settlement ? 'result' : null;
   useEffect(() => { setFinalShowOpen(finalStage !== null); }, [snapshot.match_id, pub?.round_number, finalStage]);
   const comparison = mine?.side_show;
   const preparing = pub?.status === 'awaiting_deal' || pub?.status === 'awaiting_cut';
-  const myTurn = !ended && !!pub?.current_player_id && pub.current_player_id === String(snapshot.your_player_id);
+  const decision = flushDecision(snapshot.flush, snapshot.status === 'playing');
+  const myTurn = !!decision && decision.actor === String(snapshot.your_player_id);
+  const ownPlayer = pub?.players.find(p => p.player_id === String(snapshot.your_player_id));
+  const visibility = ownPlayer?.visibility === 'seen' ? 'Seen' : 'Blind';
+  const [helpOpen, setHelpOpen] = useState(false);
+  useEffect(() => { setHelpOpen(false); }, [decision?.key]);
   const doubleBet = (mine?.actions.required_bet ?? 0) * 2;
   const canDouble = Number.isSafeInteger(doubleBet) && doubleBet > 0;
   const ackKey = `bhidne.flush-side-show:${snapshot.match_id}:${snapshot.your_player_id}`;
@@ -112,12 +119,10 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onA
   const name = (id: string) => snapshot.players?.find(p => String(p.player_id) === id)?.display_name || `Player ${id}`;
   const can = (kind: string) => !busy && snapshot.status === 'playing' && !!mine?.actions.kinds.includes(kind);
   const button = (label: string, action: () => void, disabled = false) => {
-    const attention = ['Deal cards', 'Cut in half', 'Skip cut', 'Reveal cards', 'Fold', 'See cards', 'Accept side-show', 'Decline side-show'].includes(label)
-      || label.startsWith('Bet ') || label.startsWith('Show ·') || label === 'Request side-show';
-    const caption = label.replace('Bet minimum ·', 'Bet ·').replace('Bet double ·', 'Double ·');
+    const caption = label.replace('Bet minimum ·', `${visibility === 'Blind' ? 'Blind' : 'Bet'} ·`).replace('Bet double ·', 'Double ·');
     return <Pressable accessibilityRole="button" accessibilityLabel={label}
-      disabled={disabled} accessibilityState={{ disabled }} onPress={action} style={[s.button, disabled && { opacity: 0.45 }]}>
-      {attention ? <ActionCue active={!disabled && !busy} style={s.text}>{caption}</ActionCue> : <Text style={s.text}>{caption}</Text>}
+      disabled={disabled} accessibilityState={{ disabled }} onPress={action} style={[s.button, label === 'Fold' && s.fold, disabled && { opacity: 0.45 }]}>
+      <Text style={[s.text, label === 'Fold' && s.error]}>{caption}</Text>
     </Pressable>;
   };
   const preparationControl = activeGame && preparing && myTurn ? <View testID="flush-center-preparation" style={{ gap: 8, alignItems: 'center' }}>
@@ -145,12 +150,17 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onA
       {!!(localError || error) && <Text accessibilityRole="alert" style={s.error}>{localError || error}</Text>}
   </>;
   const available = (kind: string) => snapshot.status === 'playing' && !!mine?.actions.kinds.includes(kind);
-  const turnText = ended ? 'Table ended' : pub?.pending_side_show
-    ? `${name(pub.pending_side_show.requester_id)} requests a side-show with ${name(pub.pending_side_show.target_id)}`
-    : pub?.current_player_id ? myTurn
-      ? `Your turn · ${pub.pending_show ? 'Reveal or fold' : pub.status === 'awaiting_deal' ? 'Deal cards' : pub.status === 'awaiting_cut' ? 'Cut or skip' : 'Choose an action'}`
-      : `Waiting for ${name(pub.current_player_id)}`
-    : pub?.settlement ? 'Round complete' : `${snapshot.players?.length || 0}/${snapshot.capacity} players seated`;
+  const help = myTurn && available('bet') ? [
+    !mine?.actions.show.allowed && mine?.actions.show.reason ? `Show: ${mine.actions.show.reason}` : null,
+    settings.rules.allow_side_show && !mine?.actions.side_show.allowed && mine?.actions.side_show.reason ? `Side-show: ${mine.actions.side_show.reason}` : null,
+  ].filter(Boolean) : [];
+  const turnText = ended ? 'Table ended' : pub?.settlement ? 'Round complete' : decision ? myTurn
+    ? pub?.pending_side_show ? `Your turn · Accept or decline ${name(pub.pending_side_show.requester_id)}’s side-show`
+      : pub?.pending_show ? 'Your turn · Reveal or fold'
+      : preparing ? `Your turn · ${pub?.status === 'awaiting_deal' ? 'Deal cards' : 'Cut or skip'}`
+      : `${visibility} · Your turn · Choose an action`
+    : `${ownPlayer?.status === 'active' && !preparing ? `${visibility} · ` : ownPlayer?.status === 'folded' ? 'Folded · ' : ''}Waiting for ${name(decision.actor)}`
+    : `${snapshot.players?.length || 0}/${snapshot.capacity} players seated`;
   return <View style={[s.page, mobile && { padding: 8, gap: 4 }]} testID="flush-table">
     <GameTableHeader title="Flush" compact path={snapshot.path} game="flush" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack} mobileTestIds drawerMetadata={<View style={{ gap: 4, paddingBottom: 8 }}>
       <Text selectable style={s.status}>{snapshot.room_id}</Text>
@@ -170,10 +180,11 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onA
       </ScrollView>
       {pub && <View pointerEvents="none" style={s.notice}><FlushFoldNotice key={`folds:${snapshot.match_id}`} snapshot={snapshot} /></View>}
       <View style={s.handDock} testID="flush-hand-dock">
+        <FlushTurnCue scope={`${snapshot.match_id}:${snapshot.your_player_id}`} decision={decision?.key ?? null} personal={myTurn} ready={connectionReady} />
         {!ended && mine && !preparing && !pub?.settlement && <View style={s.cards} testID="flush-own-cards">
           <View style={s.scaledCards}><FlushCards tapToToggle key={pub?.round_number} cards={mine.cards} /></View>
         </View>}
-        <Text accessibilityLiveRegion="polite" style={[s.status, myTurn && s.yourTurn]}>{turnText}</Text>
+        <Text accessibilityLiveRegion="polite" style={[s.status, myTurn && s.yourTurn]}>{!ended && !connectionReady ? 'Reconnecting… Updating game' : busy && myTurn ? 'Sending your action…' : turnText}</Text>
         {!!(localError || error) && <Text accessibilityRole="alert" style={s.error}>{localError || error}</Text>}
         <View style={s.actions} testID="flush-actions">
           {finalStage && button(finalStage === 'pending' ? 'View final show' : 'View round result', () => setFinalShowOpen(true))}
@@ -183,14 +194,20 @@ export function FlushTable({ snapshot, busy, error, onSave, onStart, onLock, onA
               {canDouble && button(`Bet double · ${doubleBet} points`, () => act('BET', { amount: doubleBet }), !can('bet'))}
             </>}
             {available('see_cards') && button('See cards', () => act('SEE_CARDS'), !can('see_cards'))}
-            {available('fold') && button('Fold', () => act('FOLD'), !can('fold'))}
             {available('show') && button(`Show · ${mine!.actions.show_cost} points`, () => act('SHOW'), !can('show'))}
             {available('request_side_show') && button('Request side-show', () => act('REQUEST_SIDE_SHOW'), !can('request_side_show'))}
             {available('accept_side_show') && button('Accept side-show', () => act('ACCEPT_SIDE_SHOW'), !can('accept_side_show'))}
             {available('decline_side_show') && button('Decline side-show', () => act('DECLINE_SIDE_SHOW'), !can('decline_side_show'))}
             {available('reveal_cards') && button('Reveal cards', () => act('REVEAL_CARDS'), !can('reveal_cards'))}
+            {available('fold') && button('Fold', () => act('FOLD'), !can('fold'))}
           </>}
         </View>
+        {!comparisonOpen && help.length > 0 && <>
+          <Pressable accessibilityRole="button" accessibilityState={{ expanded: helpOpen }} onPress={() => setHelpOpen(value => !value)} style={s.helpButton}>
+            <Text style={s.status}>{helpOpen ? 'Hide action help' : 'Why are some actions unavailable?'}</Text>
+          </Pressable>
+          {helpOpen && help.map(reason => <Text key={reason} style={s.status}>{reason}</Text>)}
+        </>}
       </View>
     </View>
     <Modal transparent visible={comparisonOpen && !resultOpen} onRequestClose={acknowledge}>
@@ -261,6 +278,8 @@ const styles = (c: ThemeColors) => StyleSheet.create({
   row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   title: { color: c.text, fontFamily: fonts.medium, fontSize: 20 }, text: { color: c.text, fontFamily: fonts.body, fontSize: 14 },
   button: { minHeight: 44, justifyContent: 'center', padding: 10, borderRadius: 8, backgroundColor: c.surfaceRaised, borderWidth: 1, borderColor: c.border },
+  fold: { backgroundColor: c.surface, borderColor: c.danger },
+  helpButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
   chosen: { borderColor: c.accent, backgroundColor: c.surfaceSelected },
   field: { gap: 6 }, input: { padding: 12, borderRadius: 8, borderWidth: 1, borderColor: c.border, color: c.text },
   error: { color: c.danger, fontFamily: fonts.body },

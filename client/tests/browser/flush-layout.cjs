@@ -87,6 +87,16 @@ async function api(path, user, body) {
    assert.deepEqual((await api(root,users[i])).flush,beforeState.flush,'menu must not change game state');
    await p.screenshot({path:`/tmp/flush-layout-${viewport.width}.png`});
   }
+  // Static seat indicators and a finite cue replace looping text animations.
+  for (const p of pages) {
+   assert.equal(await p.getByTestId('flush-active-turn').count(),1);
+   await p.waitForTimeout(900);
+   assert.equal(await p.getByTestId('flush-turn-cue').evaluate(el=>getComputedStyle(el).opacity),'0');
+   await p.getByTestId('flush-turn-cue').evaluate(el=>{
+    globalThis.turnCueChanges=0;
+    new MutationObserver(()=>{if(Number(el.style.opacity)>0)globalThis.turnCueChanges++;}).observe(el,{attributes:true,attributeFilter:['style']});
+   });
+  }
   // Rejection leaves the actions visible and retryable.
   await pages[i].route('**/test-games/*/action',route=>route.fulfill({status:422,contentType:'application/json',body:JSON.stringify({detail:'Test rejected bet'})}));
   await pages[i].getByRole('button',{name:/^Bet minimum/}).click();
@@ -95,7 +105,14 @@ async function api(path, user, body) {
   const first=i;
   for (let step=0;step<3;step++) {
    i=(first+step)%3;const p=pages[i];
+   await button(p,'See cards').waitFor();
+   await p.waitForTimeout(900);
+   if(step>0) assert.ok(await p.evaluate(()=>globalThis.turnCueChanges)>0,'a new personal turn must briefly cue');
+   await p.evaluate(()=>globalThis.turnCueChanges=0);
    await button(p,'See cards').click();await button(p,'Press and hold to see cards').waitFor();
+   await p.waitForTimeout(900);
+   assert.equal(await p.evaluate(()=>globalThis.turnCueChanges),0,'seeing cards must not repeat the turn cue');
+   assert.match(await p.getByRole('button',{name:/^Bet minimum/}).innerText(),/^Bet ·/);
    const peek=button(p,'Press and hold to see cards');await peek.hover();await p.mouse.down();
    await p.getByRole('button',{name:/^Your card 1:/}).waitFor();
    assert.equal(await p.getByRole('button',{name:/^Your card \d:/}).count(),3);await p.mouse.up();
@@ -105,6 +122,7 @@ async function api(path, user, body) {
   await button(pages[first],'Request side-show').click();
   const target=(first+2)%3, observer=(first+1)%3;
   await button(pages[target],'Decline side-show').waitFor();
+  assert.match(await pages[target].getByTestId('flush-hand-dock').innerText(),/Accept or decline/);
   await button(pages[target],'Accept side-show').click();
   for (const index of [first,target]) {
    const p=pages[index];await p.getByTestId('flush-private-comparison').waitFor();

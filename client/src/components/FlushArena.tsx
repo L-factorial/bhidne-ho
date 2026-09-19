@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, StyleSheet, Text, View } from 'react-native';
-import { TurnPulse } from './TurnPulse';
+import { flushDecision } from '../multiplayer/flushDecision';
 import Svg, { Circle, Ellipse, G, Path } from 'react-native-svg';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
@@ -45,6 +45,7 @@ export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot
   const bets = snapshot.flush?.bets || [];
   const last = useRef<number | null>(null);
   const pub = snapshot.flush?.public;
+  const decision = flushDecision(snapshot.flush, snapshot.status === 'playing');
   const roster = pub?.players || (snapshot.players || []).map(p => ({ player_id: String(p.player_id), status: 'active', visibility: 'blind', turn_bet_count: 0 }));
   useEffect(() => { let active = true; AccessibilityInfo.isReduceMotionEnabled().then(v => { if (active) setReduceMotion(v); });
     const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion); return () => { active = false; sub.remove(); }; }, []);
@@ -73,9 +74,10 @@ export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot
       const lastBet = bets.filter(b => b.player_id === p.player_id && b.kind === 'BET_PLACED').at(-1);
       const name = snapshot.players?.find(row => String(row.player_id) === p.player_id)?.display_name || `Player ${p.player_id}`;
       return <View key={p.player_id} testID={`flush-seat-${p.player_id}`} style={[s.seat, { left: pos.x - 40, top: pos.y - 38, opacity: folded ? 0.4 : 1 }]}>
-        <View style={[s.icon, snapshot.status === 'playing' && p.player_id === pub?.current_player_id && s.current]}><PlayerFace seen={p.visibility === 'seen'} folded={folded} /><Text accessibilityLabel={`${p.turn_bet_count} bets`} style={s.count}>{p.turn_bet_count}</Text>
+        <View style={[s.icon, p.player_id === decision?.actor && s.current]}><PlayerFace seen={p.visibility === 'seen'} folded={folded} /><Text accessibilityLabel={`${p.turn_bet_count} bets`} style={s.count}>{p.turn_bet_count}</Text>
+          {p.player_id === decision?.actor && <Text testID="flush-active-turn" style={s.turnLabel}>TURN</Text>}
           {p.player_id === pub?.dealer_id && <Text accessibilityLabel="Dealer" style={s.dealer}>D</Text>}</View>
-        <TurnPulse active={snapshot.status === 'playing' && p.player_id === pub?.current_player_id} testID={`flush-turn-name-${p.player_id}`} numberOfLines={1} style={s.name}>{name}{p.player_id === String(snapshot.your_player_id) ? ' · You' : ''}</TurnPulse>
+        <Text testID={`flush-turn-name-${p.player_id}`} numberOfLines={1} style={s.name}>{name}{p.player_id === String(snapshot.your_player_id) ? ' · You' : ''}</Text>
         <Text style={s.caption}>{folded ? 'Folded' : `${p.visibility}${lastBet ? ` · ${lastBet.amount}` : ''}`}</Text>
       </View>;
     })}
@@ -106,6 +108,7 @@ const styles = (c: ThemeColors) => StyleSheet.create({
   seat: { position: 'absolute', width: 80, alignItems: 'center', gap: 3 },
   icon: { width: 64, height: 48, borderRadius: 28, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent', backgroundColor: c.background },
   dealer: { position: 'absolute', left: -5, bottom: 0, color: c.text, backgroundColor: c.surfaceSelected, borderRadius: 9, minWidth: 18, textAlign: 'center', fontSize: 11 },
-  current: { borderColor: c.turnText }, count: { position: 'absolute', right: -3, top: -5, color: c.text, backgroundColor: c.surfaceSelected, borderRadius: 10, minWidth: 18, textAlign: 'center', fontSize: 12 },
+  turnLabel: { position: 'absolute', top: -13, color: c.turnText, backgroundColor: c.turnSurface, borderRadius: 4, paddingHorizontal: 4, fontSize: 9, fontFamily: fonts.medium },
+  current: { borderColor: c.turnText, borderWidth: 3, backgroundColor: c.turnSurface }, count: { position: 'absolute', right: -3, top: -5, color: c.text, backgroundColor: c.surfaceSelected, borderRadius: 10, minWidth: 18, textAlign: 'center', fontSize: 12 },
   name: { color: c.text, fontFamily: fonts.medium, fontSize: 12 }, caption: { color: c.textMuted, fontFamily: fonts.body, fontSize: 10 },
 });
