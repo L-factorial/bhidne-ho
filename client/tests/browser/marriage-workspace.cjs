@@ -28,12 +28,12 @@ async function api(path, user, body) {
     state.marriage.moves=[];
     const context=await browser.newContext({viewport:{width:390,height:844}});
     await context.addInitScript(({user,room,site})=>sessionStorage.setItem(`bhidne.session.v1:${site}`,JSON.stringify({session:user,room,game:'marriage'})),{user:users[0],room,site});
-    const commands=[];let reject=false;
+    const commands=[];let reject=false, releaseRejection;
     const publish=()=>{state.game.revision++;pub.revision=state.game.revision;};
     await context.route(site+root+'**',async route=>{
       if(route.request().url().includes('/action')) {
         const action=route.request().postDataJSON();commands.push(action);
-        if(reject) return route.fulfill({status:422,json:{detail:'Discard rejected for test'}});
+        if(reject) { await new Promise(resolve=>{releaseRejection=resolve;}); return route.fulfill({status:422,json:{detail:'Discard rejected for test'}}); }
         if(action.command==='DRAW_CARD') {
           assert.deepEqual(action.payload,{source:'stock'});
           mine.hand.push(card('D2:9C'));pub.phase='must_discard';pub.players[0].hand_count=22;
@@ -82,14 +82,40 @@ async function api(path, user, body) {
       assert.ok(cards.every(c=>c.width>=58 && c.height>=86 && c.x>=0 && c.x+c.width<=viewport.width));
       const bounds=await sheet.boundingBox();assert.ok(bounds.y>viewport.height*.2 && bounds.y+bounds.height<=viewport.height+1);
     }
+    assert.equal(await page.getByTestId('marriage-hand-footer').count(),0,'no empty action footer before selection');
     const picked=page.getByTestId('marriage-hand').getByRole('button').first();const before=await picked.boundingBox();
     await picked.click();assert.equal(commands.length,1,'selecting does not submit');
     assert.ok((await picked.boundingBox()).y<before.y,'selection raises the card');
+    const action=page.getByTestId('marriage-discard-action'), footer=page.getByTestId('marriage-hand-footer');
+    await picked.click();assert.equal(await footer.count(),0,'deselecting removes the action');
+    await picked.click();
+    const other=page.getByTestId('marriage-hand').getByRole('button').nth(1);await other.click();
+    assert.equal(await page.getByTestId('marriage-hand').locator('[aria-pressed="true"]').count(),1);
+    assert.match(await action.innerText(),/Discard 2♥/);
+    for(const viewport of [{width:320,height:568},{width:360,height:640},{width:390,height:700}]) {
+      await page.setViewportSize(viewport);
+      // Simulate the inset already applied by the game's safe-area container.
+      await page.getByTestId('live-game-backdrop').evaluate(el=>{el.style.paddingBottom='34px';});
+      await page.waitForTimeout(100);
+      const bounds=await action.boundingBox(), sheetBounds=await sheet.boundingBox();
+      assert.ok(bounds.y>=sheetBounds.y && bounds.y+bounds.height<=viewport.height-34,'action stays above the bottom safe area');
+      await page.getByTestId('marriage-hand-content').evaluate(el=>{el.scrollTop=el.scrollHeight;});
+      assert.deepEqual(await action.boundingBox(),bounds,'scrolling does not move the footer');
+      await button(page,'Sort · suit').click();await button(page,'Sort · rank').click();
+      assert.equal(await action.isVisible(),true,'sorting preserves the selected action');
+      await button(page,'Peek at your hand').click();assert.ok((await action.boundingBox()).height>=44);
+      await button(page,'Expand full hand').click();
+    }
     await page.screenshot({path:'/tmp/marriage-workspace-discard.png'});
-    reject=true;await page.getByTestId('marriage-discard-confirmation').click();
-    await page.getByTestId('marriage-hand-header').getByText('Discard rejected for test',{exact:true}).waitFor();
+    reject=true;
+    await action.evaluate(el=>{el.click();el.click();});
+    for(let n=0;!releaseRejection && n<100;n++) await new Promise(resolve=>setTimeout(resolve,20));
+    assert.ok(releaseRejection);assert.ok(await action.isDisabled());
+    assert.equal(commands.filter(c=>c.command==='DISCARD_CARD').length,1,'rapid clicks submit once');
+    await button(page,'Collapse your card area').click();releaseRejection();
+    await page.getByTestId('marriage-hand-footer').getByText('Discard rejected for test',{exact:true}).waitFor();
     assert.ok(await button(page,'Collapse your card area').isVisible());
-    reject=false;await page.getByTestId('marriage-discard-confirmation').click();
+    reject=false;await page.getByTestId('marriage-discard-action').click();
     await button(page,'Expand your card area').waitFor();
     await button(page,'Expand your card area').getByText('Your cards · 21',{exact:true}).waitFor();
     assert.equal(commands.filter(c=>c.command==='DISCARD_CARD').length,2);
@@ -105,6 +131,7 @@ async function api(path, user, body) {
     await page.getByTestId('marriage-maal-spot').getByText('8♣',{exact:true}).waitFor();
     await page.getByTestId('marriage-maal-spot').click();await page.getByTestId('marriage-maal-details').waitFor();await button(page,'Close Maal').click();
     await page.setViewportSize({width:1280,height:900});
+    await page.getByTestId('marriage-hand').getByRole('button').first().waitFor();
     assert.equal(await page.getByTestId('marriage-hand').getByRole('button').count(),8,'committed melds remain outside the private workspace');
     await button(page,'Finish round').click();await page.getByText(/wins!/).waitFor();
     assert.deepEqual(errors,[]);

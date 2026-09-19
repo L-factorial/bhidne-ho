@@ -157,15 +157,18 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   </Text>;
   const mobileHandHeader = <View testID="marriage-hand-header" style={{ backgroundColor: colors.surface, paddingHorizontal: 10, gap: 4 }}>
     {!mobile && turnPrompt}
-    {decision === 'DISCARD_REQUIRED' && !selectedCard && <View style={[s.button, { backgroundColor: 'transparent' }]}>
-      <Text style={s.small}>{!allRevealed ? 'Reveal cards to choose your discard' : hidden ? 'Show your cards to choose a discard' : 'Tap a card to select it'}</Text>
-    </View>}
-    {selectedCard && <Pressable testID="marriage-discard-confirmation" accessibilityRole="button" accessibilityLabel={`Discard ${physicalLabel(selectedCard.card_id)}`}
-      disabled={!canDiscard} accessibilityState={{ disabled: !canDiscard }} onPress={() => cards.act('DISCARD_CARD', { card_id: selectedCard.card_id })}
-      style={[s.button, s.chosen, !canDiscard && s.disabled]}><Text style={s.buttonText}>{busy ? 'Sending…' : `Discard ${marriageFace(selectedCard)}`}</Text></Pressable>}
     {actions?.kinds.includes('finish') && button('Finish round', () => normalFinish ? setFinishPreview(true) : cards.act('FINISH'), !canAct)}
-    {!!error && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}
+    {!!error && !selectedCard && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}
   </View>;
+  const discardFooter = selectedCard && <>
+    {!!error && <Text accessibilityRole="alert" style={[s.small, { color: colors.danger }]}>{error}</Text>}
+    <Pressable testID="marriage-discard-action" accessibilityRole="button" accessibilityLabel={`Discard ${physicalLabel(selectedCard.card_id)}`}
+      disabled={!canDiscard} accessibilityState={{ disabled: !canDiscard }} onPress={() => cards.act('DISCARD_CARD', { card_id: selectedCard.card_id })}
+      style={[s.button, s.chosen, !canDiscard && s.disabled]}><Text style={s.buttonText}>{busy ? 'Sending…' : `Discard ${marriageFace(selectedCard)}`}</Text></Pressable>
+  </>;
+  useEffect(() => {
+    if (error && !busy && selectedCard && decision === 'DISCARD_REQUIRED') setSnap('expanded');
+  }, [error, busy, selectedCard?.card_id, decision]);
   return <View style={s.page} testID="marriage-table">
     <GameTableHeader compact title="Marriage" path={snapshot.path} game="marriage" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack}
       drawerMetadata={<GameMenuMetadata snapshot={snapshot} />}>
@@ -200,7 +203,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       </>}
       {!!error && (!mine || !activeGame || (mobile && snap === 'collapsed')) && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}
     </View>
-    {pub && mine && activeGame && <MarriageHandSheet anchor={handAnchor} mobile={mobile} snap={snap} onSnap={setSnap} instruction={turnInstruction} attention={isTurn} header={mobileHandHeader}>
+    {pub && mine && activeGame && <MarriageHandSheet anchor={handAnchor} mobile={mobile} snap={snap} onSnap={setSnap} instruction={turnInstruction} attention={isTurn} header={mobileHandHeader} footer={discardFooter}>
     <View testID="marriage-hand-dock" style={[s.handDock, mobile && { backgroundColor: 'transparent', borderTopWidth: 0, padding: 4 }]} onLayout={e => { if (e.nativeEvent.layout.width > 48) setWidth(e.nativeEvent.layout.width - (mobile ? 8 : 24)); }}>
       <View style={s.row}><Text style={s.small}>Your cards · {hand.length}</Text>
         {!allRevealed && button('Reveal cards', () => reveal(true), busy)}

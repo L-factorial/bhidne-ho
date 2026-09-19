@@ -149,7 +149,7 @@ async function pulse(locator) {
       }
       const play = () => kind === 'marriage' ? actor.getByRole('button', { name: /^Discard / }) : actor.getByRole('button', { name: /^Play / });
       await actor.route('**/test-games/*/action', route => route.fulfill({ status: 422, contentType: 'application/json', body: JSON.stringify({ detail: 'Test rejected action' }) }));
-      await play().click(); await (kind === 'marriage' ? actor.getByTestId('marriage-hand-header') : dock).getByText('Test rejected action', { exact: true }).waitFor();
+      await play().click(); await (kind === 'marriage' ? actor.getByTestId('marriage-hand-footer') : dock).getByText('Test rejected action', { exact: true }).waitFor();
       await button(actor, 'Collapse your card area').waitFor();
       await actor.unroute('**/test-games/*/action');
       if (kind === 'callbreak') {
