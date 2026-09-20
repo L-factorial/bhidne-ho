@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { invitationLink, readInvitation } from '../src/multiplayer/invitations.ts';
+import { invitationLink, readInvitation, readJoinTarget, tableInvitationCode } from '../src/multiplayer/invitations.ts';
 
 test('room and game invitations preserve deployment paths without leaking credentials', () => {
   const base = 'https://example.org/bhidne/?token=secret&room=old&match=old#private';
@@ -18,4 +18,13 @@ test('invalid and unrelated links do not produce invitations', () => {
 });
 test('native app scheme uses the same invitation identity', () => {
   assert.deepEqual(readInvitation('bhidneho://invite?room=r&match=g'), { roomId: 'r', matchId: 'g' });
+});
+
+test('join accepts table codes and links while keeping room codes compatible', () => {
+  const target = { roomId: 'room-123', matchId: 'table_456' };
+  assert.deepEqual(readJoinTarget(tableInvitationCode(target.roomId, target.matchId)), target);
+  assert.deepEqual(readJoinTarget(invitationLink('https://example.org/', target)), target);
+  assert.deepEqual(readJoinTarget(' room-123 '), { roomId: 'room-123' });
+  for (const value of ['table:r:', 'table::m', 'table:r:m:extra', 'table:../r:m', 'table:r:m/x', '', 'https://example.org/?match=m'])
+    assert.equal(readJoinTarget(value), null);
 });

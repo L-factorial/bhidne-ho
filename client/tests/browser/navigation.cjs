@@ -56,7 +56,7 @@ async function api(path, user, body) {
       await ctx.addInitScript(({ user, site }) => sessionStorage.setItem(`bhidne.session.v1:${site}`, JSON.stringify({ session: user, room: null, game: null })), { user, site });
       const p = await ctx.newPage(); p.on('pageerror', e => errors.push(e.message)); await p.goto(site);
       await p.getByRole('button', { name: 'Join with code', exact: true }).click();
-      await p.getByRole('textbox', { name: 'Room code', exact: true }).fill(room.room_id);
+      await p.getByRole('textbox', { name: 'Room or table code', exact: true }).fill(room.room_id);
       await p.getByRole('button', { name: 'Join room', exact: true }).click();
       await p.getByRole('heading', { name: 'Tables', exact: true }).waitFor();
       return { user, page: p };

@@ -1,8 +1,9 @@
+import { TableShareActions } from './ShareLink';
 import { Pressable, Text, View } from 'react-native';
 import { GameIcon } from './BrandArt';
 import { fonts, useTheme } from '../theme';
 import { tableEntry, tablePhase, type TableEntry, type TableSummary } from '../multiplayer/tableNavigation';
-export function TableCard({ table, busy, enter }: { table: TableSummary; busy: boolean; enter: (action: TableEntry) => void }) {
+export function TableCard({ table, roomId, busy, enter }: { roomId: string; table: TableSummary; busy: boolean; enter: (action: TableEntry) => void }) {
   const { colors: c } = useTheme();
   const primary = tableEntry(table), me = table.current_user;
   const button = (label: string, action: TableEntry, main = false) => <Pressable accessibilityRole="button" accessibilityLabel={`${label} · ${table.name}`} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => enter(action)}
@@ -14,6 +15,7 @@ export function TableCard({ table, busy, enter }: { table: TableSummary; busy: b
       <Text style={{ fontFamily: fonts.medium, color: c.text, fontSize: 17 }}>{table.name}</Text>
       <Text style={{ fontFamily: fonts.body, color: c.textMuted }}>{({ callbreak: 'Call Break', marriage: 'Marriage', flush: 'Flush' })[table.game_type]} · {table.players}/{table.capacity} seated · {tablePhase(table)}</Text>
     </View></View>
+    {table.status !== 'ended' && table.phase !== 'ENDED' && <TableShareActions roomId={roomId} matchId={table.match_id} />}
     {!!table.seated_players?.length && <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
       {table.seated_players.map(player => <View key={player.seat_id} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%' }}>
         <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: c.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: c.accent, fontFamily: fonts.medium, fontSize: 12 }}>{player.display_name.trim().slice(0, 1).toUpperCase()}</Text></View>

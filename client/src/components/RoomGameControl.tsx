@@ -278,7 +278,7 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
         <Text style={[styles.buttonText, { color: colors.onPrimary, fontSize: 15 }]}>+ Create table</Text>
       </Pressable>
     </View>}
-    {snapshot?.tables?.map(table => <TableCard key={table.match_id} table={table} busy={busy} enter={action => void enterTable(table.match_id, action)} />)}
+    {snapshot?.tables?.map(table => <TableCard key={table.match_id} roomId={roomId} table={table} busy={busy} enter={action => void enterTable(table.match_id, action)} />)}
     {collapsed && !!notification.notice && <Animated.View style={{ opacity: notification.opacity }}>
       <Pressable accessibilityRole="button" onPress={() => void returnToGame()} style={styles.choice}><Text style={styles.text}>{notification.notice} · Return to table</Text></Pressable>
     </Animated.View>}

@@ -19,3 +19,17 @@ export function invitationLink(base: string, invitation: Invitation): string {
   if (invitation.matchId) url.searchParams.set('match', invitation.matchId);
   return url.toString();
 }
+
+/** A table code includes its room so it resolves without a public table lookup. */
+export function tableInvitationCode(roomId: string, matchId: string): string {
+  return `table:${roomId}:${matchId}`;
+}
+export function readJoinTarget(value: string): Invitation | null {
+  const text = value.trim();
+  const link = readInvitation(text);
+  if (link) return link;
+  const parts = text.split(':');
+  if (parts.length === 3 && parts[0] === 'table' && roomIdPattern.test(parts[1]) && matchIdPattern.test(parts[2]))
+    return { roomId: parts[1], matchId: parts[2] };
+  return roomIdPattern.test(text) ? { roomId: text } : null;
+}

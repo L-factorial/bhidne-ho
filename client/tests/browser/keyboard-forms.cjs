@@ -89,8 +89,8 @@ async function unclipped(locator) {
     assert.equal(await dm.inputValue(), 'Next draft while sending');
     await button('Close private chat').click(); await button('Back from profile').click();
     await button('Join with code').click();
-    await field('Room code').fill('missing-room'); await visibleHeight(page, 340);
-    await adjacent(field('Room code'), button('Join room')); await unclipped(field('Room code'));
+    await field('Room or table code').fill('missing-room'); await visibleHeight(page, 340);
+    await adjacent(field('Room or table code'), button('Join room')); await unclipped(field('Room or table code'));
     await within(button('Join room'), 340, 'room join beside code above keyboard');
     await button('Close room form').click(); await visibleHeight(page, 844);
     await button('Create room').click(); const createRoom = button('Create room').last();
