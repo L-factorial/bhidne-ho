@@ -1,9 +1,11 @@
+import { FormScrollView } from './FormInput';
+import { KeyboardFrame } from './KeyboardFrame';
 import { type ReactNode, useEffect } from 'react';
-import { Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { Keyboard, Modal, Platform, Pressable, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fonts, useTheme } from '../theme';
 
-export function RoomSheet({ visible, title, onClose, children, scrollable = true, footer, testID = 'room-sheet', closeLabel = 'Close room panel' }: { visible: boolean; title: string; onClose: () => void; children: ReactNode; scrollable?: boolean; footer?: ReactNode; testID?: string; closeLabel?: string }) {
+export function RoomSheet({ visible, title, onClose, children, scrollable = true, footer, testID = 'room-sheet', closeLabel = 'Close room panel', contentHandlesBottomInset = false }: { visible: boolean; title: string; onClose: () => void; children: ReactNode; scrollable?: boolean; footer?: ReactNode; testID?: string; closeLabel?: string; contentHandlesBottomInset?: boolean }) {
   const { colors: c } = useTheme();
   const wide = useWindowDimensions().width >= 900;
   const insets = useSafeAreaInsets();
@@ -22,16 +24,16 @@ export function RoomSheet({ visible, title, onClose, children, scrollable = true
       if (!closeButton?.parentElement?.parentElement?.contains(document.activeElement)) closeButton?.focus();
     }
   }}>
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: c.overlay, justifyContent: wide ? 'center' : 'flex-end', alignItems: 'center', padding: wide ? 24 : 0, paddingTop: Math.max(24, insets.top) }}>
-      <View testID={testID} accessibilityViewIsModal style={{ width: '100%', maxWidth: wide ? 640 : undefined, maxHeight: '90%', height: scrollable ? undefined : '90%', minHeight: 0, backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, borderBottomLeftRadius: wide ? 20 : 0, borderBottomRightRadius: wide ? 20 : 0, paddingBottom: footer ? 0 : Math.max(16, insets.bottom) }}>
+    <KeyboardFrame style={{ flex: 1, backgroundColor: c.overlay, justifyContent: wide ? 'center' : 'flex-end', alignItems: 'center', padding: wide ? 24 : 0, paddingTop: Math.max(24, insets.top) }}>
+      <View testID={testID} accessibilityViewIsModal style={{ width: '100%', maxWidth: wide ? 640 : undefined, maxHeight: '90%', height: scrollable ? undefined : '90%', minHeight: 0, backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, borderBottomLeftRadius: wide ? 20 : 0, borderBottomRightRadius: wide ? 20 : 0, paddingBottom: footer || contentHandlesBottomInset ? 0 : Math.max(16, insets.bottom) }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 12, borderBottomWidth: 1, borderColor: c.border }}>
           <Text accessibilityRole="header" style={{ flex: 1, fontFamily: fonts.medium, color: c.text, fontSize: 20 }}>{title}</Text>
           <Pressable testID="room-sheet-close" accessibilityRole="button" accessibilityLabel={closeLabel} onPress={close} style={{ minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: c.text, fontSize: 24 }}>×</Text></Pressable>
         </View>
-        {scrollable ? <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 12 }}>{children}</ScrollView>
+        {scrollable ? <FormScrollView style={{ flexShrink: 1, minHeight: 0 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 12 }}>{children}</FormScrollView>
           : <View style={{ flex: 1, minHeight: 0 }}>{children}</View>}
         {footer}
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardFrame>
   </Modal>;
 }

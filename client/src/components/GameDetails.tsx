@@ -1,5 +1,9 @@
+import { FormScrollView } from './FormInput';
+import { RoomSheet } from './RoomSheet';
+import { FormFooter } from './FormFooter';
+import { NumericInput } from './NumericInput';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { fonts, useThemedStyles, type ThemeColors } from '../theme';
 
@@ -13,13 +17,10 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = fa
   useEffect(() => setDraft(snapshot.settings), [JSON.stringify(snapshot.settings), snapshot.rule_proposal?.id, snapshot.rule_proposal?.status]);
   const editable = snapshot.is_creator && snapshot.status === 'waiting' && snapshot.rule_proposal?.status !== 'PENDING';
   const settings = editable ? draft || snapshot.settings : snapshot.settings;
-  return <View testID={sidebar ? "game-details-sidebar" : "game-details-inline"} style={[styles.panel, sidebar && styles.sidebar, menu && styles.menu]}>
-    <View style={[styles.row, menu && { flexDirection: 'column', alignItems: 'stretch', gap: 0 }]} accessibilityRole={sidebar ? 'tablist' : undefined}>{(['stats', 'rules'] as const).map(value => <Pressable key={value} accessibilityRole={sidebar ? 'tab' : 'button'}
-      accessibilityLabel={value === 'stats' ? 'Stats' : 'Rules'} aria-selected={sidebar ? selectedTab === value : undefined}
-      accessibilityState={sidebar ? { selected: selectedTab === value } : { expanded: selectedTab === value }} onPress={() => { setDraft(snapshot.settings); setTab(!sidebar && tab === value ? null : value); }} style={[styles.button, sidebar && selectedTab === value && styles.selectedTab, menu && { paddingHorizontal: 0, minHeight: 46 }]}>
-      <Text style={[styles.label, menu && styles.menuLabel]}>{value === 'stats' ? 'Stats' : 'Rules'}{sidebar ? '' : selectedTab === value ? ' -' : ' +'}</Text>
-    </Pressable>)}</View>
-    {selectedTab && <ScrollView style={sidebar ? styles.sidebarDetails : styles.details} nestedScrollEnabled contentContainerStyle={{ gap: 12, paddingVertical: 12 }}>
+  const ruleAction = selectedTab === 'rules' && editable && settings ? <FormFooter>
+    <Pressable accessibilityRole="button" disabled={busy} onPress={() => onSave(settings)} style={styles.button}><Text style={styles.label}>{busy ? 'Proposing…' : 'Propose rules & bets'}</Text></Pressable>
+  </FormFooter> : undefined;
+  const details = <>
       {selectedTab === 'stats' ? <>
         <View style={styles.statsTable}>
           <View style={styles.statsRow}>
@@ -76,15 +77,25 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = fa
           <Text style={[styles.title, menu && { fontSize: 16 }]}>Placement bets · paid to first place</Text>
           {editable ? settings.payments.slice(0, (snapshot.capacity || 4) - 1).map((amount, i) => <View key={i} style={styles.row}>
             <Text style={styles.text}>{['2nd', '3rd', '4th', '5th'][i]} pays first</Text>
-            <TextInput accessibilityLabel={`${i + 2} place payment`} editable={!!editable && !busy} keyboardType="number-pad" value={String(amount)} maxLength={7}
+            <NumericInput accessibilityLabel={`${i + 2} place payment`} editable={!!editable && !busy} keyboardType="number-pad" value={String(amount)} maxLength={7}
               onChangeText={text => { if (/^\d*$/.test(text)) setDraft({ ...settings, payments: settings.payments.map((v, index) => index === i ? Math.min(1000000, Number(text)) : v) }); }} style={styles.input} />
           </View>) : settings.payments.slice(0, (snapshot.capacity || 4) - 1).map((amount, i) =>
             <Text key={i} style={styles.text}>{['2nd', '3rd', '4th', '5th'][i]} place → 1st: {amount} units</Text>)}
           <Text style={styles.text}>Zero means no bet. Amounts record your agreement; no money is transferred. Tied placements require agreement between players.</Text>
-          {editable && <Pressable accessibilityRole="button" disabled={busy} onPress={() => onSave(settings)} style={styles.button}><Text style={styles.label}>{busy ? 'Proposing…' : 'Propose rules & bets'}</Text></Pressable>}
+
         </>}
       </>}
-    </ScrollView>}
+  </>;
+  return <View testID={sidebar ? "game-details-sidebar" : "game-details-inline"} style={[styles.panel, sidebar && styles.sidebar, menu && styles.menu]}>
+    <View style={[styles.row, menu && { flexDirection: 'column', alignItems: 'stretch', gap: 0 }]} accessibilityRole={sidebar ? 'tablist' : undefined}>{(['stats', 'rules'] as const).map(value => <Pressable key={value} accessibilityRole={sidebar ? 'tab' : 'button'}
+      accessibilityLabel={value === 'stats' ? 'Stats' : 'Rules'} aria-selected={sidebar ? selectedTab === value : undefined}
+      accessibilityState={sidebar ? { selected: selectedTab === value } : { expanded: selectedTab === value }} onPress={() => { setDraft(snapshot.settings); setTab(!sidebar && tab === value ? null : value); }} style={[styles.button, sidebar && selectedTab === value && styles.selectedTab, menu && { paddingHorizontal: 0, minHeight: 46 }]}>
+      <Text style={[styles.label, menu && styles.menuLabel]}>{value === 'stats' ? 'Stats' : 'Rules'}{sidebar ? '' : selectedTab === value ? ' -' : ' +'}</Text>
+    </Pressable>)}</View>
+    {selectedTab && (menu && selectedTab === 'rules'
+      ? <RoomSheet visible title="Call Break rules" closeLabel="Close Call Break rules" onClose={() => setTab(null)} footer={ruleAction}>{details}</RoomSheet>
+      : <><FormScrollView keyboardShouldPersistTaps="handled" style={sidebar ? styles.sidebarDetails : styles.details} nestedScrollEnabled contentContainerStyle={{ gap: 12, paddingVertical: 12 }}>{details}</FormScrollView>{ruleAction}</>)}
+
   </View>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({

@@ -12,7 +12,7 @@ async function api(path, user, body) {
   try {
     const roomName = `Navigation ${Date.now()}`;
     const username = `nav_${Date.now()}`, password = 'Navigation-test-123';
-    const owner = await api('/auth/signup', null, { username, password });
+    const owner = await api('/auth/signup', null, { username, password, display_name: 'Test player' });
     const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
     const page = await context.newPage(); page.on('pageerror', e => errors.push(e.message));
     await page.goto(site);
@@ -51,7 +51,7 @@ async function api(path, user, body) {
     await page.getByTestId('live-game-overlay').waitFor();
 
     async function visitor(label) {
-      const user = await api('/auth/signup', null, { username: `${label}_${Date.now()}`, password });
+      const user = await api('/auth/signup', null, { username: `${label}_${Date.now()}`, password, display_name: 'Test player' });
       const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
       await ctx.addInitScript(({ user, site }) => sessionStorage.setItem(`bhidne.session.v1:${site}`, JSON.stringify({ session: user, room: null, game: null })), { user, site });
       const p = await ctx.newPage(); p.on('pageerror', e => errors.push(e.message)); await p.goto(site);
@@ -74,7 +74,7 @@ async function api(path, user, body) {
     await third.page.getByTestId('live-game-overlay').waitFor();
     assert.equal((await api(`/test-games/${room.room_id}`, third.user)).table.current_user.is_seated, false);
     // Create a different table, then ensure watching the first stays pinned through polling.
-    const host2 = await api('/auth/signup', null, { username: `host_${Date.now()}`, password });
+    const host2 = await api('/auth/signup', null, { username: `host_${Date.now()}`, password, display_name: 'Test player' });
     await api(`/rooms/${room.room_id}/enter`, host2, {});
     await api(`/test-games/${room.room_id}`, host2, { name: 'Other table', game_type: 'flush', player_count: 2 });
     await third.page.waitForTimeout(2300);
@@ -87,7 +87,7 @@ async function api(path, user, body) {
     assert.equal((await api(`/test-games/${room.room_id}?match_id=${first.match_id}`, third.user)).table.current_user.queue_position, 1);
     await third.page.getByTestId('live-game-overlay').getByRole('button', { name: 'Back to lobby', exact: true }).click();
     await third.page.getByTestId('live-game-overlay').waitFor({ state: 'hidden' });
-    const rival = await api('/auth/signup', null, { username: `rival_${Date.now()}`, password });
+    const rival = await api('/auth/signup', null, { username: `rival_${Date.now()}`, password, display_name: 'Test player' });
     await api(`/rooms/${room.room_id}/enter`, rival, {});
     await third.page.route(`**/test-games/${room.room_id}/join`, async route => {
       await api(`/test-games/${room.room_id}/join`, rival, route.request().postDataJSON());

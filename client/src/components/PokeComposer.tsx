@@ -1,6 +1,9 @@
+import { RoomSheet } from './RoomSheet';
+import { ChatComposer } from './ChatComposer';
+import { FormFooter } from './FormFooter';
 import { useEffect, useRef, useState } from 'react';
-import { BackHandler, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { limitPokeText, PLAYER_PHRASE_LIMIT, POKE_TEXT_LIMIT, pokeTextLength, type PlayerPhrase } from '../multiplayer/pokes';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { limitPokeText, PLAYER_PHRASE_LIMIT, POKE_TEXT_LIMIT, type PlayerPhrase } from '../multiplayer/pokes';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 export function PokeComposer({ recipient, recipientName, phrases, connected, onClose, onSend, onSave }: {
@@ -14,13 +17,6 @@ export function PokeComposer({ recipient, recipientName, phrases, connected, onC
   const pending = useRef(false);
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
-  useEffect(() => {
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => { onClose(); return true; });
-    // Consume keyup before the enclosing game modal can also handle Escape.
-    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onClose(); } };
-    if (Platform.OS === 'web') globalThis.addEventListener('keyup', escape, true);
-    return () => { subscription.remove(); if (Platform.OS === 'web') globalThis.removeEventListener('keyup', escape, true); };
-  }, [onClose]);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const target = recipient === null ? 'everyone' : recipientName || `Player ${recipient}`;
@@ -35,49 +31,34 @@ export function PokeComposer({ recipient, recipientName, phrases, connected, onC
     } catch (error) { if (alive.current) setError(error instanceof Error ? error.message : 'Could not send your poke.'); }
     finally { pending.current = false; if (alive.current) setBusy(false); }
   }
-  return <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-    <Pressable accessibilityLabel="Close poke composer" onPress={onClose} style={StyleSheet.absoluteFill} />
-    <View accessibilityViewIsModal style={styles.sheet}>
-      <View style={styles.header}><View style={{ flex: 1 }}>
-        <Text style={styles.eyebrow}>{recipient === null ? 'TO THE WHOLE TABLE' : 'PRIVATE POKE'}</Text>
-        <Text accessibilityRole="header" style={styles.title}>{recipient === null ? 'Make the table laugh.' : `Poke ${target}`}</Text>
-      </View><Pressable accessibilityRole="button" accessibilityLabel="Close poke composer" onPress={onClose} style={styles.close}><Text style={styles.closeText}>×</Text></Pressable></View>
-      <Text style={styles.note}>{recipient === null ? 'Everyone in this room will see it.' : `Only ${target} will see this message.`}</Text>
-      <ScrollView style={{ maxHeight: 190 }} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.phrases}>
-        {!options.length && <Text style={styles.note}>You have no saved goofy phrases yet. Write one below and save it for this and future games.</Text>}
-        {options.map(phrase => <Pressable key={phrase} accessibilityRole="button" accessibilityState={{ selected: text === phrase }}
-          onPress={() => { setText(phrase); setError(''); setNotice(''); }} style={[styles.chip, text === phrase && styles.selected]}>
-          <Text style={[styles.chipText, text === phrase && { color: colors.text }]}>{phrase}</Text>
-        </Pressable>)}
-      </ScrollView>
-      <TextInput accessibilityLabel={`Poke message, ${POKE_TEXT_LIMIT} characters maximum`} placeholder="Your own little punchline…" placeholderTextColor={colors.textMuted}
-        value={text} onChangeText={value => { setText(limitPokeText(value)); setNotice(''); setError(''); }}
-        style={styles.input} maxLength={50} editable={!busy} returnKeyType="send" onSubmitEditing={() => void submit(false)} />
-      <View style={styles.between}><Text style={styles.note}>{pokeTextLength(text)}/{POKE_TEXT_LIMIT} · {phrases.length}/{PLAYER_PHRASE_LIMIT} saved</Text>
+  return <RoomSheet visible title={recipient === null ? 'Poke the table' : `Poke ${target}`} onClose={onClose} closeLabel="Close poke composer"
+    footer={<FormFooter>
+      <ChatComposer value={text} onChange={value => { setText(limitPokeText(value)); setNotice(''); setError(''); }}
+        onSend={() => void submit(false)} disabled={busy || !connected} editable={!busy} maxLength={POKE_TEXT_LIMIT}
+        placeholder="Your own little punchline…" label={`Poke message, ${POKE_TEXT_LIMIT} characters maximum`} sendLabel={`Send poke to ${target}`} />
+      <View style={styles.between}><Text style={styles.note}>{phrases.length}/{PLAYER_PHRASE_LIMIT} saved</Text>
         {!alreadySaved && <Pressable accessibilityRole="button" disabled={busy || !connected || !text.trim() || phrases.length >= PLAYER_PHRASE_LIMIT} onPress={() => void submit(true)} style={[styles.save, (busy || !connected || !text.trim() || phrases.length >= PLAYER_PHRASE_LIMIT) && { opacity: 0.45 }]}>
           <Text style={styles.saveText}>+ Save phrase</Text>
         </Pressable>}</View>
       {!!notice && <Text accessibilityLiveRegion="polite" style={styles.success}>{notice}</Text>}
       {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
       {!connected && <Text style={styles.error}>Reconnecting… send when you’re back.</Text>}
-      <Pressable accessibilityRole="button" accessibilityLabel={`Send poke to ${target}`} disabled={busy || !connected || !text.trim()}
-        onPress={() => void submit(false)} style={[styles.send, (busy || !connected || !text.trim()) && { opacity: 0.45 }]}>
-        <Text style={styles.sendText}>{busy ? 'One moment…' : `Send to ${target} ↗`}</Text>
-      </Pressable>
-    </View>
-  </KeyboardAvoidingView>;
+    </FormFooter>}>
+      <Text style={styles.note}>{recipient === null ? 'Everyone in this room will see it.' : `Only ${target} will see this message.`}</Text>
+      <View style={styles.phrases}>
+        {!options.length && <Text style={styles.note}>You have no saved goofy phrases yet. Write one below and save it for this and future games.</Text>}
+        {options.map(phrase => <Pressable key={phrase} accessibilityRole="button" disabled={busy} accessibilityState={{ selected: text === phrase }}
+          onPress={() => { setText(phrase); setError(''); setNotice(''); }} style={[styles.chip, text === phrase && styles.selected]}>
+          <Text style={[styles.chipText, text === phrase && { color: colors.text }]}>{phrase}</Text>
+        </Pressable>)}
+      </View>
+  </RoomSheet>;
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  overlay: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 30, backgroundColor: colors.overlay, justifyContent: 'center', alignItems: 'center', padding: 16 },
-  sheet: { width: '100%', maxWidth: 430, maxHeight: '95%', borderRadius: 22, padding: 20, backgroundColor: colors.surface, gap: 8 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 8 }, eyebrow: { fontFamily: fonts.medium, color: colors.accent, fontSize: 9, letterSpacing: 1.5 },
-  title: { fontFamily: fonts.display, color: colors.text, fontSize: 29, marginTop: 5 }, note: { fontFamily: fonts.body, fontSize: 11, color: colors.textMuted, lineHeight: 18 },
-  close: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }, closeText: { color: colors.text, fontSize: 29 },
+  note: { fontFamily: fonts.body, fontSize: 11, color: colors.textMuted, lineHeight: 18 },
   phrases: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, paddingVertical: 8 }, chip: { borderRadius: 14, backgroundColor: colors.surface, paddingHorizontal: 12, minHeight: 40, justifyContent: 'center' },
   selected: { backgroundColor: colors.surfaceSelected }, chipText: { color: colors.text, fontSize: 12, fontFamily: fonts.medium },
-  input: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, minHeight: 48, fontSize: 15, fontFamily: fonts.body, color: colors.text },
   between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, save: { minHeight: 44, justifyContent: 'center' }, saveText: { color: colors.accent, fontFamily: fonts.medium, fontSize: 12 },
-  send: { minHeight: 48, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }, sendText: { color: colors.text, fontFamily: fonts.medium, fontSize: 13 },
   success: { color: colors.success, fontFamily: fonts.body, fontSize: 11 }, error: { color: colors.danger, fontFamily: fonts.body, fontSize: 12 },
 });

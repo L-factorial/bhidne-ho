@@ -1,5 +1,6 @@
+import { FormInput } from './FormInput';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { request } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 import { pokeTextLength } from '../multiplayer/pokes';
@@ -33,15 +34,16 @@ export function DisplayNameField({ session, onSaved }: { session: Session; onSav
   return <View style={{ backgroundColor: colors.surface, padding: 20, borderRadius: 16, gap: 12 }}>
     <Text style={{ color: colors.text, fontFamily: fonts.medium }}>Display name</Text>
     <Text style={{ color: colors.textMuted, fontFamily: fonts.body, fontSize: 12, lineHeight: 20 }}>The name other players see at the game table. If you leave it blank, your account username is used when available.</Text>
-    <TextInput accessibilityLabel="Game display name" value={name} editable={loaded && !busy} maxLength={50}
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+    <FormInput accessibilityLabel="Game display name" value={name} editable={loaded && !busy} maxLength={50}
       onChangeText={value => { setName(Array.from(value).slice(0, 25).join('')); setMessage(''); }} placeholder="Your name or nickname"
       placeholderTextColor={colors.textMuted} autoCapitalize="words" returnKeyType="done" onSubmitEditing={() => void save()}
-      style={{ backgroundColor: colors.surface, borderRadius: 8, padding: 12, minHeight: 46, fontFamily: fonts.body, color: colors.text }} />
-    <Text style={{ color: colors.textMuted, fontSize: 12 }}>{pokeTextLength(name)}/25</Text>
+      style={{ flex: 1, minWidth: 0, backgroundColor: colors.surfaceRaised, borderRadius: 8, padding: 12, minHeight: 46, fontFamily: fonts.body, color: colors.text }} />
     <Pressable accessibilityRole="button" accessibilityLabel="Save display name" disabled={!loaded || busy} onPress={() => void save()}
       style={{ minHeight: 44, padding: 12, borderRadius: 8, alignItems: 'center', backgroundColor: colors.surfaceSelected, opacity: loaded && !busy ? 1 : 0.5 }}>
-      <Text style={{ color: colors.text, fontFamily: fonts.medium }}>{busy ? 'Saving…' : 'Save name'}</Text>
-    </Pressable>
+      <Text style={{ color: colors.text, fontFamily: fonts.medium }}>{busy ? 'Saving…' : 'Save'}</Text>
+    </Pressable></View>
+    <Text style={{ color: colors.textMuted, fontSize: 12 }}>{pokeTextLength(name)}/25</Text>
     {!!message && <Text accessibilityLiveRegion="polite" style={{ color: colors.text }}>{message}</Text>}
   </View>;
 }

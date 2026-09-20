@@ -10,8 +10,8 @@ async function api(path, user, body) {
   const errors = [];
   try {
     const stamp = Date.now(), password = 'Room-floor-test-123';
-    const owner = await api('/auth/signup', null, { username: `floor_${stamp}`, password });
-    const friend = await api('/auth/signup', null, { username: `friend_${stamp}`, password });
+    const owner = await api('/auth/signup', null, { username: `floor_${stamp}`, password, display_name: 'Test player' });
+    const friend = await api('/auth/signup', null, { username: `friend_${stamp}`, password, display_name: 'Test player' });
     const room = await api('/rooms', owner, { name: 'Saturday Gang' });
     await api(`/rooms/${room.room_id}/enter`, friend, {});
     async function open(user) {
@@ -110,7 +110,7 @@ async function api(path, user, body) {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.screenshot({ path: '/tmp/room-floor-desktop.png' });
     // A visitor can explicitly leave from More; navigation itself did not remove membership.
-    const visitor = await api('/auth/signup', null, { username: `visitor_${stamp}`, password });
+    const visitor = await api('/auth/signup', null, { username: `visitor_${stamp}`, password, display_name: 'Test player' });
     await api(`/rooms/${room.room_id}/enter`, visitor, {});
     const other = await open(visitor);
     await other.getByTestId('room-toolbar').getByRole('button', { name: 'More room actions', exact: true }).click();

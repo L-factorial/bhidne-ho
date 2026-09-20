@@ -1,6 +1,8 @@
+import { FormInput, FormScrollView } from '../components/FormInput';
+import { KeyboardFrame } from '../components/KeyboardFrame';
 import { AppHeader } from '../components/AppHeader';
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
@@ -15,15 +17,15 @@ const sampleTables: Table[] = [
   { code: 'NIGHT4', name: 'The night table', capacity: 4, players: ['Anu', 'Suman', 'Bina', 'Kiran'], playing: true },
 ];
 
-function Action({ label, onPress, secondary = false, disabled = false }: {
-  label: string; onPress: () => void; secondary?: boolean; disabled?: boolean;
+function Action({ label, onPress, secondary = false, disabled = false, caption }: {
+  caption?: string; label: string; onPress: () => void; secondary?: boolean; disabled?: boolean;
 }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   return <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled}
     accessibilityState={{ disabled }} onPress={onPress} style={({ pressed }) => [
       styles.action, secondary && styles.secondary, (disabled || pressed) && { opacity: 0.5 },
-    ]}><Text style={[styles.actionLabel, secondary && { color: colors.text }]}>{label}</Text></Pressable>;
+    ]}><Text style={[styles.actionLabel, secondary && { color: colors.text }]}>{caption || label}</Text></Pressable>;
 }
 
 export function LobbyScreen({ onLeave, onBack, roomCode }: { onLeave: () => void; onBack: () => void; roomCode: string }) {
@@ -50,8 +52,8 @@ export function LobbyScreen({ onLeave, onBack, roomCode }: { onLeave: () => void
   if (tablePreview) return <CallBreakTableScreen capacity={tablePreview.capacity} names={tablePreview.players}
     tableName={tablePreview.name} onBack={() => setTablePreview(null)} />;
 
-  return <LinearGradient colors={[colors.surface, colors.background]} style={styles.page}>
-    <ScrollView contentContainerStyle={[styles.scroll, {
+  return <KeyboardFrame><LinearGradient colors={[colors.surface, colors.background]} style={styles.page}>
+    <FormScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.scroll, {
       paddingTop: Math.max(insets.top, 24), paddingBottom: Math.max(insets.bottom, 28),
       paddingLeft: Math.max(insets.left, wide ? 40 : 20), paddingRight: Math.max(insets.right, wide ? 40 : 20),
     }]}>
@@ -73,9 +75,6 @@ export function LobbyScreen({ onLeave, onBack, roomCode }: { onLeave: () => void
               <Text style={styles.description}>Try the local layout. To create a shared game, use Create game in the room header.</Text>
               <Text style={styles.label}>Your shareable table code</Text>
               <Text selectable accessibilityLabel={`Shareable table code ${roomCode}`} style={styles.inviteCode}>{roomCode}</Text>
-              <Text nativeID="table-name-label" style={styles.label}>Table name</Text>
-              <TextInput accessibilityLabel="Table name" value={name} onChangeText={setName} maxLength={40}
-                placeholder="e.g. Friday with friends" placeholderTextColor={colors.textMuted} style={styles.input} />
               <Text style={styles.label}>Seats at the table</Text>
               <View style={styles.segments}>
                 {([4, 5] as const).map(size => <Pressable key={size} accessibilityRole="button"
@@ -84,9 +83,12 @@ export function LobbyScreen({ onLeave, onBack, roomCode }: { onLeave: () => void
                   <Text style={[styles.segmentText, capacity === size && { color: colors.accent }]}>{size} players</Text>
                 </Pressable>)}
               </View>
-              <Action label="Create table preview" onPress={() => {
+              <Text nativeID="table-name-label" style={styles.label}>Table name</Text><View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <FormInput accessibilityLabel="Table name" value={name} onChangeText={setName} maxLength={40}
+                placeholder="e.g. Friday with friends" placeholderTextColor={colors.textMuted} style={[styles.input, { flex: 1, minWidth: 0 }]} />
+              <Action label="Create table preview" caption="Create" onPress={() => {
                 setError(''); setSeated({ code: roomCode, name: name.trim() || 'Your table', capacity, players: ['You'] });
-              }} />
+              }} /></View>
             </View>
             <View style={styles.panel}>
               <Text accessibilityRole="header" style={styles.panelTitle}>Invite your friends</Text>
@@ -137,12 +139,12 @@ export function LobbyScreen({ onLeave, onBack, roomCode }: { onLeave: () => void
         </View>
         <Text style={styles.bottomNote}>Good cards. Better company.</Text>
       </View>
-    </ScrollView>
+    </FormScrollView>
 
     <Modal visible={!!seated || rulesOpen} transparent animationType="fade" onRequestClose={() => { setSeated(null); setRulesOpen(false); }}>
       <View style={[styles.overlay, { paddingTop: Math.max(insets.top, 20), paddingBottom: Math.max(insets.bottom, 20) }]}>
         <View accessibilityViewIsModal style={styles.modal}>
-          <ScrollView contentContainerStyle={styles.modalContent}>
+          <FormScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.modalContent}>
             {seated ? <>
               <Text style={styles.sampleLabel}>WAITING ROOM PREVIEW</Text>
               <Text accessibilityRole="header" style={styles.modalTitle}>{seated.name}</Text>
@@ -161,11 +163,11 @@ export function LobbyScreen({ onLeave, onBack, roomCode }: { onLeave: () => void
               <Text style={styles.rulesText}>1. Bid how many tricks you think you can win.{'\n\n'}2. Follow the led suit and beat the winning card when possible. Spades are trump.{'\n\n'}3. Meet your bid to score. The highest total after five deals wins.</Text>
             </>}
             <Action label="Back to lobby" onPress={() => { setSeated(null); setRulesOpen(false); }} />
-          </ScrollView>
+          </FormScrollView>
         </View>
       </View>
     </Modal>
-  </LinearGradient>;
+  </LinearGradient></KeyboardFrame>;
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({

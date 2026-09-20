@@ -1,9 +1,11 @@
+import { FormScrollView } from '../components/FormInput';
+import { KeyboardFrame } from '../components/KeyboardFrame';
 import { useEffect, useState } from 'react';
 import { request } from '../multiplayer/api';
 import { LanguageToggle } from '../components/LanguageToggle';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { AppHeader } from '../components/AppHeader';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DisplayNameField } from '../components/DisplayNameField';
 import type { Session } from '../multiplayer/session';
@@ -28,7 +30,7 @@ export function ProfileScreen({ session, personal, onBack, onSignOut }: {
       .catch(() => { if (!controller.signal.aborted) setIdentityError('Could not load your profile name. Reopen Profile to retry.'); });
     return () => controller.abort();
   }, [userId, session.token]);
-  return <ScrollView testID="profile-screen" accessibilityViewIsModal style={styles.page} keyboardShouldPersistTaps="handled"
+  return <KeyboardFrame><FormScrollView testID="profile-screen" accessibilityViewIsModal style={styles.page} keyboardShouldPersistTaps="handled"
     contentContainerStyle={{ padding: 20, paddingTop: Math.max(insets.top, 24), paddingBottom: Math.max(insets.bottom, 24) }}>
     <View style={styles.content}>
       <AppHeader title="Your profile" hideProfile actions={<Pressable accessibilityRole="button" accessibilityLabel="Back from profile" onPress={onBack} style={styles.back}><Text style={styles.link}>Back</Text></Pressable>} />
@@ -50,7 +52,7 @@ export function ProfileScreen({ session, personal, onBack, onSignOut }: {
       <Text style={styles.description}>Tap a saved phrase to edit it. During any game, open Poke the table to choose a saved phrase or add a new one without leaving the table.</Text>
       {onSignOut && <Pressable accessibilityRole="button" onPress={onSignOut} style={styles.signOut}><Text style={styles.signOutText}>Sign out</Text></Pressable>}
     </View>
-  </ScrollView>;
+  </FormScrollView></KeyboardFrame>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.background }, content: { width: '100%', maxWidth: 680, alignSelf: 'center', gap: 16 },

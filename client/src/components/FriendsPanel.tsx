@@ -1,6 +1,10 @@
+import { FormInput } from './FormInput';
+import { RoomSheet } from './RoomSheet';
+import { ChatComposer } from './ChatComposer';
+import { FormFooter } from './FormFooter';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { request } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
@@ -17,9 +21,13 @@ export function FriendsPanel({ session }: { session: Session }) {
   const [snapshot, setSnapshot] = useState<Snapshot>(empty);
   const [query, setQuery] = useState(''), [results, setResults] = useState<Player[]>([]);
   const [selected, setSelected] = useState<Player | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]), [draft, setDraft] = useState('');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const draft = selected ? drafts[selected.user_id] || '' : '';
+  const selectedId = useRef<string | null>(null); selectedId.current = selected?.user_id ?? null;
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   const sending = useRef(false);
+  const [sendError, setSendError] = useState('');
 
   async function refresh(signal?: AbortSignal) {
     const value = await request<Snapshot>('/friends', session, undefined, signal);
@@ -66,11 +74,13 @@ export function FriendsPanel({ session }: { session: Session }) {
   }
   async function send() {
     if (!selected || sending.current || !draft.trim() || Array.from(draft).length > 500) return;
-    sending.current = true; setBusy(true); setError('');
+    const recipientId = selected.user_id, submitted = draft;
+    sending.current = true; setBusy(true); setSendError('');
     try {
-      const message = await request<Message>(`/friends/${encodeURIComponent(selected.user_id)}/messages`, session, { text: draft });
-      setMessages(current => [...current, message]); setDraft('');
-    } catch (failure) { setError(failure instanceof Error ? failure.message : 'Could not send message.'); }
+      const message = await request<Message>(`/friends/${encodeURIComponent(recipientId)}/messages`, session, { text: submitted });
+      if (selectedId.current === recipientId) setMessages(current => current.some(item => item.id === message.id) ? current : [...current, message]);
+      setDrafts(current => current[recipientId] === submitted ? { ...current, [recipientId]: '' } : current);
+    } catch (failure) { if (selectedId.current === recipientId) setSendError(failure instanceof Error ? failure.message : 'Could not send message.'); }
     finally { sending.current = false; setBusy(false); }
   }
   const related = new Set([...snapshot.friends, ...snapshot.incoming, ...snapshot.outgoing].map(player => player.user_id));
@@ -83,7 +93,7 @@ export function FriendsPanel({ session }: { session: Session }) {
     <View style={styles.row}><Text style={styles.title}>Players</Text></View>
     <Text style={styles.detail}>Find a player by username or display name, manage requests, and message your connections.</Text>
     <View style={styles.searchRow}>
-      <TextInput accessibilityLabel="Find players" value={query} onChangeText={setQuery} maxLength={50}
+      <FormInput accessibilityLabel="Find players" value={query} onChangeText={setQuery} maxLength={50}
         autoCapitalize="none" placeholder="Username or display name" placeholderTextColor={colors.textMuted}
         returnKeyType="search" onSubmitEditing={() => void search()} style={styles.input} />
       <Pressable accessibilityRole="button" disabled={busy || query.trim().length < 2} onPress={() => void search()} style={[styles.button, (busy || query.trim().length < 2) && styles.disabled]}><Text style={styles.buttonText}>Search</Text></Pressable>
@@ -101,24 +111,24 @@ export function FriendsPanel({ session }: { session: Session }) {
     <Text style={styles.heading}>Friends</Text>
     {!snapshot.friends.length && <Text style={styles.detail}>No friends yet.</Text>}
     {snapshot.friends.map(player => row(player, <View style={styles.actions}>
-      <Pressable accessibilityRole="button" onPress={() => setSelected(player)} style={styles.smallButton}><Text style={styles.buttonText}>Message</Text></Pressable>
+      <Pressable accessibilityRole="button" onPress={() => { setMessages([]); setError(''); setSendError(''); setSelected(player); }} style={styles.smallButton}><Text style={styles.buttonText}>Message</Text></Pressable>
       <Pressable accessibilityRole="button" onPress={() => void mutate(`/friends/${encodeURIComponent(player.user_id)}`, 'DELETE')} style={styles.linkButton}><Text style={styles.link}>Remove</Text></Pressable>
     </View>))}
 
-    {selected && <View style={styles.conversation}>
-      <View style={styles.row}><Text style={styles.heading}>Chat with {label(selected)}</Text>
-        <Pressable accessibilityRole="button" onPress={() => setSelected(null)} style={styles.linkButton}><Text style={styles.link}>Close</Text></Pressable></View>
-      <ScrollView style={styles.history} nestedScrollEnabled>
+    {selected && <RoomSheet visible title={`Chat with ${label(selected)}`} closeLabel="Close private chat" onClose={() => setSelected(null)} scrollable={false}
+      footer={<FormFooter>
+        {!!(sendError || error) && <Text accessibilityRole="alert" style={styles.error}>{sendError || error}</Text>}
+        <ChatComposer value={draft} onChange={value => setDrafts(current => ({ ...current, [selected.user_id]: value }))}
+          onSend={() => void send()} disabled={busy} placeholder="Write a private message" label={`Message ${label(selected)}`} sendLabel="Send privately" />
+      </FormFooter>}>
+      <ScrollView style={{ flex: 1, minHeight: 0 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
         {!messages.length && <Text style={styles.detail}>No messages yet.</Text>}
         {messages.map(message => <View key={message.id} style={[styles.message, message.sender_id === session.user_id && styles.mine]}>
           <Text style={styles.detail}>{message.sender_id === session.user_id ? 'You' : label(selected)} · {new Date(message.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
           <Text selectable style={styles.messageText}>{message.text}</Text>
         </View>)}
       </ScrollView>
-      <TextInput accessibilityLabel={`Message ${label(selected)}`} value={draft} onChangeText={setDraft} multiline maxLength={500}
-        placeholder="Write a private message" placeholderTextColor={colors.textMuted} style={[styles.input, { minHeight: 72 }]} />
-      <Pressable accessibilityRole="button" disabled={busy || !draft.trim()} onPress={() => void send()} style={[styles.button, (busy || !draft.trim()) && styles.disabled]}><Text style={styles.buttonText}>Send privately</Text></Pressable>
-    </View>}
+    </RoomSheet>}
     {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
   </View>;
 }
@@ -133,7 +143,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   button: { minHeight: 44, paddingHorizontal: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   smallButton: { minHeight: 40, paddingHorizontal: 10, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   linkButton: { minHeight: 40, paddingHorizontal: 8, justifyContent: 'center' }, buttonText: { fontFamily: fonts.medium, fontSize: 11, color: colors.text }, link: { fontFamily: fonts.medium, fontSize: 11, color: colors.accent }, disabled: { opacity: 0.5 },
-  conversation: { gap: 10, borderTopWidth: 1, borderColor: colors.border, paddingTop: 12 }, history: { maxHeight: 280 },
   message: { alignSelf: 'flex-start', maxWidth: '85%', backgroundColor: colors.background, padding: 10, borderRadius: 10, marginVertical: 4 }, mine: { alignSelf: 'flex-end', backgroundColor: colors.surfaceSelected },
   messageText: { fontFamily: fonts.body, fontSize: 13, lineHeight: 19, color: colors.text }, error: { fontFamily: fonts.body, fontSize: 12, color: colors.danger },
 });

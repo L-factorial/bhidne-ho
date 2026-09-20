@@ -1,3 +1,6 @@
+import { FormInput, FormScrollView } from './FormInput';
+import { KeyboardFrame } from './KeyboardFrame';
+import { FormFooter } from './FormFooter';
 import { TableSocialProvider } from './TableSocial';
 import type { TableSocialChannel } from '../multiplayer/TableSocialChannel';
 import { TableCard } from './TableCard';
@@ -5,7 +8,7 @@ import type { TableEntry } from '../multiplayer/tableNavigation';
 import { RuleProposal } from './RuleProposal';
 import { TableControls } from './TableControls';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useGameNotification } from '../notifications/useGameNotification';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -325,21 +328,21 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
         {chat}
         </TableSocialProvider>
       </View></View> :
-      <View style={styles.overlay}><View accessibilityViewIsModal style={styles.modal}>
-        <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+      <KeyboardFrame style={[styles.overlay, { paddingVertical: 16 }]}><View accessibilityViewIsModal style={styles.modal}>
+        <FormScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
           <Text accessibilityRole="header" style={styles.title}>Create table</Text>
           {createContent}
           <Text style={styles.text}>{gameType === 'flush' ? '2–10 players · lock the seated roster when ready.' : 'Seats'}</Text>
           <View style={[styles.choices, { flexWrap: 'wrap' }]}>{(gameType === 'flush' ? [] : gameType === 'marriage' ? [2, 3, 4, 5] : [4, 5]).map(size => <Pressable key={size} accessibilityRole="button" accessibilityState={{ selected: capacity === size }}
             onPress={() => setCapacity(size)} style={[styles.choice, { minHeight: 48 }, size === capacity && { borderColor: colors.accent }]}><Text style={styles.text}>{size} players</Text></Pressable>)}</View>
-            <Text style={styles.text}>Table name (required)</Text><TextInput accessibilityLabel="Table name" accessibilityHint="Required to create a table" aria-required value={tableName} onChangeText={setTableName} maxLength={60} placeholder={`${selectedGameName} table`} placeholderTextColor={colors.textMuted} style={[styles.choice, { color: colors.text }]} />
+            <Text style={styles.text}>Table name (required)</Text><FormInput accessibilityLabel="Table name" accessibilityHint="Required to create a table" aria-required value={tableName} onChangeText={setTableName} maxLength={60} placeholder={`${selectedGameName} table`} placeholderTextColor={colors.textMuted} style={[styles.choice, { color: colors.text }]} />
             <Text style={styles.text}>Invite players (optional)</Text>
-            <TextInput accessibilityLabel="Find players to invite" value={inviteQuery} onChangeText={setInviteQuery} maxLength={64}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><FormInput accessibilityLabel="Find players to invite" value={inviteQuery} onChangeText={setInviteQuery} maxLength={64}
               placeholder="Name, username, or user ID" placeholderTextColor={colors.textMuted} autoCapitalize="none" autoCorrect={false}
-              returnKeyType="search" onSubmitEditing={() => void searchDirectory()} style={[styles.choice, { color: colors.text }]} />
-            <Pressable accessibilityRole="button" disabled={searchingPlayers || inviteQuery.trim().length < 2} onPress={() => void searchDirectory()} style={[styles.choice, (searchingPlayers || inviteQuery.trim().length < 2) && { opacity: 0.5 }]}>
-              <Text style={styles.text}>{searchingPlayers ? 'Searching…' : 'Search directory'}</Text>
-            </Pressable>
+              returnKeyType="search" onSubmitEditing={() => void searchDirectory()} style={[styles.choice, { flex: 1, minWidth: 0, color: colors.text }]} />
+            <Pressable accessibilityRole="button" accessibilityLabel="Search directory" disabled={searchingPlayers || inviteQuery.trim().length < 2} onPress={() => void searchDirectory()} style={[styles.choice, (searchingPlayers || inviteQuery.trim().length < 2) && { opacity: 0.5 }]}>
+              <Text style={styles.text}>{searchingPlayers ? '…' : 'Search'}</Text>
+            </Pressable></View>
             {!!selectedInvitees.length && <View style={styles.choices}>{selectedInvitees.map(player => <Pressable key={player.user_id} accessibilityRole="button" accessibilityLabel={`Remove ${player.display_name || player.username || player.user_id}`} onPress={() => setSelectedInvitees(current => current.filter(item => item.user_id !== player.user_id))} style={styles.choice}>
               <Text style={styles.text}>{player.display_name || player.username || player.user_id} · Remove</Text>
             </Pressable>)}</View>}
@@ -349,11 +352,13 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
             </Pressable>)}</View>}
             {!!inviteError && <Text accessibilityRole="alert" style={styles.error}>{inviteError}</Text>}
           <Text style={styles.note}>Review advanced rules at the table before starting. Rule changes still require player approval.</Text>
+        </FormScrollView>
+        <FormFooter>
           {!!error && <Text accessibilityRole="alert" style={styles.modalError}>{error}</Text>}
           <Pressable accessibilityRole="button" accessibilityLabel="Create this table" disabled={busy || !creationEnabled || !tableName.trim()} accessibilityState={{ disabled: busy || !creationEnabled || !tableName.trim() }} onPress={() => void act(false)} style={[styles.button, (busy || !creationEnabled || !tableName.trim()) && { opacity: 0.5 }]}><Text style={styles.buttonText}>Create table</Text></Pressable>
           <Pressable accessibilityRole="button" onPress={() => setOpen(false)} style={styles.choice}><Text style={styles.text}>Back to room</Text></Pressable>
-        </ScrollView>
-      </View></View>}
+        </FormFooter>
+      </View></KeyboardFrame>}
     </Modal>
   </>;
 }
@@ -373,6 +378,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   joinHint: { fontFamily: fonts.body, fontSize: 12, lineHeight: 21, color: colors.textMuted, marginTop: 8 },
   bar: { gap: 18, paddingTop: 24, paddingBottom: 8 }, summary: { color: colors.text, fontFamily: fonts.medium, fontSize: 14, lineHeight: 23 },
   button: { minHeight: 44, padding: 12, borderRadius: 8, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }, buttonText: { fontFamily: fonts.medium, fontSize: 12, color: colors.onPrimary },
-  error: { color: colors.danger, padding: 12, fontFamily: fonts.body, fontSize: 12 }, overlay: { flex: 1, paddingHorizontal: 20, paddingVertical: 48, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.overlay }, modal: { maxWidth: 480, width: '100%', maxHeight: '100%', borderRadius: 18, backgroundColor: colors.surface }, body: { padding: 24, gap: 16 },
+  error: { color: colors.danger, padding: 12, fontFamily: fonts.body, fontSize: 12 }, overlay: { flex: 1, paddingHorizontal: 20, paddingVertical: 48, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.overlay }, modal: { maxWidth: 480, width: '100%', maxHeight: '100%', borderRadius: 18, overflow: 'hidden', backgroundColor: colors.surface }, body: { padding: 24, gap: 16 },
   title: { fontFamily: fonts.display, fontSize: 30, color: colors.text }, text: { fontFamily: fonts.body, color: colors.text, fontSize: 13, lineHeight: 22 }, choices: { flexDirection: 'row', gap: 12 }, choice: { minHeight: 44, padding: 10, borderWidth: 1, borderColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }, player: { fontFamily: fonts.medium, fontSize: 13, color: colors.text }, note: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 11, lineHeight: 19 }, modalError: { fontFamily: fonts.body, color: colors.danger, fontSize: 12 },
 });

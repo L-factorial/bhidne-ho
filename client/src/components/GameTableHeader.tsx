@@ -1,3 +1,4 @@
+import { KeyboardFrame } from './KeyboardFrame';
 import { type ReactNode, useEffect, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,13 +22,13 @@ export function GameTableHeader({ title, path, game, roomId, matchId, onBack, en
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (!open || !drawerMetadata || Platform.OS !== 'web') return;
-    // Consume Escape before the enclosing game modal can handle the same keyup.
+    // A child sheet captures at window first; otherwise consume Escape before the game modal.
     const escape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       event.preventDefault(); event.stopPropagation(); setOpen(false);
     };
-    globalThis.addEventListener('keyup', escape, true);
-    return () => globalThis.removeEventListener('keyup', escape, true);
+    document.addEventListener('keyup', escape, true);
+    return () => document.removeEventListener('keyup', escape, true);
   }, [open, !!drawerMetadata]);
   return <>
     <View testID={`${game}-${mobile && mobileTestIds ? 'mobile-' : ''}header`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 8, backgroundColor: colors.header, borderBottomWidth: 1, borderColor: colors.border }}>
@@ -48,7 +49,7 @@ export function GameTableHeader({ title, path, game, roomId, matchId, onBack, en
       </Pressable>
     </View>
     {!!drawerMetadata && <Modal transparent visible={open} animationType="fade" onRequestClose={() => setOpen(false)}>
-      <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end', paddingTop: Math.max(12, insets.top), paddingBottom: Math.max(12, insets.bottom), paddingRight: Math.max(8, insets.right) }}>
+      <KeyboardFrame style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end', paddingTop: Math.max(12, insets.top), paddingBottom: Math.max(12, insets.bottom), paddingRight: Math.max(8, insets.right) }}>
         <Pressable testID={`${game}-menu-backdrop`} accessibilityRole="button" accessibilityLabel="Close table menu backdrop"
           onPress={() => setOpen(false)} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: colors.overlay, opacity: 0.6 }} />
         <View testID={`${game}-menu-drawer`} accessibilityViewIsModal style={{ width: '86%', maxWidth: 360, backgroundColor: colors.surface, borderRadius: 24, padding: 20, boxShadow: `0px 4px 18px ${colors.shadow}` }}>
@@ -58,13 +59,13 @@ export function GameTableHeader({ title, path, game, roomId, matchId, onBack, en
               style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.textMuted, fontSize: 24 }}>×</Text></Pressable>
           </View>
           {drawerMetadata}
-          <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 8, marginHorizontal: -8, paddingBottom: 8 }}>
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 8, marginHorizontal: -8, paddingBottom: 8 }}>
             {typeof children === 'function' ? children(() => setOpen(false)) : children}
           </ScrollView>
         </View>
-      </View>
+      </KeyboardFrame>
     </Modal>}
-    {open && !drawerMetadata && <ScrollView testID={`${game}-${mobile && mobileTestIds ? 'mobile-' : ''}menu`} style={{ maxHeight: '40%', flexGrow: 0 }} contentContainerStyle={{ padding: 8, gap: 8 }} nestedScrollEnabled>
+    {open && !drawerMetadata && <ScrollView keyboardShouldPersistTaps="handled" testID={`${game}-${mobile && mobileTestIds ? 'mobile-' : ''}menu`} style={{ maxHeight: '40%', flexGrow: 0 }} contentContainerStyle={{ padding: 8, gap: 8 }} nestedScrollEnabled>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <LanguageToggle /><ThemeToggle />
       </View>

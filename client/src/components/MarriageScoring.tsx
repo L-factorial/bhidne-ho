@@ -1,5 +1,9 @@
+import { FormScrollView } from './FormInput';
+import { type ReactNode } from 'react';
+import { FormFooter } from './FormFooter';
+import { NumericInput } from './NumericInput';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import type { MarriageScoringRules } from '../multiplayer/marriage';
 import { fonts, useThemedStyles, type ThemeColors } from '../theme';
@@ -9,8 +13,8 @@ const amounts = ['tunnela_bonus', 'seen_payment', 'unseen_payment', 'dublee_win_
 const labels = { tiplu: 'Tiplu', jhiplu: 'Jhiplu', poplu: 'Poplu', man: 'Man', marriage: 'Marriage combination',
   tunnela_bonus: 'Extra points per Tunnela', seen_payment: 'Loser payment: Maal seen', unseen_payment: 'Loser payment: Maal unseen', dublee_win_bonus: 'Extra per loser: Dublee win' };
 
-export function MarriageScoring({ snapshot, busy, error, onSave }: {
-  snapshot: RoomSnapshot; busy: boolean; error: string; onSave: (rules: MarriageScoringRules) => void;
+export function MarriageScoring({ snapshot, busy, error, onSave, introduction }: {
+  introduction?: ReactNode; snapshot: RoomSnapshot; busy: boolean; error: string; onSave: (rules: MarriageScoringRules) => void;
 }) {
   const s = useThemedStyles(createStyles);
   const saved = snapshot.marriage?.public.scoring_rules || snapshot.marriage_scoring;
@@ -26,11 +30,11 @@ export function MarriageScoring({ snapshot, busy, error, onSave }: {
       style={[s.button, selected && s.selected, (disabled || busy) && { opacity: 0.5 }]}><Text style={s.text}>{label}</Text></Pressable>;
   }
   function input(label: string, value: number, update: (n: number) => void) {
-    return editable ? <TextInput accessibilityLabel={label} keyboardType="number-pad" value={Number.isNaN(value) ? '' : String(value)}
+    return editable ? <NumericInput accessibilityLabel={label} keyboardType="number-pad" value={Number.isNaN(value) ? '' : String(value)}
       editable={!busy} maxLength={4} onChangeText={text => update(/^\d+$/.test(text) ? Number(text) : NaN)} style={s.input} />
       : <Text style={[s.text, s.value]}>{value}</Text>;
   }
-  return <View testID="marriage-scoring-rules" style={s.section}>
+  return <View testID="marriage-scoring-rules" style={{ flex: 1, minHeight: 0 }}><FormScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 12 }}>{introduction}
     <Text style={s.heading}>Scoring rules</Text>
     <Text style={s.text}>{editable ? 'House bonus is the default. Choose a preset or edit any value, then propose the change for player approval.' : 'The creator selects these rules before the round. They are locked during play.'}</Text>
     {editable && <View style={s.row}>{Object.entries(snapshot.marriage_scoring_presets || {}).map(([key, rules]) =>
@@ -48,10 +52,11 @@ export function MarriageScoring({ snapshot, busy, error, onSave }: {
     {editable ? button(draft.maal_requires_seen ? 'Maal points: seen players only' : 'Maal points: all players', () => setDraft({ ...draft, maal_requires_seen: !draft.maal_requires_seen }))
       : <Text style={s.text}>Maal points: {draft.maal_requires_seen ? 'seen players only' : 'all players'}</Text>}
     <Text style={s.text}>The highest scoring combination is used. Marriage replaces its individual Maal points. The Tunnela bonus is additional; it uses shown groups or final holdings, not a declaration at deal time. Eligibility also applies to Man and Tunnela points.</Text>
+    </FormScrollView><FormFooter>
     {editable && <>{button('Propose scoring rules', () => onSave(draft), false, !valid || !changed)}
       <Text style={s.text}>{!valid ? 'Enter whole numbers from 0 to 1000.' : changed ? 'Unsaved changes' : 'Rule changes apply only after every seated player accepts.'}</Text></>}
     {!!error && <Text accessibilityRole="alert" style={s.text}>{error}</Text>}
-  </View>;
+    </FormFooter></View>;
 }
 
 export function MarriagePoints({ snapshot }: { snapshot: RoomSnapshot }) {

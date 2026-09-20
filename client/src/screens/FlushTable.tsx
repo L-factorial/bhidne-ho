@@ -1,3 +1,6 @@
+import { RoomSheet } from '../components/RoomSheet';
+import { FormFooter } from '../components/FormFooter';
+import { NumericInput } from '../components/NumericInput';
 import { GameMenuMetadata } from '../components/GameMenu';
 import { useSocialHandAnchor } from '../components/TableSocial';
 import { EndedTableNotice } from '../components/EndedTableNotice';
@@ -6,7 +9,7 @@ import { GameTableHeader } from '../components/GameTableHeader';
 import { FlushTurnCue } from '../components/FlushTurnCue';
 import { flushDecision } from '../multiplayer/flushDecision';
 import { type ReactNode, useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { fonts, primaryAction, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import type { RoomSnapshot } from './LiveGameTable';
 import { FlushFoldNotice } from '../components/FlushFoldNotice';
@@ -147,13 +150,12 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
           {typeof value === 'boolean' ? button(value ? `${label}: Yes` : `${label}: No`, () => edit(key, !value), !editable || key === 'show_only_when_two_players_remain')
             : key === 'sequence_ace_policy' || key === 'tie_policy' ? <View style={s.row}>{choices[key].map(([v, title]) => <Pressable key={v} accessibilityRole="radio" accessibilityLabel={title}
               accessibilityState={{ checked: value === v, disabled: !editable }} disabled={!editable} onPress={() => edit(key, v)} style={[s.button, value === v && s.chosen]}><Text style={s.text}>{title}</Text></Pressable>)}</View>
-            : <TextInput accessibilityLabel={label} value={String(value)} editable={!!editable && key !== 'minimum_players' && key !== 'maximum_players'} keyboardType="number-pad" onChangeText={v => edit(key, v)} style={s.input} />}
+            : <NumericInput accessibilityLabel={label} value={String(value)} editable={!!editable && key !== 'minimum_players' && key !== 'maximum_players'} keyboardType="number-pad" onChangeText={v => edit(key, v)} style={s.input} />}
         </View>;
       })}
-      {!settings.locked && snapshot.is_creator && <View style={s.row}>{button('Propose Flush rules', save, busy || !dirty || stale || snapshot.rule_proposal?.status === 'PENDING')}{button('Reload saved rules', reload, busy)}</View>}
-      <Text style={s.text}>{settings.locked ? 'New rules can be chosen for the next game.' : dirty ? 'Propose these changes for approval before starting.' : 'Edits need every seated player’s approval. One rejection keeps the current rules.'}</Text>
 
-      {!!(localError || error) && <Text accessibilityRole="alert" style={s.error}>{localError || error}</Text>}
+      <Text style={s.text}>{settings.locked ? 'New rules can be chosen for the next game.' : dirty ? 'Propose these changes for approval before starting.' : 'Edits need every seated player’s approval. One rejection keeps the current rules.'}</Text>
+      {(settings.locked || !snapshot.is_creator) && !!(localError || error) && <Text accessibilityRole="alert" style={s.error}>{localError || error}</Text>}
   </>;
   const available = (kind: string) => snapshot.status === 'playing' && !!mine?.actions.kinds.includes(kind);
   const help = myTurn && available('bet') ? [
@@ -222,12 +224,10 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
     </Modal>
     {!ended && pokeOpen && <PokeComposer recipient={null} connected={social.connected} phrases={social.phrases} onSave={social.save}
       onSend={social.send} onClose={() => setPokeOpen(false)} />}
-    <Modal transparent visible={rulesOpen} onRequestClose={() => setRulesOpen(false)}>
-      <View style={s.backdrop}><View style={s.modal} accessibilityViewIsModal><View style={s.row}><Text style={s.title}>Rules</Text>{button('Close Flush rules', () => setRulesOpen(false))}</View><Text style={s.text}>Boot is paid by every player each hand; 0 disables it. Betting is unbounded; net points are recorded for settlement after play. Side-show counts each player’s own bets.</Text>
-      <ScrollView testID="flush-rules" contentContainerStyle={{ gap: 12 }}>
-        {rulesContent}
-      </ScrollView></View></View>
-    </Modal>
+    <RoomSheet visible={rulesOpen} title="Flush rules" closeLabel="Close Flush rules" onClose={() => setRulesOpen(false)} testID="flush-rules"
+      footer={!settings.locked && snapshot.is_creator ? <FormFooter>{!!(localError || error) && <Text accessibilityRole="alert" style={s.error}>{localError || error}</Text>}<View style={[s.row, { flexWrap: 'wrap' }]}>{button('Propose Flush rules', save, busy || !dirty || stale || snapshot.rule_proposal?.status === 'PENDING')}{button('Reload saved rules', reload, busy)}</View></FormFooter> : undefined}>
+      {rulesContent}
+    </RoomSheet>
     <Modal transparent visible={finalShowOpen && finalStage !== null} animationType="fade" onRequestClose={() => setFinalShowOpen(false)}>
       <View style={s.backdrop}><View style={s.modal} accessibilityViewIsModal testID="flush-show-overlay">
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
