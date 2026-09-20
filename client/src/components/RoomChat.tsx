@@ -1,5 +1,7 @@
+import { RoomSheet } from './RoomSheet';
+import { ChatComposer } from './ChatComposer';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Keyboard, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePong } from '../notifications/usePong';
 import { ApiError, request } from '../multiplayer/api';
@@ -9,45 +11,24 @@ import { useTranslation } from 'react-i18next';
 
 type Message = { id: string; sender_id: string; sender_name: string; text: string; sent_at: number };
 
-export function useRoomChat({ roomId, session, connected, hideWhenBlocked = false, expanded, onExpandedChange, renderLauncher, bottomOffset = 0 }: { expanded?: boolean; onExpandedChange?: (open: boolean) => void; renderLauncher?: (state: { open: boolean; unread: number; blocked: boolean; toggle: () => void }) => ReactNode; bottomOffset?: number; hideWhenBlocked?: boolean; roomId: string; session: Session; connected: boolean }) {
+export function useRoomChat({ roomId, session, connected, hideWhenBlocked = false, expanded, onExpandedChange, renderLauncher, bottomOffset = 0, launcherVisible = true }: { launcherVisible?: boolean; expanded?: boolean; onExpandedChange?: (open: boolean) => void; renderLauncher?: (state: { open: boolean; unread: number; blocked: boolean; toggle: () => void }) => ReactNode; bottomOffset?: number; hideWhenBlocked?: boolean; roomId: string; session: Session; connected: boolean }) {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const styles = useThemedStyles(createStyles);
   const [localOpen, setLocalOpen] = useState(false);
   const open = expanded ?? localOpen;
-  const setOpen = (value: boolean) => { setLocalOpen(value); onExpandedChange?.(value); };
+  const setOpen = (value: boolean) => { if (!value) Keyboard.dismiss(); setLocalOpen(value); onExpandedChange?.(value); };
+  useEffect(() => { if (!open) Keyboard.dismiss(); }, [open]);
   const [blocked, setBlocked] = useState(false);
   const [unread, setUnread] = useState(0);
   const [muted, setMuted] = useState(false);
-  const [reduceMotion, setReduceMotion] = useState(true);
-  const attention = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
-  const { height: screenHeight, width: screenWidth } = useWindowDimensions();
-  const wide = screenWidth >= 900;
-  const panelHeight = Math.max(200, Math.min(420, screenHeight * 0.65 - insets.bottom));
   const followLatest = useRef(true);
   const { play, prepare } = usePong();
   const notification = useRef({ open, muted, play });
   notification.current = { open, muted, play };
   const previousIds = useRef<Set<string> | null>(null);
   function openChat() { prepare(); setUnread(0); followLatest.current = true; setOpen(true); }
-
-  useEffect(() => {
-    let mounted = true;
-    void AccessibilityInfo.isReduceMotionEnabled().then(value => { if (mounted) setReduceMotion(value); }).catch(() => {});
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
-    return () => { mounted = false; subscription.remove(); };
-  }, []);
-  useEffect(() => {
-    attention.setValue(unread > 0 && !open && !blocked ? 1 : 0);
-    if (!unread || open || blocked || reduceMotion) return;
-    const animation = Animated.loop(Animated.sequence([
-      Animated.timing(attention, { toValue: 0, duration: 700, useNativeDriver: true }),
-      Animated.timing(attention, { toValue: 1, duration: 700, useNativeDriver: true }),
-    ]));
-    animation.start();
-    return () => { animation.stop(); attention.setValue(0); };
-  }, [attention, blocked, open, reduceMotion, unread]);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState('');
@@ -92,76 +73,51 @@ export function useRoomChat({ roomId, session, connected, hideWhenBlocked = fals
   async function send() {
     if (sending.current || blocked || !connected || !draft.trim() || length > 500) return;
     const signal = lifetime.current?.signal;
+    const sentDraft = draft;
     sending.current = true; setBusy(true); setError('');
     try {
       await request<Message>(path, session, { text: draft }, signal);
-      if (!signal?.aborted) setDraft('');
+      if (!signal?.aborted) { setDraft(current => current === sentDraft ? '' : current); followLatest.current = true; }
     } catch (failure) {
       if (!signal?.aborted) setError(failure instanceof Error ? failure.message : 'Could not send message.');
     } finally { sending.current = false; setBusy(false); }
   }
-  if (blocked && hideWhenBlocked) return null;
-  return <>{renderLauncher?.({ open, unread, blocked, toggle: () => { if (open) setOpen(false); else if (!blocked) openChat(); } })}
-    {(!renderLauncher || open) && <KeyboardAvoidingView testID="chat-dock" behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    style={[styles.dock, { bottom: Math.max(8, insets.bottom) + bottomOffset, right: wide ? 16 : 8, left: wide ? undefined : 8, width: wide ? 340 : undefined }]}>
-    <Animated.View style={styles.attentionWrap}>
-    {unread > 0 && !open && !blocked && <Animated.View testID="chat-attention-pulse" pointerEvents="none"
-      accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[StyleSheet.absoluteFill, styles.attentionGlow, {
-        backgroundColor: colors.accent,
-        opacity: attention.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.38] }),
-        transform: [{ scale: attention.interpolate({ inputRange: [0, 1], outputRange: [1.01, 1.055] }) }],
-      }]} />}
-    <View style={[styles.card, unread > 0 && { borderColor: colors.accent, borderWidth: 2 }]}>
-      <View style={styles.header}>
-        <Pressable accessibilityRole="button" accessibilityLabel={t('chat.title')} accessibilityHint={blocked ? t('chat.hintPaused') : unread ? t('chat.hintUnread', { count: unread }) : t('chat.hintToggle')}
-          aria-expanded={open} accessibilityState={{ expanded: open, disabled: blocked }} disabled={blocked}
-          onPress={() => { if (open) setOpen(false); else openChat(); }} style={[styles.toggle, { flex: 1 }]}>
-          <Text style={styles.heading}>{t('chat.title')}{blocked ? ` · ${t('chat.paused')}` : ''}</Text>
-          {unread > 0 ? <Text testID="chat-unread" accessibilityLiveRegion="polite" style={styles.badge}>{t('chat.unread', { count: unread })}</Text>
-            : <Text style={styles.heading}>{open ? '−' : '⌃'}</Text>}
-        </Pressable>
-        {open && <Pressable accessibilityRole="button" accessibilityLabel={t('chat.close')} onPress={() => setOpen(false)} style={styles.close}><Text style={styles.heading}>×</Text></Pressable>}
+  if (blocked && hideWhenBlocked) return { view: null, navigation: null };
+  const launcher = renderLauncher?.({ open, unread, blocked, toggle: () => { if (open) setOpen(false); else if (!blocked) openChat(); } });
+  return { navigation: launcher, view: <>{!open && launcherVisible && launcher}
+    {!renderLauncher && <Pressable onPress={openChat} accessibilityRole="button" accessibilityLabel={t('chat.title')} style={[styles.dock, { bottom: bottomOffset + insets.bottom, right: 12, padding: 16, backgroundColor: colors.surface }]}><Text style={styles.heading}>{t('chat.title')}{unread ? ` · ${unread}` : ''}</Text></Pressable>}
+    {open && !blocked && <RoomSheet visible title={t('chat.title')} onClose={() => setOpen(false)} scrollable={false}
+      footer={renderLauncher ? <View style={{ height: 64 + Math.max(8, insets.bottom) }}>{launcher}</View> : undefined}>
+      <View testID="room-chat-window" style={[styles.chatBody, { flex: 1, minHeight: 0 }]}>
+        <Pressable accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center' }} onPress={() => { prepare(); setMuted(value => !value); }}><Text style={styles.note}>{t(muted ? 'chat.soundOff' : 'chat.soundOn')}</Text></Pressable>
+        <ScrollView ref={scroll} testID="room-chat-history" keyboardShouldPersistTaps="always" style={{ flex: 1, minHeight: 0 }} scrollEventThrottle={16}
+          onScroll={({ nativeEvent: { contentOffset, contentSize, layoutMeasurement } }) => { followLatest.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 40; }}
+          onContentSizeChange={() => { if (followLatest.current) scroll.current?.scrollToEnd({ animated: false }); }}>
+          {!messages.length && <Text style={styles.note}>{t('chat.empty')}</Text>}
+          {messages.map(message => <View key={message.id} style={styles.message}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: colors.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}><Text style={styles.author}>{message.sender_name.slice(0, 1).toUpperCase()}</Text></View>
+              <Text style={[styles.author, { flex: 1 }]}>{message.sender_id === session.user_id ? `${message.sender_name} (${t('chat.you')})` : message.sender_name}</Text>
+              <Text style={styles.note}>{new Date(message.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+            </View>
+            <Text selectable style={[styles.text, { marginLeft: 36 }]}>{message.text}</Text>
+          </View>)}
+        </ScrollView>
+        {!connected && <Text style={styles.note}>{t('chat.reconnecting')}</Text>}
+        {!!(error || loadError) && <Text accessibilityRole="alert" style={styles.error}>{error || loadError}</Text>}
+        <ChatComposer value={draft} onChange={setDraft} onSend={() => void send()} disabled={busy || !connected} label={t('chat.title')} placeholder={t('chat.placeholder')} />
       </View>
-      {open && !blocked && <View testID="room-chat-window" style={[styles.chatBody, { height: panelHeight }]}>
-      <Pressable accessibilityRole="button" onPress={() => { prepare(); setMuted(value => !value); }}><Text style={styles.note}>{t(muted ? 'chat.soundOff' : 'chat.soundOn')}</Text></Pressable>
-      <ScrollView ref={scroll} testID="room-chat-history" nestedScrollEnabled style={{ flex: 1, minHeight: 0 }} scrollEventThrottle={16}
-        onScroll={({ nativeEvent: { contentOffset, contentSize, layoutMeasurement } }) => { followLatest.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 40; }}
-        onContentSizeChange={() => { if (followLatest.current) scroll.current?.scrollToEnd({ animated: false }); }}>
-        {!messages.length && <Text style={styles.note}>{t('chat.empty')}</Text>}
-        {messages.map(message => <View key={message.id} style={styles.message}>
-          <Text style={styles.author}>{message.sender_id === session.user_id ? `${message.sender_name} (${t('chat.you')})` : message.sender_name} · {new Date(message.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
-          <Text selectable style={styles.text}>{message.text}</Text>
-        </View>)}
-      </ScrollView>
-      {!connected && <Text style={styles.note}>{t('chat.reconnecting')}</Text>}
-      {!!(error || loadError) && <Text accessibilityRole="alert" style={styles.error}>{error || loadError}</Text>}
-      <TextInput accessibilityLabel={t('chat.title')} placeholder={t('chat.placeholder')} multiline value={draft} onChangeText={setDraft} editable={!busy} style={styles.input} />
-      <Text style={styles.note}>{length}/500</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="Send chat message" disabled={busy || !connected || !draft.trim() || length > 500} accessibilityState={{ disabled: busy || !connected || !draft.trim() || length > 500 }} onPress={() => void send()} style={[styles.send, (busy || !connected || !draft.trim() || length > 500) && { opacity: 0.5 }]}>
-        <Text style={styles.sendText}>{t(busy ? 'chat.sending' : 'chat.send')}</Text>
-      </Pressable>
-      </View>}
-    </View>
-    </Animated.View>
-  </KeyboardAvoidingView>}</>;
+    </RoomSheet>}
+  </> };
 }
+
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   dock: { position: 'absolute', zIndex: 50, elevation: 12 },
-  attentionWrap: { borderRadius: 12 },
-  attentionGlow: { borderRadius: 12, shadowColor: colors.accent, shadowOpacity: 0.7, shadowRadius: 14, shadowOffset: { width: 0, height: 0 } },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12 },
-  close: { minWidth: 44, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
-  badge: { color: colors.text, backgroundColor: colors.surfaceSelected, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, fontSize: 12 },
   chatBody: { gap: 8, overflow: 'hidden', padding: 12, borderTopWidth: 1, borderColor: colors.border },
-  card: { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', boxShadow: `0px 4px 18px ${colors.shadow}` },
-  toggle: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   heading: { fontFamily: fonts.medium, fontSize: 14, color: colors.text },
-  message: { paddingVertical: 10, borderBottomWidth: 1, borderColor: colors.border, gap: 5 },
+  message: { paddingVertical: 12, gap: 6 },
   author: { fontFamily: fonts.medium, fontSize: 11, color: colors.accent },
   text: { fontFamily: fonts.body, fontSize: 13, lineHeight: 20, color: colors.text },
   note: { fontFamily: fonts.body, fontSize: 11, color: colors.textMuted },
   error: { color: colors.danger, fontFamily: fonts.body, fontSize: 12 },
-  input: { height: 70, flexShrink: 0, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, backgroundColor: colors.surface, color: colors.text, fontFamily: fonts.body },
-  send: { minHeight: 44, flexShrink: 0, backgroundColor: colors.primary, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  sendText: { color: colors.onPrimary, fontFamily: fonts.medium, fontSize: 12 },
 });

@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { AccessibilityInfo, Animated, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, Animated, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { fonts, useTheme } from '../theme';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { TableSocialChannel, mergeTableMessages, type TableMessage } from '../multiplayer/TableSocialChannel';
@@ -31,6 +31,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
   const { colors: c } = useTheme();
   const { height: viewportHeight, width } = useWindowDimensions();
   const root = useRef<View>(null), anchorNode = useRef<View | null>(null);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
   const [bottom, setBottom] = useState(16);
   const [open, setOpen] = useState(false), [pokeMode, setPokeMode] = useState(false);
   const [messages, setMessages] = useState<TableMessage[]>([]), [unread, setUnread] = useState(0);
@@ -120,6 +121,16 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
     const timer = setTimeout(() => setEffects(current => current.filter(e => e.expires > Date.now())), Math.max(1, Math.min(...effects.map(e => e.expires))-Date.now()));
     return () => clearTimeout(timer);
   }, [effects]);
+  function closeChat() { Keyboard.dismiss(); setOpen(false); }
+  // Also dismiss when permissions/connectivity close chat, or the table unmounts.
+  useEffect(() => {
+    if (!open) return;
+    return () => { Keyboard.dismiss(); };
+  }, [open]);
+  function measureRoot() {
+    measure.current(anchorNode.current);
+    root.current?.measureInWindow((_x, y) => setKeyboardOffset(y));
+  }
   function openChat() { if (canRead) { setPokeMode(false); openRef.current = true; setOpen(true); setUnread(0); follow.current = true; } }
   async function poke(id: number) {
     setPokeMode(false);
@@ -132,16 +143,17 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
   }
   async function send() {
     if (sendingRef.current || !enabled || !draft.trim() || Array.from(draft).length > 500 || !channel || !snapshot.match_id) return;
+    const submitted = draft;
     sendingRef.current = true; setSending(true); setError('');
     try {
-      const result = await channel.request('TABLE_CHAT_SEND', snapshot.match_id, {text:draft}, lifetime.current.signal);
-      if (!lifetime.current.signal.aborted) { if (result.message) addMessages([result.message]); setDraft(''); }
+      const result = await channel.request('TABLE_CHAT_SEND', snapshot.match_id, {text:submitted}, lifetime.current.signal);
+      if (!lifetime.current.signal.aborted) { if (result.message) addMessages([result.message]); setDraft(current => current === submitted ? '' : current); }
     } catch (failure) { if (!lifetime.current.signal.aborted) setError((failure as Error).message); }
     finally { sendingRef.current = false; if (!lifetime.current.signal.aborted) setSending(false); }
   }
   const iconStyle = { minWidth:44, minHeight:44, alignItems:'center' as const, justifyContent:'center' as const };
   return <Context.Provider value={{pokeMode,eligible,poke,effects,anchor,openChat,canRead}}>
-    <View ref={root} collapsable={false} style={{flex:1,minHeight:0,minWidth:0,width:'100%'}} onLayout={() => measure.current(anchorNode.current)} onTouchStart={() => { if(pokeMode) setPokeMode(false); }} onPointerDown={() => { if(pokeMode) setPokeMode(false); }}>
+    <View ref={root} collapsable={false} style={{flex:1,minHeight:0,minWidth:0,width:'100%'}} onLayout={measureRoot} onTouchStart={() => { if(pokeMode) setPokeMode(false); }} onPointerDown={() => { if(pokeMode) setPokeMode(false); }}>
       {children}
       {canRead && <View testID="game-social-controls" onTouchStart={event => event.stopPropagation()} onPointerDown={event => event.stopPropagation()} style={{position:'absolute',right:14,bottom,zIndex:45,alignItems:'flex-end',maxWidth:240}}>
         {pokeMode && <Text accessibilityLiveRegion="polite" style={{color:c.text,backgroundColor:c.surface,padding:6,borderRadius:8}}>Poke someone · tap an opponent</Text>}
@@ -150,21 +162,26 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
           <Pressable accessibilityRole="button" accessibilityLabel={`Table Chat${unread ? `, ${unread} unread` : ''}`} onPress={openChat} style={[iconStyle,{flexDirection:'row',paddingHorizontal:8}]}>
             <Text style={{color:c.text,fontSize:20}}>💬</Text>{unread > 0 && <Text testID="table-chat-unread" style={{color:c.text,fontSize:11,paddingHorizontal:3}}>{unread > 99 ? '99+' : unread}</Text>}
           </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Poke a player" accessibilityState={{selected:pokeMode,disabled:!enabled}} disabled={!enabled} onPress={() => { setOpen(false); setPokeMode(value => !value); }} style={[iconStyle,{opacity:enabled?1:0.4,backgroundColor:pokeMode?c.surfaceSelected:undefined,borderRadius:24}]}><Text accessibilityLiveRegion="polite" accessibilityLabel={pokeSent ? 'Poke sent' : undefined} style={{fontSize:20}}>{pokeSent ? '✓' : '👋'}</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Poke a player" accessibilityState={{selected:pokeMode,disabled:!enabled}} disabled={!enabled} onPress={() => { closeChat(); setPokeMode(value => !value); }} style={[iconStyle,{opacity:enabled?1:0.4,backgroundColor:pokeMode?c.surfaceSelected:undefined,borderRadius:24}]}><Text accessibilityLiveRegion="polite" accessibilityLabel={pokeSent ? 'Poke sent' : undefined} style={{fontSize:20}}>{pokeSent ? '✓' : '👋'}</Text></Pressable>
         </View>
       </View>}
-      {open && canRead && <KeyboardAvoidingView testID="table-chat-panel" behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{position:'absolute',bottom:0,right:8,left:width<900?8:undefined,width:width<900?undefined:360,zIndex:60,maxHeight:'85%'}}>
-        <View style={{backgroundColor:c.surface,borderColor:c.border,borderWidth:1,borderRadius:16,padding:12,gap:8}}>
-          <View style={{flexDirection:'row',alignItems:'center'}}><Text accessibilityRole="header" style={{flex:1,color:c.text,fontFamily:fonts.medium}}>Table Chat</Text><Pressable accessibilityRole="button" accessibilityLabel="Close table chat" onPress={() => setOpen(false)} style={iconStyle}><Text style={{color:c.text}}>✕</Text></Pressable></View>
-          {myTurn && <Pressable accessibilityRole="button" onPress={() => setOpen(false)} style={{minHeight:44,justifyContent:'center'}}><Text accessibilityLiveRegion="polite" style={{color:c.accent}}>Your turn · Return to game</Text></Pressable>}
-          <ScrollView ref={scroll} testID="table-chat-messages" style={{height:Math.min(220,viewportHeight*0.25)}} keyboardShouldPersistTaps="handled" onScroll={({nativeEvent:e}) => { follow.current = e.contentSize.height-e.contentOffset.y-e.layoutMeasurement.height < 40; }} scrollEventThrottle={16} onContentSizeChange={() => { if(follow.current) scroll.current?.scrollToEnd({animated:false}); }}>
+      {/* The game shell owns safe-area padding. Measure its screen offset instead of adding it twice.
+          Android's enclosing Modal uses adjustResize; only iOS needs keyboard padding here. */}
+      {open && canRead && <KeyboardAvoidingView pointerEvents="box-none" enabled={Platform.OS === 'ios'} behavior="padding" keyboardVerticalOffset={keyboardOffset}
+        style={{position:'absolute',top:0,bottom:0,right:0,left:0,zIndex:60}}>
+        <View pointerEvents="box-none" style={{flex:1,minHeight:0,justifyContent:'flex-end',alignItems:'flex-end',paddingHorizontal:8}}>
+        <View testID="table-chat-panel" style={{width:width<900?'100%':360,height:Math.min(380,viewportHeight*0.5),maxHeight:'85%',minHeight:0,backgroundColor:c.surface,borderColor:c.border,borderWidth:1,borderRadius:16,padding:12,gap:8}}>
+          <View style={{flexDirection:'row',alignItems:'center',flexShrink:0}}><Text accessibilityRole="header" style={{flex:1,color:c.text,fontFamily:fonts.medium}}>Table Chat</Text><Pressable accessibilityRole="button" accessibilityLabel="Close table chat" onPress={closeChat} style={iconStyle}><Text style={{color:c.text}}>✕</Text></Pressable></View>
+          {myTurn && <Pressable accessibilityRole="button" onPress={closeChat} style={{minHeight:44,justifyContent:'center'}}><Text accessibilityLiveRegion="polite" style={{color:c.accent}}>Your turn · Return to game</Text></Pressable>}
+          <ScrollView ref={scroll} testID="table-chat-messages" style={{flex:1,minHeight:0}} keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} keyboardShouldPersistTaps="handled" onLayout={() => { if(follow.current) scroll.current?.scrollToEnd({animated:false}); }} onScroll={({nativeEvent:e}) => { follow.current = e.contentSize.height-e.contentOffset.y-e.layoutMeasurement.height < 40; }} scrollEventThrottle={16} onContentSizeChange={() => { if(follow.current) scroll.current?.scrollToEnd({animated:false}); }}>
             {!messages.length && <Text style={{color:c.textMuted}}>Start the table conversation.</Text>}
             {messages.map(message => <View key={message.id} style={{paddingVertical:6}}><Text style={{color:c.accent,fontFamily:fonts.medium,fontSize:12}}>{message.sender_name}</Text><Text selectable style={{color:c.text}}>{message.text}</Text></View>)}
           </ScrollView>
           {!!error && <Text accessibilityRole="alert" style={{color:c.danger}}>{error}</Text>}
           {!connected && <Text style={{color:c.textMuted}}>Reconnecting…</Text>}
-          {seated ? <><TextInput accessibilityLabel="Table message" placeholder="Message…" placeholderTextColor={c.textMuted} multiline value={draft} onChangeText={setDraft} editable={!sending} style={{minHeight:44,maxHeight:90,borderWidth:1,borderColor:c.border,borderRadius:8,padding:10,color:c.text}} />
-            <Pressable accessibilityRole="button" accessibilityLabel="Send table message" disabled={!enabled || sending || !draft.trim() || Array.from(draft).length>500} onPress={() => void send()} style={{minHeight:44,alignItems:'center',justifyContent:'center',backgroundColor:c.primary,borderRadius:8,opacity:enabled&&!sending&&!!draft.trim()?1:0.5}}><Text style={{color:c.onPrimary}}>{sending?'Sending…':'Send'}</Text></Pressable></> : <Text style={{color:c.textMuted}}>Waiting players can read. Take a seat to chat.</Text>}
+          {seated ? <View testID="table-chat-composer" style={{flexDirection:'row',alignItems:'flex-end',gap:8,flexShrink:0}}><TextInput accessibilityLabel="Table message" placeholder="Message…" placeholderTextColor={c.textMuted} multiline value={draft} onChangeText={setDraft} style={{flex:1,minWidth:0,minHeight:44,maxHeight:90,borderWidth:1,borderColor:c.border,borderRadius:8,padding:10,color:c.text}} />
+            <Pressable accessibilityRole="button" accessibilityLabel="Send table message" disabled={!enabled || sending || !draft.trim() || Array.from(draft).length>500} onPress={() => void send()} style={{minHeight:44,minWidth:64,paddingHorizontal:12,flexShrink:0,alignItems:'center',justifyContent:'center',backgroundColor:c.primary,borderRadius:8,opacity:enabled&&!sending&&!!draft.trim()?1:0.5}}><Text style={{color:c.onPrimary}}>{sending?'Sending…':'Send'}</Text></Pressable></View> : <Text style={{color:c.textMuted}}>Waiting players can read. Take a seat to chat.</Text>}
+        </View>
         </View>
       </KeyboardAvoidingView>}
     </View>

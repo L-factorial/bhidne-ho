@@ -55,6 +55,31 @@ const site = process.env.TEST_WEB_URL || 'http://localhost:8087';
    await button('Table Chat').click();await page.getByLabel('Table message',{exact:true}).fill('Nice hand');await button('Send table message').click();
    await page.getByTestId('table-chat-messages').getByText('Nice hand',{exact:true}).waitFor();
    assert.equal(commands.filter(c=>c.type==='TABLE_CHAT_SEND').length,1);
+   // Exercise the shared composer under constrained available height, without pretending
+   // a browser viewport resize is an actual native keyboard test.
+   for (let i=0;i<35;i++) socket.send(JSON.stringify({type:'TABLE_CHAT_MESSAGE',id:`scroll-${i}`,room_id:'room',match_id:snapshot.match_id,sender_id:'u1',sender_player_id:2,sender_name:'Hari',text:`Earlier message ${i}`,sent_at:Date.now()}));
+   for (const viewport of [{width:390,height:844},{width:390,height:480},{width:1280,height:900}]) {
+    await page.setViewportSize(viewport);
+    const input=page.getByLabel('Table message',{exact:true});
+    await input.fill('Keyboard layout check');
+    const composer=page.getByTestId('table-chat-composer');
+    await composer.waitFor();
+    await page.waitForTimeout(150);
+    const a=await input.boundingBox(), b=await button('Send table message').boundingBox(), panel=await page.getByTestId('table-chat-panel').boundingBox();
+    assert.ok(a.x+a.width<=b.x && Math.abs(a.y+a.height-b.y-b.height)<2,'input and Send share one composer row');
+    assert.ok(b.y+b.height<=panel.y+panel.height && panel.y>=0 && panel.y+panel.height<=viewport.height,'Send and header stay within the available viewport');
+    const list=page.getByTestId('table-chat-messages');
+    assert.ok(await list.evaluate(el=>el.scrollHeight>el.clientHeight),'message list remains scrollable');
+    await list.evaluate(el=>{el.scrollTop=0;});
+    await button('Send table message').click();
+    await page.waitForFunction(()=>document.querySelector('[aria-label="Table message"]').value==='');
+    await input.focus();
+    await button('Close table chat').click();
+    await page.getByTestId('table-chat-panel').waitFor({state:'hidden'});
+    await pill.getByRole('button',{name:/^Table Chat/}).click();
+    await page.getByTestId('table-chat-panel').waitFor();
+   }
+   await page.setViewportSize({width:390,height:844});
    await button('Close table chat').click();
    socket.send(JSON.stringify({type:'TABLE_CHAT_MESSAGE',id:'incoming',room_id:'room',match_id:snapshot.match_id,sender_id:'u1',sender_player_id:2,sender_name:'Hari',text:'Hello table',sent_at:Date.now()}));
    await page.getByTestId('table-chat-unread').waitFor();await page.getByTestId('seat-social-2').getByText('Hello table').waitFor();

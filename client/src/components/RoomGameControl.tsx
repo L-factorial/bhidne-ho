@@ -264,8 +264,8 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
   return <>
     <View style={[styles.sectionToggle, { marginVertical: 16 }]}>
       <Text accessibilityRole="header" style={styles.title}>Tables</Text>
-      {!!snapshot?.tables?.length && <Pressable accessibilityRole="button" accessibilityLabel="Create table" disabled={busy || !creationEnabled} onPress={() => { setLive(false); setOpen(true); }} style={styles.button}>
-        <Text style={styles.buttonText}>+ Create table</Text>
+      {!!snapshot?.tables?.length && <Pressable accessibilityRole="button" accessibilityLabel="Create table" disabled={busy || !creationEnabled} onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 44 }]}>
+        <Text style={[styles.buttonText, { color: colors.onPrimary }]}>+ Create table</Text>
       </Pressable>}
     </View>
     {!snapshot && <Text style={styles.text}>Loading tables…</Text>}

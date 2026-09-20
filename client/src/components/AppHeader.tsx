@@ -26,8 +26,7 @@ export function AppHeader({ title, actions, inlineActions, hideProfile = false }
         {!!title && <Text accessibilityRole="header" style={{ flexShrink: 1, color: colors.text, fontFamily: fonts.medium, fontSize: 18 }}>{title}</Text>}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        <LanguageToggle />
-        <ThemeToggle />
+        {!renderProfile && !hideProfile && <><LanguageToggle /><ThemeToggle /></>}
         {inlineActions}
         {!hideProfile && renderProfile && <HeaderAction icon="profile" label={t('common.profile')} compact={compact} onPress={() => setProfileOpen(true)} />}
       </View>

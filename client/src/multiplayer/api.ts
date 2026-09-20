@@ -1,10 +1,14 @@
 import { Platform } from 'react-native';
 import type { Session } from './session';
 
-export const apiUrl = (process.env.EXPO_PUBLIC_API_URL || (Platform.OS === 'web'
-  ? (['8081', '8083'].includes(globalThis.location.port)
-    ? `${globalThis.location.protocol}//${globalThis.location.hostname}:8000`
-    : globalThis.location.origin) : 'http://127.0.0.1:8000')).replace(/\/$/, '');
+export const apiUrl = (
+  process.env.EXPO_PUBLIC_API_URL ||
+  (Platform.OS === 'web'
+    ? (['8081', '8083'].includes(globalThis.location.port)
+      ? `${globalThis.location.protocol}//${globalThis.location.hostname}:8000`
+      : globalThis.location.origin)
+    : 'https://api-bhidne-ho.lfactorial.com')
+).replace(/\/$/, '');
 
 export class ApiError extends Error {
   status: number;
@@ -19,12 +23,38 @@ export async function request<T>(path: string, session: Session | null, body?: o
   signal?.addEventListener('abort', abort, { once: true });
   const timeout = setTimeout(abort, 10000);
   try {
+    console.log('[API REQUEST]', {
+      platform: Platform.OS,
+      apiUrl,
+      path,
+      url: `${apiUrl}${path}`,
+    });
     const response = await fetch(`${apiUrl}${path}`, {
       method: method || (body ? 'POST' : 'GET'), signal: controller.signal,
       headers: { 'Content-Type': 'application/json', ...(session ? { Authorization: `Bearer ${session.token}` } : {}) },
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
-    const data = response.status === 204 ? undefined : await response.json();
+    const raw = response.status === 204 ? '' : await response.text();
+    console.log('[API RESPONSE]', {
+      url: `${apiUrl}${path}`,
+      status: response.status,
+      contentType: response.headers.get('content-type'),
+      body: raw.slice(0, 500),
+    });
+    let data;
+    if (raw) {
+      try {
+        data = JSON.parse(raw);
+      } catch (error) {
+        console.error('[API INVALID JSON]', {
+          url: `${apiUrl}${path}`,
+          status: response.status,
+          contentType: response.headers.get('content-type'),
+          body: raw.slice(0, 500),
+        });
+        throw error;
+      }
+    }
     if (!response.ok) throw new ApiError(response.status, response.status === 401
       ? 'Session expired. The server may have restarted. Sign out to start a new session.'
       : typeof data.detail === 'string' ? data.detail : data.detail?.detail || 'Could not complete this request.', data.detail);

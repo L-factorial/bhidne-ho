@@ -1,3 +1,5 @@
+import { LanguageToggle } from '../components/LanguageToggle';
+import { ThemeToggle } from '../components/ThemeToggle';
 import { AppHeader } from '../components/AppHeader';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,11 +22,16 @@ export function ProfileScreen({ session, personal, onBack, onSignOut }: {
       <AppHeader title="Your profile" hideProfile actions={<Pressable accessibilityRole="button" accessibilityLabel="Back from profile" onPress={onBack} style={styles.back}><Text style={styles.link}>Back</Text></Pressable>} />
       <Text style={styles.description}>Make your table talk your own. Your saved phrases are private to you.</Text>
       <DisplayNameField session={session} />
-      {onSignOut && <Pressable accessibilityRole="button" onPress={onSignOut} style={styles.signOut}><Text style={styles.signOutText}>Sign out</Text></Pressable>}
+      <View style={{ gap: 8 }}>
+        <Text accessibilityRole="header" style={styles.description}>Preferences</Text>
+        <View style={styles.header}><Text style={styles.description}>Language</Text><LanguageToggle /></View>
+        <View style={styles.header}><Text style={styles.description}>Appearance</Text><ThemeToggle showSystem /></View>
+      </View>
       <FriendsPanel session={session} />
       <PlayerPhrases key={userId} userId={userId} phrases={personal.phrases} connected={true}
         loadError={personal.error} onSave={personal.save} onRemove={personal.remove} onUpdate={personal.update} />
       <Text style={styles.description}>Tap a saved phrase to edit it. During any game, open Poke the table to choose a saved phrase or add a new one without leaving the table.</Text>
+      {onSignOut && <Pressable accessibilityRole="button" onPress={onSignOut} style={styles.signOut}><Text style={styles.signOutText}>Sign out</Text></Pressable>}
     </View>
   </ScrollView>;
 }

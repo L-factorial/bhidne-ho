@@ -9,12 +9,17 @@ export function TableCard({ table, busy, enter }: { table: TableSummary; busy: b
     style={{ minHeight: 48, paddingHorizontal: 18, justifyContent: 'center', alignItems: 'center', borderRadius: 10, backgroundColor: main ? c.primary : c.surfaceRaised, opacity: busy ? 0.5 : 1 }}>
     <Text style={{ fontFamily: fonts.medium, color: main ? c.onPrimary : c.text }}>{label}</Text>
   </Pressable>;
-  return <View testID={`table-card-${table.match_id}`} style={{ padding: 20, gap: 14, borderRadius: 16, backgroundColor: c.surface, marginBottom: 12 }}>
+  return <View testID={`table-card-${table.match_id}`} style={{ padding: 16, gap: 16, borderRadius: 16, backgroundColor: c.surface, marginBottom: 12 }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><GameIcon game={table.game_type} /><View style={{ flex: 1 }}>
-      <Text style={{ fontFamily: fonts.medium, color: c.text, fontSize: 18 }}>{table.name}</Text>
+      <Text style={{ fontFamily: fonts.medium, color: c.text, fontSize: 17 }}>{table.name}</Text>
       <Text style={{ fontFamily: fonts.body, color: c.textMuted }}>{({ callbreak: 'Call Break', marriage: 'Marriage', flush: 'Flush' })[table.game_type]} · {table.players}/{table.capacity} seated · {tablePhase(table)}</Text>
     </View></View>
-    {!!table.seated_players?.length && <Text style={{ fontFamily: fonts.body, color: c.text }}>{table.seated_players.map(p => p.display_name).join(' · ')}</Text>}
+    {!!table.seated_players?.length && <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+      {table.seated_players.map(player => <View key={player.seat_id} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%' }}>
+        <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: c.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: c.accent, fontFamily: fonts.medium, fontSize: 12 }}>{player.display_name.trim().slice(0, 1).toUpperCase()}</Text></View>
+        <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: fonts.body, fontSize: 12, color: c.textMuted }}>{player.display_name}</Text>
+      </View>)}
+    </View>}
     {!!table.queue_size && <Text style={{ color: c.textMuted, fontFamily: fonts.body }}>{me?.is_queued ? `Queue #${me.queue_position}` : `${table.queue_size} waiting`}</Text>}
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
       {button(primary.label, primary.action, true)}
