@@ -1,13 +1,13 @@
 """Bounded, ephemeral table chat and poke receipts. No gameplay mutations."""
 import asyncio
 from collections import OrderedDict
-from inspect import isawaitable
 import time
 from uuid import uuid4
 
 from fastapi import HTTPException
 from pydantic import ValidationError
 from app.models.chat import ChatInput
+from app.multiplayer.chat_names import sender_name, restore_guest_names
 from app.models.table_social import TablePokePayload
 
 
@@ -48,7 +48,9 @@ class TableSocialService:
                 if command.type == 'TABLE_CHAT_HISTORY':
                     if command.payload:
                         raise HTTPException(422, 'History has no payload.')
-                    return dict(ack, status='accepted', messages=list(state['messages']))
+                    messages = await restore_guest_names(list(state['messages']), self.profiles)
+                    await self.access(room_id, user_id, command.match_id)
+                    return dict(ack, status='accepted', messages=messages)
                 key = (user_id, command.command_id)
                 fingerprint = (command.type, command.payload)
                 if key in state['receipts']:
@@ -75,14 +77,12 @@ class TableSocialService:
                     now = time.monotonic()
                     if now - state['last'].get(user_id, float('-inf')) < 1:
                         raise HTTPException(429, 'Wait a moment before sending another message.')
-                    profile = self.profiles.get(user_id)
-                    if isawaitable(profile):
-                        profile = await profile
+                    name = await sender_name(self.profiles, user_id)
                     # Membership may change while a profile is fetched.
                     seats, viewers = await self.access(room_id, user_id, command.match_id, True)
                     message = dict(type='TABLE_CHAT_MESSAGE', id=uuid4().hex, room_id=room_id,
                         match_id=command.match_id, sender_id=user_id, sender_player_id=seats[user_id],
-                        sender_name=profile['display_name'] or 'Guest', text=payload.text, sent_at=int(time.time()*1000))
+                        sender_name=name, text=payload.text, sent_at=int(time.time()*1000))
                     state['messages'].append(message)
                     del state['messages'][:-100]
                     state['last'] = {u: t for u, t in state['last'].items() if now-t < 1}

@@ -123,3 +123,21 @@ async def test_poke_rechecks_seats_after_connectivity_await():
     assert result['status'] == 'rejected'
     assert all(not s.messages for s in sockets)
     await host.close()
+
+
+@pytest.mark.parametrize('kind', ['callbreak', 'marriage', 'flush'])
+async def test_table_chat_uses_account_identity_and_repairs_legacy_guest_history(kind):
+    host, service, game, sockets, _, _ = await fixture(kind)
+    try:
+        service.profiles.remember_username('u0', 'alice-account')
+        response = await service.handle('room', 'u0', command(mid=game.match_id, text='Hello'))
+        assert response['message']['sender_name'] == 'alice-account'
+        assert sockets[1].messages[-1]['sender_name'] == 'alice-account'
+        state = service.state('room', game.match_id)
+        state['messages'][0] = {**state['messages'][0], 'sender_name': 'Guest'}
+        service.profiles.update('u0', 'Alice Profile')
+        history = await service.handle('room', 'u1', command('TABLE_CHAT_HISTORY', game.match_id))
+        assert history['messages'][0]['sender_name'] == 'Alice Profile'
+        assert history['messages'][0]['id'] == response['message']['id']
+    finally:
+        await host.close()

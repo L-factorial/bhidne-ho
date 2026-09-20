@@ -100,3 +100,21 @@ def test_leave_before_start_and_active_players_cannot_chat():
         empty = client.post(base+'/leave', headers=headers[0], json={'match_id': new}).json()
         assert empty['status'] == 'ended' and empty['players'] == [] and empty['your_player_id'] is None
         assert client.post(base, headers=headers[1], json={'player_count': 4}).status_code == 201
+
+
+async def test_room_chat_uses_account_name_and_repairs_legacy_guest_history():
+    from app.multiplayer.player_profiles import PlayerProfileService
+    profiles = PlayerProfileService()
+    profiles.remember_username('alice', 'alice-account')
+    rooms = RoomService()
+    await rooms.join('names-room', 'alice')
+    await rooms.join('names-room', 'bob')
+    chat = RoomChatService(rooms, profiles, NeverPlaying())
+    message = await chat.send('names-room', 'alice', 'Hello')
+    assert message['sender_name'] == 'alice-account'
+    chat.messages['names-room'][0] = {**message, 'sender_name': 'Guest'}
+    profiles.update('alice', 'Alice Profile')
+    history = await chat.history('names-room', 'bob')
+    assert history[0]['sender_name'] == 'Alice Profile'
+    assert history[0]['id'] == message['id']
+    assert chat.messages['names-room'][0]['sender_name'] == 'Guest'

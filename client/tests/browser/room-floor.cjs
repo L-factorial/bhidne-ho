@@ -83,7 +83,7 @@ async function api(path, user, body) {
     await page.getByText('Keep my draft', { exact: true }).waitFor();
     await page.waitForFunction(() => document.querySelector('[data-testid="room-chat-window"] textarea')?.value === '');
     assert.equal(await composer.inputValue(), '');
-    assert.equal(await composer.evaluate(node => document.activeElement === node), true);
+    assert.equal(await composer.evaluate(node => document.activeElement === node), false, 'Send dismisses the text input');
     await toolbar.getByRole('button', { name: 'Room chat', exact: true }).click();
     await page.getByRole('button', { name: 'Create table', exact: true }).click();
     await page.getByRole('button', { name: 'Choose Marriage', exact: true }).click();

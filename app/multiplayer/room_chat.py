@@ -4,10 +4,10 @@ Keep messages in bounded memory even after database adoption. Never archive
 chat in saved game history, analytics payloads, or durable storage.
 """
 import time
-from inspect import isawaitable
 from uuid import uuid4
 
 from app.multiplayer.participation import ParticipationSource
+from app.multiplayer.chat_names import sender_name, restore_guest_names
 
 
 class ChatAccessDenied(Exception):
@@ -24,25 +24,29 @@ class RoomChatService:
         self.messages = {}
         self.participation = participation
 
-    async def history(self, room_id, user_id):
+    async def check_access(self, room_id, user_id):
         if user_id not in await self.rooms.members(room_id):
             raise ChatAccessDenied("Connect to this room to use chat.")
         if getattr(self.participation, 'chat_blocked', self.participation.is_playing)(room_id, user_id):
             raise ChatAccessDenied("Chat is paused while you are playing. Chat reopens at the next permitted break.")
-        return list(self.messages.get(room_id, []))
+
+    async def history(self, room_id, user_id):
+        await self.check_access(room_id, user_id)
+        messages = await restore_guest_names(list(self.messages.get(room_id, [])), self.profiles)
+        await self.check_access(room_id, user_id)
+        return messages
 
     async def send(self, room_id, user_id, text):
-        await self.history(room_id, user_id)
+        await self.check_access(room_id, user_id)
+        name = await sender_name(self.profiles, user_id)
+        await self.check_access(room_id, user_id)
         messages = self.messages.setdefault(room_id, [])
         now = int(time.time() * 1000)
         last = next((item for item in reversed(messages) if item["sender_id"] == user_id), None)
         if last and now - last["sent_at"] < 1000:
             raise ChatRateLimited("Wait a moment before sending another message.")
-        profile = self.profiles.get(user_id)
-        if isawaitable(profile):
-            profile = await profile
         message = {"id": uuid4().hex, "sender_id": user_id,
-                   "sender_name": profile["display_name"] or "Guest",
+                   "sender_name": name,
                    "text": text, "sent_at": now}
         messages.append(message)
         del messages[:-100]
