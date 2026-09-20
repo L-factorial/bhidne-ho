@@ -97,10 +97,11 @@ async function unclipped(locator) {
     assert.equal(await createRoom.isDisabled(), true);
     await field('Room name').fill(`Keyboard room ${stamp}`); await visibleHeight(page, 340);
     await within(createRoom, 340, 'room create above keyboard');
+    await adjacent(field('Room name'), createRoom);
     await button('Privacy & invitations +').click();
     await field('Find people to invite to room').fill('Keyboard');
     await adjacent(field('Find people to invite to room'), button('Search directory'));
-    await within(createRoom, 340, 'room create stays pinned after expanding invitations');
+    await unclipped(field('Find people to invite to room'));
     await page.route(site + '/rooms', route => route.request().method() === 'POST' ? route.fulfill({ status: 400, json: { detail: 'Room test failure' } }) : route.continue());
     await createRoom.click(); await page.getByText('Room test failure', { exact: true }).waitFor();
     assert.equal(await field('Room name').inputValue(), `Keyboard room ${stamp}`);
