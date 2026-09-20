@@ -34,3 +34,7 @@ class GuestInput(BaseModel):
         if not value:
             raise ValueError("Enter your display name.")
         return value
+
+
+class SignUpInput(AccountInput, GuestInput):
+    """Named app registration; legacy clients may omit the profile field."""

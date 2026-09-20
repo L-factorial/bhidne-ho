@@ -57,7 +57,7 @@ def test_signup_signin_identity_and_validation():
         signed_in = response.json()
         assert signed_in['user_id'] == account['user_id']
         assert signed_in['token'] != account['token']
-        assert client.get('/auth/me', headers=headers(signed_in)).json() == {'user_id': account['user_id']}
+        assert client.get('/auth/me', headers=headers(signed_in)).json()['user_id'] == account['user_id']
         for username, password in [('alice', 'wrong-password'), ('missing', 'testing-password')]:
             assert client.post('/auth/signin', json={'username': username, 'password': password}).status_code == 401
         for username, password in [('x', 'testing-password'), ('valid', 'short'), ('<script>', 'testing-password')]:

@@ -109,7 +109,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     drawerMetadata={<GameMenuMetadata snapshot={snapshot} />}>
     {close => <GameMenu snapshot={snapshot} close={close} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl}
       poke={() => setPokeTarget(null)} pokePlayer={setPokeTarget} canPoke={social.connected}
-      gameContent={<GameDetails snapshot={snapshot} busy={busy} onSave={onSave} />} />}
+      gameContent={<GameDetails menu snapshot={snapshot} busy={busy} onSave={onSave} />} />}
   </GameTableHeader>;
   const socialOverlay = !ended && pokeTarget !== undefined && <PokeComposer recipient={pokeTarget} recipientName={snapshot.players?.find(p => p.player_id === pokeTarget)?.display_name} phrases={social.phrases} connected={social.connected}
     onClose={() => setPokeTarget(undefined)} onSave={social.save} onSend={async text => {

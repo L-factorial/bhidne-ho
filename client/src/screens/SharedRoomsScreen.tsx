@@ -40,6 +40,8 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
   const [linkedMatch, setLinkedMatch] = useState<string>();
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [username, setUsername] = useState('');
+  const [profileName, setProfileName] = useState('');
+  const missingProfileName = authMode === 'signup' && !profileName.trim();
   const [password, setPassword] = useState('');
   const shared = useRoomSession();
   const { session, rooms, room, game, setGame, expired } = shared;
@@ -249,6 +251,12 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
             <Text style={styles.subtitle}>{authMode === 'signup'
               ? 'Create an account so your identity and profile can follow you across sign-ins.'
               : 'Sign in with your Bhidne Ho username and password.'}</Text>
+            {authMode === 'signup' && <>
+              <Text style={styles.description}>Profile name (required) · the name other players see</Text>
+              <TextInput accessibilityLabel="Profile name" aria-required placeholder="Your name or nickname" placeholderTextColor={colors.textMuted}
+                value={profileName} onChangeText={value => setProfileName(Array.from(value).slice(0, 25).join(''))}
+                editable={!shared.loggingIn} autoCapitalize="words" textContentType="name" style={styles.input} />
+            </>}
             <TextInput accessibilityLabel="Username" placeholder="Username" placeholderTextColor={colors.textMuted}
               value={username} onChangeText={setUsername} maxLength={32} editable={!shared.loggingIn}
               autoCapitalize="none" autoCorrect={false} textContentType="username" style={styles.input} />
@@ -256,12 +264,12 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
               value={password} onChangeText={setPassword} maxLength={128} editable={!shared.loggingIn}
               secureTextEntry textContentType={authMode === 'signup' ? 'newPassword' : 'password'} style={styles.input}
               returnKeyType="go" onSubmitEditing={() => {
-                if (username.trim().length >= 3 && password.length >= 8) void shared.loginAccount(username, password, authMode === 'signup');
+                if (!missingProfileName && username.trim().length >= 3 && password.length >= 8) void shared.loginAccount(username, password, authMode === 'signup', profileName);
               }} />
             <Text style={styles.description}>Usernames use 3–32 letters, numbers, underscores, or hyphens. Passwords require at least 8 characters.</Text>
-            <Pressable accessibilityRole="button" disabled={username.trim().length < 3 || password.length < 8 || shared.loggingIn}
-              onPress={() => void shared.loginAccount(username, password, authMode === 'signup')}
-              style={[styles.button, { backgroundColor: colors.primary }, (username.trim().length < 3 || password.length < 8 || shared.loggingIn) && styles.disabled]}>
+            <Pressable accessibilityRole="button" disabled={missingProfileName || username.trim().length < 3 || password.length < 8 || shared.loggingIn}
+              onPress={() => void shared.loginAccount(username, password, authMode === 'signup', profileName)}
+              style={[styles.button, { backgroundColor: colors.primary }, (missingProfileName || username.trim().length < 3 || password.length < 8 || shared.loggingIn) && styles.disabled]}>
               <Text style={[styles.buttonText, { color: colors.onPrimary }]}>{shared.loggingIn ? 'Please wait…' : authMode === 'signup' ? 'Create account' : 'Sign in'}</Text>
             </Pressable>
           </>

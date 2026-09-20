@@ -1,6 +1,9 @@
+import { RoomSheet } from './RoomSheet';
+import { ChatMessage } from './ChatMessage';
+import { useTranslation } from 'react-i18next';
 import { ChatComposer } from './ChatComposer';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { AccessibilityInfo, Animated, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, Animated, Keyboard, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { fonts, useTheme } from '../theme';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { TableSocialChannel, mergeTableMessages, type TableMessage } from '../multiplayer/TableSocialChannel';
@@ -32,7 +35,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
   const { colors: c } = useTheme();
   const { height: viewportHeight, width } = useWindowDimensions();
   const root = useRef<View>(null), anchorNode = useRef<View | null>(null);
-  const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const { t } = useTranslation();
   const [bottom, setBottom] = useState(16);
   const [open, setOpen] = useState(false), [pokeMode, setPokeMode] = useState(false);
   const [messages, setMessages] = useState<TableMessage[]>([]), [unread, setUnread] = useState(0);
@@ -78,7 +81,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
     return () => clearTimeout(timer);
   }, [pokeMode]);
   useEffect(() => {
-    if (Platform.OS !== 'web' || (!open && !pokeMode)) return;
+    if (Platform.OS !== 'web' || !pokeMode) return;
     const escape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       event.preventDefault(); event.stopPropagation(); setOpen(false); setPokeMode(false);
@@ -130,7 +133,6 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
   }, [open]);
   function measureRoot() {
     measure.current(anchorNode.current);
-    root.current?.measureInWindow((_x, y) => setKeyboardOffset(y));
   }
   function openChat() { if (canRead) { setPokeMode(false); openRef.current = true; setOpen(true); setUnread(0); follow.current = true; } }
   async function poke(id: number) {
@@ -166,36 +168,21 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
           <Pressable accessibilityRole="button" accessibilityLabel="Poke a player" accessibilityState={{selected:pokeMode,disabled:!enabled}} disabled={!enabled} onPress={() => { closeChat(); setPokeMode(value => !value); }} style={[iconStyle,{opacity:enabled?1:0.4,backgroundColor:pokeMode?c.surfaceSelected:undefined,borderRadius:24}]}><Text accessibilityLiveRegion="polite" accessibilityLabel={pokeSent ? 'Poke sent' : undefined} style={{fontSize:20}}>{pokeSent ? '✓' : '👋'}</Text></Pressable>
         </View>
       </View>}
-      {/* The game shell owns safe-area padding. Measure its screen offset instead of adding it twice.
-          Android's enclosing Modal uses adjustResize; only iOS needs keyboard padding here. */}
-      {open && canRead && <KeyboardAvoidingView pointerEvents="box-none" enabled={Platform.OS === 'ios'} behavior="padding" keyboardVerticalOffset={keyboardOffset}
-        style={{position:'absolute',top:0,bottom:0,right:0,left:0,zIndex:60}}>
-        <View pointerEvents="box-none" style={{flex:1,minHeight:0,justifyContent:'flex-end',alignItems:'flex-end',paddingHorizontal:8}}>
-        <View testID="table-chat-panel" style={{width:width<900?'100%':360,height:Math.min(380,viewportHeight*0.5),maxHeight:'85%',minHeight:0,backgroundColor:c.surface,borderRadius:20,padding:12,gap:8}}>
-          <View style={{flexDirection:'row',alignItems:'center',flexShrink:0,borderBottomWidth:1,borderColor:c.border,paddingBottom:4}}><Text accessibilityRole="header" style={{flex:1,color:c.text,fontFamily:fonts.medium,fontSize:20}}>Table Chat</Text><Pressable accessibilityRole="button" accessibilityLabel="Close table chat" onPress={closeChat} style={iconStyle}><Text style={{color:c.text,fontSize:24}}>×</Text></Pressable></View>
+      {open && canRead && <RoomSheet visible title="Table Chat" testID="table-chat-panel" closeLabel="Close table chat" onClose={closeChat} scrollable={false}>
+        <View style={{flex:1,minHeight:0,gap:8,overflow:'hidden',padding:12,borderTopWidth:1,borderColor:c.border}}>
           {myTurn && <Pressable accessibilityRole="button" onPress={closeChat} style={{minHeight:44,justifyContent:'center'}}><Text accessibilityLiveRegion="polite" style={{color:c.accent}}>Your turn · Return to game</Text></Pressable>}
-          <ScrollView ref={scroll} testID="table-chat-messages" style={{flex:1,minHeight:0}} keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} keyboardShouldPersistTaps="handled" onLayout={() => { if(follow.current) scroll.current?.scrollToEnd({animated:false}); }} onScroll={({nativeEvent:e}) => { follow.current = e.contentSize.height-e.contentOffset.y-e.layoutMeasurement.height < 40; }} scrollEventThrottle={16} onContentSizeChange={() => { if(follow.current) scroll.current?.scrollToEnd({animated:false}); }}>
+          <ScrollView ref={scroll} testID="table-chat-messages" style={{flex:1,minHeight:0}} keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} keyboardShouldPersistTaps="always" onLayout={() => { if(follow.current) scroll.current?.scrollToEnd({animated:false}); }} onScroll={({nativeEvent:e}) => { follow.current = e.contentSize.height-e.contentOffset.y-e.layoutMeasurement.height < 40; }} scrollEventThrottle={16} onContentSizeChange={() => { if(follow.current) scroll.current?.scrollToEnd({animated:false}); }}>
             {!messages.length && <Text style={{color:c.textMuted}}>Start the table conversation.</Text>}
-            {messages.map(message => <View key={message.id} style={{paddingVertical:12,gap:6}}>
-              <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
-                <View style={{width:28,height:28,borderRadius:14,backgroundColor:c.surfaceRaised,alignItems:'center',justifyContent:'center'}}>
-                  <Text style={{color:c.accent,fontFamily:fonts.medium,fontSize:11}}>{message.sender_name.slice(0,1).toUpperCase()}</Text>
-                </View>
-                <Text style={{flex:1,color:c.accent,fontFamily:fonts.medium,fontSize:11}}>{message.sender_name}{message.sender_id === userId ? ' (You)' : ''}</Text>
-                <Text style={{color:c.textMuted,fontFamily:fonts.body,fontSize:11}}>{new Date(message.sent_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</Text>
-              </View>
-              <Text selectable style={{marginLeft:36,color:c.text,fontFamily:fonts.body,fontSize:13,lineHeight:20}}>{message.text}</Text>
-            </View>)}
+            {messages.map(message => <ChatMessage key={message.id} message={message} own={message.sender_id === userId} />)}
           </ScrollView>
           {!!error && <Text accessibilityRole="alert" style={{color:c.danger}}>{error}</Text>}
           {!connected && <Text style={{color:c.textMuted}}>Reconnecting…</Text>}
           {seated ? <View testID="table-chat-composer" style={{flexShrink:0}}>
             <ChatComposer value={draft} onChange={setDraft} onSend={() => void send()} disabled={!enabled || sending}
-              label="Table message" sendLabel="Send table message" placeholder="Write a message…" />
+              label="Table message" sendLabel="Send table message" placeholder={t('chat.placeholder')} />
           </View> : <Text style={{color:c.textMuted}}>Waiting players can read. Take a seat to chat.</Text>}
         </View>
-        </View>
-      </KeyboardAvoidingView>}
+      </RoomSheet>}
     </View>
   </Context.Provider>;
 }

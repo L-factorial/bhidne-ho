@@ -3,7 +3,7 @@ from inspect import isawaitable
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.auth.models import AccountCredentials, AccountInput, GuestCredentials, GuestInput
+from app.auth.models import AccountCredentials, AccountInput, GuestCredentials, GuestInput, SignUpInput
 from app.auth.service import AuthenticationError, UsernameTakenError
 from app.models.room import CreateRoom, RoomSummary
 from app.models.user import UserIdentity
@@ -51,7 +51,7 @@ async def current_user(
 
 
 @router.post("/auth/signup", response_model=AccountCredentials, status_code=201)
-async def sign_up(body: AccountInput, request: Request, response: Response):
+async def sign_up(body: SignUpInput, request: Request, response: Response):
     response.headers["Cache-Control"] = "no-store"
     try:
         credentials = await request.app.state.auth.sign_up(body.username, body.password)
@@ -59,6 +59,10 @@ async def sign_up(body: AccountInput, request: Request, response: Response):
         if hasattr(request.app.state.players.store, "usernames"):
             request.app.state.players.store.usernames[credentials.user_id] = credentials.username
         request.app.state.player_profiles.remember_username(credentials.user_id, credentials.username)
+        if body.display_name:
+            saved = request.app.state.player_profiles.update(credentials.user_id, body.display_name)
+            if isawaitable(saved):
+                await saved
         await request.app.state.players.refresh_player(credentials.user_id)
         return credentials
     except UsernameTakenError as error:
@@ -79,8 +83,9 @@ async def sign_in(body: AccountInput, request: Request, response: Response):
 
 
 @router.get("/auth/me")
-async def me(user: UserIdentity = Depends(current_user)):
-    return {"user_id": user.user_id}
+async def me(request: Request, response: Response, user: UserIdentity = Depends(current_user)):
+    response.headers["Cache-Control"] = "no-store"
+    return await request.app.state.players.store.get_player(user.user_id)
 
 
 @router.post("/auth/signout", status_code=204)

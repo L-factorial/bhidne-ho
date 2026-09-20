@@ -3,8 +3,8 @@ import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { fonts, useThemedStyles, type ThemeColors } from '../theme';
 
-export function GameDetails({ snapshot, busy, onSave, sidebar = false }: {
-  sidebar?: boolean; snapshot: RoomSnapshot; busy: boolean; onSave: (settings: NonNullable<RoomSnapshot['settings']>) => void;
+export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = false }: {
+  menu?: boolean; sidebar?: boolean; snapshot: RoomSnapshot; busy: boolean; onSave: (settings: NonNullable<RoomSnapshot['settings']>) => void;
 }) {
   const styles = useThemedStyles(createStyles);
   const [tab, setTab] = useState<'stats' | 'rules' | null>(null);
@@ -13,11 +13,11 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false }: {
   useEffect(() => setDraft(snapshot.settings), [JSON.stringify(snapshot.settings), snapshot.rule_proposal?.id, snapshot.rule_proposal?.status]);
   const editable = snapshot.is_creator && snapshot.status === 'waiting' && snapshot.rule_proposal?.status !== 'PENDING';
   const settings = editable ? draft || snapshot.settings : snapshot.settings;
-  return <View testID={sidebar ? "game-details-sidebar" : "game-details-inline"} style={[styles.panel, sidebar && styles.sidebar]}>
-    <View style={styles.row} accessibilityRole={sidebar ? 'tablist' : undefined}>{(['stats', 'rules'] as const).map(value => <Pressable key={value} accessibilityRole={sidebar ? 'tab' : 'button'}
+  return <View testID={sidebar ? "game-details-sidebar" : "game-details-inline"} style={[styles.panel, sidebar && styles.sidebar, menu && styles.menu]}>
+    <View style={[styles.row, menu && { flexDirection: 'column', alignItems: 'stretch', gap: 0 }]} accessibilityRole={sidebar ? 'tablist' : undefined}>{(['stats', 'rules'] as const).map(value => <Pressable key={value} accessibilityRole={sidebar ? 'tab' : 'button'}
       accessibilityLabel={value === 'stats' ? 'Stats' : 'Rules'} aria-selected={sidebar ? selectedTab === value : undefined}
-      accessibilityState={sidebar ? { selected: selectedTab === value } : { expanded: selectedTab === value }} onPress={() => { setDraft(snapshot.settings); setTab(!sidebar && tab === value ? null : value); }} style={[styles.button, sidebar && selectedTab === value && styles.selectedTab]}>
-      <Text style={styles.label}>{value === 'stats' ? 'Stats' : 'Rules'}{sidebar ? '' : selectedTab === value ? ' -' : ' +'}</Text>
+      accessibilityState={sidebar ? { selected: selectedTab === value } : { expanded: selectedTab === value }} onPress={() => { setDraft(snapshot.settings); setTab(!sidebar && tab === value ? null : value); }} style={[styles.button, sidebar && selectedTab === value && styles.selectedTab, menu && { paddingHorizontal: 0, minHeight: 46 }]}>
+      <Text style={[styles.label, menu && styles.menuLabel]}>{value === 'stats' ? 'Stats' : 'Rules'}{sidebar ? '' : selectedTab === value ? ' -' : ' +'}</Text>
     </Pressable>)}</View>
     {selectedTab && <ScrollView style={sidebar ? styles.sidebarDetails : styles.details} nestedScrollEnabled contentContainerStyle={{ gap: 12, paddingVertical: 12 }}>
       {selectedTab === 'stats' ? <>
@@ -64,7 +64,7 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false }: {
           </View>
         </View>
       </> : <>
-        <Text style={styles.title}>Call Break rules</Text>
+        <Text style={[styles.title, menu && { fontSize: 16 }]}>Call Break rules</Text>
         <Text style={styles.text}>Five deals. Spades are trump. Follow suit and beat the leading card when possible. When void, play a winning spade if you can; otherwise discard. The trick winner leads next.</Text>
         <Text style={styles.text}>Bid 1–{snapshot.rules?.bid_max || Math.floor(52 / (snapshot.capacity || 4))}. Make your bid to score that many points, plus 0.1 per extra trick. Miss it and lose your bid. Highest total wins.</Text>
         <Text style={styles.text}>{editable ? 'Creator settings · save before starting' : 'Only the creator can edit settings before the game starts.'}</Text>
@@ -73,7 +73,7 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false }: {
             <Switch accessibilityLabel={key === 'weak_hand_enabled' ? 'Allow weak hand redeal' : 'Allow no spades redeal'} disabled={!editable || busy} value={settings[key]} onValueChange={value => setDraft({ ...settings, [key]: value })} />
             <Text style={styles.text}>{key === 'weak_hand_enabled' ? 'Redeal with no card above Jack' : 'Redeal with no spades'}</Text>
           </View>)}
-          <Text style={styles.title}>Placement bets · paid to first place</Text>
+          <Text style={[styles.title, menu && { fontSize: 16 }]}>Placement bets · paid to first place</Text>
           {editable ? settings.payments.slice(0, (snapshot.capacity || 4) - 1).map((amount, i) => <View key={i} style={styles.row}>
             <Text style={styles.text}>{['2nd', '3rd', '4th', '5th'][i]} pays first</Text>
             <TextInput accessibilityLabel={`${i + 2} place payment`} editable={!!editable && !busy} keyboardType="number-pad" value={String(amount)} maxLength={7}
@@ -88,6 +88,7 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false }: {
   </View>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  menu: { paddingHorizontal: 0, borderBottomWidth: 0 }, menuLabel: { color: colors.text, fontSize: 14 },
   sidebar: { flex: 1, minHeight: 0, borderBottomWidth: 0, paddingHorizontal: 12 },
   sidebarDetails: { flex: 1, minHeight: 0 },
   selectedTab: { backgroundColor: colors.surfaceSelected, borderBottomWidth: 2, borderColor: colors.accent },

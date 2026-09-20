@@ -4,8 +4,7 @@ import { Pressable, Text, View } from 'react-native';
 import { fonts, useTheme } from '../theme';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { ShareLink } from './ShareLink';
-import { LanguageToggle } from './LanguageToggle';
-import { ThemeToggle } from './ThemeToggle';
+import { useLanguage } from '../i18n/LanguageProvider';
 
 export function GameMenu({ snapshot, close, rules, history, poke, canPoke, back, tableControl, leaveControl, endControl, gameActions, gameContent, pokePlayer }: {
   snapshot: RoomSnapshot; close: () => void; rules?: () => void; history?: () => void; poke: () => void;
@@ -13,23 +12,28 @@ export function GameMenu({ snapshot, close, rules, history, poke, canPoke, back,
   canPoke: boolean; back: () => void; tableControl?: ReactNode; leaveControl?: ReactNode; endControl?: ReactNode;
 }) {
   const tableSocial = useTableSocial();
-  const { colors } = useTheme();
+  const { colors, preference, setPreference } = useTheme();
+  const { language, setLanguage } = useLanguage();
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
   const ended = snapshot.status === 'ended' || snapshot.table?.phase === 'ENDED';
   const [playersOpen, setPlayersOpen] = useState(false);
-  const section = (label: string) => <Text style={{ color: colors.textMuted, fontFamily: fonts.medium, fontSize: 11, letterSpacing: 1.5,
-    borderTopWidth: 1, borderColor: colors.border, paddingTop: 16, marginTop: 12, marginBottom: 4 }}>{label}</Text>;
-  const row = (label: string, action: () => void, disabled = false, expanded?: boolean) => <Pressable accessibilityRole="button"
-    accessibilityLabel={label} accessibilityState={{ disabled, ...(expanded === undefined ? {} : { expanded }) }} disabled={disabled}
-    onPress={action} style={{ minHeight: 46, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', opacity: disabled ? 0.45 : 1 }}>
-    <Text style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 14 }}>{label}</Text>
-    <Text style={{ color: colors.textMuted }}>{expanded === undefined ? '›' : expanded ? '−' : '+'}</Text>
+  const section = (label: string) => <Text style={{ color: colors.textMuted, fontFamily: fonts.body, fontSize: 11,
+    marginTop: 20, marginBottom: 4 }}>{label}</Text>;
+  const row = (label: string, action: () => void, disabled = false, expanded?: boolean, value?: string) => <Pressable accessibilityRole="button"
+    accessibilityLabel={value ? `${label}, ${value}` : label} accessibilityState={{ disabled, ...(expanded === undefined ? {} : { expanded }) }} disabled={disabled}
+    onPress={action} style={({ pressed }) => ({ minHeight: 46, paddingVertical: 10, paddingHorizontal: 8, marginHorizontal: -8,
+      borderRadius: 12, flexDirection: 'row', gap: 12, alignItems: 'center', justifyContent: 'space-between',
+      backgroundColor: pressed ? colors.surfaceRaised : 'transparent', opacity: disabled ? 0.55 : 1 })}>
+    <Text style={{ flexShrink: 1, color: disabled ? colors.textMuted : colors.text, fontFamily: fonts.medium, fontSize: 14 }}>{label}</Text>
+    {value ? <Text style={{ color: colors.textMuted, fontFamily: fonts.body, fontSize: 13 }}>{value}</Text>
+      : expanded !== undefined && <Text style={{ color: colors.textMuted, fontSize: 16 }}>{expanded ? '−' : '+'}</Text>}
   </Pressable>;
   const open = (action: () => void) => { close(); action(); };
   return <>
-    {section('TABLE')}
+    {section('Table')}
     {tableSocial?.canRead && row('Table Chat', () => open(tableSocial.openChat))}
     {row('Players & waiting queue', () => setPlayersOpen(value => !value), false, playersOpen)}
-    {playersOpen && <View style={{ gap: 8 }} testID={`${snapshot.game_type}-menu-players`}>
+    {playersOpen && <View style={{ gap: 8, padding: 12, backgroundColor: colors.surfaceRaised, borderRadius: 16 }} testID={`${snapshot.game_type}-menu-players`}>
       {snapshot.players?.map(player => <Text key={player.player_id} style={{ color: colors.text, fontFamily: fonts.body }}>
         {player.display_name}{String(player.player_id) === String(snapshot.your_player_id) ? ' · You' : ''}
       </Text>)}
@@ -40,31 +44,36 @@ export function GameMenu({ snapshot, close, rules, history, poke, canPoke, back,
       {!ended && tableControl}
     </View>}
     {!!snapshot.your_player_id && row('Poke the table', () => open(poke), !canPoke || ended)}
-    {section('GAME')}
+    {section('Game')}
     {history && row('Bet history', () => open(history))}
     {rules && row('Rules', () => open(rules))}
     {gameActions?.map(item => <View key={item.label}>{row(item.label, () => open(item.action))}</View>)}
     {gameContent}
-    {section('ROOM')}
+    {section('Room')}
     {snapshot.room_id && <ShareLink roomId={snapshot.room_id} matchId={snapshot.match_id} menu disabled={ended} />}
     {row('Back to room', () => open(back))}
-    {section('PREFERENCES')}
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48 }}>
-      <Text style={{ color: colors.text, fontFamily: fonts.body }}>Language</Text><LanguageToggle />
-    </View>
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48 }}>
-      <Text style={{ color: colors.text, fontFamily: fonts.body }}>Appearance</Text><ThemeToggle showSystem />
-    </View>
+    {section('Preferences')}
+    {row('Language', () => setLanguage(language === 'en' ? 'ne' : 'en'), false, undefined, language === 'ne' ? 'नेपाली' : 'English')}
+    {row('Appearance', () => setAppearanceOpen(value => !value), false, appearanceOpen, ({system:'System',light:'Light',dark:'Dark'})[preference])}
+    {appearanceOpen && <View accessibilityRole="radiogroup" accessibilityLabel="Appearance" style={{ backgroundColor: colors.surfaceRaised, borderRadius: 14, padding: 4 }}>
+      {(['system', 'light', 'dark'] as const).map(value => <Pressable key={value} accessibilityRole="radio"
+        accessibilityLabel={({system:'System',light:'Light',dark:'Dark'})[value]} accessibilityState={{ checked: preference === value }}
+        onPress={() => { setPreference(value); setAppearanceOpen(false); }}
+        style={({ pressed }) => ({ minHeight: 44, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: pressed ? colors.surface : 'transparent' })}>
+        <Text style={{ color: colors.text, fontFamily: fonts.body, fontSize: 13 }}>{({system:'System',light:'Light',dark:'Dark'})[value]}</Text>
+        {preference === value && <Text style={{ color: colors.textMuted }}>✓</Text>}
+      </Pressable>)}
+    </View>}
     <View style={{ marginTop: 'auto', paddingTop: 16 }}>
-      <View style={{ borderTopWidth: 1, borderColor: colors.border, paddingTop: 8 }}>{ended ? <>{row(snapshot.game_type === 'flush' ? 'End table' : 'End game', () => {}, true)}{row('Leave Table', () => {}, true)}</> : <>{endControl}{leaveControl}</>}</View>
+      <View style={{ paddingTop: 8 }}>{ended ? <>{row(snapshot.game_type === 'flush' ? 'End table' : 'End game', () => {}, true)}{row('Leave Table', () => {}, true)}</> : <>{endControl}{leaveControl}</>}</View>
     </View>
   </>;
 }
 
 export function GameMenuMetadata({ snapshot }: { snapshot: RoomSnapshot }) {
   const { colors } = useTheme();
-  return <View style={{ gap: 4, paddingBottom: 8 }}>
-    <Text selectable style={{ color: colors.textMuted, fontFamily: fonts.body }}>{snapshot.room_id}</Text>
-    <Text style={{ color: colors.textMuted, fontFamily: fonts.body }}>{snapshot.table?.seated_players.length ?? snapshot.players?.length ?? 0}/{snapshot.table?.max_players ?? snapshot.capacity} players · {snapshot.table?.phase.toLowerCase() || snapshot.status}</Text>
+  return <View style={{ gap: 5, paddingTop: 4, paddingBottom: 8 }}>
+    <Text style={{ color: colors.textMuted, fontFamily: fonts.body, fontSize: 12 }}>{snapshot.table?.seated_players.length ?? snapshot.players?.length ?? 0}/{snapshot.table?.max_players ?? snapshot.capacity} players · {snapshot.table?.phase.toLowerCase() || snapshot.status}</Text>
+    <Text selectable numberOfLines={1} accessibilityLabel={`Room ID: ${snapshot.room_id}`} style={{ color: colors.textMuted, fontFamily: fonts.body, fontSize: 10 }}>Room · {snapshot.room_id}</Text>
   </View>;
 }

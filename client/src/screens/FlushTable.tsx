@@ -1,3 +1,4 @@
+import { GameMenuMetadata } from '../components/GameMenu';
 import { useSocialHandAnchor } from '../components/TableSocial';
 import { EndedTableNotice } from '../components/EndedTableNotice';
 import { FlushMenu } from '../components/FlushMenu';
@@ -167,10 +168,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
     : `${ownPlayer?.status === 'active' && !preparing ? `${visibility} · ` : ownPlayer?.status === 'folded' ? 'Folded · ' : ''}Waiting for ${name(decision.actor)}`
     : `${snapshot.players?.length || 0}/${snapshot.capacity} players seated`;
   return <View style={[s.page, mobile && { padding: 8, gap: 4 }]} testID="flush-table">
-    <GameTableHeader title="Flush" compact path={snapshot.path} game="flush" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack} mobileTestIds drawerMetadata={<View style={{ gap: 4, paddingBottom: 8 }}>
-      <Text selectable style={s.status}>{snapshot.room_id}</Text>
-      <Text style={s.status}>{snapshot.table?.seated_players.length ?? snapshot.players?.length ?? 0}/{snapshot.table?.max_players ?? snapshot.capacity} players · {snapshot.table?.phase.toLowerCase() || snapshot.status}</Text>
-    </View>}>
+    <GameTableHeader title="Flush" compact path={snapshot.path} game="flush" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack} mobileTestIds drawerMetadata={<GameMenuMetadata snapshot={snapshot} />}>
       {closeMenu => <FlushMenu snapshot={snapshot} close={closeMenu} rules={() => setRulesOpen(true)} history={() => setBetsOpen(true)}
         poke={() => setPokeOpen(true)} canPoke={social.connected} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl} />}
     </GameTableHeader>

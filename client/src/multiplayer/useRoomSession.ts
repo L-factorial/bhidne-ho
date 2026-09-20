@@ -26,12 +26,13 @@ export function useRoomSession() {
 
   const [loggingIn, setLoggingIn] = useState(false);
   const loginPending = useRef(false);
-  async function loginAccount(username: string, password: string, signup: boolean) {
+  async function loginAccount(username: string, password: string, signup: boolean, displayName = '') {
     if (loginPending.current || session) return false;
+    if (signup && (!displayName.trim() || Array.from(displayName.trim()).length > 25)) { setError('Enter a profile name (1–25 characters).'); return false; }
     loginPending.current = true; setLoggingIn(true); setError('');
     try {
       const value = await request<Session>(signup ? '/auth/signup' : '/auth/signin', null, {
-        username: username.trim(), password,
+        username: username.trim(), password, ...(signup ? { display_name: displayName.trim() } : {}),
       });
       setSession(value); setExpired(false);
       return true;

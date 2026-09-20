@@ -1,3 +1,4 @@
+import { ChatMessage } from './ChatMessage';
 import { RoomSheet } from './RoomSheet';
 import { ChatComposer } from './ChatComposer';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
@@ -94,14 +95,7 @@ export function useRoomChat({ roomId, session, connected, hideWhenBlocked = fals
           onScroll={({ nativeEvent: { contentOffset, contentSize, layoutMeasurement } }) => { followLatest.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 40; }}
           onContentSizeChange={() => { if (followLatest.current) scroll.current?.scrollToEnd({ animated: false }); }}>
           {!messages.length && <Text style={styles.note}>{t('chat.empty')}</Text>}
-          {messages.map(message => <View key={message.id} style={styles.message}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: colors.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}><Text style={styles.author}>{message.sender_name.slice(0, 1).toUpperCase()}</Text></View>
-              <Text style={[styles.author, { flex: 1 }]}>{message.sender_id === session.user_id ? `${message.sender_name} (${t('chat.you')})` : message.sender_name}</Text>
-              <Text style={styles.note}>{new Date(message.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
-            </View>
-            <Text selectable style={[styles.text, { marginLeft: 36 }]}>{message.text}</Text>
-          </View>)}
+          {messages.map(message => <ChatMessage key={message.id} message={message} own={message.sender_id === session.user_id} />)}
         </ScrollView>
         {!connected && <Text style={styles.note}>{t('chat.reconnecting')}</Text>}
         {!!(error || loadError) && <Text accessibilityRole="alert" style={styles.error}>{error || loadError}</Text>}

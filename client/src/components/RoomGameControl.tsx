@@ -37,7 +37,6 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
   const insets = useSafeAreaInsets();
   const social = useRoomPokes(roomId, userId, token, connected);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [seatConflict, setSeatConflict] = useState<GameRequestDetail | null>(null);
   useEffect(() => { onOpenChange?.(open); }, [open, onOpenChange]);
@@ -149,13 +148,14 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
   }
   async function act(join: boolean) {
     if (!canSend.current || pending.current) return;
+    if (!join && !tableName.trim()) { setError('Enter a table name.'); return; }
     pending.current = true; const version = ++generation.current; setBusy(true); setError('');
     try {
-      const data = await api(join ? '/join' : '', join ? { match_id: snapshot?.match_id } : { player_count: gameType === 'flush' ? 10 : capacity, game_type: gameType, name: tableName.trim() || `${selectedGameName} table`, invitees: selectedInvitees.map(player => player.user_id) });
+      const data = await api(join ? '/join' : '', join ? { match_id: snapshot?.match_id } : { player_count: gameType === 'flush' ? 10 : capacity, game_type: gameType, name: tableName.trim(), invitees: selectedInvitees.map(player => player.user_id) });
       if (alive.current && generation.current === version) {
         selectedMatch.current = data.match_id;
         setSnapshot(data); setLive(true); setOpen(true);
-        if (!join) { setSelectedInvitees([]); setInviteQuery(''); setInviteResults([]); }
+        if (!join) { setTableName(''); setSelectedInvitees([]); setInviteQuery(''); setInviteResults([]); }
       }
     } catch (error) {
       if (alive.current && generation.current === version) {
@@ -332,9 +332,7 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
           <Text style={styles.text}>{gameType === 'flush' ? '2–10 players · lock the seated roster when ready.' : 'Seats'}</Text>
           <View style={[styles.choices, { flexWrap: 'wrap' }]}>{(gameType === 'flush' ? [] : gameType === 'marriage' ? [2, 3, 4, 5] : [4, 5]).map(size => <Pressable key={size} accessibilityRole="button" accessibilityState={{ selected: capacity === size }}
             onPress={() => setCapacity(size)} style={[styles.choice, { minHeight: 48 }, size === capacity && { borderColor: colors.accent }]}><Text style={styles.text}>{size} players</Text></Pressable>)}</View>
-          <Pressable accessibilityRole="button" accessibilityState={{ expanded: advancedOpen }} onPress={() => setAdvancedOpen(v => !v)} style={styles.choice}><Text style={styles.text}>Table details {advancedOpen ? '−' : '+'}</Text></Pressable>
-          {advancedOpen && <>
-            <Text style={styles.text}>Table name (optional)</Text><TextInput accessibilityLabel="Table name" value={tableName} onChangeText={setTableName} maxLength={60} placeholder={`${selectedGameName} table`} placeholderTextColor={colors.textMuted} style={[styles.choice, { color: colors.text }]} />
+            <Text style={styles.text}>Table name (required)</Text><TextInput accessibilityLabel="Table name" accessibilityHint="Required to create a table" aria-required value={tableName} onChangeText={setTableName} maxLength={60} placeholder={`${selectedGameName} table`} placeholderTextColor={colors.textMuted} style={[styles.choice, { color: colors.text }]} />
             <Text style={styles.text}>Invite players (optional)</Text>
             <TextInput accessibilityLabel="Find players to invite" value={inviteQuery} onChangeText={setInviteQuery} maxLength={64}
               placeholder="Name, username, or user ID" placeholderTextColor={colors.textMuted} autoCapitalize="none" autoCorrect={false}
@@ -350,10 +348,9 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
               <Text style={styles.note}>{player.username ? `@${player.username} · ` : ''}{player.user_id}{player.eligible === false ? ` · ${player.reason}` : ''}</Text>
             </Pressable>)}</View>}
             {!!inviteError && <Text accessibilityRole="alert" style={styles.error}>{inviteError}</Text>}
-          </>}
           <Text style={styles.note}>Review advanced rules at the table before starting. Rule changes still require player approval.</Text>
           {!!error && <Text accessibilityRole="alert" style={styles.modalError}>{error}</Text>}
-          <Pressable accessibilityRole="button" accessibilityLabel="Create this table" disabled={busy || !creationEnabled} accessibilityState={{ disabled: busy || !creationEnabled }} onPress={() => void act(false)} style={styles.button}><Text style={styles.buttonText}>Create table</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Create this table" disabled={busy || !creationEnabled || !tableName.trim()} accessibilityState={{ disabled: busy || !creationEnabled || !tableName.trim() }} onPress={() => void act(false)} style={[styles.button, (busy || !creationEnabled || !tableName.trim()) && { opacity: 0.5 }]}><Text style={styles.buttonText}>Create table</Text></Pressable>
           <Pressable accessibilityRole="button" onPress={() => setOpen(false)} style={styles.choice}><Text style={styles.text}>Back to room</Text></Pressable>
         </ScrollView>
       </View></View>}

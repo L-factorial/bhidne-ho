@@ -102,3 +102,21 @@ def test_named_guests_visible_in_every_game_and_room_chat():
             assert message['sender_name'] == 'Prajwal'
             assert client.post(root + '/end', headers=headers[0], json={
                 'match_id': game['match_id']}).status_code == 200
+
+
+def test_named_account_registration_validates_and_restores_identity():
+    with TestClient(create_app()) as client:
+        account = {'username': 'named-account', 'password': 'test-password-123'}
+        for name in ['', '   ', 'x' * 26, 'bad\nname', None]:
+            assert client.post('/auth/signup', json={**account, 'display_name': name}).status_code == 422
+        response = client.post('/auth/signup', json={**account, 'display_name': '  Sita   Rai  '})
+        assert response.status_code == 201
+        first = response.json()
+        second = client.post('/auth/signin', json=account).json()
+        assert second['user_id'] == first['user_id']
+        headers = {'Authorization': f"Bearer {second['token']}"}
+        assert client.get('/me/profile', headers=headers).json() == {'display_name': 'Sita Rai'}
+        identity = client.get('/auth/me', headers=headers).json()
+        assert identity['display_name'] == 'Sita Rai'
+        assert identity['username'] == 'named-account'
+        assert identity['user_id'] == first['user_id']

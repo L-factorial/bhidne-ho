@@ -47,7 +47,30 @@ const site = process.env.TEST_WEB_URL || 'http://localhost:8087';
    const button=name=>page.getByRole('button',{name,exact:true});
    const pill=page.getByTestId('game-social-controls');await pill.waitFor();
    await button('Table menu').click();
-   await page.getByTestId(kind+'-menu-drawer').getByRole('button',{name:'Table Chat',exact:true}).click();
+   const drawer=page.getByTestId(kind+'-menu-drawer');
+   await drawer.getByRole('button',{name:'Language, English',exact:true}).click();
+   await drawer.getByRole('button',{name:'Language, नेपाली',exact:true}).click();
+   for (const mode of ['Dark','Light','System']) {
+    await drawer.getByRole('button',{name:/^Appearance,/}).click();
+    await drawer.getByRole('radio',{name:mode,exact:true}).click();
+    await drawer.getByRole('button',{name:`Appearance, ${mode}`,exact:true}).waitFor();
+   }
+   for (const viewport of [{width:320,height:568},{width:1280,height:900}]) {
+    await page.setViewportSize(viewport);
+    for(const mode of ['dark','light']) {
+     await page.emulateMedia({colorScheme:mode});
+     await page.waitForTimeout(250);
+     await drawer.getByRole('button',{name:'Table Chat',exact:true}).scrollIntoViewIfNeeded();
+     const box=await drawer.boundingBox();
+     assert.ok(box.x>=0 && box.y>=0 && box.x+box.width<=viewport.width && box.y+box.height<=viewport.height,'drawer fits safe viewport');
+     await page.screenshot({path:`/tmp/soft-menu-${kind}-${viewport.width}-${mode}.png`});
+    }
+   }
+   await page.setViewportSize({width:390,height:844});
+   await drawer.getByRole('button',{name:'Players & waiting queue',exact:true}).click();
+   await page.getByTestId(kind+'-menu-players').waitFor();
+   await drawer.getByRole('button',{name:'Players & waiting queue',exact:true}).click();
+   await drawer.getByRole('button',{name:'Table Chat',exact:true}).click();
    await page.getByTestId('table-chat-panel').waitFor();
    await page.getByTestId(kind+'-menu-drawer').waitFor({state:'hidden'});
    await page.keyboard.press('Escape');assert.ok(await pill.isVisible(),'Escape closes chat without leaving the game');

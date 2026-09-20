@@ -4,7 +4,7 @@ The room keeps its existing routing, server permissions and membership lifecycle
 
 The signed-in header exposes identity, notifications and Profile. Profile holds language and appearance controls (including system appearance). Members are grouped by server-reported presence, with initial avatars and a fixed invite action. The room API currently supplies member IDs, so existing Guest labels are retained rather than inferring names from table players.
 
-Room chat uses the shared RoomSheet and a reusable ChatComposer. The sheet owns the single iOS KeyboardAvoidingView; Android uses the native window resize behavior. History flexes above a composer capped at 104 points, with a 500-code-point limit and a counter at 450. Sending retains focus, and a successful response does not erase a newer draft. Table chat remains separate, including its existing concurrent changes.
+Room chat uses the shared RoomSheet and a reusable ChatComposer. The sheet owns the single iOS KeyboardAvoidingView; Android uses the native window resize behavior. History flexes above a composer capped at 104 points, with a 500-code-point limit and a counter at 450. Sending retains focus, and a successful response does not erase a newer draft. Table chat uses the same RoomSheet, ChatMessage and ChatComposer, while retaining its separate table channel, permissions and turn reminder.
 
 Validation performed:
 
@@ -16,3 +16,5 @@ Validation performed:
 - No lint script is configured in the client package.
 
 Physical-device validation remains necessary for the iPhone software keyboard, Android IME and native safe-area behavior. Native exports validate bundling, not device interaction.
+
+Profile now shows the authenticated account name, username and selectable profile ID using `/auth/me`. The signup form requires a 1–25-character profile name; the server validates supplied names and saves them in the profile store. Legacy API clients may still omit the name field. The profile browser regression covers signup validation, editing the name, and identity/friend preservation after refresh.

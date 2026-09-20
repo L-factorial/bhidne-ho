@@ -88,6 +88,10 @@ async function api(path, user, body) {
     await page.getByRole('button', { name: 'Create table', exact: true }).click();
     await page.getByRole('button', { name: 'Choose Marriage', exact: true }).click();
     await page.getByRole('button', { name: '2 players', exact: true }).click();
+    assert.equal(await page.getByRole('button', { name: 'Create this table', exact: true }).isDisabled(), true);
+    await page.getByRole('textbox', { name: 'Table name', exact: true }).fill('   ');
+    assert.equal(await page.getByRole('button', { name: 'Create this table', exact: true }).isDisabled(), true);
+    await page.getByRole('textbox', { name: 'Table name', exact: true }).fill('  Marriage table  ');
     await page.getByRole('button', { name: 'Create this table', exact: true }).click();
     await page.getByTestId('live-game-overlay').waitFor();
     assert.equal(await page.getByTestId('room-toolbar').count(), 0);

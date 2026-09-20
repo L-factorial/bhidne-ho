@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import { request } from '../multiplayer/api';
 import { LanguageToggle } from '../components/LanguageToggle';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { AppHeader } from '../components/AppHeader';
@@ -16,12 +18,27 @@ export function ProfileScreen({ session, personal, onBack, onSignOut }: {
   const styles = useThemedStyles(createStyles);
   const userId = session.user_id;
   const insets = useSafeAreaInsets();
+  const [identity, setIdentity] = useState<{ user_id: string; display_name: string; username?: string | null } | null>(null);
+  const [identityError, setIdentityError] = useState('');
+  useEffect(() => {
+    const controller = new AbortController();
+    setIdentity(null); setIdentityError('');
+    void request<{ user_id: string; display_name: string; username?: string | null }>('/auth/me', session, undefined, controller.signal)
+      .then(value => { if (!controller.signal.aborted) setIdentity(value); })
+      .catch(() => { if (!controller.signal.aborted) setIdentityError('Could not load your profile name. Reopen Profile to retry.'); });
+    return () => controller.abort();
+  }, [userId, session.token]);
   return <ScrollView testID="profile-screen" accessibilityViewIsModal style={styles.page} keyboardShouldPersistTaps="handled"
     contentContainerStyle={{ padding: 20, paddingTop: Math.max(insets.top, 24), paddingBottom: Math.max(insets.bottom, 24) }}>
     <View style={styles.content}>
       <AppHeader title="Your profile" hideProfile actions={<Pressable accessibilityRole="button" accessibilityLabel="Back from profile" onPress={onBack} style={styles.back}><Text style={styles.link}>Back</Text></Pressable>} />
-      <Text style={styles.description}>Make your table talk your own. Your saved phrases are private to you.</Text>
-      <DisplayNameField session={session} />
+      <View testID="profile-identity" style={{ gap: 6, paddingVertical: 12 }}>
+        <Text accessibilityRole="header" style={styles.title}>{identity?.display_name || identity?.username || (identityError ? 'Your account' : 'Loading profile…')}</Text>
+        {!!identity?.username && <Text style={styles.description}>@{identity.username}</Text>}
+        <Text selectable accessibilityLabel={`Profile ID: ${userId}`} style={styles.description}>Profile ID: {userId}</Text>
+        {!!identityError && <Text accessibilityRole="alert" style={styles.description}>{identityError}</Text>}
+      </View>
+      <DisplayNameField session={session} onSaved={display_name => setIdentity(current => current ? { ...current, display_name } : { user_id: userId, display_name })} />
       <View style={{ gap: 8 }}>
         <Text accessibilityRole="header" style={styles.description}>Preferences</Text>
         <View style={styles.header}><Text style={styles.description}>Language</Text><LanguageToggle /></View>

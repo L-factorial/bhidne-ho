@@ -48,17 +48,17 @@ export function GameTableHeader({ title, path, game, roomId, matchId, onBack, en
       </Pressable>
     </View>
     {!!drawerMetadata && <Modal transparent visible={open} animationType="fade" onRequestClose={() => setOpen(false)}>
-      <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end' }}>
+      <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end', paddingTop: Math.max(12, insets.top), paddingBottom: Math.max(12, insets.bottom), paddingRight: Math.max(8, insets.right) }}>
         <Pressable testID={`${game}-menu-backdrop`} accessibilityRole="button" accessibilityLabel="Close table menu backdrop"
-          onPress={() => setOpen(false)} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: colors.overlay }} />
-        <View testID={`${game}-menu-drawer`} accessibilityViewIsModal style={{ width: '82%', maxWidth: 400, height: '100%', backgroundColor: colors.surface, padding: 18, paddingTop: Math.max(18, insets.top), paddingBottom: Math.max(18, insets.bottom) }}>
+          onPress={() => setOpen(false)} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: colors.overlay, opacity: 0.6 }} />
+        <View testID={`${game}-menu-drawer`} accessibilityViewIsModal style={{ width: '86%', maxWidth: 360, backgroundColor: colors.surface, borderRadius: 24, padding: 20, boxShadow: `0px 4px 18px ${colors.shadow}` }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text accessibilityRole="header" style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 20 }}>{title}</Text>
+            <Text accessibilityRole="header" style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 22, flexShrink: 1 }}>{title}</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="Close table menu" onPress={() => setOpen(false)}
-              style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.text, fontSize: 26 }}>×</Text></Pressable>
+              style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.textMuted, fontSize: 24 }}>×</Text></Pressable>
           </View>
           {drawerMetadata}
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1, paddingBottom: 12 }}>
+          <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 8, marginHorizontal: -8, paddingBottom: 8 }}>
             {typeof children === 'function' ? children(() => setOpen(false)) : children}
           </ScrollView>
         </View>

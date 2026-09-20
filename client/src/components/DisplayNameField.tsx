@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { request } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
-import { limitPokeText, pokeTextLength } from '../multiplayer/pokes';
+import { pokeTextLength } from '../multiplayer/pokes';
 import { fonts, useTheme } from '../theme';
 
-export function DisplayNameField({ session }: { session: Session }) {
+export function DisplayNameField({ session, onSaved }: { session: Session; onSaved?: (name: string) => void }) {
   const { colors } = useTheme();
   const [name, setName] = useState(''), [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false), [message, setMessage] = useState('');
@@ -25,16 +25,16 @@ export function DisplayNameField({ session }: { session: Session }) {
     pending.current = true; setBusy(true); setMessage('');
     try {
       const profile = await request<{ display_name: string }>('/me/profile', session, { display_name: name }, signal, 'PATCH');
-      if (!signal.aborted) { setName(profile.display_name); setMessage('Display name saved.'); }
+      if (!signal.aborted) { setName(profile.display_name); setMessage('Display name saved.'); onSaved?.(profile.display_name); }
     } catch (error) {
       if (!signal.aborted) setMessage(error instanceof Error ? error.message : 'Could not save your name.');
     } finally { pending.current = false; if (!signal.aborted) setBusy(false); }
   }
   return <View style={{ backgroundColor: colors.surface, padding: 20, borderRadius: 16, gap: 12 }}>
     <Text style={{ color: colors.text, fontFamily: fonts.medium }}>Display name</Text>
-    <Text style={{ color: colors.textMuted, fontFamily: fonts.body, fontSize: 12, lineHeight: 20 }}>The name other players see at the game table. Leave it blank to use your player number.</Text>
+    <Text style={{ color: colors.textMuted, fontFamily: fonts.body, fontSize: 12, lineHeight: 20 }}>The name other players see at the game table. If you leave it blank, your account username is used when available.</Text>
     <TextInput accessibilityLabel="Game display name" value={name} editable={loaded && !busy} maxLength={50}
-      onChangeText={value => { setName(limitPokeText(value)); setMessage(''); }} placeholder="Your name or nickname"
+      onChangeText={value => { setName(Array.from(value).slice(0, 25).join('')); setMessage(''); }} placeholder="Your name or nickname"
       placeholderTextColor={colors.textMuted} autoCapitalize="words" returnKeyType="done" onSubmitEditing={() => void save()}
       style={{ backgroundColor: colors.surface, borderRadius: 8, padding: 12, minHeight: 46, fontFamily: fonts.body, color: colors.text }} />
     <Text style={{ color: colors.textMuted, fontSize: 12 }}>{pokeTextLength(name)}/25</Text>
