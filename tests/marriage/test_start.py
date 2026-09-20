@@ -11,7 +11,7 @@ from marriage import (
 from marriage.invariants import validate_initial_state
 
 
-@pytest.mark.parametrize("count,remaining", [(2, 117), (3, 96), (4, 75), (5, 54)])
+@pytest.mark.parametrize("count,remaining", [(2, 116), (3, 95), (4, 74), (5, 53)])
 def test_start_deals_in_receipt_order_from_last_element(count, remaining):
     seats = tuple(f"p{i}" for i in range(count))
     engine = MarriageGameEngine(seats, rng=Random(1729), first_player_id=seats[-1])
@@ -28,7 +28,7 @@ def test_start_deals_in_receipt_order_from_last_element(count, remaining):
     assert state.status is GameStatus.IN_PROGRESS
     assert state.phase is TurnPhase.MUST_DRAW
     assert state.current_player_id == seats[-1]
-    assert len(state.stock) == remaining and state.discard == ()
+    assert len(state.stock) == remaining and len(state.discard) == 1
     assert state.tiplu is None and state.winner is None and not state.must_finish
     assert [len(p.hand) for p in state.players] == [21] * count
     assert [p.player_id for p in state.players] == list(seats)
@@ -48,7 +48,9 @@ def test_start_deals_in_receipt_order_from_last_element(count, remaining):
     for index, player in enumerate(state.players):
         assert player.hand == receipt_order[index:21 * count:count]
     assert state.stock == tuple(shuffled[:remaining])
-    assert state.stock[-1] == receipt_order[21 * count]
+    assert state.discard == (receipt_order[21 * count],)
+    assert state.stock[-1] == receipt_order[21 * count + 1]
+    assert engine.get_public_view().top_discard == state.discard[0]
     assert waiting.status is GameStatus.WAITING and all(not p.hand for p in waiting.players)
 
 
@@ -120,11 +122,11 @@ def test_views_omit_hidden_cards_history_rng_and_indicator():
     result = engine.start_game()
     state = engine.get_state()
     public = engine.get_public_view()
-    assert public.stock_count == 96 and public.top_discard is None
+    assert public.stock_count == 95 and public.top_discard == state.discard[-1]
     assert [p.hand_count for p in public.players] == [21, 21, 21]
     assert public.current_player_id == "a"
     public_text = repr(asdict(public))
-    assert not any(card.card_id in public_text for card in create_deck())
+    assert not any(card.card_id in public_text for card in state.stock + tuple(c for p in state.players for c in p.hand))
     for index, seat in enumerate(("a", "b", "c")):
         view = engine.get_player_view(seat)
         assert view.public == public and view.hand == state.players[index].hand

@@ -24,7 +24,7 @@ from marriage import DrawSource, MarriageGameEngine
 
 game = MarriageGameEngine(("p1", "p2", "p3", "p4"), rng=Random(42))
 game.start_game()                         # Shuffle and deal 21 cards each.
-assert game.get_public_view().stock_count == 75
+assert game.get_public_view().stock_count == 74
 game.draw_card("p1", DrawSource.STOCK)     # Take one card; now 22 owned cards.
 view = game.get_player_view("p1")
 game.discard_card("p1", view.actions.discardable_card_ids[0])
@@ -168,8 +168,8 @@ plan; they are not claims about every table's Marriage rules.
 | Area | Implemented rule |
 | --- | --- |
 | Deck | Three standard packs plus three Man cards: 159 distinct physical cards. |
-| Deal | 21 round-robin passes in configured order. Empty initial discard; last pile element is the top. |
-| Remaining stock | 117 / 96 / 75 / 54 for 2 / 3 / 4 / 5 players. |
+| Deal | 21 round-robin passes in configured order. Flip the next card into the discard pile; last pile element is the top. |
+| Remaining stock | 116 / 95 / 74 / 53 for 2 / 3 / 4 / 5 players. |
 | Identity | `D0:7H`, `D1:7H`, `D2:7H` differ physically but share a face. `MAN:0..2` have no rank/suit. |
 | Sequence | At least three consecutive distinct natural ranks in one suit, any submitted order. Ace low: A-2-3 valid; Q-K-A and K-A-2 invalid. |
 | Tunnela / Dublee | Exactly three / two distinct physical copies of one standard face. |

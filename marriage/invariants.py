@@ -32,15 +32,15 @@ def validate_initial_state(state: MarriageGameState) -> None:
     require(state.tiplu is None and state.winner is None and not state.winning_pair
             and state.normal_finish is None and state.must_finish is False,
             "Startup cannot have an indicator, winner, or forced finish.")
-    require(not state.discard, "Initial discard must be empty.")
     if state.status is GameStatus.WAITING:
-        require(not state.stock and all(not p.hand for p in state.players),
+        require(not state.stock and not state.discard and all(not p.hand for p in state.players),
                 "Waiting state must not allocate cards.")
         require(state.current_seat is None and state.phase is None,
                 "Waiting state must not have an active turn.")
         require(state.revision == 0 and not state.history, "Waiting history must be empty.")
         return
     require(state.status is GameStatus.IN_PROGRESS, "Expected a startup state.")
+    require(len(state.discard) == 1, "Initial discard must contain one face-up card.")
     require(type(state.current_seat) is int and 0 <= state.current_seat < len(state.players),
             "Invalid current seat.")
     require(state.current_player_id == state.config.first_player_id

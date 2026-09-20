@@ -186,7 +186,7 @@ def test_normal_meld_commands_and_finish_translate_correctly():
     selected = tuple(c for group in groups for c in group)
     remaining = tuple(c for c in deck if c not in selected)
     engine._state = replace(engine.get_state(), players=(PlayerState("a", selected + remaining[:13]),
-                                                       PlayerState("b", remaining[13:34])), stock=remaining[34:])
+                                                       PlayerState("b", remaining[13:34])), stock=remaining[34:], discard=())
     validate_game_state(engine.get_state())
     game = MarriageAdapter(engine, match_id="match", owner_player_id="a")
     payload = {"melds": [{"meld_type": "tunnela", "card_ids": [c.card_id for c in group]} for group in groups]}

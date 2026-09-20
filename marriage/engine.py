@@ -61,7 +61,7 @@ class MarriageGameEngine:
         candidate = MarriageGameState(
             config=config,
             players=tuple(PlayerState(player_id, hand) for player_id, hand in zip(config.player_ids, hands)),
-            stock=stock, current_seat=config.player_ids.index(config.first_player_id),
+            stock=stock[:-1], discard=stock[-1:], current_seat=config.player_ids.index(config.first_player_id),
             phase=TurnPhase.MUST_DRAW, status=GameStatus.IN_PROGRESS, revision=1, history=events,
         )
         validate_initial_state(candidate)

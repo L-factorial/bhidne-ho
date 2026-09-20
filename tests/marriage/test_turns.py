@@ -32,7 +32,7 @@ def test_draw_discard_and_visible_pickup_preserve_order_and_events():
     result = engine.draw_card("p0", DrawSource.STOCK)
     drawn = engine.get_state()
     assert drawn.players[0].hand == state.players[0].hand + (card,)
-    assert drawn.stock == state.stock[:-1] and drawn.discard == ()
+    assert drawn.stock == state.stock[:-1] and drawn.discard == state.discard
     assert drawn.current_player_id == "p0" and drawn.phase is TurnPhase.MUST_DISCARD
     assert result.revision == 2
     assert [(e.kind, e.sequence, e.revision) for e in result.events] == [("CARD_DRAWN", 3, 2)]
@@ -44,7 +44,7 @@ def test_draw_discard_and_visible_pickup_preserve_order_and_events():
     result = engine.discard_card("p0", card.card_id)
     discarded = engine.get_state()
     assert discarded.players[0].hand == state.players[0].hand
-    assert discarded.discard == (card,)
+    assert discarded.discard == state.discard + (card,)
     assert discarded.current_player_id == "p1" and discarded.phase is TurnPhase.MUST_DRAW
     assert [(e.kind, e.sequence, e.revision) for e in result.events] == [
         ("CARD_DISCARDED", 4, 3), ("TURN_CHANGED", 5, 3)]
@@ -53,7 +53,7 @@ def test_draw_discard_and_visible_pickup_preserve_order_and_events():
     result = engine.draw_card("p1", DrawSource.DISCARD)
     assert result.events[0].card == card
     assert engine.get_state().stock == discarded.stock
-    assert engine.get_state().discard == ()
+    assert engine.get_state().discard == state.discard
     assert engine.get_state().players[1].hand[-1] == card
     engine.discard_card("p1", card.card_id)
     assert engine.get_state().current_player_id == "p0"
@@ -74,7 +74,6 @@ def test_invalid_commands_are_atomic_in_every_turn_phase():
     assert_rejected(engine, InvalidActionError, lambda: engine.discard_card("p0", "fake"))
     for source in ("stock", "invalid", None, 1):
         assert_rejected(engine, InvalidActionError, lambda: engine.draw_card("p0", source))
-    assert_rejected(engine, NoDrawableCardError, lambda: engine.draw_card("p0", DrawSource.DISCARD))
     engine.draw_card("p0", DrawSource.STOCK)
     assert_rejected(engine, InvalidActionError, lambda: engine.draw_card("p0", DrawSource.STOCK))
     for card_id in ("fake", None, 12, engine.get_state().players[1].hand[0].card_id):
@@ -90,7 +89,7 @@ def exhausted_stock_fixture():
     """Trusted test-only redistribution; production has no state injection API."""
     engine = started()
     state = engine.get_state()
-    engine._state = replace(state, stock=(), discard=state.stock)
+    engine._state = replace(state, stock=(), discard=state.discard + state.stock)
     validate_game_state(engine.get_state())
     return engine
 
@@ -259,3 +258,18 @@ def test_seeded_turn_simulation_recycling_conservation_and_replay(count):
         assert all(len(p.hand) == 21 for p in left.get_state().players)
         validate_game_state(left.get_state())
     assert recycled >= 1
+
+
+def test_first_player_can_pick_up_initial_face_up_discard():
+    engine = started()
+    initial = engine.get_state()
+    card = engine.get_public_view().top_discard
+    assert card == initial.discard[-1]
+    assert DrawSource.DISCARD in engine.get_allowed_actions("p0").drawable_sources
+    engine.draw_card("p0", DrawSource.DISCARD)
+    assert engine.get_state().discard == ()
+    assert engine.get_state().stock == initial.stock
+    assert engine.get_player_view("p0").hand[-1] == card
+    engine.discard_card("p0", card.card_id)
+    assert engine.get_public_view().top_discard == card
+    validate_game_state(engine.get_state())

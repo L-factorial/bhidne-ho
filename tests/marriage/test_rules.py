@@ -42,7 +42,7 @@ def fixture(hand_ids, *, other_ids=(), rules=None):
     remaining = remaining[22 - len(hand_ids):]
     other += remaining[:21 - len(other)]
     remaining = remaining[21 - len(other_ids):]
-    game._state = replace(state, players=(PlayerState("a", hand), PlayerState("b", other)), stock=remaining)
+    game._state = replace(state, players=(PlayerState("a", hand), PlayerState("b", other)), stock=remaining, discard=())
     validate_game_state(game.get_state())
     return game
 
@@ -278,7 +278,7 @@ def test_event_privacy_cursor_and_pure_reads():
         assert game.get_player_events("b", 2)[0].card is None
         assert game.get_public_events(1000) == ()
         assert game.get_maal("a") is None
-        assert game.read_last_card() is None
+        assert game.read_last_card() == before.discard[-1]
     assert game.get_state() is before and game._rng.getstate() == rng
     for cursor in (-1, True, "0"):
         unchanged(game, InvalidActionError, lambda: game.get_public_events(cursor))

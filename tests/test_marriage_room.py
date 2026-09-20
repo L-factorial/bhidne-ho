@@ -12,7 +12,7 @@ def test_normal_win_http_privacy_reconnect_finish_and_receipt_retry(monkeypatch)
     hand = tuple(deck[i] for g in groups for i in g['card_ids'])
     tiplu, last = deck['D2:8H'], deck['MAN:0']
     rest = tuple(c for c in deck.values() if c not in hand + (tiplu, last))
-    monkeypatch.setattr('marriage.engine.deal_cards', lambda *_: ((hand, rest[:21]), rest[21:] + (tiplu, last)))
+    monkeypatch.setattr('marriage.engine.deal_cards', lambda *_: ((hand, rest[:21]), rest[22:] + (tiplu, last, rest[21])))
     with TestClient(create_app()) as client, ExitStack() as sockets:
         users = [client.post('/auth/guest').json() for _ in range(3)]
         headers = [{'Authorization': f"Bearer {u['token']}"} for u in users]
@@ -101,7 +101,7 @@ def test_marriage_http_lifecycle_private_hands_retries_and_room_chat_policy():
         assert client.post(root + '/marriage-settings', headers=headers[0], json=settings).status_code == 409
         hand = initial['marriage']['private']['hand']
         assert len(hand) == 21 and initial['game']['revision'] == 1
-        assert initial['marriage']['public']['stock_count'] == 117
+        assert initial['marriage']['public']['stock_count'] == 116
         assert client.app.state.participation.is_playing('marriage-room', users[0]['user_id'])
         other = client.get(root, headers=headers[1]).json()['marriage']['private']['hand']
         assert not {c['card_id'] for c in hand} & {c['card_id'] for c in other}

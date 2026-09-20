@@ -93,6 +93,8 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const canAct = !busy && !hidden && allRevealed && snapshot.status === 'playing';
   const name = (id: string | null) => snapshot.players?.find(p => String(p.player_id) === id)?.display_name || `Player ${id}`;
   const isTurn = !!mine && mine.player_id === pub?.current_player_id;
+  // The private hand preserves receipt order; draws append, even after reconnecting.
+  const drawnCard = isTurn && pub?.phase === 'must_discard' ? hand.at(-1) : undefined;
   const activeGame = snapshot.status === 'playing';
   const decision = marriageDecision(snapshot.marriage, activeGame);
   const [snap, setSnap] = useState<HandSnap>(() => marriageHandSnap(decision));
@@ -212,22 +214,25 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         {!allRevealed && button('Reveal cards', () => reveal(true), busy)}
         {allRevealed && button(hidden ? 'Show cards' : 'Hide cards', () => { setHidden(v => !v); setSelected([]); })}
       </View>
+      {!hidden && allRevealed && drawnCard && <Text testID="marriage-drawn-card" accessibilityLiveRegion="polite" style={s.heading}>You drew {physicalLabel(drawnCard.card_id)}</Text>}
       {selectingMeld && <View style={s.row}><Text style={s.small}>Select multiple cards for a meld.</Text>{button('Done selecting meld', () => { setSelectingMeld(false); setSelected([]); })}</View>}
       <View testID="marriage-hand" style={[s.hand, { height: mobile ? mobileLayout.height : 184, width }]}>{shown.map((card, index) => {
         const back = hidden || (!allRevealed && index >= revealed);
         const locked = committed.includes(card.card_id) || staged.includes(card.card_id), checked = selected.includes(card.card_id);
         const position = cardPosition(index, checked);
         return <View key={card.card_id} style={[{ position: 'absolute', zIndex: checked ? 100 : index }, position]}><Pressable accessibilityRole="button" accessibilityLabel={back ? 'Hidden card' : `${physicalLabel(card.card_id)}${locked ? ' grouped' : ''}`}
+          accessibilityHint={!back && card.card_id === drawnCard?.card_id ? 'Just drawn' : undefined}
           aria-pressed={checked}
           accessibilityState={{ selected: checked, disabled: busy || back || locked }} disabled={busy || back || locked}
           onPress={() => setSelected(ids => selectingMeld
             ? ids.includes(card.card_id) ? ids.filter(id => id !== card.card_id) : [...ids, card.card_id]
             : ids.length === 1 && ids[0] === card.card_id ? [] : [card.card_id])}
-          style={[s.card, back && s.cardBack, checked && s.selectedCard, locked && !back && { opacity: 0.55 }, mobile ? { width: mobileLayout.cardWidth, height: mobileLayout.cardHeight } : !fan && { width: gridCardWidth, height: gridCardHeight }, fan && {
+          style={[s.card, back && s.cardBack, !back && card.card_id === drawnCard?.card_id && s.drawnCard, checked && s.selectedCard, locked && !back && { opacity: 0.55 }, mobile ? { width: mobileLayout.cardWidth, height: mobileLayout.cardHeight } : !fan && { width: gridCardWidth, height: gridCardHeight }, fan && {
             width: 52, height: 110, transformOrigin: 'bottom center',
             transform: [{ rotate: `${shown.length > 1 ? index / (shown.length - 1) * fanSpread - fanSpread / 2 : 0}deg` }],
           }]} >
           {back ? <MarriageCardBack /> : <Text style={[s.face, mobile || fan ? { position: 'absolute', top: 4, left: 3, fontSize: mobile ? 19 : 17 } : { fontSize: gridCardWidth < 45 ? 16 : 21 }, { color: card.suit === 'H' || card.suit === 'D' ? colors.cardRed : card.suit === 'C' ? colors.cardClub : colors.cardInk }]}>{marriageFace(card)}</Text>}
+          {!back && card.card_id === drawnCard?.card_id && <Text style={{ position: 'absolute', bottom: 2, fontSize: 9, fontWeight: 'bold', color: colors.cardInk }}>NEW</Text>}
           {!back && !locked && detectedIds.has(card.card_id) && <View pointerEvents="none" style={{ position: 'absolute', right: 2, top: 2, width: 5, height: 5, borderRadius: 3, backgroundColor: colors.accent }} />}
           {!back && !fan && <Text numberOfLines={1} style={s.copy}>{card.card_type === 'man' ? 'Man' : suitName[card.suit!]} · {(card.deck_index ?? Number(card.card_id.slice(-1))) + 1}</Text>}
         </Pressable></View>;
@@ -355,6 +360,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   chosen: { backgroundColor: colors.surfaceSelected }, buttonText: { fontFamily: fonts.medium, color: colors.text, fontSize: 12 }, disabled: { opacity: 0.42 },
   piles: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 24, minHeight: 130 }, pileFace: { fontSize: 32, backgroundColor: colors.cardFace, color: colors.cardRed, borderRadius: 8, padding: 14 },
   hand: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, position: 'relative', paddingVertical: 6 }, card: { width: 49, height: 78, borderRadius: 7, borderWidth: 2, borderColor: colors.cardBorder, backgroundColor: colors.cardFace, alignItems: 'center', justifyContent: 'center', gap: 3 },
+  drawnCard: { borderColor: colors.accent, borderWidth: 3 },
   cardBack: { backgroundColor: colors.cardBack, borderColor: colors.cardBorder }, selectedCard: { borderColor: colors.cardSelectedBorder, borderWidth: 3, backgroundColor: colors.cardSelected }, face: { fontFamily: fonts.medium, fontSize: 23, fontWeight: 'bold' }, copy: { color: colors.cardInk, textAlign: 'center', fontSize: 8 },
   builder: { gap: 10, paddingTop: 12, borderTopWidth: 1, borderColor: colors.border }, maal: { backgroundColor: colors.surface, padding: 12, gap: 8, borderRadius: 8 },
   error: { color: colors.danger, backgroundColor: colors.dangerSurface, padding: 14, borderRadius: 10 }, success: { color: colors.success, fontSize: 13 },

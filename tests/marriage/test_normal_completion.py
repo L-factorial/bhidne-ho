@@ -29,7 +29,7 @@ def normal_round(count=2, wild=False, remainder=None):
     players = (PlayerState('0', hand[:-1]),) + tuple(
         PlayerState(str(i), remaining[(i - 1) * 21:i * 21]) for i in range(1, count))
     game._state = replace(game.get_state(), players=players,
-                          stock=remaining[(count - 1) * 21:] + (tiplu, hand[-1]))
+                          discard=(), stock=remaining[(count - 1) * 21:] + (tiplu, hand[-1]))
     validate_game_state(game.get_state())
     return game
 
@@ -160,7 +160,7 @@ def test_long_qualification_can_finish_and_final_discard_is_not_scored():
     tiplu, discard = CARDS['D2:8H'], CARDS['MAN:0']
     rest = tuple(c for c in create_deck() if c not in hand + (tiplu, discard))
     game._state = replace(state, players=(PlayerState('0', hand), PlayerState('1', rest[:21])),
-                          stock=rest[21:] + (tiplu, discard))
+                          discard=(), stock=rest[21:] + (tiplu, discard))
     game.draw_card('0', DrawSource.STOCK)
     game.show_initial_melds('0', groups)
     assert game.get_allowed_actions('0').normal_finish.discard_card_id == 'MAN:0'

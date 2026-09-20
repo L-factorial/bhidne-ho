@@ -30,7 +30,7 @@ engine = MarriageGameEngine(['p1', 'p2', 'p3', 'p4'], rng=Random(11))
 engine.start_game()
 validate_card_conservation(engine.get_state())
 assert len(engine.get_player_view('p1').hand) == 21
-assert engine.get_public_view().stock_count == 75
+assert engine.get_public_view().stock_count == 74
 engine.draw_card('p1', DrawSource.STOCK)
 engine.discard_card('p1', engine.get_allowed_actions('p1').discardable_card_ids[0])
 validate_card_conservation(engine.get_state())
