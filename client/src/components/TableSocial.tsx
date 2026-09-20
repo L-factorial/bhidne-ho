@@ -1,5 +1,6 @@
+import { ChatComposer } from './ChatComposer';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { AccessibilityInfo, Animated, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, Animated, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { fonts, useTheme } from '../theme';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { TableSocialChannel, mergeTableMessages, type TableMessage } from '../multiplayer/TableSocialChannel';
@@ -170,17 +171,28 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
       {open && canRead && <KeyboardAvoidingView pointerEvents="box-none" enabled={Platform.OS === 'ios'} behavior="padding" keyboardVerticalOffset={keyboardOffset}
         style={{position:'absolute',top:0,bottom:0,right:0,left:0,zIndex:60}}>
         <View pointerEvents="box-none" style={{flex:1,minHeight:0,justifyContent:'flex-end',alignItems:'flex-end',paddingHorizontal:8}}>
-        <View testID="table-chat-panel" style={{width:width<900?'100%':360,height:Math.min(380,viewportHeight*0.5),maxHeight:'85%',minHeight:0,backgroundColor:c.surface,borderColor:c.border,borderWidth:1,borderRadius:16,padding:12,gap:8}}>
-          <View style={{flexDirection:'row',alignItems:'center',flexShrink:0}}><Text accessibilityRole="header" style={{flex:1,color:c.text,fontFamily:fonts.medium}}>Table Chat</Text><Pressable accessibilityRole="button" accessibilityLabel="Close table chat" onPress={closeChat} style={iconStyle}><Text style={{color:c.text}}>✕</Text></Pressable></View>
+        <View testID="table-chat-panel" style={{width:width<900?'100%':360,height:Math.min(380,viewportHeight*0.5),maxHeight:'85%',minHeight:0,backgroundColor:c.surface,borderRadius:20,padding:12,gap:8}}>
+          <View style={{flexDirection:'row',alignItems:'center',flexShrink:0,borderBottomWidth:1,borderColor:c.border,paddingBottom:4}}><Text accessibilityRole="header" style={{flex:1,color:c.text,fontFamily:fonts.medium,fontSize:20}}>Table Chat</Text><Pressable accessibilityRole="button" accessibilityLabel="Close table chat" onPress={closeChat} style={iconStyle}><Text style={{color:c.text,fontSize:24}}>×</Text></Pressable></View>
           {myTurn && <Pressable accessibilityRole="button" onPress={closeChat} style={{minHeight:44,justifyContent:'center'}}><Text accessibilityLiveRegion="polite" style={{color:c.accent}}>Your turn · Return to game</Text></Pressable>}
           <ScrollView ref={scroll} testID="table-chat-messages" style={{flex:1,minHeight:0}} keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} keyboardShouldPersistTaps="handled" onLayout={() => { if(follow.current) scroll.current?.scrollToEnd({animated:false}); }} onScroll={({nativeEvent:e}) => { follow.current = e.contentSize.height-e.contentOffset.y-e.layoutMeasurement.height < 40; }} scrollEventThrottle={16} onContentSizeChange={() => { if(follow.current) scroll.current?.scrollToEnd({animated:false}); }}>
             {!messages.length && <Text style={{color:c.textMuted}}>Start the table conversation.</Text>}
-            {messages.map(message => <View key={message.id} style={{paddingVertical:6}}><Text style={{color:c.accent,fontFamily:fonts.medium,fontSize:12}}>{message.sender_name}</Text><Text selectable style={{color:c.text}}>{message.text}</Text></View>)}
+            {messages.map(message => <View key={message.id} style={{paddingVertical:12,gap:6}}>
+              <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
+                <View style={{width:28,height:28,borderRadius:14,backgroundColor:c.surfaceRaised,alignItems:'center',justifyContent:'center'}}>
+                  <Text style={{color:c.accent,fontFamily:fonts.medium,fontSize:11}}>{message.sender_name.slice(0,1).toUpperCase()}</Text>
+                </View>
+                <Text style={{flex:1,color:c.accent,fontFamily:fonts.medium,fontSize:11}}>{message.sender_name}{message.sender_id === userId ? ' (You)' : ''}</Text>
+                <Text style={{color:c.textMuted,fontFamily:fonts.body,fontSize:11}}>{new Date(message.sent_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</Text>
+              </View>
+              <Text selectable style={{marginLeft:36,color:c.text,fontFamily:fonts.body,fontSize:13,lineHeight:20}}>{message.text}</Text>
+            </View>)}
           </ScrollView>
           {!!error && <Text accessibilityRole="alert" style={{color:c.danger}}>{error}</Text>}
           {!connected && <Text style={{color:c.textMuted}}>Reconnecting…</Text>}
-          {seated ? <View testID="table-chat-composer" style={{flexDirection:'row',alignItems:'flex-end',gap:8,flexShrink:0}}><TextInput accessibilityLabel="Table message" placeholder="Message…" placeholderTextColor={c.textMuted} multiline value={draft} onChangeText={setDraft} style={{flex:1,minWidth:0,minHeight:44,maxHeight:90,borderWidth:1,borderColor:c.border,borderRadius:8,padding:10,color:c.text}} />
-            <Pressable accessibilityRole="button" accessibilityLabel="Send table message" disabled={!enabled || sending || !draft.trim() || Array.from(draft).length>500} onPress={() => void send()} style={{minHeight:44,minWidth:64,paddingHorizontal:12,flexShrink:0,alignItems:'center',justifyContent:'center',backgroundColor:c.primary,borderRadius:8,opacity:enabled&&!sending&&!!draft.trim()?1:0.5}}><Text style={{color:c.onPrimary}}>{sending?'Sending…':'Send'}</Text></Pressable></View> : <Text style={{color:c.textMuted}}>Waiting players can read. Take a seat to chat.</Text>}
+          {seated ? <View testID="table-chat-composer" style={{flexShrink:0}}>
+            <ChatComposer value={draft} onChange={setDraft} onSend={() => void send()} disabled={!enabled || sending}
+              label="Table message" sendLabel="Send table message" placeholder="Write a message…" />
+          </View> : <Text style={{color:c.textMuted}}>Waiting players can read. Take a seat to chat.</Text>}
         </View>
         </View>
       </KeyboardAvoidingView>}
