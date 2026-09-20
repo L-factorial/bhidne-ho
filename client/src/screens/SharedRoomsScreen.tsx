@@ -277,13 +277,9 @@ export function SharedRoomsScreen({ onExit, invitation, dismissInvitation }: { o
           </>
         </View>}
         {lobbyTab === 'rooms' && <View style={[styles.columns, !session && { marginTop: 24 }]}>
-          {roomToolsOpen && <RoomSheet visible title={form === 'create' ? 'Create room' : 'Join room'} closeLabel="Close room form" onClose={() => setRoomToolsOpen(false)} footer={form === 'create' ? <FormFooter>
+          {roomToolsOpen && <RoomSheet visible presentation="dialog" title={form === 'create' ? 'Create room' : 'Join with code'} closeLabel="Close room form" onClose={() => setRoomToolsOpen(false)} footer={form === 'create' ? <FormFooter>
               {!!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{error || shared.error}</Text>}
               <Pressable accessibilityRole="button" disabled={!session || busy || expired || !name.trim()} accessibilityState={{ disabled: !session || busy || expired || !name.trim() }} onPress={createRoom} style={[styles.button, { backgroundColor: colors.primary }, (!session || busy || expired || !name.trim()) && styles.disabled]}><Text style={[styles.buttonText, { color: colors.onPrimary }]}>Create room</Text></Pressable></FormFooter> : undefined}>
-            <View style={styles.gameTabs}>
-              <Pressable accessibilityRole="button" accessibilityState={{ selected: form === 'create' }} onPress={() => setForm('create')} style={[styles.gameTab, form === 'create' && styles.selectedTab]}><Text style={[styles.tabText, form === 'create' && styles.selectedTabText]}>Create room</Text></Pressable>
-              <Pressable accessibilityRole="button" accessibilityState={{ selected: form === 'join' }} onPress={() => setForm('join')} style={[styles.gameTab, form === 'join' && styles.selectedTab]}><Text style={[styles.tabText, form === 'join' && styles.selectedTabText]}>Join with code</Text></Pressable>
-            </View>
             {form === 'create' ? <>
               <FormInput accessibilityLabel="Room name" value={name} onChangeText={setName} maxLength={60} placeholder="e.g. Friday friends" placeholderTextColor={colors.textMuted} style={styles.input} editable={!busy} />
               <Pressable accessibilityRole="button" accessibilityState={{ expanded: roomOptionsOpen }} onPress={() => setRoomOptionsOpen(v => !v)} style={styles.textButton}><Text style={styles.enterText}>Privacy & invitations {roomOptionsOpen ? '−' : '+'}</Text></Pressable>

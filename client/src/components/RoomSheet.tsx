@@ -5,10 +5,11 @@ import { Keyboard, Modal, Platform, Pressable, Text, useWindowDimensions, View }
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fonts, useTheme } from '../theme';
 
-export function RoomSheet({ visible, title, onClose, children, scrollable = true, footer, testID = 'room-sheet', closeLabel = 'Close room panel', contentHandlesBottomInset = false }: { visible: boolean; title: string; onClose: () => void; children: ReactNode; scrollable?: boolean; footer?: ReactNode; testID?: string; closeLabel?: string; contentHandlesBottomInset?: boolean }) {
+export function RoomSheet({ visible, title, onClose, children, scrollable = true, footer, testID = 'room-sheet', closeLabel = 'Close room panel', contentHandlesBottomInset = false, presentation = 'sheet' }: { visible: boolean; title: string; onClose: () => void; children: ReactNode; scrollable?: boolean; footer?: ReactNode; testID?: string; closeLabel?: string; contentHandlesBottomInset?: boolean; presentation?: 'sheet' | 'dialog' }) {
   const { colors: c } = useTheme();
   const wide = useWindowDimensions().width >= 900;
   const insets = useSafeAreaInsets();
+  const dialog = presentation === 'dialog';
   useEffect(() => {
     if (!visible || Platform.OS !== 'web') return;
     const previous = document.activeElement as HTMLElement | null;
@@ -24,8 +25,8 @@ export function RoomSheet({ visible, title, onClose, children, scrollable = true
       if (!closeButton?.parentElement?.parentElement?.contains(document.activeElement)) closeButton?.focus();
     }
   }}>
-    <KeyboardFrame style={{ flex: 1, backgroundColor: c.overlay, justifyContent: wide ? 'center' : 'flex-end', alignItems: 'center', padding: wide ? 24 : 0, paddingTop: Math.max(24, insets.top) }}>
-      <View testID={testID} accessibilityViewIsModal style={{ width: '100%', maxWidth: wide ? 640 : undefined, maxHeight: '90%', height: scrollable ? undefined : '90%', minHeight: 0, backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, borderBottomLeftRadius: wide ? 20 : 0, borderBottomRightRadius: wide ? 20 : 0, paddingBottom: footer || contentHandlesBottomInset ? 0 : Math.max(16, insets.bottom) }}>
+    <KeyboardFrame style={[{ flex: 1, backgroundColor: c.overlay, justifyContent: wide ? 'center' : 'flex-end', alignItems: 'center', padding: wide ? 24 : 0, paddingTop: Math.max(24, insets.top) }, dialog && { justifyContent: 'center', paddingHorizontal: 20, paddingTop: Math.max(16, insets.top), paddingBottom: Math.max(16, insets.bottom) }]}>
+      <View testID={testID} accessibilityViewIsModal style={[{ width: '100%', maxWidth: wide ? 640 : undefined, maxHeight: '90%', height: scrollable ? undefined : '90%', minHeight: 0, backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, borderBottomLeftRadius: wide ? 20 : 0, borderBottomRightRadius: wide ? 20 : 0, paddingBottom: footer || contentHandlesBottomInset ? 0 : Math.max(16, insets.bottom) }, dialog && { maxWidth: 480, maxHeight: '100%', borderTopLeftRadius: 18, borderTopRightRadius: 18, borderBottomLeftRadius: 18, borderBottomRightRadius: 18, overflow: 'hidden' }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 12, borderBottomWidth: 1, borderColor: c.border }}>
           <Text accessibilityRole="header" style={{ flex: 1, fontFamily: fonts.medium, color: c.text, fontSize: 20 }}>{title}</Text>
           <Pressable testID="room-sheet-close" accessibilityRole="button" accessibilityLabel={closeLabel} onPress={close} style={{ minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: c.text, fontSize: 24 }}>×</Text></Pressable>
