@@ -8,6 +8,9 @@ from app.test_games.service import TestGameService as GameService
 
 
 class Rooms:
+    async def room(self, room_id):
+        return {"name": "Friday cards"}
+
     async def members(self, room_id):
         return ["alice", "bob", "carol"]
 
@@ -21,11 +24,15 @@ def result(game, table, amounts):
 async def test_room_and_table_ledgers_are_sorted_and_game_recording_is_idempotent():
     service = LedgerService(InMemoryLedgerStore(), Rooms())
     first = result("game-1", "table-1", {"alice": 50, "bob": 20, "carol": -70})
+    first.table_name = "Friends table"
     second = result("game-2", "table-1", {"alice": -20, "bob": 0, "carol": 20})
     await service.record_game(first)
     await service.record_game(first)
     await service.record_game(second)
     view = await service.snapshot("room", "alice")
+    assert view["room_name"] == "Friday cards"
+    assert view["tables"][0]["table_name"] == "Friends table"
+    assert (await service.store.room_games("room"))[0]["table_name"] == "Friends table"
     assert view["balances"] == [{"player_id": "alice", "amount": 30},
                                 {"player_id": "bob", "amount": 20},
                                 {"player_id": "carol", "amount": -50}]

@@ -13,6 +13,7 @@ class GameLedgerResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
     room_id: str
     table_id: str
+    table_name: str = Field(default="", max_length=60)
     game_id: str
     game_type: str
     amounts: list[GameLedgerAmount] = Field(min_length=2)
@@ -43,4 +44,3 @@ class CreateSettlement(BaseModel):
 class SettlementAction(BaseModel):
     model_config = ConfigDict(extra="forbid")
     idempotency_key: str = Field(min_length=1, max_length=128)
-

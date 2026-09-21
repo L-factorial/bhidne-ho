@@ -32,15 +32,18 @@ class LedgerService:
     async def record_game(self, result):
         await self.store.record_game(result)
 
-    async def snapshot(self, room_id, user_id):
+    async def snapshot(self, room_id, user_id, table_names=None):
         await self.authorize(room_id, user_id)
         games, batches = await self.store.room_games(room_id), await self.store.room_batches(room_id)
         claimed = {game_id for batch in batches for game_id in batch["games"]}
         room = defaultdict(int)
         tables = {}
         for game in games:
-            table = tables.setdefault(game["table_id"], {"table_id": game["table_id"], "game_count": 0,
+            table = tables.setdefault(game["table_id"], {"table_id": game["table_id"],
+                "table_name": (table_names or {}).get(game["table_id"]) or game.get("table_name", ""), "game_count": 0,
                 "balances": defaultdict(int), "games": [], "suggested_transfers": []})
+            if not table["table_name"]:
+                table["table_name"] = game.get("table_name", "")
             table["game_count"] += 1
             game_balances = {row["player_id"]: row["amount"] for row in game["amounts"]}
             table["games"].append({"game_id": game["game_id"], "game_type": game["game_type"],
@@ -66,7 +69,8 @@ class LedgerService:
         personal = [dict(transfer, batch_id=batch["batch_id"], table_id=batch["table_id"], scope=batch["scope"])
                     for batch in batches for transfer in batch["transfers"]
                     if user_id in (transfer["payer_id"], transfer["payee_id"])]
-        return {"room_id": room_id, "players": names, "balances": sorted_balances(room),
+        record = await self.rooms.room(room_id)
+        return {"room_id": room_id, "room_name": record["name"] if record else "", "players": names, "balances": sorted_balances(room),
                 "tables": sorted(tables.values(), key=lambda row: row["table_id"]),
                 "settlements": batches, "personal_settlements": personal}
 

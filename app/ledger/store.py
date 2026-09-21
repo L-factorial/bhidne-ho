@@ -112,9 +112,9 @@ class PostgresLedgerStore:
     async def record_game(self, result):
         async with self.pool.connection() as connection, connection.transaction():
             row = await (await connection.execute(
-                "INSERT INTO ledger_games (game_id,room_id,table_id,game_type) VALUES (%s,%s,%s,%s) "
+                "INSERT INTO ledger_games (game_id,room_id,table_id,game_type,table_name) VALUES (%s,%s,%s,%s,%s) "
                 "ON CONFLICT (game_id) DO NOTHING RETURNING game_id",
-                (result.game_id, result.room_id, result.table_id, result.game_type))).fetchone()
+                (result.game_id, result.room_id, result.table_id, result.game_type, result.table_name))).fetchone()
             if row:
                 await _executemany(connection,
                     "INSERT INTO game_ledger_entries (game_id,player_id,amount) VALUES (%s,%s,%s)",
@@ -135,14 +135,14 @@ class PostgresLedgerStore:
     async def room_games(self, room_id):
         async with self.pool.connection() as connection:
             rows = await (await connection.execute(
-                "SELECT g.game_id,g.room_id,g.table_id,g.game_type,e.player_id,e.amount "
+                "SELECT g.game_id,g.room_id,g.table_id,g.game_type,e.player_id,e.amount,g.table_name "
                 "FROM ledger_games g JOIN game_ledger_entries e USING(game_id) WHERE g.room_id=%s "
                 "ORDER BY g.created_at,e.player_id", (room_id,))).fetchall()
         games = {}
-        for game_id, room, table, kind, player, amount in rows:
+        for game_id, room, table, kind, player, amount, table_name in rows:
             games.setdefault(_application_object_id(game_id), {"game_id": _application_object_id(game_id),
                 "room_id": room, "table_id": _application_object_id(table),
-                "game_type": kind, "amounts": []})["amounts"].append({
+                "game_type": kind, "table_name": table_name, "amounts": []})["amounts"].append({
                     "player_id": _application_user_id(player), "amount": amount})
         return list(games.values())
 

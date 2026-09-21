@@ -18,7 +18,8 @@ async def ledger(room_id: str, request: Request, user: UserIdentity = Depends(cu
     try:
         await request.app.state.ledger.authorize(room_id, user.user_id)
         await request.app.state.test_games.retry_completed_ledgers(room_id)
-        return await request.app.state.ledger.snapshot(room_id, user.user_id)
+        table_names = {game.table.table_id: game.name for game in request.app.state.test_games._room_games(room_id)}
+        return await request.app.state.ledger.snapshot(room_id, user.user_id, table_names)
     except (PermissionError, KeyError, ValueError) as error: raise mapped(error) from None
 
 

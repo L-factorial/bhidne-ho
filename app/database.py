@@ -299,6 +299,9 @@ MIGRATIONS = (
         );
         CREATE INDEX social_login_attempts_expiry_idx ON social_login_attempts(expires_at);
     """),
+    (10, """
+        ALTER TABLE ledger_games ADD COLUMN table_name text NOT NULL DEFAULT '';
+    """),
 )
 
 

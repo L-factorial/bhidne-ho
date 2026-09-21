@@ -928,7 +928,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                     amounts[winner] += payment
         if not amounts or game_id in game.ledgered_games:
             return
-        await self.ledger.record_game(GameLedgerResult(room_id=game.room_id, table_id=game.table.table_id,
+        await self.ledger.record_game(GameLedgerResult(room_id=game.room_id, table_id=game.table.table_id, table_name=game.name,
             game_id=game_id, game_type=game.game_type,
             amounts=[GameLedgerAmount(player_id=player, amount=amount) for player, amount in amounts.items()]))
         game.ledgered_games.add(game_id)
