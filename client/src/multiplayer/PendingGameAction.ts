@@ -4,7 +4,7 @@ export type ActionRequest = {
 export type ActionAck = { command_id: string; status: 'accepted' | 'rejected'; revision: number; detail?: string };
 type ActionSnapshot = { match_id?: string; action_ack?: ActionAck };
 export type GameRequestDetail = { code?: string; room_id?: string; match_id?: string;
-  requires_leave_game?: boolean; departure_command?: 'abandon' | 'leave' };
+  requires_leave_game?: boolean; departure_command?: 'abandon' | 'leave' | 'end' };
 
 export class GameRequestError extends Error {
   status: number;

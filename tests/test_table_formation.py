@@ -211,6 +211,15 @@ async def test_completed_match_clean_leave_offer_accept_and_next_match(capacity)
         assert replacement['table']['seated_players'][1]['user_id'] == 'u9'
         assert replacement['players'][0]['user_id'] == 'u0'
         assert (await cmd(host, game, 'u0', 'next-match'))['match_id'] == replacement['match_id']
+        # Polling the ended match must not mark the new shared table ENDED.
+        old = await host.snapshot('r', 'u2', game.match_id)
+        assert not old['table']['current_user']['is_seated']
+        await host.leave('r', 'u2', game.match_id)
+        current = await host.snapshot('r', 'u2', replacement['match_id'])
+        assert current['table']['phase'] == 'OPEN'
+        assert current['table']['current_user']['is_seated']
+        assert current['table']['seated_players'] == replacement['table']['seated_players']
+        assert (await host.start('r', 'u0', replacement['match_id']))['status'] == 'playing'
     finally:
         await host.close()
 

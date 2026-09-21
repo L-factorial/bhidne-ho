@@ -148,7 +148,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         return [{"match_id": game.match_id, "name": game.name, "game_type": game.game_type,
                  "status": "ended" if game.ended else "finished" if game.finished else
                            "playing" if game.started else "waiting"}
-                for game in self._room_games(room_id)]
+                for game in self._room_games(room_id) if not game.ended]
 
     def _contains(self, game):
         return self.tables.get(game.room_id, {}).get(game.match_id) is game
@@ -165,17 +165,20 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         occupied = self._occupied_game(user_id, room_id, excluding=game)
         if occupied:
             current = occupied.table.view(occupied, user_id)['current_user']
+            blocked = occupied.table.phase == 'LOCKED' or (
+                occupied.table.phase == 'STARTED' and occupied.game_type == 'marriage')
             raise HTTPException(409, {"code": "PLAYER_ALREADY_AT_TABLE",
-                "detail": f"Leave {occupied.room_id}/{occupied.name} before joining another table.",
+                "detail": (f"Ask the creator to end {occupied.room_id}/{occupied.name} before joining another table."
+                           if blocked else f"Leave {occupied.room_id}/{occupied.name} before joining another table."),
                 "room_id": occupied.room_id, "match_id": occupied.match_id,
                 "requires_leave_game": True,
-                "departure_command": "abandon" if current['can_abandon_match'] else "leave"})
+                "departure_command": "end" if blocked else "abandon" if current['can_abandon_match'] else "leave"})
 
     def membership(self, room_id, user_id):
         games = self._room_games(room_id)
         game = next((g for g in games if not g.ended and (user_id in g.table.seats(g) or user_id in g.table.queue
                     or any(o.offered_to_player_id == user_id for o in g.table.pending()))), None)
-        game = game or self.games.get(room_id)
+        game = game or next((g for g in reversed(games) if not g.ended), None)
         if not game:
             return None
         view = game.table.view(game, user_id)
@@ -241,6 +244,8 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         result["path"] = f"{game.room_id}/{game.name}"
         result["tables"] = []
         for hosted in self._room_games(game.room_id):
+            if hosted.ended:
+                continue
             view = hosted.table.view(hosted, user_id)
             result["tables"].append({
                 "match_id": hosted.match_id, "name": hosted.name, "game_type": hosted.game_type,
@@ -392,7 +397,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         await self._member(room_id, user_id)
         game = self.tables.get(room_id, {}).get(match_id) if match_id else None
         game = game or next((g for g in self._room_games(room_id) if user_id in g.table.seats(g) and not g.ended), None)
-        game = game or self.games.get(room_id)
+        game = game or next((g for g in reversed(self._room_games(room_id)) if not g.ended), None)
         if not game:
             return {"room_id": room_id, "status": "empty", "tables": []}
         async with game.lock:
@@ -551,8 +556,6 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             async with game.lock:
                 await self._member(room_id, user_id, game)
                 if match_id != game.match_id:
-                    raise HTTPException(409, "The game changed. Refresh before ending it.")
-                if game.ended and self.games.get(room_id) is not game:
                     raise HTTPException(409, "The game changed. Refresh before ending it.")
                 members = await self.rooms.members(room_id)
                 if user_id not in members:

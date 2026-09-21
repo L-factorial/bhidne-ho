@@ -26,6 +26,7 @@ import { RoomLedger } from '../components/RoomLedger';
 import { apiUrl, request } from '../multiplayer/api';
 import type { Room } from '../multiplayer/session';
 import { useRoomSession } from '../multiplayer/useRoomSession';
+import { SocialSignInButtons } from '../components/SocialSignInButtons';
 
 type InvitePlayer = { user_id: string; display_name: string; username?: string | null };
 
@@ -258,6 +259,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
           </View>
         </View>}
         {!session && <View style={styles.panel}>
+          <SocialSignInButtons disabled={shared.loggingIn} onBusyChange={shared.socialLoginBusy} onSession={shared.acceptSocialSession} />
           <Text style={styles.sectionTitle}>{authMode === 'signup' ? 'Create your account' : 'Welcome back'}</Text>
           <View style={styles.gameTabs}>
             {([['signin', 'Sign in'], ['signup', 'Sign up']] as const).map(([value, label]) =>

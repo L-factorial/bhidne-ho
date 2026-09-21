@@ -1,3 +1,5 @@
+import { readAuthValue, writeAuthValue } from '../auth/storage.ts';
+
 export type Session = { user_id: string; token: string };
 export type Room = { room_id: string; name: string; members: string[]; connected_members?: string[];
   creator_id?: string | null; visibility?: 'public' | 'friends'; created_at?: number | null;
@@ -8,12 +10,10 @@ const memory = new Map<string, SavedSession>();
 const key = (server: string) => `bhidne.session.v1:${server}`;
 
 // Per-tab storage keeps separate browser windows available for separate players.
-// Native clients retain the session in memory; device persistence can use the same interface.
+// Native credentials use platform secure storage via the platform-specific adapter.
 export function readSession(server: string): SavedSession | null {
   try {
-    const storage = globalThis.sessionStorage;
-    if (!storage) return memory.get(server) || null;
-    const raw = storage.getItem(key(server));
+    const raw = readAuthValue(key(server));
     if (!raw) return null;
     const value = JSON.parse(raw);
     if (typeof value?.session?.token !== 'string' || !value.session.token
@@ -28,7 +28,6 @@ export function readSession(server: string): SavedSession | null {
 export function saveSession(server: string, value: SavedSession | null) {
   if (value) memory.set(server, value); else memory.delete(server);
   try {
-    if (value) globalThis.sessionStorage?.setItem(key(server), JSON.stringify(value));
-    else globalThis.sessionStorage?.removeItem(key(server));
+    writeAuthValue(key(server), value ? JSON.stringify(value) : null);
   } catch { /* Storage may be disabled; the in-memory session still works. */ }
 }

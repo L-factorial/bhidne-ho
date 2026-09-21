@@ -57,6 +57,18 @@ is rejected with `NEXT_MATCH_REQUIRED`.
 
 ## 8. Leave Seat
 
+Ended tables reserve no seats, even though their engine roster remains available
+for results. They are excluded from lobby membership feeds, room table lists and
+active-game summaries. Ending the last table restores the empty-room table view;
+explicit match lookups retain history. A stale Leave/Abandon request after the host ends a table succeeds
+without affecting a new table. Repeated End addresses only the original match.
+The client dismisses a previous-table conflict when polling observes that table
+ended. Locked rosters require the host to end them; their conflict prompt offers
+status checking instead of a Leave action that the server would reject.
+
+Successive matches retain the table ID but have independent mutable roster state,
+so reading or leaving an old match cannot mark the new match ended or remove seats.
+
 The completed Call Break action is **Leave Seat**. It releases ownership for the
 next match, leaves room membership intact, and emits `SEAT_RELEASED`. It never
 emits abandonment or applies a penalty. The completed scoreboard is unchanged.

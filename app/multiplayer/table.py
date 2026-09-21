@@ -113,7 +113,8 @@ class TableState:
     def view(self, game, user_id):
         self.sync(game)
         policy = GameTablePolicy.for_game(game.game_type, game.capacity)
-        seats = self.seats(game)
+        # Historical engine seats do not reserve membership after End.
+        seats = [] if game.ended else self.seats(game)
         seated = user_id in seats
         count = sum(u is not None for u in seats)
         host = next((u for u in seats if u is not None), None) == user_id

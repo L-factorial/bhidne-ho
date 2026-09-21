@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
+import asyncio
 import hashlib
 import hmac
+from time import monotonic
 
 import httpx
 import jwt
@@ -23,17 +25,39 @@ class OpenIdTokenVerifier(ProviderVerifier):
     def __init__(self, audiences, issuer, jwks_url, provider, client=None):
         self.audiences, self.issuer, self.jwks_url, self.provider = tuple(audiences), issuer, jwks_url, provider
         self.client = client
+        self._keys = []
+        self._keys_until = 0
+        self._last_refresh = float('-inf')
+        self._key_lock = asyncio.Lock()
+
+    async def _key(self, kid):
+        async with self._key_lock:
+            now = monotonic()
+            found = next((key for key in self._keys if key.get('kid') == kid), None)
+            if now >= self._keys_until or (found is None and now - self._last_refresh >= 5):
+                self._last_refresh = now
+                if self.client:
+                    response = await self.client.get(self.jwks_url)
+                else:
+                    async with httpx.AsyncClient(timeout=5) as client:
+                        response = await client.get(self.jwks_url)
+                response.raise_for_status()
+                keys = response.json()['keys']
+                if not isinstance(keys, list) or len(keys) > 100 or not all(isinstance(key, dict) for key in keys):
+                    raise ProviderVerificationError('Invalid provider key set')
+                self._keys = keys
+                self._keys_until = now + 300
+            found = next((key for key in self._keys if key.get('kid') == kid), None)
+            if found is None:
+                raise ProviderVerificationError('Unknown identity token key')
+            return found
 
     async def verify(self, credential: str, nonce: str | None = None) -> VerifiedIdentity:
         try:
             header = jwt.get_unverified_header(credential)
-            if self.client:
-                response = await self.client.get(self.jwks_url)
-            else:
-                async with httpx.AsyncClient(timeout=5) as client:
-                    response = await client.get(self.jwks_url)
-            response.raise_for_status()
-            key_data = next(key for key in response.json()["keys"] if key.get("kid") == header.get("kid"))
+            if header.get('alg') != 'RS256' or not isinstance(header.get('kid'), str):
+                raise ProviderVerificationError('Invalid identity token header')
+            key_data = await self._key(header['kid'])
             key = jwt.PyJWK.from_dict(key_data).key
             claims = jwt.decode(
                 credential, key, algorithms=["RS256"], audience=self.audiences,
@@ -56,22 +80,23 @@ class OpenIdTokenVerifier(ProviderVerifier):
 class FacebookTokenVerifier(ProviderVerifier):
     provider = "facebook"
 
-    def __init__(self, app_id: str, app_secret: str, client=None):
+    def __init__(self, app_id: str, app_secret: str, client=None, graph_url='https://graph.facebook.com'):
         self.app_id, self.app_secret = app_id, app_secret
         self.client = client
+        self.graph_url = graph_url
 
     async def verify(self, credential: str, nonce: str | None = None) -> VerifiedIdentity:
         proof = hmac.new(self.app_secret.encode(), credential.encode(), hashlib.sha256).hexdigest()
         try:
             async def requests(client):
-                debug = await client.get("https://graph.facebook.com/debug_token", params={
+                debug = await client.get(self.graph_url + "/debug_token", params={
                     "input_token": credential, "access_token": f"{self.app_id}|{self.app_secret}",
                 })
                 debug.raise_for_status()
                 data = debug.json()["data"]
                 if data.get("is_valid") is not True or str(data.get("app_id")) != self.app_id:
                     raise ProviderVerificationError("Facebook rejected the access token")
-                profile = await client.get("https://graph.facebook.com/me", params={
+                profile = await client.get(self.graph_url + "/me", params={
                     "fields": "id,name,email", "access_token": credential, "appsecret_proof": proof,
                 })
                 return data, profile

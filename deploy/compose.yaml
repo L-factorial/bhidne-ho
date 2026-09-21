@@ -26,10 +26,7 @@ services:
     env_file: .env
     environment:
       BHIDNE_HO_CORS_ORIGINS: https://bhidne-ho.lfactorial.com
-      BHIDNE_HO_GOOGLE_CLIENT_IDS: ${BHIDNE_HO_GOOGLE_CLIENT_IDS:-}
-      BHIDNE_HO_APPLE_CLIENT_IDS: ${BHIDNE_HO_APPLE_CLIENT_IDS:-}
-      BHIDNE_HO_FACEBOOK_APP_ID: ${BHIDNE_HO_FACEBOOK_APP_ID:-}
-      BHIDNE_HO_FACEBOOK_APP_SECRET: ${BHIDNE_HO_FACEBOOK_APP_SECRET:-}
+      # Social settings come from env_file so deploy/.env is the single source.
     depends_on:
       postgres:
         condition: service_healthy

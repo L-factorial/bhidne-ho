@@ -1,5 +1,6 @@
+import './src/auth/installStorage';
 import { readInvitation, type Invitation } from './src/multiplayer/invitations';
-import { Image, Linking, Platform, View } from 'react-native';
+import { Image, Linking, Platform, Text, View } from 'react-native';
 import { branding } from './src/branding';
 import { ThemeProvider } from './src/ThemeProvider';
 import { useTheme } from './src/theme';
@@ -11,7 +12,8 @@ import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
 import { apiUrl } from './src/multiplayer/api';
-import { readSession } from './src/multiplayer/session';
+import { readSession, saveSession } from './src/multiplayer/session';
+import { completeSocialLogin, isSocialReturn } from './src/auth/social';
 import { SharedRoomsScreen } from './src/screens/SharedRoomsScreen';
 import { LanguageProvider } from './src/i18n/LanguageProvider';
 import { useTranslation } from 'react-i18next';
@@ -23,6 +25,35 @@ function AppContent() {
   const { mode, colors } = useTheme();
   const [invitation, setInvitation] = useState<Invitation | null>(() => Platform.OS === 'web' ? readInvitation(globalThis.location.href) : null);
   const [inRooms, setInRooms] = useState(() => !!readSession(apiUrl) || !!invitation);
+  const [authVersion, setAuthVersion] = useState(0);
+  const [authError, setAuthError] = useState('');
+  const [finishingSignIn, setFinishingSignIn] = useState(() => Platform.OS === 'web' && isSocialReturn(globalThis.location.href));
+  useEffect(() => {
+    let active = true;
+    async function finish(url: string | null) {
+      if (!url || !isSocialReturn(url)) return;
+      setFinishingSignIn(true);
+      try {
+        const session = await completeSocialLogin(url);
+        if (!active) return;
+        saveSession(apiUrl, { session, room: null, game: null });
+        if (Platform.OS === 'web') setInvitation(readInvitation(globalThis.location.href));
+        setAuthVersion(value => value + 1); setInRooms(true); setAuthError('');
+      } catch (failure) {
+        if (active) {
+          setAuthError(failure instanceof Error ? failure.message : 'Could not complete sign-in. Please try again.');
+          if (Platform.OS === 'web') {
+            const current = new URL(globalThis.location.href); current.searchParams.delete('social_attempt');
+            current.searchParams.delete('social_code');
+            globalThis.history.replaceState(null, '', current.href);
+          }
+        }
+      } finally { if (active) setFinishingSignIn(false); }
+    }
+    if (Platform.OS === 'web') void finish(globalThis.location.href);
+    else void Linking.getInitialURL().then(finish).catch(() => {});
+    return () => { active = false; };
+  }, []);
   useEffect(() => {
     const open = (url: string | null) => { const value = url && readInvitation(url); if (value) { setInvitation(value); setInRooms(true); } };
     if (Platform.OS !== 'web') void Linking.getInitialURL().then(open).catch(() => {});
@@ -40,7 +71,9 @@ function AppContent() {
   return (
     <SafeAreaProvider>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
-      {inRooms || invitation ? <SharedRoomsScreen invitation={invitation} dismissInvitation={dismissInvitation} onExit={() => { dismissInvitation(); setInRooms(false); }} />
+      {!!authError && <Text accessibilityRole="alert" style={{ padding: 16, color: colors.danger }}>{authError}</Text>}
+      {finishingSignIn ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.text }}>Completing sign-in…</Text></View>
+        : inRooms || invitation ? <SharedRoomsScreen key={authVersion} invitation={invitation} dismissInvitation={dismissInvitation} onExit={() => { dismissInvitation(); setInRooms(false); }} />
         : <WelcomeScreen onEnterLobby={() => setInRooms(true)} />}
     </SafeAreaProvider>
   );

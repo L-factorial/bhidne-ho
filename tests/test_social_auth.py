@@ -64,7 +64,8 @@ async def test_social_login_rejects_unconfigured_invalid_and_mismatched_provider
         await service.login("google", "provider-credential-long-enough")
 
 
-def test_social_http_contract_and_provider_discovery():
+def test_social_http_contract_and_provider_discovery(monkeypatch):
+    monkeypatch.setenv('BHIDNE_HO_SOCIAL_LEGACY_CREDENTIALS_ENABLED', '1')
     identity = VerifiedIdentity(provider="google", subject="http-user", display_name="HTTP Player")
     with TestClient(create_app()) as client:
         auth, profiles = client.app.state.auth, client.app.state.player_profiles

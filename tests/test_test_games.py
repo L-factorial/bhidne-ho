@@ -456,7 +456,9 @@ async def test_creator_can_end_waiting_or_running_game_and_replace_it(started):
             assert error.value.status_code == 409
         replacement = await service.create('room', 'u0', 4)
         assert replacement['match_id'] != mid and replacement['status'] == 'waiting'
-        with pytest.raises(HTTPException): await service.end('room', 'u0', mid)
+        # Retrying End addresses only the old match, never its replacement.
+        assert (await service.end('room', 'u0', mid))['status'] == 'ended'
+        assert (await service.snapshot('room', 'u0', replacement['match_id']))['status'] == 'waiting'
         assert service.games['room'].ended is False
     finally:
         await service.close()

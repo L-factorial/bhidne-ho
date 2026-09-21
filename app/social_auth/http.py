@@ -1,3 +1,5 @@
+import os
+
 from fastapi import APIRouter, HTTPException, Request, Response
 
 from app.auth.models import GuestCredentials
@@ -15,6 +17,8 @@ async def providers(request: Request):
 @router.post("/{provider}", response_model=GuestCredentials)
 async def social_login(provider: Provider, body: ProviderCredential, request: Request, response: Response):
     response.headers["Cache-Control"] = "no-store"
+    if os.environ.get('BHIDNE_HO_SOCIAL_LEGACY_CREDENTIALS_ENABLED') != '1':
+        raise HTTPException(410, 'Use the browser sign-in flow.', headers={'Cache-Control': 'no-store'})
     try:
         return await request.app.state.social_auth.login(provider, body.credential, body.nonce)
     except ProviderNotConfiguredError as error:

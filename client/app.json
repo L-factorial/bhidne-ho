@@ -27,7 +27,9 @@
           "enableBackgroundPlayback": false
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      "expo-secure-store",
+      "expo-web-browser"
     ],
     "scheme": "bhidneho"
   }

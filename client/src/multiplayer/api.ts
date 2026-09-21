@@ -39,7 +39,6 @@ export async function request<T>(path: string, session: Session | null, body?: o
       url: `${apiUrl}${path}`,
       status: response.status,
       contentType: response.headers.get('content-type'),
-      body: raw.slice(0, 500),
     });
     let data;
     if (raw) {
@@ -50,7 +49,6 @@ export async function request<T>(path: string, session: Session | null, body?: o
           url: `${apiUrl}${path}`,
           status: response.status,
           contentType: response.headers.get('content-type'),
-          body: raw.slice(0, 500),
         });
         throw error;
       }

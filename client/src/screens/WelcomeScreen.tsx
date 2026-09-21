@@ -6,12 +6,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { branding } from '../branding';
 import { BrandBanner } from '../components/BrandArt';
 import { SignInButton, SignInMethod } from '../components/SignInButton';
+import { SocialSignInButtons } from '../components/SocialSignInButtons';
+import { apiUrl } from '../multiplayer/api';
+import { saveSession } from '../multiplayer/session';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { LanguageToggle } from '../components/LanguageToggle';
 import { useTranslation } from 'react-i18next';
-
-// Provider controls remain visible but disabled until their test applications exist.
-const SOCIAL_SIGN_IN_ENABLED = false;
 
 export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
   const { colors } = useTheme();
@@ -21,10 +21,9 @@ export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
   const insets = useSafeAreaInsets();
   const wide = width >= 1024;
   const [notice, setNotice] = useState('');
+  const [signingIn, setSigningIn] = useState(false);
   function selectMethod(method: SignInMethod) {
     if (method === 'account') { onEnterLobby(); return; }
-    if (!SOCIAL_SIGN_IN_ENABLED) return;
-    setNotice(`${method} sign-in is coming next. Use a Bhidne Ho account for now.`);
   }
   return (
     <LinearGradient colors={[colors.surface, colors.background, colors.background]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.page}>
@@ -50,12 +49,11 @@ export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
               <Text style={styles.subtitle}>{t('welcome.subtitle')}</Text>
             </View>}
             <View style={styles.buttons}>
-              {(['Apple', 'Google', 'Facebook'] as const).map(method => (
-                <SignInButton key={method} method={method} disabled={!SOCIAL_SIGN_IN_ENABLED} onPress={() => selectMethod(method)} />
-              ))}
+              <SocialSignInButtons onBusyChange={setSigningIn} onSession={session => {
+                saveSession(apiUrl, { session, room: null, game: null }); onEnterLobby();
+              }} />
             </View>
-            <View style={styles.divider}><View style={styles.dividerLine} /><Text style={styles.or}>{t('welcome.or')}</Text><View style={styles.dividerLine} /></View>
-            <SignInButton method="account" onPress={() => selectMethod('account')} />
+            <View style={{ marginTop: 12 }}><SignInButton method="account" disabled={signingIn} onPress={() => selectMethod('account')} /></View>
             <Text style={styles.helper}>{t('welcome.helper')}</Text>
             {!!notice && <View style={styles.notice} accessibilityLiveRegion="polite">
               <Text style={styles.noticeText}>{notice}</Text>

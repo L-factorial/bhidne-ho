@@ -160,14 +160,15 @@ async def test_ending_a_hosted_game_releases_durable_player_reservations():
         await service.close()
 
 
-async def test_explicit_lock_durably_reserves_roster_until_terminal_end():
+@pytest.mark.parametrize('kind', ['marriage', 'flush'])
+async def test_explicit_lock_durably_reserves_roster_until_terminal_end(kind):
     rooms = RoomService()
-    for user in ("u0", "u1"):
+    for user in ("u0", "u1", "u2"):
         await rooms.join("room", user)
     store = InMemoryGameStore()
     service = GameHost(rooms, Delivery(), durable_runtime=DurableCommandRuntime(store),
                        runtime_mode="durable")
-    waiting = await service.create("room", "u0", 2, "marriage")
+    waiting = await service.create("room", "u0", 2, kind)
     await service.join("room", "u1", waiting["match_id"])
     game = service.games["room"]
     try:
@@ -180,7 +181,15 @@ async def test_explicit_lock_durably_reserves_roster_until_terminal_end():
         assert caught.value.detail["code"] == "ROSTER_LOCKED"
         assert set(store.active_table_players) == {"u0", "u1"}
 
+        new = await service.create("room", "u2", 2, kind, name="New table")
+        with pytest.raises(HTTPException) as conflict:
+            await service.join("room", "u1", new['match_id'])
+        assert conflict.value.detail['departure_command'] == 'end'
         await service.end("room", "u0", game.match_id)
         assert store.active_table_players == {}
+        # Nobody played: End alone must release every reservation for the new roster.
+        await service.join("room", "u1", new['match_id'])
+        await service.table_command("room", "u2", new['match_id'], "lock")
+        assert (await service.start("room", "u2", new['match_id'], rules_revision=0))['status'] == 'playing'
     finally:
         await service.close()

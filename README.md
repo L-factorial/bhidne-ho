@@ -23,7 +23,7 @@ the shared adapter handles full gameplay; production runtime integration remains
 
 - [Authentication and profiles](docs/auth-and-profiles.md): PostgreSQL data model, local container setup, session handling, and migration to a managed database.
 - [Durable game state](docs/game-state-persistence.md): persistence boundary, deterministic replay contract, command transactions, and recovery roadmap.
-- [Social sign-in](docs/social-auth.md): Google, Apple, and Facebook verification, schema, configuration, and client contract.
+- [Social sign-in setup](docs/social-login-setup.md): Google, Apple, and Facebook browser flows, provider registration, deployment and client contract.
 - [Players, friends, and direct messages](docs/players-friends-chat.md): discovery, requests, friendship rules, private-chat persistence, API, and security boundaries.
 
 - [Shared command infrastructure](docs/shared-game-runtime.md): common runtime/client ownership and how a new game inherits reliable commands; implemented for Call Break and Echo.
@@ -33,7 +33,7 @@ the shared adapter handles full gameplay; production runtime integration remains
 - [Room and game lifecycle](docs/room-game-lifecycle.md): navigation, explicit departure, preserved membership, reconnect, per-game policies, and audit results.
 - [Reliable game actions](docs/reliable-game-actions.md): command acknowledgments, safe retries across disconnects, private snapshot recovery, protocol limits, and verification.
 
-- [Web and mobile client](client/README.md): Expo/React Native account signup/signin, profiles, and disabled social sign-in previews. Run `cd client && npm ci && npm run web`.
+- [Web and mobile client](client/README.md): Expo/React Native account signup/signin, profiles, and configured social sign-in. Run `cd client && npm ci && npm run web`.
 
 - [Call Break test console](docs/test-callbreak-console.md): creating/joining games, manual turns, private hands and test-only endpoints.
 - [Dealer, shuffle and cut flow](docs/callbreak-preparation.md): implemented preparation phases, adapter dispatch, and a runnable example.

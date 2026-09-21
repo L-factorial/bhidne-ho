@@ -26,6 +26,11 @@ export function useRoomSession() {
 
   const [loggingIn, setLoggingIn] = useState(false);
   const loginPending = useRef(false);
+  function acceptSocialSession(value: Session) {
+    if (session) return;
+    setSession(value); setExpired(false); setError('');
+  }
+  function socialLoginBusy(value: boolean) { loginPending.current = value; setLoggingIn(value); }
   async function loginAccount(username: string, password: string, signup: boolean, displayName = '') {
     if (loginPending.current || session) return false;
     if (signup && (!displayName.trim() || Array.from(displayName.trim()).length > 25)) { setError('Enter a profile name (1–25 characters).'); return false; }
@@ -165,7 +170,7 @@ export function useRoomSession() {
       try { await request('/auth/signout', active, {}); } catch { /* Local sign-out still succeeds offline. */ }
     }
   }
-  return { socialChannel, loginAccount, loggingIn, session, room, rooms, memberships, game, setGame, joinRoom, enterRoom, exitRoom, leaveRoom, deleteRoom, signOut, leaveGameRequired, leaveGameAndRoom, abandonRequired,
+  return { socialChannel, loginAccount, acceptSocialSession, socialLoginBusy, loggingIn, session, room, rooms, memberships, game, setGame, joinRoom, enterRoom, exitRoom, leaveRoom, deleteRoom, signOut, leaveGameRequired, leaveGameAndRoom, abandonRequired,
     cancelLeave: () => { setLeaveGameRequired(null); setError(''); }, status, expired, error, pokes,
     retry: () => { connection.current?.retryNow(); } };
 }

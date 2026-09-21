@@ -33,6 +33,9 @@ from app.social_auth.http import router as social_auth_router
 from app.social_auth.service import SocialAuthService
 from app.social_auth.store import InMemorySocialIdentityStore, PostgresSocialIdentityStore
 from app.social_auth.verifiers import configured_verifiers
+from app.social_auth.browser import BrowserSocialAuth
+from app.social_auth.browser_store import MemoryBrowserAttempts, PostgresBrowserAttempts
+from app.social_auth.browser_http import router as browser_social_router
 from app.players.http import router as players_router
 from app.players.service import PlayerSocialService
 from app.players.store import InMemoryPlayerStore, PostgresPlayerStore
@@ -79,6 +82,8 @@ def create_app() -> FastAPI:
         )
         social_store = (PostgresSocialIdentityStore(database.pool, guests, app.state.player_profiles)
                         if database else InMemorySocialIdentityStore(guests, app.state.player_profiles))
+        app.state.browser_social_auth = BrowserSocialAuth.from_environment(
+            PostgresBrowserAttempts(database.pool) if database else MemoryBrowserAttempts(), social_store)
         app.state.social_auth = SocialAuthService(
             configured_verifiers(SocialAuthConfig.from_environment()), social_store,
         )
@@ -124,6 +129,7 @@ def create_app() -> FastAPI:
         allow_headers=["Authorization", "Content-Type"],
     )
     app.include_router(http.router)
+    app.include_router(browser_social_router)
     app.include_router(social_auth_router)
     app.include_router(players_router)
     app.include_router(websocket.router)

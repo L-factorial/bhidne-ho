@@ -6,11 +6,10 @@ Apple, Google, Facebook, and first-party account buttons. It adapts from a two-c
 layout to a stacked phone layout, including safe-area padding and scrolling on
 small screens.
 
-Apple, Google, and Facebook buttons remain visible but are dimmed and disabled.
-The enabled first-party entry opens username/password **Sign in** and **Sign up**.
-Guest login is temporarily disabled. `SOCIAL_SIGN_IN_ENABLED` in `src/screens/WelcomeScreen.tsx`
-controls the provider placeholders only; it must remain false until a provider's
-client flow and test application are configured.
+Google, Apple, and Facebook buttons appear when their backend browser flow is
+configured and enabled. See [provider setup](../docs/social-login-setup.md).
+The first-party entry opens username/password **Sign in** and **Sign up**.
+Guest login is temporarily disabled.
 
 ## Run
 
@@ -50,9 +49,10 @@ see new rooms and presence counts within about two seconds. Leaving closes the
 socket. Browser sessions and the selected room/game are saved per tab in sessionStorage, so
 refreshing restores the same account and seat. Reconnection runs automatically after
 a network interruption; the table stays visible and actions wait for a fresh snapshot.
-Native clients currently keep sessions in memory (network reconnection works, but
-restarting the native app does not restore its identity). Backend restart clears all
-rooms and sessions; expired credentials prompt sign-out rather than silently replacing the player. Social sign-in and the Terms/Privacy controls still show placeholders.
+Native clients persist sessions in SecureStore. Rebuild native apps after adding
+the SecureStore and WebBrowser plugins. Database-backed accounts and sessions
+survive backend restarts; expired credentials prompt sign-out rather than silently
+replacing the player. Terms/Privacy controls still need published destination pages.
 
 The only backend change is CORS support for localhost/127.0.0.1 Expo web clients
 on ports 8081 and 8083. Existing room authentication remains required.
@@ -134,7 +134,8 @@ The hand stays in a bottom card row, while **Stats & bets**, **Rules**, and hist
 start collapsed. Stats show current bids, tricks won, total tricks, and all five
 deal scores. The creator can save redeal options and placement payments in whole
 units before starting. These are shared agreements, not payment processing.
-Social sign-in buttons remain disabled previews; username/password accounts and guest entry connect to the backend.
+Social sign-in uses the same app sessions as username/password accounts; provider
+credentials stay outside the game transport.
 
 
 Bidding displays a notification above the hand for each deal, with bid controls

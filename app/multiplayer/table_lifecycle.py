@@ -4,6 +4,7 @@ All mutations, expiry and promotion happen under catalog -> match lock order.
 No disconnect or navigation path invokes seat release or abandonment.
 """
 import asyncio
+from copy import deepcopy
 from time import time
 
 from fastapi import HTTPException
@@ -187,6 +188,13 @@ class GameTableLifecycle:
                     table.emit('SEAT_OFFER_' + expected, offer_id=offer.offer_id, seat_id=offer.seat_id,
                         leaving_player_id=offer.leaving_player_id, user_id=user_id)
                 elif command == 'abandon':
+                    if game.ended:
+                        # A conflict dialog may outlive the creator's End action.
+                        # Treat the old departure as a release, never a new abandonment.
+                        await self._release_seat(game, user_id)
+                        await self._advance_table(game)
+                        await self._publish(game)
+                        return self._snapshot(game, user_id)
                     if not me['can_abandon_match']:
                         if user_id in game.departed and game.ended:
                             return self._snapshot(game, user_id)
@@ -208,9 +216,11 @@ class GameTableLifecycle:
                     if not set(roster).issubset(members):
                         reject('INVALID_ROSTER', 'Every seat must belong to a room member.')
                     new = type(game)(room_id, game.capacity, roster, name=game.name, game_type=game.game_type,
-                        settings=dict(game.settings), marriage_scoring=game.marriage_scoring, table=table,
+                        settings=dict(game.settings), marriage_scoring=game.marriage_scoring, table=deepcopy(table),
                         previous_match_id=game.match_id)
                     await self._release_durable_players(game)
+                    # Old snapshots and departures must not mutate the next match's roster.
+                    table = new.table
                     table.phase = 'OPEN'
                     table.next_seats = None
                     table.releases.clear()

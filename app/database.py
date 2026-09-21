@@ -287,6 +287,18 @@ MIGRATIONS = (
         SELECT id, creator_id, created_at FROM rooms
         ON CONFLICT (room_id, user_id) DO NOTHING;
     """),
+    (9, """
+        CREATE TABLE social_login_attempts (
+            id text PRIMARY KEY,
+            provider text NOT NULL CHECK (provider IN ('google', 'apple', 'facebook')),
+            state_hash text NOT NULL UNIQUE,
+            secret_hash text NOT NULL,
+            status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'verifying', 'ready')),
+            expires_at timestamptz NOT NULL,
+            data jsonb NOT NULL
+        );
+        CREATE INDEX social_login_attempts_expiry_idx ON social_login_attempts(expires_at);
+    """),
 )
 
 

@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import create_app
@@ -49,6 +50,73 @@ def test_ending_table_releases_all_players_for_other_tables():
         client.post('/test-games/shared/end', headers=headers[0], json={'match_id': first['match_id']})
         assert client.post('/test-games/shared/join', headers=headers[1], json={
             'match_id': second['match_id']}).status_code == 200
+
+
+@pytest.mark.parametrize('kind,count', [('callbreak', 4), ('marriage', 2), ('flush', 2)])
+def test_ended_tables_disappear_from_room_and_lobby_directories(kind, count):
+    with TestClient(create_app()) as client:
+        headers = [{'Authorization': 'Bearer ' + client.post('/auth/guest').json()['token']}
+                   for _ in range(2)]
+        for header in headers:
+            client.post('/rooms/feed/enter', headers=header, json={})
+        root = '/test-games/feed'
+        first = client.post(root, headers=headers[0], json={
+            'name': 'First', 'game_type': kind, 'player_count': count}).json()
+        second = client.post(root, headers=headers[1], json={
+            'name': 'Second', 'game_type': kind, 'player_count': count}).json()
+        # Ending the newest table must not hide an older table that is still open.
+        ended = client.post(root + '/end', headers=headers[1], json={'match_id': second['match_id']})
+        assert ended.status_code == 200
+        assert [table['match_id'] for table in ended.json()['tables']] == [first['match_id']]
+        for header in headers:
+            assert client.get(root, headers=header).json()['match_id'] == first['match_id']
+            room = client.get('/rooms/feed', headers=header).json()
+            feed = client.get('/memberships', headers=header).json()[0]
+            for view in (room, feed):
+                assert [table['match_id'] for table in view['tables']] == [first['match_id']]
+                assert view['active_game']['game_id'] == first['match_id']
+        client.post(root + '/end', headers=headers[0], json={'match_id': first['match_id']})
+        for header in headers:
+            assert client.get(root, headers=header).json() == {'room_id': 'feed', 'status': 'empty', 'tables': []}
+            for view in (client.get('/rooms/feed', headers=header).json(),
+                         client.get('/memberships', headers=header).json()[0]):
+                assert view['tables'] == [] and view['active_game'] is None
+            # History and idempotent commands retain the original match record.
+            history = client.get(root, headers=header, params={'match_id': first['match_id']}).json()
+            assert history['status'] == 'ended' and history['tables'] == []
+
+
+@pytest.mark.parametrize('kind,count', [('callbreak', 4), ('marriage', 2), ('flush', 2)])
+def test_stale_departure_after_host_ends_table_does_not_block_new_table(kind, count):
+    with TestClient(create_app()) as client:
+        headers = [{'Authorization': 'Bearer ' + client.post('/auth/guest').json()['token']}
+                   for _ in range(count + 1)]
+        root = '/test-games/shared'
+        for header in headers:
+            client.post('/rooms/shared/enter', headers=header, json={})
+        old = client.post(root, headers=headers[0], json={
+            'name': 'Old', 'game_type': kind, 'player_count': count}).json()
+        body = {'match_id': old['match_id']}
+        for header in headers[1:count]:
+            assert client.post(root + '/join', headers=header, json=body).status_code == 200
+        if kind != 'callbreak':
+            assert client.post(root + '/table/lock', headers=headers[0], json=body).status_code == 200
+        assert client.post(root + '/start', headers=headers[0], json={**body, 'rules_revision': 0}).status_code == 200
+        new = client.post(root, headers=headers[-1], json={
+            'name': 'New', 'game_type': kind, 'player_count': count}).json()
+        conflict = client.post(root + '/join', headers=headers[1], json={'match_id': new['match_id']})
+        assert conflict.status_code == 409
+        assert client.post(root + '/end', headers=headers[0], json=body).status_code == 200
+        # The prompt was opened before End; its action must still succeed afterwards.
+        command = 'table/abandon' if conflict.json()['detail']['departure_command'] == 'abandon' else 'leave'
+        for _ in range(2):
+            response = client.post(root + '/' + command, headers=headers[1], json=body)
+            assert response.status_code == 200, response.text
+            assert not response.json()['table']['current_user']['is_seated']
+        # Repeating End on an older table is harmless, even with a newer table present.
+        assert client.post(root + '/end', headers=headers[0], json=body).status_code == 200
+        assert client.post(root + '/join', headers=headers[1], json={
+            'match_id': new['match_id']}).status_code == 200
 
 
 def test_table_seats_are_exclusive_across_rooms_but_room_entry_is_allowed():

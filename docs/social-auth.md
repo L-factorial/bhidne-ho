@@ -1,5 +1,12 @@
 # Google, Apple, and Facebook sign-in
 
+**Current client integration:** follow [Browser sign-in setup](social-login-setup.md)
+for the implemented web/native browser flows, deployment settings and remaining
+release work. The credential-submission API described below is legacy and now
+requires `BHIDNE_HO_SOCIAL_LEGACY_CREDENTIALS_ENABLED=1`; it is disabled by default.
+Its client status and release checklist below describe the earlier backend-only
+milestone, not the current browser integration.
+
 Social authentication is isolated in `app/social_auth`. Provider credentials never
 enter game, room, WebSocket, or profile code. The module verifies a credential,
 maps it to one internal user, and returns the same opaque Bhidne Ho session used by

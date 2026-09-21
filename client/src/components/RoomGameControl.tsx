@@ -42,6 +42,7 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [open, setOpen] = useState(false);
   const [seatConflict, setSeatConflict] = useState<GameRequestDetail | null>(null);
+  const visibleTables = snapshot?.tables?.filter(table => table.status !== 'ended' && table.phase !== 'ENDED') || [];
   useEffect(() => { onOpenChange?.(open); }, [open, onOpenChange]);
   useEffect(() => () => onOpenChange?.(false), [onOpenChange]);
   const [live, setLive] = useState(false);
@@ -72,6 +73,13 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
   const [actionError, setError] = useState('');
   const [refreshError, setRefreshError] = useState('');
   const error = actionError || refreshError;
+  useEffect(() => {
+    if (seatConflict?.room_id === roomId && snapshot?.tables && !snapshot.tables.some(table =>
+      table.match_id === seatConflict.match_id && table.status !== 'ended' && table.phase !== 'ENDED')) {
+      setSeatConflict(null);
+      setError('The previous table has ended. You can now take a seat here.');
+    }
+  }, [snapshot?.tables, seatConflict, roomId]);
   const generation = useRef(0), pending = useRef(false);
   const alive = useRef(true);
   const requests = useRef(new Set<AbortController>());
@@ -82,10 +90,16 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
   })) } : null;
   const openedInvitation = useRef<string | null>(null);
   useEffect(() => {
-    if (requestedMatchId && snapshot?.match_id === requestedMatchId && openedInvitation.current !== requestedMatchId) {
+    if (requestedMatchId && snapshot?.match_id === requestedMatchId && snapshot.status !== 'ended' && openedInvitation.current !== requestedMatchId) {
       openedInvitation.current = requestedMatchId; setLive(true); setOpen(true);
     }
-  }, [requestedMatchId, snapshot?.match_id]);
+  }, [requestedMatchId, snapshot?.match_id, snapshot?.status]);
+  useEffect(() => {
+    if (snapshot?.status === 'ended') {
+      selectedMatch.current = undefined;
+      setLive(false); setOpen(false);
+    }
+  }, [snapshot?.status, snapshot?.match_id]);
   async function api(suffix = '', body?: object, signal?: AbortSignal): Promise<Snapshot> {
     const controller = new AbortController();
     requests.current.add(controller);
@@ -174,6 +188,17 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
     if (!seatConflict?.room_id || !seatConflict.match_id || pending.current) return;
     pending.current = true; setBusy(true); setError('');
     try {
+      if (seatConflict.departure_command === 'end') {
+        const previous = await request<Snapshot>(`/test-games/${encodeURIComponent(seatConflict.room_id)}?match_id=${encodeURIComponent(seatConflict.match_id)}`,
+          { user_id: userId, token });
+        if (previous.match_id !== seatConflict.match_id || previous.status !== 'ended') {
+          setError('The previous table is still reserved. Its creator must end it before you can take another seat.');
+          return;
+        }
+        setSeatConflict(null);
+        setError('The previous table has ended. You can now take a seat here.');
+        return;
+      }
       const command = seatConflict.departure_command === 'abandon' ? 'table/abandon' : 'leave';
       await request(`/test-games/${encodeURIComponent(seatConflict.room_id)}/${command}`,
         { user_id: userId, token }, { match_id: seatConflict.match_id });
@@ -267,18 +292,18 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
   return <>
     <View style={[styles.sectionToggle, { marginVertical: 16 }]}>
       <Text accessibilityRole="header" style={styles.title}>Tables</Text>
-      {!!snapshot?.tables?.length && <Pressable accessibilityRole="button" accessibilityLabel="Create table" disabled={busy || !creationEnabled} onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 44 }]}>
+      {!!visibleTables.length && <Pressable accessibilityRole="button" accessibilityLabel="Create table" disabled={busy || !creationEnabled} onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 44 }]}>
         <Text style={[styles.buttonText, { color: colors.onPrimary }]}>+ Create table</Text>
       </Pressable>}
     </View>
     {!snapshot && <Text style={styles.text}>Loading tables…</Text>}
-    {snapshot && !snapshot.tables?.length && <View testID="room-empty-tables" style={{ flexGrow: 1, minHeight: 260, alignItems: 'center', justifyContent: 'center', paddingVertical: 32, gap: 24 }}>
+    {snapshot && !visibleTables.length && <View testID="room-empty-tables" style={{ flexGrow: 1, minHeight: 260, alignItems: 'center', justifyContent: 'center', paddingVertical: 32, gap: 24 }}>
       <Text style={[styles.text, { textAlign: 'center', maxWidth: 320, fontSize: 17, lineHeight: 26 }]}>No tables yet. Start a table and invite your friends.</Text>
       <Pressable accessibilityRole="button" accessibilityLabel="Create table" disabled={busy || !creationEnabled} accessibilityState={{ disabled: busy || !creationEnabled }} onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 48, paddingHorizontal: 24, opacity: busy || !creationEnabled ? 0.5 : 1 }]}>
         <Text style={[styles.buttonText, { color: colors.onPrimary, fontSize: 15 }]}>+ Create table</Text>
       </Pressable>
     </View>}
-    {snapshot?.tables?.map(table => <TableCard key={table.match_id} roomId={roomId} table={table} busy={busy} enter={action => void enterTable(table.match_id, action)} />)}
+    {visibleTables.map(table => <TableCard key={table.match_id} roomId={roomId} table={table} busy={busy} enter={action => void enterTable(table.match_id, action)} />)}
     {collapsed && !!notification.notice && <Animated.View style={{ opacity: notification.opacity }}>
       <Pressable accessibilityRole="button" onPress={() => void returnToGame()} style={styles.choice}><Text style={styles.text}>{notification.notice} · Return to table</Text></Pressable>
     </Animated.View>}
@@ -287,12 +312,13 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
     {!open && <PokeOverlay pokes={pokes} matchId={snapshot?.match_id} />}
     <Modal transparent visible={!!seatConflict} animationType="fade" onRequestClose={() => setSeatConflict(null)}>
       <View style={styles.overlay}><View accessibilityViewIsModal style={styles.modal}><View style={styles.body}>
-        <Text accessibilityRole="header" style={styles.title}>{seatConflict?.departure_command === 'abandon' ? 'Abandon active game?' : 'Leave previous table?'}</Text>
+        <Text accessibilityRole="header" style={styles.title}>{seatConflict?.departure_command === 'end' ? 'Previous table is reserved' : seatConflict?.departure_command === 'abandon' ? 'Abandon active game?' : 'Leave previous table?'}</Text>
         <Text style={styles.text}>You can visit this room, but each account can occupy only one table at a time.</Text>
         <Text style={styles.text}>{actionError}</Text>
+        {seatConflict?.departure_command === 'end' && <Text style={styles.text}>Ask the creator to end the previous table. You do not need to leave it after it ends.</Text>}
         {seatConflict?.departure_command === 'abandon' && <Text style={styles.error}>Abandoning stops the active match for everyone at that table.</Text>}
         <Pressable accessibilityRole="button" disabled={pendingAction} onPress={() => void leavePreviousTable()} style={[styles.button, { backgroundColor: colors.dangerSurface, borderWidth: 1, borderColor: colors.danger }]}>
-          <Text style={[styles.buttonText, { color: colors.danger }]}>{seatConflict?.departure_command === 'abandon' ? 'Abandon previous game' : 'Leave previous table'}</Text>
+          <Text style={[styles.buttonText, { color: colors.danger }]}>{seatConflict?.departure_command === 'end' ? 'Check table status' : seatConflict?.departure_command === 'abandon' ? 'Abandon previous game' : 'Leave previous table'}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" onPress={() => setSeatConflict(null)} style={styles.choice}><Text style={styles.text}>Stay as observer</Text></Pressable>
       </View></View></View>
