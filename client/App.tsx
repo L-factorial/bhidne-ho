@@ -23,7 +23,7 @@ export default function App() { return <LanguageProvider><ThemeProvider><AppCont
 
 function AppContent() {
   const { t } = useTranslation();
-  const { mode, colors } = useTheme();
+  const { colors } = useTheme();
   const [invitation, setInvitation] = useState<Invitation | null>(() => Platform.OS === 'web' ? readInvitation(globalThis.location.href) : null);
   const [inRooms, setInRooms] = useState(() => !!readSession(apiUrl) || !!invitation);
   const [authVersion, setAuthVersion] = useState(0);
@@ -71,7 +71,7 @@ function AppContent() {
   </View>;
   return (
     <SafeAreaProvider>
-      <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+      <StatusBar style="dark" />
       {!!authError && <Text accessibilityRole="alert" style={{ padding: 16, color: colors.danger }}>{authError}</Text>}
       {finishingSignIn ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.text }}>Completing sign-in…</Text></View>
         : inRooms || invitation ? <SharedRoomsScreen key={authVersion} invitation={invitation} dismissInvitation={dismissInvitation} onExit={() => { dismissInvitation(); setInRooms(false); }} />

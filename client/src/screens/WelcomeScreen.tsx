@@ -1,4 +1,3 @@
-import { ThemeToggle } from '../components/ThemeToggle';
 import { useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -34,7 +33,7 @@ export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
       }]}>
         <View style={[styles.layout, wide && styles.wideLayout]}>
           <View style={[styles.brandSide, wide && styles.wideBrand]}>
-            <View style={{ flexDirection: 'row', gap: 8 }}><LanguageToggle /><ThemeToggle /></View>
+            <View style={{ flexDirection: 'row', gap: 8 }}><LanguageToggle /></View>
             {wide ? <Image source={branding.splash} accessibilityLabel="Bhidne Ho — friends playing cards in Nepal. More than a game, it’s our time." resizeMode="contain" style={{ width: '100%', aspectRatio: 507 / 953, maxHeight: 760, marginTop: 16, borderRadius: 20 }} /> : <>
               <BrandBanner />
               <View style={styles.mobileIntro}>

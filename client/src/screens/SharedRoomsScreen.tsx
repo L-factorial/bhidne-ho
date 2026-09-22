@@ -36,7 +36,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const [codeInvitation, setCodeInvitation] = useState<Invitation | null>(null);
   const invitation = codeInvitation || externalInvitation;
   const clearInvitation = () => { setCodeInvitation(null); dismissInvitation?.(); };
-  const { colors, bindSession } = useTheme();
+  const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const wide = useWindowDimensions().width >= 900;
@@ -60,8 +60,6 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const shared = useRoomSession();
   const { session, rooms, room, game, setGame, expired } = shared;
   const recentIds = useRecentRooms(session?.user_id, room?.room_id);
-  useEffect(() => () => bindSession(null), [bindSession]);
-  useEffect(() => { bindSession(session); }, [session?.user_id, session?.token, bindSession]);
   const [gameOpen, setGameOpen] = useState(false);
   const chat = useRoomChat({ roomId: room?.room_id || '', session: session || { token: '', user_id: '' }, connected: !!room && !!session && !expired && !gameOpen && shared.status === 'connected',
     launcherVisible: false, expanded: roomPanel === 'chat', onExpandedChange: open => setRoomPanel(current => open ? 'chat' : current === 'chat' ? null : current), bottomOffset: 56,

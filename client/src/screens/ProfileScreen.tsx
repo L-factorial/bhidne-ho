@@ -3,7 +3,6 @@ import { KeyboardFrame } from '../components/KeyboardFrame';
 import { useEffect, useState } from 'react';
 import { request } from '../multiplayer/api';
 import { LanguageToggle } from '../components/LanguageToggle';
-import { AppearanceSettings } from '../components/AppearanceSettings';
 import { AppHeader } from '../components/AppHeader';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -44,7 +43,6 @@ export function ProfileScreen({ session, personal, onBack, onSignOut }: {
       <View style={{ gap: 8 }}>
         <Text accessibilityRole="header" style={styles.description}>Preferences</Text>
         <View style={styles.header}><Text style={styles.description}>Language</Text><LanguageToggle /></View>
-        <AppearanceSettings />
       </View>
       <FriendsPanel session={session} />
       <PlayerPhrases key={userId} userId={userId} phrases={personal.phrases} connected={true}

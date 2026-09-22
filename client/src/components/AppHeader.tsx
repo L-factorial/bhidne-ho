@@ -2,7 +2,6 @@ import { createContext, useContext, useState, type ReactNode } from 'react';
 import { Modal, Text, View, useWindowDimensions } from 'react-native';
 import { BrandIcon } from './BrandArt';
 import { HeaderAction } from './HeaderAction';
-import { ThemeToggle } from './ThemeToggle';
 import { fonts, useTheme } from '../theme';
 import { LanguageToggle } from './LanguageToggle';
 import { useTranslation } from 'react-i18next';
@@ -26,7 +25,7 @@ export function AppHeader({ title, actions, inlineActions, hideProfile = false, 
         {!!title && <Text accessibilityRole="header" style={{ flexShrink: 1, color: colors.text, fontFamily: fonts.medium, fontSize: 18 }}>{title}</Text>}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        {!renderProfile && !hideProfile && <><LanguageToggle /><ThemeToggle /></>}
+        {!renderProfile && !hideProfile && <><LanguageToggle /></>}
         {inlineActions}
         {!hideProfile && renderProfile && <HeaderAction icon="profile" label={t('common.profile')} compact={compact} onPress={onOpenProfile || (() => setProfileOpen(true))} />}
       </View>

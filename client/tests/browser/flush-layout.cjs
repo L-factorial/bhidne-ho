@@ -142,10 +142,7 @@ async function api(path, user, body) {
   await button(owner,'Table menu').click();await button(owner,'Bet history').click();await owner.getByTestId('flush-bet-grid').waitFor();await button(owner,'Close Bet').click();
   await button(owner,'Table menu').click();
   const menu=owner.getByTestId('flush-menu-drawer');
-  for (const mode of ['Dark', 'Light']) {
-   await menu.getByRole('button', { name: /^Appearance,/ }).click();
-   await menu.getByRole('radio', { name: mode, exact: true }).click();
-  }
+  assert.equal(await menu.getByRole('button', { name: /^Appearance,/ }).count(), 0);
   await menu.getByRole('button', { name: 'Language, English', exact: true }).click();
   await menu.getByRole('button', { name: 'Language, नेपाली', exact: true }).click();
   await button(owner,'Poke the table').click();

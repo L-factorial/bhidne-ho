@@ -50,11 +50,7 @@ const site = process.env.TEST_WEB_URL || 'http://localhost:8087';
    const drawer=page.getByTestId(kind+'-menu-drawer');
    await drawer.getByRole('button',{name:'Language, English',exact:true}).click();
    await drawer.getByRole('button',{name:'Language, नेपाली',exact:true}).click();
-   for (const mode of ['Dark','Light','System']) {
-    await drawer.getByRole('button',{name:/^Appearance,/}).click();
-    await drawer.getByRole('radio',{name:mode,exact:true}).click();
-    await drawer.getByRole('button',{name:`Appearance, ${mode}`,exact:true}).waitFor();
-   }
+   assert.equal(await drawer.getByRole('button', { name: /^Appearance,/ }).count(), 0);
    for (const viewport of [{width:320,height:568},{width:1280,height:900}]) {
     await page.setViewportSize(viewport);
     for(const mode of ['dark','light']) {

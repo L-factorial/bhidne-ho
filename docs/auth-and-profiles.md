@@ -74,33 +74,23 @@ guests. Provider account linking must require fresh proof for both identities.
 
 See [Social sign-in](social-auth.md) for provider setup and the client contract.
 
-## Appearance preferences
+## Fixed appearance
 
-Profile → Appearance offers Heritage, Himalayan, and Community Courtyard palettes,
-each with Light, Dark, and Follow device modes. New profiles use Heritage / Follow
-device. Nepali scenery is decorative; names, codes, settlement amounts, and controls
-stay on readable solid surfaces. Playing card faces remain light in every palette.
+The current client has one Nepali design: cream lobby and room pages, burgundy
+controls, and felt game tables. Appearance settings and light/dark/system switches
+have been removed from profile, welcome, and game menus. Device settings and old
+local or profile appearance selections do not affect rendering. The client makes
+no requests to the appearance endpoint and has no preference-sync timers.
 
-Authenticated `GET /me/profile/appearance` and `PATCH /me/profile/appearance` read and
-replace `{ "theme": "heritage", "mode": "system" }` for the current user only. Supported
-family values are `heritage`, `himalayan`, and `courtyard`; mode values are `system`,
-`light`, and `dark`. Migration 11 adds constrained columns to `user_profiles`; changing
-a display name does not change appearance, and changing appearance does not change
-the name. With PostgreSQL configured, selections survive backend restarts.
+The authenticated `GET /me/profile/appearance` and `PATCH /me/profile/appearance`
+endpoints and migration 11 columns remain for compatibility with older installed
+clients. Their supported values and ownership checks are unchanged; no saved
+profile data is deleted by this UI change.
 
-The client caches preferences using AsyncStorage on native and web, separately per
-API server and account, and keeps the most recent appearance for the signed-out
-welcome screen. Web loads cached colors synchronously; native waits for the cache
-before rendering screens. Signing in restores that account's profile. Unsynced local
-changes survive restarts and retry every 15 seconds and when the app returns to the
-foreground (or the browser comes online). Pending local edits win over a fetched
-profile; saves are serialized so rapid choices cannot finish in reverse order.
-The profile shows whether preferences are saving, saved, or awaiting sync.
-
-Validation: `node --test client/tests/theme.test.mjs` checks all six palettes;
-`tests/test_player_profiles.py` checks ownership and persistence across sessions;
-`client/tests/browser/appearance-profile.cjs` covers reloads, fresh-device restoration,
-offline retry, rapid changes, system mode, and account isolation against a local app.
+Validation: `node --test client/tests/theme.test.mjs` checks contrast for the fixed
+palette. `client/tests/browser/appearance-profile.cjs` verifies that old cached and
+server preferences and device color settings are ignored, selectors are absent,
+and the client makes no appearance requests.
 
 ## Room deletion and retained history
 

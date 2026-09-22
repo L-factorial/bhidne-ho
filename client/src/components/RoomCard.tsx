@@ -8,7 +8,7 @@ import type { Room } from '../multiplayer/session';
 import { fonts, useTheme } from '../theme';
 
 export function RoomCard({ room, member, busy, activeTables, onPress }: { room: Room; member: boolean; busy: boolean; activeTables?: number; onPress: () => void }) {
-  const { colors: c, mode } = useTheme();
+  const { colors: c } = useTheme();
   const [sharing, setSharing] = useState(false);
   const [bannerWidth, setBannerWidth] = useState(340);
   const online = room.connected_members?.length || 0;
@@ -37,7 +37,7 @@ export function RoomCard({ room, member, busy, activeTables, onPress }: { room: 
     </View>
     <ImageBackground source={require('../../assets/lobby/nepal-valley.jpg')} resizeMode="cover"
       onLayout={event => setBannerWidth(event.nativeEvent.layout.width)}
-      style={{ height: 98, borderRadius: 12, overflow: 'hidden', backgroundColor: c.table }} imageStyle={{ width: bannerWidth, height: bannerWidth * 2 / 3, top: -bannerWidth * 0.1, opacity: mode === 'dark' ? 0.72 : 1 }}>
+      style={{ height: 98, borderRadius: 12, overflow: 'hidden', backgroundColor: c.table }} imageStyle={{ width: bannerWidth, height: bannerWidth * 2 / 3, top: -bannerWidth * 0.1, opacity: 1 }}>
       <LinearGradient colors={['transparent', 'rgba(17,25,20,0.56)']} style={{ flex: 1, justifyContent: 'flex-end', padding: 9 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 }}>

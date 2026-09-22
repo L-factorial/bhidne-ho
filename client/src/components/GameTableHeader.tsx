@@ -4,7 +4,6 @@ import { Modal, Platform, Pressable, ScrollView, Text, View, useWindowDimensions
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandIcon } from './BrandArt';
 import { ShareLink } from './ShareLink';
-import { ThemeToggle } from './ThemeToggle';
 import { fonts, useTheme } from '../theme';
 import { LanguageToggle } from './LanguageToggle';
 import { useTranslation } from 'react-i18next';
@@ -67,7 +66,7 @@ export function GameTableHeader({ title, path, game, roomId, matchId, onBack, en
     </Modal>}
     {open && !drawerMetadata && <ScrollView keyboardShouldPersistTaps="handled" testID={`${game}-${mobile && mobileTestIds ? 'mobile-' : ''}menu`} style={{ maxHeight: '40%', flexGrow: 0 }} contentContainerStyle={{ padding: 8, gap: 8 }} nestedScrollEnabled>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <LanguageToggle /><ThemeToggle />
+        <LanguageToggle />
       </View>
       {compact && !!path && <Text style={{ color: colors.textMuted }}>{path}</Text>}
       {compact && !!roomId && <ShareLink roomId={roomId} matchId={matchId} />}

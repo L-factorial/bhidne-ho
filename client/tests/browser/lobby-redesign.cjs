@@ -53,12 +53,11 @@ async function api(path, user, body, method) {
     await page.getByText('Recently visited', { exact: true }).waitFor({ state: 'hidden' });
     await nav.getByRole('tab', { name: 'Profile', exact: true }).click();
     await page.getByTestId('profile-screen').waitFor();
-    await page.getByRole('radio', { name: 'Dark', exact: true }).click();
-    await page.getByText('Saved to your profile', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('radio', { name: /^(Dark|Light|System)$/ }).count(), 0);
     await page.getByRole('button', { name: 'Back from profile', exact: true }).click();
     await nav.getByRole('tab', { name: 'Home', exact: true }).click();
-    await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
-    await page.screenshot({ path: '/tmp/bhidne-lobby-reference-dark.png', fullPage: true });
+    await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
+    await page.screenshot({ path: '/tmp/bhidne-lobby-reference-fixed.png', fullPage: true });
     await page.getByRole('button', { name: 'Join with code', exact: true }).click();
     await page.getByLabel('Room or table code', { exact: true }).fill(outsideRoom.room_id);
     await page.getByRole('button', { name: 'Join room', exact: true }).click();
@@ -71,6 +70,6 @@ async function api(path, user, body, method) {
     await page.getByTestId(/^room-card-/).first().waitFor();
     await page.screenshot({ path: '/tmp/bhidne-lobby-reference-desktop.png', fullPage: true });
     assert.deepEqual(errors, []);
-    console.log('PASS lobby: real previews/counts, sharing, enter/join/create, recent visits after reload, games, friends, profile, light/dark and desktop');
+    console.log('PASS lobby: real previews/counts, sharing, enter/join/create, recent visits after reload, games, friends, profile, fixed design and desktop');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

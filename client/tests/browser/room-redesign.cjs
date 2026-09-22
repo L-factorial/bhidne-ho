@@ -49,10 +49,9 @@ async function api(path, user, body, method) {
     await page.getByRole('heading', { name: 'Room options', exact: true }).waitFor();
     await page.getByRole('button', { name: 'Room tables', exact: true }).click();
     await page.getByRole('button', { name: 'Open profile', exact: true }).click();
-    await page.getByRole('radio', { name: 'Dark', exact: true }).click();
-    await page.getByText('Saved to your profile', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('radio', { name: /^(Dark|Light|System)$/ }).count(), 0);
     await page.getByRole('button', { name: 'Back from profile', exact: true }).click();
-    await page.screenshot({ path: '/tmp/bhidne-room-reference-dark.png', fullPage: true });
+    await page.screenshot({ path: '/tmp/bhidne-room-reference-fixed.png', fullPage: true });
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.screenshot({ path: '/tmp/bhidne-room-reference-desktop.png', fullPage: true });
     await page.getByRole('button', { name: 'Create table', exact: true }).click();

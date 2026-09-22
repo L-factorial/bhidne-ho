@@ -413,15 +413,14 @@ space for cards. Trick winner announcements appear in the central notice area.
 
 ## Appearance
 
-Use the sun/moon button on the welcome screen, in the lobby or profile, or at
-either game table to switch between light and dark mode. The initial theme follows
-the device setting; a browser choice is saved across refreshes. Switching themes
-preserves the current game and card selection.
+The app uses one fixed Nepali design: cream lobby and room pages, burgundy
+controls, and wood-rimmed felt game tables. Profile, welcome, and game menus have
+no appearance selectors. Device settings and legacy saved appearance preferences
+are ignored; the client no longer reads or writes the profile appearance endpoint.
+The server endpoint remains compatible with older installed clients.
 
-`src/theme.ts` owns the shared surface, text, status, and playing-card colors.
-Use `useTheme()` for inline colors and `useThemedStyles()` for stylesheet factories
-so screens and overlays update together. Both games use `CardBack`; card faces,
-red/black suits, and selected-card colors stay consistent across themes.
+`src/theme.ts` owns the shared semantic colors. Use `useTheme()` for inline colors
+and `useThemedStyles()` for stylesheet factories.
 
 ### Flush rooms
 

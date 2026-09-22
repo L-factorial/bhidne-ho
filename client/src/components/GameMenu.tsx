@@ -12,9 +12,8 @@ export function GameMenu({ snapshot, close, rules, history, poke, canPoke, back,
   canPoke: boolean; back: () => void; tableControl?: ReactNode; leaveControl?: ReactNode; endControl?: ReactNode;
 }) {
   const tableSocial = useTableSocial();
-  const { colors, preference, setPreference } = useTheme();
+  const { colors } = useTheme();
   const { language, setLanguage } = useLanguage();
-  const [appearanceOpen, setAppearanceOpen] = useState(false);
   const ended = snapshot.status === 'ended' || snapshot.table?.phase === 'ENDED';
   const [playersOpen, setPlayersOpen] = useState(false);
   const section = (label: string) => <Text style={{ color: colors.textMuted, fontFamily: fonts.body, fontSize: 11,
@@ -54,16 +53,6 @@ export function GameMenu({ snapshot, close, rules, history, poke, canPoke, back,
     {row('Back to room', () => open(back))}
     {section('Preferences')}
     {row('Language', () => setLanguage(language === 'en' ? 'ne' : 'en'), false, undefined, language === 'ne' ? 'नेपाली' : 'English')}
-    {row('Appearance', () => setAppearanceOpen(value => !value), false, appearanceOpen, ({system:'System',light:'Light',dark:'Dark'})[preference])}
-    {appearanceOpen && <View accessibilityRole="radiogroup" accessibilityLabel="Appearance" style={{ backgroundColor: colors.surfaceRaised, borderRadius: 14, padding: 4 }}>
-      {(['system', 'light', 'dark'] as const).map(value => <Pressable key={value} accessibilityRole="radio"
-        accessibilityLabel={({system:'System',light:'Light',dark:'Dark'})[value]} accessibilityState={{ checked: preference === value }}
-        onPress={() => { setPreference(value); setAppearanceOpen(false); }}
-        style={({ pressed }) => ({ minHeight: 44, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: pressed ? colors.surface : 'transparent' })}>
-        <Text style={{ color: colors.text, fontFamily: fonts.body, fontSize: 13 }}>{({system:'System',light:'Light',dark:'Dark'})[value]}</Text>
-        {preference === value && <Text style={{ color: colors.textMuted }}>✓</Text>}
-      </Pressable>)}
-    </View>}
     <View style={{ marginTop: 'auto', paddingTop: 16 }}>
       <View style={{ paddingTop: 8 }}>{ended ? <>{row(snapshot.game_type === 'flush' ? 'End table' : 'End game', () => {}, true)}{row('Leave Table', () => {}, true)}</> : <>{endControl}{leaveControl}</>}</View>
     </View>

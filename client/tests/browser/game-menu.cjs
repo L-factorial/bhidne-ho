@@ -32,14 +32,6 @@ async function stableCue(locator) {
         await context.addInitScript(({ user, room, kind, site }) => sessionStorage.setItem(`bhidne.session.v1:${site}`, JSON.stringify({ session: user, room, game: kind })), { user, room, kind, site });
         const page = await context.newPage(); page.setDefaultTimeout(15000); pages.push(page); page.on('pageerror', e => errors.push(e.message));
         await page.goto(site);
-        if(i===0) for(const mode of ['dark','light']) {
-          await page.getByRole('button',{name:'Open profile',exact:true}).click();
-          await page.getByRole('radio',{name:mode === 'dark' ? 'Dark' : 'Light',exact:true}).click();
-          await page.getByText('Saved to your profile', {exact:true}).waitFor();
-          await page.getByRole('button',{name:'Back from profile',exact:true}).click();
-          await page.waitForFunction(mode=>document.documentElement.dataset.theme===mode,mode);
-          await page.screenshot({path:`/tmp/theme-room-${kind}-${mode}.png`});
-        }
         await page.getByRole('button',{name:/^Return to table ·/}).click(); await page.getByTestId(`${kind}-header`).waitFor();
         const overlay = page.getByTestId('live-game-overlay');
         assert.equal(await overlay.getByRole('button', { name: 'Profile', exact: true }).count(), 0);
