@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { RoomSheet } from './RoomSheet';
 import { ChatMessage } from './ChatMessage';
 import { useTranslation } from 'react-i18next';
@@ -161,19 +162,19 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
       {canRead && <View testID="game-social-controls" onTouchStart={event => event.stopPropagation()} onPointerDown={event => event.stopPropagation()} style={{position:'absolute',right:14,bottom,zIndex:45,alignItems:'flex-end',maxWidth:240}}>
         {pokeMode && <Text accessibilityLiveRegion="polite" style={{color:c.text,backgroundColor:c.surface,padding:6,borderRadius:8}}>Poke someone · tap an opponent</Text>}
         {!!error && !open && <Pressable accessibilityRole="button" accessibilityLabel="Dismiss social error" onPress={() => setError('')}><Text style={{color:c.danger,backgroundColor:c.surface,padding:6}}>{error}</Text></Pressable>}
-        <View style={{flexDirection:'row',backgroundColor:c.surface,borderColor:c.border,borderWidth:1,borderRadius:24}}>
+        <View style={{flexDirection:'row',backgroundColor:c.tableHeader,borderColor:c.tableTrim,borderWidth:1,borderRadius:24}}>
           <Pressable accessibilityRole="button" accessibilityLabel={`Table Chat${unread ? `, ${unread} unread` : ''}`} onPress={openChat} style={[iconStyle,{flexDirection:'row',paddingHorizontal:8}]}>
-            <Text style={{color:c.text,fontSize:20}}>💬</Text>{unread > 0 && <Text testID="table-chat-unread" style={{color:c.text,fontSize:11,paddingHorizontal:3}}>{unread > 99 ? '99+' : unread}</Text>}
+            <Ionicons name="chatbubble-outline" size={22} color={c.onTableHeader} />{unread > 0 && <Text testID="table-chat-unread" style={{color:c.onPrimary,backgroundColor:c.primary,borderRadius:10,fontSize:11,paddingHorizontal:5}}>{unread > 99 ? '99+' : unread}</Text>}
           </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Poke a player" accessibilityState={{selected:pokeMode,disabled:!enabled}} disabled={!enabled} onPress={() => { closeChat(); setPokeMode(value => !value); }} style={[iconStyle,{opacity:enabled?1:0.4,backgroundColor:pokeMode?c.surfaceSelected:undefined,borderRadius:24}]}><Text accessibilityLiveRegion="polite" accessibilityLabel={pokeSent ? 'Poke sent' : undefined} style={{fontSize:20}}>{pokeSent ? '✓' : '👋'}</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Poke a player" accessibilityState={{selected:pokeMode,disabled:!enabled}} disabled={!enabled} onPress={() => { closeChat(); setPokeMode(value => !value); }} style={[iconStyle,{opacity:enabled?1:0.4,backgroundColor:pokeMode?c.surfaceSelected:undefined,borderRadius:24}]}><Text accessibilityLiveRegion="polite" accessibilityLabel={pokeSent ? 'Poke sent' : undefined} style={{fontSize:20,color:c.onTableHeader}}>{pokeSent ? '✓' : '👋'}</Text></Pressable>
         </View>
       </View>}
-      {open && canRead && <RoomSheet visible title="Table Chat" testID="table-chat-panel" closeLabel="Close table chat" onClose={closeChat} scrollable={false}>
+      {open && canRead && <RoomSheet tableStyle visible title="Table Chat" testID="table-chat-panel" closeLabel="Close table chat" onClose={closeChat} scrollable={false}>
         <View style={{flex:1,minHeight:0,gap:8,overflow:'hidden',padding:12,borderTopWidth:1,borderColor:c.border}}>
           {myTurn && <Pressable accessibilityRole="button" onPress={closeChat} style={{minHeight:44,justifyContent:'center'}}><Text accessibilityLiveRegion="polite" style={{color:c.accent}}>Your turn · Return to game</Text></Pressable>}
           <ScrollView ref={scroll} testID="table-chat-messages" style={{flex:1,minHeight:0}} keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} keyboardShouldPersistTaps="always" onLayout={() => { if(follow.current) scroll.current?.scrollToEnd({animated:false}); }} onScroll={({nativeEvent:e}) => { follow.current = e.contentSize.height-e.contentOffset.y-e.layoutMeasurement.height < 40; }} scrollEventThrottle={16} onContentSizeChange={() => { if(follow.current) scroll.current?.scrollToEnd({animated:false}); }}>
             {!messages.length && <Text style={{color:c.textMuted}}>Start the table conversation.</Text>}
-            {messages.map(message => <ChatMessage key={message.id} message={message} own={message.sender_id === userId} />)}
+            {messages.map(message => <ChatMessage tableStyle key={message.id} message={message} own={message.sender_id === userId} />)}
           </ScrollView>
           {!!error && <Text accessibilityRole="alert" style={{color:c.danger}}>{error}</Text>}
           {!connected && <Text style={{color:c.textMuted}}>Reconnecting…</Text>}

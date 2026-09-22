@@ -189,7 +189,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
         {!ended && mine && !preparing && !pub?.settlement && <View style={s.cards} testID="flush-own-cards">
           <View style={s.scaledCards}><FlushCards tapToToggle key={pub?.round_number} cards={mine.cards} /></View>
         </View>}
-        <Text accessibilityLiveRegion="polite" style={[s.status, myTurn && s.yourTurn]}>{!ended && !connectionReady ? 'Reconnecting… Updating game' : busy && myTurn ? 'Sending your action…' : turnText}</Text>
+        <Text accessibilityLiveRegion="polite" style={[s.status, { backgroundColor: colors.tableHeader, borderRadius: 8, color: colors.onTableHeader }, myTurn && s.yourTurn]}>{!ended && !connectionReady ? 'Reconnecting… Updating game' : busy && myTurn ? 'Sending your action…' : turnText}</Text>
         {!!(localError || error) && <Text accessibilityRole="alert" style={s.error}>{localError || error}</Text>}
         <View style={s.actions} testID="flush-actions">
           {finalStage && button(finalStage === 'pending' ? 'View final show' : 'View round result', () => setFinalShowOpen(true))}
@@ -268,7 +268,7 @@ const styles = (c: ThemeColors) => StyleSheet.create({
   mainColumn: { flex: 1, minWidth: 0, minHeight: 0 },
   playViewport: { flex: 1, minHeight: 0 },
   playArea: { flexGrow: 1, backgroundColor: c.table },
-  handDock: { backgroundColor: c.surface, flexShrink: 0, borderTopWidth: 1, borderColor: c.border, paddingTop: 4, paddingBottom: 8, gap: 6, alignItems: 'center' },
+  handDock: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, flexShrink: 0, borderTopWidth: 1, borderColor: c.tableTrim, paddingTop: 4, paddingBottom: 8, gap: 6, alignItems: 'center' },
   cards: { width: 224, height: 128, alignItems: 'center', justifyContent: 'center' },
   scaledCards: { width: 280, height: 172, transform: [{ scale: 0.75 }] },
   status: { color: c.textMuted, fontFamily: fonts.body, fontSize: 13, textAlign: 'center' },

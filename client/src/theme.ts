@@ -15,6 +15,7 @@ export const colors = {
   cardSelected: '#FFFCF7', cardSelectedBorder: '#D59A2A',
   coin: '#D59A2A', coinBorder: '#845C15', onCoin: '#261C19',
   shadow: 'rgba(38,28,25,0.14)',
+  tableHeader: '#142E29', onTableHeader: '#FFF8EB', tableTrim: '#A17C45', ownMessage: '#E3EFE6',
 };
 export type ThemeColors = typeof colors;
 export const ThemeContext = createContext({ colors });

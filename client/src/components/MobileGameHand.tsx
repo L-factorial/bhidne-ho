@@ -42,17 +42,17 @@ export function MobileGameHand({ mobile, open, onToggle, docked = false, desktop
     {open && !docked && <Pressable testID={`${game}-hand-backdrop`} accessibilityRole="button" accessibilityLabel="Close your card area"
       onPress={onToggle} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 29, backgroundColor: colors.overlay }} />}
     <Animated.View ref={socialAnchor.ref} onLayout={socialAnchor.onLayout} testID={`${game}-mobile-hand`} style={{ position: docked ? 'relative' : 'absolute', bottom: 0, left: 0, right: 0,
-    maxHeight: docked ? '44%' : '88%', flexShrink: 0, zIndex: 30, elevation: 16, transform: [{ translateY: slide }], borderWidth: 1, borderColor: colors.border,
+    maxHeight: docked ? '44%' : '88%', flexShrink: 0, zIndex: 30, elevation: 16, transform: [{ translateY: slide }], borderWidth: 1, borderColor: colors.tableTrim,
     borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden', backgroundColor: colors.surface }}>
-    <View style={{ alignItems: 'center', paddingTop: 7, backgroundColor: colors.surface }}>
-      <View style={{ width: 38, height: 4, borderRadius: 2, backgroundColor: colors.border }} />
+    <View style={{ alignItems: 'center', paddingTop: 7, backgroundColor: colors.tableHeader }}>
+      <View style={{ width: 38, height: 4, borderRadius: 2, backgroundColor: colors.tableTrim }} />
     </View>
     <Animated.View testID={`${game}-hand-attention`} style={{ opacity: attentionOpacity, borderTopWidth: attention && !open ? 2 : 0, borderColor: colors.attention }}>
     <Pressable accessibilityRole="button" accessibilityLabel={open ? 'Collapse your card area' : 'Expand your card area'}
       accessibilityState={{ expanded: open }} onPress={onToggle}
-      style={{ minHeight: 50, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: attention ? colors.turnSurface : colors.surface }}>
-      <Text accessibilityLiveRegion={attention && !open ? 'polite' : 'none'} style={{ fontFamily: fonts.medium, color: attention ? colors.turnText : colors.text }}>{attentionText || `Your card area${myTurn ? ' · Action needed' : ''}`}</Text>
-      <Text style={{ color: colors.text, fontSize: 22 }}>{open ? '⌄' : '⌃'}</Text>
+      style={{ minHeight: 50, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.tableHeader }}>
+      <Text accessibilityLiveRegion={attention && !open ? 'polite' : 'none'} style={{ fontFamily: fonts.medium, color: attention ? colors.cardInnerBorder : colors.onTableHeader }}>{attentionText || `Your card area${myTurn ? ' · Action needed' : ''}`}</Text>
+      <Text style={{ color: colors.onTableHeader, fontSize: 22 }}>{open ? '⌄' : '⌃'}</Text>
     </Pressable>
     </Animated.View>
     {(open || keepMounted) && <ScrollView ref={content} style={!open && { display: 'none' }} accessibilityElementsHidden={!open} importantForAccessibility={open ? 'auto' : 'no-hide-descendants'} testID={`${game}-hand-content`} contentContainerStyle={{ padding: 8, paddingBottom: 18 }} nestedScrollEnabled>
