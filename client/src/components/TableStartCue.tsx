@@ -16,7 +16,7 @@ export function TableStartCue({ snapshot, busy, onStart, onTableAction, onNewGam
   const allowed = table ? (lock ? me?.can_lock : next ? me?.can_next_match : me?.can_start) : (finished || snapshot.ready);
   const disabled = busy || !allowed || snapshot.rule_proposal?.status === 'PENDING';
   const label = lock ? 'Lock players' : next ? 'Prepare next match' : finished && !table ? 'Start a new game' : 'Start game';
-  return <View testID={`${snapshot.game_type}-center-start`} style={{ alignItems: 'center', justifyContent: 'center', minHeight: 120, padding: 12, gap: 8, backgroundColor: colors.surface, borderRadius: 18 }}>
+  return <View testID={`${snapshot.game_type}-center-start`} style={{ alignItems: 'center', justifyContent: 'center', minHeight: 120, padding: 12, gap: 8, backgroundColor: 'transparent', borderRadius: 18 }}>
     <Text style={{ color: colors.text, fontFamily: fonts.medium, textAlign: 'center' }}>{table?.phase === 'LOCKED' ? 'Players locked' : finished ? 'Ready for another round?' : 'Waiting for players'}</Text>
     <Text style={{ color: colors.textMuted, fontSize: 12 }}>{snapshot.players?.length || 0} of {table?.max_players || snapshot.capacity} seated</Text>
     <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} disabled={disabled}

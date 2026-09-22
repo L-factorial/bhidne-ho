@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { PlayerSocialEffect, useTableSocial } from './TableSocial';
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Image, Pressable, Text, View } from 'react-native';
@@ -15,7 +16,6 @@ export function PlayerSeat({ name, mine = false, active = false, connected = tru
   const press = target ? () => social!.poke(playerId!) : onPress;
   const { colors } = useTheme();
   const [failedImage, setFailedImage] = useState<string | null>(null);
-  const initials = name.trim().split(/\s+/).slice(0, 2).map(word => word[0]).join('').toUpperCase() || '?';
   const scale = useRef(new Animated.Value(1)).current;
   const wasActive = useRef(active);
   useEffect(() => {
@@ -42,7 +42,7 @@ export function PlayerSeat({ name, mine = false, active = false, connected = tru
       borderColor: target ? colors.accent : active ? colors.attention : '#DCC9A5', borderStyle: connected ? 'solid' : 'dashed',
       backgroundColor: active ? colors.turnSurface : colors.surface, alignItems: 'center', justifyContent: 'center' }}>
       {avatarUrl && failedImage !== avatarUrl ? <Image source={{ uri: avatarUrl }} onError={() => setFailedImage(avatarUrl)}
-        style={{ width: size - 6, height: size - 6, borderRadius: size / 2 }} /> : <Text style={{ color: colors.accent, fontFamily: fonts.medium, fontSize: compact ? 12 : 16 }}>{initials}</Text>}
+        style={{ width: size - 6, height: size - 6, borderRadius: size / 2 }} /> : <View style={{ width: size - 6, height: size - 6, borderRadius: size / 2, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' }}><Ionicons accessibilityLabel="Anonymous player profile" name="person" size={compact ? 18 : 28} color="#737373" /></View>}
     </Animated.View>
     <Text numberOfLines={1} style={{ maxWidth: '100%', backgroundColor: colors.surface, paddingHorizontal: 8, borderRadius: 8, color: colors.text, fontFamily: fonts.medium, fontSize: compact ? 11 : 12 }}>{name}</Text>
     <Text numberOfLines={1} style={{ backgroundColor: active ? colors.turnSurface : colors.surface, paddingHorizontal: 5, borderRadius: 5, color: active ? colors.turnText : colors.textMuted, fontFamily: fonts.medium, fontSize: compact ? 8 : 10 }}>

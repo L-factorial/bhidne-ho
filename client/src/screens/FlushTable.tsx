@@ -93,7 +93,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
     || !(locking ? snapshot.table?.current_user.can_lock : snapshot.table?.current_user.can_start);
   const centerLabel = starting ? 'Start game' : 'Lock players';
   const formation = snapshot.status !== 'ended' && (locking || starting);
-  const centerControl = formation ? <View style={{ backgroundColor: colors.surface, borderRadius: 18, padding: 12, gap: 8, alignItems: 'center', maxWidth: 220 }}>
+  const centerControl = formation ? <View style={{ backgroundColor: 'transparent', borderRadius: 18, padding: 12, gap: 8, alignItems: 'center', maxWidth: 220 }}>
     <Text style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 15, textAlign: 'center' }}>{starting ? 'Players locked' : 'Waiting for players'}</Text>
     <Text style={{ color: colors.textMuted, fontSize: 12 }}>{snapshot.players?.length || 0} of {snapshot.table?.max_players || snapshot.capacity} seated</Text>
     {snapshot.is_creator ? <Pressable testID="flush-center-start" accessibilityRole="button" accessibilityLabel={centerLabel}

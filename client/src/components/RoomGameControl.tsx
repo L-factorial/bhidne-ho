@@ -10,7 +10,7 @@ import { TableControls } from './TableControls';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useGameNotification } from '../notifications/useGameNotification';
-import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { fonts, ThemeContext, gameTheme, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LiveGameTable, RoomSnapshot as Snapshot } from '../screens/LiveGameTable';
 import { GameCommandClient, createHttpGameTransport } from '../multiplayer/GameCommandClient';
@@ -322,10 +322,10 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
     </Modal>
     <Modal transparent visible={open} animationType="fade" onRequestClose={collapseGame}>
       {live && snapshot ? <View testID="live-game-backdrop" style={[styles.liveBackdrop, {
-        paddingTop: insets.top, paddingBottom: insets.bottom,
+        backgroundColor: gameTheme.colors.background, paddingTop: insets.top, paddingBottom: insets.bottom,
         paddingLeft: insets.left, paddingRight: insets.right,
       }]}><View accessibilityViewIsModal testID="live-game-overlay" style={[styles.liveOverlay, (mobileGame || snapshot.game_type === 'flush') && !chat && { paddingBottom: 0 }]}>
-        <TableSocialProvider key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} channel={socialChannel} connected={connected} userId={userId} pokes={pokes}>
+        <ThemeContext.Provider value={gameTheme}><TableSocialProvider key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} channel={socialChannel} connected={connected} userId={userId} pokes={pokes}>
         {snapshot.game_type === 'flush' ? <FlushTable connectionReady={connected && synced} onLock={() => void lobbyAction('/table/lock')} tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onFormationBlocked={setFormationBlocked} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={error}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: text => social.send(snapshot.match_id!, null, text) }}
           onSave={payload => lobbyAction('/flush-settings', payload)} onStart={rules_revision => lobbyAction('/start', { rules_revision })}
@@ -349,7 +349,7 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
           {snapshot.status !== 'ended' && snapshot.rule_proposal?.status === 'PENDING' && ruleReview}
         </ScrollView>
         {chat}
-        </TableSocialProvider>
+        </TableSocialProvider></ThemeContext.Provider>
       </View></View> :
       <KeyboardFrame style={[styles.overlay, { paddingVertical: 16 }]}><View accessibilityViewIsModal style={styles.modal}>
         <FormScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">

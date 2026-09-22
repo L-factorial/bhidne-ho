@@ -19,6 +19,20 @@ export const colors = {
   tableHeader: '#0A382B', onTableHeader: '#FFF8EB', tableTrim: '#A17C45', ownMessage: '#F6E8EA',
 };
 export type ThemeColors = typeof colors;
+// Fixed game presentation, scoped to the table; this is not a selectable app mode.
+export const gameColors: ThemeColors = {
+  ...colors,
+  background: '#062B23', header: '#062B23', table: '#07382B',
+  surface: '#0B3027', surfaceRaised: '#164638', surfaceSelected: '#28513C',
+  text: '#FFF3DC', textMuted: '#C6D2C8', accent: '#F0C96A',
+  border: '#7E947F', borderSubtle: '#315347', primarySoft: '#173E32',
+  primary: '#AA2039', primaryPressed: '#83182D',
+  success: '#7DE0A5', successSurface: '#123E2B', danger: '#FF9DAB', dangerSurface: '#492630',
+  maalSeen: '#7DE0A5', maalUnseen: '#C6D2C8',
+  tableHeader: '#082E24', shadow: 'rgba(0,0,0,0.3)',
+};
+export const gameTheme = { colors: gameColors };
+export const roomTheme = { colors };
 export const ThemeContext = createContext({ colors });
 export const useTheme = () => useContext(ThemeContext);
 export function useThemedStyles<T>(factory: (colors: ThemeColors) => T): T {

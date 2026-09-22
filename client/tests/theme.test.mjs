@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { colors, primaryAction } from '../src/theme.ts';
+import { colors, gameColors, primaryAction } from '../src/theme.ts';
 const luminance = hex => {
   const channels = hex.slice(1).match(/../g).map(c => parseInt(c,16)/255).map(c => c <= .04045 ? c/12.92 : ((c+.055)/1.055)**2.4);
   return channels.reduce((sum,c,i)=>sum+c*[.2126,.7152,.0722][i],0);
@@ -15,3 +15,13 @@ const c = colors;
     assert.equal(c.cardSelectedBorder,c.attention);
     assert.equal(primaryAction(c,true).backgroundColor,c.primaryPressed);
   });
+
+test('game surfaces retain readable text and unchanged card faces', () => {
+  const c = gameColors;
+  for (const bg of [c.background, c.surface, c.surfaceRaised, c.table]) {
+    for (const fg of [c.text, c.textMuted, c.accent]) assert.ok(contrast(fg, bg) >= 4.5, `${fg} on ${bg}`);
+  }
+  assert.ok(contrast(c.onPrimary, c.primary) >= 4.5);
+  assert.equal(c.cardFace, colors.cardFace);
+  assert.equal(c.cardInk, colors.cardInk);
+});
