@@ -1,7 +1,7 @@
 import { Pressable, Text, View } from 'react-native';
 import { ActionCue } from './ActionCue';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
-import { fonts, primaryAction, useTheme } from '../theme';
+import { fonts, gameButtonStyle, useTheme } from '../theme';
 
 export function TableStartCue({ snapshot, busy, onStart, onTableAction, onNewGame }: {
   snapshot: RoomSnapshot; busy: boolean; onStart: () => void; onTableAction: (command: string) => void; onNewGame: () => void;
@@ -21,7 +21,7 @@ export function TableStartCue({ snapshot, busy, onStart, onTableAction, onNewGam
     <Text style={{ color: colors.textMuted, fontSize: 12 }}>{snapshot.players?.length || 0} of {table?.max_players || snapshot.capacity} seated</Text>
     <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} disabled={disabled}
       onPress={() => lock ? onTableAction('lock') : next ? onTableAction('next-match') : finished && !table ? onNewGame() : onStart()}
-      style={({ pressed }) => ({ ...primaryAction(colors, pressed), minHeight: 48, maxWidth: 260, padding: 16, borderRadius: 10, borderWidth: 1, opacity: disabled ? 0.45 : 1 })}>
+      style={({ pressed }) => ({ ...gameButtonStyle(colors, 'primary', pressed), minHeight: 48, maxWidth: 260, padding: 16, borderRadius: 10, borderWidth: 1, opacity: disabled ? 0.45 : 1 })}>
       <ActionCue active={!disabled} style={{ color: colors.onPrimary, fontFamily: fonts.medium, fontSize: 15, textAlign: 'center' }}>{label}</ActionCue>
     </Pressable>
     {!allowed && <Text style={{ color: colors.textMuted, fontFamily: fonts.body, textAlign: 'center' }}>{(snapshot.players?.length || 0) < (table?.min_players || snapshot.capacity || 2) ? `Need at least ${table?.min_players || snapshot.capacity} players` : 'Waiting for eligible seats and rule approval.'}</Text>}

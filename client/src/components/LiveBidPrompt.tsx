@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
-import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { ActionCue } from './ActionCue';
 
 export function LiveBidPrompt({ snapshot, busy, onAction, revealed }: {
@@ -25,7 +25,7 @@ export function LiveBidPrompt({ snapshot, busy, onAction, revealed }: {
       <Pressable accessibilityRole="button" accessibilityLabel="Decrease bid" disabled={busy || amount <= 1} onPress={() => setAmount(value => Math.max(1, value - 1))} style={styles.button}><Text style={styles.label}>−</Text></Pressable>
       <Text accessibilityLabel={`Selected bid ${amount}`} style={styles.amount}>{amount}</Text>
       <Pressable accessibilityRole="button" accessibilityLabel="Increase bid" disabled={busy || amount >= maximum} onPress={() => setAmount(value => Math.min(maximum, value + 1))} style={styles.button}><Text style={styles.label}>+</Text></Pressable>
-      <Pressable accessibilityRole="button" disabled={busy} onPress={() => onAction('PLACE_BID', { amount })} style={({ pressed }) => [styles.button, { backgroundColor: pressed ? colors.primaryPressed : colors.primary }]}><ActionCue active={!busy} style={[styles.label, { color: colors.onPrimary }]}>{busy ? 'Submitting…' : 'Confirm bid'}</ActionCue></Pressable>
+      <Pressable accessibilityRole="button" disabled={busy} onPress={() => onAction('PLACE_BID', { amount })} style={({ pressed }) => [styles.button, gameButtonStyle(colors, 'primary', pressed)]}><ActionCue active={!busy} style={[styles.label, { color: colors.onPrimary }]}>{busy ? 'Submitting…' : 'Confirm bid'}</ActionCue></Pressable>
       <Text style={styles.text}>Your bid is submitted only when you confirm.</Text>
     </View>}
   </View>;
@@ -34,5 +34,5 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   panel: { padding: 12, marginVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: colors.accent, backgroundColor: colors.surface, gap: 4 },
   title: { color: colors.accent, fontFamily: fonts.medium, fontSize: 15 }, text: { color: colors.text, fontFamily: fonts.body, fontSize: 12, lineHeight: 19 },
   controls: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginTop: 6 },
-  button: { minWidth: 44, minHeight: 44, padding: 10, borderRadius: 8, backgroundColor: colors.surfaceSelected, alignItems: 'center', justifyContent: 'center' }, label: { color: colors.text, fontFamily: fonts.medium, fontSize: 12 }, amount: { color: colors.accent, backgroundColor: colors.surfaceSelected, borderWidth: 2, borderColor: colors.accent, borderRadius: 8, padding: 8, fontSize: 24, minWidth: 48, textAlign: 'center' },
+  button: { padding: 10, ...gameButtonStyle(colors), alignItems: 'center', justifyContent: 'center' }, label: { color: colors.onTableHeader, fontFamily: fonts.medium, fontSize: 12 }, amount: { color: colors.accent, backgroundColor: colors.surfaceSelected, borderWidth: 2, borderColor: colors.accent, borderRadius: 8, padding: 8, fontSize: 24, minWidth: 48, textAlign: 'center' },
 });

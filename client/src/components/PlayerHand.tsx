@@ -1,7 +1,7 @@
 import { CardBack } from './CardBack';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 const defaultSuits = ['S', 'C', 'H', 'D'];
 function shuffledSuits(previous = defaultSuits, present = defaultSuits) {
@@ -164,7 +164,7 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
     </View>}
     {!revealing && compactControls && <View style={{ alignItems: 'flex-end' }}>
       <Pressable accessibilityRole="button" accessibilityLabel="Hand options" accessibilityState={{ expanded: optionsOpen }}
-        onPress={() => setOptionsOpen(value => !value)} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
+        onPress={() => setOptionsOpen(value => !value)} style={({ pressed }) => ({ ...gameButtonStyle(colors, 'secondary', pressed), alignItems: 'center', justifyContent: 'center' })}>
         <Text style={styles.optionText}>•••</Text>
       </Pressable>
     </View>}
@@ -190,14 +190,14 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   chosen: { borderColor: colors.cardSelectedBorder, borderWidth: 3, backgroundColor: colors.cardSelected },
   chosenGrid: { borderColor: colors.cardSelectedBorder, borderWidth: 3, backgroundColor: colors.cardSelected, transform: [{ translateY: -4 }] },
-  confirm: { backgroundColor: colors.primary, borderColor: colors.primary },
+  confirm: { ...gameButtonStyle(colors, 'primary') },
   cardBack: { backgroundColor: colors.cardBack, borderColor: colors.cardBorder },
   backMark: { color: colors.accent, fontSize: 25, fontWeight: 'bold' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingVertical: 8, justifyContent: 'center' },
   gridCard: { width: 56, minHeight: 60, borderRadius: 8, borderWidth: 2, borderColor: colors.cardBorder, backgroundColor: colors.cardFace, alignItems: 'center', justifyContent: 'center', padding: 4 },
   gridRank: { fontFamily: fonts.medium, fontSize: 21, color: colors.cardInk }, suitName: { fontFamily: fonts.body, fontSize: 9, color: colors.cardInk },
-  selector: { flexDirection: 'row', gap: 4, marginTop: 6 }, option: { flex: 1, minWidth: 0, minHeight: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 8 },
-  selected: { backgroundColor: colors.surfaceSelected, borderColor: colors.accent }, optionText: { fontFamily: fonts.medium, color: colors.text, fontSize: 12 },
+  selector: { flexDirection: 'row', gap: 4, marginTop: 6 }, option: { flex: 1, alignItems: 'center', justifyContent: 'center', ...gameButtonStyle(colors) },
+  selected: { backgroundColor: colors.surfaceSelected, borderColor: colors.accent }, optionText: { fontFamily: fonts.medium, color: colors.onTableHeader, fontSize: 12 },
   empty: { color: colors.text, fontFamily: fonts.body, fontSize: 12, padding: 8 },
   scroll: { flexGrow: 1, justifyContent: 'center' },
   card: { position: 'absolute', width: 64, height: 170, borderRadius: 8, backgroundColor: colors.cardFace,

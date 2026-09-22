@@ -47,3 +47,14 @@ export const fonts = { editorial: 'CormorantGaramond_700Bold', display: 'Inter_5
 export const space = { xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, section: 32 } as const;
 export const radii = { small: 8, medium: 12, large: 18, xl: 24 } as const;
 export const typography = { display: 42, pageTitle: 30, sectionTitle: 22, cardTitle: 18, body: 15, metadata: 13, caption: 11 } as const;
+
+// Shared card-area controls: maroon primary, felt secondary with a warm gold edge.
+export function gameButtonStyle(c: ThemeColors, variant: 'primary' | 'secondary' = 'secondary', pressed = false) {
+  return {
+    minHeight: 44, minWidth: 44, borderRadius: 10, borderWidth: 1,
+    paddingHorizontal: 12, paddingVertical: 10,
+    backgroundColor: variant === 'primary' ? (pressed ? c.primaryPressed : c.primary) : (pressed ? c.surfaceRaised : c.tableHeader),
+    borderColor: variant === 'primary' ? '#D96878' : c.tableTrim,
+    boxShadow: 'inset 0px 1px 0px rgba(255, 248, 235, 0.16)',
+  };
+}

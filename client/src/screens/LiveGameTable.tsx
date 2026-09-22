@@ -16,7 +16,7 @@ import { LiveBidPrompt } from '../components/LiveBidPrompt';
 import { GameDetails } from '../components/GameDetails';
 import { RoundSummary } from '../components/RoundSummary';
 import { roundGuidance } from '../multiplayer/roundFlow';
-import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import type { ActionAck } from '../multiplayer/PendingGameAction';
 import type { PlayerPhrase } from '../multiplayer/pokes';
 import { PokeComposer } from '../components/PokeComposer';
@@ -224,7 +224,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   body: { backgroundColor: colors.table, flex: 1, minHeight: 0 }, wideBody: { flexDirection: 'row', justifyContent: 'center' }, tableScroll: { flex: 1, minHeight: 0, minWidth: 0 },
   page: { flex: 1, backgroundColor: colors.background }, container: { alignItems: 'center' }, back: { minHeight: 44, justifyContent: 'center' }, link: { color: colors.accent, fontFamily: fonts.medium, fontSize: 12 },
   title: { fontFamily: fonts.display, fontSize: 28, color: colors.text, marginVertical: 12 }, meta: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 11, lineHeight: 20 }, status: { fontFamily: fonts.medium, fontSize: 13, color: colors.accent, marginVertical: 12 }, error: { color: colors.danger, fontFamily: fonts.body, fontSize: 12 },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, paddingVertical: 10 }, button: { minHeight: 44, minWidth: 44, padding: 12, borderRadius: 8, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' }, buttonText: { color: colors.onPrimary, fontFamily: fonts.medium, fontSize: 12 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, paddingVertical: 10 }, button: { padding: 12, ...gameButtonStyle(colors, 'primary'), justifyContent: 'center', alignItems: 'center' }, buttonText: { color: colors.onPrimary, fontFamily: fonts.medium, fontSize: 12 },
   handDock: { paddingHorizontal: 20, paddingBottom: 8, borderTopWidth: 1, borderColor: colors.tableTrim, backgroundColor: colors.surface },
 
 });

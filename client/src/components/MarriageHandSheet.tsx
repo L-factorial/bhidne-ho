@@ -2,7 +2,7 @@ import { useSocialHandAnchor } from './TableSocial';
 import type { ReactNode, RefObject } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import type { HandSnap } from '../multiplayer/marriageWorkspace';
-import { fonts, useTheme } from '../theme';
+import { fonts, gameButtonStyle, useTheme } from '../theme';
 
 export function MarriageHandSheet({ mobile, anchor, snap, onSnap, instruction, attention, header, footer, children }: {
   anchor: RefObject<View | null>;
@@ -20,7 +20,7 @@ export function MarriageHandSheet({ mobile, anchor, snap, onSnap, instruction, a
     </Pressable>
     {(['peek', 'expanded'] as const).map(value => <Pressable key={value} accessibilityRole="button"
       accessibilityLabel={value === 'peek' ? 'Peek at your hand' : 'Expand full hand'} accessibilityState={{ selected: snap === value }}
-      onPress={() => onSnap(value)} style={{ minHeight: 44, minWidth: 44, paddingHorizontal: 8, justifyContent: 'center' }}>
+      onPress={() => onSnap(value)} style={({ pressed }) => ({ ...gameButtonStyle(colors, 'secondary', pressed), paddingHorizontal: 8, justifyContent: 'center', borderColor: snap === value ? colors.attention : colors.tableTrim })}>
       <Text style={{ fontFamily: fonts.body, fontSize: 12, color: snap === value ? colors.cardInnerBorder : colors.onTableHeader }}>{value === 'peek' ? 'Peek' : 'Full'}</Text>
     </Pressable>)}
   </View>;

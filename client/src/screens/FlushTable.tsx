@@ -11,7 +11,7 @@ import { FlushTurnCue } from '../components/FlushTurnCue';
 import { flushDecision } from '../multiplayer/flushDecision';
 import { type ReactNode, useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { fonts, primaryAction, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import type { RoomSnapshot } from './LiveGameTable';
 import { FlushFoldNotice } from '../components/FlushFoldNotice';
 import { FlushLockButton } from '../components/FlushLockButton';
@@ -98,7 +98,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
     <Text style={{ color: colors.textMuted, fontSize: 12 }}>{snapshot.players?.length || 0} of {snapshot.table?.max_players || snapshot.capacity} seated</Text>
     {snapshot.is_creator ? <Pressable testID="flush-center-start" accessibilityRole="button" accessibilityLabel={centerLabel}
       disabled={formationDisabled} accessibilityState={{ disabled: formationDisabled }}
-      onPress={() => locking ? onLock() : onStart(baseRevision)} style={({ pressed }) => [s.button, primaryAction(colors, pressed), formationDisabled && { opacity: 0.45 }]}>
+      onPress={() => locking ? onLock() : onStart(baseRevision)} style={({ pressed }) => [s.button, gameButtonStyle(colors, 'primary', pressed), formationDisabled && { opacity: 0.45 }]}>
       <Text style={{ color: colors.onPrimary, fontFamily: fonts.medium, fontSize: 15 }}>{centerLabel}</Text>
     </Pressable> : <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: 12 }}>Waiting for the host</Text>}
     {(snapshot.players?.length || 0) < (snapshot.table?.min_players || 2) && <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: 11 }}>Need at least {snapshot.table?.min_players || 2} players</Text>}
@@ -134,11 +134,10 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   const can = (kind: string) => !busy && snapshot.status === 'playing' && !!mine?.actions.kinds.includes(kind);
   const button = (label: string, action: () => void, disabled = false) => {
     const primary = /^(Bet minimum|Show ·|Deal cards|Reveal cards|Accept side-show)/.test(label);
-    const legal = /^(Bet |Show ·|Request side-show|See cards|Reveal cards|Accept side-show|Decline side-show)/.test(label);
     const caption = label.replace('Bet minimum ·', `${visibility === 'Blind' ? 'Blind' : 'Bet'} ·`).replace('Bet double ·', 'Double ·');
     return <Pressable accessibilityRole="button" accessibilityLabel={label}
-      disabled={disabled} accessibilityState={{ disabled }} onPress={action} style={({ pressed }) => [s.button, legal && !disabled && { borderColor: colors.attention }, primary && primaryAction(colors, pressed), label === 'Fold' && s.fold, disabled && { opacity: 0.45 }]}>
-      <Text style={[s.text, primary && { color: colors.onPrimary }, label === 'Fold' && s.error]}>{caption}</Text>
+      disabled={disabled} accessibilityState={{ disabled }} onPress={action} style={({ pressed }) => [s.button, gameButtonStyle(colors, primary ? 'primary' : 'secondary', pressed), disabled && { opacity: 0.45 }]}>
+      <Text style={[s.text, primary && { color: colors.onPrimary }, label === 'Fold' && { color: colors.onTableHeader }]}>{caption}</Text>
     </Pressable>;
   };
   const preparationControl = activeGame && preparing && myTurn ? <View testID="flush-center-preparation" style={{ gap: 8, alignItems: 'center' }}>
@@ -292,9 +291,8 @@ const styles = (c: ThemeColors) => StyleSheet.create({
   panel: { backgroundColor: c.surface, padding: 16, borderRadius: 14, gap: 12 },
   row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   title: { color: c.text, fontFamily: fonts.medium, fontSize: 20 }, text: { color: c.text, fontFamily: fonts.body, fontSize: 14 },
-  button: { minHeight: 44, justifyContent: 'center', padding: 10, borderRadius: 8, backgroundColor: c.surfaceRaised, borderWidth: 1, borderColor: c.border },
-  fold: { backgroundColor: c.surface, borderColor: c.danger },
-  helpButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
+  button: { justifyContent: 'center', padding: 10, ...gameButtonStyle(c) },
+  helpButton: { ...gameButtonStyle(c), justifyContent: 'center', paddingHorizontal: 8 },
   chosen: { borderColor: c.accent, backgroundColor: c.surfaceSelected },
   field: { gap: 6 }, input: { padding: 12, borderRadius: 8, borderWidth: 1, borderColor: c.border, color: c.text },
   error: { color: c.danger, fontFamily: fonts.body },
