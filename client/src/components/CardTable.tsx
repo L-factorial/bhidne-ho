@@ -75,5 +75,5 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   red: { color: colors.cardRed },
   club: { color: colors.cardClub },
   playOrder: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 10, textAlign: 'center', marginTop: 6 },
-  empty: { color: colors.textMuted, fontSize: 18 },
+  empty: { color: '#E3EEDD', fontSize: 18 },
 });

@@ -39,15 +39,15 @@ export function PlayerSeat({ name, mine = false, active = false, connected = tru
     <PlayerSocialEffect playerId={playerId} />
     {target && <Text pointerEvents="none" style={{position:'absolute',right:0,top:0,fontSize:14}}>👋</Text>}
     <Animated.View style={{ transform: [{ scale }], width: size, height: size, borderRadius: size / 2, borderWidth: active ? 3 : 1,
-      borderColor: target ? colors.accent : active ? colors.attention : colors.border, borderStyle: connected ? 'solid' : 'dashed',
+      borderColor: target ? colors.accent : active ? colors.attention : '#DCC9A5', borderStyle: connected ? 'solid' : 'dashed',
       backgroundColor: active ? colors.turnSurface : colors.surface, alignItems: 'center', justifyContent: 'center' }}>
       {avatarUrl && failedImage !== avatarUrl ? <Image source={{ uri: avatarUrl }} onError={() => setFailedImage(avatarUrl)}
         style={{ width: size - 6, height: size - 6, borderRadius: size / 2 }} /> : <Text style={{ color: colors.accent, fontFamily: fonts.medium, fontSize: compact ? 12 : 16 }}>{initials}</Text>}
     </Animated.View>
-    <Text numberOfLines={1} style={{ maxWidth: '100%', color: colors.text, fontFamily: fonts.medium, fontSize: compact ? 11 : 12 }}>{name}</Text>
-    <Text numberOfLines={1} style={{ color: active ? colors.turnText : colors.textMuted, fontFamily: fonts.medium, fontSize: compact ? 8 : 10 }}>
+    <Text numberOfLines={1} style={{ maxWidth: '100%', backgroundColor: colors.surface, paddingHorizontal: 8, borderRadius: 8, color: colors.text, fontFamily: fonts.medium, fontSize: compact ? 11 : 12 }}>{name}</Text>
+    <Text numberOfLines={1} style={{ backgroundColor: active ? colors.turnSurface : colors.surface, paddingHorizontal: 5, borderRadius: 5, color: active ? colors.turnText : colors.textMuted, fontFamily: fonts.medium, fontSize: compact ? 8 : 10 }}>
       {active ? mine ? '● YOUR TURN' : '● TURN' : !connected ? 'Offline' : mine ? 'YOU' : dealer ? 'Dealer' : status}
     </Text>
-    {(active || mine || !connected || dealer) && !!status && <Text numberOfLines={1} style={{ color: colors.textMuted, fontSize: 10 }}>{!connected && active ? `Offline · ${status}` : status}</Text>}
+    {(active || mine || !connected || dealer) && !!status && <Text numberOfLines={1} style={{ backgroundColor: colors.surface, paddingHorizontal: 5, borderRadius: 5, color: colors.textMuted, fontSize: 10 }}>{!connected && active ? `Offline · ${status}` : status}</Text>}
   </Pressable>;
 }

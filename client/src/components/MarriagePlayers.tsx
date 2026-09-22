@@ -23,7 +23,7 @@ export function MarriagePlayers({ snapshot, onPoke, registerSeat, children }: { 
   const pub = snapshot.marriage!.public, mine = snapshot.marriage?.private?.player_id;
   const detail = pub.players.find(p => p.player_id === selected);
   return <>
-    <TableSeatLayout fill testID="marriage-player-grid" players={pub.players.map(player => ({ ...player, id: player.player_id }))} viewerId={mine || ''}
+    <TableSeatLayout game="marriage" fill testID="marriage-player-grid" players={pub.players.map(player => ({ ...player, id: player.player_id }))} viewerId={mine || ''}
       renderSeat={p => <PlayerSeat playerId={Number(p.player_id)} name={playerName(snapshot, p.player_id)} mine={p.player_id === mine}
         active={snapshot.status === 'playing' && pub.current_player_id === p.player_id}
         status={`${p.hand_count} cards`} connected={snapshot.players?.find(row => String(row.player_id) === p.player_id)?.connected}

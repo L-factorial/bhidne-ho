@@ -67,8 +67,8 @@ async function api(path, user, body) {
    assert.deepEqual(await p.getByTestId('flush-arena').boundingBox(),arena,'drawer must not move/resize table');
    assert.deepEqual(await p.getByTestId('flush-hand-dock').boundingBox(),dock,'drawer must not move cards/actions');
    const bounds=await drawer.boundingBox();
-   assert.ok(Math.abs(bounds.x+bounds.width-viewport.width)<1);
-   if(viewport.width<900) assert.ok(bounds.width>=viewport.width*.75 && bounds.width<=viewport.width*.85);
+   assert.ok(Math.abs(bounds.x + bounds.width - (viewport.width - 8)) < 1, 'menu respects its right inset');
+   assert.ok(bounds.width <= 360 && bounds.width <= viewport.width * .86 + 1, 'menu fits the viewport');
    assert.equal(await p.getByText(/Your seat /).count(),0);
    await button(p,'Players & waiting queue').click();await p.getByTestId('flush-menu-players').waitFor();
    await button(p,'Players & waiting queue').click();
@@ -142,9 +142,12 @@ async function api(path, user, body) {
   await button(owner,'Table menu').click();await button(owner,'Bet history').click();await owner.getByTestId('flush-bet-grid').waitFor();await button(owner,'Close Bet').click();
   await button(owner,'Table menu').click();
   const menu=owner.getByTestId('flush-menu-drawer');
-  await button(menu,'Switch to dark mode').click();await button(menu,'Switch to light mode').click();
-  await menu.getByRole('button',{name:/Switch language to/}).click();
-  await menu.getByRole('button').filter({hasText:/^English$/}).click();
+  for (const mode of ['Dark', 'Light']) {
+   await menu.getByRole('button', { name: /^Appearance,/ }).click();
+   await menu.getByRole('radio', { name: mode, exact: true }).click();
+  }
+  await menu.getByRole('button', { name: 'Language, English', exact: true }).click();
+  await menu.getByRole('button', { name: 'Language, नेपाली', exact: true }).click();
   await button(owner,'Poke the table').click();
   await owner.getByRole('button',{name:'Close poke composer',exact:true}).click();
   await button(owner,'Table menu').click();await button(owner,'End table').click();
