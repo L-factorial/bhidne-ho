@@ -41,7 +41,7 @@ export function CardTable({ players, viewerId, activePlayerId, width, plays, pen
     {(layout, ordered) => {
       const winnerIndex = ordered.findIndex(player => player.id === winnerPlayerId);
       const winner = layout.positions[winnerIndex];
-      return <View testID="current-trick-area" style={{ position: 'absolute', left: layout.center.x - 72, top: layout.center.y - 57, width: 144, height: 114 }}>
+      return <View testID="current-trick-area" style={{ position: 'absolute', left: layout.center.x - 72, width: 144, ...(centerControl ? { top: 0, bottom: 0, justifyContent: 'center' } : { top: layout.center.y - 57, height: 114 }) }}>
         {centerControl || <>
           {!plays.length && <Text style={[styles.empty, { textAlign: 'center', paddingTop: 42, fontSize: 12 }]}>Current trick</Text>}
           {plays.map((play, playIndex) => {

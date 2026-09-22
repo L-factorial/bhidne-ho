@@ -1,3 +1,4 @@
+import { FloatingTableAction } from '../components/FloatingTableAction';
 import { PreGameTable } from '../components/PreGameTable';
 import { EndedTableNotice } from '../components/EndedTableNotice';
 import { GameMenu, GameMenuMetadata } from '../components/GameMenu';
@@ -143,9 +144,9 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     return <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => cards.act(command, payload)} style={styles.button}><ActionCue active={!busy} style={styles.buttonText}>{label}</ActionCue></Pressable>;
   }
   const preparation = isTurn && ['AWAITING_SHUFFLE', 'AWAITING_CUT', 'AWAITING_DISTRIBUTION'].includes(game.phase) ? <View testID="callbreak-center-preparation" style={{ gap: 8, alignItems: 'center' }}>
-      {game.phase === 'AWAITING_SHUFFLE' && action('Shuffle deck', 'SHUFFLE_DECK')}
-      {game.phase === 'AWAITING_CUT' && <>{action('Cut in half', 'CUT_DECK', { position: 26 })}{action('Skip cut', 'SKIP_CUT')}</>}
-      {game.phase === 'AWAITING_DISTRIBUTION' && action('Deal cards', 'START_DISTRIBUTION')}
+      {game.phase === 'AWAITING_SHUFFLE' && <FloatingTableAction label="Shuffle deck" disabled={busy} onPress={() => cards.act('SHUFFLE_DECK')} />}
+      {game.phase === 'AWAITING_CUT' && <>{<FloatingTableAction label="Cut in half" disabled={busy} onPress={() => cards.act('CUT_DECK', { position: 26 })} />}{<FloatingTableAction label="Skip cut" disabled={busy} onPress={() => cards.act('SKIP_CUT')} />}</>}
+      {game.phase === 'AWAITING_DISTRIBUTION' && <FloatingTableAction label="Deal cards" disabled={busy} onPress={() => cards.act('START_DISTRIBUTION')} />}
     </View> : null;
   return <View style={styles.page}>
     {header}

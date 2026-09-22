@@ -40,6 +40,18 @@ async function stableCue(locator) {
       }
       const owner = pages[0], cue = owner.getByTestId(`${kind}-center-start`);
       await stableCue(cue.getByTestId('action-cue'));
+      const floating = cue.getByTestId('floating-table-action');
+      const transforms = new Set();
+      for (let sample = 0; sample < 8; sample++) {
+        transforms.add(await floating.evaluate(el => getComputedStyle(el).transform));
+        await owner.waitForTimeout(250);
+      }
+      assert.ok(transforms.size > 1, 'eligible center action visibly pulses');
+      await owner.emulateMedia({ reducedMotion: 'reduce' });
+      await owner.waitForTimeout(150);
+      const still = await floating.evaluate(el => getComputedStyle(el).transform);
+      await owner.waitForTimeout(800);
+      assert.equal(await floating.evaluate(el => getComputedStyle(el).transform), still, 'reduced motion stops the pulse');
       assert.equal(await pages[1].getByTestId(`${kind}-center-start`).count(), 0);
       await button(owner, 'Table menu').click(); await button(owner, 'Back to room').waitFor();
       await button(owner, 'End game').waitFor(); await button(owner, 'Close table menu').click();
@@ -51,6 +63,12 @@ async function stableCue(locator) {
           state = await stateWhen(s => s.game.phase === phase);
           const actor = pages[state.game.turn.player_id - 1], preparation = actor.getByTestId('callbreak-center-preparation');
           await stableCue(preparation.getByRole('button', { name: label, exact: true }).getByTestId('action-cue'));
+          if (phase === 'AWAITING_CUT') {
+            const tableBounds = await actor.getByTestId('card-table').boundingBox();
+            const controlsBounds = await preparation.boundingBox();
+            assert.ok(Math.abs(controlsBounds.y + controlsBounds.height / 2 - tableBounds.y - tableBounds.height / 2) < 8, 'cut controls sit at table center');
+            await actor.screenshot({ path: '/tmp/bhidne-floating-cut-controls.png' });
+          }
           await button(actor, label).click();
         }
         await stateWhen(s => s.game.phase === 'HAND_REVIEW');

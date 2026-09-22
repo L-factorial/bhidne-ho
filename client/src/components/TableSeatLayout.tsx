@@ -21,6 +21,6 @@ export function TableSeatLayout<T extends { id: string }>({ players, viewerId, c
       const point = layout.positions[index + ordered.length];
       return <View key={`empty-${index}`} accessibilityLabel="Empty seat" style={{ position: 'absolute', left: point.x - 24, top: point.y - 24, width: 48, alignItems: 'center', gap: 3 }}><View style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1, borderColor: '#FFF8EB', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#FFF8EB', fontSize: 24 }}>+</Text></View><Text style={{ color: '#FFF8EB', fontSize: 10 }}>Empty</Text></View>;
     })}
-    {typeof children === 'function' ? children(layout, ordered) : <View style={{ position: 'absolute', top: layout.center.y - 60, left: capacity ? layout.seatWidth / 2 + 12 : 6, right: capacity ? layout.seatWidth / 2 + 12 : 6, alignItems: 'center' }}>{children}</View>}
+    {typeof children === 'function' ? children(layout, ordered) : <View style={{ position: 'absolute', top: capacity ? 0 : layout.center.y - 60, bottom: capacity ? 0 : undefined, justifyContent: capacity ? 'center' : undefined, left: capacity ? layout.seatWidth / 2 + 12 : 6, right: capacity ? layout.seatWidth / 2 + 12 : 6, alignItems: 'center' }}>{children}</View>}
   </View>;
 }

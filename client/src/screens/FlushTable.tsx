@@ -1,3 +1,4 @@
+import { FloatingTableAction } from '../components/FloatingTableAction';
 import { RoundResultsTable } from '../components/RoundResultsTable';
 import { RoomSheet } from '../components/RoomSheet';
 import { FormFooter } from '../components/FormFooter';
@@ -96,11 +97,8 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   const centerControl = formation ? <View style={{ backgroundColor: 'transparent', borderRadius: 18, padding: 12, gap: 8, alignItems: 'center', maxWidth: 220 }}>
     <Text style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 15, textAlign: 'center' }}>{starting ? 'Players locked' : 'Waiting for players'}</Text>
     <Text style={{ color: colors.textMuted, fontSize: 12 }}>{snapshot.players?.length || 0} of {snapshot.table?.max_players || snapshot.capacity} seated</Text>
-    {snapshot.is_creator ? <Pressable testID="flush-center-start" accessibilityRole="button" accessibilityLabel={centerLabel}
-      disabled={formationDisabled} accessibilityState={{ disabled: formationDisabled }}
-      onPress={() => locking ? onLock() : onStart(baseRevision)} style={({ pressed }) => [s.button, gameButtonStyle(colors, 'primary', pressed), formationDisabled && { opacity: 0.45 }]}>
-      <Text style={{ color: colors.onPrimary, fontFamily: fonts.medium, fontSize: 15 }}>{centerLabel}</Text>
-    </Pressable> : <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: 12 }}>Waiting for the host</Text>}
+    {snapshot.is_creator ? <FloatingTableAction testID="flush-center-start" label={centerLabel}
+      disabled={formationDisabled} onPress={() => locking ? onLock() : onStart(baseRevision)} /> : <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: 12 }}>Waiting for the host</Text>}
     {(snapshot.players?.length || 0) < (snapshot.table?.min_players || 2) && <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: 11 }}>Need at least {snapshot.table?.min_players || 2} players</Text>}
     {formationDisabled && (snapshot.players?.length || 0) >= (snapshot.table?.min_players || 2) && <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: 11 }}>{dirty || stale ? 'Save or reload rule changes first.' : snapshot.rule_proposal?.status === 'PENDING' ? 'Waiting for rule approval.' : 'Waiting for eligible players.'}</Text>}
   </View> : null;
@@ -141,9 +139,9 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
     </Pressable>;
   };
   const preparationControl = activeGame && preparing && myTurn ? <View testID="flush-center-preparation" style={{ gap: 8, alignItems: 'center' }}>
-    {mine?.actions.kinds.includes('deal_cards') && button('Deal cards', () => act('DEAL_CARDS'), !can('deal_cards'))}
-    {mine?.actions.kinds.includes('cut_deck') && button('Cut in half', () => act('CUT_DECK', { position: 26 }), !can('cut_deck'))}
-    {mine?.actions.kinds.includes('skip_cut') && button('Skip cut', () => act('SKIP_CUT'), !can('skip_cut'))}
+    {mine?.actions.kinds.includes('deal_cards') && <FloatingTableAction label="Deal cards" onPress={() => act('DEAL_CARDS')} disabled={!can('deal_cards')} />}
+    {mine?.actions.kinds.includes('cut_deck') && <FloatingTableAction label="Cut in half" onPress={() => act('CUT_DECK', { position: 26 })} disabled={!can('cut_deck')} />}
+    {mine?.actions.kinds.includes('skip_cut') && <FloatingTableAction label="Skip cut" onPress={() => act('SKIP_CUT')} disabled={!can('skip_cut')} />}
   </View> : null;
   const rulesContent = <>
       <Text style={s.title}>{settings.locked ? 'Rules locked for this game' : 'Rules before starting'}</Text>
