@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { ChatMessage } from './ChatMessage';
 import { RoomSheet } from './RoomSheet';
 import { ChatComposer } from './ChatComposer';
@@ -88,14 +89,15 @@ export function useRoomChat({ roomId, session, connected, hideWhenBlocked = fals
   return { navigation: launcher, view: <>{!open && launcherVisible && launcher}
     {!renderLauncher && <Pressable onPress={openChat} accessibilityRole="button" accessibilityLabel={t('chat.title')} style={[styles.dock, { bottom: bottomOffset + insets.bottom, right: 12, padding: 16, backgroundColor: colors.surface }]}><Text style={styles.heading}>{t('chat.title')}{unread ? ` · ${unread}` : ''}</Text></Pressable>}
     {open && !blocked && <RoomSheet visible title={t('chat.title')} onClose={() => setOpen(false)} scrollable={false}
+      headerActions={<Pressable accessibilityRole="button" accessibilityLabel={t(muted ? 'chat.soundOff' : 'chat.soundOn')} accessibilityState={{ selected: !muted }} onPress={() => { prepare(); setMuted(value => !value); }} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Ionicons name={muted ? 'volume-mute-outline' : 'volume-high-outline'} size={20} color={colors.textMuted} /></Pressable>}
       footer={renderLauncher ? <View style={{ height: 64 + Math.max(8, insets.bottom) }}>{launcher}</View> : undefined}>
       <View testID="room-chat-window" style={[styles.chatBody, { flex: 1, minHeight: 0 }]}>
-        <Pressable accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center' }} onPress={() => { prepare(); setMuted(value => !value); }}><Text style={styles.note}>{t(muted ? 'chat.soundOff' : 'chat.soundOn')}</Text></Pressable>
+
         <ScrollView ref={scroll} testID="room-chat-history" keyboardShouldPersistTaps="always" style={{ flex: 1, minHeight: 0 }} scrollEventThrottle={16}
           onScroll={({ nativeEvent: { contentOffset, contentSize, layoutMeasurement } }) => { followLatest.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 40; }}
           onContentSizeChange={() => { if (followLatest.current) scroll.current?.scrollToEnd({ animated: false }); }}>
-          {!messages.length && <Text style={styles.note}>{t('chat.empty')}</Text>}
-          {messages.map(message => <ChatMessage key={message.id} message={message} own={message.sender_id === session.user_id} />)}
+          {!messages.length && <View style={{ paddingVertical: 32, gap: 8, alignItems: 'center' }}><Ionicons name="chatbubbles-outline" size={30} color={colors.textMuted} /><Text style={styles.heading}>No messages yet</Text><Text style={styles.note}>Say something to get the table going.</Text></View>}
+          {messages.map(message => <ChatMessage tableStyle key={message.id} message={message} own={message.sender_id === session.user_id} />)}
         </ScrollView>
         {!connected && <Text style={styles.note}>{t('chat.reconnecting')}</Text>}
         {!!(error || loadError) && <Text accessibilityRole="alert" style={styles.error}>{error || loadError}</Text>}

@@ -25,7 +25,7 @@ const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8098';
       await page.getByTestId('profile-screen').waitFor();
       assert.equal(await page.getByRole('radio', { name: /^(Dark|Light|System|Heritage|Himalayan|Courtyard)$/ }).count(), 0);
       assert.equal(await page.getByRole('heading', { name: 'Appearance', exact: true }).count(), 0);
-      assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(250, 244, 233)');
+      assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(250, 247, 241)');
       await page.getByRole('button', { name: 'Back from profile', exact: true }).click();
     }
     assert.deepEqual(appearanceRequests, []); assert.deepEqual(errors, []);

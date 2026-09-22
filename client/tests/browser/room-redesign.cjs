@@ -36,18 +36,30 @@ async function api(path, user, body, method) {
     await page.screenshot({ path: '/tmp/bhidne-room-reference-light.png', fullPage: true });
     await page.getByRole('button', { name: 'Room members', exact: true }).click();
     await page.getByRole('heading', { name: 'Members · 2', exact: true }).waitFor();
+    await page.getByRole('button', { name: /^Sita Rai, (Online|Offline)$/ }).click();
+    await page.getByRole('heading', { name: 'Player profile', exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Add friend', exact: true }).click();
+    await page.getByText('Friend request sent', { exact: true }).waitFor();
+    assert.ok((await api('/friends', owner)).outgoing.some(player => player.user_id === friend.user_id));
+    await page.getByRole('button', { name: 'Close player profile', exact: true }).click();
     await page.getByRole('button', { name: 'Room ledger', exact: true }).click();
     await page.getByRole('heading', { name: 'Ledger & settlements', exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Show room/table codes', exact: true }).click();
+    await page.getByRole('button', { name: 'Hide room/table codes', exact: true }).waitFor();
     await page.getByRole('button', { name: 'Room tables', exact: true }).click();
+    await page.getByTestId('room-sheet').waitFor({ state: 'hidden' });
     await page.getByRole('button', { name: 'Room chat', exact: true }).click();
     await page.getByTestId('room-chat-window').waitFor();
     await page.getByRole('button', { name: 'Room tables', exact: true }).click();
+    await page.getByTestId('room-sheet').waitFor({ state: 'hidden' });
     await page.getByRole('button', { name: 'Invite to room', exact: true }).click();
     await page.getByRole('button', { name: 'Copy room link', exact: true }).waitFor();
     await page.getByRole('button', { name: 'Room tables', exact: true }).click();
+    await page.getByTestId('room-sheet').waitFor({ state: 'hidden' });
     await page.getByRole('button', { name: 'More room actions', exact: true }).click();
     await page.getByRole('heading', { name: 'Room options', exact: true }).waitFor();
     await page.getByRole('button', { name: 'Room tables', exact: true }).click();
+    await page.getByTestId('room-sheet').waitFor({ state: 'hidden' });
     await page.getByRole('button', { name: 'Open profile', exact: true }).click();
     assert.equal(await page.getByRole('radio', { name: /^(Dark|Light|System)$/ }).count(), 0);
     await page.getByRole('button', { name: 'Back from profile', exact: true }).click();
@@ -59,6 +71,11 @@ async function api(path, user, body, method) {
     await page.getByRole('button', { name: 'Back to room', exact: true }).click();
     await page.getByRole('button', { name: 'Return to table · Evening Call Break', exact: true }).click();
     await page.getByTestId('live-game-backdrop').waitFor();
+    await page.getByTestId('pregame-table').waitFor();
+    assert.equal(await page.getByLabel('Empty seat', { exact: true }).count(), 3);
+    await page.setViewportSize({ width: 320, height: 640 });
+    await page.waitForTimeout(350); // Let the existing game-modal fade finish before visual capture.
+    await page.screenshot({ path: '/tmp/bhidne-pregame-refined-320.png', fullPage: true });
     assert.deepEqual(errors, []);
     console.log('Room redesign: navigation, members, ledger, chat, invitations, settings and creation passed');
   } finally { await browser.close(); }

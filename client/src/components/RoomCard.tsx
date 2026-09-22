@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { RoomShareActions } from './ShareLink';
 import { RoomSheet } from './RoomSheet';
 import type { Room } from '../multiplayer/session';
-import { fonts, useTheme } from '../theme';
+import { fonts, radii, typography, useTheme } from '../theme';
 
 export function RoomCard({ room, member, busy, activeTables, onPress }: { room: Room; member: boolean; busy: boolean; activeTables?: number; onPress: () => void }) {
   const { colors: c } = useTheme();
@@ -16,11 +16,11 @@ export function RoomCard({ room, member, busy, activeTables, onPress }: { room: 
   const previews = room.member_previews || [];
   const shown = previews.length ? previews.slice(0, 4) : room.members.slice(0, 4).map(user_id => ({ user_id, display_name: '', username: '' }));
   const extra = Math.max(0, room.members.length - shown.length);
-  return <View testID={`room-card-${room.room_id}`} style={{ padding: 10, borderRadius: 19, backgroundColor: c.surface,
+  return <View testID={`room-card-${room.room_id}`} style={{ padding: 10, borderRadius: radii.large, backgroundColor: c.surface,
     borderWidth: 1, borderColor: c.borderSubtle, gap: 8, opacity: busy ? 0.55 : 1 }}>
     <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 4, paddingLeft: 3 }}>
       <View style={{ flex: 1, minWidth: 0, gap: 4, paddingTop: 3 }}>
-        <Text numberOfLines={2} style={{ color: c.text, fontFamily: fonts.medium, fontSize: 18, lineHeight: 23 }}>{room.name}</Text>
+        <Text numberOfLines={2} style={{ color: c.text, fontFamily: fonts.medium, fontSize: typography.cardTitle, lineHeight: 23 }}>{room.name}</Text>
         <Text style={{ color: c.textMuted, fontFamily: fonts.body, fontSize: 12, lineHeight: 18 }}>
           {room.members.length} {room.members.length === 1 ? 'member' : 'members'} · {tables} {tables === 1 ? 'table' : 'tables'}
         </Text>
@@ -37,7 +37,7 @@ export function RoomCard({ room, member, busy, activeTables, onPress }: { room: 
     </View>
     <ImageBackground source={require('../../assets/lobby/nepal-valley.jpg')} resizeMode="cover"
       onLayout={event => setBannerWidth(event.nativeEvent.layout.width)}
-      style={{ height: 98, borderRadius: 12, overflow: 'hidden', backgroundColor: c.table }} imageStyle={{ width: bannerWidth, height: bannerWidth * 2 / 3, top: -bannerWidth * 0.1, opacity: 1 }}>
+      style={{ height: 64, borderRadius: 12, overflow: 'hidden', backgroundColor: c.table }} imageStyle={{ width: bannerWidth, height: bannerWidth * 2 / 3, top: -bannerWidth * 0.1, opacity: 0.8 }}>
       <LinearGradient colors={['transparent', 'rgba(17,25,20,0.56)']} style={{ flex: 1, justifyContent: 'flex-end', padding: 9 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 }}>

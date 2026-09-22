@@ -43,7 +43,7 @@ async function stableCue(locator) {
       assert.equal(await pages[1].getByTestId(`${kind}-center-start`).count(), 0);
       await button(owner, 'Table menu').click(); await button(owner, 'Back to room').waitFor();
       await button(owner, 'End game').waitFor(); await button(owner, 'Close table menu').click();
-      if (kind === 'marriage') { await cue.getByRole('button', { name: 'Lock game', exact: true }).click(); }
+      if (kind === 'marriage') { await cue.getByRole('button', { name: 'Lock players', exact: true }).click(); }
       await cue.getByRole('button', { name: 'Start game', exact: true }).click();
       let state = await stateWhen(s => s.status === 'playing');
       if (kind === 'callbreak') {
@@ -106,7 +106,7 @@ async function stableCue(locator) {
         await menu.getByRole('button',{name:/^Poke /}).first().waitFor();
         assert.equal(await menu.getByText(/Your seat /).count(),0);
         await button(menu,'Players & waiting queue').click();
-        await button(menu,'Copy Invite Link').waitFor();
+        await button(menu,'Share table').waitFor();
         await actor.waitForTimeout(250);await actor.screenshot({path:`/tmp/${kind}-menu-${viewport.width}.png`});
         await actor.keyboard.press('Escape');await menu.waitFor({state:'hidden'});
         assert.equal(await table.evaluate(el=>globalThis.testGameTable===el),true);
@@ -118,7 +118,7 @@ async function stableCue(locator) {
       }
       await actor.setViewportSize({width:390,height:844});
       if(await button(actor,'Expand your card area').isVisible()) await button(actor,'Expand your card area').click();
-      await button(actor,'Table menu').click();await button(actor.getByTestId(`${kind}-menu-drawer`),'Poke the table').click();
+      await button(actor,'Table menu').click();await button(actor.getByTestId(`${kind}-menu-drawer`),'Players & waiting queue').click();await button(actor.getByTestId(`${kind}-menu-drawer`),'Poke the table').click();
       await button(actor,'Close poke composer').click();
       await button(actor,'Table menu').click();await button(actor.getByTestId(`${kind}-menu-drawer`),'Rules').click();
       if(kind==='callbreak') {

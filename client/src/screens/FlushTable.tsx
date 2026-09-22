@@ -91,13 +91,19 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   const starting = snapshot.table?.phase === 'LOCKED';
   const formationDisabled = busy || dirty || stale || snapshot.rule_proposal?.status === 'PENDING'
     || !(locking ? snapshot.table?.current_user.can_lock : snapshot.table?.current_user.can_start);
-  const centerLabel = starting ? 'Start game' : pub?.settlement ? 'Lock the table to start another game' : 'Lock game';
-  const centerControl = snapshot.is_creator && snapshot.status !== 'ended' && (locking || starting)
-    ? <Pressable testID="flush-center-start" accessibilityRole="button" accessibilityLabel={centerLabel}
-        disabled={formationDisabled} accessibilityState={{ disabled: formationDisabled }}
-        onPress={() => locking ? onLock() : onStart(baseRevision)} style={({ pressed }) => [s.button, primaryAction(colors, pressed), { maxWidth: 220 }, formationDisabled && { opacity: 0.45 }]}>
-        <Text style={[s.title, { textAlign: 'center', color: colors.onPrimary }]}>{centerLabel}</Text>
-      </Pressable> : null;
+  const centerLabel = starting ? 'Start game' : 'Lock players';
+  const formation = snapshot.status !== 'ended' && (locking || starting);
+  const centerControl = formation ? <View style={{ backgroundColor: colors.surface, borderRadius: 18, padding: 12, gap: 8, alignItems: 'center', maxWidth: 220 }}>
+    <Text style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 15, textAlign: 'center' }}>{starting ? 'Players locked' : 'Waiting for players'}</Text>
+    <Text style={{ color: colors.textMuted, fontSize: 12 }}>{snapshot.players?.length || 0} of {snapshot.table?.max_players || snapshot.capacity} seated</Text>
+    {snapshot.is_creator ? <Pressable testID="flush-center-start" accessibilityRole="button" accessibilityLabel={centerLabel}
+      disabled={formationDisabled} accessibilityState={{ disabled: formationDisabled }}
+      onPress={() => locking ? onLock() : onStart(baseRevision)} style={({ pressed }) => [s.button, primaryAction(colors, pressed), formationDisabled && { opacity: 0.45 }]}>
+      <Text style={{ color: colors.onPrimary, fontFamily: fonts.medium, fontSize: 15 }}>{centerLabel}</Text>
+    </Pressable> : <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: 12 }}>Waiting for the host</Text>}
+    {(snapshot.players?.length || 0) < (snapshot.table?.min_players || 2) && <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: 11 }}>Need at least {snapshot.table?.min_players || 2} players</Text>}
+    {formationDisabled && (snapshot.players?.length || 0) >= (snapshot.table?.min_players || 2) && <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: 11 }}>{dirty || stale ? 'Save or reload rule changes first.' : snapshot.rule_proposal?.status === 'PENDING' ? 'Waiting for rule approval.' : 'Waiting for eligible players.'}</Text>}
+  </View> : null;
   const [finalShowOpen, setFinalShowOpen] = useState(false);
   const finalStage = ended ? null : pub?.pending_show ? 'pending' : pub?.settlement ? 'result' : null;
   useEffect(() => { setFinalShowOpen(finalStage !== null); }, [snapshot.match_id, pub?.round_number, finalStage]);
@@ -171,7 +177,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
     : `${ownPlayer?.status === 'active' && !preparing ? `${visibility} · ` : ownPlayer?.status === 'folded' ? 'Folded · ' : ''}Waiting for ${name(decision.actor)}`
     : `${snapshot.players?.length || 0}/${snapshot.capacity} players seated`;
   return <View style={[s.page, mobile && { padding: 8, gap: 4 }]} testID="flush-table">
-    <GameTableHeader title="Flush" compact path={snapshot.path} game="flush" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack} mobileTestIds drawerMetadata={<GameMenuMetadata snapshot={snapshot} />}>
+    <GameTableHeader tableName={snapshot.table_name} title="Flush" compact path={snapshot.path} game="flush" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack} mobileTestIds drawerMetadata={<GameMenuMetadata snapshot={snapshot} />}>
       {closeMenu => <FlushMenu snapshot={snapshot} close={closeMenu} rules={() => setRulesOpen(true)} history={() => setBetsOpen(true)}
         poke={() => setPokeOpen(true)} canPoke={social.connected} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl} />}
     </GameTableHeader>

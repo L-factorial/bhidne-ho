@@ -1,3 +1,4 @@
+import { PreGameTable } from '../components/PreGameTable';
 import { EndedTableNotice } from '../components/EndedTableNotice';
 import { GameMenu, GameMenuMetadata } from '../components/GameMenu';
 import { ActionCue } from '../components/ActionCue';
@@ -105,7 +106,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     ? `${handDealKey}:${game?.phase}:${isTurn}:${game?.current_trick?.trick_number || deal?.tricks_completed || 0}` : null;
   const cards = useCallBreakHand({ deal: handDealKey, turn: !reveal && !busy ? promptKey : null,
     revision: game?.revision ?? 0, hand: mine?.hand ?? [], busy, error }, onAction);
-  const header = <GameTableHeader compact game="callbreak" title="Call Break" path={snapshot.path} roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack}
+  const header = <GameTableHeader tableName={snapshot.table_name} compact game="callbreak" title="Call Break" path={snapshot.path} roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack}
     drawerMetadata={<GameMenuMetadata snapshot={snapshot} />}>
     {close => <GameMenu snapshot={snapshot} close={close} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl}
       poke={() => setPokeTarget(null)} pokePlayer={setPokeTarget} canPoke={social.connected}
@@ -120,15 +121,12 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   if (ended && (!game || !deal)) return <View style={styles.page}>{header}<View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>{endedNotice}</View></View>;
   if (!game || !deal) return <View style={styles.page}>
     {header}
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 20 }}>
-      <Text style={styles.title}>{snapshot.players?.length}/{snapshot.capacity} players seated</Text>
+    <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 12, gap: 12 }}>
+      <PreGameTable snapshot={snapshot}>{startCue}</PreGameTable>
       <Text style={styles.meta}>{snapshot.ready ? 'Everyone is here. The first dealer will be chosen at random.' : 'Waiting for everyone to take a seat.'}</Text>
       <Text style={styles.meta}>Each player confirms their bid and taps a card to play. No turn time limit.</Text>
-      <View style={{ width: '100%', maxWidth: 680, borderRadius: 24, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }}>
-        {startCue}{!snapshot.is_creator && <Text style={styles.status}>Waiting for the creator to start.</Text>}
-      </View>
       {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
-    </View>{socialOverlay}
+    </ScrollView>{socialOverlay}
   </View>;
   if (!ended && (snapshot.round_review || game.finished) && !reveal) return <View style={styles.page}>{header}<RoundSummary
     snapshot={snapshot} busy={busy} error={error || snapshot.error || ''} onContinue={onNextDeal} onBack={onBack} onNewGame={onNewGame}

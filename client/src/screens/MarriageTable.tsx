@@ -1,3 +1,4 @@
+import { PreGameTable } from '../components/PreGameTable';
 import { MarriageRoundResults } from '../components/MarriageScoring';
 import { useTableSocial } from '../components/TableSocial';
 import { TurnIndicator } from '../components/TurnIndicator';
@@ -176,7 +177,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
     if (error && !busy && selectedCard && decision === 'DISCARD_REQUIRED') setSnap('expanded');
   }, [error, busy, selectedCard?.card_id, decision]);
   return <View style={s.page} testID="marriage-table">
-    <GameTableHeader compact title="Marriage" path={snapshot.path} game="marriage" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack}
+    <GameTableHeader tableName={snapshot.table_name} compact title="Marriage" path={snapshot.path} game="marriage" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack}
       drawerMetadata={<GameMenuMetadata snapshot={snapshot} />}>
       {close => <GameMenu snapshot={snapshot} close={close} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl}
         poke={() => setPoke(null)} pokePlayer={setPoke} canPoke={social.connected}
@@ -185,9 +186,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
     <View style={{ flex: 1, minHeight: 0 }}>
     <View testID="marriage-play-area" style={[s.playArea, mobile && mine && activeGame && { paddingBottom: 64 }]}>
       {ended && !pub ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>{endedNotice}</View> : !pub ? <ScrollView contentContainerStyle={s.panel}>
-        <View style={[s.table, { minHeight: 180 }]}>{startCue}</View>
-        <Text style={s.heading}>{snapshot.players?.length}/{snapshot.capacity} players seated</Text>
-        {snapshot.players?.map(p => <Text key={p.player_id} style={s.text}>{p.display_name || `Player ${p.player_id}`}{p.player_id === snapshot.your_player_id ? ' · You' : ''}</Text>)}
+        <PreGameTable snapshot={snapshot}>{startCue}</PreGameTable>
         <Text style={s.text}>Show three natural melds, see Maal, then complete 21 cards in sequences or sets and discard one to win. Or show seven Dublees and finish with an eighth pair. Open Rules to select scoring before starting.</Text>
         <Text style={s.text}>Each player draws, shows melds, and discards on their own turn. Play waits for disconnected players to return.</Text>
         {!snapshot.is_creator && <Text style={s.text}>Waiting for the creator to start.</Text>}

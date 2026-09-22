@@ -73,8 +73,10 @@ async function api(path, user, body) {
    await button(p,'Players & waiting queue').click();await p.getByTestId('flush-menu-players').waitFor();
    await button(p,'Players & waiting queue').click();
    await p.context().grantPermissions(['clipboard-read','clipboard-write']);
-   await button(p,'Copy Invite Link').click();
-   await drawer.getByText('Link copied. Paste it into any messaging app.',{exact:true}).waitFor();
+   await button(p,'Share table').click();
+   await button(p,'Copy table link').click();
+   await p.getByText('Link copied. Paste it into any messaging app.',{exact:true}).waitFor();
+   await button(p,'Close table sharing').click();
    assert.deepEqual(await drawer.boundingBox(),bounds,'copy confirmation must not resize drawer');
    const invite=new URL(await p.evaluate(()=>navigator.clipboard.readText()));
    assert.equal(invite.searchParams.get('room'),room.room_id);assert.equal(invite.searchParams.get('match'),game.match_id);
@@ -153,6 +155,7 @@ async function api(path, user, body) {
   assert.equal(await menu.getByRole('button', { name: /^Appearance,/ }).count(), 0);
   await menu.getByRole('button', { name: 'Language, English', exact: true }).click();
   await menu.getByRole('button', { name: 'Language, नेपाली', exact: true }).click();
+  await button(owner,'Players & waiting queue').click();
   await button(owner,'Poke the table').click();
   await owner.getByRole('button',{name:'Close poke composer',exact:true}).click();
   await button(owner,'Table menu').click();await button(owner,'End table').click();

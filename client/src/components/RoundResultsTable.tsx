@@ -6,16 +6,16 @@ import { fonts, useTheme } from '../theme';
 
 export type ResultRow = { id: string; name: string; avatarUrl?: string; own?: boolean; winner?: boolean; values: { text: string; amount?: number }[] };
 
-export function RoundResultsTable({ title = 'Round complete!', subtitle, columns, rows, testID = 'round-results-table', icon = 'trophy-outline', playerHeading = 'Player' }: {
-  icon?: 'trophy-outline' | 'receipt-outline'; playerHeading?: string; title?: string; subtitle?: string; columns: string[]; rows: ResultRow[]; testID?: string;
+export function RoundResultsTable({ title = 'Round complete!', subtitle, columns, rows, testID = 'round-results-table', icon = 'trophy-outline', playerHeading = 'Player', compact = false }: {
+  compact?: boolean; icon?: 'trophy-outline' | 'receipt-outline'; playerHeading?: string; title?: string; subtitle?: string; columns: string[]; rows: ResultRow[]; testID?: string;
 }) {
   const { colors: c } = useTheme();
   const [width, setWidth] = useState(0);
   const cellWidth = columns.length === 1 ? 88 : columns.length > 3 ? 48 : 58;
-  return <View testID={testID} onLayout={event => setWidth(event.nativeEvent.layout.width)} style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.tableTrim, borderRadius: 20, overflow: 'hidden' }}>
-    <View style={{ backgroundColor: c.tableHeader, padding: 18, gap: 6, alignItems: 'center' }}>
-      <Ionicons name={icon} size={28} color={c.cardInnerBorder} accessible={false} />
-      <Text accessibilityRole="header" style={{ fontFamily: fonts.editorial, fontSize: 30, textAlign: 'center', color: c.onTableHeader }}>{title}</Text>
+  return <View testID={testID} onLayout={event => setWidth(event.nativeEvent.layout.width)} style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: compact ? c.borderSubtle : c.tableTrim, borderRadius: 18, overflow: 'hidden' }}>
+    <View style={{ backgroundColor: compact ? c.surface : c.tableHeader, padding: compact ? 12 : 18, gap: 6, alignItems: compact ? 'flex-start' : 'center' }}>
+      {!compact && <Ionicons name={icon} size={28} color={c.cardInnerBorder} accessible={false} />}
+      <Text accessibilityRole="header" style={{ fontFamily: compact ? fonts.medium : fonts.editorial, fontSize: compact ? 20 : 30, textAlign: 'center', color: compact ? c.text : c.onTableHeader }}>{title}</Text>
       {!!subtitle && <Text style={{ fontFamily: fonts.body, fontSize: 13, textAlign: 'center', color: c.onTableHeader }}>{subtitle}</Text>}
     </View>
     <ScrollView horizontal contentContainerStyle={{ flexGrow: 1 }}>

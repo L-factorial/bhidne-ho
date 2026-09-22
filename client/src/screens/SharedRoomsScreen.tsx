@@ -1,3 +1,4 @@
+import { RoomMemberDetails } from '../components/RoomMemberDetails';
 import { FormInput, FormScrollView } from '../components/FormInput';
 import { KeyboardFrame } from '../components/KeyboardFrame';
 import { FormFooter } from '../components/FormFooter';
@@ -48,6 +49,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const [memberProfiles, setMemberProfiles] = useState<Record<string, InvitePlayer>>({});
   const [memberError, setMemberError] = useState('');
   const [memberRetry, setMemberRetry] = useState(0);
+  const [selectedMember, setSelectedMember] = useState<InvitePlayer | null>(null);
   const [roomPanel, setRoomPanel] = useState<'chat' | 'members' | 'more' | 'ledger' | null>(null);
   const [form, setForm] = useState<'create' | 'join'>('create');
   const [linkedMatch, setLinkedMatch] = useState<string>();
@@ -66,7 +68,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
     renderLauncher: ({ unread, blocked, toggle }) => <RoomToolbar inline={roomPanel === null} onLedger={() => setRoomPanel('ledger')} panel={roomPanel} unread={unread} chatBlocked={blocked} onTables={() => setRoomPanel(null)} onChat={toggle} onMembers={() => setRoomPanel('members')} onMore={() => setRoomPanel('more')} />,
   });
   useEffect(() => {
-    setInviteOpen(false); setRoomPanel(null);
+    setInviteOpen(false); setRoomPanel(null); setSelectedMember(null);
   }, [room?.room_id]);
   useEffect(() => { if (gameOpen) setRoomPanel(null); }, [gameOpen]);
   const personal = usePlayerPhrases(session, !!session && !expired);
@@ -149,6 +151,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
       activeTables={shared.memberships.find(m => m.room_id === item.room_id)?.tables.filter(t => t.status !== 'ended').length}
       onPress={() => { setLinkedMatch(undefined); if (enterRooms.includes(item)) enterRoom(item); else joinRoom(item); }} />
   </View>;
+  const previewMembers = (current?.member_previews || []).filter(member => member.display_name?.trim()).slice(0, 4);
   const roomMembers = [...new Set([...(current?.members || []), ...(room && session && shared.status === 'connected' ? [session.user_id] : [])])];
   const selectedGame = game === 'flush' || game === 'marriage' ? game : 'callbreak';
   const memberKey = [...roomMembers].sort().join(',');
@@ -181,18 +184,18 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
           if (joined) { setLinkedMatch(matchId); clearInvitation(); }
           return joined;
         }} /> : room ? <>
-        <View testID="room-hero" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.tableTrim, borderRadius: 20, padding: 20, gap: 18, marginTop: 12 }}>
+        <View testID="room-hero" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderSubtle, borderRadius: 24, padding: 16, gap: 18, marginTop: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Pressable accessibilityRole="button" accessibilityLabel="Back to lobby" onPress={() => { setLinkedMatch(undefined); shared.exitRoom(); }} style={{ minWidth: 44, minHeight: 44, justifyContent: 'center' }}><Ionicons name="arrow-back" size={24} color={colors.accent} /></Pressable>
-            <View style={{ flex: 1 }}><Text accessibilityRole="header" style={{ fontFamily: fonts.editorial, fontSize: 34, color: colors.text }}>{current?.name || room.name}</Text>
-              <Text style={{ fontFamily: fonts.body, color: colors.textMuted, fontSize: 13 }}>{roomMembers.length} members · {current?.connected_members?.length || 0} online</Text><Text selectable style={{ fontFamily: fonts.body, color: colors.textMuted, fontSize: 12, marginTop: 4 }}>Room code: {room.room_id}</Text>
+            <View style={{ flex: 1 }}><Text accessibilityRole="header" style={{ fontFamily: fonts.editorial, fontSize: 30, color: colors.text }}>{current?.name || room.name}</Text>
+              <Text style={{ fontFamily: fonts.body, color: colors.textMuted, fontSize: 13 }}>{roomMembers.length} members · {current?.connected_members?.length || 0} online</Text><CopyRoomCode roomId={room.room_id} inline menu />
             </View>
             <Pressable accessibilityRole="button" accessibilityLabel="More room actions" onPress={() => setRoomPanel('more')} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="settings-outline" size={25} color={colors.accent} /></Pressable>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Pressable accessibilityRole="button" accessibilityLabel="Preview room members" onPress={() => setRoomPanel('members')} style={{ flex: 1, flexDirection: 'row', gap: 5, minHeight: 44, alignItems: 'center' }}>
-              {(current?.member_previews || []).slice(0, 4).map(member => <View key={member.user_id} accessibilityLabel={member.display_name} style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: colors.tableTrim, backgroundColor: colors.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.text, fontFamily: fonts.medium }}>{member.display_name.trim().slice(0, 1).toUpperCase()}</Text></View>)}
-              {roomMembers.length > (current?.member_previews?.length || 0) && <Text style={{ color: colors.textMuted, fontFamily: fonts.medium }}>+{roomMembers.length - (current?.member_previews?.length || 0)}</Text>}
+              {previewMembers.map(member => <View key={member.user_id} accessibilityLabel={member.display_name} style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: colors.tableTrim, backgroundColor: colors.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.text, fontFamily: fonts.medium }}>{member.display_name.trim().slice(0, 1).toUpperCase()}</Text></View>)}
+              {roomMembers.length > previewMembers.length && <Text style={{ color: colors.textMuted, fontFamily: fonts.medium }}>+{roomMembers.length - previewMembers.length}</Text>}
             </Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel="Invite to room" onPress={() => { setInviteOpen(true); setRoomPanel('members'); }} style={{ borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.primary, paddingHorizontal: 20, minHeight: 44, borderRadius: 12, justifyContent: 'center' }}><Text style={{ color: colors.onPrimary, fontFamily: fonts.medium }}>Invite</Text></Pressable>
           </View>
@@ -218,7 +221,8 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
               </>} />}
           </View>
         </View>
-        {session && <RoomSheet tableStyle={roomPanel === 'ledger'} visible={!gameOpen && roomPanel !== null && roomPanel !== 'chat'} title={roomPanel === 'members' ? `Members · ${roomMembers.length}` : roomPanel === 'ledger' ? 'Ledger & settlements' : 'Room options'} onClose={() => setRoomPanel(null)}
+        {session && <RoomMemberDetails member={selectedMember} session={session} online={!!selectedMember && !!current?.connected_members?.includes(selectedMember.user_id)} onClose={() => { setSelectedMember(null); setRoomPanel('members'); }} />}
+        {session && <RoomSheet visible={!gameOpen && roomPanel !== null && roomPanel !== 'chat'} title={roomPanel === 'members' ? `Members · ${roomMembers.length}` : roomPanel === 'ledger' ? 'Ledger & settlements' : 'Room options'} onClose={() => setRoomPanel(null)}
           footer={<>{roomPanel === 'members' && <View style={{ paddingHorizontal: 20, paddingVertical: 8, borderTopWidth: 1, borderColor: colors.borderSubtle }}>
               <Pressable accessibilityRole="button" accessibilityLabel="Invite people" aria-expanded={inviteOpen} accessibilityState={{ expanded: inviteOpen }} onPress={() => setInviteOpen(value => !value)} style={styles.sectionToggle}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><Ionicons name="person-add-outline" size={21} color={colors.accent} /><Text style={styles.sectionTitle}>Invite people</Text></View><Text style={styles.sectionTitle}>{inviteOpen ? '-' : '+'}</Text>
@@ -246,11 +250,11 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
                   const name = profile?.display_name?.trim() || profile?.username?.trim();
                   const label = member === session.user_id ? (name ? `${name} (You)` : 'You')
                     : name || `Player ${member.replace(/^user-/, '').slice(0, 6)}`;
-                  return <View key={member} accessibilityLabel={`${label}, ${online ? 'Online' : 'Offline'}`} style={styles.member}>
-                    <View style={styles.avatar}><Text style={styles.avatarText}>{label[0]}</Text></View>
+                  return <Pressable key={member} accessibilityRole="button" onPress={() => { setRoomPanel(null); setSelectedMember({ user_id: member, display_name: name || label, username: profile?.username }); }} accessibilityLabel={`${label}, ${online ? 'Online' : 'Offline'}`} style={styles.member}>
+                    <View style={styles.avatar}><Text style={styles.avatarText}>{label[0]}</Text>{online && <View style={{ position: 'absolute', bottom: -1, right: -1, width: 9, height: 9, borderRadius: 5, borderWidth: 2, borderColor: colors.surface, backgroundColor: colors.success }} />}</View>
                     <Text style={[styles.directoryName, !online && { color: colors.textMuted }]}>{label}</Text>
-                    {online && <Text style={[styles.online, { color: colors.success }]}>● Online</Text>}
-                  </View>;
+                    <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                  </Pressable>;
                 })}
               </View>;
             })}
@@ -369,7 +373,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
               const target = rooms.find(r => r.room_id === m.room_id), active = m.active_game!;
               if (!target) return null;
               return <Pressable key={m.room_id} accessibilityRole="button" accessibilityLabel={`Return to table · ${target.name}`} onPress={() => { setLinkedMatch(active.game_id); enterRoom(target, active.game_type); }} style={styles.resumeCard}>
-                <View style={{ flex: 1, gap: 4 }}><Text style={styles.eyebrow}>CONTINUE PLAYING</Text><Text style={styles.resumeTitle}>{target.name}</Text></View>
+                <View style={{ flex: 1, gap: 4 }}><Text style={styles.eyebrow}>CONTINUE PLAYING</Text><Text style={styles.resumeTitle}>{({callbreak: 'Call Break', marriage: 'Marriage', flush: 'Flush'})[active.game_type]}</Text><Text style={styles.description}>{target.name}</Text></View>
                 <Ionicons name="arrow-forward-circle" size={28} color={colors.accent} />
               </Pressable>;
             })}
@@ -418,7 +422,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   roomActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   header: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16, borderBottomWidth: 1, borderColor: colors.border, paddingBottom: 18 },
   brand: { fontFamily: fonts.body, fontSize: 26, color: colors.accent }, textButton: { minHeight: 44, justifyContent: 'center' }, lightText: { fontFamily: fonts.medium, fontSize: 12, color: colors.accent },
-  hero: { paddingTop: 24, paddingBottom: 20, gap: 8 }, eyebrow: { fontFamily: fonts.medium, fontSize: 9, letterSpacing: 2, color: colors.accent }, title: { fontFamily: fonts.editorial, fontSize: 54, lineHeight: 58, color: colors.text }, mobileTitle: { fontSize: 43, lineHeight: 46 }, subtitle: { fontFamily: fonts.body, fontSize: 13, lineHeight: 23, color: colors.textMuted },
+  hero: { paddingTop: 24, paddingBottom: 20, gap: 8 }, eyebrow: { fontFamily: fonts.medium, fontSize: 9, letterSpacing: 2, color: colors.accent }, title: { fontFamily: fonts.editorial, fontSize: 44, lineHeight: 48, color: colors.text }, mobileTitle: { fontSize: 43, lineHeight: 46 }, subtitle: { fontFamily: fonts.body, fontSize: 13, lineHeight: 23, color: colors.textMuted },
   quickActions: { flexDirection: 'row', gap: 10, marginTop: 8 }, primaryAction: { flex: 1, minHeight: 54, borderRadius: 14, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 }, primaryActionText: { fontFamily: fonts.medium, fontSize: 13, color: colors.onPrimary }, secondaryAction: { flex: 1, minHeight: 54, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 }, secondaryActionText: { fontFamily: fonts.medium, fontSize: 13, color: colors.text },
   lobbyTabs: { backgroundColor: colors.surface, borderTopLeftRadius: 18, borderTopRightRadius: 18, flexDirection: 'row', borderBottomWidth: 1, borderColor: colors.borderSubtle, marginTop: 14 }, lobbyTab: { flex: 1, alignItems: 'center', minHeight: 48, paddingHorizontal: 12, justifyContent: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' }, activeLobbyTab: { borderBottomColor: colors.accent }, lobbyTabText: { fontFamily: fonts.medium, fontSize: 13, color: colors.textMuted }, activeLobbyTabText: { color: colors.accent }, playersArea: { marginTop: 4, gap: 14 },
   sectionToggle: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, sectionTitle: { fontFamily: fonts.medium, fontSize: 16, color: colors.text },
@@ -427,9 +431,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   roomGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
   columns: { gap: 14 }, wideColumns: { flexDirection: 'row', alignItems: 'flex-start' }, sideColumn: { gap: 18 }, fixedSide: { width: 330 }, mainColumn: { flex: 1, minWidth: 0 },
   panel: { backgroundColor: colors.surface, borderRadius: 16, padding: 24, gap: 8 }, heading: { fontFamily: fonts.display, fontSize: 27, color: colors.text }, description: { fontFamily: fonts.body, fontSize: 12, lineHeight: 21, color: colors.textMuted },
-  gameTabs: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 }, gameTab: { minHeight: 44, paddingHorizontal: 12, paddingVertical: 8, gap: 6, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: colors.surface }, selectedTab: { backgroundColor: colors.surfaceSelected }, tabText: { fontFamily: fonts.medium, fontSize: 12, color: colors.textMuted }, selectedTabText: { color: colors.text }, eyebrowDark: { fontFamily: fonts.medium, fontSize: 9, letterSpacing: 2, color: colors.accent }, gameTitle: { fontFamily: fonts.display, fontSize: 34, color: colors.text },
+  gameTabs: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 }, gameTab: { minHeight: 44, paddingHorizontal: 12, paddingVertical: 8, gap: 6, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: colors.surface }, selectedTab: { backgroundColor: colors.surfaceSelected }, tabText: { fontFamily: fonts.medium, fontSize: 12, color: colors.textMuted }, selectedTabText: { color: colors.text }, eyebrowDark: { fontFamily: fonts.medium, fontSize: 9, letterSpacing: 2, color: colors.accent }, gameTitle: { fontFamily: fonts.display, fontSize: 30, color: colors.text },
   codeBox: { backgroundColor: colors.surface, borderRadius: 10, padding: 16, marginVertical: 10, gap: 8 }, codeLabel: { fontFamily: fonts.medium, color: colors.accent, fontSize: 9, letterSpacing: 2 }, code: { fontFamily: fonts.medium, fontSize: 22, letterSpacing: 1, color: colors.text },
-  member: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 }, avatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.surfaceRaised, alignItems: 'center', justifyContent: 'center' }, avatarText: { fontFamily: fonts.medium, fontSize: 11, color: colors.accent }, online: { fontFamily: fonts.body, fontSize: 10, color: colors.textMuted, marginLeft: 'auto' },
+  member: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, minHeight: 52 }, avatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.surfaceRaised, alignItems: 'center', justifyContent: 'center' }, avatarText: { fontFamily: fonts.medium, fontSize: 11, color: colors.accent }, online: { fontFamily: fonts.body, fontSize: 10, color: colors.textMuted, marginLeft: 'auto' },
   input: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: 8, minHeight: 48, padding: 14, fontFamily: fonts.body, color: colors.text, marginVertical: 10 },
   button: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, minHeight: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', padding: 12 }, buttonText: { fontFamily: fonts.medium, color: colors.text, fontSize: 12 }, disabled: { opacity: 0.5 },
   dangerButton: { minHeight: 48, borderRadius: 8, borderWidth: 1, borderColor: colors.danger, alignItems: 'center', justifyContent: 'center', padding: 12 }, dangerText: { fontFamily: fonts.medium, color: colors.danger, fontSize: 12 },
