@@ -16,7 +16,7 @@ export const colors = {
   coin: '#D5A12A', coinBorder: '#845C15', onCoin: '#211D1B',
   primarySoft: '#F6E8EA', tableGreen: '#0F4D3A', warning: '#976119', warningSoft: '#FFF2D6',
   shadow: 'rgba(38,28,25,0.14)',
-  tableHeader: '#0A382B', onTableHeader: '#FFF8EB', tableTrim: '#A17C45', ownMessage: '#E5F4EC',
+  tableHeader: '#0A382B', onTableHeader: '#FFF8EB', tableTrim: '#A17C45', ownMessage: '#F6E8EA',
 };
 export type ThemeColors = typeof colors;
 export const ThemeContext = createContext({ colors });

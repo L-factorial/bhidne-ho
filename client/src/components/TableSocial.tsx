@@ -169,8 +169,8 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
           <Pressable accessibilityRole="button" accessibilityLabel="Poke a player" accessibilityState={{selected:pokeMode,disabled:!enabled}} disabled={!enabled} onPress={() => { closeChat(); setPokeMode(value => !value); }} style={[iconStyle,{opacity:enabled?1:0.4,backgroundColor:pokeMode?c.surfaceSelected:undefined,borderRadius:24}]}><Text accessibilityLiveRegion="polite" accessibilityLabel={pokeSent ? 'Poke sent' : undefined} style={{fontSize:20,color:c.onTableHeader}}>{pokeSent ? '✓' : '👋'}</Text></Pressable>
         </View>
       </View>}
-      {open && canRead && <RoomSheet tableStyle visible title="Table Chat" testID="table-chat-panel" closeLabel="Close table chat" onClose={closeChat} scrollable={false}>
-        <View style={{flex:1,minHeight:0,gap:8,overflow:'hidden',padding:12,borderTopWidth:1,borderColor:c.border}}>
+      {open && canRead && <RoomSheet visible title="Table Chat" testID="table-chat-panel" closeLabel="Close table chat" onClose={closeChat} scrollable={false}>
+        <View style={{flex:1,minHeight:0,gap:8,overflow:'hidden',padding:12,backgroundColor:c.background}}>
           {myTurn && <Pressable accessibilityRole="button" onPress={closeChat} style={{minHeight:44,justifyContent:'center'}}><Text accessibilityLiveRegion="polite" style={{color:c.accent}}>Your turn · Return to game</Text></Pressable>}
           <ScrollView ref={scroll} testID="table-chat-messages" style={{flex:1,minHeight:0}} keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} keyboardShouldPersistTaps="always" onLayout={() => { if(follow.current) scroll.current?.scrollToEnd({animated:false}); }} onScroll={({nativeEvent:e}) => { follow.current = e.contentSize.height-e.contentOffset.y-e.layoutMeasurement.height < 40; }} scrollEventThrottle={16} onContentSizeChange={() => { if(follow.current) scroll.current?.scrollToEnd({animated:false}); }}>
             {!messages.length && <Text style={{color:c.textMuted}}>Start the table conversation.</Text>}
