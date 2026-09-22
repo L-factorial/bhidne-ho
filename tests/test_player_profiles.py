@@ -120,3 +120,31 @@ def test_named_account_registration_validates_and_restores_identity():
         assert identity['display_name'] == 'Sita Rai'
         assert identity['username'] == 'named-account'
         assert identity['user_id'] == first['user_id']
+
+
+def test_appearance_is_owned_validated_and_restored_across_sessions():
+    with TestClient(create_app()) as client:
+        account = {'username': 'theme-player', 'password': 'appearance-test-123'}
+        first = client.post('/auth/signup', json=account).json()
+        second = client.post('/auth/signin', json=account).json()
+        other = client.post('/auth/guest').json()
+        headers = lambda user: {'Authorization': f"Bearer {user['token']}"}
+        path = '/me/profile/appearance'
+        assert client.get(path).status_code == 401
+        assert client.patch(path, json={'theme': 'heritage', 'mode': 'dark'}).status_code == 401
+        assert client.get(path, headers=headers(first)).json() == {'theme': 'heritage', 'mode': 'system'}
+        for invalid in [{'theme': 'unknown', 'mode': 'dark'}, {'theme': 'heritage', 'mode': 'invalid'},
+                        {'theme': 'himalayan'}, {'theme': 'heritage', 'mode': 'dark', 'user_id': other['user_id']}]:
+            assert client.patch(path, headers=headers(first), json=invalid).status_code == 422
+        for theme in ['heritage', 'himalayan', 'courtyard']:
+            for mode in ['system', 'light', 'dark']:
+                value = {'theme': theme, 'mode': mode}
+                response = client.patch(path, headers=headers(first), json=value)
+                assert response.status_code == 200 and response.json() == value
+                assert response.headers['cache-control'] == 'no-store'
+                assert client.get(path, headers=headers(second)).json() == value
+        assert client.get(path, headers=headers(other)).json() == {'theme': 'heritage', 'mode': 'system'}
+        client.patch('/me/profile', headers=headers(first), json={'display_name': 'Sita'})
+        assert client.get(path, headers=headers(first)).json() == {'theme': 'courtyard', 'mode': 'dark'}
+        client.patch(path, headers=headers(first), json={'theme': 'heritage', 'mode': 'system'})
+        assert client.get('/me/profile', headers=headers(first)).json() == {'display_name': 'Sita'}

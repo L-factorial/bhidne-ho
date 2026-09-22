@@ -302,6 +302,13 @@ MIGRATIONS = (
     (10, """
         ALTER TABLE ledger_games ADD COLUMN table_name text NOT NULL DEFAULT '';
     """),
+    (11, """
+        ALTER TABLE user_profiles
+            ADD COLUMN theme_family text NOT NULL DEFAULT 'heritage'
+                CHECK (theme_family IN ('heritage', 'himalayan', 'courtyard')),
+            ADD COLUMN theme_mode text NOT NULL DEFAULT 'system'
+                CHECK (theme_mode IN ('system', 'light', 'dark'));
+    """),
 )
 
 

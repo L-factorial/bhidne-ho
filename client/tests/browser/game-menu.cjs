@@ -33,7 +33,10 @@ async function stableCue(locator) {
         const page = await context.newPage(); page.setDefaultTimeout(15000); pages.push(page); page.on('pageerror', e => errors.push(e.message));
         await page.goto(site);
         if(i===0) for(const mode of ['dark','light']) {
-          await page.getByRole('button',{name:`Switch to ${mode} mode`,exact:true}).click();
+          await page.getByRole('button',{name:'Open profile',exact:true}).click();
+          await page.getByRole('radio',{name:mode === 'dark' ? 'Dark' : 'Light',exact:true}).click();
+          await page.getByText('Saved to your profile', {exact:true}).waitFor();
+          await page.getByRole('button',{name:'Back from profile',exact:true}).click();
           await page.waitForFunction(mode=>document.documentElement.dataset.theme===mode,mode);
           await page.screenshot({path:`/tmp/theme-room-${kind}-${mode}.png`});
         }
@@ -61,7 +64,7 @@ async function stableCue(locator) {
         await stateWhen(s => s.game.phase === 'HAND_REVIEW');
         for (const page of pages) {
           assert.equal(await page.getByTestId('callbreak-hand-attention').evaluate(el=>getComputedStyle(el).opacity),'1');
-          await button(page, 'Expand your card area').click();
+          if (await button(page, 'Expand your card area').isVisible()) await button(page, 'Expand your card area').click();
           await button(page, 'Collapse your card area').waitFor();
           await button(page, 'Flip all cards').click();
           await button(page, 'Collapse your card area').click();
@@ -75,7 +78,7 @@ async function stableCue(locator) {
           state = await stateWhen(s => s.game.phase === 'BIDDING' && s.deal.players.filter(p => p.bid !== null).length === i);
           const bidder = pages[state.game.turn.player_id - 1];
           await bidder.getByText('Make your call',{exact:true}).waitFor({state:'attached'});
-          await button(bidder, 'Expand your card area').click();
+          if (await button(bidder, 'Expand your card area').isVisible()) await button(bidder, 'Expand your card area').click();
           await button(bidder, 'Confirm bid').click();
         }
         state = await stateWhen(s => s.game.phase === 'PLAYING');
@@ -127,7 +130,8 @@ async function stableCue(locator) {
       await button(actor,'Close poke composer').click();
       await button(actor,'Table menu').click();await button(actor.getByTestId(`${kind}-menu-drawer`),'Rules').click();
       if(kind==='callbreak') {
-        await actor.getByText('Call Break rules',{exact:true}).waitFor();await button(actor,'Close table menu').click();
+        await actor.getByRole('heading',{name:'Call Break rules',exact:true}).waitFor();
+        await button(actor,'Close Call Break rules').click();await button(actor,'Close table menu').click();
       } else {
         await button(actor,'Close details').click();
       }
@@ -150,6 +154,7 @@ async function stableCue(locator) {
       } else {
         // Switching between desktop and mobile remounts the existing hand wrapper.
         if(await button(actor,'Flip all cards').isVisible()) await button(actor,'Flip all cards').click();
+        await button(actor, 'Hand options').click();
         await actor.getByRole('radio', { name: 'Card grid view', exact: true }).click();
         const own = await api(root, users[actorIndex]);
         const legal = own.private.legal_cards[0];
@@ -174,7 +179,8 @@ async function stableCue(locator) {
         assert.ok(card.width >= 30, 'Marriage cards retain their width after collapsing');
       }
       await actor.setViewportSize({ width: 1280, height: 900 });
-      await actor.getByTestId(`${kind}-mobile-hand`).waitFor({ state: 'hidden' });
+      // Call Break keeps its adaptive hand drawer mounted on desktop; Marriage uses a separate desktop hand.
+      await actor.getByTestId(`${kind}-mobile-hand`).waitFor({ state: kind === 'callbreak' ? 'visible' : 'hidden' });
       await dock.waitFor();
       assert.equal(await actor.getByTestId('live-game-overlay').getByRole('button', { name: 'Profile', exact: true }).count(), 0);
       assert.equal(await actor.getByTestId('game-footer').getByRole('button', { name: 'Copy game link', exact: true }).count(), 0);

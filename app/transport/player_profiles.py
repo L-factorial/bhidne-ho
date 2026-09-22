@@ -1,4 +1,5 @@
 from inspect import isawaitable
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -36,3 +37,24 @@ async def update_profile(body: ProfileInput, request: Request, response: Respons
     saved = await result if isawaitable(result) else result
     await request.app.state.players.refresh_player(user.user_id)
     return saved
+
+
+class AppearanceInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    theme: Literal["heritage", "himalayan", "courtyard"]
+    mode: Literal["system", "light", "dark"]
+
+
+@router.get("/me/profile/appearance")
+async def appearance(request: Request, response: Response, user: UserIdentity = Depends(current_user)):
+    response.headers["Cache-Control"] = "no-store"
+    result = request.app.state.player_profiles.appearance(user.user_id)
+    return await result if isawaitable(result) else result
+
+
+@router.patch("/me/profile/appearance")
+async def update_appearance(body: AppearanceInput, request: Request, response: Response,
+                            user: UserIdentity = Depends(current_user)):
+    response.headers["Cache-Control"] = "no-store"
+    result = request.app.state.player_profiles.update_appearance(user.user_id, body.theme, body.mode)
+    return await result if isawaitable(result) else result

@@ -4,16 +4,18 @@ exports.checkThemes = async (page, name) => {
   for (const mode of ['dark','light']) {
     await page.getByRole('button',{name:'Table menu',exact:true}).click();
     const menu=page.getByTestId(/-menu-drawer$/);
-    const toggle=menu.getByRole('button',{name:`Switch to ${mode} mode`,exact:true});
-    if(await toggle.count()) await toggle.click();
+    await menu.getByRole('button',{name:/^Appearance,/}).click();
+    await menu.getByRole('radio',{name:mode === 'dark' ? 'Dark' : 'Light',exact:true}).click();
     await page.waitForFunction(mode=>document.documentElement.dataset.theme===mode,mode);
-    assert.equal(await page.evaluate(()=>localStorage.getItem('bhidne.appearance')),mode);
+    await page.waitForFunction(mode=>localStorage.getItem('bhidne.appearance')===mode,mode);
     await page.screenshot({path:`/tmp/theme-${name}-${mode}-menu.png`});
     if(mode==='light') {
-      await menu.getByRole('button',{name:'Use system theme',exact:true}).click();
+      await menu.getByRole('button',{name:/^Appearance,/}).click();
+      await menu.getByRole('radio',{name:'System',exact:true}).click();
       await page.emulateMedia({colorScheme:'dark'});
       await page.waitForFunction(()=>document.documentElement.dataset.theme==='dark');
-      await menu.getByRole('button',{name:'Switch to light mode',exact:true}).click();
+      await menu.getByRole('button',{name:/^Appearance,/}).click();
+      await menu.getByRole('radio',{name:'Light',exact:true}).click();
     }
     await page.getByRole('button',{name:'Close table menu',exact:true}).click();
     await menu.waitFor({state:'hidden'});

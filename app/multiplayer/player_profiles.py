@@ -6,6 +6,7 @@ class PlayerProfileService:
     def __init__(self):
         self.names: dict[str, str] = {}
         self.usernames: dict[str, str] = {}
+        self.appearances: dict[str, dict] = {}
 
     def get(self, user_id):
         return {"display_name": self.names.get(user_id, "")}
@@ -13,6 +14,13 @@ class PlayerProfileService:
     def update(self, user_id, display_name):
         self.names[user_id] = display_name
         return self.get(user_id)
+
+    def appearance(self, user_id):
+        return dict(self.appearances.get(user_id, {"theme": "heritage", "mode": "system"}))
+
+    def update_appearance(self, user_id, theme, mode):
+        self.appearances[user_id] = {"theme": theme, "mode": mode}
+        return self.appearance(user_id)
 
     def remember_username(self, user_id, username):
         if username:
@@ -55,3 +63,17 @@ class PostgresPlayerProfileService(PlayerProfileService):
             )
         self.names[user_id] = display_name
         return {"display_name": display_name}
+
+    async def appearance(self, user_id):
+        async with self.pool.connection() as connection:
+            row = await (await connection.execute(
+                "SELECT theme_family,theme_mode FROM user_profiles WHERE user_id=%s",
+                (self._uuid(user_id),))).fetchone()
+        return {"theme": row[0], "mode": row[1]} if row else {"theme": "heritage", "mode": "system"}
+
+    async def update_appearance(self, user_id, theme, mode):
+        async with self.pool.connection() as connection:
+            await connection.execute(
+                "UPDATE user_profiles SET theme_family=%s,theme_mode=%s,updated_at=now() WHERE user_id=%s",
+                (theme, mode, self._uuid(user_id)))
+        return {"theme": theme, "mode": mode}
