@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { AppState, Pressable, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { AppState, Pressable, ScrollView, Text, View } from 'react-native';
 import { request } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 import type { TableEntry, TableSummary } from '../multiplayer/tableNavigation';
@@ -7,41 +8,66 @@ import { fonts, useTheme } from '../theme';
 import { TableCard } from './TableCard';
 
 export type ActiveTable = TableSummary & { room_id: string; room_name: string };
-export function ActiveGames({ session, busy, enter }: { session: Session; busy: boolean; enter: (table: ActiveTable, action: TableEntry) => void }) {
+const filters = [['all', 'All'], ['flush', 'Flush'], ['marriage', 'Marriage'], ['callbreak', 'Call Break']] as const;
+export function ActiveGames({ session, busy, enter, onBrowseRooms }: { onBrowseRooms: () => void; session: Session; busy: boolean; enter: (table: ActiveTable, action: TableEntry) => void }) {
   const { colors: c } = useTheme();
   const [tables, setTables] = useState<ActiveTable[]>([]);
-  const [loading, setLoading] = useState(true), [error, setError] = useState(''), [refresh, setRefresh] = useState(0);
+  const [filter, setFilter] = useState<(typeof filters)[number][0]>('all');
+  const [loaded, setLoaded] = useState(false), [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(false), [refresh, setRefresh] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
     let pending = false;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let cancelDelay: (() => void) | undefined;
     async function load() {
       if (pending || controller.signal.aborted || AppState.currentState === 'background') return;
-      pending = true;
+      pending = true; setRefreshing(true);
       try {
-        const data = await request<ActiveTable[]>('/active-tables', session, undefined, controller.signal);
-        if (!controller.signal.aborted) { setTables(data.filter(t => t.status !== 'ended' && t.phase !== 'ENDED')); setError(''); }
-      } catch (e) { if (!controller.signal.aborted) setError((e as Error).message); }
-      finally { pending = false; if (!controller.signal.aborted) setLoading(false); }
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const data = await request<ActiveTable[]>('/active-tables', session, undefined, controller.signal);
+            if (!controller.signal.aborted) { setTables(data.filter(t => t.status !== 'ended' && t.phase !== 'ENDED')); setLoaded(true); setError(false); }
+            return;
+          } catch {
+            if (controller.signal.aborted) return;
+            if (attempt === 2) { setError(true); return; }
+            await new Promise<void>(resolve => { cancelDelay = resolve; retryTimer = setTimeout(resolve, attempt ? 2500 : 1500); });
+            if (controller.signal.aborted) return;
+          }
+        }
+      } finally { pending = false; if (!controller.signal.aborted) setRefreshing(false); }
     }
     void load();
     const timer = setInterval(() => void load(), 15000);
     const subscription = AppState.addEventListener('change', state => { if (state === 'active') void load(); });
-    return () => { controller.abort(); clearInterval(timer); subscription.remove(); };
+    return () => { controller.abort(); clearInterval(timer); clearTimeout(retryTimer); cancelDelay?.(); subscription.remove(); };
   }, [session.token, refresh]);
-  return <View testID="active-games" style={{ gap: 16, paddingVertical: 12 }}>
+  const priority = (table: ActiveTable) => table.current_user?.is_seated ? 0 : table.phase === 'OPEN' && table.current_user?.can_join ? 1 : 2;
+  const visible = tables.filter(table => filter === 'all' || table.game_type === filter).sort((a, b) => priority(a) - priority(b) || a.name.localeCompare(b.name) || a.match_id.localeCompare(b.match_id));
+  const retry = <Pressable accessibilityRole="button" accessibilityLabel="Retry active games" onPress={() => setRefresh(v => v + 1)} style={{ minHeight: 44, paddingHorizontal: 16, borderRadius: 10, backgroundColor: c.primary, justifyContent: 'center' }}><Text style={{ color: c.onPrimary, fontFamily: fonts.medium }}>Retry</Text></Pressable>;
+  return <View testID="active-games" style={{ gap: 14, paddingVertical: 16 }}>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} accessibilityRole="tablist" accessibilityLabel="Filter active games">
+      {filters.map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityLabel={`${label} games`} accessibilityState={{ selected: filter === value }} onPress={() => setFilter(value)} style={{ minHeight: 44, paddingHorizontal: 14, borderRadius: 22, borderWidth: 1, borderColor: filter === value ? c.primary : c.borderSubtle, backgroundColor: filter === value ? c.primary : c.surface, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Text style={{ color: filter === value ? c.onPrimary : c.textMuted, fontFamily: fonts.medium, fontSize: 13 }}>{label}</Text>
+        {loaded && <Text style={{ color: filter === value ? c.onPrimary : c.textMuted, fontSize: 12 }}>{value === 'all' ? tables.length : tables.filter(table => table.game_type === value).length}</Text>}
+      </Pressable>)}
+    </ScrollView>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-      <Text style={{ flex: 1, color: c.textMuted, fontFamily: fonts.body }}>Take a seat, watch, or join a waiting queue.</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="Refresh active games" onPress={() => setRefresh(v => v + 1)} style={{ minHeight: 44, paddingHorizontal: 8, justifyContent: 'center' }}><Text style={{ color: c.accent }}>Refresh</Text></Pressable>
+      <Text accessibilityRole="header" style={{ flex: 1, color: c.text, fontFamily: fonts.medium, fontSize: 18 }}>Available tables</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel="Refresh active games" disabled={refreshing} accessibilityState={{ disabled: refreshing }} onPress={() => setRefresh(v => v + 1)} style={{ minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="refresh-outline" size={20} color={refreshing ? c.textMuted : c.accent} /></Pressable>
     </View>
-    {loading && <Text style={{ color: c.textMuted }}>Loading active tables…</Text>}
-    {!!error && <Text accessibilityRole="alert" style={{ color: c.danger }}>{error}</Text>}
-    {(['flush', 'marriage', 'callbreak'] as const).map(kind => {
-      const group = tables.filter(table => table.game_type === kind);
-      return <View key={kind} testID={`active-games-${kind}`} style={{ gap: 8 }}>
-        <Text accessibilityRole="header" style={{ color: c.text, fontFamily: fonts.medium, fontSize: 22 }}>{({ flush: 'Flush', marriage: 'Marriage', callbreak: 'Call Break' })[kind]} · {group.length}</Text>
-        {!loading && !error && !group.length && <Text style={{ color: c.textMuted, paddingVertical: 12 }}>No active tables yet.</Text>}
-        {group.map(table => <View key={`${table.room_id}:${table.match_id}`}><Text style={{ color: c.textMuted, fontFamily: fonts.body, marginBottom: 6 }}>{table.room_name}</Text><TableCard table={table} roomId={table.room_id} busy={busy} enter={action => enter(table, action)} /></View>)}
-      </View>;
-    })}
+    {error && <View accessibilityRole="alert" testID="active-games-error" style={{ gap: 12, alignItems: 'flex-start', backgroundColor: c.surface, padding: 20, borderRadius: 18, borderWidth: 1, borderColor: c.borderSubtle }}>
+      <Text style={{ color: c.text, fontFamily: fonts.medium }}>{loaded ? 'Couldn’t refresh tables' : 'Couldn’t load tables'}</Text>
+      <Text style={{ color: c.textMuted }}>{loaded ? 'Showing the last available tables. Try refreshing again.' : 'Check your connection and try again.'}</Text>{retry}
+    </View>}
+    {!loaded && !error && <View testID="active-games-loading" accessibilityLabel="Loading active tables" style={{ gap: 12 }}>{[0, 1, 2].map(key => <View key={key} style={{ padding: 16, gap: 12, backgroundColor: c.surface, borderRadius: 18 }}><View style={{ width: '58%', height: 16, borderRadius: 8, backgroundColor: c.surfaceRaised }} /><View style={{ width: '80%', height: 12, borderRadius: 6, backgroundColor: c.surfaceRaised }} /><View style={{ width: '35%', height: 30, borderRadius: 15, backgroundColor: c.surfaceRaised }} /></View>)}</View>}
+    {loaded && !error && !visible.length && <View testID="active-games-empty" style={{ alignItems: 'center', gap: 12, padding: 28, backgroundColor: c.surface, borderRadius: 18, borderWidth: 1, borderColor: c.borderSubtle }}>
+      <Ionicons name="people-outline" size={32} color={c.accent} />
+      <Text style={{ color: c.text, fontFamily: fonts.medium, fontSize: 18, textAlign: 'center' }}>{filter === 'all' ? 'No active tables yet' : `No ${filters.find(([key]) => key === filter)?.[1]} tables yet`}</Text>
+      <Text style={{ color: c.textMuted, textAlign: 'center', lineHeight: 21 }}>Open a room and create a table, or join your friends when they start playing.</Text>
+      <Pressable accessibilityRole="button" onPress={() => filter === 'all' ? onBrowseRooms() : setFilter('all')} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: c.accent, fontFamily: fonts.medium }}>{filter === 'all' ? 'Browse rooms' : 'View all games'}</Text></Pressable>
+    </View>}
+    {visible.map(table => <TableCard key={`${table.room_id}:${table.match_id}`} compact roomName={table.room_name} table={table} roomId={table.room_id} busy={busy} enter={action => enter(table, action)} />)}
   </View>;
 }

@@ -401,7 +401,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
           <FriendsPanel session={session} />
         </View>}
         {session && !expired && lobbyTab === 'games' && !!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{error || shared.error}</Text>}
-        {session && !expired && lobbyTab === 'games' && <ActiveGames session={session} busy={busy} enter={(table, action) => void enterActiveTable(table, action)} />}
+        {session && !expired && lobbyTab === 'games' && <ActiveGames onBrowseRooms={() => setLobbyTab('rooms')} session={session} busy={busy} enter={(table, action) => void enterActiveTable(table, action)} />}
         {session && !expired && lobbyTab === 'recent' && <View style={styles.columns}>
           <Text accessibilityRole="header" style={styles.sectionTitle}>Recently visited</Text>
           <Text style={styles.description}>Your recent rooms on this device.</Text>
