@@ -140,3 +140,28 @@ async def test_persisted_room_membership_survives_service_restart():
     await restarted.leave(room.room_id, "user-member")
     assert await restarted.members(room.room_id) == ["user-owner"]
     assert not await restarted.has_membership(room.room_id, "user-member")
+
+
+def test_failed_room_delete_keeps_tables_members_and_connections_intact(monkeypatch):
+    from unittest.mock import AsyncMock
+    with TestClient(create_app(), raise_server_exceptions=False) as client:
+        owner, headers = account(client, 'delete-retry-owner', 'Owner')
+        room_id = client.post('/rooms', headers=headers, json={'name': 'Retained room'}).json()['room_id']
+        game = client.post(f'/test-games/{room_id}', headers=headers,
+                           json={'game_type': 'callbreak', 'player_count': 4}).json()
+        client.post(f'/test-games/{room_id}/end', headers=headers, json={'match_id': game['match_id']})
+        catalog = client.app.state.rooms._catalog
+        original = catalog.delete
+        disconnected = AsyncMock()
+        monkeypatch.setattr(client.app.state.connections, 'delete_room', disconnected)
+        monkeypatch.setattr(catalog, 'delete', AsyncMock(side_effect=RuntimeError('Database unavailable')))
+        assert client.delete(f'/rooms/{room_id}', headers=headers).status_code == 500
+        disconnected.assert_not_awaited()
+        assert game['match_id'] in client.app.state.test_games.tables[room_id]
+        assert room_id in room_ids(client, headers)
+        assert client.get(f'/rooms/{room_id}', headers=headers).json()['is_member'] is True
+        monkeypatch.setattr(catalog, 'delete', original)
+        assert client.delete(f'/rooms/{room_id}', headers=headers).status_code == 204
+        disconnected.assert_awaited_once_with(room_id)
+        assert room_id not in client.app.state.test_games.tables
+        assert room_id not in room_ids(client, headers)

@@ -1,6 +1,8 @@
 import asyncio
 from uuid import uuid4
 
+from fastapi import HTTPException
+
 from app.models.room import RoomSummary
 from app.multiplayer.room_catalog import MemoryRoomCatalog
 
@@ -21,6 +23,8 @@ class RoomService:
 
     async def join(self, room_id: str, user_id: str) -> None:
         async with self._lock:
+            if await self._catalog.deleted(room_id):
+                raise HTTPException(404, "This room has been deleted.")
             await self._catalog.join(room_id, user_id)
             self._rooms.setdefault(room_id, set()).add(user_id)
 
@@ -35,6 +39,8 @@ class RoomService:
 
     async def members(self, room_id: str) -> list[str]:
         async with self._lock:
+            if await self._catalog.deleted(room_id):
+                return []
             durable = await self._catalog.members(room_id)
             return sorted(durable | self._rooms.get(room_id, set()))
 
@@ -120,6 +126,8 @@ class RoomService:
             ids = catalog.keys() | self._rooms.keys()
             output = []
             for rid in ids:
+                if await self._catalog.deleted(rid):
+                    continue
                 record = catalog.get(rid) or {"room_id": rid, "name": rid, "creator_id": None,
                                               "visibility": "public", "created_at": None}
                 is_owner = bool(viewer_id and record["creator_id"] == viewer_id)

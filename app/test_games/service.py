@@ -213,13 +213,18 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
 
-    async def delete_room(self, room_id):
-        """Discard all ephemeral tables when their containing room is deleted."""
+    async def delete_room(self, room_id, before_delete=None):
+        """Persist deletion before discarding tables; serialize with table creation."""
         async with self.membership_guard(room_id):
-            games = self.tables.pop(room_id, {})
-            self.games.pop(room_id, None)
+            if self.has_active_tables(room_id):
+                raise HTTPException(409, "End every active table before deleting this room.")
+            games = self.tables.get(room_id, {})
             for game in games.values():
                 await self._release_durable_players(game)
+            if before_delete is not None:
+                await before_delete()
+            self.tables.pop(room_id, None)
+            self.games.pop(room_id, None)
             tasks = [game.task for game in games.values() if game.task is not None]
             for task in tasks:
                 task.cancel()

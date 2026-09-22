@@ -46,17 +46,17 @@ class PostgresRoomCatalog:
 
     async def get(self, room_id):
         async with self.pool.connection() as connection:
-            row = await (await connection.execute("SELECT id,name,creator_id,visibility,created_at FROM rooms WHERE id=%s", (room_id,))).fetchone()
+            row = await (await connection.execute("SELECT id,name,creator_id,visibility,created_at FROM rooms WHERE id=%s AND NOT EXISTS (SELECT 1 FROM deleted_rooms WHERE deleted_rooms.id=rooms.id)", (room_id,))).fetchone()
         return self.record(row) if row else None
 
     async def list(self):
         async with self.pool.connection() as connection:
-            rows = await (await connection.execute("SELECT id,name,creator_id,visibility,created_at FROM rooms ORDER BY created_at DESC,id LIMIT 100")).fetchall()
+            rows = await (await connection.execute("SELECT id,name,creator_id,visibility,created_at FROM rooms WHERE NOT EXISTS (SELECT 1 FROM deleted_rooms WHERE deleted_rooms.id=rooms.id) ORDER BY created_at DESC,id LIMIT 100")).fetchall()
         return [self.record(row) for row in rows]
 
     async def join(self, room_id, user_id):
         async with self.pool.connection() as connection:
-            await connection.execute("INSERT INTO room_memberships (room_id,user_id) SELECT id,%s FROM rooms WHERE id=%s ON CONFLICT DO NOTHING", (internal_id(user_id), room_id))
+            await connection.execute("INSERT INTO room_memberships (room_id,user_id) SELECT id,%s FROM rooms WHERE id=%s AND NOT EXISTS (SELECT 1 FROM deleted_rooms WHERE deleted_rooms.id=rooms.id) ON CONFLICT DO NOTHING", (internal_id(user_id), room_id))
 
     async def leave(self, room_id, user_id):
         async with self.pool.connection() as connection:
@@ -64,24 +64,28 @@ class PostgresRoomCatalog:
 
     async def joined(self, user_id):
         async with self.pool.connection() as connection:
-            rows = await (await connection.execute("SELECT room_id FROM room_memberships WHERE user_id=%s", (internal_id(user_id),))).fetchall()
+            rows = await (await connection.execute("SELECT room_id FROM room_memberships WHERE user_id=%s AND NOT EXISTS (SELECT 1 FROM deleted_rooms WHERE deleted_rooms.id=room_memberships.room_id)", (internal_id(user_id),))).fetchall()
         return {row[0] for row in rows}
 
     async def members(self, room_id):
         async with self.pool.connection() as connection:
-            rows = await (await connection.execute("SELECT user_id FROM room_memberships WHERE room_id=%s", (room_id,))).fetchall()
+            rows = await (await connection.execute("SELECT user_id FROM room_memberships WHERE room_id=%s AND NOT EXISTS (SELECT 1 FROM deleted_rooms WHERE deleted_rooms.id=room_memberships.room_id)", (room_id,))).fetchall()
         return {public_id(row[0]) for row in rows}
 
     async def owned(self, user_id):
         async with self.pool.connection() as connection:
-            rows = await (await connection.execute("SELECT id FROM rooms WHERE creator_id=%s", (internal_id(user_id),))).fetchall()
+            rows = await (await connection.execute("SELECT id FROM rooms WHERE creator_id=%s AND NOT EXISTS (SELECT 1 FROM deleted_rooms WHERE deleted_rooms.id=rooms.id)", (internal_id(user_id),))).fetchall()
         return {row[0] for row in rows}
 
     async def delete(self, room_id):
-        async with self.pool.connection() as connection:
-            row = await (await connection.execute("DELETE FROM rooms WHERE id=%s RETURNING id", (room_id,))).fetchone()
+        # Retain the room row: game journals and settlement history reference it
+        # with ON DELETE RESTRICT. A tombstone removes it from the live catalog.
+        async with self.pool.connection() as connection, connection.transaction():
+            row = await (await connection.execute(
+                "INSERT INTO deleted_rooms (id) SELECT id FROM rooms WHERE id=%s "
+                "ON CONFLICT DO NOTHING RETURNING id", (room_id,))).fetchone()
             if row:
-                await connection.execute("INSERT INTO deleted_rooms (id) VALUES (%s) ON CONFLICT DO NOTHING", (room_id,))
+                await connection.execute("DELETE FROM room_memberships WHERE room_id=%s", (room_id,))
         return row is not None
 
     async def deleted(self, room_id):

@@ -1,5 +1,7 @@
 import { Platform } from 'react-native';
 import type { Session } from './session';
+import { decodeApiResponse } from './apiResponse';
+export { ApiError } from './apiResponse';
 
 export const apiUrl = (
   process.env.EXPO_PUBLIC_API_URL ||
@@ -9,12 +11,6 @@ export const apiUrl = (
       : globalThis.location.origin)
     : 'https://api-bhidne-ho.lfactorial.com')
 ).replace(/\/$/, '');
-
-export class ApiError extends Error {
-  status: number;
-  detail?: { code?: string; match_id?: string; requires_leave_game?: boolean; departure_command?: 'abandon' | 'leave' };
-  constructor(status: number, message: string, detail?: ApiError["detail"]) { super(message); this.status = status; this.detail = detail; }
-}
 
 export async function request<T>(path: string, session: Session | null, body?: object, signal?: AbortSignal, method?: 'DELETE' | 'PATCH'): Promise<T> {
   const controller = new AbortController();
@@ -40,22 +36,6 @@ export async function request<T>(path: string, session: Session | null, body?: o
       status: response.status,
       contentType: response.headers.get('content-type'),
     });
-    let data;
-    if (raw) {
-      try {
-        data = JSON.parse(raw);
-      } catch (error) {
-        console.error('[API INVALID JSON]', {
-          url: `${apiUrl}${path}`,
-          status: response.status,
-          contentType: response.headers.get('content-type'),
-        });
-        throw error;
-      }
-    }
-    if (!response.ok) throw new ApiError(response.status, response.status === 401
-      ? 'Session expired. The server may have restarted. Sign out to start a new session.'
-      : typeof data.detail === 'string' ? data.detail : data.detail?.detail || 'Could not complete this request.', data.detail);
-    return data as T;
+    return decodeApiResponse<T>(raw, response.status);
   } finally { clearTimeout(timeout); signal?.removeEventListener('abort', abort); }
 }

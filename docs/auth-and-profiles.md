@@ -101,3 +101,17 @@ Validation: `node --test client/tests/theme.test.mjs` checks all six palettes;
 `tests/test_player_profiles.py` checks ownership and persistence across sessions;
 `client/tests/browser/appearance-profile.cjs` covers reloads, fresh-device restoration,
 offline retry, rapid changes, system mode, and account isolation against a local app.
+
+## Room deletion and retained history
+
+Room deletion writes a `deleted_rooms` tombstone and removes memberships in one
+transaction. The PostgreSQL room row remains because game journals, completed
+results, and settlement records reference it with restrictive foreign keys. Live
+catalog queries and entry checks exclude tombstoned rooms, including after restart;
+deleting a room does not cascade through game or financial history. This uses the
+existing tombstone table and requires no new migration.
+
+Deletion is serialized with table creation and rechecks that all tables have ended.
+The durable deletion completes before hosted tables are discarded or members receive
+`ROOM_DELETED`. If persistence fails, the room remains available for retry. The client
+preserves HTTP error status and shows a readable message for non-JSON failures.
