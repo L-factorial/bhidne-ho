@@ -8,6 +8,7 @@ from app.auth.service import AuthenticationError, UsernameTakenError
 from app.models.room import CreateRoom, RoomSummary
 from app.models.user import UserIdentity
 from app.players.service import PlayerNotFound
+from app.players.models import PlayerSummary
 
 router = APIRouter()
 
@@ -154,6 +155,16 @@ async def room_state(room_id: str, request: Request, response: Response, user: U
         # Ad-hoc room IDs remain supported by the low-level room API.
         state.update({"name": room_id, "creator_id": None, "visibility": "public", "created_at": None})
     return state
+
+
+@router.get("/rooms/{room_id}/members", response_model=list[PlayerSummary])
+async def room_members(room_id: str, request: Request, response: Response,
+                       user: UserIdentity = Depends(current_user)):
+    response.headers["Cache-Control"] = "no-store"
+    members = await request.app.state.rooms.members(room_id)
+    if user.user_id not in members:
+        raise HTTPException(403, "Join this room to view its members.")
+    return await request.app.state.players.store.get_players(members)
 
 
 @router.post("/rooms/{room_id}/enter")

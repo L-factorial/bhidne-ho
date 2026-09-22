@@ -165,3 +165,34 @@ def test_failed_room_delete_keeps_tables_members_and_connections_intact(monkeypa
         disconnected.assert_awaited_once_with(room_id)
         assert room_id not in client.app.state.test_games.tables
         assert room_id not in room_ids(client, headers)
+
+
+def test_room_members_return_current_names_for_offline_accounts_and_named_guests():
+    with TestClient(create_app()) as client:
+        owner, headers = account(client, 'member-owner', 'Owner')
+        friend, friend_headers = account(client, 'member-friend', 'Sita Rai')
+        _, outsider_headers = account(client, 'member-outsider', 'Outside')
+        guest = client.post('/auth/guest', json={'display_name': 'Ram'}).json()
+        guest_headers = {'Authorization': f"Bearer {guest['token']}"}
+        room_id = client.post('/rooms', headers=headers, json={'name': 'Names'}).json()['room_id']
+        path = f'/rooms/{room_id}/members'
+        assert client.get(path).status_code == 401
+        assert client.get(path, headers=outsider_headers).status_code == 403
+        for member_headers in (friend_headers, guest_headers):
+            assert client.post(f'/rooms/{room_id}/enter', headers=member_headers).status_code == 200
+        response = client.get(path, headers=headers)
+        assert response.headers['cache-control'] == 'no-store'
+        members = {row['user_id']: row for row in response.json()}
+        assert members[friend['user_id']]['display_name'] == 'Sita Rai'
+        assert members[guest['user_id']]['display_name'] == 'Ram'
+        assert members[owner['user_id']]['display_name'] == 'Owner'
+        assert all(set(row) == {'user_id', 'display_name', 'username'} for row in members.values())
+        client.patch('/me/profile', headers=friend_headers, json={'display_name': 'Sita Updated'})
+        updated = {row['user_id']: row for row in client.get(path, headers=headers).json()}
+        assert updated[friend['user_id']]['display_name'] == 'Sita Updated'
+        client.patch('/me/profile', headers=friend_headers, json={'display_name': ''})
+        updated = {row['user_id']: row for row in client.get(path, headers=headers).json()}
+        assert updated[friend['user_id']]['username'] == 'member-friend'
+        client.post(f'/rooms/{room_id}/leave', headers=friend_headers)
+        assert friend['user_id'] not in {row['user_id'] for row in client.get(path, headers=headers).json()}
+        assert client.get(path, headers=friend_headers).status_code == 403

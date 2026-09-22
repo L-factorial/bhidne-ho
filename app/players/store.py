@@ -32,6 +32,9 @@ class InMemoryPlayerStore:
         if user_id not in self.users: raise PlayerNotFound("Player not found.")
         return self.player(user_id)
 
+    async def get_players(self, user_ids):
+        return [self.player(user_id) for user_id in dict.fromkeys(user_ids) if user_id in self.users]
+
     async def find_exact(self, user_id, query):
         needle = query.casefold()
         return [self.player(other) for other in sorted(self.users) if other != user_id and
@@ -126,6 +129,19 @@ class PostgresPlayerStore:
 
     async def get_player(self, user_id):
         return await self._get_player(user_id)
+
+    async def get_players(self, user_ids):
+        ids = [internal_id(user_id) for user_id in dict.fromkeys(user_ids)]
+        if not ids:
+            return []
+        async with self.pool.connection() as connection:
+            rows = await (await connection.execute("""
+                SELECT u.id,p.display_name,a.username FROM users u
+                JOIN user_profiles p ON p.user_id=u.id
+                LEFT JOIN account_credentials a ON a.user_id=u.id
+                WHERE u.id = ANY(%s)
+            """, (ids,))).fetchall()
+        return [self.player(row) for row in rows]
 
     async def find_exact(self, user_id, query):
         async with self.pool.connection() as connection:

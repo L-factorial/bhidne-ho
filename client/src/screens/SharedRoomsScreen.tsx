@@ -42,6 +42,9 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const [roomOptionsOpen, setRoomOptionsOpen] = useState(false);
   const [lobbyTab, setLobbyTab] = useState<'rooms' | 'players'>('rooms');
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [memberProfiles, setMemberProfiles] = useState<Record<string, InvitePlayer>>({});
+  const [memberError, setMemberError] = useState('');
+  const [memberRetry, setMemberRetry] = useState(0);
   const [roomPanel, setRoomPanel] = useState<'chat' | 'members' | 'more' | 'ledger' | null>(null);
   const [form, setForm] = useState<'create' | 'join'>('create');
   const [linkedMatch, setLinkedMatch] = useState<string>();
@@ -139,6 +142,20 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
 
   const roomMembers = [...new Set([...(current?.members || []), ...(room && session && shared.status === 'connected' ? [session.user_id] : [])])];
   const selectedGame = game === 'flush' || game === 'marriage' ? game : 'callbreak';
+  const memberKey = [...roomMembers].sort().join(',');
+  useEffect(() => {
+    if (!session || !room || roomPanel !== 'members') return;
+    const controller = new AbortController();
+    setMemberProfiles({}); setMemberError('');
+    void request<InvitePlayer[]>(`/rooms/${encodeURIComponent(room.room_id)}/members`, session, undefined, controller.signal)
+      .then(players => {
+        if (!controller.signal.aborted) setMemberProfiles(Object.fromEntries(players.map(player => [player.user_id, player])));
+      }).catch(() => {
+        if (!controller.signal.aborted) setMemberError('Could not load member names.');
+      });
+    return () => controller.abort();
+  }, [session?.token, room?.room_id, roomPanel, memberKey, memberRetry]);
+
   return <HeaderProfileContext.Provider value={session && !expired ? close => <ProfileScreen session={session} personal={personal} onBack={close} onSignOut={signOut} /> : null}><KeyboardFrame><FormScrollView keyboardShouldPersistTaps="handled" style={styles.page} contentContainerStyle={[styles.container, room && { flexGrow: 1 }, {
     paddingTop: Math.max(insets.top, 24), paddingBottom: Math.max(insets.bottom, 28) + (room ? 64 : 0),
   }]}>
@@ -201,13 +218,18 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
           <View style={{ height: 64 + Math.max(8, insets.bottom) }}>{chat.navigation}</View>
         </>}>
           {roomPanel === 'members' && <>
+            {!!memberError && <View style={{ gap: 8 }}><Text accessibilityRole="alert" style={styles.error}>{memberError}</Text>
+              <Pressable accessibilityRole="button" onPress={() => setMemberRetry(value => value + 1)} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={styles.description}>Retry member names</Text></Pressable></View>}
             {[true, false].map(online => {
               const members = roomMembers.filter(member => !!current?.connected_members?.includes(member) === online);
               if (!members.length) return null;
               return <View key={String(online)} style={{ gap: 6 }}>
                 <Text style={styles.eyebrowDark}>{online ? 'ONLINE' : 'OFFLINE'} · {members.length}</Text>
                 {members.map(member => {
-                  const label = member === session.user_id ? 'You' : `Guest ${roomMembers.indexOf(member) + 1}`;
+                  const profile = memberProfiles[member];
+                  const name = profile?.display_name?.trim() || profile?.username?.trim();
+                  const label = member === session.user_id ? (name ? `${name} (You)` : 'You')
+                    : name || `Player ${member.replace(/^user-/, '').slice(0, 6)}`;
                   return <View key={member} accessibilityLabel={`${label}, ${online ? 'Online' : 'Offline'}`} style={styles.member}>
                     <View style={styles.avatar}><Text style={styles.avatarText}>{label[0]}</Text></View>
                     <Text style={[styles.directoryName, !online && { color: colors.textMuted }]}>{label}</Text>
