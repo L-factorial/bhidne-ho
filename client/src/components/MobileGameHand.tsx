@@ -1,10 +1,12 @@
+import { TurnGlow } from './TurnGlow';
+import { HandTrayLabel } from './HandTrayLabel';
 import { useSocialHandAnchor } from './TableSocial';
 import { type ReactNode, useEffect, useRef } from 'react';
 import { AccessibilityInfo, Animated, Pressable, ScrollView, Text, View } from 'react-native';
 import { fonts, useTheme } from '../theme';
 
-export function MobileGameHand({ mobile, open, onToggle, docked = false, desktopDrawer = false, myTurn, attention = myTurn, attentionText, children, game = 'flush', keepMounted = false, header }: {
-  header?: ReactNode; docked?: boolean; desktopDrawer?: boolean;
+export function MobileGameHand({ mobile, open, onToggle, docked = false, desktopDrawer = false, myTurn, attention = myTurn, attentionText, children, game = 'flush', keepMounted = false, header, cardCount }: {
+  cardCount?: number; header?: ReactNode; docked?: boolean; desktopDrawer?: boolean;
   attention?: boolean; attentionText?: string;
   game?: string; keepMounted?: boolean;
   mobile: boolean; open: boolean; onToggle: () => void; myTurn: boolean; children: ReactNode;
@@ -14,7 +16,6 @@ export function MobileGameHand({ mobile, open, onToggle, docked = false, desktop
   const content = useRef<ScrollView>(null);
   useEffect(() => { if (desktopDrawer && open) content.current?.scrollTo({ y: 0, animated: false }); }, [desktopDrawer, open]);
   const slide = useRef(new Animated.Value(0)).current;
-  const attentionOpacity = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     let active = true;
     slide.setValue(open ? 24 : 0);
@@ -23,20 +24,6 @@ export function MobileGameHand({ mobile, open, onToggle, docked = false, desktop
     });
     return () => { active = false; slide.stopAnimation(); };
   }, [open, slide]);
-  useEffect(() => {
-    let active = true;
-    let loop: Animated.CompositeAnimation | undefined;
-    attentionOpacity.setValue(1);
-    if (attention && !open && !docked) AccessibilityInfo.isReduceMotionEnabled().then(reduced => {
-      if (!active || reduced) return;
-      loop = Animated.loop(Animated.sequence([
-        Animated.timing(attentionOpacity, { toValue: 0.58, duration: 650, useNativeDriver: true }),
-        Animated.timing(attentionOpacity, { toValue: 1, duration: 650, useNativeDriver: true }),
-      ]));
-      loop.start();
-    });
-    return () => { active = false; loop?.stop(); attentionOpacity.stopAnimation(); attentionOpacity.setValue(1); };
-  }, [attention, open, attentionOpacity, docked]);
   if (!mobile && !desktopDrawer) return <>{children}</>;
   return <>
     {open && !docked && <Pressable testID={`${game}-hand-backdrop`} accessibilityRole="button" accessibilityLabel="Close your card area"
@@ -47,13 +34,14 @@ export function MobileGameHand({ mobile, open, onToggle, docked = false, desktop
     <View style={{ alignItems: 'center', paddingTop: 7, backgroundColor: colors.tableHeader }}>
       <View style={{ width: 38, height: 4, borderRadius: 2, backgroundColor: colors.tableTrim }} />
     </View>
-    <Animated.View testID={`${game}-hand-attention`} style={{ opacity: attentionOpacity, borderTopWidth: attention && !open ? 2 : 0, borderColor: colors.attention }}>
+    <Animated.View testID={`${game}-hand-attention`} style={{ position: 'relative' }}>
     <Pressable accessibilityRole="button" accessibilityLabel={open ? 'Collapse your card area' : 'Expand your card area'}
-      accessibilityState={{ expanded: open }} onPress={onToggle}
+      accessibilityHint={myTurn ? 'Your turn. Open your cards to act.' : 'Open or collapse your cards.'} accessibilityState={{ expanded: open }} onPress={onToggle}
       style={{ minHeight: 50, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.tableHeader }}>
-      <Text accessibilityLiveRegion={attention && !open ? 'polite' : 'none'} style={{ fontFamily: fonts.medium, color: attention ? colors.cardInnerBorder : colors.onTableHeader }}>{attentionText || `Your card area${myTurn ? ' · Action needed' : ''}`}</Text>
+      {!open ? <HandTrayLabel count={cardCount} /> : <Text accessibilityLiveRegion={attention && !open ? 'polite' : 'none'} style={{ fontFamily: fonts.medium, color: attention ? colors.cardInnerBorder : colors.onTableHeader }}>{attentionText || 'Your cards'}</Text>}
       <Text style={{ color: colors.onTableHeader, fontSize: 22 }}>{open ? '⌄' : '⌃'}</Text>
     </Pressable>
+      <TurnGlow active={attention} radius={10} />
     </Animated.View>
     {(open || keepMounted) && <ScrollView ref={content} style={!open && { display: 'none' }} accessibilityElementsHidden={!open} importantForAccessibility={open ? 'auto' : 'no-hide-descendants'} testID={`${game}-hand-content`} contentContainerStyle={{ padding: 8, paddingBottom: 18 }} nestedScrollEnabled>
       {header}{children}

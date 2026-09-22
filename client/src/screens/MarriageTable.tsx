@@ -157,9 +157,9 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const canDiscard = canAct && isTurn && !!actions?.kinds.includes('discard');
   const discardSelected = !selectingMeld && selected.length === 1 && !!actions?.discardable_card_ids.includes(selected[0]);
   const selectedCard = discardSelected ? hand.find(card => card.card_id === selected[0]) : null;
-  const turnInstruction = decision === 'DRAW_REQUIRED' ? 'Your turn · Draw a card'
-    : decision === 'DISCARD_REQUIRED' ? 'Your turn · Choose a card to discard'
-    : decision === 'FINISH_REQUIRED' ? 'Your turn · Finish round' : `Your cards · ${hand.length}`;
+  const turnInstruction = decision === 'DRAW_REQUIRED' ? 'Draw a card'
+    : decision === 'DISCARD_REQUIRED' ? 'Choose a card to discard'
+    : decision === 'FINISH_REQUIRED' ? 'Finish round' : `Your cards · ${hand.length}`;
   const turnPrompt = activeGame && pub && <TurnIndicator testID="marriage-turn-instruction" personal={isTurn}
     text={isTurn && decision !== 'WAITING' ? turnInstruction : `${name(pub.current_player_id)}’s turn`} />;
   const mobileHandHeader = <View testID="marriage-hand-header" style={{ backgroundColor: colors.surface, paddingHorizontal: 10, gap: 4 }}>
@@ -208,7 +208,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       </>}
       {!!error && (!mine || !activeGame || (mobile && snap === 'collapsed')) && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}
     </View>
-    {pub && mine && activeGame && <MarriageHandSheet anchor={handAnchor} mobile={mobile} snap={snap} onSnap={setSnap} instruction={turnInstruction} attention={isTurn} header={mobileHandHeader} footer={discardFooter}>
+    {pub && mine && activeGame && <MarriageHandSheet cardCount={hand.length} anchor={handAnchor} mobile={mobile} snap={snap} onSnap={setSnap} instruction={turnInstruction} attention={isTurn} header={mobileHandHeader} footer={discardFooter}>
     <View testID="marriage-hand-dock" style={[s.handDock, mobile && { backgroundColor: 'transparent', borderTopWidth: 0, padding: 4 }]} onLayout={e => { if (e.nativeEvent.layout.width > 48) setWidth(e.nativeEvent.layout.width - (mobile ? 8 : 24)); }}>
       <View style={[s.row, { backgroundColor: colors.tableHeader, borderRadius: 8 }]}><Text style={[s.small, { color: colors.onTableHeader }]}>Your cards · {hand.length}</Text>
         {!allRevealed && button('Reveal cards', () => reveal(true), busy)}

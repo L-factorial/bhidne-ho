@@ -137,6 +137,11 @@ const site = process.env.TEST_WEB_URL || 'http://localhost:8087';
    if(kind === 'callbreak' || kind === 'marriage') {
     if(await button('Collapse your card area').count()) await button('Collapse your card area').click();
     await page.waitForTimeout(200);
+    const tray = page.getByTestId(kind+'-mobile-hand');
+    assert.match(await button('Expand your card area').innerText(), /Your cards · \d+/);
+    assert.equal(await tray.getByText(/Your turn/i).count(), 0, 'collapsed tray does not repeat turn labels');
+    assert.ok((await tray.boundingBox()).height <= 66, 'collapsed tray stays compact');
+    await page.screenshot({path:`/tmp/${kind}-collapsed-tray.png`});
     const before=await pill.boundingBox();
     await button('Expand your card area').click();await page.waitForTimeout(250);
     const after=await pill.boundingBox();assert.ok(after.y<before.y,'pill follows expanded hand');

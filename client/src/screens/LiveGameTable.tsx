@@ -158,7 +158,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
       paddingTop: mobile && cards.open ? 0 : 8, paddingBottom: 4,
     }]}><View style={{ width }}>
     <Text style={styles.meta}>Deal {deal.deal_number} of 5 · {deal.tricks_completed}/{deal.tricks_required} tricks completed · Spades trump</Text>
-    {!ended && game.phase !== 'PLAYING' && game.phase !== 'BIDDING' && !reveal && <Text style={styles.meta}>{guidance.title}</Text>}
+    {!ended && game.phase !== 'PLAYING' && game.phase !== 'BIDDING' && !reveal && <Text style={styles.meta}>{guidance.title.replace(/^Your turn[: ·]+/i, '')}</Text>}
     {!!(error || snapshot.error) && <Text accessibilityRole="alert" style={styles.error}>{error || snapshot.error}</Text>}
     <CardTable showScores={game.phase === 'BIDDING' || game.phase === 'PLAYING'} compact={mobile && cards.open && screenHeight < 760} centerControl={ended ? endedNotice : preparation} width={width} players={players} dealerId={String(deal.dealer)} viewerId={snapshot.your_player_id ? String(snapshot.your_player_id) : ''}
       collectionKey={reveal ? trickKey : undefined} collecting={reveal && collectingTrick === trickKey}
@@ -187,10 +187,10 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
         </View>)}
       </View>}
     </View>}
-    {handAvailable && <MobileGameHand docked desktopDrawer mobile={mobile} game="callbreak" keepMounted
+    {handAvailable && <MobileGameHand docked desktopDrawer mobile={mobile} game="callbreak" keepMounted cardCount={mine?.hand.length || 0}
       open={cards.open} onToggle={cards.toggle} myTurn={isTurn}
       attention={isTurn || !!mine?.can_accept_hand || !!mine?.can_claim_redeal}
-      attentionText={mine?.can_accept_hand || mine?.can_claim_redeal ? 'Review your cards · Accept or request redeal' : isTurn ? game.phase === 'BIDDING' ? 'Your turn · Make your call' : 'Your turn · Play a card' : `Your cards · ${mine?.hand.length || 0}`}>
+      attentionText={mine?.can_accept_hand || mine?.can_claim_redeal ? 'Review your cards · Accept or request redeal' : isTurn ? game.phase === 'BIDDING' ? 'Make your call' : 'Play a card' : `Your cards · ${mine?.hand.length || 0}`}>
     <View testID="callbreak-hand-dock" style={[styles.handDock, mobile && { backgroundColor: 'transparent', borderTopWidth: 0, paddingHorizontal: 4 }]}>
     {game.phase === 'PLAYING' && !deal.tricks.some(trick => trick.complete || trick.plays.length) && !game.current_trick?.plays.length && <Text accessibilityLiveRegion="polite" style={styles.status}>Bidding complete. {isTurn ? 'You lead first.' : `${playerName(game.turn.player_id!)} leads first.`}</Text>}
     {game.phase === 'BIDDING' && <LiveBidPrompt key={`${snapshot.match_id}-${deal.deal_number}-${deal.attempt}`} snapshot={snapshot} revealed={revealedDeal === handDealKey} busy={busy} onAction={cards.act} />}

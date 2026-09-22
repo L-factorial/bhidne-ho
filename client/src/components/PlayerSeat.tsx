@@ -45,7 +45,7 @@ export function PlayerSeat({ name, mine = false, active = false, connected = tru
         style={{ width: size - 6, height: size - 6, borderRadius: size / 2 }} /> : <View style={{ width: size - 6, height: size - 6, borderRadius: size / 2, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' }}><Ionicons accessibilityLabel="Anonymous player profile" name="person" size={compact ? 18 : 28} color="#737373" /></View>}
     </Animated.View>
     <Text numberOfLines={1} style={{ maxWidth: '100%', backgroundColor: colors.surface, paddingHorizontal: 8, borderRadius: 8, color: colors.text, fontFamily: fonts.medium, fontSize: compact ? 11 : 12 }}>{name}</Text>
-    <Text numberOfLines={1} style={{ backgroundColor: active ? colors.turnSurface : colors.surface, paddingHorizontal: 5, borderRadius: 5, color: active ? colors.turnText : colors.textMuted, fontFamily: fonts.medium, fontSize: compact ? 8 : 10 }}>
+    <Text numberOfLines={1} style={{ backgroundColor: active ? colors.turnSurface : colors.surface, paddingHorizontal: 5, borderRadius: 5, color: active ? colors.turnText : colors.textMuted, fontFamily: fonts.medium, fontSize: compact ? 8 : active && mine ? 9 : 10 }}>
       {active ? mine ? '● YOUR TURN' : '● TURN' : !connected ? 'Offline' : mine ? 'YOU' : dealer ? 'Dealer' : status}
     </Text>
     {(active || mine || !connected || dealer) && !!status && <Text numberOfLines={1} style={{ backgroundColor: colors.surface, paddingHorizontal: 5, borderRadius: 5, color: colors.textMuted, fontSize: 10 }}>{!connected && active ? `Offline · ${status}` : status}</Text>}

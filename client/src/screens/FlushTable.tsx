@@ -1,3 +1,4 @@
+import { TurnGlow } from '../components/TurnGlow';
 import { FloatingTableAction } from '../components/FloatingTableAction';
 import { RoundResultsTable } from '../components/RoundResultsTable';
 import { RoomSheet } from '../components/RoomSheet';
@@ -167,10 +168,10 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
     settings.rules.allow_side_show && !mine?.actions.side_show.allowed && mine?.actions.side_show.reason ? `Side-show: ${mine.actions.side_show.reason}` : null,
   ].filter(Boolean) : [];
   const turnText = ended ? 'Table ended' : pub?.settlement ? 'Round complete' : decision ? myTurn
-    ? pub?.pending_side_show ? `Your turn · Accept or decline ${name(pub.pending_side_show.requester_id)}’s side-show`
-      : pub?.pending_show ? 'Your turn · Reveal or fold'
-      : preparing ? `Your turn · ${pub?.status === 'awaiting_deal' ? 'Deal cards' : 'Cut or skip'}`
-      : `${visibility} · Your turn · Choose an action`
+    ? pub?.pending_side_show ? `Accept or decline ${name(pub.pending_side_show.requester_id)}’s side-show`
+      : pub?.pending_show ? 'Reveal or fold'
+      : preparing ? `${pub?.status === 'awaiting_deal' ? 'Deal cards' : 'Cut or skip'}`
+      : `${visibility} · Choose an action`
     : `${ownPlayer?.status === 'active' && !preparing ? `${visibility} · ` : ownPlayer?.status === 'folded' ? 'Folded · ' : ''}Waiting for ${name(decision.actor)}`
     : `${snapshot.players?.length || 0}/${snapshot.capacity} players seated`;
   return <View style={[s.page, mobile && { padding: 8, gap: 4 }]} testID="flush-table">
@@ -189,11 +190,12 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
       </ScrollView>
       {pub && <View pointerEvents="none" style={s.notice}><FlushFoldNotice key={`folds:${snapshot.match_id}`} snapshot={snapshot} /></View>}
       <View ref={socialAnchor.ref} onLayout={socialAnchor.onLayout} style={s.handDock} testID="flush-hand-dock">
+        <TurnGlow active={myTurn && connectionReady && !ended} />
         <FlushTurnCue scope={`${snapshot.match_id}:${snapshot.your_player_id}`} decision={decision?.key ?? null} personal={myTurn} ready={connectionReady} />
         {!ended && mine && !preparing && !pub?.settlement && <View style={s.cards} testID="flush-own-cards">
           <View style={s.scaledCards}><FlushCards tapToToggle key={pub?.round_number} cards={mine.cards} /></View>
         </View>}
-        <Text accessibilityLiveRegion="polite" style={[s.status, { backgroundColor: colors.tableHeader, borderRadius: 8, color: colors.onTableHeader }, myTurn && s.yourTurn]}>{!ended && !connectionReady ? 'Reconnecting… Updating game' : busy && myTurn ? 'Sending your action…' : turnText}</Text>
+        <Text accessibilityLiveRegion="polite" style={[s.status, { backgroundColor: colors.tableHeader, borderRadius: 8, color: colors.onTableHeader }]}>{!ended && !connectionReady ? 'Reconnecting… Updating game' : busy && myTurn ? 'Sending your action…' : turnText}</Text>
         {!!(localError || error) && <Text accessibilityRole="alert" style={s.error}>{localError || error}</Text>}
         <View style={s.actions} testID="flush-actions">
           {finalStage && button(finalStage === 'pending' ? 'View final show' : 'View round result', () => setFinalShowOpen(true))}

@@ -87,7 +87,7 @@ async function stableCue(locator) {
         for (let i = 0; i < users.length; i++) {
           state = await stateWhen(s => s.game.phase === 'BIDDING' && s.deal.players.filter(p => p.bid !== null).length === i);
           const bidder = pages[state.game.turn.player_id - 1];
-          await bidder.getByText('Make your call',{exact:true}).waitFor({state:'attached'});
+          await bidder.getByRole('heading', {name:'Make your call', exact:true}).waitFor({state:'attached'});
           if (await button(bidder, 'Expand your card area').isVisible()) await button(bidder, 'Expand your card area').click();
           await button(bidder, 'Confirm bid').click();
         }
