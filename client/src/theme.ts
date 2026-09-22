@@ -16,7 +16,7 @@ export const colors = {
   coin: '#D5A12A', coinBorder: '#845C15', onCoin: '#211D1B',
   primarySoft: '#F6E8EA', tableGreen: '#0F4D3A', warning: '#976119', warningSoft: '#FFF2D6',
   shadow: 'rgba(38,28,25,0.14)',
-  tableHeader: '#0A382B', onTableHeader: '#FFF8EB', tableTrim: '#A17C45', ownMessage: '#F6E8EA',
+  tableHeader: '#0A382B', onTableHeader: '#FFF8EB', tableTrim: '#A17C45', ownMessage: '#F6E8EA', resultOwnSurface: '#F6E8EA',
 };
 export type ThemeColors = typeof colors;
 // Fixed game presentation, scoped to the table; this is not a selectable app mode.
@@ -24,6 +24,7 @@ export const gameColors: ThemeColors = {
   ...colors,
   background: '#062B23', header: '#062B23', table: '#07382B',
   surface: '#0B3027', surfaceRaised: '#164638', surfaceSelected: '#28513C',
+  resultOwnSurface: '#164638',
   text: '#FFF3DC', textMuted: '#C6D2C8', accent: '#F0C96A',
   border: '#7E947F', borderSubtle: '#315347', primarySoft: '#173E32',
   primary: '#AA2039', primaryPressed: '#83182D',

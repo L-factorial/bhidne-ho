@@ -24,7 +24,7 @@ export function RoundResultsTable({ title = 'Round complete!', subtitle, columns
           <Text style={{ flex: 1, minWidth: 132, paddingLeft: 12, color: c.textMuted, fontFamily: fonts.medium, fontSize: 12 }}>{playerHeading}</Text>
           {columns.map(column => <Text key={column} style={{ width: cellWidth, textAlign: 'center', fontFamily: fonts.medium, fontSize: 11, color: c.textMuted }}>{column}</Text>)}
         </View>
-        {rows.map(row => <View key={row.id} testID={`result-player-${row.id}`} style={{ flexDirection: 'row', alignItems: 'center', minHeight: 64, borderTopWidth: 1, borderColor: c.borderSubtle, backgroundColor: row.own ? c.ownMessage : c.surface }}>
+        {rows.map(row => <View key={row.id} testID={`result-player-${row.id}`} style={{ flexDirection: 'row', alignItems: 'center', minHeight: 64, borderTopWidth: 1, borderColor: c.borderSubtle, backgroundColor: row.own ? c.resultOwnSurface : c.surface }}>
           <View style={{ flex: 1, minWidth: 132, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <PlayerAvatar uri={row.avatarUrl} />
             <View style={{ flex: 1, paddingVertical: 8 }}><Text numberOfLines={2} style={{ fontFamily: fonts.medium, color: c.text, fontSize: 12 }}>{row.name}{row.own ? ' · You' : ''}</Text>

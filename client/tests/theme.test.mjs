@@ -25,3 +25,11 @@ test('game surfaces retain readable text and unchanged card faces', () => {
   assert.equal(c.cardFace, colors.cardFace);
   assert.equal(c.cardInk, colors.cardInk);
 });
+
+test('highlighted result names and scores remain readable in games and ledgers', () => {
+  for (const c of [colors, gameColors]) {
+    for (const fg of [c.text, c.success, c.danger]) {
+      assert.ok(contrast(fg, c.resultOwnSurface) >= 4.5, `${fg} on highlighted result ${c.resultOwnSurface}`);
+    }
+  }
+});
