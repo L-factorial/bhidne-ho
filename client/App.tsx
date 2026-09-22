@@ -8,6 +8,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { useFonts } from 'expo-font';
 import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
+import { CormorantGaramond_700Bold } from '@expo-google-fonts/cormorant-garamond/700Bold';
 import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
@@ -64,7 +65,7 @@ function AppContent() {
     setInvitation(null);
     if (Platform.OS === 'web') { const url = new URL(globalThis.location.href); url.searchParams.delete('room'); url.searchParams.delete('match'); globalThis.history.replaceState(null, '', url.toString()); }
   }
-  const [loaded, error] = useFonts({ Inter_400Regular, Inter_500Medium });
+  const [loaded, error] = useFonts({ Inter_400Regular, Inter_500Medium, CormorantGaramond_700Bold });
   if (!loaded && !error) return <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
     <Image source={branding.icon} accessibilityLabel={t('common.loading')} resizeMode="contain" style={{ width: 160, height: 160, borderRadius: 24 }} />
   </View>;

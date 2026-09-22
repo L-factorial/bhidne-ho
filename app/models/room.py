@@ -1,5 +1,7 @@
 from typing import Literal
 
+from app.players.models import PlayerSummary
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -10,6 +12,8 @@ class RoomPresence(BaseModel):
 
 
 class RoomSummary(RoomPresence):
+    table_count: int = 0
+    member_previews: list[PlayerSummary] = Field(default_factory=list)
     name: str
     creator_id: str | None = None
     visibility: Literal["public", "friends"] = "public"

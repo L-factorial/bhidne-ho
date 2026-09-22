@@ -4,6 +4,8 @@ import { FormFooter } from '../components/FormFooter';
 import { Ionicons } from '@expo/vector-icons';
 import { RoomToolbar } from '../components/RoomToolbar';
 import { RoomSheet } from '../components/RoomSheet';
+import { LobbyNavigation } from '../components/LobbyNavigation';
+import { useRecentRooms } from '../multiplayer/useRecentRooms';
 import { RoomCard } from '../components/RoomCard';
 import { useRoomChat } from '../components/RoomChat';
 import { InvitationPreview } from '../components/InvitationPreview';
@@ -14,7 +16,7 @@ import { HeaderAction } from '../components/HeaderAction';
 import { NotificationBell } from '../components/NotificationBell';
 import { GameIcon } from '../components/BrandArt';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { ProfileScreen } from './ProfileScreen';
@@ -40,7 +42,8 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const wide = useWindowDimensions().width >= 900;
   const [roomToolsOpen, setRoomToolsOpen] = useState(false);
   const [roomOptionsOpen, setRoomOptionsOpen] = useState(false);
-  const [lobbyTab, setLobbyTab] = useState<'rooms' | 'players'>('rooms');
+  const [lobbyTab, setLobbyTab] = useState<'rooms' | 'players' | 'recent' | 'games'>('rooms');
+  const [lobbyProfileOpen, setLobbyProfileOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [memberProfiles, setMemberProfiles] = useState<Record<string, InvitePlayer>>({});
   const [memberError, setMemberError] = useState('');
@@ -56,6 +59,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const usernameInput = useRef<TextInput>(null), passwordInput = useRef<TextInput>(null);
   const shared = useRoomSession();
   const { session, rooms, room, game, setGame, expired } = shared;
+  const recentIds = useRecentRooms(session?.user_id, room?.room_id);
   useEffect(() => () => bindSession(null), [bindSession]);
   useEffect(() => { bindSession(session); }, [session?.user_id, session?.token, bindSession]);
   const [gameOpen, setGameOpen] = useState(false);
@@ -140,6 +144,13 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const enterRooms = rooms.filter(item => item.creator_id === session?.user_id || item.members.includes(session?.user_id || ''));
   const friendRooms = rooms.filter(item => !enterRooms.includes(item) && item.feed_source === 'friend');
 
+  const recentRooms = recentIds.map(id => rooms.find(item => item.room_id === id)).filter((item): item is Room => !!item);
+  const gameRooms = rooms.filter(item => (item.table_count || 0) > 0);
+  const roomCard = (item: Room) => <View key={item.room_id} style={wide ? { width: '48.8%' } : { width: '100%' }}>
+    <RoomCard room={item} member={enterRooms.includes(item)} busy={busy}
+      activeTables={shared.memberships.find(m => m.room_id === item.room_id)?.tables.filter(t => t.status !== 'ended').length}
+      onPress={() => { setLinkedMatch(undefined); if (enterRooms.includes(item)) enterRoom(item); else joinRoom(item); }} />
+  </View>;
   const roomMembers = [...new Set([...(current?.members || []), ...(room && session && shared.status === 'connected' ? [session.user_id] : [])])];
   const selectedGame = game === 'flush' || game === 'marriage' ? game : 'callbreak';
   const memberKey = [...roomMembers].sort().join(',');
@@ -157,10 +168,10 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   }, [session?.token, room?.room_id, roomPanel, memberKey, memberRetry]);
 
   return <HeaderProfileContext.Provider value={session && !expired ? close => <ProfileScreen session={session} personal={personal} onBack={close} onSignOut={signOut} /> : null}><KeyboardFrame><FormScrollView keyboardShouldPersistTaps="handled" style={styles.page} contentContainerStyle={[styles.container, room && { flexGrow: 1 }, {
-    paddingTop: Math.max(insets.top, 24), paddingBottom: Math.max(insets.bottom, 28) + (room ? 64 : 0),
+    paddingTop: Math.max(insets.top, 16), paddingBottom: (room ? Math.max(insets.bottom, 28) + 64 : 24),
   }]}>
     <View style={[styles.content, room && { flexGrow: 1, maxWidth: 760 }]}>
-      <AppHeader inlineActions={session && !expired ? <NotificationBell session={session} onOpenTable={invited => {
+      <AppHeader lobby={!room && !!session} onOpenProfile={!room ? () => setLobbyProfileOpen(true) : undefined} inlineActions={session && !expired ? <NotificationBell session={session} onOpenTable={invited => {
         setLinkedMatch(invited.match_id);
         enterRoom({ room_id: invited.room_id, name: invited.table_name, members: [] }, invited.game_type);
       }} onOpenRoom={invited => enterRoom({ room_id: invited.room_id, name: invited.room_name, members: [] })} /> : null} />
@@ -271,7 +282,6 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
         </RoomSheet>}
       </> : <>
         {session && !expired && <View style={styles.hero}>
-          <Text style={styles.eyebrow}>YOUR LOBBY</Text>
           <Text accessibilityRole="header" style={[styles.title, !wide && styles.mobileTitle]}>Ready to play?</Text>
           <Text style={styles.subtitle}>Open a room or bring your players together.</Text>
           <View style={styles.quickActions}>
@@ -279,7 +289,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
             <Pressable accessibilityRole="button" accessibilityLabel="Join with code" onPress={() => { setLobbyTab('rooms'); setForm('join'); setRoomToolsOpen(true); }} style={styles.secondaryAction}><Text style={styles.secondaryActionText}>Join with code</Text></Pressable>
           </View>
           <View accessibilityRole="tablist" style={styles.lobbyTabs}>
-            {([['rooms', 'Rooms'], ['players', 'Players']] as const).map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: lobbyTab === value }} onPress={() => setLobbyTab(value)} style={[styles.lobbyTab, lobbyTab === value && styles.activeLobbyTab]}><Text style={[styles.lobbyTabText, lobbyTab === value && styles.activeLobbyTabText]}>{label}</Text></Pressable>)}
+            {([['rooms', 'Rooms'], ['players', 'Friends'], ['recent', 'Recent']] as const).map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: lobbyTab === value }} onPress={() => setLobbyTab(value)} style={[styles.lobbyTab, lobbyTab === value && styles.activeLobbyTab]}><Text style={[styles.lobbyTabText, lobbyTab === value && styles.activeLobbyTabText]}>{label}</Text></Pressable>)}
           </View>
         </View>}
         {!session && <View style={styles.panel}>
@@ -353,23 +363,41 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
             {shared.memberships.filter(m => m.active_game?.player_is_participant && m.active_game.status !== 'ended').map(m => {
               const target = rooms.find(r => r.room_id === m.room_id), active = m.active_game!;
               if (!target) return null;
-              return <Pressable key={m.room_id} accessibilityRole="button" accessibilityLabel={`Return to table · ${target.name}`} onPress={() => { setLinkedMatch(active.game_id); enterRoom(target, active.game_type); }} style={styles.panel}>
-                <Text style={styles.eyebrow}>CONTINUE PLAYING</Text><Text style={styles.heading}>{target.name}</Text><Text style={styles.enterText}>Return to table →</Text>
+              return <Pressable key={m.room_id} accessibilityRole="button" accessibilityLabel={`Return to table · ${target.name}`} onPress={() => { setLinkedMatch(active.game_id); enterRoom(target, active.game_type); }} style={styles.resumeCard}>
+                <View style={{ flex: 1, gap: 4 }}><Text style={styles.eyebrow}>CONTINUE PLAYING</Text><Text style={styles.resumeTitle}>{target.name}</Text></View>
+                <Ionicons name="arrow-forward-circle" size={28} color={colors.accent} />
               </Pressable>;
             })}
             <Text accessibilityRole="header" style={styles.sectionTitle}>Your rooms</Text>
             {!enterRooms.length && <Text style={styles.description}>Create a room or join your friends to get started.</Text>}
-            {enterRooms.map(item => <RoomCard key={item.room_id} room={item} member busy={busy}
-              activeTables={shared.memberships.find(m => m.room_id === item.room_id)?.tables.filter(t => t.status !== 'ended' && t.status !== 'finished').length}
-              onPress={() => { setLinkedMatch(undefined); enterRoom(item); }} />)}
+<View style={styles.roomGrid}>{enterRooms.map(roomCard)}</View>
             {!!friendRooms.length && <Text accessibilityRole="header" style={styles.sectionTitle}>Friends’ rooms</Text>}
-            {friendRooms.map(item => <RoomCard key={item.room_id} room={item} member={false} busy={busy} onPress={() => joinRoom(item)} />)}
+            <View style={styles.roomGrid}>{friendRooms.map(roomCard)}</View>
           </>}
         </View>}
-        {session && !expired && lobbyTab === 'players' && <View style={styles.playersArea}><FriendsPanel session={session} /></View>}
+        {session && !expired && lobbyTab === 'players' && <View style={styles.playersArea}>
+          {!!friendRooms.length && <><Text accessibilityRole="header" style={styles.sectionTitle}>Friends’ rooms</Text><View style={styles.roomGrid}>{friendRooms.map(roomCard)}</View></>}
+          <FriendsPanel session={session} />
+        </View>}
+        {session && !expired && (lobbyTab === 'recent' || lobbyTab === 'games') && <View style={styles.columns}>
+          <Text accessibilityRole="header" style={styles.sectionTitle}>{lobbyTab === 'recent' ? 'Recently visited' : 'Rooms with open tables'}</Text>
+          <Text style={styles.description}>{lobbyTab === 'recent' ? 'Your recent rooms on this device.' : 'Enter a room to join a table, watch, or return to your game.'}</Text>
+          <View style={styles.roomGrid}>{(lobbyTab === 'recent' ? recentRooms : gameRooms).map(roomCard)}</View>
+          {!(lobbyTab === 'recent' ? recentRooms : gameRooms).length && <View style={styles.panel}>
+            <Ionicons name={lobbyTab === 'recent' ? 'time-outline' : 'layers-outline'} size={30} color={colors.accent} />
+            <Text style={styles.description}>{lobbyTab === 'recent' ? 'Rooms you visit will appear here. Explore your rooms to get started.' : 'No open tables yet. Enter a room and create a table to start playing.'}</Text>
+            <Pressable accessibilityRole="button" onPress={() => setLobbyTab('rooms')} style={styles.textButton}><Text style={styles.enterText}>Browse rooms →</Text></Pressable>
+          </View>}
+        </View>}
       </>}
     </View>
-  </FormScrollView>{!session && <FormFooter>
+  </FormScrollView>
+  {session && !expired && !room && !invitation && <LobbyNavigation selected={lobbyTab === 'players' ? 'friends' : lobbyTab === 'games' ? 'games' : 'home'}
+    onSelect={tab => { if (tab === 'profile') setLobbyProfileOpen(true); else setLobbyTab(tab === 'home' ? 'rooms' : tab === 'friends' ? 'players' : 'games'); }} />}
+  {session && lobbyProfileOpen && <Modal visible animationType="slide" onRequestClose={() => setLobbyProfileOpen(false)}>
+    <ProfileScreen session={session} personal={personal} onBack={() => setLobbyProfileOpen(false)} onSignOut={() => { setLobbyProfileOpen(false); signOut(); }} />
+  </Modal>}
+  {!session && <FormFooter>
             {!!shared.error && <Text accessibilityRole="alert" style={styles.error}>{shared.error}</Text>}
             <Pressable accessibilityRole="button" disabled={missingProfileName || username.trim().length < 3 || password.length < 8 || shared.loggingIn}
               onPress={() => void shared.loginAccount(username, password, authMode === 'signup', profileName)}
@@ -378,18 +406,21 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
             </Pressable></FormFooter>}{room && !expired && !invitation && !gameOpen && chat.view}</KeyboardFrame></HeaderProfileContext.Provider>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.background }, container: { alignItems: 'center', paddingHorizontal: 20 }, content: { width: '100%', maxWidth: 1120 },
+  page: { flex: 1, backgroundColor: colors.background }, container: { alignItems: 'center', paddingHorizontal: 16 }, content: { width: '100%', maxWidth: 1120 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   roomMasthead: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 14, paddingVertical: 20, borderBottomWidth: 1, borderColor: colors.border },
   roomIdentity: { flex: 1, minWidth: 0, gap: 5 }, roomTitle: { fontFamily: fonts.display, fontSize: 36, lineHeight: 42, color: colors.text }, mobileRoomTitle: { fontSize: 27, lineHeight: 33 },
   roomActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   header: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16, borderBottomWidth: 1, borderColor: colors.border, paddingBottom: 18 },
   brand: { fontFamily: fonts.body, fontSize: 26, color: colors.accent }, textButton: { minHeight: 44, justifyContent: 'center' }, lightText: { fontFamily: fonts.medium, fontSize: 12, color: colors.accent },
-  hero: { paddingVertical: 32, gap: 10 }, eyebrow: { fontFamily: fonts.medium, fontSize: 9, letterSpacing: 2, color: colors.accent }, title: { fontFamily: fonts.display, fontSize: 52, color: colors.text }, mobileTitle: { fontSize: 38 }, subtitle: { fontFamily: fonts.body, fontSize: 13, lineHeight: 23, color: colors.textMuted },
-  quickActions: { flexDirection: 'row', gap: 10, marginTop: 8 }, primaryAction: { flex: 1, minHeight: 48, borderRadius: 10, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 }, primaryActionText: { fontFamily: fonts.medium, fontSize: 13, color: colors.onPrimary }, secondaryAction: { flex: 1, minHeight: 48, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 }, secondaryActionText: { fontFamily: fonts.medium, fontSize: 13, color: colors.text },
-  lobbyTabs: { flexDirection: 'row', borderBottomWidth: 1, borderColor: colors.border, marginTop: 12 }, lobbyTab: { minHeight: 46, paddingHorizontal: 20, justifyContent: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' }, activeLobbyTab: { borderBottomColor: colors.accent }, lobbyTabText: { fontFamily: fonts.medium, fontSize: 13, color: colors.textMuted }, activeLobbyTabText: { color: colors.text }, playersArea: { marginTop: 4 },
-  sectionToggle: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, sectionTitle: { fontFamily: fonts.medium, fontSize: 14, color: colors.text },
-  columns: { gap: 20 }, wideColumns: { flexDirection: 'row', alignItems: 'flex-start' }, sideColumn: { gap: 18 }, fixedSide: { width: 330 }, mainColumn: { flex: 1, minWidth: 0 },
+  hero: { paddingTop: 24, paddingBottom: 20, gap: 8 }, eyebrow: { fontFamily: fonts.medium, fontSize: 9, letterSpacing: 2, color: colors.accent }, title: { fontFamily: fonts.editorial, fontSize: 54, lineHeight: 58, color: colors.text }, mobileTitle: { fontSize: 43, lineHeight: 46 }, subtitle: { fontFamily: fonts.body, fontSize: 13, lineHeight: 23, color: colors.textMuted },
+  quickActions: { flexDirection: 'row', gap: 10, marginTop: 8 }, primaryAction: { flex: 1, minHeight: 54, borderRadius: 14, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 }, primaryActionText: { fontFamily: fonts.medium, fontSize: 13, color: colors.onPrimary }, secondaryAction: { flex: 1, minHeight: 54, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 }, secondaryActionText: { fontFamily: fonts.medium, fontSize: 13, color: colors.text },
+  lobbyTabs: { backgroundColor: colors.surface, borderTopLeftRadius: 18, borderTopRightRadius: 18, flexDirection: 'row', borderBottomWidth: 1, borderColor: colors.borderSubtle, marginTop: 14 }, lobbyTab: { flex: 1, alignItems: 'center', minHeight: 48, paddingHorizontal: 12, justifyContent: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' }, activeLobbyTab: { borderBottomColor: colors.accent }, lobbyTabText: { fontFamily: fonts.medium, fontSize: 13, color: colors.textMuted }, activeLobbyTabText: { color: colors.accent }, playersArea: { marginTop: 4, gap: 14 },
+  sectionToggle: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, sectionTitle: { fontFamily: fonts.medium, fontSize: 16, color: colors.text },
+  resumeCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, backgroundColor: colors.surfaceSelected, borderRadius: 14 },
+  resumeTitle: { fontFamily: fonts.medium, fontSize: 16, color: colors.text },
+  roomGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
+  columns: { gap: 14 }, wideColumns: { flexDirection: 'row', alignItems: 'flex-start' }, sideColumn: { gap: 18 }, fixedSide: { width: 330 }, mainColumn: { flex: 1, minWidth: 0 },
   panel: { backgroundColor: colors.surface, borderRadius: 16, padding: 24, gap: 8 }, heading: { fontFamily: fonts.display, fontSize: 27, color: colors.text }, description: { fontFamily: fonts.body, fontSize: 12, lineHeight: 21, color: colors.textMuted },
   gameTabs: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 }, gameTab: { minHeight: 44, paddingHorizontal: 12, paddingVertical: 8, gap: 6, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: colors.surface }, selectedTab: { backgroundColor: colors.surfaceSelected }, tabText: { fontFamily: fonts.medium, fontSize: 12, color: colors.textMuted }, selectedTabText: { color: colors.text }, eyebrowDark: { fontFamily: fonts.medium, fontSize: 9, letterSpacing: 2, color: colors.accent }, gameTitle: { fontFamily: fonts.display, fontSize: 34, color: colors.text },
   codeBox: { backgroundColor: colors.surface, borderRadius: 10, padding: 16, marginVertical: 10, gap: 8 }, codeLabel: { fontFamily: fonts.medium, color: colors.accent, fontSize: 9, letterSpacing: 2 }, code: { fontFamily: fonts.medium, fontSize: 22, letterSpacing: 1, color: colors.text },

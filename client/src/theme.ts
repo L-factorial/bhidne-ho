@@ -77,4 +77,4 @@ export function useThemedStyles<T>(factory: (colors: ThemeColors) => T): T {
 export function primaryAction(colors: ThemeColors, pressed = false) {
   return { backgroundColor: pressed ? colors.primaryPressed : colors.primary, borderColor: colors.primary };
 }
-export const fonts = { display: 'Inter_500Medium', body: 'Inter_400Regular', medium: 'Inter_500Medium' };
+export const fonts = { editorial: 'CormorantGaramond_700Bold', display: 'Inter_500Medium', body: 'Inter_400Regular', medium: 'Inter_500Medium' };

@@ -196,3 +196,27 @@ def test_room_members_return_current_names_for_offline_accounts_and_named_guests
         client.post(f'/rooms/{room_id}/leave', headers=friend_headers)
         assert friend['user_id'] not in {row['user_id'] for row in client.get(path, headers=headers).json()}
         assert client.get(path, headers=friend_headers).status_code == 403
+
+
+def test_room_feed_batches_real_member_previews_and_excludes_ended_tables(monkeypatch):
+    from unittest.mock import AsyncMock
+    with TestClient(create_app()) as client:
+        owner, headers = account(client, 'preview-owner', 'Prajwal')
+        friend, friend_headers = account(client, 'preview-friend', 'Sita Rai')
+        rooms = [client.post('/rooms', headers=headers, json={'name': name}).json()['room_id']
+                 for name in ['Friday cards', 'Family games']]
+        client.post(f'/rooms/{rooms[0]}/enter', headers=friend_headers)
+        table = client.post(f'/test-games/{rooms[0]}', headers=headers,
+                            json={'name': 'Call Break', 'player_count': 4}).json()
+        store = client.app.state.players.store
+        lookup = AsyncMock(wraps=store.get_players)
+        monkeypatch.setattr(store, 'get_players', lookup)
+        feed = {room['room_id']: room for room in client.get('/rooms', headers=headers).json()}
+        lookup.assert_awaited_once()
+        assert set(lookup.call_args.args[0]) == {owner['user_id'], friend['user_id']}
+        assert {player['display_name'] for player in feed[rooms[0]]['member_previews']} == {'Prajwal', 'Sita Rai'}
+        assert feed[rooms[0]]['table_count'] == 1
+        assert feed[rooms[1]]['table_count'] == 0
+        client.post(f'/test-games/{rooms[0]}/end', headers=headers, json={'match_id': table['match_id']})
+        feed = {room['room_id']: room for room in client.get('/rooms', headers=headers).json()}
+        assert feed[rooms[0]]['table_count'] == 0

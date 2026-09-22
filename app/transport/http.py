@@ -101,8 +101,17 @@ async def sign_out(
 @router.get("/rooms", response_model=list[RoomSummary])
 async def list_rooms(request: Request, user: UserIdentity = Depends(current_user)):
     rooms = await request.app.state.rooms.list_rooms(user.user_id, request.app.state.players.are_friends)
+    preview_ids = {}
     for room in rooms:
         room.connected_members = await request.app.state.connections.connected_members(room.room_id)
+        room.table_count = len(request.app.state.test_games.table_summaries(room.room_id))
+        connected = set(room.connected_members)
+        preview_ids[room.room_id] = sorted(room.members, key=lambda member: (member not in connected, member))[:4]
+    # One lookup for all visible cards, rather than a profile request per avatar.
+    profiles = {player["user_id"]: player for player in await request.app.state.players.store.get_players(
+        list(dict.fromkeys(member for members in preview_ids.values() for member in members)))}
+    for room in rooms:
+        room.member_previews = [PlayerSummary(**profiles[member]) for member in preview_ids[room.room_id] if member in profiles]
     return rooms
 
 
