@@ -4,8 +4,10 @@ import { branding, gameIcons } from '../branding';
 export function BrandLogo() {
   return <Image source={branding.logo} accessibilityLabel="Bhidne Ho" resizeMode="contain" style={styles.logo} />;
 }
-export function BrandIcon({ size = 44 }: { size?: number }) {
-  return <Image source={branding.icon} accessibilityLabel="Bhidne Ho" resizeMode="contain" style={{ width: size, height: size, borderRadius: 10 }} />;
+export const headerLogoSize = { compact: 52, regular: 60 };
+
+export function BrandIcon({ size = headerLogoSize.compact }: { size?: number }) {
+  return <Image source={branding.icon} accessibilityLabel="Bhidne Ho" resizeMode="contain" style={{ width: size, height: size, flexShrink: 0, borderRadius: 10 }} />;
 }
 export function GameIcon({ game, size = 56 }: { game: keyof typeof gameIcons; size?: number }) {
   return <Image source={gameIcons[game]} accessible={false} resizeMode="contain" style={{ width: size, height: size, borderRadius: 12 }} />;

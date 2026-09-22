@@ -1,4 +1,4 @@
-import { BrandIcon } from './BrandArt';
+import { BrandIcon, headerLogoSize } from './BrandArt';
 import { KeyboardFrame } from './KeyboardFrame';
 import { type ReactNode, useEffect, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
@@ -35,7 +35,7 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
         style={{ minWidth: 44, minHeight: 44, paddingHorizontal: small ? 8 : 12, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: colors.surfaceRaised }}>
         <Text style={{ color: colors.text, fontFamily: fonts.body }}>{small ? '←' : t('common.backToLobby')}</Text>
       </Pressable>
-      <BrandIcon size={mobile ? 44 : 52} />
+      <BrandIcon size={mobile ? headerLogoSize.compact : headerLogoSize.regular} />
       <View style={{ flex: 1, minWidth: 0 }}><Text numberOfLines={1} accessibilityRole="header" style={{ fontFamily: fonts.medium, fontSize: small ? 17 : 20, color: colors.text }}>{tableName || title}</Text>
         {!!tableName && <Text numberOfLines={1} style={{ fontFamily: fonts.body, fontSize: typography.caption, color: colors.textMuted }}>{title}</Text>}
         {!tableName && !!path && !compact && <Text numberOfLines={1} style={{ fontFamily: fonts.body, fontSize: 11, color: colors.textMuted }}>{path}</Text>}

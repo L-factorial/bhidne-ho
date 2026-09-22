@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { Modal, Text, View, useWindowDimensions } from 'react-native';
-import { BrandIcon } from './BrandArt';
+import { BrandIcon, headerLogoSize } from './BrandArt';
 import { HeaderAction } from './HeaderAction';
 import { fonts, useTheme } from '../theme';
 import { LanguageToggle } from './LanguageToggle';
@@ -20,8 +20,8 @@ export function AppHeader({ title, actions, inlineActions, hideProfile = false, 
     borderBottomWidth: lobby ? 0 : 1, borderColor: colors.border, backgroundColor: lobby ? colors.background : colors.header }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-        <BrandIcon size={compact ? 38 : 44} />
-        {!title && <Text style={{ color: colors.text, fontFamily: lobby ? fonts.editorial : fonts.medium, fontSize: lobby ? 28 : compact ? 16 : 18 }}>Bhidne Ho</Text>}
+        <BrandIcon size={compact ? headerLogoSize.compact : headerLogoSize.regular} />
+        {!title && <Text numberOfLines={1} style={{ flexShrink: 1, color: colors.text, fontFamily: lobby ? fonts.editorial : fonts.medium, fontSize: lobby ? (compact ? 24 : 28) : compact ? 16 : 18 }}>Bhidne Ho</Text>}
         {!!title && <Text accessibilityRole="header" style={{ flexShrink: 1, color: colors.text, fontFamily: fonts.medium, fontSize: 18 }}>{title}</Text>}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
