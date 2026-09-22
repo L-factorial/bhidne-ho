@@ -64,8 +64,8 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   useEffect(() => { bindSession(session); }, [session?.user_id, session?.token, bindSession]);
   const [gameOpen, setGameOpen] = useState(false);
   const chat = useRoomChat({ roomId: room?.room_id || '', session: session || { token: '', user_id: '' }, connected: !!room && !!session && !expired && !gameOpen && shared.status === 'connected',
-    launcherVisible: roomPanel === null, expanded: roomPanel === 'chat', onExpandedChange: open => setRoomPanel(current => open ? 'chat' : current === 'chat' ? null : current), bottomOffset: 56,
-    renderLauncher: ({ unread, blocked, toggle }) => <RoomToolbar panel={roomPanel} unread={unread} chatBlocked={blocked} onTables={() => setRoomPanel(null)} onChat={toggle} onMembers={() => setRoomPanel('members')} onMore={() => setRoomPanel('more')} />,
+    launcherVisible: false, expanded: roomPanel === 'chat', onExpandedChange: open => setRoomPanel(current => open ? 'chat' : current === 'chat' ? null : current), bottomOffset: 56,
+    renderLauncher: ({ unread, blocked, toggle }) => <RoomToolbar inline={roomPanel === null} onLedger={() => setRoomPanel('ledger')} panel={roomPanel} unread={unread} chatBlocked={blocked} onTables={() => setRoomPanel(null)} onChat={toggle} onMembers={() => setRoomPanel('members')} onMore={() => setRoomPanel('more')} />,
   });
   useEffect(() => {
     setInviteOpen(false); setRoomPanel(null);
@@ -183,16 +183,23 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
           if (joined) { setLinkedMatch(matchId); clearInvitation(); }
           return joined;
         }} /> : room ? <>
-        <View style={styles.roomMasthead}>
-          <View style={styles.roomIdentity}>
-            <Text accessibilityRole="header" style={[styles.roomTitle, !wide && styles.mobileRoomTitle]}>{current?.name || room.name}</Text>
-            <RoomShareActions roomId={room.room_id} />
-            <Text style={styles.subtitle}>{current?.connected_members?.length || 0} online · {roomMembers.length} members</Text>
+        <View testID="room-hero" style={{ backgroundColor: '#142E29', borderRadius: 26, padding: 20, gap: 18, marginTop: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Back to lobby" onPress={() => { setLinkedMatch(undefined); shared.exitRoom(); }} style={{ minWidth: 44, minHeight: 44, justifyContent: 'center' }}><Ionicons name="arrow-back" size={24} color="#FFF8EB" /></Pressable>
+            <View style={{ flex: 1 }}><Text accessibilityRole="header" style={{ fontFamily: fonts.editorial, fontSize: 34, color: '#FFF8EB' }}>{current?.name || room.name}</Text>
+              <Text style={{ fontFamily: fonts.body, color: '#D4E3DC', fontSize: 13 }}>{roomMembers.length} members · {current?.connected_members?.length || 0} online</Text><Text selectable style={{ fontFamily: fonts.body, color: '#D4E3DC', fontSize: 12, marginTop: 4 }}>Room code: {room.room_id}</Text>
+            </View>
+            <Pressable accessibilityRole="button" accessibilityLabel="More room actions" onPress={() => setRoomPanel('more')} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="settings-outline" size={25} color="#FFF8EB" /></Pressable>
           </View>
-          <View style={styles.roomActions}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Back to lobby" onPress={() => { setLinkedMatch(undefined); shared.exitRoom(); }} style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 2 }}><Ionicons name="chevron-back" size={18} color={colors.textMuted} /><Text style={styles.subtitle}>Lobby</Text></Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Preview room members" onPress={() => setRoomPanel('members')} style={{ flex: 1, flexDirection: 'row', gap: 5, minHeight: 44, alignItems: 'center' }}>
+              {(current?.member_previews || []).slice(0, 4).map(member => <View key={member.user_id} accessibilityLabel={member.display_name} style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: '#D8C6A5', backgroundColor: '#34544A', alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#FFF8EB', fontFamily: fonts.medium }}>{member.display_name.trim().slice(0, 1).toUpperCase()}</Text></View>)}
+              {roomMembers.length > (current?.member_previews?.length || 0) && <Text style={{ color: '#D4E3DC', fontFamily: fonts.medium }}>+{roomMembers.length - (current?.member_previews?.length || 0)}</Text>}
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Invite to room" onPress={() => { setInviteOpen(true); setRoomPanel('members'); }} style={{ borderWidth: 1, borderColor: '#8AA298', paddingHorizontal: 20, minHeight: 44, borderRadius: 12, justifyContent: 'center' }}><Text style={{ color: '#FFF8EB', fontFamily: fonts.medium }}>Invite</Text></Pressable>
           </View>
         </View>
+        {!gameOpen && roomPanel === null && chat.navigation}
         <View style={[styles.columns, { flex: 1 }]}>
           <View style={styles.mainColumn}>
             {session && <RoomGameControl socialChannel={shared.socialChannel} onOpenChange={setGameOpen} requestedMatchId={linkedMatch} personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={current?.connected_members || []} roomMembers={roomMembers} connectionMessage={expired ? shared.error : undefined}

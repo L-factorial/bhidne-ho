@@ -290,12 +290,6 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
     }
   }
   return <>
-    <View style={[styles.sectionToggle, { marginVertical: 16 }]}>
-      <Text accessibilityRole="header" style={styles.title}>Tables</Text>
-      {!!visibleTables.length && <Pressable accessibilityRole="button" accessibilityLabel="Create table" disabled={busy || !creationEnabled} onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 44 }]}>
-        <Text style={[styles.buttonText, { color: colors.onPrimary }]}>+ Create table</Text>
-      </Pressable>}
-    </View>
     {!snapshot && <Text style={styles.text}>Loading tables…</Text>}
     {snapshot && !visibleTables.length && <View testID="room-empty-tables" style={{ flexGrow: 1, minHeight: 260, alignItems: 'center', justifyContent: 'center', paddingVertical: 32, gap: 24 }}>
       <Text style={[styles.text, { textAlign: 'center', maxWidth: 320, fontSize: 17, lineHeight: 26 }]}>No tables yet. Start a table and invite your friends.</Text>
@@ -304,6 +298,9 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
       </Pressable>
     </View>}
     {visibleTables.map(table => <TableCard key={table.match_id} roomId={roomId} table={table} busy={busy} enter={action => void enterTable(table.match_id, action)} />)}
+      {!!visibleTables.length && <Pressable accessibilityRole="button" accessibilityLabel="Create table" disabled={busy || !creationEnabled} onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 52, marginBottom: 16 }]}>
+        <Text style={[styles.buttonText, { color: colors.onPrimary }]}>+ Create New Table</Text>
+      </Pressable>}
     {collapsed && !!notification.notice && <Animated.View style={{ opacity: notification.opacity }}>
       <Pressable accessibilityRole="button" onPress={() => void returnToGame()} style={styles.choice}><Text style={styles.text}>{notification.notice} · Return to table</Text></Pressable>
     </Animated.View>}
