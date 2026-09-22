@@ -181,20 +181,20 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
           if (joined) { setLinkedMatch(matchId); clearInvitation(); }
           return joined;
         }} /> : room ? <>
-        <View testID="room-hero" style={{ backgroundColor: '#142E29', borderRadius: 26, padding: 20, gap: 18, marginTop: 12 }}>
+        <View testID="room-hero" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.tableTrim, borderRadius: 20, padding: 20, gap: 18, marginTop: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Back to lobby" onPress={() => { setLinkedMatch(undefined); shared.exitRoom(); }} style={{ minWidth: 44, minHeight: 44, justifyContent: 'center' }}><Ionicons name="arrow-back" size={24} color="#FFF8EB" /></Pressable>
-            <View style={{ flex: 1 }}><Text accessibilityRole="header" style={{ fontFamily: fonts.editorial, fontSize: 34, color: '#FFF8EB' }}>{current?.name || room.name}</Text>
-              <Text style={{ fontFamily: fonts.body, color: '#D4E3DC', fontSize: 13 }}>{roomMembers.length} members · {current?.connected_members?.length || 0} online</Text><Text selectable style={{ fontFamily: fonts.body, color: '#D4E3DC', fontSize: 12, marginTop: 4 }}>Room code: {room.room_id}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Back to lobby" onPress={() => { setLinkedMatch(undefined); shared.exitRoom(); }} style={{ minWidth: 44, minHeight: 44, justifyContent: 'center' }}><Ionicons name="arrow-back" size={24} color={colors.accent} /></Pressable>
+            <View style={{ flex: 1 }}><Text accessibilityRole="header" style={{ fontFamily: fonts.editorial, fontSize: 34, color: colors.text }}>{current?.name || room.name}</Text>
+              <Text style={{ fontFamily: fonts.body, color: colors.textMuted, fontSize: 13 }}>{roomMembers.length} members · {current?.connected_members?.length || 0} online</Text><Text selectable style={{ fontFamily: fonts.body, color: colors.textMuted, fontSize: 12, marginTop: 4 }}>Room code: {room.room_id}</Text>
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel="More room actions" onPress={() => setRoomPanel('more')} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="settings-outline" size={25} color="#FFF8EB" /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="More room actions" onPress={() => setRoomPanel('more')} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="settings-outline" size={25} color={colors.accent} /></Pressable>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Pressable accessibilityRole="button" accessibilityLabel="Preview room members" onPress={() => setRoomPanel('members')} style={{ flex: 1, flexDirection: 'row', gap: 5, minHeight: 44, alignItems: 'center' }}>
-              {(current?.member_previews || []).slice(0, 4).map(member => <View key={member.user_id} accessibilityLabel={member.display_name} style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: '#D8C6A5', backgroundColor: '#34544A', alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#FFF8EB', fontFamily: fonts.medium }}>{member.display_name.trim().slice(0, 1).toUpperCase()}</Text></View>)}
-              {roomMembers.length > (current?.member_previews?.length || 0) && <Text style={{ color: '#D4E3DC', fontFamily: fonts.medium }}>+{roomMembers.length - (current?.member_previews?.length || 0)}</Text>}
+              {(current?.member_previews || []).slice(0, 4).map(member => <View key={member.user_id} accessibilityLabel={member.display_name} style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: colors.tableTrim, backgroundColor: colors.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.text, fontFamily: fonts.medium }}>{member.display_name.trim().slice(0, 1).toUpperCase()}</Text></View>)}
+              {roomMembers.length > (current?.member_previews?.length || 0) && <Text style={{ color: colors.textMuted, fontFamily: fonts.medium }}>+{roomMembers.length - (current?.member_previews?.length || 0)}</Text>}
             </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Invite to room" onPress={() => { setInviteOpen(true); setRoomPanel('members'); }} style={{ borderWidth: 1, borderColor: '#8AA298', paddingHorizontal: 20, minHeight: 44, borderRadius: 12, justifyContent: 'center' }}><Text style={{ color: '#FFF8EB', fontFamily: fonts.medium }}>Invite</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Invite to room" onPress={() => { setInviteOpen(true); setRoomPanel('members'); }} style={{ borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.primary, paddingHorizontal: 20, minHeight: 44, borderRadius: 12, justifyContent: 'center' }}><Text style={{ color: colors.onPrimary, fontFamily: fonts.medium }}>Invite</Text></Pressable>
           </View>
         </View>
         {!gameOpen && roomPanel === null && chat.navigation}
