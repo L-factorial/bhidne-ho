@@ -218,7 +218,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
               </>} />}
           </View>
         </View>
-        {session && <RoomSheet visible={!gameOpen && roomPanel !== null && roomPanel !== 'chat'} title={roomPanel === 'members' ? `Members · ${roomMembers.length}` : roomPanel === 'ledger' ? 'Ledger & settlements' : 'Room options'} onClose={() => setRoomPanel(null)}
+        {session && <RoomSheet tableStyle={roomPanel === 'ledger'} visible={!gameOpen && roomPanel !== null && roomPanel !== 'chat'} title={roomPanel === 'members' ? `Members · ${roomMembers.length}` : roomPanel === 'ledger' ? 'Ledger & settlements' : 'Room options'} onClose={() => setRoomPanel(null)}
           footer={<>{roomPanel === 'members' && <View style={{ paddingHorizontal: 20, paddingVertical: 8, borderTopWidth: 1, borderColor: colors.borderSubtle }}>
               <Pressable accessibilityRole="button" accessibilityLabel="Invite people" aria-expanded={inviteOpen} accessibilityState={{ expanded: inviteOpen }} onPress={() => setInviteOpen(value => !value)} style={styles.sectionToggle}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><Ionicons name="person-add-outline" size={21} color={colors.accent} /><Text style={styles.sectionTitle}>Invite people</Text></View><Text style={styles.sectionTitle}>{inviteOpen ? '-' : '+'}</Text>

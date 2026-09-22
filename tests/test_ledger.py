@@ -129,3 +129,34 @@ async def test_ledger_projection_failure_does_not_fail_an_already_committed_game
     await service._try_record_completed_ledger(game)
     assert attempts == 1
     assert game.ledger_retry_at > 0
+
+
+def test_ledger_profiles_are_batched_and_only_available_to_room_members(monkeypatch):
+    from fastapi.testclient import TestClient
+    from app.main import create_app
+    from tests.test_players import account
+
+    app = create_app()
+    with TestClient(app) as client:
+        owner, headers = account(client, 'ledger-profile-owner', 'Owner')
+        friend, _ = account(client, 'ledger-profile-friend', 'Friend')
+        _, outsider = account(client, 'ledger-profile-outsider', 'Outsider')
+        room = client.post('/rooms', headers=headers, json={'name': 'Friday cards'}).json()
+        game = result('game-avatars', 'table-avatars', {owner['user_id']: 20, friend['user_id']: -20})
+        game.room_id = room['room_id']
+        client.portal.call(app.state.ledger.record_game, game)
+        calls = []
+
+        async def profiles(ids):
+            calls.append(set(ids))
+            return [{'user_id': owner['user_id'], 'display_name': 'Owner', 'avatar_url': 'https://example.com/photo.png'},
+                    {'user_id': friend['user_id'], 'display_name': 'Friend'}]
+
+        monkeypatch.setattr(app.state.players.store, 'get_players', profiles)
+        response = client.get(f"/rooms/{room['room_id']}/ledger", headers=headers)
+        assert response.status_code == 200
+        assert calls == [{owner['user_id'], friend['user_id']}]
+        assert response.json()['player_profiles'][owner['user_id']]['avatar_url'] == 'https://example.com/photo.png'
+        assert response.json()['player_profiles'][friend['user_id']]['avatar_url'] is None
+        assert client.get(f"/rooms/{room['room_id']}/ledger", headers=outsider).status_code == 403
+        assert len(calls) == 1
