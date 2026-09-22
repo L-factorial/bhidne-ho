@@ -33,8 +33,8 @@ async function api(path, user, body, method) {
     await page.screenshot({ path: '/tmp/bhidne-lobby-reference-light.png', fullPage: true });
     const nav = page.getByTestId('lobby-navigation');
     await nav.getByRole('tab', { name: 'Games', exact: true }).click();
-    await page.getByRole('heading', { name: 'Rooms with open tables', exact: true }).waitFor();
-    assert.equal(await page.getByTestId(/^room-card-/).count(), 1);
+    await page.getByTestId('active-games-callbreak').getByTestId(/^table-card-/).waitFor();
+    assert.equal(await page.getByTestId(/^table-card-/).count(), 1);
     await nav.getByRole('tab', { name: 'Home', exact: true }).click();
     await page.getByRole('button', { name: `Share ${rooms[0].name}`, exact: true }).click();
     await page.getByRole('button', { name: 'Copy room code', exact: true }).waitFor();

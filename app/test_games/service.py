@@ -243,16 +243,13 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             raise HTTPException(404, "No test game in this room.")
         return game
 
-    def _snapshot(self, game, user_id):
-        result = self._game_snapshot(game, user_id)
-        result["table_name"] = game.name
-        result["path"] = f"{game.room_id}/{game.name}"
-        result["tables"] = []
-        for hosted in self._room_games(game.room_id):
+    def table_previews(self, room_id, user_id):
+        summaries = []
+        for hosted in self._room_games(room_id):
             if hosted.ended:
                 continue
             view = hosted.table.view(hosted, user_id)
-            result["tables"].append({
+            summaries.append({
                 "match_id": hosted.match_id, "name": hosted.name, "game_type": hosted.game_type,
                 "status": "ended" if hosted.ended else "finished" if hosted.finished else "playing" if hosted.started else "waiting",
                 "players": len(view["seated_players"]), "capacity": hosted.capacity,
@@ -262,6 +259,13 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                     self.profiles.name(seat["user_id"], seat["seat_id"]) if self.profiles else f"Player {seat['seat_id']}"}
                     for seat in view["seated_players"]],
             })
+        return summaries
+
+    def _snapshot(self, game, user_id):
+        result = self._game_snapshot(game, user_id)
+        result["table_name"] = game.name
+        result["path"] = f"{game.room_id}/{game.name}"
+        result["tables"] = self.table_previews(game.room_id, user_id)
         result["rule_proposal"] = self._proposal_view(game, user_id)
         result["active_game"] = self.membership(game.room_id, user_id)
         result["chat_enabled"] = not self.chat_blocked(game.room_id, user_id)

@@ -9,7 +9,7 @@ export function TableCard({ table, roomId, busy, enter }: { roomId: string; tabl
   const { colors: c } = useTheme();
   const [sharing, setSharing] = useState(false);
   const primary = tableEntry(table), me = table.current_user;
-  const actionLabel = me?.is_seated ? 'Return' : primary.action === 'seat' ? 'Join' : primary.label;
+  const actionLabel = me?.is_seated ? 'Return' : primary.action === 'seat' ? 'Take seat' : primary.label;
   const players = table.seated_players || [];
   const ended = table.status === 'ended' || table.phase === 'ENDED';
   const secondary = (label: string, action: TableEntry) => <Pressable accessibilityRole="button" accessibilityLabel={`${label} · ${table.name}`} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => enter(action)} style={{ minHeight: 44, paddingHorizontal: 12, justifyContent: 'center' }}><Text style={{ color: c.accent, fontFamily: fonts.medium }}>{label}</Text></Pressable>;

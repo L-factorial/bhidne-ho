@@ -115,6 +115,15 @@ async def list_rooms(request: Request, user: UserIdentity = Depends(current_user
     return rooms
 
 
+@router.get("/active-tables")
+async def active_tables(request: Request, user: UserIdentity = Depends(current_user)):
+    # Use exactly the same room visibility boundary as the lobby feed.
+    rooms = await request.app.state.rooms.list_rooms(user.user_id, request.app.state.players.are_friends)
+    return [{**table, "room_id": room.room_id, "room_name": room.name}
+            for room in rooms
+            for table in request.app.state.test_games.table_previews(room.room_id, user.user_id)]
+
+
 @router.post("/rooms", response_model=RoomSummary, status_code=201)
 async def create_room(body: CreateRoom, request: Request, user: UserIdentity = Depends(current_user)):
     invitees = list(dict.fromkeys(body.invitees))

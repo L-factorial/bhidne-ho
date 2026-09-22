@@ -26,9 +26,9 @@ import { request } from '../multiplayer/api';
 
 type InvitePlayer = { user_id: string; display_name: string; username?: string | null; eligible?: boolean; reason?: string | null };
 
-export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMatchId, roomId, apiUrl, token, connected, members, roomMembers = members, connectionMessage, userId, pokes, personal, createContent, creationEnabled = true, gameType = 'callbreak' }: {
+export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMatchId, requestedEntry, roomId, apiUrl, token, connected, members, roomMembers = members, connectionMessage, userId, pokes, personal, createContent, creationEnabled = true, gameType = 'callbreak' }: {
   socialChannel?: TableSocialChannel; chat?: ReactNode; onOpenChange?: (open: boolean) => void;
-  requestedMatchId?: string;
+  requestedMatchId?: string; requestedEntry?: TableEntry;
   gameType?: 'callbreak' | 'marriage' | 'flush';
   createContent?: ReactNode; creationEnabled?: boolean;
   userId: string; pokes: RoomPoke[]; personal: ReturnType<typeof usePlayerPhrases>;
@@ -90,10 +90,10 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
   })) } : null;
   const openedInvitation = useRef<string | null>(null);
   useEffect(() => {
-    if (requestedMatchId && snapshot?.match_id === requestedMatchId && snapshot.status !== 'ended' && openedInvitation.current !== requestedMatchId) {
+    if ((!requestedEntry || requestedEntry === 'watch') && requestedMatchId && snapshot?.match_id === requestedMatchId && snapshot.status !== 'ended' && openedInvitation.current !== requestedMatchId) {
       openedInvitation.current = requestedMatchId; setLive(true); setOpen(true);
     }
-  }, [requestedMatchId, snapshot?.match_id, snapshot?.status]);
+  }, [requestedMatchId, requestedEntry, snapshot?.match_id, snapshot?.status]);
   useEffect(() => {
     if (snapshot?.status === 'ended') {
       selectedMatch.current = undefined;
@@ -289,6 +289,14 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
       if (alive.current) { setBusy(false); setActionTick(v => v + 1); }
     }
   }
+  const enteredFromLobby = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!requestedMatchId || !requestedEntry || requestedEntry === 'watch' || busy || snapshot?.match_id !== requestedMatchId) return;
+    const key = `${requestedMatchId}:${requestedEntry}`;
+    if (enteredFromLobby.current === key) return;
+    enteredFromLobby.current = key;
+    void enterTable(requestedMatchId, requestedEntry);
+  }, [requestedMatchId, requestedEntry, busy, snapshot?.match_id]);
   return <>
     {!snapshot && <Text style={styles.text}>Loading tables…</Text>}
     {snapshot && !visibleTables.length && <View testID="room-empty-tables" style={{ flexGrow: 1, minHeight: 260, alignItems: 'center', justifyContent: 'center', paddingVertical: 32, gap: 24 }}>
