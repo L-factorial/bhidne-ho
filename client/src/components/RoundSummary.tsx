@@ -1,3 +1,4 @@
+import { RoundResultsTable } from './RoundResultsTable';
 import type { ReactNode } from 'react';
 import { ActionCue } from './ActionCue';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -13,16 +14,19 @@ export function RoundSummary({ snapshot, busy, error, onContinue, onBack, onNewG
   const round = [...(snapshot.deal_history || [])].reverse().find(d => d.complete);
   const final = snapshot.game?.finished;
   const name = (id: number) => snapshot.players?.find(p => p.player_id === id)?.display_name || `Player ${id}`;
-  const score = (n: number | null | undefined) => n == null ? '—' : (n / 10).toFixed(1);
+  const score = (n: number | null | undefined) => n == null ? '—' : `${n > 0 ? '+' : ''}${(n / 10).toFixed(1)}`;
   return <ScrollView testID="round-summary" style={styles.page} contentContainerStyle={styles.body}>
-    <Text accessibilityRole="header" style={styles.title}>{final ? 'Final scores' : `Deal ${round?.deal_number} complete`}</Text>
-    {final && <Text style={styles.note}>Winner{snapshot.game!.winners.length > 1 ? 's' : ''}: {snapshot.game!.winners.map(name).join(', ')}</Text>}
+    <RoundResultsTable title={final ? 'Final scores' : `Deal ${round?.deal_number} complete`}
+      subtitle={final ? `Winner${snapshot.game!.winners.length > 1 ? 's' : ''}: ${snapshot.game!.winners.map(name).join(', ')}` : 'Round complete · Call Break'}
+      columns={['Bid', 'Taken', 'Score', 'Total']} rows={(round?.players || []).map(player => {
+        const total = snapshot.scoreboard?.find(p => p.player_id === player.player_id)?.total_score_tenths;
+        return { id: String(player.player_id), name: name(player.player_id), avatarUrl: snapshot.players?.find(p => p.player_id === player.player_id)?.avatar_url,
+          own: player.player_id === snapshot.your_player_id, winner: final && snapshot.game!.winners.includes(player.player_id), values: [
+            { text: String(player.bid ?? '—') }, { text: String(player.tricks_won) },
+            { text: score(player.score_tenths), amount: player.score_tenths ?? undefined }, { text: score(total), amount: total },
+          ] };
+      })} />
     {controls}
-    {round?.players.map(player => <View key={player.player_id} style={styles.row}>
-      <Text style={styles.name}>{name(player.player_id)}{player.player_id === snapshot.your_player_id ? ' · You' : ''}</Text>
-      <Text style={styles.note}>Bid {player.bid} · Won {player.tricks_won}</Text>
-      <Text style={[styles.note, { color: (player.score_tenths || 0) < 0 ? colors.danger : colors.success }]}>Deal {score(player.score_tenths)} · Total {score(snapshot.scoreboard?.find(p => p.player_id === player.player_id)?.total_score_tenths)}</Text>
-    </View>)}
     {!!error && <Text accessibilityRole="alert" style={styles.note}>{error}</Text>}
     {controls === undefined && (final && snapshot.table?.requires_replacement ? <Text style={styles.note}>Keep your seat for the next match, or choose Leave Seat above. The host can prepare the next match when every seat is filled.</Text> : (final || snapshot.round_review?.can_continue) ? <Pressable accessibilityRole="button" disabled={busy} onPress={final ? onNewGame : onContinue}
       style={[styles.button, busy && { opacity: 0.5 }]}><ActionCue active={!busy} style={styles.name}>{final ? 'Start a new game' : 'Start next deal'}</ActionCue></Pressable>

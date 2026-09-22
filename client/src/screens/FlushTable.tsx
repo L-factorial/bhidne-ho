@@ -1,3 +1,4 @@
+import { RoundResultsTable } from '../components/RoundResultsTable';
 import { RoomSheet } from '../components/RoomSheet';
 import { FormFooter } from '../components/FormFooter';
 import { NumericInput } from '../components/NumericInput';
@@ -243,8 +244,13 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
         <Text style={s.text}>{name(pub.pending_show.target_id)} can fold or reveal their cards.</Text>
         {can('reveal_cards') && <View style={s.row}>{button('Reveal cards', () => act('REVEAL_CARDS'), busy)}{button('Fold', () => act('FOLD'), busy)}</View>}
       </View>}
-      {pub?.settlement && <View style={s.panel} testID="flush-round-result"><Text style={s.title}>Winner: {pub.settlement.winner_ids.map(name).join(', ')}</Text>
-        {pub.settlement.payouts.map(p => <Text key={p.player_id} style={s.text}>{name(p.player_id)} receives {p.amount} points</Text>)}
+      {pub?.settlement && <View style={s.panel} testID="flush-round-result"><RoundResultsTable subtitle={`Winner: ${pub.settlement.winner_ids.map(name).join(', ')}`} columns={['Payout', 'Net']} rows={(pub.round_results.find(r => r.round_number === pub.round_number)?.net_changes || pub.settlement.payouts).map(p => {
+          const net = pub.round_results.find(r => r.round_number === pub.round_number)?.net_changes.find(row => row.player_id === p.player_id)?.amount;
+          const payout = pub.settlement!.payouts.find(row => row.player_id === p.player_id)?.amount || 0;
+          return { id: p.player_id, name: name(p.player_id), avatarUrl: snapshot.players?.find(player => String(player.player_id) === p.player_id)?.avatar_url,
+            own: p.player_id === String(snapshot.your_player_id), winner: pub.settlement!.winner_ids.includes(p.player_id),
+            values: [{ text: String(payout) }, { text: net === undefined ? '—' : `${net > 0 ? '+' : ''}${net}`, amount: net }] };
+        })} />
         {pub.settlement.shown_hands.map(p => <View key={p.player_id}><Text style={s.text}>{name(p.player_id)}’s shown hand</Text><FlushCards autoReveal key={`${pub.round_number}:${p.player_id}`} label={`${name(p.player_id)} card`} cards={p.cards.map(c => `${({11:'J',12:'Q',13:'K',14:'A'} as Record<number,string>)[c.rank] || c.rank}${c.suit}`)} /></View>)}
         <Text style={s.text}>Players may join or leave now. The creator must lock the table before the next deal.</Text>
         </View>}

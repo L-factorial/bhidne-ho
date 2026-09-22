@@ -136,7 +136,15 @@ async function api(path, user, body) {
   for (const p of pages) await p.getByTestId('flush-show-overlay').waitFor();
   const state=await api(root,users[0]);const reveal=Number(state.flush.public.pending_show.target_id)-1;
   await pages[reveal].getByTestId('flush-show-overlay').getByRole('button',{name:'Reveal cards',exact:true}).click();
-  for (const p of pages) {await p.getByTestId('flush-round-result').waitFor();await button(p,'Close final show').click();}
+  for (const [index, p] of pages.entries()) {
+   const result = p.getByTestId('flush-round-result'); await result.waitFor();
+   assert.equal(await result.getByTestId(/^result-player-/).count(), 3);
+   await result.getByText('Payout', { exact: true }).waitFor();
+   await result.getByText('Net', { exact: true }).waitFor();
+   assert.equal(await result.getByLabel('Anonymous player profile').count(), 3);
+   await p.screenshot({ path: `/tmp/results-flush-${index}.png` });
+   await button(p,'Close final show').click();
+  }
   await owner.getByTestId('flush-center-start').waitFor();
   await button(owner,'Table menu').click();await button(owner,'Rules').click();await owner.getByTestId('flush-rules').waitFor();await button(owner,'Close Flush rules').click();
   await button(owner,'Table menu').click();await button(owner,'Bet history').click();await owner.getByTestId('flush-bet-grid').waitFor();await button(owner,'Close Bet').click();

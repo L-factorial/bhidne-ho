@@ -1,3 +1,4 @@
+import { MarriageRoundResults } from '../components/MarriageScoring';
 import { useTableSocial } from '../components/TableSocial';
 import { TurnIndicator } from '../components/TurnIndicator';
 import { EndedTableNotice } from '../components/EndedTableNotice';
@@ -191,9 +192,9 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         <Text style={s.text}>Each player draws, shows melds, and discards on their own turn. Play waits for disconnected players to return.</Text>
         {!snapshot.is_creator && <Text style={s.text}>Waiting for the creator to start.</Text>}
       </ScrollView> : <>
-        {snapshot.status === 'finished' && <View style={s.panel}><Text accessibilityRole="header" style={s.heading}>{name(pub.winner)} wins!</Text>
+        {snapshot.status === 'finished' && <ScrollView style={{ maxHeight: '60%', flexShrink: 1 }} contentContainerStyle={s.panel}><MarriageRoundResults snapshot={snapshot} /><Text accessibilityRole="header" style={s.heading}>{name(pub.winner)} wins!</Text>
           <Text style={s.text}>{pub.normal_finish ? 'Normal hand complete.' : 'Eight Dublees complete.'} Ready for another round?</Text>
-          {pub.normal_finish && button('View winning hand', () => setDetails('points'))}{startCue}</View>}
+          {pub.normal_finish && button('View winning hand', () => setDetails('points'))}{startCue}</ScrollView>}
         <View style={s.columns}>
           <View style={s.main}>
             <View style={s.table}>

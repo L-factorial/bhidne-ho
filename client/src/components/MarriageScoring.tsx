@@ -1,3 +1,4 @@
+import { RoundResultsTable } from './RoundResultsTable';
 import { FormScrollView } from './FormInput';
 import { type ReactNode } from 'react';
 import { FormFooter } from './FormFooter';
@@ -59,6 +60,18 @@ export function MarriageScoring({ snapshot, busy, error, onSave, introduction }:
     </FormFooter></View>;
 }
 
+export function MarriageRoundResults({ snapshot }: { snapshot: RoomSnapshot }) {
+  const scores = snapshot.marriage?.public.scores;
+  if (!scores) return null;
+  const name = (id: string) => snapshot.players?.find(p => String(p.player_id) === id)?.display_name || `Player ${id}`;
+  const signed = (n: number) => n > 0 ? `+${n}` : String(n);
+  return <RoundResultsTable subtitle={`Winner: ${name(scores.winner)}`} columns={['Maal', 'Payment', 'Net']} rows={scores.players.map(p => ({
+    id: p.player_id, name: name(p.player_id), avatarUrl: snapshot.players?.find(player => String(player.player_id) === p.player_id)?.avatar_url,
+    own: p.player_id === String(snapshot.your_player_id), winner: p.player_id === scores.winner,
+    values: [{ text: String(p.maal_points) }, { text: signed(p.winner_payment), amount: p.winner_payment }, { text: signed(p.net_points), amount: p.net_points }],
+  }))} />;
+}
+
 export function MarriagePoints({ snapshot }: { snapshot: RoomSnapshot }) {
   const s = useThemedStyles(createStyles);
   const scores = snapshot.marriage?.public.scores;
@@ -67,7 +80,7 @@ export function MarriagePoints({ snapshot }: { snapshot: RoomSnapshot }) {
   return <View testID="marriage-points" style={s.section}>
     {!scores ? <Text style={s.text}>{snapshot.status === 'ended' ? 'The game was ended without a winner. No final points were calculated.'
       : snapshot.status === 'finished' ? 'This round has no scoring breakdown available.' : 'Points appear here when the round finishes, using the saved scoring rules.'}</Text> : <>
-      <Text style={s.heading}>Winner: {name(scores.winner)}</Text>
+      <MarriageRoundResults snapshot={snapshot} />
       <Text style={s.text}>Total Maal: {scores.total_maal}. Positive points are won; negative points are paid.</Text>
       <Text style={s.text}>Maal net = players x own Maal - total Maal. Net points = Maal net + winner payment. All net points sum to zero.</Text>
       <Text style={s.text}>Each loser pays {scores.rules.seen_payment} if Maal seen, otherwise {scores.rules.unseen_payment}, plus {scores.rules.dublee_win_bonus} for a Dublee winner.</Text>
