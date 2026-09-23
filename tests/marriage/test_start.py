@@ -134,8 +134,9 @@ def test_views_omit_hidden_cards_history_rng_and_indicator():
         assert set(data) == {"public", "player_id", "hand", "actions", "maal"}
         assert set(data["public"]) == {
             "revision", "status", "players", "current_player_id", "phase",
-            "stock_count", "top_discard", "winner", "scores", "scoring_rules", "normal_finish",
+            "stock_count", "top_discard", "winner", "scores", "scoring_rules", "normal_finish", "winning_pair",
         }
+        assert data["public"]["winning_pair"] == ()
         hidden = state.stock + tuple(card for p in state.players if p.player_id != seat for card in p.hand)
         assert not any(card.card_id in repr(data) for card in hidden)
         for p in data["public"]["players"]:
