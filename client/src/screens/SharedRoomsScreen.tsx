@@ -211,11 +211,13 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
         }} /> : room ? <>
         <View testID="room-hero" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderSubtle, borderRadius: 24, padding: 16, gap: 18, marginTop: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Back to lobby" onPress={() => { setLinkedMatch(undefined); shared.exitRoom(); }} style={{ minWidth: 44, minHeight: 44, justifyContent: 'center' }}><Ionicons name="arrow-back" size={24} color={colors.accent} /></Pressable>
-            <View style={{ flex: 1 }}><Text accessibilityRole="header" style={{ fontFamily: fonts.editorial, fontSize: 30, color: colors.text }}>{current?.name || room.name}</Text>
+            <View style={{ flex: 1, minWidth: 0 }}><Text accessibilityRole="header" style={{ fontFamily: fonts.editorial, fontSize: 30, color: colors.text }}>{current?.name || room.name}</Text>
               <Text style={{ fontFamily: fonts.body, color: colors.textMuted, fontSize: 13 }}>{roomMembers.length} members · {current?.connected_members?.length || 0} online</Text><CopyRoomCode roomId={room.room_id} inline menu />
             </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Back to lobby" onPress={() => { setLinkedMatch(undefined); shared.exitRoom(); }} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="arrow-back" size={24} color={colors.accent} /></Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel="More room actions" onPress={() => setRoomPanel('more')} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="settings-outline" size={25} color={colors.accent} /></Pressable>
+            </View>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Pressable accessibilityRole="button" accessibilityLabel="Preview room members" onPress={() => setRoomPanel('members')} style={{ flex: 1, flexDirection: 'row', gap: 5, minHeight: 44, alignItems: 'center' }}>

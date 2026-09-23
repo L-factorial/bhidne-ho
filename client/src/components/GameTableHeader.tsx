@@ -46,19 +46,20 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
   }, [open, !!drawerMetadata]);
   return <>
     <View testID={`${game}-${mobile && mobileTestIds ? 'mobile-' : ''}header`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 8, backgroundColor: colors.surface, borderBottomWidth: 1, borderColor: colors.borderSubtle }}>
-      <Pressable accessibilityRole="button" accessibilityLabel={t('common.backToLobby')} onPress={onBack}
-        style={{ minWidth: 44, minHeight: 44, paddingHorizontal: small ? 8 : 12, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: colors.surfaceRaised }}>
-        <Text style={{ color: colors.text, fontFamily: fonts.body }}>{small ? '←' : t('common.backToLobby')}</Text>
-      </Pressable>
       <BrandIcon size={mobile ? headerLogoSize.compact : headerLogoSize.regular} />
       <View style={{ flex: 1, minWidth: 0 }}><Text numberOfLines={1} accessibilityRole="header" style={{ fontFamily: fonts.medium, fontSize: small ? 17 : 20, color: colors.text }}>{tableName || title}</Text>
         {!!tableName && <Text numberOfLines={1} style={{ fontFamily: fonts.body, fontSize: typography.caption, color: colors.textMuted }}>{title}</Text>}
         {!tableName && !!path && !compact && <Text numberOfLines={1} style={{ fontFamily: fonts.body, fontSize: 11, color: colors.textMuted }}>{path}</Text>}
       </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 }}>
       <Pressable testID={`${game}-theme-button`} accessibilityRole="button" accessibilityLabel="Choose table theme" accessibilityHint={`Current theme: ${theme.name}`} accessibilityState={{ expanded: themesOpen }} onPress={openThemes}
         style={({ pressed }) => ({ flexDirection: 'row', flexShrink: 0, gap: 6, minWidth: 44, minHeight: 44, paddingHorizontal: mobile ? 8 : 12, alignItems: 'center', justifyContent: 'center', backgroundColor: pressed ? colors.surfaceRaised : 'transparent', borderRadius: radii.medium })}>
         <Ionicons name="color-palette-outline" size={22} color={colors.text} />
         {!mobile && <Text style={{ color: colors.text, fontFamily: fonts.medium }}>Theme</Text>}
+      </Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={t('common.backToLobby')} onPress={onBack}
+        style={({ pressed }) => ({ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radii.medium, backgroundColor: pressed ? colors.surfaceRaised : 'transparent' })}>
+        <Ionicons name="arrow-back" size={22} color={colors.text} />
       </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={t('common.tableMenu')} accessibilityState={{ expanded: open }} onPress={() => setOpen(v => !v)}
         style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primarySoft, borderRadius: radii.medium }}>
@@ -66,6 +67,7 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
           {[0, 1, 2].map(line => <View key={line} style={{ width: 22, height: 2, borderRadius: 1, backgroundColor: colors.text }} />)}
         </View>
       </Pressable>
+      </View>
     </View>
     {/* Web menu dismissal must finish before a newly opened chat takes focus. */}
     {!!drawerMetadata && <Modal transparent visible={open} animationType={Platform.OS === 'web' ? 'none' : 'fade'} onRequestClose={() => setOpen(false)}>
