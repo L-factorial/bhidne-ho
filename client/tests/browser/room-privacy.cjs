@@ -37,7 +37,27 @@ try{
  await visitor.getByRole('button',{name:'Join Privacy browser room',exact:true}).click();
  await visitor.getByRole('button',{name:'Back to lobby',exact:true}).click();
  await visitor.getByRole('button',{name:'Leave Privacy browser room',exact:true}).click();
+ const leaveUrl=site+'/rooms/'+room.room_id+'/leave';
+ // A failed request that never reaches the server must remain a visible failure.
+ await visitor.route(leaveUrl,route=>route.abort('failed'));
  await visitor.getByRole('button',{name:'Leave room',exact:true}).click();
+ await visitor.getByText('Could not confirm leaving this room. Please try again.',{exact:true}).waitFor();
+ assert.ok((await api('/memberships',other)).some(item=>item.room_id===room.room_id));
+ await visitor.unroute(leaveUrl);
+ // Simulate a committed departure whose HTTP response is lost.
+ await visitor.route(leaveUrl,async route=>{await route.fetch();await route.abort('failed');});
+ await visitor.evaluate(()=>{
+   globalThis.leaveErrors=[];
+   new MutationObserver(()=>document.querySelectorAll('[role="alert"]').forEach(el=>{
+     if (/Failed to fetch|Could not confirm leaving/.test(el.textContent)) globalThis.leaveErrors.push(el.textContent);
+   })).observe(document.body,{childList:true,subtree:true,characterData:true});
+ });
+ await visitor.getByRole('button',{name:'Leave room',exact:true}).click();
+ await visitor.getByRole('button',{name:'Leave room',exact:true}).waitFor({state:'hidden'});
+ await visitor.waitForTimeout(300);
+ assert.deepEqual(await visitor.evaluate(()=>globalThis.leaveErrors),[]);
+ assert.ok(!(await api('/memberships',other)).some(item=>item.room_id===room.room_id));
+
  await page.getByRole('button',{name:'Delete Privacy browser room',exact:true}).click();
  await page.getByRole('button',{name:'Delete room',exact:true}).click();
  assert.ok(!(await api('/rooms',owner)).some(r=>r.room_id===room.room_id));

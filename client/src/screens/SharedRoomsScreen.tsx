@@ -1,3 +1,4 @@
+import { leaveRoomMembership } from '../multiplayer/leaveRoomMembership';
 import { RoomPrivacySettings } from '../components/RoomPrivacySettings';
 import { gameTabFinish, gameSeparatorFinish, gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { ActiveGames, type ActiveTable } from '../components/ActiveGames';
@@ -176,8 +177,11 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
       owner={item.creator_id === session?.user_id}
       onRemove={async () => {
         if (!session) return;
-        await request('/rooms/' + item.room_id + (item.creator_id === session.user_id ? '' : '/leave'), session,
-          item.creator_id === session.user_id ? undefined : {}, undefined, item.creator_id === session.user_id ? 'DELETE' : undefined);
+        if (item.creator_id === session.user_id) {
+          await request('/rooms/' + item.room_id, session, undefined, undefined, 'DELETE');
+        } else {
+          await leaveRoomMembership(item.room_id, session);
+        }
       }}
       activeTables={shared.memberships.find(m => m.room_id === item.room_id)?.tables.filter(t => t.status !== 'ended').length}
       onPress={() => { setLinkedMatch(undefined); if (enterRooms.includes(item)) enterRoom(item); else joinRoom(item); }} />

@@ -1,3 +1,4 @@
+import { leaveRoomMembership } from './leaveRoomMembership';
 import { TableSocialChannel } from './TableSocialChannel';
 import { useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
@@ -126,7 +127,7 @@ export function useRoomSession() {
   async function leaveRoom() {
     if (room && session && !expired) {
       try {
-        await request(`/rooms/${encodeURIComponent(room.room_id)}/leave`, session, {});
+        await leaveRoomMembership(room.room_id, session);
       } catch (error) {
         if (error instanceof ApiError && error.detail?.requires_leave_game) {
           setLeaveGameRequired(error.detail.match_id || null);
