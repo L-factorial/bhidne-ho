@@ -1,16 +1,16 @@
 // PYTHONPATH=. .venv/bin/python scripts/social_browser_fixtures.py
 // Serve a web export. Fixtures isolate UI behavior; no gameplay commands are allowed.
-const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const { chromium, webkit } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8098';
 (async () => {
-  const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  const browser = await (process.env.ENGINE === 'webkit' ? webkit : chromium).launch({ ...(process.env.ENGINE === 'webkit' ? {} : {channel:'chrome'}), headless: true });
   try {
-    for (const kind of ['callbreak', 'marriage', 'flush']) {
+    for (const kind of ['callbreak', 'marriage', 'flush']) for (const turn of [1,2]) {
       const snapshot = JSON.parse(fs.readFileSync(`/tmp/bhidne-social-${kind}.json`));
-      const room = { room_id: 'room', name: 'Chat room', members: ['u0', 'u1', 'u2', 'u3'], connected_members: ['u0', 'u1', 'u2', 'u3'] };
-      const context = await browser.newContext({ viewport: { width: 390, height: 844 }, permissions: ['clipboard-read', 'clipboard-write'], hasTouch:true });
+      const room = { room_id: 'room', name: 'Chat room', members: ['u0', 'u1', 'u2', 'u3'], connected_members: ['u0'] };
+      const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch:true });
       await context.addInitScript(({ room, kind, site }) => sessionStorage.setItem(`bhidne.session.v1:${site}`, JSON.stringify({ session: { user_id: 'u0', token: 'mock' }, room, game: kind })), { room, kind, site });
       const history = [], gameplay = [], errors = [], pokeCommands = [];
       let socket;
@@ -45,16 +45,17 @@ const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8098';
       page.on('pageerror', e => errors.push(e.message));
       await page.goto(site);
 
-      snapshot.game.turn={player_id:2};
-      if(snapshot.marriage) snapshot.marriage.public.current_player_id='2';
+      snapshot.game.turn={player_id:turn};
+      if(snapshot.marriage) snapshot.marriage.public.current_player_id=String(turn);
       snapshot.players.forEach(p=>p.connected=true);
       await page.getByRole('button',{name:/Return to table/}).first().click();
       await page.waitForTimeout(500);
+      if (kind === 'marriage') { const expand = page.getByRole('button', {name:'Expand your card area',exact:true}); if (await expand.isVisible()) await expand.click(); }
       const button=name=>page.getByRole('button',{name,exact:true});
       for(const method of ['tap','click']) for(const id of [2,3,4]) {
         await button('Poke a player')[method]();
-        // Names and badges are part of the player's target, not just the avatar.
-        await page.getByText(`Player ${id}`,{exact:true})[method]();
+        // Pick recipients above the hand sheet, even when room presence is stale.
+        await page.getByTestId('poke-tools').getByRole('button',{name:`Poke Player ${id}`,exact:true})[method]();
         await page.getByTestId('poke-tools').waitFor();
         await button('Send Clap')[method]();
         await page.getByTestId('poke-tools').waitFor({state:'hidden'});
@@ -67,7 +68,7 @@ const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8098';
       assert.equal(pokeCommands.length,6);
       assert.deepEqual(gameplay,[],'poking must never send a gameplay action');
       assert.deepEqual(errors,[]);
-      await context.close();console.log('PASS '+kind+': off-turn tap/click on every opponent name, recipient payload, reaction flight and incoming feedback');
+      await context.close();console.log('PASS '+kind+' turn '+turn+': tap/click recipients with stale presence, payload and received reaction');
     }
   }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1});

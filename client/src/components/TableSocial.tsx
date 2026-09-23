@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { TableReactionFlight, type ReactionFlight } from './TableReactionFlight';
 import { readTableReaction, tableReactions, type ReactionId } from '../multiplayer/tableReactions';
+import { PlayerAvatar } from './PlayerAvatar';
 import { RoomSheet } from './RoomSheet';
 import { ChatMessage } from './ChatMessage';
 import { useTranslation } from 'react-i18next';
@@ -63,8 +64,10 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
   const enabled = seated && connected && canRead;
   const myTurn = snapshot.game?.turn.player_id === snapshot.your_player_id && !!snapshot.your_player_id;
   const players = snapshot.players || [];
-  const eligible = (id: number) => enabled && id !== snapshot.your_player_id && players.some(p => p.player_id === id && p.connected !== false)
+  // Room-feed presence can lag the live socket. The server validates delivery.
+  const eligible = (id: number) => enabled && id !== snapshot.your_player_id && players.some(p => p.player_id === id)
     && (!snapshot.table || snapshot.table.seated_players.some(p => p.seat_id === id));
+  useEffect(() => { if (!enabled) { setPokeMode(false); setTargetPlayer(null); } }, [enabled]);
   useEffect(() => { if (targetPlayer !== null && !eligible(targetPlayer)) setTargetPlayer(null); }, [targetPlayer, enabled, snapshot]);
   useEffect(() => {
     if (!channel || !connected || !snapshot.room_id || snapshot.status === 'ended') { setFlights([]); return; }
@@ -113,21 +116,6 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
     return () => clearTimeout(timer);
   }, [pokeSent]);
   useEffect(() => { if (!connected || !canRead) { setPokeMode(false); setOpen(false); } if (!canRead) { setMessages([]); setUnread(0); setEffects([]); } }, [connected, canRead]);
-  useEffect(() => {
-    if (!pokeMode) return;
-    const timer = setTimeout(() => setPokeMode(false), 15000);
-    return () => clearTimeout(timer);
-  }, [pokeMode]);
-  useEffect(() => {
-    if (Platform.OS !== 'web' || !pokeMode) return;
-    const escape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      event.preventDefault(); event.stopPropagation(); setOpen(false); setPokeMode(false);
-    };
-    // Consume the same keyup used by the enclosing game modal.
-    globalThis.addEventListener('keyup', escape, true);
-    return () => globalThis.removeEventListener('keyup', escape, true);
-  }, [open, pokeMode]);
   const addMessages = (incoming: TableMessage[], historical = false) => {
     const valid = incoming.filter(m => m.match_id === snapshot.match_id && m.room_id === snapshot.room_id);
     const fresh = valid.filter(m => !seen.current.has(m.id));
@@ -199,27 +187,36 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
   }
   const iconStyle = { minWidth:44, minHeight:44, alignItems:'center' as const, justifyContent:'center' as const };
   return <Context.Provider value={{pokeMode,eligible,poke,effects,anchor,openChat,canRead,registerSeat}}>
-    <View ref={root} collapsable={false} style={{flex:1,minHeight:0,minWidth:0,width:'100%'}} onLayout={measureRoot} onTouchStart={() => { if(pokeMode) setPokeMode(false); }} onPointerDown={() => { if(pokeMode) setPokeMode(false); }}>
+    <View ref={root} collapsable={false} style={{flex:1,minHeight:0,minWidth:0,width:'100%'}} onLayout={measureRoot}>
       {children}
       {flights.map(flight => <TableReactionFlight key={flight.event.id} flight={flight} recipient={flight.event.recipient_id === userId} />)}
-      <RoomSheet visible={targetPlayer !== null} title={`Poke ${players.find(p => p.player_id === targetPlayer)?.display_name || 'player'}`} closeLabel="Close poke tools" testID="poke-tools" presentation="dialog" onClose={() => setTargetPlayer(null)}>
+      <RoomSheet visible={pokeMode || targetPlayer !== null} title={`Poke ${players.find(p => p.player_id === targetPlayer)?.display_name || 'player'}`} closeLabel="Close poke tools" testID="poke-tools" presentation="dialog" onClose={() => { setPokeMode(false); setTargetPlayer(null); }}>
+        <Text style={{ color: c.textMuted, fontFamily: fonts.body }}>Choose a player</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {players.filter(player => eligible(player.player_id)).map(player => <Pressable key={player.player_id}
+            accessibilityRole="button" accessibilityLabel={`Poke ${player.display_name}`} accessibilityState={{ selected: targetPlayer === player.player_id, disabled: sendingPoke }} disabled={sendingPoke}
+            onPress={() => poke(player.player_id)} style={{ minHeight: 48, padding: 12, gap: 8, flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1,
+              borderColor: targetPlayer === player.player_id ? c.accent : c.border, backgroundColor: targetPlayer === player.player_id ? c.surfaceSelected : c.surfaceRaised }}>
+            <PlayerAvatar uri={player.avatar_url} /><Text style={{ color: c.text, fontFamily: fonts.medium, flexShrink: 1 }}>{player.display_name}</Text>
+          </Pressable>)}
+        </View>
+        {!players.some(player => eligible(player.player_id)) && <Text style={{ color: c.textMuted }}>No other seated players to poke yet.</Text>}
         <Text style={{ color: c.textMuted, fontFamily: fonts.body }}>Choose a reaction. Everyone at this table can see it.</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {(Object.keys(tableReactions) as ReactionId[]).map(id => <Pressable key={id} accessibilityRole="button" accessibilityLabel={`Send ${tableReactions[id].label}`} disabled={sendingPoke} accessibilityState={{ disabled: sendingPoke }} onPress={() => void sendReaction(id)}
-            style={({ pressed }) => ({ width: '30%', flexGrow: 1, minHeight: 88, gap: 6, alignItems: 'center', justifyContent: 'center', borderRadius: 14, borderWidth: 1, borderColor: c.tableTrim, backgroundColor: pressed ? c.surfaceSelected : c.surfaceRaised, opacity: sendingPoke ? 0.5 : 1 })}>
+          {(Object.keys(tableReactions) as ReactionId[]).map(id => <Pressable key={id} accessibilityRole="button" accessibilityLabel={`Send ${tableReactions[id].label}`} disabled={sendingPoke || targetPlayer === null} accessibilityState={{ disabled: sendingPoke || targetPlayer === null }} onPress={() => void sendReaction(id)}
+            style={({ pressed }) => ({ width: '30%', flexGrow: 1, minHeight: 88, gap: 6, alignItems: 'center', justifyContent: 'center', borderRadius: 14, borderWidth: 1, borderColor: c.tableTrim, backgroundColor: pressed ? c.surfaceSelected : c.surfaceRaised, opacity: sendingPoke || targetPlayer === null ? 0.5 : 1 })}>
             <Text style={{ fontSize: 32 }}>{tableReactions[id].emoji}</Text><Text style={{ fontFamily: fonts.medium, color: c.text, fontSize: 12 }}>{tableReactions[id].label}</Text>
           </Pressable>)}
         </View>
         {!!error && <Text accessibilityRole="alert" style={{ color: c.danger }}>{error}</Text>}
       </RoomSheet>
       {canRead && <View testID="game-social-controls" onTouchStart={event => event.stopPropagation()} onPointerDown={event => event.stopPropagation()} style={{position:'absolute',right:14,bottom,zIndex:45,alignItems:'flex-end',maxWidth:240}}>
-        {pokeMode && <Text accessibilityLiveRegion="polite" style={{color:c.text,backgroundColor:c.surface,padding:6,borderRadius:8}}>Poke someone · tap an opponent</Text>}
         {!!error && !open && <Pressable accessibilityRole="button" accessibilityLabel="Dismiss social error" onPress={() => setError('')}><Text style={{color:c.danger,backgroundColor:c.surface,padding:6}}>{error}</Text></Pressable>}
         <View style={{flexDirection:'row',backgroundColor:c.tableHeader,borderColor:c.tableTrim,borderWidth:1,borderRadius:24}}>
           <Pressable accessibilityRole="button" accessibilityLabel={`Table Chat${unread ? `, ${unread} unread` : ''}`} onPress={openChat} style={[iconStyle,{flexDirection:'row',paddingHorizontal:8}]}>
             <Ionicons name="chatbubble-outline" size={22} color={c.onTableHeader} />{unread > 0 && <Text testID="table-chat-unread" style={{color:c.onPrimary,backgroundColor:c.primary,borderRadius:10,fontSize:11,paddingHorizontal:5}}>{unread > 99 ? '99+' : unread}</Text>}
           </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Poke a player" accessibilityState={{selected:pokeMode,disabled:!enabled}} disabled={!enabled} onPress={() => { closeChat(); setPokeMode(value => !value); }} style={[iconStyle,{opacity:enabled?1:0.4,backgroundColor:pokeMode?c.surfaceSelected:undefined,borderRadius:24}]}><Text accessibilityLiveRegion="polite" accessibilityLabel={pokeSent ? 'Poke sent' : undefined} style={{fontSize:20,color:c.onTableHeader}}>{pokeSent ? '✓' : '👋'}</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Poke a player" accessibilityState={{selected:pokeMode,disabled:!enabled}} disabled={!enabled} onPress={() => { closeChat(); setError(''); setTargetPlayer(null); setPokeMode(true); }} style={[iconStyle,{opacity:enabled?1:0.4,backgroundColor:pokeMode?c.surfaceSelected:undefined,borderRadius:24}]}><Text accessibilityLiveRegion="polite" accessibilityLabel={pokeSent ? 'Poke sent' : undefined} style={{fontSize:20,color:c.onTableHeader}}>{pokeSent ? '✓' : '👋'}</Text></Pressable>
         </View>
       </View>}
       {open && canRead && <RoomSheet visible tableStyle title="Table Chat" testID="table-chat-panel" closeLabel="Close table chat" onClose={closeChat} scrollable={false}>
