@@ -69,7 +69,8 @@ class TableSocialService:
                             raise HTTPException(409, 'The seats changed. Choose a player again.')
                     result = await self.pokes.send(room_id, user_id, match_id=command.match_id,
                         sender_player_id=seats[user_id], recipient_user_id=recipient,
-                        recipient_player_id=payload.recipient_player_id, text=payload.text, validate=validate_seats)
+                        recipient_player_id=payload.recipient_player_id, text=payload.text, validate=validate_seats,
+                        reaction=payload.reaction)
                     result = dict(ack, status='accepted', poke_id=result['id'])
                     delivery = None
                 else:

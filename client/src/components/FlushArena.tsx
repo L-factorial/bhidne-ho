@@ -50,11 +50,11 @@ export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot
       const target = !!social?.pokeMode && social.eligible(Number(p.player_id));
       return <View key={p.player_id} testID={`flush-seat-${p.player_id}`} style={[s.seat, { left: pos.x - 40, top: pos.y - 38, opacity: folded ? 0.4 : 1 }]}>
         <PlayerSocialEffect playerId={Number(p.player_id)} />
-        <Pressable accessibilityRole={target ? 'button' : undefined} accessibilityLabel={target ? `Poke ${name}` : name} disabled={!target}
+        <Pressable ref={node => social?.registerSeat(Number(p.player_id), node)} collapsable={false} accessibilityRole={target ? 'button' : undefined} accessibilityLabel={target ? `Poke ${name}` : name} disabled={!target}
           onTouchStart={event => { if (target) event.stopPropagation(); }} onPointerDown={event => { if (target) event.stopPropagation(); }} onPress={() => social?.poke(Number(p.player_id))}
           style={[s.icon, p.player_id === decision?.actor && s.current, target && {borderColor:colors.accent}]}>
           {target && <Text style={{position:'absolute',right:-8,top:-8}}>👋</Text>}<PlayerAvatar uri={snapshot.players?.find(row => String(row.player_id) === p.player_id)?.avatar_url} />{!pregame && <Text accessibilityLabel={`${p.turn_bet_count} bets`} style={s.count}>Bets {p.turn_bet_count}</Text>}
-          {p.player_id === decision?.actor && <Text testID="flush-active-turn" style={s.turnLabel}>TURN</Text>}
+          {p.player_id === decision?.actor && p.player_id !== String(snapshot.your_player_id) && <Text testID="flush-active-turn" style={s.turnLabel}>TURN</Text>}
           {p.player_id === pub?.dealer_id && <Text accessibilityLabel="Dealer" style={s.dealer}>D</Text>}</Pressable>
         <Text testID={`flush-turn-name-${p.player_id}`} numberOfLines={1} style={s.name}>{name}</Text>
         <Text style={s.caption}>{p.player_id === String(snapshot.your_player_id) ? 'YOU · ' : ''}{pregame ? 'Seated' : folded ? 'Folded' : `${p.visibility}${lastBet ? ` · Bet ${lastBet.amount}` : ''}`}</Text>

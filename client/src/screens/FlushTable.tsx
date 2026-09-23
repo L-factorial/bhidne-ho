@@ -9,7 +9,6 @@ import { useSocialHandAnchor } from '../components/TableSocial';
 import { EndedTableNotice } from '../components/EndedTableNotice';
 import { FlushMenu } from '../components/FlushMenu';
 import { GameTableHeader } from '../components/GameTableHeader';
-import { FlushTurnCue } from '../components/FlushTurnCue';
 import { flushDecision } from '../multiplayer/flushDecision';
 import { type ReactNode, useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -191,7 +190,6 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
       {pub && <View pointerEvents="none" style={s.notice}><FlushFoldNotice key={`folds:${snapshot.match_id}`} snapshot={snapshot} /></View>}
       <View ref={socialAnchor.ref} onLayout={socialAnchor.onLayout} style={s.handDock} testID="flush-hand-dock">
         <TurnGlow active={myTurn && connectionReady && !ended} />
-        <FlushTurnCue scope={`${snapshot.match_id}:${snapshot.your_player_id}`} decision={decision?.key ?? null} personal={myTurn} ready={connectionReady} />
         {!ended && mine && !preparing && !pub?.settlement && <View style={s.cards} testID="flush-own-cards">
           <View style={s.scaledCards}><FlushCards tapToToggle key={pub?.round_number} cards={mine.cards} /></View>
         </View>}

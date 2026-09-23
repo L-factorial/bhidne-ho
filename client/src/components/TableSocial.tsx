@@ -1,4 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
+import { TableReactionFlight, type ReactionFlight } from './TableReactionFlight';
+import { readTableReaction, tableReactions, type ReactionId } from '../multiplayer/tableReactions';
 import { RoomSheet } from './RoomSheet';
 import { ChatMessage } from './ChatMessage';
 import { useTranslation } from 'react-i18next';
@@ -14,6 +16,7 @@ type Effect = { id: string; player: number; kind: 'chat' | 'poke'; text: string;
 type SocialContext = {
   pokeMode: boolean; eligible: (id: number) => boolean; poke: (id: number) => void;
   effects: Effect[]; anchor: (node: View | null) => void; openChat: () => void; canRead: boolean;
+  registerSeat: (id: number, node: View | null) => void;
 };
 const Context = createContext<SocialContext | null>(null);
 export const useTableSocial = () => useContext(Context);
@@ -36,6 +39,12 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
   const { colors: c } = useTheme();
   const { height: viewportHeight, width } = useWindowDimensions();
   const root = useRef<View>(null), anchorNode = useRef<View | null>(null);
+  const seats = useRef(new Map<number, View>());
+  const [registerSeat] = useState(() => (id: number, node: View | null) => { if (node) seats.current.set(id, node); else seats.current.delete(id); });
+  const [targetPlayer, setTargetPlayer] = useState<number | null>(null);
+  const [sendingPoke, setSendingPoke] = useState(false);
+  const [flights, setFlights] = useState<ReactionFlight[]>([]);
+  const reactionIds = useRef(new Set<string>());
   const { t } = useTranslation();
   const [bottom, setBottom] = useState(16);
   const [open, setOpen] = useState(false), [pokeMode, setPokeMode] = useState(false);
@@ -56,6 +65,34 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
   const players = snapshot.players || [];
   const eligible = (id: number) => enabled && id !== snapshot.your_player_id && players.some(p => p.player_id === id && p.connected !== false)
     && (!snapshot.table || snapshot.table.seated_players.some(p => p.seat_id === id));
+  useEffect(() => { if (targetPlayer !== null && !eligible(targetPlayer)) setTargetPlayer(null); }, [targetPlayer, enabled, snapshot]);
+  useEffect(() => {
+    if (!channel || !connected || !snapshot.room_id || snapshot.status === 'ended') { setFlights([]); return; }
+    const roomId = snapshot.room_id;
+    let active = true;
+    const unsubscribe = channel.subscribe(value => {
+      const event = readTableReaction(value, roomId, snapshot.match_id);
+      if (!event || reactionIds.current.has(event.id)) return;
+      reactionIds.current.add(event.id);
+      if (reactionIds.current.size > 100) reactionIds.current = new Set([...reactionIds.current].slice(-50));
+      const sender = seats.current.get(event.sender_player_id), receiver = seats.current.get(event.recipient_player_id);
+      if (!sender || !receiver) return;
+      root.current?.measureInWindow((rx, ry) => {
+        sender.measureInWindow((sx, sy, sw, sh) => {
+          receiver.measureInWindow((tx, ty, tw, th) => {
+            if (!active || !sw || !tw || event.expires_at <= Date.now()) return;
+            setFlights(current => [...current, { event, from: { x: sx - rx + sw / 2, y: sy - ry + Math.min(sh / 2, 24) }, to: { x: tx - rx + tw / 2, y: ty - ry + Math.min(th / 2, 24) } }].slice(-3));
+          });
+        });
+      });
+    });
+    return () => { active = false; unsubscribe(); };
+  }, [channel, connected, snapshot.room_id, snapshot.match_id, snapshot.status]);
+  useEffect(() => {
+    if (!flights.length) return;
+    const timer = setTimeout(() => setFlights(current => current.filter(f => f.event.expires_at > Date.now())), Math.max(1, Math.min(...flights.map(f => f.event.expires_at)) - Date.now()));
+    return () => clearTimeout(timer);
+  }, [flights]);
   const measure = useRef((node: View | null) => {});
   measure.current = node => {
     if (!node) { setBottom(16); return; }
@@ -136,14 +173,19 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
     measure.current(anchorNode.current);
   }
   function openChat() { if (canRead) { setPokeMode(false); openRef.current = true; setOpen(true); setUnread(0); follow.current = true; } }
-  async function poke(id: number) {
+  function poke(id: number) {
     setPokeMode(false);
+    if (eligible(id)) { setError(''); setTargetPlayer(id); }
+  }
+  async function sendReaction(reaction: ReactionId) {
+    const id = targetPlayer;
+    if (id === null) return;
     if (!eligible(id) || !channel || !snapshot.match_id || pokePending.current) return;
-    pokePending.current = true;
+    pokePending.current = true; setSendingPoke(true);
     setError('');
-    try { await channel.request('TABLE_POKE_SEND', snapshot.match_id, {recipient_player_id:id,text:'👋'}, lifetime.current.signal); if (!lifetime.current.signal.aborted) setPokeSent(true); }
+    try { await channel.request('TABLE_POKE_SEND', snapshot.match_id, {recipient_player_id:id,reaction}, lifetime.current.signal); if (!lifetime.current.signal.aborted) { setPokeSent(true); setTargetPlayer(null); } }
     catch (failure) { if (!lifetime.current.signal.aborted) setError((failure as Error).message); }
-    finally { pokePending.current = false; }
+    finally { pokePending.current = false; if (!lifetime.current.signal.aborted) setSendingPoke(false); }
   }
   async function send() {
     if (sendingRef.current || !enabled || !draft.trim() || Array.from(draft).length > 500 || !channel || !snapshot.match_id) return;
@@ -156,9 +198,20 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
     finally { sendingRef.current = false; if (!lifetime.current.signal.aborted) setSending(false); }
   }
   const iconStyle = { minWidth:44, minHeight:44, alignItems:'center' as const, justifyContent:'center' as const };
-  return <Context.Provider value={{pokeMode,eligible,poke,effects,anchor,openChat,canRead}}>
+  return <Context.Provider value={{pokeMode,eligible,poke,effects,anchor,openChat,canRead,registerSeat}}>
     <View ref={root} collapsable={false} style={{flex:1,minHeight:0,minWidth:0,width:'100%'}} onLayout={measureRoot} onTouchStart={() => { if(pokeMode) setPokeMode(false); }} onPointerDown={() => { if(pokeMode) setPokeMode(false); }}>
       {children}
+      {flights.map(flight => <TableReactionFlight key={flight.event.id} flight={flight} recipient={flight.event.recipient_id === userId} />)}
+      <RoomSheet visible={targetPlayer !== null} title={`Poke ${players.find(p => p.player_id === targetPlayer)?.display_name || 'player'}`} closeLabel="Close poke tools" testID="poke-tools" presentation="dialog" onClose={() => setTargetPlayer(null)}>
+        <Text style={{ color: c.textMuted, fontFamily: fonts.body }}>Choose a reaction. Everyone at this table can see it.</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {(Object.keys(tableReactions) as ReactionId[]).map(id => <Pressable key={id} accessibilityRole="button" accessibilityLabel={`Send ${tableReactions[id].label}`} disabled={sendingPoke} accessibilityState={{ disabled: sendingPoke }} onPress={() => void sendReaction(id)}
+            style={({ pressed }) => ({ width: '30%', flexGrow: 1, minHeight: 88, gap: 6, alignItems: 'center', justifyContent: 'center', borderRadius: 14, borderWidth: 1, borderColor: c.tableTrim, backgroundColor: pressed ? c.surfaceSelected : c.surfaceRaised, opacity: sendingPoke ? 0.5 : 1 })}>
+            <Text style={{ fontSize: 32 }}>{tableReactions[id].emoji}</Text><Text style={{ fontFamily: fonts.medium, color: c.text, fontSize: 12 }}>{tableReactions[id].label}</Text>
+          </Pressable>)}
+        </View>
+        {!!error && <Text accessibilityRole="alert" style={{ color: c.danger }}>{error}</Text>}
+      </RoomSheet>
       {canRead && <View testID="game-social-controls" onTouchStart={event => event.stopPropagation()} onPointerDown={event => event.stopPropagation()} style={{position:'absolute',right:14,bottom,zIndex:45,alignItems:'flex-end',maxWidth:240}}>
         {pokeMode && <Text accessibilityLiveRegion="polite" style={{color:c.text,backgroundColor:c.surface,padding:6,borderRadius:8}}>Poke someone · tap an opponent</Text>}
         {!!error && !open && <Pressable accessibilityRole="button" accessibilityLabel="Dismiss social error" onPress={() => setError('')}><Text style={{color:c.danger,backgroundColor:c.surface,padding:6}}>{error}</Text></Pressable>}

@@ -4,7 +4,10 @@ Live Call Break, Marriage and Flush tables share a social pill above the hand or
 action dock. Chat is table-local: seated players can send and read; players in
 that table's queue can read only. Other room members and spectators cannot read.
 Targeted pokes require a seated sender and a different connected seated recipient.
-Only the recipient receives a targeted poke. The sender receives an acknowledgment.
+The pill opens target selection, then a floating reaction picker. Love, Pinch, Clap,
+Cheers, Laugh and Playful hammer travel from sender to recipient on every viewer's
+table. The recipient also sees a larger arrival and a short catch overlay.
+Legacy text-only targeted pokes remain private.
 
 The pill and the hamburger's Table Chat entry open the same conversation. The
 existing room chat and legacy hamburger poke composers remain available. Room
@@ -27,7 +30,12 @@ Every response is `TABLE_SOCIAL_ACK`, with `room_id`, `match_id`, `command_id`,
 include `messages`; accepted chat sends include `message`; accepted pokes include
 `poke_id`. Live chat messages arrive as `TABLE_CHAT_MESSAGE` with ID, room and match,
 authenticated sender/user and seat IDs, display name, text, and timestamp.
-Pokes reuse the existing private `ROOM_POKE` event and expiry contract.
+Text pokes reuse the existing private `ROOM_POKE` event and expiry contract.
+Reaction commands use `payload: {"recipient_player_id": 2, "reaction": "love"}`.
+They emit `TABLE_REACTION` to the room, including match ID, authenticated sender
+and recipient user/seat IDs, the validated reaction ID, and a five-second expiry.
+Clients render only their open match. This includes unseated spectators, without
+granting them chat access or permission to send. Reaction events are never replayed.
 
 The server validates current seat/queue membership for history, sends and delivery.
 Flush recipients resolve through stable seat IDs, which can exceed player capacity.
@@ -50,7 +58,9 @@ Initial history does not create unread badges or seat bubbles. Subsequent live
 messages update unread while closed; opening chat clears it. Effects expire after
 about 3.5 seconds and never take focus or reset card selection. Poke selection
 ends on a recipient tap, another pill tap, outside interaction, disconnect,
-navigation, Escape, or a 15-second timeout. Reduced motion suppresses fades.
+navigation, Escape, or a 15-second timeout. Reduced motion suppresses travel and fades. The picker closes on Escape, cancel,
+lost eligibility or confirmed send; failures remain visible for retry. No social
+animation intercepts touches or changes card selection.
 
 ## Checks
 

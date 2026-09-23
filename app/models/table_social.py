@@ -15,4 +15,5 @@ class TableSocialCommand(BaseModel):
 class TablePokePayload(PlayerPhraseInput):
     model_config = ConfigDict(extra='forbid')
     recipient_player_id: int = Field(strict=True, ge=1)
+    reaction: Literal['love', 'pinch', 'clap', 'cheers', 'laugh', 'hammer'] | None = None
     text: str = Field(default='👋', min_length=1, max_length=30)

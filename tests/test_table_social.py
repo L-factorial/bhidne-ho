@@ -126,6 +126,39 @@ async def test_poke_rechecks_seats_after_connectivity_await():
 
 
 @pytest.mark.parametrize('kind', ['callbreak', 'marriage', 'flush'])
+async def test_reaction_is_public_in_room_deduplicated_and_keeps_game_unchanged(kind):
+    host, service, game, sockets, _, _ = await fixture(kind)
+    try:
+        game.table.queue.clear()  # Unseated spectators also receive public visuals.
+        state, log = game.state, list(game.log)
+        cmd = command('TABLE_POKE_SEND', game.match_id, recipient_player_id=2, reaction='love')
+        first, retry = await asyncio.gather(service.handle('room', 'u0', cmd), service.handle('room', 'u0', cmd))
+        assert first == retry and first['status'] == 'accepted'
+        assert [len(s.messages) for s in sockets] == [1, 1, 1, 1, 1, 1, 0]
+        event = sockets[0].messages[0]
+        assert event['type'] == 'TABLE_REACTION' and event['reaction'] == 'love'
+        assert event['sender_player_id'] == 1 and event['recipient_player_id'] == 2
+        assert event['recipient_id'] == 'u1' and event['match_id'] == game.match_id
+        assert 'text' not in event
+        assert game.state is state and game.log == log and not game.commands.receipts
+        assert (await service.handle('room', 'u0', command('TABLE_POKE_SEND', game.match_id, 'fast', recipient_player_id=3, reaction='clap')))['status'] == 'rejected'
+        assert (await service.handle('room', 'u4', command('TABLE_POKE_SEND', game.match_id, 'spectator', recipient_player_id=2, reaction='clap')))['status'] == 'rejected'
+    finally:
+        await host.close()
+
+
+@pytest.mark.parametrize('payload', [dict(reaction='unknown'), dict(reaction='love', sender_id='spoof'), dict(reaction='love', recipient_player_id=1)])
+async def test_reaction_rejects_invalid_tools_spoofing_and_self(payload):
+    host, service, game, sockets, _, _ = await fixture()
+    try:
+        result = await service.handle('room', 'u0', command('TABLE_POKE_SEND', game.match_id, **{'recipient_player_id': 2, **payload}))
+        assert result['status'] == 'rejected'
+        assert all(not socket.messages for socket in sockets)
+    finally:
+        await host.close()
+
+
+@pytest.mark.parametrize('kind', ['callbreak', 'marriage', 'flush'])
 async def test_table_chat_uses_account_identity_and_repairs_legacy_guest_history(kind):
     host, service, game, sockets, _, _ = await fixture(kind)
     try:

@@ -32,7 +32,7 @@ export function PlayerSeat({ name, mine = false, active = false, connected = tru
     return () => { mounted = false; scale.stopAnimation(); scale.setValue(1); };
   }, [active, scale]);
   const size = compact ? 28 : 44;
-  return <Pressable ref={registerSeat} testID={testID} accessibilityRole={press ? 'button' : undefined}
+  return <Pressable ref={node => { registerSeat?.(node); if (playerId !== undefined) social?.registerSeat(playerId, node); }} collapsable={false} testID={testID} accessibilityRole={press ? 'button' : undefined}
     onTouchStart={event => { if (target) event.stopPropagation(); }} onPointerDown={event => { if (target) event.stopPropagation(); }}
     onPress={press} disabled={!press} accessibilityLabel={`${target ? 'Poke ' : ''}${name}${mine ? ', You' : ''}${active ? ', current turn' : ''}${dealer ? ', dealer' : ''}${status ? `, ${status}` : ''}${!connected ? ', disconnected' : ''}`}
     style={{ width: '100%', alignItems: 'center', gap: 2, minHeight:44 }}>
@@ -46,7 +46,7 @@ export function PlayerSeat({ name, mine = false, active = false, connected = tru
     </Animated.View>
     <Text numberOfLines={1} style={{ maxWidth: '100%', backgroundColor: colors.surface, paddingHorizontal: 8, borderRadius: 8, color: colors.text, fontFamily: fonts.medium, fontSize: compact ? 11 : 12 }}>{name}</Text>
     <Text numberOfLines={1} style={{ backgroundColor: active ? colors.turnSurface : colors.surface, paddingHorizontal: 5, borderRadius: 5, color: active ? colors.turnText : colors.textMuted, fontFamily: fonts.medium, fontSize: compact ? 8 : active && mine ? 9 : 10 }}>
-      {active ? mine ? '● YOUR TURN' : '● TURN' : !connected ? 'Offline' : mine ? 'YOU' : dealer ? 'Dealer' : status}
+      {active ? mine ? 'YOU' : '● TURN' : !connected ? 'Offline' : mine ? 'YOU' : dealer ? 'Dealer' : status}
     </Text>
     {(active || mine || !connected || dealer) && !!status && <Text numberOfLines={1} style={{ backgroundColor: colors.surface, paddingHorizontal: 5, borderRadius: 5, color: colors.textMuted, fontSize: 10 }}>{!connected && active ? `Offline · ${status}` : status}</Text>}
   </Pressable>;

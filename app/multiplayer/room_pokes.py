@@ -28,7 +28,7 @@ class RoomPokeService:
         return members
 
     async def send(self, room_id, user_id, *, match_id, sender_player_id, recipient_user_id,
-                   recipient_player_id, text, validate=None):
+                   recipient_player_id, text, validate=None, reaction=None):
         members = await self.member(room_id, user_id)
         if recipient_user_id == user_id:
             raise HTTPException(409, "Choose another player to poke.")
@@ -49,7 +49,13 @@ class RoomPokeService:
                  "recipient_id": recipient_user_id, "recipient_player_id": recipient_player_id,
                  "scope": "private" if recipient_user_id is not None else "table", "text": text,
                  "expires_at": int(time.time() * 1000) + self.display_ms}
-        if recipient_user_id is None:
+        if reaction is not None:
+            # Public, ephemeral visuals. Room clients render only their open match;
+            # this also lets unseated spectators see reactions without chat access.
+            event.update(type='TABLE_REACTION', reaction=reaction, scope='table')
+            event.pop('text')
+            await self.connections.broadcast(room_id, event)
+        elif recipient_user_id is None:
             await self.connections.broadcast(room_id, event)
         else:
             await self.connections.send_to_room_user(room_id, recipient_user_id, event)

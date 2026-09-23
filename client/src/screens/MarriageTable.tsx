@@ -157,9 +157,9 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const canDiscard = canAct && isTurn && !!actions?.kinds.includes('discard');
   const discardSelected = !selectingMeld && selected.length === 1 && !!actions?.discardable_card_ids.includes(selected[0]);
   const selectedCard = discardSelected ? hand.find(card => card.card_id === selected[0]) : null;
-  const turnInstruction = decision === 'DRAW_REQUIRED' ? 'Draw a card'
-    : decision === 'DISCARD_REQUIRED' ? 'Choose a card to discard'
-    : decision === 'FINISH_REQUIRED' ? 'Finish round' : `Your cards · ${hand.length}`;
+  const turnInstruction = decision === 'DRAW_REQUIRED' ? 'Your turn · Draw'
+    : decision === 'DISCARD_REQUIRED' ? 'Your turn · Discard'
+    : decision === 'FINISH_REQUIRED' ? 'Your turn · Finish round' : `Your cards · ${hand.length}`;
   const turnPrompt = activeGame && pub && <TurnIndicator testID="marriage-turn-instruction" personal={isTurn}
     text={isTurn && decision !== 'WAITING' ? turnInstruction : `${name(pub.current_player_id)}’s turn`} />;
   const mobileHandHeader = <View testID="marriage-hand-header" style={{ backgroundColor: colors.surface, paddingHorizontal: 10, gap: 4 }}>
@@ -198,7 +198,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
           <View style={s.main}>
             <View style={s.table}>
               <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}><MarriageCardArea snapshot={snapshot} handAnchor={handAnchor} canAct={!busy && activeGame} onAction={cards.act} onPoke={activeGame || ended ? undefined : setPoke} /></ScrollView>
-              <View style={tableSocial?.canRead ? { marginBottom: 60 } : undefined}>{turnPrompt}</View>
+              <View style={tableSocial?.canRead ? { marginBottom: 60 } : undefined}>{!isTurn && turnPrompt}</View>
               {ended && <View testID="ended-table-overlay" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center', zIndex: 70 }}>{endedNotice}</View>}
 
             </View>
