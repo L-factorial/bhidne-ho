@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Platform, Share, Pressable, Text, View } from 'react-native';
 import Svg, { Rect, Path } from 'react-native-svg';
 import * as Clipboard from 'expo-clipboard';
-import { invitationLink, tableInvitationCode } from '../multiplayer/invitations';
+import { invitationLink, roomInvitationCode, tableInvitationCode } from '../multiplayer/invitations';
 import { fonts, useTheme } from '../theme';
 import { useTranslation } from 'react-i18next';
 
@@ -68,7 +68,7 @@ export function RoomShareActions({ roomId, menu = false }: { roomId: string; men
 }
 
 export function CopyRoomCode({ roomId, menu = false, inline = false }: { roomId: string; menu?: boolean; inline?: boolean }) {
-  return <CopyCode value={roomId} kind="room" menu={menu} inline={inline} />;
+  return <CopyCode value={roomInvitationCode(roomId)} kind="room" menu={menu} inline={inline} />;
 }
 export function TableShareActions({ roomId, matchId }: { roomId: string; matchId: string }) {
   return <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { invitationLink, readInvitation, readJoinTarget, tableInvitationCode } from '../src/multiplayer/invitations.ts';
+import { invitationLink, readInvitation, readJoinTarget, roomInvitationCode, tableInvitationCode } from '../src/multiplayer/invitations.ts';
 
 test('room and game invitations preserve deployment paths without leaking credentials', () => {
   const base = 'https://example.org/bhidne/?token=secret&room=old&match=old#private';
@@ -27,4 +27,15 @@ test('join accepts table codes and links while keeping room codes compatible', (
   assert.deepEqual(readJoinTarget(' room-123 '), { roomId: 'room-123' });
   for (const value of ['table:r:', 'table::m', 'table:r:m:extra', 'table:../r:m', 'table:r:m/x', '', 'https://example.org/?match=m'])
     assert.equal(readJoinTarget(value), null);
+});
+
+test('prefixed codes distinguish rooms and tables without changing stored IDs', () => {
+  assert.equal(roomInvitationCode('abc123'), 'r-abc123');
+  assert.equal(tableInvitationCode('abc123', 'def456'), 't-abc123:def456');
+  assert.deepEqual(readJoinTarget(' r-abc123 '), { roomId: 'abc123' });
+  assert.deepEqual(readJoinTarget('T-abc123:def456'), { roomId: 'abc123', matchId: 'def456' });
+  assert.deepEqual(readJoinTarget('R-abc123'), { roomId: 'abc123' });
+  assert.deepEqual(readJoinTarget('table:abc123:def456'), { roomId: 'abc123', matchId: 'def456' });
+  for (const value of ['r-', 'r-../room', 't-', 't-room', 't-room:', 't-:match', 't-room:match:extra', 't-room:../match'])
+    assert.equal(readJoinTarget(value), null, value);
 });
