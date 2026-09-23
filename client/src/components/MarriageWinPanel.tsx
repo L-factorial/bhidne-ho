@@ -26,16 +26,17 @@ export function MarriageWinPanel({ hand, shown, maal, route, visible, enabled, b
   const choices = result.key === key && visible ? result.choices : [];
   const index = Math.min(page, Math.max(0, choices.length - 1)), choice = choices[index];
   const ready = !!choice, allowed = ready && enabled && canFinish && !checking;
+  const canPreview = ready && !checking;
   const text = { color: c.text, fontFamily: fonts.body };
   const button = (label: string, onPress: () => void, disabled = false, primary = false) => <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
     style={({ pressed }) => ({ ...gameButtonStyle(c, primary ? 'primary' : 'secondary', pressed), minHeight: 44, justifyContent: 'center', opacity: disabled ? 0.45 : 1 })}><Text style={{ color: primary ? c.onPrimary : c.onTableHeader, fontFamily: fonts.medium }}>{label}</Text></Pressable>;
   if (!preview) {
-    const label = !visible ? 'Reveal cards to check Marriage' : checking ? 'Checking Marriage…' : ready ? allowed ? 'Marriage eligible · Show Marriage' : 'Marriage eligible · Wait for your turn' : 'Marriage not eligible';
+    const label = !visible ? 'Reveal cards to check Marriage' : checking ? 'Checking Marriage…' : ready ? allowed ? 'Marriage eligible · Show Marriage' : 'Marriage eligible · View options' : 'Marriage not eligible';
     return <View testID="marriage-win-eligibility" style={{ borderRadius: 12, borderWidth: 1, borderColor: ready ? c.accent : c.border, overflow: 'hidden' }}>
-      <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: !allowed }} disabled={!allowed} onPress={() => setPreview(true)} style={{ minHeight: 48, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 8, opacity: ready ? 1 : 0.5 }}>
+      <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: !canPreview }} disabled={!canPreview} onPress={() => setPreview(true)} style={{ minHeight: 48, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 8, opacity: ready ? 1 : 0.5 }}>
         <Ionicons name={ready ? 'bulb' : 'bulb-outline'} size={22} color={ready ? c.accent : c.textMuted} />
         <Text accessibilityLiveRegion="polite" style={{ ...text, color: ready ? c.accent : c.textMuted, flexShrink: 1 }}>{label}</Text>
-      </Pressable><TurnGlow active={allowed} radius={12} />
+      </Pressable><TurnGlow active={canPreview} radius={12} />
     </View>;
   }
   const used = new Set(choice?.melds.flatMap(m => m.card_ids));
@@ -54,6 +55,7 @@ export function MarriageWinPanel({ hand, shown, maal, route, visible, enabled, b
     </>}
     {!checking && !choice && <Text style={text}>Your hand no longer qualifies. Go back to your cards.</Text>}
     <Text style={{ ...text, color: c.textMuted }}>Showing Marriage reveals your winning cards to everyone at the table.</Text>
+    {!!choice && !allowed && !checking && <Text style={{ ...text, color: c.textMuted }}>You can show Marriage when finishing is allowed on your turn.</Text>}
     {!!error && <Text accessibilityRole="alert" style={{ color: c.danger }}>{error}</Text>}
     {button(busy ? 'Showing…' : 'Show Marriage', () => { if (allowed && choice) submit('FINISH', choice.winning_pair ? { winning_pair: choice.winning_pair } : { melds: choice.melds, discard_card_id: choice.discard_card_id }); }, !allowed, true)}
   </View>;

@@ -38,15 +38,16 @@ const button = (page, name) => page.getByRole('button', { name, exact: true });
       const room = { room_id: `normal-${width}`, name: 'Normal Marriage', members: ['u0', 'u1'] };
       await context.addInitScript(({room,site}) => sessionStorage.setItem('bhidne.session.v1:'+site,
         JSON.stringify({ session: { user_id: 'u0', token: 'mock' }, room, game: 'marriage' })), {room,site});
-      let finished = false, attempts = 0;
+      let finished = false, attempts = 0, offTurn = false;
       const commands = [];
       function snapshot() {
         const view = structuredClone(finished ? views.after : views.before);
+        if (offTurn) { view.public.current_player_id='2'; view.actions.kinds=[]; }
         return { ...base, room_id: room.room_id, match_id: 'normal1', game_type: 'marriage', capacity: 2,
           is_creator: true, can_join: false, your_player_id: 1,
           players: room.members.map((user_id, i) => ({ user_id, player_id: i + 1, display_name: `Player ${i + 1}`, connected: true })),
           status: finished ? 'finished' : 'playing', game: { revision: view.public.revision, finished,
-            phase: 'MUST_DISCARD', winners: finished ? [1] : [], turn: { player_id: 1 }, current_trick: null, scores_tenths: [] },
+            phase: 'MUST_DISCARD', winners: finished ? [1] : [], turn: { player_id: offTurn ? 2 : 1 }, current_trick: null, scores_tenths: [] },
           marriage: { public: view.public, private: { player_id: view.player_id, hand: view.hand, actions: view.actions, maal: view.maal } } };
       }
       await context.route(site+'/**', async route => {
@@ -90,6 +91,17 @@ print(json.dumps(asdict(g.get_player_view('0'))))
       if(await page.getByRole('button',{name:/Return to table/}).count())await page.getByRole('button',{name:/Return to table/}).first().click();
       await button(page,'Reveal cards').click();
       const eligible='Marriage eligible · Show Marriage';
+      await button(page,eligible).waitFor();
+      offTurn=true;
+      if(width<900) { await button(page,'Expand your card area').waitFor(); await button(page,'Expand your card area').click(); }
+      await button(page,'Marriage eligible · View options').click();
+      await page.getByTestId('marriage-win-preview').waitFor();
+      assert.ok(await button(page,'Show Marriage').isDisabled());
+      await button(page,'Next option').click();
+      assert.equal(commands.length,0);
+      await button(page,'Previous option').click();
+      await button(page,'Back to your cards').click();
+      offTurn=false;
       await button(page,eligible).waitFor();
       assert.equal(await page.getByRole('tab',{name:'Dublee',exact:true}).count(),0);
       assert.equal(await button(page,'Plan winning hand').count(),0);
