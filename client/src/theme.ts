@@ -19,7 +19,7 @@ export const colors = {
   tableHeader: '#0A382B', onTableHeader: '#FFF8EB', tableTrim: '#A17C45', ownMessage: '#F6E8EA', resultOwnSurface: '#F6E8EA',
 };
 export type ThemeColors = typeof colors;
-// Fixed game presentation, scoped to the table; this is not a selectable app mode.
+// Default game palette; selectable table themes extend this without changing the lobby.
 export const gameColors: ThemeColors = {
   ...colors,
   background: '#062B23', header: '#062B23', table: '#07382B',

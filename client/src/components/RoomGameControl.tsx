@@ -1,3 +1,4 @@
+import { useTableTheme } from '../TableThemeProvider';
 import { FormInput, FormScrollView } from './FormInput';
 import { KeyboardFrame } from './KeyboardFrame';
 import { FormFooter } from './FormFooter';
@@ -10,7 +11,7 @@ import { TableControls } from './TableControls';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useGameNotification } from '../notifications/useGameNotification';
-import { fonts, ThemeContext, gameTheme, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { fonts, ThemeContext, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LiveGameTable, RoomSnapshot as Snapshot } from '../screens/LiveGameTable';
 import { GameCommandClient, createHttpGameTransport } from '../multiplayer/GameCommandClient';
@@ -35,6 +36,7 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
   roomId: string; apiUrl: string; token: string; connected: boolean; members: string[]; roomMembers?: string[]; connectionMessage?: string;
 }) {
   const { colors } = useTheme();
+  const { theme: gameTheme } = useTableTheme();
   const styles = useThemedStyles(createStyles);
   const mobile = useWindowDimensions().width < 900;
   const insets = useSafeAreaInsets();

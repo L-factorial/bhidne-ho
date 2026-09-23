@@ -1,3 +1,4 @@
+import { TableThemePicker } from './TableThemePicker';
 import { BrandIcon, headerLogoSize } from './BrandArt';
 import { KeyboardFrame } from './KeyboardFrame';
 import { type ReactNode, useEffect, useState } from 'react';
@@ -60,7 +61,8 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
           </View>
           {drawerMetadata}
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 8, marginHorizontal: -8, paddingBottom: 8 }}>
-            {typeof children === 'function' ? children(() => setOpen(false)) : children}
+            <TableThemePicker />
+      {typeof children === 'function' ? children(() => setOpen(false)) : children}
           </ScrollView>
         </View>
       </KeyboardFrame>
@@ -71,6 +73,7 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
       </View>
       {compact && !!path && <Text style={{ color: colors.textMuted }}>{path}</Text>}
       {compact && !!roomId && <ShareLink roomId={roomId} matchId={matchId} />}
+      <TableThemePicker />
       {typeof children === 'function' ? children(() => setOpen(false)) : children}
       <View style={{ borderTopWidth: 1, borderColor: colors.border, paddingTop: 4 }}>{endControl}</View>
     </ScrollView>}

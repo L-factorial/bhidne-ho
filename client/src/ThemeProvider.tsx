@@ -1,9 +1,10 @@
+import { TableThemeProvider } from './TableThemeProvider';
 import { useEffect, type ReactNode } from 'react';
 import { colors, ThemeContext } from './theme';
 
 const theme = { colors };
 
-/** One fixed Nepali design; legacy profile and device preferences are ignored. */
+/** The lobby keeps its Nepali design; table preferences are scoped to game views. */
 export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -15,5 +16,5 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (!meta) { meta = document.createElement('meta'); meta.name = 'theme-color'; document.head.appendChild(meta); }
     meta.content = colors.header;
   }, []);
-  return <ThemeContext.Provider value={theme}>{children}</ThemeContext.Provider>;
+  return <ThemeContext.Provider value={theme}><TableThemeProvider>{children}</TableThemeProvider></ThemeContext.Provider>;
 }
