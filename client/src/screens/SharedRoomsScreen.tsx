@@ -245,7 +245,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
         <View style={[styles.columns, { flex: 1 }]}>
           <View style={styles.mainColumn}>
             {session && <RoomGameControl socialChannel={shared.socialChannel} onOpenChange={setGameOpen} requestedMatchId={linkedMatch} requestedEntry={linkedEntry && linkedEntry.matchId === linkedMatch ? linkedEntry.action : undefined} personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={current?.connected_members || []} roomMembers={roomMembers} connectionMessage={expired ? shared.error : undefined}
-              gameType={selectedGame} createContent={<>
+              sessionActive={!expired} gameType={selectedGame} createContent={<>
             <Text style={styles.eyebrowDark}>CHOOSE A GAME</Text>
             <View style={styles.gameTabs}>
               {(['callbreak', 'flush', 'marriage'] as const).map(value => <Pressable key={value} accessibilityRole="button"

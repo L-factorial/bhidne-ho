@@ -27,13 +27,13 @@ import { request } from '../multiplayer/api';
 
 type InvitePlayer = { user_id: string; display_name: string; username?: string | null; eligible?: boolean; reason?: string | null };
 
-export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMatchId, requestedEntry, roomId, apiUrl, token, connected, members, roomMembers = members, connectionMessage, userId, pokes, personal, createContent, creationEnabled = true, gameType = 'callbreak' }: {
+export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMatchId, requestedEntry, roomId, apiUrl, token, connected, sessionActive = true, members, roomMembers = members, connectionMessage, userId, pokes, personal, createContent, creationEnabled = true, gameType = 'callbreak' }: {
   socialChannel?: TableSocialChannel; chat?: ReactNode; onOpenChange?: (open: boolean) => void;
   requestedMatchId?: string; requestedEntry?: TableEntry;
   gameType?: 'callbreak' | 'marriage' | 'flush';
   createContent?: ReactNode; creationEnabled?: boolean;
   userId: string; pokes: RoomPoke[]; personal: ReturnType<typeof usePlayerPhrases>;
-  roomId: string; apiUrl: string; token: string; connected: boolean; members: string[]; roomMembers?: string[]; connectionMessage?: string;
+  roomId: string; apiUrl: string; token: string; connected: boolean; sessionActive?: boolean; members: string[]; roomMembers?: string[]; connectionMessage?: string;
 }) {
   const { colors } = useTheme();
   const { theme: gameTheme } = useTableTheme();
@@ -71,7 +71,9 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
   const [actionTick, setActionTick] = useState(0);
   const [actionNotice, setActionNotice] = useState('');
   const [synced, setSynced] = useState(false);
-  const busy = pendingAction || !connected || !synced;
+  // HTTP table operations use durable room membership. Chat/presence socket
+  // readiness must not prevent the first snapshot or freeze table creation.
+  const busy = pendingAction || !sessionActive || !synced;
   const [actionError, setError] = useState('');
   const [refreshError, setRefreshError] = useState('');
   const error = actionError || refreshError;
@@ -86,7 +88,7 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
   const alive = useRef(true);
   const requests = useRef(new Set<AbortController>());
   const canSend = useRef(false);
-  canSend.current = connected && synced && !commandClient.pending;
+  canSend.current = sessionActive && synced && !commandClient.pending;
   const visibleSnapshot = snapshot ? { ...snapshot, players: snapshot.players?.map(player => ({
     ...player, connected: members.includes(player.user_id) && (player.player_id !== snapshot.your_player_id || connected),
   })) } : null;
@@ -141,18 +143,17 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
           const message = error instanceof Error ? error.message : 'Cannot load game.';
           setSynced(false);
           if (commandClient.pending) setActionNotice('Connection interrupted. Your action will be checked automatically…');
-          // Room connection feedback is already handled by the parent screen.
-          setRefreshError(message === 'Connect to this room before using its test game.' ? '' : message);
+          setRefreshError(message);
         }
       }
       finally { if (!controller.signal.aborted) timer = setTimeout(refresh, 1000); }
     }
-    if (connected) refresh();
+    if (sessionActive) refresh();
     return () => {
       alive.current = false; generation.current++; controller.abort(); clearTimeout(timer);
       requests.current.forEach(request => request.abort());
     };
-  }, [commandClient, connected, actionTick]);
+  }, [commandClient, sessionActive, actionTick]);
   async function returnToGame() {
     if (busy || pending.current) return;
     pending.current = true; const version = ++generation.current; setBusy(true); setError('');
@@ -300,15 +301,21 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
     void enterTable(requestedMatchId, requestedEntry);
   }, [requestedMatchId, requestedEntry, busy, snapshot?.match_id]);
   return <>
-    {!snapshot && <Text style={styles.text}>Loading tables…</Text>}
+    {!snapshot && !refreshError && <Text accessibilityLiveRegion="polite" style={styles.text}>{sessionActive ? 'Loading tables…' : 'Sign in again to load tables.'}</Text>}
+    {refreshError && <Pressable accessibilityRole="button" accessibilityLabel="Retry loading tables" disabled={pendingAction || !sessionActive}
+      onPress={() => setActionTick(value => value + 1)} style={styles.choice}><Text style={styles.text}>Retry loading tables</Text></Pressable>}
+    {!snapshot && <Pressable accessibilityRole="button" accessibilityLabel="Create table" disabled={pendingAction || !sessionActive || !creationEnabled}
+      onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 48 }]}>
+      <Text style={[styles.buttonText, { color: colors.onPrimary }]}>+ Create table</Text>
+    </Pressable>}
     {snapshot && !visibleTables.length && <View testID="room-empty-tables" style={{ flexGrow: 1, minHeight: 260, alignItems: 'center', justifyContent: 'center', paddingVertical: 32, gap: 24 }}>
       <Text style={[styles.text, { textAlign: 'center', maxWidth: 320, fontSize: 17, lineHeight: 26 }]}>No tables yet. Start a table and invite your friends.</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="Create table" disabled={busy || !creationEnabled} accessibilityState={{ disabled: busy || !creationEnabled }} onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 48, paddingHorizontal: 24, opacity: busy || !creationEnabled ? 0.5 : 1 }]}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Create table" disabled={pendingAction || !sessionActive || !creationEnabled} accessibilityState={{ disabled: pendingAction || !sessionActive || !creationEnabled }} onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 48, paddingHorizontal: 24, opacity: pendingAction || !sessionActive || !creationEnabled ? 0.5 : 1 }]}>
         <Text style={[styles.buttonText, { color: colors.onPrimary, fontSize: 15 }]}>+ Create table</Text>
       </Pressable>
     </View>}
     {visibleTables.map(table => <TableCard key={table.match_id} roomId={roomId} table={table} busy={busy} enter={action => void enterTable(table.match_id, action)} />)}
-      {!!visibleTables.length && <Pressable accessibilityRole="button" accessibilityLabel="Create table" disabled={busy || !creationEnabled} onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 52, marginBottom: 16 }]}>
+      {!!visibleTables.length && <Pressable accessibilityRole="button" accessibilityLabel="Create table" disabled={pendingAction || !sessionActive || !creationEnabled} onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 52, marginBottom: 16 }]}>
         <Text style={[styles.buttonText, { color: colors.onPrimary }]}>+ Create New Table</Text>
       </Pressable>}
     {collapsed && !!notification.notice && <Animated.View style={{ opacity: notification.opacity }}>
@@ -388,6 +395,8 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
         </FormScrollView>
         <FormFooter>
           {!!error && <Text accessibilityRole="alert" style={styles.modalError}>{error}</Text>}
+          {!synced && <Text accessibilityLiveRegion="polite" style={styles.note}>{sessionActive ? 'Waiting for the table service. Your form will stay open while it retries.' : 'Sign in again before creating a table.'}</Text>}
+          {refreshError && sessionActive && <Pressable accessibilityRole="button" accessibilityLabel="Retry table service" onPress={() => setActionTick(value => value + 1)} style={styles.choice}><Text style={styles.text}>Retry table service</Text></Pressable>}
           <Pressable accessibilityRole="button" accessibilityLabel="Create this table" disabled={busy || !creationEnabled || !tableName.trim()} accessibilityState={{ disabled: busy || !creationEnabled || !tableName.trim() }} onPress={() => void act(false)} style={[styles.button, (busy || !creationEnabled || !tableName.trim()) && { opacity: 0.5 }]}><Text style={styles.buttonText}>Create table</Text></Pressable>
           <Pressable accessibilityRole="button" onPress={() => setOpen(false)} style={styles.choice}><Text style={styles.text}>Back to room</Text></Pressable>
         </FormFooter>

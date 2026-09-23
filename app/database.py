@@ -320,6 +320,27 @@ MIGRATIONS = (
             ADD COLUMN theme_mode text NOT NULL DEFAULT 'system'
                 CHECK (theme_mode IN ('system', 'light', 'dark'));
     """),
+    (12, """
+        -- Existing installations already recorded migration 1. Changes to its
+        -- bootstrap SQL alone cannot upgrade those databases.
+        ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_visibility_check;
+        ALTER TABLE rooms ADD CONSTRAINT rooms_visibility_check
+            CHECK (visibility IN ('public', 'private', 'friends'));
+        UPDATE rooms SET visibility='private' WHERE visibility='friends';
+        CREATE TABLE IF NOT EXISTS room_invitations (
+            id text PRIMARY KEY,
+            room_id text NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+            inviter_id text NOT NULL,
+            recipient_id text NOT NULL,
+            status text NOT NULL DEFAULT 'pending'
+        );
+        CREATE INDEX IF NOT EXISTS room_invitations_recipient_idx
+            ON room_invitations(recipient_id, status);
+        CREATE TABLE IF NOT EXISTS deleted_rooms (
+            id text PRIMARY KEY,
+            deleted_at timestamptz NOT NULL DEFAULT now()
+        );
+    """),
 )
 
 
