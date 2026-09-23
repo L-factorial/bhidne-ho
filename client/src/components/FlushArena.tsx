@@ -48,17 +48,18 @@ export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot
       const lastBet = bets.filter(b => b.player_id === p.player_id && b.kind === 'BET_PLACED').at(-1);
       const name = snapshot.players?.find(row => String(row.player_id) === p.player_id)?.display_name || `Player ${p.player_id}`;
       const target = !!social?.pokeMode && social.eligible(Number(p.player_id));
-      return <View key={p.player_id} testID={`flush-seat-${p.player_id}`} style={[s.seat, { left: pos.x - 40, top: pos.y - 38, opacity: folded ? 0.4 : 1 }]}>
+      return <Pressable key={p.player_id} ref={node => social?.registerSeat(Number(p.player_id), node)} collapsable={false}
+        testID={`flush-seat-${p.player_id}`} accessibilityRole={target ? 'button' : undefined} accessibilityLabel={target ? `Poke ${name}` : name} disabled={!target}
+        onTouchStart={event => { if (target) event.stopPropagation(); }} onPointerDown={event => { if (target) event.stopPropagation(); }} onPress={() => social?.poke(Number(p.player_id))}
+        style={[s.seat, { left: pos.x - 40, top: pos.y - 38, opacity: folded ? 0.4 : 1, minHeight: 44 }]}>
         <PlayerSocialEffect playerId={Number(p.player_id)} />
-        <Pressable ref={node => social?.registerSeat(Number(p.player_id), node)} collapsable={false} accessibilityRole={target ? 'button' : undefined} accessibilityLabel={target ? `Poke ${name}` : name} disabled={!target}
-          onTouchStart={event => { if (target) event.stopPropagation(); }} onPointerDown={event => { if (target) event.stopPropagation(); }} onPress={() => social?.poke(Number(p.player_id))}
-          style={[s.icon, p.player_id === decision?.actor && s.current, target && {borderColor:colors.accent}]}>
+        <View style={[s.icon, p.player_id === decision?.actor && s.current, target && {borderColor:colors.accent}]}>
           {target && <Text style={{position:'absolute',right:-8,top:-8}}>👋</Text>}<PlayerAvatar uri={snapshot.players?.find(row => String(row.player_id) === p.player_id)?.avatar_url} />{!pregame && <Text accessibilityLabel={`${p.turn_bet_count} bets`} style={s.count}>Bets {p.turn_bet_count}</Text>}
           {p.player_id === decision?.actor && p.player_id !== String(snapshot.your_player_id) && <Text testID="flush-active-turn" style={s.turnLabel}>TURN</Text>}
-          {p.player_id === pub?.dealer_id && <Text accessibilityLabel="Dealer" style={s.dealer}>D</Text>}</Pressable>
+          {p.player_id === pub?.dealer_id && <Text accessibilityLabel="Dealer" style={s.dealer}>D</Text>}</View>
         <Text testID={`flush-turn-name-${p.player_id}`} numberOfLines={1} style={s.name}>{name}</Text>
         <Text style={s.caption}>{p.player_id === String(snapshot.your_player_id) ? 'YOU · ' : ''}{pregame ? 'Seated' : folded ? 'Folded' : `${p.visibility}${lastBet ? ` · Bet ${lastBet.amount}` : ''}`}</Text>
-      </View>;
+      </Pressable>;
     })}
     {!!centerControl && <View pointerEvents="box-none" style={{ position: 'absolute', left: 56, right: 56, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>{centerControl}</View>}
     {current && <CoinFlight key={current.sequence} bet={current} from={playerPosition(Math.max(0, index), players.length, width, height)} to={{ x: width / 2, y: height / 2 }}
