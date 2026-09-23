@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useTableSocial } from './TableSocial';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { fonts, useTheme } from '../theme';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
@@ -16,7 +16,11 @@ export function GameMenu({ snapshot, close, rules, history, poke, canPoke, back,
   const { colors } = useTheme();
   const { language, setLanguage } = useLanguage();
   const ended = snapshot.status === 'ended' || snapshot.table?.phase === 'ENDED';
+  const seated = snapshot.table ? snapshot.table.current_user.is_seated : !!snapshot.your_player_id;
+  const playing = snapshot.table ? ['LOCKED', 'STARTED'].includes(snapshot.table.phase) : snapshot.status === 'playing';
+  const canShare = !ended && !(seated && playing);
   const [sharing, setSharing] = useState(false);
+  useEffect(() => { if (!canShare) setSharing(false); }, [canShare]);
   const [playersOpen, setPlayersOpen] = useState(false);
   const section = (label: string) => <Text style={{ color: colors.textMuted, fontFamily: fonts.body, fontSize: 11,
     marginTop: 12, marginBottom: 4 }}>{label}</Text>;
@@ -53,7 +57,7 @@ export function GameMenu({ snapshot, close, rules, history, poke, canPoke, back,
     {gameActions?.map(item => <View key={item.label}>{row(item.label, () => open(item.action))}</View>)}
     {gameContent}
     {section('Room')}
-    {snapshot.room_id && snapshot.match_id && <>{row('Share table', () => setSharing(true), ended)}<TableShareSheet roomId={snapshot.room_id} matchId={snapshot.match_id} visible={sharing} onClose={() => setSharing(false)} /></>}
+    {canShare && snapshot.room_id && snapshot.match_id && <>{row('Share table', () => setSharing(true))}<TableShareSheet roomId={snapshot.room_id} matchId={snapshot.match_id} visible={sharing} onClose={() => setSharing(false)} /></>}
     {row('Back to room', () => open(back))}
     {section('Preferences')}
     {row('Language', () => setLanguage(language === 'en' ? 'ne' : 'en'), false, undefined, language === 'ne' ? 'नेपाली' : 'English')}
