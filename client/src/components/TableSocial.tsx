@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { ChatComposer } from './ChatComposer';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { AccessibilityInfo, Animated, Keyboard, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
-import { fonts, ThemeContext, roomTheme, colors as roomColors, useTheme } from '../theme';
+import { fonts, useTheme } from '../theme';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { TableSocialChannel, mergeTableMessages, type TableMessage } from '../multiplayer/TableSocialChannel';
 import type { RoomPoke } from '../multiplayer/pokes';
@@ -169,21 +169,21 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
           <Pressable accessibilityRole="button" accessibilityLabel="Poke a player" accessibilityState={{selected:pokeMode,disabled:!enabled}} disabled={!enabled} onPress={() => { closeChat(); setPokeMode(value => !value); }} style={[iconStyle,{opacity:enabled?1:0.4,backgroundColor:pokeMode?c.surfaceSelected:undefined,borderRadius:24}]}><Text accessibilityLiveRegion="polite" accessibilityLabel={pokeSent ? 'Poke sent' : undefined} style={{fontSize:20,color:c.onTableHeader}}>{pokeSent ? '✓' : '👋'}</Text></Pressable>
         </View>
       </View>}
-      {open && canRead && <ThemeContext.Provider value={roomTheme}><RoomSheet visible title="Table Chat" testID="table-chat-panel" closeLabel="Close table chat" onClose={closeChat} scrollable={false}>
-        <View style={{flex:1,minHeight:0,gap:8,overflow:'hidden',padding:12,backgroundColor:roomColors.background}}>
-          {myTurn && <Pressable accessibilityRole="button" onPress={closeChat} style={{minHeight:44,justifyContent:'center'}}><Text accessibilityLiveRegion="polite" style={{color:roomColors.accent}}>Your turn · Return to game</Text></Pressable>}
+      {open && canRead && <RoomSheet visible tableStyle title="Table Chat" testID="table-chat-panel" closeLabel="Close table chat" onClose={closeChat} scrollable={false}>
+        <View style={{flex:1,minHeight:0,gap:8,overflow:'hidden',padding:12,backgroundColor:c.background}}>
+          {myTurn && <Pressable accessibilityRole="button" onPress={closeChat} style={{minHeight:44,justifyContent:'center'}}><Text accessibilityLiveRegion="polite" style={{color:c.accent}}>Your turn · Return to game</Text></Pressable>}
           <ScrollView ref={scroll} testID="table-chat-messages" style={{flex:1,minHeight:0}} keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} keyboardShouldPersistTaps="always" onLayout={() => { if(follow.current) scroll.current?.scrollToEnd({animated:false}); }} onScroll={({nativeEvent:e}) => { follow.current = e.contentSize.height-e.contentOffset.y-e.layoutMeasurement.height < 40; }} scrollEventThrottle={16} onContentSizeChange={() => { if(follow.current) scroll.current?.scrollToEnd({animated:false}); }}>
-            {!messages.length && <Text style={{color:roomColors.textMuted}}>Start the table conversation.</Text>}
+            {!messages.length && <Text style={{color:c.textMuted}}>Start the table conversation.</Text>}
             {messages.map(message => <ChatMessage tableStyle key={message.id} message={message} own={message.sender_id === userId} />)}
           </ScrollView>
-          {!!error && <Text accessibilityRole="alert" style={{color:roomColors.danger}}>{error}</Text>}
-          {!connected && <Text style={{color:roomColors.textMuted}}>Reconnecting…</Text>}
+          {!!error && <Text accessibilityRole="alert" style={{color:c.danger}}>{error}</Text>}
+          {!connected && <Text style={{color:c.textMuted}}>Reconnecting…</Text>}
           {seated ? <View testID="table-chat-composer" style={{flexShrink:0}}>
             <ChatComposer value={draft} onChange={setDraft} onSend={() => void send()} disabled={!enabled || sending}
               label="Table message" sendLabel="Send table message" placeholder={t('chat.placeholder')} />
-          </View> : <Text style={{color:roomColors.textMuted}}>Waiting players can read. Take a seat to chat.</Text>}
+          </View> : <Text style={{color:c.textMuted}}>Waiting players can read. Take a seat to chat.</Text>}
         </View>
-      </RoomSheet></ThemeContext.Provider>}
+      </RoomSheet>}
     </View>
   </Context.Provider>;
 }

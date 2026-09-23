@@ -1,9 +1,9 @@
 const assert = require('node:assert/strict');
-// Device color settings must not change the fixed design or remount a game.
+// Device color settings must not change the selected game theme or remount a game.
 exports.checkThemes = async (page, name) => {
   for (const colorScheme of ['dark', 'light']) {
     await page.emulateMedia({ colorScheme });
-    await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
+    await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
     await page.getByRole('button', { name: 'Table menu', exact: true }).click();
     const menu = page.getByTestId(/-menu-drawer$/);
     assert.equal(await menu.getByRole('button', { name: /^Appearance,/ }).count(), 0);

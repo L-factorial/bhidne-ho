@@ -1,8 +1,8 @@
+import { gameControlFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import Svg, { Path } from 'react-native-svg';
-import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { useTranslation } from 'react-i18next';
 
 export type SignInMethod = 'Apple' | 'Google' | 'Facebook' | 'account';
@@ -29,7 +29,7 @@ export function SignInButton({ method, onPress, disabled = false, label }: { met
       disabled={disabled} accessibilityState={{ disabled }}
       onPress={onPress} onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)} style={({ pressed }) => [
-        styles.button, { backgroundColor, opacity: disabled ? 0.4 : pressed ? 0.78 : 1 },
+        styles.button, gameControlFinish(colors, pressed), { backgroundColor, opacity: disabled ? 0.4 : pressed ? 0.78 : 1 },
         method === 'Google' && styles.google, focused && styles.focused,
       ]}>
       <View style={styles.icon}>

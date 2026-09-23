@@ -25,10 +25,10 @@ const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8098';
       await page.getByTestId('profile-screen').waitFor();
       assert.equal(await page.getByRole('radio', { name: /^(Dark|Light|System|Heritage|Himalayan|Courtyard)$/ }).count(), 0);
       assert.equal(await page.getByRole('heading', { name: 'Appearance', exact: true }).count(), 0);
-      assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(250, 247, 241)');
+      assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(6, 43, 35)');
       await page.getByRole('button', { name: 'Back from profile', exact: true }).click();
     }
     assert.deepEqual(appearanceRequests, []); assert.deepEqual(errors, []);
-    console.log('PASS fixed design ignores device, cached and server preferences; no profile controls or appearance requests');
+    console.log('PASS default game theme ignores device and legacy preferences; no legacy appearance requests');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

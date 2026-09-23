@@ -1,3 +1,4 @@
+import { gameControlFinish, gamePanelFinish, fonts, radii, typography, useTheme } from '../theme';
 import { useState } from 'react';
 import { ImageBackground, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -5,7 +6,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { RoomShareActions } from './ShareLink';
 import { RoomSheet } from './RoomSheet';
 import type { Room } from '../multiplayer/session';
-import { fonts, radii, typography, useTheme } from '../theme';
 
 export function RoomCard({ room, member, busy, activeTables, onPress }: { room: Room; member: boolean; busy: boolean; activeTables?: number; onPress: () => void }) {
   const { colors: c } = useTheme();
@@ -16,7 +16,7 @@ export function RoomCard({ room, member, busy, activeTables, onPress }: { room: 
   const previews = room.member_previews || [];
   const shown = previews.length ? previews.slice(0, 4) : room.members.slice(0, 4).map(user_id => ({ user_id, display_name: '', username: '' }));
   const extra = Math.max(0, room.members.length - shown.length);
-  return <View testID={`room-card-${room.room_id}`} style={{ padding: 10, borderRadius: radii.large, backgroundColor: c.surface,
+  return <View testID={`room-card-${room.room_id}`} style={{ ...gamePanelFinish(c), padding: 10, borderRadius: radii.large, backgroundColor: c.surface,
     borderWidth: 1, borderColor: c.borderSubtle, gap: 8, opacity: busy ? 0.55 : 1 }}>
     <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 4, paddingLeft: 3 }}>
       <View style={{ flex: 1, minWidth: 0, gap: 4, paddingTop: 3 }}>
@@ -55,7 +55,7 @@ export function RoomCard({ room, member, busy, activeTables, onPress }: { room: 
             </View>}
           </View>
           <Pressable accessibilityRole="button" accessibilityLabel={`${member ? 'Enter' : 'Join'} ${room.name}`} disabled={busy} accessibilityState={{ disabled: busy }} onPress={onPress}
-            style={({ pressed }) => ({ minHeight: 44, paddingHorizontal: 16, borderRadius: 10, backgroundColor: pressed ? c.primaryPressed : c.primary,
+            style={({ pressed }) => ({ ...gameControlFinish(c, pressed), minHeight: 44, paddingHorizontal: 16, borderRadius: 10, backgroundColor: pressed ? c.primaryPressed : c.primary,
               flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center' })}>
             <Text style={{ color: c.onPrimary, fontFamily: fonts.medium, fontSize: 13 }}>{member ? 'Enter' : 'Join'}</Text>
             <Ionicons name="arrow-forward" size={16} color={c.onPrimary} />

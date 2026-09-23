@@ -19,16 +19,17 @@ export const colors = {
   tableHeader: '#0A382B', onTableHeader: '#FFF8EB', tableTrim: '#A17C45', ownMessage: '#F6E8EA', resultOwnSurface: '#F6E8EA',
 };
 export type ThemeColors = typeof colors;
-// Default game palette; selectable table themes extend this without changing the lobby.
+// Shared game palette; the selected theme applies throughout the app.
 export const gameColors: ThemeColors = {
   ...colors,
   background: '#062B23', header: '#062B23', table: '#07382B',
   surface: '#0B3027', surfaceRaised: '#164638', surfaceSelected: '#28513C',
-  resultOwnSurface: '#164638',
+  resultOwnSurface: '#164638', ownMessage: '#28513C',
   text: '#FFF3DC', textMuted: '#C6D2C8', accent: '#F0C96A',
   border: '#7E947F', borderSubtle: '#315347', primarySoft: '#173E32',
   primary: '#AA2039', primaryPressed: '#83182D',
   success: '#7DE0A5', successSurface: '#123E2B', danger: '#FF9DAB', dangerSurface: '#492630',
+  warning: '#F0C96A', warningSoft: '#493A20',
   maalSeen: '#7DE0A5', maalUnseen: '#C6D2C8',
   tableHeader: '#082E24', shadow: 'rgba(0,0,0,0.3)',
 };
@@ -49,6 +50,23 @@ export const space = { xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, se
 export const radii = { small: 8, medium: 12, large: 18, xl: 24 } as const;
 export const typography = { display: 42, pageTitle: 30, sectionTitle: 22, cardTitle: 18, body: 15, metadata: 13, caption: 11 } as const;
 
+/** Visual finishes only: preserve each screen's dimensions and spacing. */
+export function gameControlFinish(c: ThemeColors, pressed = false) {
+  return {
+    borderRadius: 12,
+    backgroundColor: pressed ? c.surfaceRaised : c.tableHeader,
+    boxShadow: pressed
+      ? `inset 0px 1px 4px ${c.shadow}, inset 0px 0px 0px 1px ${c.tableTrim}`
+      : `0px 3px 7px ${c.shadow}, inset 0px 1px 0px rgba(255,248,235,0.14), inset 0px 0px 0px 1px ${c.tableTrim}`,
+  };
+}
+export function gamePanelFinish(c: ThemeColors) {
+  return { boxShadow: `0px 8px 24px ${c.shadow}, inset 0px 0px 0px 1px ${c.borderSubtle}` };
+}
+export function gameHeadingFinish(c: ThemeColors) {
+  return { textShadowColor: c.shadow, textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 };
+}
+
 // Shared card-area controls: maroon primary, felt secondary with a warm gold edge.
 export function gameButtonStyle(c: ThemeColors, variant: 'primary' | 'secondary' = 'secondary', pressed = false) {
   return {
@@ -56,6 +74,6 @@ export function gameButtonStyle(c: ThemeColors, variant: 'primary' | 'secondary'
     paddingHorizontal: 12, paddingVertical: 10,
     backgroundColor: variant === 'primary' ? (pressed ? c.primaryPressed : c.primary) : (pressed ? c.surfaceRaised : c.tableHeader),
     borderColor: variant === 'primary' ? '#D96878' : c.tableTrim,
-    boxShadow: 'inset 0px 1px 0px rgba(255, 248, 235, 0.16)',
+    boxShadow: gameControlFinish(c, pressed).boxShadow,
   };
 }

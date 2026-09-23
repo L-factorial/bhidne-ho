@@ -71,7 +71,7 @@ function AppContent() {
   </View>;
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       {!!authError && <Text accessibilityRole="alert" style={{ padding: 16, color: colors.danger }}>{authError}</Text>}
       {finishingSignIn ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.text }}>Completing sign-in…</Text></View>
         : inRooms || invitation ? <SharedRoomsScreen key={authVersion} invitation={invitation} dismissInvitation={dismissInvitation} onExit={() => { dismissInvitation(); setInRooms(false); }} />

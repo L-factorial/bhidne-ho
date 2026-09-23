@@ -5,7 +5,7 @@ import { Platform, Share, Pressable, Text, View } from 'react-native';
 import Svg, { Rect, Path } from 'react-native-svg';
 import * as Clipboard from 'expo-clipboard';
 import { invitationLink, tableInvitationCode } from '../multiplayer/invitations';
-import { fonts, ThemeContext, roomTheme, useTheme } from '../theme';
+import { fonts, useTheme } from '../theme';
 import { useTranslation } from 'react-i18next';
 
 export function ShareLink({ roomId, matchId, compact = false, menu = false, disabled = false, label }: { label?: string; roomId: string; matchId?: string; compact?: boolean; menu?: boolean; disabled?: boolean }) {
@@ -79,7 +79,7 @@ export function TableShareActions({ roomId, matchId }: { roomId: string; matchId
 
 type TableShareProps = { roomId: string; matchId: string; visible: boolean; onClose: () => void };
 export function TableShareSheet(props: TableShareProps) {
-  return <ThemeContext.Provider value={roomTheme}><TableShareContent {...props} /></ThemeContext.Provider>;
+  return <TableShareContent {...props} />;
 }
 function TableShareContent({ roomId, matchId, visible, onClose }: TableShareProps) {
   const { colors: c } = useTheme();

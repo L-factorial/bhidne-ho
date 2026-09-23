@@ -1,3 +1,5 @@
+import { gameHeadingFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { ThemeAction } from '../components/ThemeAction';
 import { useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,7 +10,6 @@ import { SignInButton, SignInMethod } from '../components/SignInButton';
 import { SocialSignInButtons } from '../components/SocialSignInButtons';
 import { apiUrl } from '../multiplayer/api';
 import { saveSession } from '../multiplayer/session';
-import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { LanguageToggle } from '../components/LanguageToggle';
 import { useTranslation } from 'react-i18next';
 
@@ -33,7 +34,7 @@ export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
       }]}>
         <View style={[styles.layout, wide && styles.wideLayout]}>
           <View style={[styles.brandSide, wide && styles.wideBrand]}>
-            <View style={{ flexDirection: 'row', gap: 8 }}><LanguageToggle /></View>
+            <View style={{ flexDirection: 'row', gap: 8 }}><LanguageToggle /><ThemeAction /></View>
             {wide ? <Image source={branding.splash} accessibilityLabel="Bhidne Ho — friends playing cards in Nepal. More than a game, it’s our time." resizeMode="contain" style={{ width: '100%', aspectRatio: 507 / 953, maxHeight: 760, marginTop: 16, borderRadius: 20 }} /> : <>
               <BrandBanner />
               <View style={styles.mobileIntro}>
@@ -81,13 +82,13 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   brandSide: { alignItems: 'center', width: '100%' },
   wideBrand: { flex: 1, width: 'auto', justifyContent: 'center', paddingVertical: 32 },
   mobileIntro: { alignItems: 'center', marginTop: 13, gap: 6 },
-  mobileHeading: { fontFamily: fonts.display, fontSize: 31, color: colors.text },
+  mobileHeading: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 31, color: colors.text },
   mobileSubtitle: { fontFamily: fonts.body, fontSize: 14, color: colors.textMuted },
-  panel: { backgroundColor: colors.surface, borderRadius: 22, boxShadow: `0px 18px 60px ${colors.shadow}` },
+  panel: { ...gamePanelFinish(colors), backgroundColor: colors.surface, borderRadius: 22, boxShadow: `0px 18px 60px ${colors.shadow}` },
   widePanel: { width: 480, paddingHorizontal: 44, paddingTop: 48, paddingBottom: 24, justifyContent: 'center', minHeight: 660 },
   mobilePanel: { marginTop: 22, width: '100%', padding: 22, borderRadius: 20 },
   intro: { alignItems: 'center', marginBottom: 48 },
-  heading: { fontFamily: fonts.display, fontSize: 52, color: colors.text, letterSpacing: -1.5, textAlign: 'center' },
+  heading: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 52, color: colors.text, letterSpacing: -1.5, textAlign: 'center' },
   subtitle: { fontFamily: fonts.body, fontSize: 19, color: colors.textMuted, marginTop: 8, textAlign: 'center' },
   buttons: { gap: 13 },
   divider: { flexDirection: 'row', alignItems: 'center', gap: 20, marginVertical: 25 },

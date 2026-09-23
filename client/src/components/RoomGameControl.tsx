@@ -1,3 +1,4 @@
+import { gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, ThemeContext, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { useTableTheme } from '../TableThemeProvider';
 import { FormInput, FormScrollView } from './FormInput';
 import { KeyboardFrame } from './KeyboardFrame';
@@ -11,7 +12,6 @@ import { TableControls } from './TableControls';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useGameNotification } from '../notifications/useGameNotification';
-import { fonts, ThemeContext, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LiveGameTable, RoomSnapshot as Snapshot } from '../screens/LiveGameTable';
 import { GameCommandClient, createHttpGameTransport } from '../multiplayer/GameCommandClient';
@@ -410,7 +410,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   code: { fontFamily: fonts.medium, fontSize: 22, color: colors.text, letterSpacing: 1 },
   joinHint: { fontFamily: fonts.body, fontSize: 12, lineHeight: 21, color: colors.textMuted, marginTop: 8 },
   bar: { gap: 18, paddingTop: 24, paddingBottom: 8 }, summary: { color: colors.text, fontFamily: fonts.medium, fontSize: 14, lineHeight: 23 },
-  button: { minHeight: 44, padding: 12, borderRadius: 8, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }, buttonText: { fontFamily: fonts.medium, fontSize: 12, color: colors.onPrimary },
-  error: { color: colors.danger, padding: 12, fontFamily: fonts.body, fontSize: 12 }, overlay: { flex: 1, paddingHorizontal: 20, paddingVertical: 48, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.overlay }, modal: { maxWidth: 480, width: '100%', maxHeight: '100%', borderRadius: 18, overflow: 'hidden', backgroundColor: colors.surface }, body: { padding: 24, gap: 16 },
-  title: { fontFamily: fonts.display, fontSize: 30, color: colors.text }, text: { fontFamily: fonts.body, color: colors.text, fontSize: 13, lineHeight: 22 }, choices: { flexDirection: 'row', gap: 12 }, choice: { minHeight: 44, padding: 10, borderWidth: 1, borderColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }, player: { fontFamily: fonts.medium, fontSize: 13, color: colors.text }, note: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 11, lineHeight: 19 }, modalError: { fontFamily: fonts.body, color: colors.danger, fontSize: 12 },
+  button: { ...gameControlFinish(colors), minHeight: 44, padding: 12, borderRadius: 8, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }, buttonText: { fontFamily: fonts.medium, fontSize: 12, color: colors.onPrimary },
+  error: { color: colors.danger, padding: 12, fontFamily: fonts.body, fontSize: 12 }, overlay: { flex: 1, paddingHorizontal: 20, paddingVertical: 48, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.overlay }, modal: { ...gamePanelFinish(colors), maxWidth: 480, width: '100%', maxHeight: '100%', borderRadius: 18, overflow: 'hidden', backgroundColor: colors.surface }, body: { padding: 24, gap: 16 },
+  title: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 30, color: colors.text }, text: { fontFamily: fonts.body, color: colors.text, fontSize: 13, lineHeight: 22 }, choices: { flexDirection: 'row', gap: 12 }, choice: { minHeight: 44, padding: 10, borderWidth: 1, borderColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }, player: { fontFamily: fonts.medium, fontSize: 13, color: colors.text }, note: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 11, lineHeight: 19 }, modalError: { fontFamily: fonts.body, color: colors.danger, fontSize: 12 },
 });

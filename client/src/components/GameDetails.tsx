@@ -1,3 +1,4 @@
+import { gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useThemedStyles, type ThemeColors } from '../theme';
 import { FormScrollView } from './FormInput';
 import { RoomSheet } from './RoomSheet';
 import { FormFooter } from './FormFooter';
@@ -5,7 +6,6 @@ import { NumericInput } from './NumericInput';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
-import { fonts, useThemedStyles, type ThemeColors } from '../theme';
 
 export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = false }: {
   menu?: boolean; sidebar?: boolean; snapshot: RoomSnapshot; busy: boolean; onSave: (settings: NonNullable<RoomSnapshot['settings']>) => void;
@@ -103,9 +103,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   sidebar: { flex: 1, minHeight: 0, borderBottomWidth: 0, paddingHorizontal: 12 },
   sidebarDetails: { flex: 1, minHeight: 0 },
   selectedTab: { backgroundColor: colors.surfaceSelected, borderBottomWidth: 2, borderColor: colors.accent },
-  panel: { paddingHorizontal: 16, borderBottomWidth: 1, borderColor: colors.border }, row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  button: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 12 }, label: { fontFamily: fonts.medium, fontSize: 12, color: colors.accent },
-  details: { maxHeight: 320 }, title: { fontFamily: fonts.display, fontSize: 23, color: colors.text }, text: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 12, lineHeight: 21, flexShrink: 1 },
+  panel: { ...gamePanelFinish(colors), paddingHorizontal: 16, borderBottomWidth: 1, borderColor: colors.border }, row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  button: { ...gameControlFinish(colors), minHeight: 44, justifyContent: 'center', paddingHorizontal: 12 }, label: { fontFamily: fonts.medium, fontSize: 12, color: colors.accent },
+  details: { maxHeight: 320 }, title: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 23, color: colors.text }, text: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 12, lineHeight: 21, flexShrink: 1 },
   statsTable: { width: '100%', borderWidth: 1, borderColor: colors.border, borderRadius: 8, overflow: 'hidden' },
   statsRow: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderColor: colors.surfaceSelected },
   playerCell: { flex: 1, minWidth: 0, paddingHorizontal: 2, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', gap: 2 },

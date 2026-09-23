@@ -1,9 +1,9 @@
+import { gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { AppHeader } from '../components/AppHeader';
 import { GameIcon } from '../components/BrandArt';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 export type GameId = 'callbreak' | 'flush' | 'marriage';
 const gameOptions = (colors: ThemeColors) => [
@@ -79,18 +79,18 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   brand: { fontFamily: fonts.display, fontSize: 31, color: colors.accent }, account: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   guest: { fontFamily: fonts.medium, fontSize: 13, color: colors.text }, linkButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 }, link: { fontFamily: fonts.body, fontSize: 12, color: colors.accent },
   hero: { paddingVertical: 40, gap: 12 }, eyebrow: { fontFamily: fonts.medium, fontSize: 10, letterSpacing: 3, color: colors.accent },
-  title: { fontFamily: fonts.display, fontSize: 60, color: colors.text }, subtitle: { fontFamily: fonts.body, fontSize: 14, lineHeight: 23, color: colors.textMuted },
-  grid: { gap: 22 }, wideGrid: { flexDirection: 'row' }, card: { backgroundColor: colors.surface, borderRadius: 18, overflow: 'hidden', minWidth: 0 },
+  title: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 60, color: colors.text }, subtitle: { fontFamily: fonts.body, fontSize: 14, lineHeight: 23, color: colors.textMuted },
+  grid: { gap: 22 }, wideGrid: { flexDirection: 'row' }, card: { ...gamePanelFinish(colors), backgroundColor: colors.surface, borderRadius: 18, overflow: 'hidden', minWidth: 0 },
   art: { height: 200, justifyContent: 'center', alignItems: 'center', gap: 12 }, symbol: { fontSize: 80, color: colors.accent },
   cardMotif: { fontFamily: fonts.display, color: colors.text, fontSize: 22, letterSpacing: 3 }, cardBody: { padding: 24, flex: 1 },
-  gameName: { fontFamily: fonts.display, fontSize: 35, color: colors.text }, description: { fontFamily: fonts.body, fontSize: 13, lineHeight: 22, color: colors.textMuted, marginTop: 8, flex: 1 },
+  gameName: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 35, color: colors.text }, description: { fontFamily: fonts.body, fontSize: 13, lineHeight: 22, color: colors.textMuted, marginTop: 8, flex: 1 },
   detail: { fontFamily: fonts.medium, fontSize: 11, color: colors.accent, marginTop: 24, marginBottom: 18 },
-  button: { minHeight: 48, justifyContent: 'center', alignItems: 'center', borderRadius: 9, padding: 14, backgroundColor: colors.surfaceSelected },
+  button: { ...gameControlFinish(colors), minHeight: 48, justifyContent: 'center', alignItems: 'center', borderRadius: 9, padding: 14, backgroundColor: colors.surfaceSelected },
   buttonText: { fontFamily: fonts.medium, fontSize: 13, color: colors.text, textAlign: 'center' },
   preview: { fontFamily: fonts.body, fontSize: 11, lineHeight: 19, color: colors.textMuted, textAlign: 'center', marginTop: 28 },
   footer: { fontFamily: fonts.display, fontSize: 22, color: colors.textMuted, textAlign: 'center', marginTop: 18 },
-  back: { minHeight: 56, justifyContent: 'center', marginTop: 12, alignSelf: 'flex-start' },
-  emptyRoom: { backgroundColor: colors.surface, padding: 30, borderRadius: 18, marginTop: 26, gap: 20, maxWidth: 580 },
-  emptySymbol: { fontSize: 60, color: colors.accent }, emptyTitle: { fontFamily: fonts.display, fontSize: 34, color: colors.text },
+  back: { ...gameControlFinish(colors), minHeight: 56, justifyContent: 'center', marginTop: 12, alignSelf: 'flex-start' },
+  emptyRoom: { ...gamePanelFinish(colors), backgroundColor: colors.surface, padding: 30, borderRadius: 18, marginTop: 26, gap: 20, maxWidth: 580 },
+  emptySymbol: { fontSize: 60, color: colors.accent }, emptyTitle: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 34, color: colors.text },
   emptyText: { fontFamily: fonts.body, fontSize: 14, lineHeight: 24, color: colors.textMuted },
 });

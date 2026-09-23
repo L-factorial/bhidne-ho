@@ -1,4 +1,5 @@
-import { createContext, forwardRef, useCallback, useContext, useEffect, useRef } from 'react';
+import { createContext, forwardRef, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useTheme } from '../theme';
 import { Keyboard, Platform, ScrollView, type ScrollViewProps, TextInput, type TextInputProps } from 'react-native';
 
 export const FormFocusContext = createContext<(input: TextInput | null) => void>(() => {});
@@ -41,10 +42,13 @@ export function FormScrollView({ children, onLayout, onScroll, onContentSizeChan
 }
 
 export const FormInput = forwardRef<TextInput, TextInputProps>(function FormInput({ onFocus, onBlur, style, ...props }, ref) {
+  const { colors } = useTheme();
+  const [focused, setFocused] = useState(false);
   const input = useRef<TextInput | null>(null);
   const reveal = useContext(FormFocusContext);
   return <TextInput {...props} ref={node => { input.current = node; if (typeof ref === 'function') ref(node); else if (ref) ref.current = node; }}
-    style={[style, Platform.OS === 'web' && { fontSize: 16 }]}
-    onFocus={event => { reveal(input.current); onFocus?.(event); }}
-    onBlur={event => { reveal(null); onBlur?.(event); }} />;
+    placeholderTextColor={props.placeholderTextColor || colors.textMuted}
+    style={[style, { boxShadow: `inset 0px 2px 4px ${colors.shadow}`, borderColor: focused ? colors.tableTrim : colors.border }, Platform.OS === 'web' && { fontSize: 16 }]}
+    onFocus={event => { setFocused(true); reveal(input.current); onFocus?.(event); }}
+    onBlur={event => { setFocused(false); reveal(null); onBlur?.(event); }} />;
 });

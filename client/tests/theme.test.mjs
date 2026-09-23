@@ -11,7 +11,7 @@ const c = colors;
 test('all table choices retain readable text and recognizable cards', () => {
   for (const theme of Object.values(tableThemes)) {
     const c = theme.colors;
-    for (const bg of [c.background, c.surface, c.surfaceRaised, c.surfaceSelected, c.table, c.resultOwnSurface]) {
+    for (const bg of [c.background, c.surface, c.surfaceRaised, c.surfaceSelected, c.table, c.resultOwnSurface, c.ownMessage]) {
       for (const fg of [c.text, c.textMuted, c.accent]) assert.ok(contrast(fg, bg) >= 4.5, `${theme.name}: ${fg} on ${bg}`);
     }
     for (const key of ['cardFace', 'cardInk', 'cardRed', 'cardBack']) assert.equal(c[key], colors[key]);

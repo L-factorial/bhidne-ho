@@ -56,7 +56,7 @@ async function api(path, user, body, method) {
     assert.equal(await page.getByRole('radio', { name: /^(Dark|Light|System)$/ }).count(), 0);
     await page.getByRole('button', { name: 'Back from profile', exact: true }).click();
     await nav.getByRole('tab', { name: 'Home', exact: true }).click();
-    await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
+    await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
     await page.screenshot({ path: '/tmp/bhidne-lobby-reference-fixed.png', fullPage: true });
     await page.getByRole('button', { name: 'Join with code', exact: true }).click();
     await page.getByLabel('Room or table code', { exact: true }).fill(outsideRoom.room_id);

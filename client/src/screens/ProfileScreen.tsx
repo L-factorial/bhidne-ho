@@ -1,3 +1,4 @@
+import { gameControlFinish, gameHeadingFinish, fonts, useThemedStyles, type ThemeColors } from '../theme';
 import { FormScrollView } from '../components/FormInput';
 import { KeyboardFrame } from '../components/KeyboardFrame';
 import { useEffect, useState } from 'react';
@@ -10,7 +11,6 @@ import { DisplayNameField } from '../components/DisplayNameField';
 import type { Session } from '../multiplayer/session';
 import { PlayerPhrases } from '../components/PlayerPhrases';
 import type { usePlayerPhrases } from '../multiplayer/usePlayerPhrases';
-import { fonts, useThemedStyles, type ThemeColors } from '../theme';
 import { FriendsPanel } from '../components/FriendsPanel';
 
 export function ProfileScreen({ session, personal, onBack, onSignOut }: {
@@ -55,9 +55,9 @@ export function ProfileScreen({ session, personal, onBack, onSignOut }: {
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.background }, content: { width: '100%', maxWidth: 680, alignSelf: 'center', gap: 16 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
-  title: { fontFamily: fonts.display, fontSize: 36, color: colors.text },
-  back: { minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center' },
+  title: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 36, color: colors.text },
+  back: { ...gameControlFinish(colors), minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center' },
   link: { fontFamily: fonts.medium, color: colors.accent, fontSize: 14 },
-  signOut: { minHeight: 46, borderWidth: 1, borderColor: colors.border, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }, signOutText: { fontFamily: fonts.medium, color: colors.textMuted, fontSize: 13 },
+  signOut: { ...gameControlFinish(colors), minHeight: 46, borderWidth: 1, borderColor: colors.border, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }, signOutText: { fontFamily: fonts.medium, color: colors.textMuted, fontSize: 13 },
   description: { fontFamily: fonts.body, color: colors.text, fontSize: 13, lineHeight: 22 },
 });

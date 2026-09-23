@@ -4,7 +4,7 @@ import { Pressable, Text, View } from 'react-native';
 import { request } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 import { pokeTextLength } from '../multiplayer/pokes';
-import { fonts, useTheme } from '../theme';
+import { fonts, gameControlFinish, useTheme } from '../theme';
 
 export function DisplayNameField({ session, onSaved }: { session: Session; onSaved?: (name: string) => void }) {
   const { colors } = useTheme();
@@ -40,7 +40,7 @@ export function DisplayNameField({ session, onSaved }: { session: Session; onSav
       placeholderTextColor={colors.textMuted} autoCapitalize="words" returnKeyType="done" onSubmitEditing={() => void save()}
       style={{ flex: 1, minWidth: 0, backgroundColor: colors.surfaceRaised, borderRadius: 8, padding: 12, minHeight: 46, fontFamily: fonts.body, color: colors.text }} />
     <Pressable accessibilityRole="button" accessibilityLabel="Save display name" disabled={!loaded || busy} onPress={() => void save()}
-      style={{ minHeight: 44, padding: 12, borderRadius: 8, alignItems: 'center', backgroundColor: colors.surfaceSelected, opacity: loaded && !busy ? 1 : 0.5 }}>
+      style={{ ...gameControlFinish(colors), minHeight: 44, padding: 12, borderRadius: 8, alignItems: 'center', backgroundColor: colors.surfaceSelected, opacity: loaded && !busy ? 1 : 0.5 }}>
       <Text style={{ color: colors.text, fontFamily: fonts.medium }}>{busy ? 'Saving…' : 'Save'}</Text>
     </Pressable></View>
     <Text style={{ color: colors.textMuted, fontSize: 12 }}>{pokeTextLength(name)}/25</Text>

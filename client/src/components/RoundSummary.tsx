@@ -1,9 +1,9 @@
+import { gameControlFinish, gameHeadingFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { RoundResultsTable } from './RoundResultsTable';
 import type { ReactNode } from 'react';
 import { ActionCue } from './ActionCue';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
-import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 export function RoundSummary({ snapshot, busy, error, onContinue, onBack, onNewGame, controls, hideNavigation = false }: {
   controls?: ReactNode; hideNavigation?: boolean;
@@ -36,8 +36,8 @@ export function RoundSummary({ snapshot, busy, error, onContinue, onBack, onNewG
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.background }, body: { padding: 20, gap: 16 },
-  title: { fontFamily: fonts.display, fontSize: 32, color: colors.text }, name: { fontFamily: fonts.medium, color: colors.text, fontSize: 15 },
+  title: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 32, color: colors.text }, name: { fontFamily: fonts.medium, color: colors.text, fontSize: 15 },
   note: { fontFamily: fonts.body, color: colors.accent, fontSize: 13, lineHeight: 22 },
   row: { padding: 14, borderRadius: 10, backgroundColor: colors.surface, gap: 6 },
-  button: { minHeight: 48, padding: 14, borderRadius: 8, backgroundColor: colors.surfaceSelected, alignItems: 'center' }, back: { minHeight: 44, justifyContent: 'center' },
+  button: { ...gameControlFinish(colors), minHeight: 48, padding: 14, borderRadius: 8, backgroundColor: colors.surfaceSelected, alignItems: 'center' }, back: { ...gameControlFinish(colors), minHeight: 44, justifyContent: 'center' },
 });

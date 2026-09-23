@@ -1,6 +1,6 @@
+import { gameControlFinish, fonts, useTheme } from '../theme';
 import { Pressable, Text } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
-import { fonts, useTheme } from '../theme';
 
 export function HeaderAction({ icon, label, onPress, compact = false }: {
   icon: 'profile' | 'leave'; label: string; onPress: () => void; compact?: boolean;
@@ -8,7 +8,7 @@ export function HeaderAction({ icon, label, onPress, compact = false }: {
   const { colors } = useTheme();
   const color = icon === 'leave' ? colors.textMuted : colors.accent;
   return <Pressable accessibilityRole="button" accessibilityLabel={icon === 'profile' ? 'Open profile' : label}
-    onPress={onPress} style={({ pressed }) => ({ minWidth: 44, minHeight: 44, paddingHorizontal: compact ? 10 : 14,
+    onPress={onPress} style={({ pressed }) => ({ ...gameControlFinish(colors, pressed), minWidth: 44, minHeight: 44, paddingHorizontal: compact ? 10 : 14,
       flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 12,
       borderWidth: 1, borderColor: colors.border, backgroundColor: pressed ? colors.surfaceSelected : colors.surface,
     })}>

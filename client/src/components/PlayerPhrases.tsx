@@ -1,8 +1,8 @@
+import { gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { FormInput } from './FormInput';
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { limitPokeText, PLAYER_PHRASE_LIMIT, POKE_TEXT_LIMIT, pokeTextLength, type PlayerPhrase } from '../multiplayer/pokes';
-import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 export function PlayerPhrases({ phrases, userId, connected, loadError, onSave, onRemove, onUpdate }: {
   phrases: PlayerPhrase[]; userId: string; connected: boolean; loadError: string;
@@ -51,11 +51,11 @@ export function PlayerPhrases({ phrases, userId, connected, loadError, onSave, o
   </View>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  panel: { backgroundColor: colors.surface, borderRadius: 16, padding: 20, marginTop: 20 }, toggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48, gap: 8 },
-  title: { fontFamily: fonts.medium, fontSize: 13, color: colors.text }, body: { gap: 8, paddingBottom: 8 }, note: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 11, lineHeight: 19 },
-  phrases: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 }, chip: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: 12, paddingLeft: 12, paddingRight: 8, minHeight: 44, maxWidth: '100%' },
+  panel: { ...gamePanelFinish(colors), backgroundColor: colors.surface, borderRadius: 16, padding: 20, marginTop: 20 }, toggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48, gap: 8 },
+  title: { ...gameHeadingFinish(colors), fontFamily: fonts.medium, fontSize: 13, color: colors.text }, body: { gap: 8, paddingBottom: 8 }, note: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 11, lineHeight: 19 },
+  phrases: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 }, chip: { ...gameControlFinish(colors), flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: 12, paddingLeft: 12, paddingRight: 8, minHeight: 44, maxWidth: '100%' },
   phrase: { fontFamily: fonts.medium, color: colors.text, fontSize: 12, flexShrink: 1 }, remove: { minWidth: 38, minHeight: 44, alignItems: 'center', justifyContent: 'center' }, removeText: { color: colors.accent, fontSize: 23 },
   input: { backgroundColor: colors.surface, borderRadius: 9, borderWidth: 1, borderColor: colors.border, padding: 12, minHeight: 46, fontFamily: fonts.body, fontSize: 13, color: colors.text },
-  add: { minHeight: 44, minWidth: 66, backgroundColor: colors.surfaceSelected, borderRadius: 8, justifyContent: 'center', alignItems: 'center' }, addText: { color: colors.text, fontFamily: fonts.medium, fontSize: 12 },
+  add: { ...gameControlFinish(colors), minHeight: 44, minWidth: 66, backgroundColor: colors.surfaceSelected, borderRadius: 8, justifyContent: 'center', alignItems: 'center' }, addText: { color: colors.text, fontFamily: fonts.medium, fontSize: 12 },
   error: { color: colors.danger, fontFamily: fonts.body, fontSize: 12 },
 });

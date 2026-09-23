@@ -1,3 +1,4 @@
+import { gameControlFinish, gameHeadingFinish, fonts, useThemedStyles, type ThemeColors } from '../theme';
 import { RoundResultsTable } from './RoundResultsTable';
 import { FormScrollView } from './FormInput';
 import { type ReactNode } from 'react';
@@ -7,7 +8,6 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import type { MarriageScoringRules } from '../multiplayer/marriage';
-import { fonts, useThemedStyles, type ThemeColors } from '../theme';
 
 const tables = ['tiplu', 'jhiplu', 'poplu', 'man', 'marriage'] as const;
 const amounts = ['tunnela_bonus', 'seen_payment', 'unseen_payment', 'dublee_win_bonus'] as const;
@@ -100,8 +100,8 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   section: { gap: 12 }, row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 },
   label: { flexGrow: 1, flexBasis: 120 }, value: { width: 44, textAlign: 'center' },
   text: { color: colors.text, fontFamily: fonts.body, fontSize: 13, lineHeight: 21 },
-  heading: { color: colors.accent, fontFamily: fonts.medium, fontSize: 16 },
+  heading: { ...gameHeadingFinish(colors), color: colors.accent, fontFamily: fonts.medium, fontSize: 16 },
   input: { width: 46, minHeight: 44, color: colors.text, backgroundColor: colors.surfaceRaised, borderRadius: 6, textAlign: 'center' },
-  button: { padding: 10, minHeight: 44, borderWidth: 1, borderColor: colors.border, borderRadius: 8 }, selected: { backgroundColor: colors.successSurface },
+  button: { ...gameControlFinish(colors), padding: 10, minHeight: 44, borderWidth: 1, borderColor: colors.border, borderRadius: 8 }, selected: { backgroundColor: colors.successSurface },
   player: { gap: 5, paddingVertical: 12, borderTopWidth: 1, borderColor: colors.border },
 });

@@ -1,3 +1,4 @@
+import { gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { FormInput } from './FormInput';
 import { RoomSheet } from './RoomSheet';
 import { ChatComposer } from './ChatComposer';
@@ -7,7 +8,6 @@ import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { request } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
-import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 type Player = { user_id: string; display_name: string; username?: string | null };
 type Snapshot = { friends: Player[]; incoming: Player[]; outgoing: Player[] };
@@ -134,13 +134,13 @@ export function FriendsPanel({ session }: { session: Session }) {
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  panel: { backgroundColor: colors.surface, padding: 20, borderRadius: 16, gap: 12 },
-  title: { fontFamily: fonts.display, fontSize: 25, color: colors.text }, heading: { fontFamily: fonts.medium, fontSize: 14, color: colors.text },
+  panel: { ...gamePanelFinish(colors), backgroundColor: colors.surface, padding: 20, borderRadius: 16, gap: 12 },
+  title: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 25, color: colors.text }, heading: { ...gameHeadingFinish(colors), fontFamily: fonts.medium, fontSize: 14, color: colors.text },
   detail: { fontFamily: fonts.body, fontSize: 11, lineHeight: 18, color: colors.textMuted },
   searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8 }, row: { flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderColor: colors.border, paddingVertical: 10 },
   name: { fontFamily: fonts.medium, fontSize: 13, color: colors.text }, actions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   input: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, color: colors.text, backgroundColor: colors.background, fontFamily: fonts.body },
-  button: { minHeight: 44, paddingHorizontal: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  button: { ...gameControlFinish(colors), minHeight: 44, paddingHorizontal: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   smallButton: { minHeight: 40, paddingHorizontal: 10, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   linkButton: { minHeight: 40, paddingHorizontal: 8, justifyContent: 'center' }, buttonText: { fontFamily: fonts.medium, fontSize: 11, color: colors.text }, link: { fontFamily: fonts.medium, fontSize: 11, color: colors.accent }, disabled: { opacity: 0.5 },
   message: { alignSelf: 'flex-start', maxWidth: '85%', backgroundColor: colors.background, padding: 10, borderRadius: 10, marginVertical: 4 }, mine: { alignSelf: 'flex-end', backgroundColor: colors.surfaceSelected },

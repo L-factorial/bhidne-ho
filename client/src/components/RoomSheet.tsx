@@ -1,9 +1,9 @@
+import { gamePanelFinish, fonts, radii, space, typography, useTheme } from '../theme';
 import { FormScrollView } from './FormInput';
 import { KeyboardFrame } from './KeyboardFrame';
 import { type ReactNode, useEffect } from 'react';
 import { Keyboard, Modal, Platform, Pressable, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fonts, radii, space, typography, useTheme } from '../theme';
 
 export function RoomSheet({ visible, title, onClose, children, scrollable = true, footer, testID = 'room-sheet', closeLabel = 'Close room panel', contentHandlesBottomInset = false, presentation = 'sheet', tableStyle = false, headerActions }: { headerActions?: ReactNode; tableStyle?: boolean; visible: boolean; title: string; onClose: () => void; children: ReactNode; scrollable?: boolean; footer?: ReactNode; testID?: string; closeLabel?: string; contentHandlesBottomInset?: boolean; presentation?: 'sheet' | 'dialog' }) {
   const { colors: c } = useTheme();
@@ -26,7 +26,7 @@ export function RoomSheet({ visible, title, onClose, children, scrollable = true
     }
   }}>
     <KeyboardFrame style={[{ flex: 1, backgroundColor: c.overlay, justifyContent: wide ? 'center' : 'flex-end', alignItems: 'center', padding: wide ? 24 : 0, paddingTop: Math.max(24, insets.top) }, dialog && { justifyContent: 'center', paddingHorizontal: space.xl, paddingTop: Math.max(16, insets.top), paddingBottom: Math.max(16, insets.bottom) }]}>
-      <View testID={testID} accessibilityViewIsModal style={[{ width: '100%', maxWidth: wide ? 640 : undefined, maxHeight: '90%', height: scrollable ? undefined : '90%', minHeight: 0, backgroundColor: c.surface, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, borderBottomLeftRadius: wide ? 20 : 0, borderBottomRightRadius: wide ? 20 : 0, paddingBottom: footer || contentHandlesBottomInset ? 0 : Math.max(16, insets.bottom) }, dialog && { maxWidth: 480, maxHeight: '100%', borderTopLeftRadius: 18, borderTopRightRadius: 18, borderBottomLeftRadius: 18, borderBottomRightRadius: 18, overflow: 'hidden' }]}>
+      <View testID={testID} accessibilityViewIsModal style={[{ ...gamePanelFinish(c), width: '100%', maxWidth: wide ? 640 : undefined, maxHeight: '90%', height: scrollable ? undefined : '90%', minHeight: 0, backgroundColor: c.surface, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, borderBottomLeftRadius: wide ? 20 : 0, borderBottomRightRadius: wide ? 20 : 0, paddingBottom: footer || contentHandlesBottomInset ? 0 : Math.max(16, insets.bottom) }, dialog && { maxWidth: 480, maxHeight: '100%', borderTopLeftRadius: 18, borderTopRightRadius: 18, borderBottomLeftRadius: 18, borderBottomRightRadius: 18, overflow: 'hidden' }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: space.xl, paddingTop: 12, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, backgroundColor: tableStyle ? c.tableHeader : c.surface, borderBottomWidth: 1, borderColor: tableStyle ? c.tableTrim : c.borderSubtle }}>
           <Text accessibilityRole="header" style={{ flex: 1, fontFamily: fonts.medium, color: tableStyle ? c.onTableHeader : c.text, fontSize: typography.sectionTitle }}>{title}</Text>
           {headerActions}
