@@ -230,3 +230,19 @@ def test_selected_eighth_pair_validates_ownership_and_preserves_other_cards():
     assert game.get_public_events()[-1].winning_pair == selected
     assert game.get_state().players[0].hand == before.players[0].hand
     validate_game_state(game.get_state())
+
+
+def test_folded_qualified_player_keeps_maal_and_seen_settlement():
+    from marriage.scoring import score_items
+    game = normal_round(3, wild=True)
+    game.draw_card('0', DrawSource.STOCK)
+    game.show_initial_melds('0', INITIAL)
+    player = game.get_state().players[0]
+    before_points = sum(i.points for i in score_items(player, game.get_maal('0'), game.get_state().config.rules.scoring))
+    game.fold('0')
+    game.fold('1')
+    result = next(p for p in game.get_scores().players if p.player_id == '0')
+    assert result.maal_points == before_points
+    assert result.winner_payment == -game.get_state().config.rules.scoring.seen_payment
+    assert game.get_state().players[0].hand == player.hand
+    validate_game_state(game.get_state())

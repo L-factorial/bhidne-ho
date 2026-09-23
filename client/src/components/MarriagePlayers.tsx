@@ -14,7 +14,7 @@ import { fonts, useThemedStyles, type ThemeColors } from '../theme';
 
 type Player = MarriagePublic['players'][number];
 const route = (p: Player) => p.route === 'dublee' ? '7 Dublees' : p.route === 'normal' ? '3 sequences / Tunnelas' : 'Not shown';
-const situation = (p: Player, pub: MarriagePublic) => p.finished ? 'Winner' : pub.current_player_id === p.player_id
+const situation = (p: Player, pub: MarriagePublic) => p.folded ? 'Folded' : p.finished ? 'Winner' : pub.current_player_id === p.player_id
   ? pub.phase === 'must_draw' ? 'Taking a card' : 'Showing or discarding' : 'Waiting for turn';
 const playerName = (snapshot: RoomSnapshot, id: string) => snapshot.players?.find(p => String(p.player_id) === id)?.display_name || `Player ${id}`;
 
@@ -30,7 +30,7 @@ export function MarriagePlayers({ snapshot, onPoke, registerSeat, children }: { 
     <TableSeatLayout game="marriage" fill testID="marriage-player-grid" players={pub.players.map(player => ({ ...player, id: player.player_id }))} viewerId={mine || ''}
       renderSeat={p => <View style={styles.seat}><PlayerSeat playerId={Number(p.player_id)} name={playerName(snapshot, p.player_id)} mine={p.player_id === mine}
         active={snapshot.status === 'playing' && pub.current_player_id === p.player_id}
-        status={`${p.hand_count} cards`} connected={snapshot.players?.find(row => String(row.player_id) === p.player_id)?.connected}
+        status={p.folded ? 'Folded' : `${p.hand_count} cards`} connected={snapshot.players?.find(row => String(row.player_id) === p.player_id)?.connected}
         avatarUrl={snapshot.players?.find(row => String(row.player_id) === p.player_id)?.avatar_url}
         registerSeat={node => registerSeat?.(p.player_id, node)} testID={`marriage-player-${p.player_id}`} onPress={() => setSelected(p.player_id)} />
         {p.has_seen_maal && <Pressable testID={`marriage-maal-check-${p.player_id}`} accessibilityRole="button"

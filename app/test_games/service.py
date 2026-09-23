@@ -165,8 +165,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         occupied = self._occupied_game(user_id, room_id, excluding=game)
         if occupied:
             current = occupied.table.view(occupied, user_id)['current_user']
-            blocked = occupied.table.phase == 'LOCKED' or (
-                occupied.table.phase == 'STARTED' and occupied.game_type == 'marriage')
+            blocked = occupied.table.phase == 'LOCKED'
             raise HTTPException(409, {"code": "PLAYER_ALREADY_AT_TABLE",
                 "detail": (f"Ask the creator to end {occupied.room_id}/{occupied.name} before joining another table."
                            if blocked else f"Leave {occupied.room_id}/{occupied.name} before joining another table."),
@@ -626,6 +625,8 @@ class TestGameService(GameTableLifecycle, RuleProposals):
     async def leave(self, room_id, user_id, match_id):
         await self._member(room_id, user_id)
         current = self._get(room_id, match_id)
+        if current.finished:
+            await self._release_durable_players(current)
         current.table.sync(current)
         if current.table.phase != 'STARTED':
             return await self.table_command(room_id, user_id, match_id, 'leave-seat')
@@ -640,7 +641,29 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                 if user_id not in game.users or user_id in game.departed:
                     return self._snapshot(game, user_id)
                 try:
-                    events = self._leave_target(game).handle_player_leave(user_id)
+                    if game.marriage_target:
+                        from uuid import uuid4
+                        from app.models.action import ActionCommand
+                        target = game.marriage_target
+                        player = next(p for p in target.adapter.checkpoint().get_state().players
+                                      if p.player_id == target.seat_by_user[user_id])
+                        events = []
+                        if not player.folded and not game.finished:
+                            command = ActionCommand(match_id=game.match_id, command_id=uuid4().hex,
+                                                    expected_revision=target.revision, command="FOLD")
+                            checkpoint = target.checkpoint()
+                            try:
+                                events = target.apply(user_id, command)
+                                if self.runtime_mode == "durable":
+                                    await self._commit_durable_state(game, user_id, command)
+                            except Exception:
+                                target.restore(checkpoint)
+                                raise
+                        if self.runtime_mode == "durable":
+                            await self.durable_runtime.store.release_departed_player(
+                                game.durable_game_id, game.table.table_id, user_id)
+                    else:
+                        events = self._leave_target(game).handle_player_leave(user_id)
                 except GameCommandRejected as error:
                     raise HTTPException(409, {"code": error.code, "detail": error.detail}) from error
                 if game.started and game.game_type != "flush":
@@ -653,6 +676,9 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                     await self._release_durable_players(game)
                 game.flush_queries.pop(user_id, None)
                 game.marriage_queries.pop(user_id, None)
+                if game.marriage_target:
+                    game.table.emit('SEAT_RELEASED', user_id=user_id, match_id=game.match_id, reason='FOLDED_AND_LEFT')
+                    await self._try_record_completed_ledger(game)
                 for event in events:
                     await self._deliver(game, event)
                 await self._publish(game)

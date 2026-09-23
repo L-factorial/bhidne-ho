@@ -277,3 +277,24 @@ The platform adapter supplies wire commands and shared runtime serialization;
 [lobby/UI integration](marriage-ui.md) now provides a playable first version.
 Persistence remains separate. Integrations call this API rather than duplicate
 Marriage rules.
+
+## Folding and table departure
+
+`FOLD {}` is a revisioned seated-player command available on any turn during an
+active round. It marks that player folded, preserves their 21 or 22 held cards for
+settlement, and removes them from turn rotation. Cards are not discarded or shown
+by folding. A folded seat cannot draw, discard, declare, or finish. Receipt retries
+are idempotent; a new fold command for an already folded player is rejected.
+
+If only one player remains, they win with `won_by_fold=true`, without a winning
+partition or eighth pair. Existing Maal totals and seen/unseen loser payments apply.
+The Dublee completion bonus does not apply to a fold victory. Before an indicator
+has been selected there are no Tiplu/Jhiplu/Poplu/Marriage points; configured Man
+and Tunnela eligibility still applies. Score evidence is published only at completion.
+
+The card-area Fold control asks for confirmation and keeps the player watching.
+The table menu's Leave Table action folds first on the server, then releases the
+seat and active-player reservation. Other players keep playing. Historical seats
+and scoring remain intact; live replacement is not allowed. Failed durable fold
+commits preserve both the original game state and membership. Leaving an already
+folded seat does not apply another fold or penalty.

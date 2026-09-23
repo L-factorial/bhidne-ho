@@ -7,7 +7,7 @@ from .deck import create_deck, deal_cards
 from .enums import DrawSource, GameStatus, QualificationRoute, TurnPhase
 from .errors import InvalidActionError, InvalidTurnError, NoDrawableCardError
 from .events import (ActionResult, CardDiscarded, CardDrawn, DiscardPileRecycled,
-                     DomainEvent, GameStarted, MeldsShown, PlayerFinished, PlayerSawMaal,
+                     DomainEvent, GameStarted, MeldsShown, PlayerFinished, PlayerFolded, PlayerSawMaal,
                      TipluRevealed, TurnChanged)
 from .invariants import validate_game_state, validate_initial_state
 from .models import MarriageConfig, MarriageGameState, Meld, PlayerState, NormalFinish
@@ -78,6 +78,8 @@ class MarriageGameEngine:
         player = find_player(self._state, player_id)
         if self._state.status is not GameStatus.IN_PROGRESS:
             raise InvalidActionError("Game is not in progress.")
+        if player.folded:
+            raise InvalidActionError("Player has folded.")
         if self._state.current_player_id != player_id:
             raise InvalidTurnError("It is another player's turn.")
         if self._state.phase is not phase or (self._state.must_finish and not finishing):
@@ -135,7 +137,8 @@ class MarriageGameEngine:
         card = next(card for card in player.hand if card.card_id == card_id)
         hand = tuple(card for card in player.hand if card.card_id != card_id)
         players = tuple(replace(p, hand=hand) if p.player_id == player_id else p for p in self._state.players)
-        next_seat = (self._state.current_seat + 1) % len(players)
+        next_seat = next((self._state.current_seat + offset) % len(players) for offset in range(1, len(players) + 1)
+                         if not players[(self._state.current_seat + offset) % len(players)].folded)
         revision, sequence = self._state.revision + 1, len(self._state.history) + 1
         events = (
             CardDiscarded(sequence, revision, player_id, card),
@@ -210,6 +213,30 @@ class MarriageGameEngine:
         possible = normal_finish(player, self._state.tiplu, self._state.config.rules) is not None
         return Capability(True, "Valid normal-hand partition." if possible else
                           "Requires normal qualification and a 21-card partition after drawing.", possible)
+
+    def fold(self, player_id: str) -> ActionResult:
+        """Withdraw on any turn; retain frozen holdings for final settlement."""
+        player = find_player(self._state, player_id)
+        if self._state.status is not GameStatus.IN_PROGRESS or player.folded:
+            raise InvalidActionError("Only an active player can fold.")
+        players = tuple(replace(p, folded=True) if p.player_id == player_id else p for p in self._state.players)
+        remaining = [i for i, p in enumerate(players) if not p.folded]
+        seq, rev = len(self._state.history) + 1, self._state.revision + 1
+        events = [PlayerFolded(seq, rev, player_id)]
+        candidate = replace(self._state, players=players)
+        if len(remaining) == 1:
+            seat = remaining[0]
+            winner = replace(players[seat], finished=True)
+            players = tuple(winner if i == seat else p for i, p in enumerate(players))
+            candidate = replace(candidate, players=players, status=GameStatus.FINISHED,
+                                winner=winner.player_id, current_seat=seat, won_by_fold=True, must_finish=False)
+            events.append(PlayerFinished(seq + 1, rev, winner.player_id, ()))
+        elif self._state.current_player_id == player_id:
+            seat = next((self._state.current_seat + offset) % len(players) for offset in range(1, len(players) + 1)
+                        if not players[(self._state.current_seat + offset) % len(players)].folded)
+            candidate = replace(candidate, current_seat=seat, phase=TurnPhase.MUST_DRAW, must_finish=False)
+            events.append(TurnChanged(seq + 1, rev, players[seat].player_id, TurnPhase.MUST_DRAW))
+        return self._commit_turn(candidate, tuple(events))
 
     def finish(self, player_id: str, melds: tuple[Meld, ...] | None = None,
                discard_card_id: str | None = None, winning_pair: tuple[str, ...] | None = None) -> ActionResult:

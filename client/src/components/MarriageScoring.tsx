@@ -86,7 +86,7 @@ export function MarriagePoints({ snapshot }: { snapshot: RoomSnapshot }) {
       <Text accessibilityRole="header" style={s.heading}>How the points were calculated</Text>
       <Text style={s.text}>Total Maal: {scores.total_maal}. Positive points are won; negative points are paid.</Text>
       <Text style={s.text}>Maal net = players x own Maal - total Maal. Net points = Maal net + winner payment. All net points sum to zero.</Text>
-      <Text style={s.text}>Each loser pays {scores.rules.seen_payment} if Maal seen, otherwise {scores.rules.unseen_payment}, plus {scores.rules.dublee_win_bonus} for a Dublee winner.</Text>
+      <Text style={s.text}>Each loser pays {scores.rules.seen_payment} if Maal seen, otherwise {scores.rules.unseen_payment}, plus {snapshot.marriage?.public.won_by_fold ? 0 : scores.rules.dublee_win_bonus} for a completed Dublee win.</Text>
       {scores.players.map(p => <View key={p.player_id} style={s.player}>
         <View style={s.row}><PlayerAvatar uri={snapshot.players?.find(player => String(player.player_id) === p.player_id)?.avatar_url} />
           <Text style={s.heading}>{name(p.player_id)}: {signed(p.net_points)} points</Text></View>
@@ -102,6 +102,7 @@ export function MarriagePoints({ snapshot }: { snapshot: RoomSnapshot }) {
         <Text style={s.text}>Winner payment: {signed(p.winner_payment)}</Text>
         <Text style={s.text}>Net: {signed(p.maal_net)} + ({signed(p.winner_payment)}) = {signed(p.net_points)}</Text>
       </View>)}
+      {snapshot.marriage?.public.won_by_fold ? <Text style={s.text}>Won by fold · all other players withdrew. No winning declaration was required.</Text> : <>
       <Text accessibilityRole="header" style={s.heading}>Winning declaration</Text>
       <MarriageMeldCards groups={snapshot.marriage?.public.normal_finish?.melds || [
         ...(snapshot.marriage?.public.players.find(p => p.player_id === scores.winner)?.shown_melds || []),
@@ -109,6 +110,7 @@ export function MarriagePoints({ snapshot }: { snapshot: RoomSnapshot }) {
       ]} />
       {!!snapshot.marriage?.public.normal_finish && <><Text style={s.text}>Final discard · excluded from scoring</Text>
         <MarriageMeldCards groups={[{ meld_type: 'set', card_ids: [snapshot.marriage.public.normal_finish.discard_card_id] }]} hideLabels /></>}
+      </>}
     </>}
   </View>;
 }

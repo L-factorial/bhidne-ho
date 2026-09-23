@@ -39,7 +39,7 @@ def score_items(player, maal, rules):
     if rules.maal_requires_seen and not player.has_seen_maal:
         return ()
     faces = Counter(c.identity for c in player.hand)
-    counts = [faces[maal.tiplu], faces[maal.jhiplu], faces[maal.poplu]]
+    counts = [faces[maal.tiplu], faces[maal.jhiplu], faces[maal.poplu]] if maal else [0, 0, 0]
     tables = [rules.tiplu, rules.jhiplu, rules.poplu]
     def value(table, count):
         return table[count - 1] if count else 0
@@ -57,7 +57,7 @@ def score_items(player, maal, rules):
     for label, table, count in zip(("Tiplu", "Jhiplu", "Poplu", "Man"),
                                   (*tables, rules.man), (*[c - marriage_count for c in counts], faces[None])):
         if count:
-            face = {"Tiplu": maal.tiplu, "Jhiplu": maal.jhiplu, "Poplu": maal.poplu, "Man": None}[label]
+            face = None if label == "Man" else {"Tiplu": maal.tiplu, "Jhiplu": maal.jhiplu, "Poplu": maal.poplu}[label]
             offset = 0 if label == "Man" else marriage_count
             items.append(ScoreItem(label, count, value(table, count), tuple(by_face[face][offset:offset + count])))
     tunnelas = (sum(m.meld_type is MeldType.TUNNELA for m in player.shown_melds)
@@ -81,12 +81,12 @@ def calculate_scores(state) -> RoundScore | None:
     if state.status is not GameStatus.FINISHED or state.winner is None:
         return None
     rules = state.config.rules.scoring
-    maal = maal_view(state.tiplu, state.config.rules)
+    maal = maal_view(state.tiplu, state.config.rules) if state.tiplu else None
     items = [score_items(p, maal, rules) for p in state.players]
     points = [sum(item.points for item in row) for row in items]
     total = sum(points)
     winner = next(p for p in state.players if p.player_id == state.winner)
-    extra = rules.dublee_win_bonus if winner.route is QualificationRoute.DUBLEE else 0
+    extra = rules.dublee_win_bonus if winner.route is QualificationRoute.DUBLEE and not state.won_by_fold else 0
     payments = [0 if p.player_id == state.winner else
                 -(rules.seen_payment if p.has_seen_maal else rules.unseen_payment) - extra for p in state.players]
     payments[state.config.player_ids.index(state.winner)] = -sum(payments)

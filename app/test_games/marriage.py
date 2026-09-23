@@ -11,12 +11,17 @@ class HostedMarriageTarget(MarriageCommandTarget):
     def handle_player_leave(self, user_id):
         if self.game.ended or self.game.finished:
             return []
-        from app.games.base import GameCommandRejected
-        raise GameCommandRejected("LEAVE_NOT_ALLOWED",
-            "Marriage does not support departure during play. The creator can end the game.")
+        from uuid import uuid4
+        from app.models.action import ActionCommand
+        player = next(p for p in self.adapter.checkpoint().get_state().players
+                      if p.player_id == self.seat_by_user[user_id])
+        if player.folded:
+            return []
+        return self.apply(user_id, ActionCommand(match_id=self.game.match_id,
+            command_id=uuid4().hex, expected_revision=self.revision, command="FOLD"))
 
     def authorize(self, user_id):
-        if self.host.games.get(self.game.room_id) is not self.game or self.game.ended:
+        if not self.host._contains(self.game) or self.game.ended:
             raise CommandAccessError(409, "This game is no longer active.")
         if user_id in self.game.departed:
             raise CommandAccessError(403, "You have left this seat.")

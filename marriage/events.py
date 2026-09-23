@@ -106,8 +106,16 @@ class PlayerFinished:
         object.__setattr__(self, "card_groups", tuple(tuple(g) for g in self.card_groups))
 
 
+@dataclass(frozen=True)
+class PlayerFolded:
+    sequence: int
+    revision: int
+    player_id: str
+    kind: str = field(default="PLAYER_FOLDED", init=False)
+
+
 DomainEvent: TypeAlias = (GameStarted | TurnChanged | DiscardPileRecycled | CardDrawn | CardDiscarded
-                         | MeldsShown | TipluRevealed | PlayerSawMaal | PlayerFinished)
+                         | MeldsShown | TipluRevealed | PlayerSawMaal | PlayerFinished | PlayerFolded)
 
 
 @dataclass(frozen=True)

@@ -29,6 +29,7 @@ class ActionKind(str, Enum):
     SHOW_INITIAL_MELDS = "show_initial_melds"
     SHOW_DUBLEES = "show_dublees"
     FINISH = "finish"
+    FOLD = "fold"
 
 
 class MeldType(str, Enum):

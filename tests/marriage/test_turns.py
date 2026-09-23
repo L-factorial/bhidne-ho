@@ -38,7 +38,7 @@ def test_draw_discard_and_visible_pickup_preserve_order_and_events():
     assert [(e.kind, e.sequence, e.revision) for e in result.events] == [("CARD_DRAWN", 3, 2)]
     assert result.events[0].card == card and result.events[0].source is DrawSource.STOCK
     actions = engine.get_allowed_actions("p0")
-    assert actions.kinds == (ActionKind.DISCARD, ActionKind.SHOW_INITIAL_MELDS, ActionKind.SHOW_DUBLEES)
+    assert actions.kinds == (ActionKind.FOLD, ActionKind.DISCARD, ActionKind.SHOW_INITIAL_MELDS, ActionKind.SHOW_DUBLEES)
     assert actions.discardable_card_ids == tuple(c.card_id for c in drawn.players[0].hand)
 
     result = engine.discard_card("p0", card.card_id)
@@ -223,7 +223,7 @@ def test_actions_are_private_immutable_and_queries_are_pure():
     actions = engine.get_allowed_actions("p0")
     for _ in range(3):
         assert engine.get_player_view("p0").actions == actions
-        assert engine.get_player_view("p1").actions.kinds == ()
+        assert engine.get_player_view("p1").actions.kinds == (ActionKind.FOLD,)
         public = repr(asdict(engine.get_public_view()))
         assert not any(card.card_id in public for card in state.players[0].hand)
         private = repr(asdict(engine.get_player_view("p1")))

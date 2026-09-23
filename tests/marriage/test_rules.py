@@ -259,7 +259,7 @@ def test_winning_discard_policy_matrix(unrestricted, exception, winning, permitt
     game.draw_card("a", DrawSource.DISCARD)
     assert game.get_state().must_finish is forced
     if forced:
-        assert game.get_allowed_actions("a").kinds == (ActionKind.FINISH,)
+        assert game.get_allowed_actions("a").kinds == (ActionKind.FINISH, ActionKind.FOLD)
         unchanged(game, InvalidActionError, lambda: game.discard_card("a", DECK[8].card_id))
         game.finish("a")
     else:

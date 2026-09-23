@@ -29,3 +29,8 @@ test('normal victory preserves the full winning groups and final discard', () =>
 test('a winner flag alone does not announce an unconfirmed finish', () => {
   assert.equal(marriageAnnouncements({ ...pub, winner: '1' }).filter(e => e.kind === 'win').length, 0);
 });
+test('fold victory does not claim a completed Dublee or reveal a winning hand', () => {
+  const win=marriageAnnouncements({...pub,status:'finished',winner:'1',won_by_fold:true,players:[{...player,finished:true}]}).at(-1);
+  assert.equal(win.wonByFold,true);assert.equal(win.dublee,false);
+  assert.deepEqual(win.groups,[]);assert.deepEqual(win.winningPair,[]);
+});

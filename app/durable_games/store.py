@@ -161,6 +161,13 @@ class InMemoryGameStore:
             for user, seat in players:
                 self.active_table_players[user] = (table_id, match_id, room_id, game_type, seat)
 
+    async def release_departed_player(self, game_id: UUID | None, table_id: str, user_id: str):
+        async with self._catalog_lock:
+            if game_id is not None and self.active_players.get(user_id, (None,))[0] == game_id:
+                self.active_players.pop(user_id, None)
+            if self.active_table_players.get(user_id, (None,))[0] == table_id:
+                self.active_table_players.pop(user_id, None)
+
     async def release_table(self, table_id: str):
         async with self._catalog_lock:
             self.active_table_players = {user: value for user, value in self.active_table_players.items()
@@ -419,6 +426,14 @@ class PostgresGameStore:
                         raise DurableGameConflict("The table is reserved by a different roster.")
         except UniqueViolation as error:
             raise DurableGameConflict("A player or seat is already reserved at another table.") from error
+
+    async def release_departed_player(self, game_id: UUID | None, table_id: str, user_id: str):
+        async with self.pool.connection() as connection:
+            async with connection.transaction():
+                await connection.execute("DELETE FROM active_game_players WHERE game_id=%s AND user_id=%s",
+                                         (game_id, _internal_user_id(user_id)))
+                await connection.execute("DELETE FROM active_table_players WHERE table_id=%s AND user_id=%s",
+                                         (table_id, _internal_user_id(user_id)))
 
     async def release_table(self, table_id: str):
         async with self.pool.connection() as connection:

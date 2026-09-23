@@ -71,7 +71,11 @@ class TableState:
             self.emit('ROSTER_OPEN', match_id=game.match_id)
 
     def seats(self, game):
-        return self.next_seats if self.next_seats is not None else [u for u in game.users if u not in game.departed]
+        if self.next_seats is not None:
+            return self.next_seats
+        if game.game_type == 'marriage' and game.started:
+            return [u if u not in game.departed else None for u in game.users]
+        return [u for u in game.users if u not in game.departed]
 
     def pending(self, seat=None):
         return [offer for offer in self.offers.values() if offer.status == 'PENDING'

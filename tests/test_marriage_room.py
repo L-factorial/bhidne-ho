@@ -108,7 +108,6 @@ def test_marriage_http_lifecycle_private_hands_retries_and_room_chat_policy():
         spectator = client.get(root, headers=headers[2]).json()
         assert spectator['marriage']['private'] is None
         assert 'hand' not in spectator['marriage']['public']['players'][0]
-        assert client.post(root + '/leave', headers=headers[0], json={'match_id': mid}).status_code == 409
         body = {'match_id': mid, 'command_id': 'draw1', 'expected_revision': 1,
                 'command': 'DRAW_CARD', 'payload': {'source': 'stock'}}
         assert client.post(root + '/action', headers=headers[2], json=body).status_code == 403

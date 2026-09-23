@@ -36,6 +36,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const s = useThemedStyles(createStyles);
   const mobile = useWindowDimensions().width < 900;
   const [arrangement, setArrangement] = useState<MarriageArrangement>('sequence');
+  const [confirmFold, setConfirmFold] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [preview, setPreview] = useState(false);
@@ -58,9 +59,13 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   useEffect(() => {
     if (own?.route && own.route !== 'unqualified') { setPreview(false); }
   }, [own?.route]);
+  useEffect(() => {
+    if (own?.folded || snapshot.status !== 'playing') setConfirmFold(false);
+    if (own?.folded) { setSelected([]); setPreview(false); setFinishPreview(false); }
+  }, [own?.folded, snapshot.status]);
   const allRevealed = revealed >= 21;
   const availableHand = hand.filter(c => !committed.includes(c.card_id));
-  const canAct = !busy && !hidden && allRevealed && snapshot.status === 'playing';
+  const canAct = !own?.folded && !busy && !hidden && allRevealed && snapshot.status === 'playing';
   const name = (id: string | null) => snapshot.players?.find(p => String(p.player_id) === id)?.display_name || `Player ${id}`;
   const isTurn = !!mine && mine.player_id === pub?.current_player_id;
   // The private hand preserves receipt order; draws append, even after reconnecting.
@@ -81,7 +86,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   useEffect(() => { if (!activeGame || hidden || !allRevealed) setFinishPreview(false); }, [activeGame, hidden, allRevealed]);
   useEffect(() => { setFinishPreview(false); setPreview(false); }, [snapshot.match_id, mine?.player_id]);
   function button(label: string, action: () => void, disabled = false, chosen = false) {
-    const primary = /^(Finish round|Confirm finish|Show three melds|Show seven Dublees)$/.test(label);
+    const primary = /^(Confirm fold|Finish round|Confirm finish|Show three melds|Show seven Dublees)$/.test(label);
     return <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled}
       accessibilityState={{ disabled, selected: chosen }} onPress={action} style={({ pressed }) => [s.button, gameButtonStyle(colors, primary ? 'primary' : 'secondary', pressed), chosen && s.chosen, disabled && s.disabled]}>
       <Text style={[s.buttonText, primary && { color: colors.onPrimary }]}>{label}</Text></Pressable>;
@@ -139,19 +144,26 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       </>}
       {!!error && (!mine || !activeGame || (mobile && snap === 'collapsed')) && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}
     </View>
-    {pub && mine && activeGame && <MarriageHandSheet cardCount={hand.length} anchor={handAnchor} mobile={mobile} snap={snap} onSnap={setSnap} instruction={turnInstruction} attention={isTurn} header={mobileHandHeader} footer={preview || finishPreview ? null : discardFooter}>
+    {pub && mine && activeGame && <MarriageHandSheet cardCount={hand.length} anchor={handAnchor} mobile={mobile} snap={snap} onSnap={setSnap} instruction={turnInstruction} attention={isTurn} header={mobileHandHeader} footer={own?.folded || preview || finishPreview ? null : discardFooter}>
     <View testID="marriage-hand-dock" style={[s.handDock, mobile && { backgroundColor: 'transparent', borderTopWidth: 0, padding: 4 }]}>
       <View style={[s.row, { backgroundColor: colors.tableHeader, borderRadius: 8 }]}><Text style={[s.small, { color: colors.onTableHeader }]}>Your cards · {hand.length}</Text>
+        {!own?.folded && button('Fold', () => setConfirmFold(true), busy || !social.connected || !actions?.kinds.includes('fold'))}
+        {!!own?.folded && <Text style={s.small}>Folded · Watching this round</Text>}
         {!allRevealed && button('Reveal cards', () => reveal(true), busy)}
         {allRevealed && button(hidden ? 'Show cards' : 'Hide cards', () => { setHidden(v => !v); setSelected([]); setPreview(false); setFinishPreview(false); })}
       </View>
 
-      {own?.has_seen_maal && mine.maal ? <MarriageWinPanel hand={hand} shown={own.shown_melds} maal={mine.maal} route={own.route}
+      {confirmFold && !own?.folded && <View style={s.panel}>
+        <Text style={s.text}>Fold this round? You can keep watching. Your final points will still be settled.</Text>
+        <View style={s.row}>{button('Confirm fold', () => { onAction('FOLD'); }, busy || !social.connected || !actions?.kinds.includes('fold'))}
+          {button('Keep playing', () => setConfirmFold(false), busy)}</View>
+      </View>}
+      {!own?.folded && (own?.has_seen_maal && mine.maal ? <MarriageWinPanel hand={hand} shown={own.shown_melds} maal={mine.maal} route={own.route}
         visible={allRevealed && !hidden} enabled={canAct && isTurn && social.connected} busy={busy} canFinish={!!actions?.kinds.includes('finish')}
         preview={finishPreview && !hidden} setPreview={setFinishPreview} error={error} submit={onAction} /> :
       <MarriageMaalPanel hand={availableHand} shown={own?.shown_melds || []} unlocked={false} maal={mine.maal}
         enabled={canAct && isTurn && social.connected} visible={allRevealed && !hidden} busy={busy} actions={actions?.kinds || []}
-        preview={preview && !hidden} setPreview={setPreview} arrangement={arrangement} error={error} submit={onAction} />}
+        preview={preview && !hidden} setPreview={setPreview} arrangement={arrangement} error={error} submit={onAction} />)}
       {!preview && !finishPreview && <>
         {allRevealed && !own?.has_seen_maal && <View accessibilityRole="tablist" style={s.row}>
           {(['sequence','dublee'] as const).map(value=><Pressable key={value} accessibilityRole="tab" accessibilityLabel={value==='sequence'?'Sequence / Tunnela':'Dublee'}

@@ -61,7 +61,7 @@ export function MarriageAnnouncements({ snapshot }: { snapshot: RoomSnapshot }) 
         <View style={{ alignItems: 'center', gap: 8 }}>
           <PlayerAvatar uri={player?.avatar_url} />
           <Text accessibilityLiveRegion="polite" style={{ color: c.accent, fontFamily: fonts.medium, fontSize: win ? 24 : 19, textAlign: 'center' }}>{win ? '🏆 Round won!' : '✦ Maal unlocked'}</Text>
-          <Text style={{ color: c.text, fontFamily: fonts.body, textAlign: 'center' }}>{name} {win ? current.dublee ? 'completed the 8th Dublee.' : 'completed a winning hand.' : current.dublee ? 'showed 7 Dublees.' : 'showed 3 sequences / Tunnelas.'}</Text>
+          <Text style={{ color: c.text, fontFamily: fonts.body, textAlign: 'center' }}>{name} {win ? current.wonByFold ? 'won because all other players folded.' : current.dublee ? 'completed the 8th Dublee.' : 'completed a winning hand.' : current.dublee ? 'showed 7 Dublees.' : 'showed 3 sequences / Tunnelas.'}</Text>
         </View>
         {!!review && !win && <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{qualifications.map(event => <View key={event.id}>{action(snapshot.players?.find(p => String(p.player_id) === event.playerId)?.display_name || `Player ${event.playerId}`, () => setReview(event))}</View>)}</View>}
         {win && <View style={{ flexDirection: 'row', gap: 8 }}>{action('Winning hand', () => setTab('cards'))}{action('Round results', () => setTab('results'))}</View>}

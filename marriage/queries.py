@@ -31,13 +31,16 @@ class AllowedActions:
 
 def allowed_actions(state: MarriageGameState, player_id: str) -> AllowedActions:
     player = find_player(state, player_id)
+    if player.folded:
+        return AllowedActions(reason="Player has folded.")
+    fold = (ActionKind.FOLD,) if state.status is GameStatus.IN_PROGRESS else ()
     if (state.status is GameStatus.IN_PROGRESS and state.current_player_id == player_id
             and state.must_finish):
-        return AllowedActions(kinds=(ActionKind.FINISH,) if eighth_pair(player) else (),
+        return AllowedActions(kinds=(ActionKind.FINISH, ActionKind.FOLD) if eighth_pair(player) else fold,
                               reason="Winning discard requires finishing.")
     reason = turn_block(state, player_id)
     if reason:
-        return AllowedActions(reason=reason)
+        return AllowedActions(kinds=fold, reason=reason)
     if state.phase is TurnPhase.MUST_DRAW:
         sources = []
         blocked = []
@@ -47,11 +50,11 @@ def allowed_actions(state: MarriageGameState, player_id: str) -> AllowedActions:
                 blocked.append(BlockedDrawSource(source, reason))
             else:
                 sources.append(source)
-        return AllowedActions(kinds=(ActionKind.DRAW,) if sources else (),
+        return AllowedActions(kinds=((ActionKind.DRAW,) if sources else ()) + fold,
                               drawable_sources=tuple(sources), blocked_sources=tuple(blocked))
     ids = discardable_ids(state, player)
     witness = normal_finish(player, state.tiplu, state.config.rules)
-    kinds = [ActionKind.DISCARD] if ids else []
+    kinds = [ActionKind.FOLD] + ([ActionKind.DISCARD] if ids else [])
     if player.route is QualificationRoute.UNQUALIFIED:
         kinds.extend((ActionKind.SHOW_INITIAL_MELDS, ActionKind.SHOW_DUBLEES))
     elif eighth_pair(player) or witness is not None:
@@ -67,6 +70,7 @@ class PublicPlayerView:
     shown_melds: tuple[Meld, ...]
     has_seen_maal: bool
     finished: bool
+    folded: bool = False
 
 
 @dataclass(frozen=True)
@@ -83,6 +87,7 @@ class PublicGameView:
     scores: RoundScore | None
     normal_finish: NormalFinish | None = None
     winning_pair: tuple[str, ...] = ()
+    won_by_fold: bool = False
 
 
 @dataclass(frozen=True)
@@ -98,13 +103,13 @@ def public_view(state: MarriageGameState) -> PublicGameView:
     return PublicGameView(
         revision=state.revision, status=state.status,
         players=tuple(PublicPlayerView(p.player_id, len(p.hand), p.route,
-                                      p.shown_melds, p.has_seen_maal, p.finished)
+                                      p.shown_melds, p.has_seen_maal, p.finished, p.folded)
                       for p in state.players),
         current_player_id=state.current_player_id, phase=state.phase,
         stock_count=len(state.stock),
         top_discard=state.discard[-1] if state.discard else None, winner=state.winner,
         scoring_rules=state.config.rules.scoring, scores=calculate_scores(state),
-        normal_finish=state.normal_finish,
+        normal_finish=state.normal_finish, won_by_fold=state.won_by_fold,
         winning_pair=state.winning_pair if state.status is GameStatus.FINISHED else (),
     )
 

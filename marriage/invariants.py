@@ -27,10 +27,10 @@ def validate_initial_state(state: MarriageGameState) -> None:
     require(tuple(p.player_id for p in state.players) == state.config.player_ids,
             "State seats must match configuration order.")
     require(all(p.route == QualificationRoute.UNQUALIFIED and not p.shown_melds
-                and not p.committed_card_ids and not p.has_seen_maal and not p.finished
+                and not p.committed_card_ids and not p.has_seen_maal and not p.finished and not p.folded
                 for p in state.players), "Startup players must be unqualified and unfinished.")
     require(state.tiplu is None and state.winner is None and not state.winning_pair
-            and state.normal_finish is None and state.must_finish is False,
+            and state.normal_finish is None and not state.won_by_fold and state.must_finish is False,
             "Startup cannot have an indicator, winner, or forced finish.")
     if state.status is GameStatus.WAITING:
         require(not state.stock and not state.discard and all(not p.hand for p in state.players),
@@ -73,11 +73,13 @@ def validate_game_state(state: MarriageGameState) -> None:
     require(isinstance(state.phase, TurnPhase), "Invalid turn phase.")
     validate_card_conservation(state)
     if state.status is GameStatus.IN_PROGRESS:
+        require(not state.won_by_fold and not state.players[state.current_seat].folded
+                and sum(not p.folded for p in state.players) >= 2, "Active round requires two active players.")
         require(state.winner is None and not state.winning_pair and state.normal_finish is None
                 and not any(p.finished for p in state.players),
                 "Active round cannot have a winner.")
     else:
-        require(state.winner == state.current_player_id and state.phase is TurnPhase.MUST_DISCARD
+        require(state.winner == state.current_player_id and (state.won_by_fold or state.phase is TurnPhase.MUST_DISCARD)
                 and tuple(p.player_id for p in state.players if p.finished) == (state.winner,)
                 and state.must_finish is False, "Finished round requires exactly one current-seat winner.")
         winner = state.players[state.current_seat]
@@ -85,7 +87,12 @@ def validate_game_state(state: MarriageGameState) -> None:
                 and state.history[-1].player_id == state.winner
                 and state.history[-1].winning_pair == state.winning_pair, "Missing terminal event.")
         event = state.history[-1]
-        if winner.route is QualificationRoute.NORMAL:
+        require(not winner.folded, "Winner cannot be folded.")
+        if state.won_by_fold:
+            require(sum(not p.folded for p in state.players) == 1 and state.normal_finish is None
+                    and not state.winning_pair and not event.meld_types and not event.card_groups
+                    and event.discard_card_id is None, "Fold victory requires one remaining player.")
+        elif winner.route is QualificationRoute.NORMAL:
             witness = state.normal_finish
             require(witness is not None and not state.winning_pair and bool(state.discard),
                     "Normal winner requires a partition and final discard.")
@@ -110,7 +117,8 @@ def validate_game_state(state: MarriageGameState) -> None:
     for seat, player in enumerate(state.players):
         extra = int(seat == state.current_seat and state.phase is TurnPhase.MUST_DISCARD
                     and state.normal_finish is None)
-        require(len(player.hand) == state.config.rules.cards_per_player + extra,
+        require(len(player.hand) in (21, 22) if player.folded or state.won_by_fold else
+                len(player.hand) == state.config.rules.cards_per_player + extra,
                 "Hands must contain 21 cards, or 22 for the player who drew.")
         shown = tuple(card_id for meld in player.shown_melds for card_id in meld.card_ids)
         require(len(set(shown)) == len(shown) and set(shown) == player.committed_card_ids

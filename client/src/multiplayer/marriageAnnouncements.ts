@@ -1,7 +1,7 @@
 import type { MarriagePublic, MarriageWinningMeld } from './marriage.ts';
 export type MarriageAnnouncement = {
   id: string; playerId: string; kind: 'qualification' | 'win'; dublee: boolean;
-  groups: MarriageWinningMeld[]; winningPair: string[]; discard?: string;
+  wonByFold?: boolean; groups: MarriageWinningMeld[]; winningPair: string[]; discard?: string;
 };
 /** Accepts only the public projection, never private Maal or a player's hand. */
 export function marriageAnnouncements(pub: MarriagePublic): MarriageAnnouncement[] {
@@ -11,8 +11,8 @@ export function marriageAnnouncements(pub: MarriagePublic): MarriageAnnouncement
   }));
   const winner = pub.players.find(p => p.player_id === pub.winner && p.finished);
   if (winner && pub.status === 'finished') shown.push({
-    id: `win:${winner.player_id}`, playerId: winner.player_id, kind: 'win', dublee: winner.route === 'dublee',
-    groups: pub.normal_finish?.melds || winner.shown_melds,
+    id: `win:${winner.player_id}`, playerId: winner.player_id, kind: 'win', wonByFold: pub.won_by_fold, dublee: !pub.won_by_fold && winner.route === 'dublee',
+    groups: pub.won_by_fold ? [] : pub.normal_finish?.melds || winner.shown_melds,
     winningPair: pub.winning_pair || [], discard: pub.normal_finish?.discard_card_id,
   });
   return shown;

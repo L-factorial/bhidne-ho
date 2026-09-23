@@ -18,6 +18,8 @@ def find_player(state: MarriageGameState, player_id: str) -> PlayerState:
 def turn_block(state: MarriageGameState, player_id: str) -> str | None:
     if state.status is not GameStatus.IN_PROGRESS:
         return "Game is not in progress."
+    if find_player(state, player_id).folded:
+        return "Player has folded."
     if state.current_player_id != player_id:
         return "It is another player's turn."
     if state.must_finish:

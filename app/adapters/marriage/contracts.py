@@ -83,6 +83,7 @@ class CommandName(str, Enum):
     SHOW_INITIAL_MELDS = "SHOW_INITIAL_MELDS"
     SHOW_DUBLEES = "SHOW_DUBLEES"
     FINISH = "FINISH"
+    FOLD = "FOLD"
     VALIDATE_MELD = "VALIDATE_MELD"
     VALIDATE_INITIAL_MELDS = "VALIDATE_INITIAL_MELDS"
     VALIDATE_DUBLEES = "VALIDATE_DUBLEES"
@@ -112,6 +113,7 @@ COMMAND_SPECS = {
     CommandName.DISCARD_CARD: CommandSpec(CardPayload, "discard_card", "current_player", True),
     CommandName.SHOW_INITIAL_MELDS: CommandSpec(InitialMeldsPayload, "show_initial_melds", "current_player", True),
     CommandName.SHOW_DUBLEES: CommandSpec(DubleesPayload, "show_dublees", "current_player", True),
+    CommandName.FOLD: CommandSpec(Empty, "fold", "seated_player", True),
     CommandName.FINISH: CommandSpec(FinishPayload, "finish", "current_player", True),
     CommandName.VALIDATE_MELD: CommandSpec(ValidateMeldPayload, "validate_meld", "seated_player", False),
     CommandName.VALIDATE_INITIAL_MELDS: CommandSpec(InitialMeldsPayload, "validate_initial_melds", "seated_player", False),
@@ -214,6 +216,7 @@ class EventName(str, Enum):
     TIPLU_REVEALED = "TIPLU_REVEALED"
     PLAYER_SAW_MAAL = "PLAYER_SAW_MAAL"
     PLAYER_FINISHED = "PLAYER_FINISHED"
+    PLAYER_FOLDED = "PLAYER_FOLDED"
     PLAYER_STATE = "PLAYER_STATE"
     QUERY_RESULT = "QUERY_RESULT"
 
@@ -264,6 +267,7 @@ class OutboundEvent(BaseModel):
                 "MELDS_SHOWN": {"player_id", "route", "meld_types", "card_groups"},
                 "SEVEN_DUBLEES_SHOWN": {"player_id", "route", "meld_types", "card_groups"},
                 "TIPLU_REVEALED": set(), "PLAYER_SAW_MAAL": {"player_id"},
+                "PLAYER_FOLDED": {"player_id"},
                 "PLAYER_FINISHED": {"player_id", "winning_pair", "meld_types", "card_groups", "discard_card_id"},
             }[event.kind] | {"sequence", "revision", "kind"}
             if any(value not in (None, [], ()) for key, value in self.payload["event"].items() if key not in permitted):

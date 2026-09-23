@@ -104,8 +104,8 @@ def test_active_room_departure_rejected_and_end_then_leave_preserves_other_seats
     rejected = client.post('/rooms/r/leave', headers=headers[1], json={})
     assert rejected.status_code == 409
     assert rejected.json()['detail']['game_id'] == body['match_id']
-    # Preserve existing fixed-roster departure policy; Flush also rejects during preparation.
-    if kind != 'callbreak':
+    # Flush still rejects departure during preparation.
+    if kind == 'flush':
         rejected = client.post(root + '/leave', headers=headers[1], json=body)
         assert rejected.status_code == 409
         assert client.get(root, headers=headers[2]).json() == before
@@ -203,3 +203,22 @@ def test_lost_tab_cannot_reenter_after_explicit_leave_by_reconnecting():
         # Legacy first connections remain an intentional room-entry API.
         with client.websocket_connect(url) as ws:
             assert ws.receive_json()['type'] == 'CONNECTED'
+
+
+@pytest.mark.parametrize('table', ['marriage'], indirect=True)
+def test_marriage_leave_folds_once_then_allows_room_departure(table):
+    client, users, headers, root, body, _, _ = table
+    state = start(table)
+    for _ in range(2):
+        response = client.post(root + '/leave', headers=headers[1], json=body)
+        assert response.status_code == 200, response.text
+        left = response.json()
+        assert left['your_player_id'] is None and left['marriage']['private'] is None
+        assert left['status'] == 'playing'
+        assert left['marriage']['public']['players'][1]['folded']
+        assert left['game']['revision'] == state['game']['revision'] + 1
+        assert left['game']['turn']['player_id'] == 1
+    assert client.post('/rooms/r/leave', headers=headers[1], json={}).status_code == 200
+    remaining = client.get(root, headers=headers[2], params=body).json()
+    assert remaining['your_player_id'] == 3
+    assert not remaining['marriage']['public']['players'][2]['folded']

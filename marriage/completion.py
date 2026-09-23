@@ -57,7 +57,7 @@ def normal_finish(player: PlayerState, tiplu: PhysicalCard | None,
     Qualification consumes at least nine cards, so at most thirteen remain.
     Cache only immutable hand/rules inputs; queries never advance state or RNG.
     """
-    if (player.route is not QualificationRoute.NORMAL or not player.has_seen_maal
+    if (player.folded or player.route is not QualificationRoute.NORMAL or not player.has_seen_maal
             or tiplu is None or len(player.hand) != 22 or len(player.shown_melds) != 3):
         return None
     cards = tuple(sorted((c for c in player.hand if c.card_id not in player.committed_card_ids),
@@ -93,7 +93,7 @@ def normal_finish(player: PlayerState, tiplu: PhysicalCard | None,
 
 
 def eighth_pair(player: PlayerState) -> tuple[str, ...]:
-    if player.route is not QualificationRoute.DUBLEE or len(player.shown_melds) != 7:
+    if player.folded or player.route is not QualificationRoute.DUBLEE or len(player.shown_melds) != 7:
         return ()
     cards = sorted((c for c in player.hand if c.card_id not in player.committed_card_ids
                     and c.identity is not None), key=lambda c: c.card_id)
@@ -115,7 +115,7 @@ def winning_discard(player: PlayerState, card: PhysicalCard) -> bool:
 def valid_normal_finish(player: PlayerState, tiplu: PhysicalCard | None,
                         rules: MarriageRules, witness: NormalFinish) -> bool:
     """Validate a selected partition without trusting any client card or meld."""
-    if (player.route is not QualificationRoute.NORMAL or not player.has_seen_maal
+    if (player.folded or player.route is not QualificationRoute.NORMAL or not player.has_seen_maal
             or tiplu is None or len(player.hand) != 22 or len(player.shown_melds) != 3
             or witness.melds[:3] != player.shown_melds):
         return False

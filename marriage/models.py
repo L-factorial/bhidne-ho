@@ -71,12 +71,13 @@ class PlayerState:
     committed_card_ids: frozenset[str] = frozenset()
     has_seen_maal: bool = False
     finished: bool = False
+    folded: bool = False
 
     def __post_init__(self):
         _player_id(self.player_id)
         if not isinstance(self.route, QualificationRoute):
             raise ValueError("Player route must be a QualificationRoute.")
-        if type(self.has_seen_maal) is not bool or type(self.finished) is not bool:
+        if type(self.has_seen_maal) is not bool or type(self.finished) is not bool or type(self.folded) is not bool:
             raise ValueError("Player flags must be booleans.")
         object.__setattr__(self, "hand", tuple(self.hand))
         object.__setattr__(self, "shown_melds", tuple(self.shown_melds))
@@ -122,6 +123,7 @@ class MarriageGameState:
     revision: int = 0
     history: tuple[DomainEvent, ...] = ()
     normal_finish: NormalFinish | None = None
+    won_by_fold: bool = False
 
     def __post_init__(self):
         for name in ("players", "stock", "discard", "history", "winning_pair"):

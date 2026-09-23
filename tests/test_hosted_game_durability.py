@@ -16,7 +16,7 @@ class Delivery:
         pass
 
 
-async def durable_host(game_type: str):
+async def durable_host(game_type: str, count=None):
     rooms = RoomService()
     for user in ("u0", "u1", "u2", "u3"):
         await rooms.join("room", user)
@@ -27,7 +27,7 @@ async def durable_host(game_type: str):
         durable_runtime=DurableCommandRuntime(store),
         runtime_mode="durable",
     )
-    count = 4 if game_type == "callbreak" else 2
+    count = count or (4 if game_type == "callbreak" else 2)
     waiting = await service.create("room", "u0", count, game_type)
     for index in range(1, count):
         await service.join("room", f"u{index}", waiting["match_id"])
@@ -191,5 +191,67 @@ async def test_explicit_lock_durably_reserves_roster_until_terminal_end(kind):
         await service.join("room", "u1", new['match_id'])
         await service.table_command("room", "u2", new['match_id'], "lock")
         assert (await service.start("room", "u2", new['match_id'], rules_revision=0))['status'] == 'playing'
+    finally:
+        await service.close()
+
+
+async def test_marriage_leave_folds_then_releases_and_records_durable_state():
+    service, store, started = await durable_host('marriage')
+    try:
+        game = service.games['room']
+        result = await service.leave('room', 'u1', game.match_id)
+        assert result['status'] == 'finished'
+        assert result['marriage']['public']['won_by_fold']
+        assert result['marriage']['private'] is None
+        assert 'u1' in game.departed
+        assert 'u1' not in store.active_players and 'u1' not in store.active_table_players
+        loaded = await store.load(game.durable_game_id, game.durable_definition)
+        assert loaded.state == service._engine_state(game)
+        again = await service.leave('room', 'u1', game.match_id)
+        assert again['game']['revision'] == result['game']['revision']
+        other = await service.create('room', 'u2', 2, 'marriage', name='Next table')
+        await service.join('room', 'u1', other['match_id'])
+        await service.table_command('room', 'u2', other['match_id'], 'lock')
+    finally:
+        await service.close()
+
+
+async def test_marriage_departure_releases_only_folded_player_and_others_continue():
+    service, store, started = await durable_host('marriage', 3)
+    try:
+        game = service.games['room']
+        result = await service.leave('room', 'u1', game.match_id)
+        assert result['status'] == 'playing'
+        assert not result['table']['current_user']['is_seated']
+        assert [(p['user_id'], p['seat_id']) for p in result['table']['seated_players']] == [('u0', 1), ('u2', 3)]
+        assert set(store.active_players) == {'u0', 'u2'}
+        again = await service.leave('room', 'u1', game.match_id)
+        assert again['game']['revision'] == result['game']['revision']
+        other = await service.create('room', 'u3', 2, 'marriage', name='Other')
+        await service.join('room', 'u1', other['match_id'])
+        await service.table_command('room', 'u3', other['match_id'], 'lock')
+        drawn = await service.action('room', 'u0', GameAction(match_id=game.match_id,
+            command_id='remaining-draw', expected_revision=result['game']['revision'], command='DRAW_CARD', payload={'source': 'stock'}))
+        assert drawn['action_ack']['status'] == 'accepted'
+        engine = game.marriage_target.adapter.checkpoint()
+        assert len(engine.get_player_view('1').hand) == 22
+        assert engine.get_state().players[1].folded
+    finally:
+        await service.close()
+
+
+async def test_marriage_leave_rolls_back_fold_when_durable_commit_fails(monkeypatch):
+    service, store, started = await durable_host('marriage')
+    try:
+        game = service.games['room']
+        before = service._engine_state(game)
+        async def fail(*args, **kwargs):
+            raise RuntimeError('storage unavailable')
+        monkeypatch.setattr(store, 'execute', fail)
+        with pytest.raises(RuntimeError, match='storage unavailable'):
+            await service.leave('room', 'u1', game.match_id)
+        assert service._engine_state(game) == before
+        assert 'u1' not in game.departed
+        assert 'u1' in store.active_players
     finally:
         await service.close()
