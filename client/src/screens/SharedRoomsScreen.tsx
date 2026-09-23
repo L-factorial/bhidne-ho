@@ -47,6 +47,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const [roomOptionsOpen, setRoomOptionsOpen] = useState(false);
   const [lobbyTab, setLobbyTab] = useState<'rooms' | 'players' | 'recent' | 'games'>('rooms');
   const [lobbyProfileOpen, setLobbyProfileOpen] = useState(false);
+  const [greetingIdentity, setGreetingIdentity] = useState<InvitePlayer | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [memberProfiles, setMemberProfiles] = useState<Record<string, InvitePlayer>>({});
   const [memberError, setMemberError] = useState('');
@@ -64,6 +65,18 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const usernameInput = useRef<TextInput>(null), passwordInput = useRef<TextInput>(null);
   const shared = useRoomSession();
   const { session, rooms, room, game, setGame, expired } = shared;
+  useEffect(() => {
+    if (!session || expired) { setGreetingIdentity(null); return; }
+    if (room || lobbyProfileOpen) return;
+    const controller = new AbortController();
+    void request<InvitePlayer>('/auth/me', session, undefined, controller.signal)
+      .then(identity => { if (!controller.signal.aborted) setGreetingIdentity(identity); })
+      .catch(() => { /* Keep the lobby usable if the optional greeting cannot load. */ });
+    return () => controller.abort();
+  }, [session?.user_id, session?.token, expired, room?.room_id, lobbyProfileOpen]);
+  const greetingName = greetingIdentity?.user_id === session?.user_id
+    ? greetingIdentity?.display_name?.trim() || greetingIdentity?.username?.trim() : '';
+
   const recentIds = useRecentRooms(session?.user_id, room?.room_id);
   const [gameOpen, setGameOpen] = useState(false);
   const chat = useRoomChat({ roomId: room?.room_id || '', session: session || { token: '', user_id: '' }, connected: !!room && !!session && !expired && !gameOpen && shared.status === 'connected',
@@ -303,7 +316,8 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
         </RoomSheet>}
       </> : <>
         {session && !expired && lobbyTab !== 'players' && <View style={styles.hero}>
-          <Text accessibilityRole="header" style={[styles.title, !wide && styles.mobileTitle]}>Ready to play?</Text>
+          <Text accessibilityRole="header" style={[styles.title, !wide && styles.mobileTitle]}>{greetingName ? `Welcome, ${greetingName}` : 'Welcome'}</Text>
+          <Text style={styles.readyPrompt}>Ready to play?</Text>
           <Text style={styles.subtitle}>Open a room or bring your players together.</Text>
           <View style={styles.quickActions}>
             <Pressable accessibilityRole="button" accessibilityLabel="Create room" onPress={() => { setLobbyTab('rooms'); setForm('create'); setRoomToolsOpen(true); }} style={styles.primaryAction}><Text style={styles.primaryActionText}>+ Create room</Text></Pressable>
@@ -436,6 +450,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   header: { ...gameSeparatorFinish(colors), flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16, borderBottomWidth: 1, borderColor: colors.tableTrim, paddingBottom: 18 },
   brand: { fontFamily: fonts.body, fontSize: 26, color: colors.accent }, textButton: { minHeight: 44, justifyContent: 'center' }, lightText: { fontFamily: fonts.medium, fontSize: 12, color: colors.accent },
   hero: { paddingTop: 24, paddingBottom: 20, gap: 8 }, eyebrow: { fontFamily: fonts.medium, fontSize: 9, letterSpacing: 2, color: colors.accent }, title: { ...gameHeadingFinish(colors), fontFamily: fonts.editorial, fontSize: 44, lineHeight: 48, color: colors.text }, mobileTitle: { fontSize: 43, lineHeight: 46 }, subtitle: { fontFamily: fonts.body, fontSize: 13, lineHeight: 23, color: colors.textMuted },
+  readyPrompt: { fontFamily: fonts.medium, fontSize: 18, lineHeight: 25, color: colors.textMuted },
   quickActions: { flexDirection: 'row', gap: 10, marginTop: 8 }, primaryAction: { ...gameControlFinish(colors), flex: 1, minHeight: 54, borderRadius: 14, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 }, primaryActionText: { fontFamily: fonts.medium, fontSize: 13, color: colors.onPrimary }, secondaryAction: { ...gameControlFinish(colors), flex: 1, minHeight: 54, borderRadius: 14, borderWidth: 1, borderColor: colors.tableTrim, backgroundColor: colors.tableHeader, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 }, secondaryActionText: { fontFamily: fonts.medium, fontSize: 13, color: colors.text },
   lobbyTabs: { backgroundColor: colors.tableHeader, borderRadius: 14, gap: 6, flexDirection: 'row', borderBottomWidth: 1, borderColor: colors.borderSubtle, marginTop: 14 }, lobbyTab: { ...gameControlFinish(colors), flex: 1, alignItems: 'center', minHeight: 48, paddingHorizontal: 6, justifyContent: 'center', borderBottomWidth: 0 }, activeLobbyTab: { ...gameTabFinish(colors, true) }, lobbyTabText: { textAlign: 'center', fontFamily: fonts.medium, fontSize: 13, color: colors.textMuted }, activeLobbyTabText: { color: colors.onCoin }, playersArea: { marginTop: 4, gap: 14 },
   sectionToggle: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, sectionTitle: { fontFamily: fonts.medium, fontSize: 16, color: colors.text },
