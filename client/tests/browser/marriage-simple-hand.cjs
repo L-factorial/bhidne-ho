@@ -40,6 +40,7 @@ const card=(rank,suit,deck=0)=>({card_id:`D${deck}:${rank}${suit}`,rank,suit,dec
   const btn=name=>page.getByRole('button',{name,exact:true});
   assert.equal(await page.getByTestId('marriage-maal-spot').isDisabled(),true);
   assert.equal(await page.getByTestId('marriage-maal-spot').getAttribute('aria-label'),'Maal hidden');
+  assert.equal(await page.getByTestId('marriage-maal-check-1').count(),0);
   await btn('Reveal cards').click();
   await btn('Maal eligible · Show for Maal').waitFor();
   if(routeName==='normal'){
@@ -76,6 +77,13 @@ const card=(rank,suit,deck=0)=>({card_id:`D${deck}:${rank}${suit}`,rank,suit,dec
   assert.equal(commands.at(-1).command,routeName==='normal'?'SHOW_INITIAL_MELDS':'SHOW_DUBLEES');
   await btn('Hide cards').click();assert.equal(await page.getByTestId('marriage-win-eligibility').getByRole('button').isDisabled(),true);
   await btn('Collapse your card area').click();
+  const check=page.getByTestId('marriage-maal-check-1');
+  await check.click();
+  const shown=page.getByTestId('marriage-shown-cards');await shown.waitFor();
+  assert.match(await shown.innerText(),routeName==='normal'?/3 sequences/:/7 Dublees/);
+  assert.equal(await page.getByTestId('marriage-player-details').count(),0,'badge opens only declared cards');
+  assert.equal(await page.getByTestId('marriage-maal-check-2').count(),0);
+  await btn('Close shown cards').click();await shown.waitFor({state:'hidden'});
   const maalSpot=page.getByTestId('marriage-maal-spot');
   await maalSpot.waitFor();
   assert.equal(await maalSpot.getAttribute('aria-label'),'Tap to see the Maal');

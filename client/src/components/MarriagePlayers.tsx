@@ -1,3 +1,5 @@
+import { Ionicons } from '@expo/vector-icons';
+import { MarriageMeldCards } from './MarriageMeldCards';
 import { RoomSheet } from './RoomSheet';
 import { PlayerSeat } from './PlayerSeat';
 import { TableSeatLayout } from './TableSeatLayout';
@@ -18,19 +20,35 @@ const playerName = (snapshot: RoomSnapshot, id: string) => snapshot.players?.fin
 
 export function MarriagePlayers({ snapshot, onPoke, registerSeat, children }: { children?: ReactNode; snapshot: RoomSnapshot; onPoke?: (seat: number) => void; registerSeat?: (seat: string, node: View | null) => void }) {
   const styles = useThemedStyles(createStyles);
+  const [shownPlayer, setShownPlayer] = useState<{ match: string; id: string } | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
   const pub = snapshot.marriage!.public, mine = snapshot.marriage?.private?.player_id;
   const detail = pub.players.find(p => p.player_id === selected);
+  const shown = shownPlayer && shownPlayer.match === (snapshot.match_id || '') ? pub.players.find(p => p.player_id === shownPlayer.id && p.has_seen_maal) : undefined;
   return <>
     <TableSeatLayout game="marriage" fill testID="marriage-player-grid" players={pub.players.map(player => ({ ...player, id: player.player_id }))} viewerId={mine || ''}
-      renderSeat={p => <PlayerSeat playerId={Number(p.player_id)} name={playerName(snapshot, p.player_id)} mine={p.player_id === mine}
+      renderSeat={p => <View style={styles.seat}><PlayerSeat playerId={Number(p.player_id)} name={playerName(snapshot, p.player_id)} mine={p.player_id === mine}
         active={snapshot.status === 'playing' && pub.current_player_id === p.player_id}
         status={`${p.hand_count} cards`} connected={snapshot.players?.find(row => String(row.player_id) === p.player_id)?.connected}
         avatarUrl={snapshot.players?.find(row => String(row.player_id) === p.player_id)?.avatar_url}
-        registerSeat={node => registerSeat?.(p.player_id, node)} testID={`marriage-player-${p.player_id}`} onPress={() => setSelected(p.player_id)} />}>
+        registerSeat={node => registerSeat?.(p.player_id, node)} testID={`marriage-player-${p.player_id}`} onPress={() => setSelected(p.player_id)} />
+        {p.has_seen_maal && <Pressable testID={`marriage-maal-check-${p.player_id}`} accessibilityRole="button"
+          accessibilityLabel={`View ${playerName(snapshot, p.player_id)}’s shown cards`}
+          accessibilityHint="Maal unlocked. Opens this player's declared sequences or Dublees."
+          onPress={() => setShownPlayer({ match: snapshot.match_id || '', id: p.player_id })} style={styles.maalCheck}>
+          <View style={styles.maalCheckCircle}><Ionicons name="checkmark" size={18} color="#FFFFFF" /></View>
+        </Pressable>}
+      </View>}>
       {children}
     </TableSeatLayout>
+    <RoomSheet visible={!!shown} title={shown ? `${playerName(snapshot, shown.player_id)}’s shown cards` : 'Shown cards'}
+      onClose={() => setShownPlayer(null)} presentation="dialog" testID="marriage-shown-cards" closeLabel="Close shown cards">
+      {shown && <>
+        <Text style={styles.seen}>✓ Maal unlocked · {route(shown)}</Text>
+        <MarriageMeldCards groups={shown.shown_melds} />
+      </>}
+    </RoomSheet>
     <Modal transparent visible={!!detail} animationType="none" onRequestClose={() => setSelected(null)}>
       <View style={[styles.backdrop, { paddingTop: Math.max(16, insets.top), paddingBottom: Math.max(16, insets.bottom) }]}>
         <View accessibilityViewIsModal testID="marriage-player-details" style={styles.dialog}>
@@ -82,6 +100,9 @@ export function MarriageDetails({ snapshot, section, onClose, busy, error, onSav
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  seat: { width: '100%', position: 'relative' },
+  maalCheck: { position: 'absolute', top: -8, right: -6, width: 44, height: 44, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
+  maalCheckCircle: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#167A46', borderWidth: 2, borderColor: colors.table, alignItems: 'center', justifyContent: 'center' },
   name: { fontFamily: fonts.medium, color: colors.text, fontSize: 14 },
   small: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 11, lineHeight: 16 },
   route: { fontFamily: fonts.medium, color: colors.accent, fontSize: 11, lineHeight: 15 }, seen: { color: colors.success },
