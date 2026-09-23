@@ -38,6 +38,8 @@ const card=(rank,suit,deck=0)=>({card_id:`D${deck}:${rank}${suit}`,rank,suit,dec
   const page=await ctx.newPage();page.setDefaultTimeout(10000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(site);await page.getByRole('button',{name:/Return to table/}).first().click();
   const btn=name=>page.getByRole('button',{name,exact:true});
+  assert.equal(await page.getByTestId('marriage-maal-spot').isDisabled(),true);
+  assert.equal(await page.getByTestId('marriage-maal-spot').getAttribute('aria-label'),'Maal hidden');
   await btn('Reveal cards').click();
   await btn('Maal eligible · Show for Maal').waitFor();
   if(routeName==='normal'){
@@ -73,6 +75,17 @@ const card=(rank,suit,deck=0)=>({card_id:`D${deck}:${rank}${suit}`,rank,suit,dec
   assert.equal(await page.getByTestId('marriage-maal-preview').count(),0);
   assert.equal(commands.at(-1).command,routeName==='normal'?'SHOW_INITIAL_MELDS':'SHOW_DUBLEES');
   await btn('Hide cards').click();assert.equal(await page.getByTestId('marriage-maal-eligibility').getByRole('button',{name:'View Maal',exact:true}).isDisabled(),true);
+  await btn('Collapse your card area').click();
+  const maalSpot=page.getByTestId('marriage-maal-spot');
+  await maalSpot.waitFor();
+  assert.equal(await maalSpot.getAttribute('aria-label'),'Tap to see the Maal');
+  await maalSpot.tap();
+  assert.equal(await maalSpot.getAttribute('aria-label'),'Tap to hide the Maal');
+  assert.match(await maalSpot.innerText(),/8♣/);
+  await maalSpot.tap();
+  assert.equal(await maalSpot.getAttribute('aria-label'),'Tap to see the Maal');
+  assert.ok(!(await maalSpot.innerText()).includes('8♣'));
+  assert.equal(commands.length,2,'flipping Maal is local and sends no game command');
   assert.deepEqual(errors,[]);await ctx.close();console.log('PASS '+routeName+': arrangement, selection, options, rejection and confirmed Maal');
  }}finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});

@@ -1,7 +1,6 @@
 import { ActionCue } from './ActionCue';
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import { AccessibilityInfo, Animated, Easing, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { marriageFace, type MarriageMove } from '../multiplayer/marriage';
 import { MarriagePlayers } from './MarriagePlayers';
@@ -39,8 +38,7 @@ export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAncho
   onAction: (command: string, payload?: object) => void; onPoke?: (seat: number) => void;
 }) {
   const styles = useThemedStyles(createStyles);
-  const [maalOpen, setMaalOpen] = useState(false);
-  const insets = useSafeAreaInsets();
+  const [maalFace, setMaalFace] = useState({ key: '', visible: false });
   const area = useRef<View>(null), stock = useRef<View>(null), discard = useRef<View>(null);
   const seats = useRef(new Map<string, View>());
   const cursor = useRef<number | null>(null);
@@ -80,7 +78,10 @@ export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAncho
   }, [current, reduced, finish]);
   const privateMaal = mine?.maal;
   const legalSource = (source: string) => canAct && !!mine?.actions.kinds.includes('draw') && !!mine.actions.drawable_sources.includes(source);
-  useEffect(() => { if (!privateMaal) setMaalOpen(false); }, [privateMaal]);
+  const maalKey = `${snapshot.match_id}:${mine?.player_id}:${privateMaal?.tiplu.rank}:${privateMaal?.tiplu.suit}`;
+  const maalVisible = !!privateMaal && maalFace.key === maalKey && maalFace.visible;
+  const maalLabel = !privateMaal ? 'Hidden' : maalVisible ? 'Tap to hide the Maal' : 'Tap to see the Maal';
+  useEffect(() => { if (!privateMaal) setMaalFace({ key: '', visible: false }); }, [!!privateMaal]);
   return <View ref={area} style={styles.area}>
     <MarriagePlayers snapshot={snapshot} onPoke={onPoke} registerSeat={(id, node) => { if (node) seats.current.set(id, node); else seats.current.delete(id); }}>
     <View testID="marriage-card-spots" style={styles.spots}>
@@ -102,28 +103,15 @@ export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAncho
         {legalSource('stock') && <ActionCue active style={styles.caption}>Tap to draw</ActionCue>}
       </View>
       <View style={styles.spot}><Text style={styles.label}>Maal</Text>
-        <Pressable accessibilityRole="button" disabled={!privateMaal} accessibilityState={{ disabled: !privateMaal }} onPress={() => setMaalOpen(true)} accessibilityHint={privateMaal ? 'Show Maal and the marriage sequence' : undefined} testID="marriage-maal-spot" accessibilityLabel={privateMaal ? 'View Maal' : 'Maal hidden'} style={[styles.card, !privateMaal && styles.back]}>
-          {privateMaal ? <Text style={[styles.face, (privateMaal.tiplu.suit === 'H' || privateMaal.tiplu.suit === 'D') && styles.red]}>{marriageFace(privateMaal.tiplu)}</Text> : <MarriageCardBack />}</Pressable>
-        <Text style={styles.caption}>{privateMaal ? 'View Maal' : 'Hidden'}</Text>
+        <Pressable accessibilityRole="button" disabled={!privateMaal} accessibilityState={{ disabled: !privateMaal, expanded: maalVisible }}
+          onPress={() => setMaalFace({ key: maalKey, visible: !maalVisible })} testID="marriage-maal-spot"
+          accessibilityLabel={privateMaal ? maalLabel : 'Maal hidden'} style={[styles.card, !maalVisible && styles.back]}>
+          {maalVisible && privateMaal ? <Text style={[styles.face, (privateMaal.tiplu.suit === 'H' || privateMaal.tiplu.suit === 'D') && styles.red]}>{marriageFace(privateMaal.tiplu)}</Text> : <MarriageCardBack />}
+        </Pressable>
+        <Text style={styles.caption}>{maalLabel}</Text>
       </View>
     </View>
     </MarriagePlayers>
-    <Modal transparent visible={maalOpen && !!privateMaal} animationType="none" onRequestClose={() => setMaalOpen(false)}>
-      <View style={[styles.backdrop, { paddingTop: Math.max(16, insets.top), paddingBottom: Math.max(16, insets.bottom) }]}>
-        <View accessibilityViewIsModal testID="marriage-maal-details" style={styles.dialog}>
-          <View style={styles.dialogHeader}><Text accessibilityRole="header" style={styles.heading}>Maal · Marriage sequence</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="Close Maal" onPress={() => setMaalOpen(false)} style={styles.button}><Text style={styles.buttonText}>Close ×</Text></Pressable></View>
-          {privateMaal && <View style={styles.sequence}>
-            {([['Jhiplu', privateMaal.jhiplu], ['Tiplu · Maal', privateMaal.tiplu], ['Paplu', privateMaal.poplu]] as const).map(([label, card]) =>
-              <View key={label} style={styles.sequenceCard}><Text style={styles.label}>{label}</Text>
-                <View accessibilityLabel={`${label} ${marriageFace(card)}`} style={[styles.card, styles.largeCard]}>
-                  <Text style={[styles.face, (card.suit === 'H' || card.suit === 'D') && styles.red]}>{marriageFace(card)}</Text>
-                </View>
-              </View>)}
-          </View>}
-        </View>
-      </View>
-    </Modal>
     {flight && current && flight.sequence === current.sequence && <FlyingCard key={current.sequence} move={current} origin={flight.origin} destination={flight.destination} done={finish} />}
   </View>;
 }
