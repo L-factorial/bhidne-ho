@@ -61,10 +61,10 @@ async function api(route, user, body) {
     for (let offset = 0; offset < 3; offset++) {
       const i = (first + offset) % 3, page = pages[i];
       await page.getByRole('button', {name:'See cards',exact:true}).click();
-      const peek = page.getByRole('button', {name:'Press and hold to see cards',exact:true});
-      await peek.waitFor(); await peek.hover(); await page.mouse.down();
+      const peek = page.getByRole('button', {name:'Tap to see cards',exact:true});
+      await peek.waitFor(); await peek.click();
       assert.equal(await page.getByRole('button', {name:/^Your card \d:/}).count(), 3);
-      await page.mouse.up();
+      await page.getByRole('button', {name:'Hide cards',exact:true}).click();
       await page.getByRole('button', {name:'Bet minimum · 20 points',exact:true}).click();
       await page.getByTestId('flush-coin-flight').waitFor();
       await page.getByTestId('flush-coin-flight').waitFor({state:'hidden'});

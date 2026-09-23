@@ -113,13 +113,13 @@ async function api(path, user, body) {
    await p.waitForTimeout(900);
    if(step>0) assert.ok(await p.evaluate(()=>globalThis.turnCueChanges)>0,'a new personal turn must briefly cue');
    await p.evaluate(()=>globalThis.turnCueChanges=0);
-   await button(p,'See cards').click();await button(p,'Press and hold to see cards').waitFor();
+   await button(p,'See cards').click();await button(p,'Tap to see cards').waitFor();
    await p.waitForTimeout(900);
    assert.equal(await p.evaluate(()=>globalThis.turnCueChanges),0,'seeing cards must not repeat the turn cue');
    assert.match(await p.getByRole('button',{name:/^Bet minimum/}).innerText(),/^Bet ·/);
-   const peek=button(p,'Press and hold to see cards');await peek.hover();await p.mouse.down();
+   const peek=button(p,'Tap to see cards');await peek.click();
    await p.getByRole('button',{name:/^Your card 1:/}).waitFor();
-   assert.equal(await p.getByRole('button',{name:/^Your card \d:/}).count(),3);await p.mouse.up();
+   assert.equal(await p.getByRole('button',{name:/^Your card \d:/}).count(),3);await button(p,'Hide cards').click();
    await p.getByRole('button',{name:/^Bet minimum/}).click();
    await p.getByRole('button',{name:/^Bet minimum/}).waitFor({state:'hidden'});
   }

@@ -82,7 +82,7 @@ async function api(path, user, body) {
  await button(p,'Expand your card area').click();
  await button(p,'See cards').click();await p.waitForTimeout(1600);
  await button(p,'Collapse your card area').waitFor();
- await button(p,'Press and hold to see cards').waitFor();
+ await button(p,'Tap to see cards').waitFor();
  // A rejected action must leave the panel open and show the error.
  await p.route('**/test-games/*/action',route=>route.fulfill({status:422,contentType:'application/json',body:JSON.stringify({detail:'Test rejected bet'})}));
  await p.getByRole('button',{name:/^Bet minimum/}).click();

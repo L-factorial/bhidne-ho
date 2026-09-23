@@ -67,19 +67,19 @@ async function api(route, user, body) {
       await pages[i].getByText('Blind · See cards when eligible', { exact: true }).waitFor();
     }
     await pages[first].getByRole('button', { name: 'See cards', exact: true }).click();
-    const peek = pages[first].getByRole('button', {name:'Press and hold to see cards',exact:true});
+    const peek = pages[first].getByRole('button', {name:'Tap to see cards',exact:true});
     await peek.waitFor();
-    await peek.hover(); await pages[first].mouse.down();
+    await peek.click();
     assert.equal(await pages[first].getByRole('button', {name:/^Your card [123]:/}).count(), 3);
     assert.equal(await pages[second].getByRole('button', {name:/^Your card [123]:/}).count(), 0);
-    await pages[first].mouse.up();
+    await pages[first].getByRole('button', {name:'Hide cards',exact:true}).click();
     assert.equal(await pages[first].getByRole('button', {name:/^Your card [123]:/}).count(), 0);
-    await peek.hover(); await pages[first].mouse.down();
+    await peek.click();
     assert.equal(await pages[first].getByRole('button', {name:/^Your card [123]:/}).count(), 3);
-    await pages[first].mouse.up();
+    await pages[first].getByRole('button', {name:'Hide cards',exact:true}).click();
     assert.equal(await pages[first].getByRole('button', {name:/^(Show|Hide) my cards$/}).count(), 0);
     await pages[first].reload();
-    await pages[first].getByRole('button', {name:'Press and hold to see cards',exact:true}).waitFor();
+    await pages[first].getByRole('button', {name:'Tap to see cards',exact:true}).waitFor();
     const spectatorUser = await api('/auth/guest', null, {});
     const spectatorContext = await browser.newContext({viewport:{width:1280,height:900}});
     await spectatorContext.addInitScript(({user,room}) => sessionStorage.setItem('bhidne.session.v1:http://localhost:8000',
