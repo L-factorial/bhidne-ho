@@ -50,6 +50,16 @@ class MeldPayload(Payload):
         return values
 
 
+class WinningMeldPayload(MeldPayload):
+    meld_type: Literal["pure_sequence", "tunnela", "sequence", "set"]
+
+
+class FinishPayload(Payload):
+    melds: Annotated[list[WinningMeldPayload], Field(min_length=3, max_length=7)] | None = None
+    discard_card_id: str | None = None
+    winning_pair: Annotated[list[str], Field(min_length=2, max_length=2)] | None = None
+
+
 class ValidateMeldPayload(Payload):
     meld: MeldPayload
 
@@ -102,7 +112,7 @@ COMMAND_SPECS = {
     CommandName.DISCARD_CARD: CommandSpec(CardPayload, "discard_card", "current_player", True),
     CommandName.SHOW_INITIAL_MELDS: CommandSpec(InitialMeldsPayload, "show_initial_melds", "current_player", True),
     CommandName.SHOW_DUBLEES: CommandSpec(DubleesPayload, "show_dublees", "current_player", True),
-    CommandName.FINISH: CommandSpec(Empty, "finish", "current_player", True),
+    CommandName.FINISH: CommandSpec(FinishPayload, "finish", "current_player", True),
     CommandName.VALIDATE_MELD: CommandSpec(ValidateMeldPayload, "validate_meld", "seated_player", False),
     CommandName.VALIDATE_INITIAL_MELDS: CommandSpec(InitialMeldsPayload, "validate_initial_melds", "seated_player", False),
     CommandName.VALIDATE_DUBLEES: CommandSpec(DubleesPayload, "validate_dublees", "seated_player", False),

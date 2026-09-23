@@ -109,3 +109,50 @@ export function finishingGaps(cards: MarriageCard[], hand: MarriageCard[], maal:
   }
   return gaps;
 }
+
+export type MarriageWinChoice = { melds: MarriageWinningMeld[]; discard_card_id?: string; winning_pair?: string[] };
+/** Bounded exact covers: alternatives use physical IDs and keep locked melds intact. */
+export function marriageWinChoices(hand: MarriageCard[], shown: MarriageMeld[], maal: SeenMaal, route: string): MarriageWinChoice[] {
+  if (hand.length !== 22) return [];
+  const cards = remainingCards(hand, shown);
+  if (route === 'dublee' && shown.length === 7) {
+    const choices: MarriageWinChoice[] = [];
+    for (let i = 0; i < cards.length; i++) for (let j = i + 1; j < cards.length; j++) {
+      if (cards[i].card_type === 'standard' && cards[j].card_type === 'standard' && sameFace(cards[i], cards[j])) {
+        const pair = [cards[i].card_id, cards[j].card_id];
+        choices.push({ melds: [...shown, { meld_type: 'dublee', card_ids: pair }], winning_pair: pair });
+      }
+    }
+    return choices;
+  }
+  if (route !== 'normal' || shown.length !== 3 || cards.length > 13) return [];
+  const full = (1 << cards.length) - 1;
+  const candidates: { mask: number; group: MarriageWinningMeld }[][] = cards.map(() => []);
+  for (let mask = 1; mask <= full; mask++) {
+    const held = cards.filter((_, i) => mask & (1 << i));
+    const kind = completionKind(held, maal);
+    if (!kind) continue;
+    const item = { mask, group: { meld_type: kind, card_ids: held.map(c => c.card_id) } };
+    for (let i = 0; i < cards.length; i++) if (mask & (1 << i)) candidates[i].push(item);
+  }
+  const memo = new Map<number, MarriageWinningMeld[][]>();
+  function covers(mask: number): MarriageWinningMeld[][] {
+    if (!mask) return [[]];
+    const cached = memo.get(mask); if (cached) return cached;
+    const result: MarriageWinningMeld[][] = [];
+    const first = 31 - Math.clz32(mask & -mask);
+    for (const item of candidates[first]) if ((mask & item.mask) === item.mask) {
+      for (const rest of covers(mask ^ item.mask)) {
+        result.push([item.group, ...rest]);
+        if (result.length >= 24) { memo.set(mask, result); return result; }
+      }
+    }
+    memo.set(mask, result); return result;
+  }
+  const result: MarriageWinChoice[] = [];
+  for (let i = 0; i < cards.length; i++) for (const groups of covers(full ^ (1 << i))) {
+    result.push({ melds: [...shown, ...groups], discard_card_id: cards[i].card_id });
+    if (result.length >= 24) return result;
+  }
+  return result;
+}

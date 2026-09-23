@@ -79,7 +79,7 @@ results are trusted domain information, **not broadcast payloads**.
 | `discard_card(player_id, card_id: str) -> ActionResult` | Current player in MUST_DISCARD. Throw an owned, uncommitted physical card; advance exactly one seat with wraparound. |
 | `show_initial_melds(player_id, melds: Sequence[Meld]) -> ActionResult` | Current unqualified player in MUST_DISCARD. Validate exactly three disjoint pure sequences and/or Tunnelas, commit their IDs, enter the normal route, and atomically grant Maal access. Leave an uncommitted card to discard. |
 | `show_dublees(player_id, pairs: Sequence[Meld]) -> ActionResult` | Current unqualified player in MUST_DISCARD. Validate exactly seven disjoint natural pairs, commit fourteen IDs, enter the Dublee route, and atomically grant Maal access. Does not finish the round. |
-| `finish(player_id) -> ActionResult` | Current player in MUST_DISCARD. Validate seven committed Dublees and an eighth pair, or a normal 21-card partition. Normal wins atomically discard their 22nd card; record exactly one winner. |
+| `finish(player_id, melds=None, discard_card_id=None, winning_pair=None) -> ActionResult` | Current player in MUST_DISCARD. Validate seven committed Dublees and an eighth pair, or a normal 21-card partition. Normal wins atomically discard their 22nd card; record exactly one winner. |
 
 Shuffle and deal are one atomic `start_game()` operation. There is no separate
 shuffle/cut/deal method that can reorder an active round. A player-controlled

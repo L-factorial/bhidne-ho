@@ -54,7 +54,7 @@ class Meld:
 
 @dataclass(frozen=True)
 class NormalFinish:
-    """Server-selected 21-card partition and its separate final discard."""
+    """Server-validated 21-card partition and its separate final discard."""
     melds: tuple[Meld, ...]
     discard_card_id: str
 

@@ -183,3 +183,50 @@ def test_qualified_player_can_finish_after_later_discard_pickup():
     assert game.get_allowed_actions('0').normal_finish is not None
     game.finish('0')
     assert game.get_scores().winner == '0'
+
+
+def test_selected_partition_is_validated_and_broadcast_exactly():
+    game = normal_round(wild=True)
+    game.draw_card('0', DrawSource.STOCK)
+    game.show_initial_melds('0', INITIAL)
+    witness = game.get_allowed_actions('0').normal_finish
+    alternative = witness.melds[:3] + tuple(reversed(witness.melds[3:]))
+    before = game.get_state()
+    for groups, discard in [(alternative, INITIAL[0].card_ids[0]),
+                            (alternative[:-1] + (INITIAL[0],), witness.discard_card_id),
+                            (alternative[1:], witness.discard_card_id),
+                            (alternative, 'not-owned')]:
+        with pytest.raises(InvalidActionError):
+            game.finish('0', groups, discard)
+        assert game.get_state() is before
+    with pytest.raises(InvalidTurnError):
+        game.finish('1', alternative, witness.discard_card_id)
+    game.finish('0', alternative, witness.discard_card_id)
+    assert game.get_public_view().normal_finish.melds == alternative
+    assert game.get_public_events()[-1].card_groups == tuple(m.card_ids for m in alternative)
+    validate_game_state(game.get_state())
+
+
+def test_selected_eighth_pair_validates_ownership_and_preserves_other_cards():
+    game = MarriageGameEngine(('0', '1'), rng=Random(27))
+    game.start_game()
+    pairs = tuple(Meld(MeldType.DUBLEE, (f'D0:{rank}C', f'D1:{rank}C')) for rank in range(2, 9))
+    ids = tuple(i for m in pairs for i in m.card_ids) + (
+        'D0:10H', 'D1:10H', 'D2:10H', 'D0:QH', 'D1:QH', 'D0:2S', 'D0:4S', 'MAN:0')
+    hand = tuple(CARDS[i] for i in ids)
+    remaining = tuple(c for c in create_deck() if c not in hand)
+    game._state = replace(game.get_state(), players=(PlayerState('0', hand[:-1]), PlayerState('1', remaining[:21])),
+                          discard=(), stock=remaining[21:] + (hand[-1],))
+    game.draw_card('0', DrawSource.STOCK)
+    game.show_dublees('0', pairs)
+    before = game.get_state()
+    for pair in [('D0:2C', 'D1:2C'), ('D0:10H', 'D0:10H'), ('D0:10H', 'D0:QH'), ('missing', 'D0:QH')]:
+        with pytest.raises(InvalidActionError):
+            game.finish('0', winning_pair=pair)
+        assert game.get_state() is before
+    selected = ('D0:QH', 'D1:QH')
+    game.finish('0', winning_pair=selected)
+    assert game.get_public_view().winning_pair == selected
+    assert game.get_public_events()[-1].winning_pair == selected
+    assert game.get_state().players[0].hand == before.players[0].hand
+    validate_game_state(game.get_state())

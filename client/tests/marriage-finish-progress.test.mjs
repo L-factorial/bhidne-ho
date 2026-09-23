@@ -91,3 +91,33 @@ test('gap hints find inside sequence gaps and same-rank sets without counting an
   const hand = [card(4), card(6), ...[0, 1, 2].map(d => card(5, 'H', d))];
   assert.deepEqual(finishingGaps(hand.slice(0, 2), hand, maal)[0].needed, []);
 });
+
+test('winning slider options cover 21 distinct physical cards and preserve shown melds', async () => {
+  const { marriageWinChoices } = await import('../src/multiplayer/marriageFinishProgress.ts');
+  const hand = [...lockedCards, ...[14,2,3,4,5,6,7,8,9,10,11,12,13].map(r => card(r))];
+  const options = marriageWinChoices(hand, locked, maal, 'normal');
+  assert.ok(options.length > 1 && options.length <= 24);
+  for (const option of options) {
+    assert.deepEqual(option.melds.slice(0,3), locked);
+    const ids = option.melds.flatMap(g => g.card_ids);
+    assert.equal(ids.length,21); assert.equal(new Set(ids).size,21);
+    assert.ok(!ids.includes(option.discard_card_id));
+    assert.equal(new Set([...ids,option.discard_card_id]).size,hand.length);
+    for (const group of option.melds.slice(3)) assert.equal(completionKind(hand.filter(c => group.card_ids.includes(c.card_id)),maal),group.meld_type);
+  }
+  assert.deepEqual(marriageWinChoices(hand.slice(1),locked,maal,'normal'),[]);
+  assert.deepEqual(marriageWinChoices(hand,locked,maal,'unqualified'),[]);
+});
+
+test('Dublee slider enumerates physical pairs without reusing locked cards', async () => {
+  const { marriageWinChoices } = await import('../src/multiplayer/marriageFinishProgress.ts');
+  const pairs = [2,3,4,5,6,7,8].map(r => [card(r,'C'),card(r,'C',1)]);
+  const shown = pairs.map(pair => ({meld_type:'dublee',card_ids:pair.map(c=>c.card_id)}));
+  const hand = [...pairs.flat(),card(10),card(10,'H',1),card(10,'H',2),card(12),card(12,'H',1),card(2,'S'),card(4,'S'),man()];
+  const options=marriageWinChoices(hand,shown,maal,'dublee');
+  assert.equal(options.length,4);
+  for (const option of options) {
+    assert.equal(option.winning_pair.length,2);
+    assert.equal(new Set(option.melds.flatMap(g=>g.card_ids)).size,16);
+  }
+});

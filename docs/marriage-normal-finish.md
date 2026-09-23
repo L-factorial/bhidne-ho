@@ -37,8 +37,12 @@ preview. `can_finish_normal_hand` returns `Capability(supported=True, reason=...
 can_finish=...)`; the verdict concerns the hand, while allowed actions enforce
 the turn and lifecycle.
 
-The existing empty-payload `FINISH` command revalidates the current server-owned
-cards. It atomically removes the final discard from the winner's hand, adds it to
+`FINISH` still accepts an empty payload for existing clients. It also accepts
+`{melds, discard_card_id}` for a selected normal partition or `{winning_pair}` for
+a selected eighth Dublee. The server revalidates ownership, distinct physical
+cards, locked declarations, group legality, route and turn before publishing the
+selected option. Invalid selections never fall back silently to another option.
+The command revalidates the current server-owned cards. It atomically removes the final discard from the winner's hand, adds it to
 the discard pile, records the normal witness, and finishes the round. There is one
 revision containing `CARD_DISCARDED` then `PLAYER_FINISHED`, without a next-turn
 event. The normal winner owns 21 cards; Dublee winners retain their existing 22.
@@ -57,12 +61,14 @@ the natural face or point value of a wildcard.
 
 ## Interface and verification
 
-On mobile and desktop, Finish round opens a private review for normal wins. It
-shows the existing card faces grouped by the server and names the final discard.
-Confirm finish submits; closing cancels. Hidden or unrevealed cards prevent review.
-A rejected action keeps the preview open with its error. Accepted finishing closes
-the preview, displays the normal winner, and makes the winning groups and points
-available from the results. The collapsible mobile cards layout is preserved.
+After Maal unlocks, Your Cards replaces arrangement tabs and the planning tool
+with a Marriage eligibility bulb. It checks again when the hand changes, stays
+disabled for hidden hands or illegal turns, and glows when a win can be submitted.
+Its inline preview offers Previous/Next and swipe through up to 24 normal winning
+partitions (or available eighth pairs), showing the winning cards and final discard
+or remaining cards. Back preserves selection; Show Marriage submits the selected
+option. Rejection keeps the preview open. Accepted wins use the existing public
+victory popup for every viewer, including spectators and reconnecting players.
 
 Tests cover natural/wildcard groups, long sequences, Ace boundaries, 2-5 players,
 qualification restrictions, card reuse, invalid finishes, rollback, conservation,

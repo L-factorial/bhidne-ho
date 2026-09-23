@@ -110,3 +110,28 @@ def winning_discard(player: PlayerState, card: PhysicalCard) -> bool:
             and card.identity is not None
             and any(c.card_id not in player.committed_card_ids and c.identity == card.identity
                     and c.card_id != card.card_id for c in player.hand))
+
+
+def valid_normal_finish(player: PlayerState, tiplu: PhysicalCard | None,
+                        rules: MarriageRules, witness: NormalFinish) -> bool:
+    """Validate a selected partition without trusting any client card or meld."""
+    if (player.route is not QualificationRoute.NORMAL or not player.has_seen_maal
+            or tiplu is None or len(player.hand) != 22 or len(player.shown_melds) != 3
+            or witness.melds[:3] != player.shown_melds):
+        return False
+    owned = {c.card_id: c for c in player.hand}
+    ids = tuple(i for m in witness.melds for i in m.card_ids)
+    if (len(ids) != 21 or len(set(ids)) != 21 or witness.discard_card_id in ids
+            or set(ids) | {witness.discard_card_id} != set(owned)):
+        return False
+    return all(completion_meld(tuple(owned[i] for i in m.card_ids), tiplu, rules) == m.meld_type
+               for m in witness.melds[3:])
+
+
+def valid_eighth_pair(player: PlayerState, pair: tuple[str, ...]) -> bool:
+    if (player.route is not QualificationRoute.DUBLEE or not player.has_seen_maal
+            or len(player.shown_melds) != 7 or len(pair) != 2 or len(set(pair)) != 2):
+        return False
+    owned = {c.card_id: c for c in player.hand if c.card_id not in player.committed_card_ids}
+    return (all(i in owned and owned[i].identity is not None for i in pair)
+            and owned[pair[0]].identity == owned[pair[1]].identity)

@@ -175,7 +175,8 @@ def test_complete_adapter_round_projects_qualification_and_finish():
     assert {EventName.SEVEN_DUBLEES_SHOWN, EventName.TIPLU_REVEALED, EventName.PLAYER_FINISHED} <= observed
 
 
-def test_normal_meld_commands_and_finish_translate_correctly():
+@pytest.mark.parametrize("selected", [False, True])
+def test_normal_meld_commands_and_finish_translate_correctly(selected):
     from dataclasses import replace
     from marriage import PlayerState, create_deck, validate_game_state
     engine = MarriageGameEngine(("a", "b"), rng=Random(4))
@@ -205,7 +206,7 @@ def test_normal_meld_commands_and_finish_translate_correctly():
     assert game.snapshot()["view"]["normal_finish"] is None
     assert game.snapshot("b")["view"]["actions"]["normal_finish"] is None
     assert command(game, "CAN_FINISH_NORMAL_HAND").messages[0].message.payload["result"]["can_finish"]
-    request = PlayerCommand(match_id="match", command_id="finish", expected_revision=game.revision, command="FINISH")
+    request = PlayerCommand(match_id="match", command_id="finish", expected_revision=game.revision, command="FINISH", payload=preview if selected else {})
     result = game.dispatch_player(request, player_id="a")
     assert isinstance(result, AdapterResult)
     event = next(e.message for e in result.messages if e.message.event is EventName.PLAYER_FINISHED)

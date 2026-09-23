@@ -10,9 +10,9 @@ from .events import (ActionResult, CardDiscarded, CardDrawn, DiscardPileRecycled
                      DomainEvent, GameStarted, MeldsShown, PlayerFinished, PlayerSawMaal,
                      TipluRevealed, TurnChanged)
 from .invariants import validate_game_state, validate_initial_state
-from .models import MarriageConfig, MarriageGameState, Meld, PlayerState
+from .models import MarriageConfig, MarriageGameState, Meld, PlayerState, NormalFinish
 from .cards import PhysicalCard
-from .completion import Capability, eighth_pair, normal_finish
+from .completion import Capability, eighth_pair, normal_finish, valid_normal_finish, valid_eighth_pair
 from .maal import MaalView, maal_view, select_tiplu
 from .melds import validate_declaration, validate_meld
 from .visibility import VisibleEvent, visible_events
@@ -211,12 +211,16 @@ class MarriageGameEngine:
         return Capability(True, "Valid normal-hand partition." if possible else
                           "Requires normal qualification and a 21-card partition after drawing.", possible)
 
-    def finish(self, player_id: str) -> ActionResult:
+    def finish(self, player_id: str, melds: tuple[Meld, ...] | None = None,
+               discard_card_id: str | None = None, winning_pair: tuple[str, ...] | None = None) -> ActionResult:
         """Revalidate and finish; normal wins atomically discard their 22nd card."""
         player = self._require_turn(player_id, TurnPhase.MUST_DISCARD, finishing=True)
         if player.route is QualificationRoute.NORMAL:
-            witness = normal_finish(player, self._state.tiplu, self._state.config.rules)
-            if witness is None:
+            if winning_pair is not None or (melds is None) != (discard_card_id is None):
+                raise InvalidActionError("Invalid normal finish selection.")
+            witness = (NormalFinish(melds, discard_card_id) if melds is not None else
+                       normal_finish(player, self._state.tiplu, self._state.config.rules))
+            if witness is None or not valid_normal_finish(player, self._state.tiplu, self._state.config.rules, witness):
                 raise InvalidActionError("Normal finish requires 21 cards in valid melds and one final discard.")
             card = next(c for c in player.hand if c.card_id == witness.discard_card_id)
             winner = replace(player, finished=True, hand=tuple(c for c in player.hand if c != card))
@@ -229,8 +233,10 @@ class MarriageGameEngine:
             return self._commit_turn(replace(self._state, players=players, status=GameStatus.FINISHED,
                                              winner=player_id, normal_finish=witness,
                                              discard=self._state.discard + (card,), must_finish=False), events)
-        pair = eighth_pair(player)
-        if not pair:
+        if melds is not None or discard_card_id is not None:
+            raise InvalidActionError("Dublee finish requires a pair, not a normal partition.")
+        pair = winning_pair if winning_pair is not None else eighth_pair(player)
+        if not valid_eighth_pair(player, pair):
             raise InvalidActionError("Finish requires seven committed Dublees and a separate eighth pair.")
         players = tuple(replace(p, finished=True) if p.player_id == player_id else p for p in self._state.players)
         event = PlayerFinished(len(self._state.history) + 1, self._state.revision + 1, player_id, pair)

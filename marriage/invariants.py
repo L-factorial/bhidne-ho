@@ -4,7 +4,7 @@ from .deck import validate_deck
 from .enums import GameStatus, QualificationRoute, TurnPhase
 from .errors import CardConservationError, InvalidMeldError
 from .events import GameStarted, PlayerFinished, TipluRevealed, TurnChanged
-from .completion import eighth_pair, normal_finish
+from .completion import eighth_pair, valid_normal_finish, valid_eighth_pair
 from .melds import validate_declaration
 from .models import MarriageGameState
 
@@ -92,14 +92,14 @@ def validate_game_state(state: MarriageGameState) -> None:
             require(state.discard[-1].card_id == witness.discard_card_id,
                     "Normal final discard must be on top of the discard pile.")
             before = replace(winner, finished=False, hand=winner.hand + (state.discard[-1],))
-            require(normal_finish(before, state.tiplu, state.config.rules) == witness,
+            require(valid_normal_finish(before, state.tiplu, state.config.rules, witness),
                     "Normal winner requires an exact legal 21-card partition.")
             require(event.meld_types == tuple(m.meld_type for m in witness.melds)
                     and event.card_groups == tuple(m.card_ids for m in witness.melds)
                     and event.discard_card_id == witness.discard_card_id, "Invalid normal finish event.")
         else:
             require(state.normal_finish is None and bool(state.winning_pair)
-                    and state.winning_pair == eighth_pair(winner),
+                    and valid_eighth_pair(winner, state.winning_pair),
                     "Winner requires a separate valid eighth pair.")
             require(not event.meld_types and not event.card_groups and event.discard_card_id is None,
                     "Dublee finish cannot carry a normal partition.")

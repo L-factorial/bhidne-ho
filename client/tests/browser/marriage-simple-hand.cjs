@@ -71,10 +71,10 @@ const card=(rank,suit,deck=0)=>({card_id:`D${deck}:${rank}${suit}`,rank,suit,dec
   await btn('Maal eligible · Show for Maal').click();await btn('Confirm & show').click();
   await page.getByTestId('marriage-maal-preview').getByText('Hand changed. Please review again.',{exact:true}).waitFor();
   reject=false;await btn('Confirm & show').click();
-  await page.getByTestId('marriage-maal-eligibility').getByRole('button',{name:'View Maal',exact:true}).waitFor();
+  await page.getByTestId('marriage-win-eligibility').getByRole('button').waitFor();
   assert.equal(await page.getByTestId('marriage-maal-preview').count(),0);
   assert.equal(commands.at(-1).command,routeName==='normal'?'SHOW_INITIAL_MELDS':'SHOW_DUBLEES');
-  await btn('Hide cards').click();assert.equal(await page.getByTestId('marriage-maal-eligibility').getByRole('button',{name:'View Maal',exact:true}).isDisabled(),true);
+  await btn('Hide cards').click();assert.equal(await page.getByTestId('marriage-win-eligibility').getByRole('button').isDisabled(),true);
   await btn('Collapse your card area').click();
   const maalSpot=page.getByTestId('marriage-maal-spot');
   await maalSpot.waitFor();
