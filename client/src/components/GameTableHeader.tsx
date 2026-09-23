@@ -7,7 +7,7 @@ import { KeyboardFrame } from './KeyboardFrame';
 import { type ReactNode, useEffect, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ShareLink } from './ShareLink';
+import { TableShareSheet } from './ShareLink';
 import { fonts, radii, typography, useTheme } from '../theme';
 import { LanguageToggle } from './LanguageToggle';
 import { useTranslation } from 'react-i18next';
@@ -24,6 +24,7 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
   const small = mobile || compact;
   const [open, setOpen] = useState(false);
   const [themesOpen, setThemesOpen] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const { theme } = useTableTheme();
   const openThemes = () => { setOpen(false); setThemesOpen(true); };
   const themeMenuEntry = <Pressable accessibilityRole="button" accessibilityLabel={`Table theme, ${theme.name}`} onPress={openThemes}
@@ -54,7 +55,6 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
         {!!tableName && <Text numberOfLines={1} style={{ fontFamily: fonts.body, fontSize: typography.caption, color: colors.textMuted }}>{title}</Text>}
         {!tableName && !!path && !compact && <Text numberOfLines={1} style={{ fontFamily: fonts.body, fontSize: 11, color: colors.textMuted }}>{path}</Text>}
       </View>
-      {!!roomId && !compact && <ShareLink roomId={roomId} matchId={matchId} compact={mobile} />}
       <Pressable testID={`${game}-theme-button`} accessibilityRole="button" accessibilityLabel="Choose table theme" accessibilityHint={`Current theme: ${theme.name}`} accessibilityState={{ expanded: themesOpen }} onPress={openThemes}
         style={({ pressed }) => ({ flexDirection: 'row', flexShrink: 0, gap: 6, minWidth: 44, minHeight: 44, paddingHorizontal: mobile ? 8 : 12, alignItems: 'center', justifyContent: 'center', backgroundColor: pressed ? colors.surfaceRaised : 'transparent', borderRadius: radii.medium })}>
         <Ionicons name="color-palette-outline" size={22} color={colors.text} />
@@ -67,7 +67,8 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
         </View>
       </Pressable>
     </View>
-    {!!drawerMetadata && <Modal transparent visible={open} animationType="fade" onRequestClose={() => setOpen(false)}>
+    {/* Web menu dismissal must finish before a newly opened chat takes focus. */}
+    {!!drawerMetadata && <Modal transparent visible={open} animationType={Platform.OS === 'web' ? 'none' : 'fade'} onRequestClose={() => setOpen(false)}>
       <KeyboardFrame style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end', paddingTop: Math.max(12, insets.top), paddingBottom: Math.max(12, insets.bottom), paddingRight: Math.max(8, insets.right) }}>
         <Pressable testID={`${game}-menu-backdrop`} accessibilityRole="button" accessibilityLabel="Close table menu backdrop"
           onPress={() => setOpen(false)} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: colors.overlay, opacity: 0.6 }} />
@@ -90,11 +91,12 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
         <LanguageToggle />
       </View>
       {compact && !!path && <Text style={{ color: colors.textMuted }}>{path}</Text>}
-      {compact && !!roomId && <ShareLink roomId={roomId} matchId={matchId} />}
+      {!!roomId && !!matchId && <Pressable accessibilityRole="button" accessibilityLabel="Share table" onPress={() => { setOpen(false); setSharing(true); }} style={{ minHeight: 48, justifyContent: 'center' }}><Text style={{ color: colors.text, fontFamily: fonts.medium }}>Share table</Text></Pressable>}
       {themeMenuEntry}
       {typeof children === 'function' ? children(() => setOpen(false)) : children}
       <View style={{ borderTopWidth: 1, borderColor: colors.border, paddingTop: 4 }}>{endControl}</View>
     </ScrollView>}
+    {!!roomId && !!matchId && !drawerMetadata && <TableShareSheet roomId={roomId} matchId={matchId} visible={sharing} onClose={() => setSharing(false)} />}
     <RoomSheet visible={themesOpen} title="Table theme" closeLabel="Close table themes" testID="table-theme-sheet" presentation="dialog" onClose={() => setThemesOpen(false)}>
       <TableThemePicker showTitle={false} />
     </RoomSheet>

@@ -107,7 +107,7 @@ async function unclipped(locator) {
     assert.equal(await field('Room name').inputValue(), `Keyboard room ${stamp}`);
     await within(page.getByText('Room test failure', { exact: true }), 340, 'creation error stays with action');
     await page.unroute(site + '/rooms');
-    await createRoom.click(); await page.getByRole('heading', { name: 'Tables', exact: true }).waitFor();
+    await createRoom.click(); await page.getByTestId('room-hero').waitFor();
     await visibleHeight(page, 844); await button('Create table').click();
     assert.equal(await button('Create this table').isDisabled(), true);
     await field('Table name').fill('Keyboard table'); await visibleHeight(page, 340);
@@ -155,6 +155,7 @@ async function unclipped(locator) {
       await propose.waitFor({ state: 'hidden' });
       await visibleHeight(p, 844);
       if (!await p.getByTestId(kind + '-menu-drawer').count()) await p.getByRole('button', { name: 'Table menu', exact: true }).click();
+      await p.getByRole('button', { name: 'Players & waiting queue', exact: true }).click();
       await p.getByRole('button', { name: 'Poke the table', exact: true }).click();
       const poke = p.getByLabel('Poke message, 30 characters maximum', { exact: true });
       await poke.fill('रमाइलो खेल'); await visibleHeight(p, 340);
