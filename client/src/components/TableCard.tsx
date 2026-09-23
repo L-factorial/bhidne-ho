@@ -1,9 +1,13 @@
 import { gameControlFinish, gamePanelFinish, fonts, radii, space, typography, useTheme } from '../theme';
+import { useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
+import { TableShareSheet } from './ShareLink';
 import { tableEntry, tablePhase, type TableEntry, type TableSummary } from '../multiplayer/tableNavigation';
 
-export function TableCard({ table, busy, enter, compact = false, roomName }: { compact?: boolean; roomName?: string; roomId: string; table: TableSummary; busy: boolean; enter: (action: TableEntry) => void }) {
+export function TableCard({ table, roomId, busy, enter, compact = false, roomName }: { compact?: boolean; roomName?: string; roomId: string; table: TableSummary; busy: boolean; enter: (action: TableEntry) => void }) {
   const { colors: c } = useTheme();
+  const [sharing, setSharing] = useState(false);
   const primary = tableEntry(table), me = table.current_user;
   const actionLabel = me?.is_seated ? 'Return' : primary.action === 'seat' ? 'Take seat' : primary.label;
   const players = table.seated_players || [];
@@ -25,8 +29,10 @@ export function TableCard({ table, busy, enter, compact = false, roomName }: { c
       {!!table.queue_size && <Text style={{ color: c.textMuted, fontFamily: fonts.body, fontSize: typography.caption }}>{me?.is_queued ? `Queue #${me.queue_position}` : `${table.queue_size} waiting`}</Text>}
     </Pressable>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', borderTopWidth: 1, borderColor: c.borderSubtle, paddingHorizontal: 4 }}>
+      {!ended && <Pressable accessibilityRole="button" accessibilityLabel={`Share ${table.name}`} onPress={() => setSharing(true)} style={{ minHeight: 44, paddingHorizontal: 12, flexDirection: 'row', gap: 6, alignItems: 'center' }}><Ionicons name="share-outline" size={17} color={c.accent} /><Text style={{ color: c.accent, fontFamily: fonts.medium }}>Share</Text></Pressable>}
       {primary.action !== 'watch' && secondary('Watch', 'watch')}
       {primary.action === 'watch' && !me?.is_queued && !me?.is_seated && me?.can_queue && !ended && secondary('Join queue', 'queue')}
     </View>
+    <TableShareSheet roomId={roomId} matchId={table.match_id} visible={sharing} onClose={() => setSharing(false)} />
   </View>;
 }

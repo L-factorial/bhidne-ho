@@ -80,6 +80,12 @@ async function exerciseChat(page, label, sendLabel, listId, closeLabel, reopen) 
         await button('Room chat').click();
         await exerciseChat(page, 'Room chat', 'Send chat message', 'room-chat-history', 'Close room panel', () => button('Room chat').click());
       }
+      const card = page.getByTestId(`table-card-${snapshot.match_id}`);
+      await card.getByRole('button', { name: 'Share Table', exact: true }).click();
+      await button('Copy table code').click();
+      assert.equal(await page.evaluate(() => navigator.clipboard.readText()), `t-room:${snapshot.match_id}`);
+      assert.equal(await page.getByTestId('live-game-overlay').count(), 0, 'social view sharing does not enter gameplay');
+      await button('Close table sharing').click();
       await page.getByRole('button', { name: /Return to table/ }).first().click();
       for (const [role, phase] of [['seated', 'OPEN'], ['seated', 'LOCKED'], ['seated', 'STARTED'], ['seated', 'COMPLETED'], ['queued', 'LOCKED'], ['queued', 'STARTED'], ['spectator', 'LOCKED'], ['spectator', 'STARTED']]) {
         snapshot.table.phase = phase;
@@ -90,11 +96,6 @@ async function exerciseChat(page, label, sendLabel, listId, closeLabel, reopen) 
         assert.equal(await button('Share table').count(), 0, 'sharing is hidden outside the menu');
         assert.equal(await button('Copy table code').count(), 0);
         await button('Table menu').click();
-        if (role === 'seated' && ['LOCKED', 'STARTED'].includes(phase)) {
-          assert.equal(await button('Share table').count(), 0, `seated players cannot share while ${phase}`);
-          await button('Close table menu').click();
-          continue;
-        }
         await button('Share table').click();
         await button('Copy table code').click();
         assert.equal(await page.evaluate(() => navigator.clipboard.readText()), `t-room:${snapshot.match_id}`);
@@ -102,11 +103,7 @@ async function exerciseChat(page, label, sendLabel, listId, closeLabel, reopen) 
         const link = new URL(await page.evaluate(() => navigator.clipboard.readText()));
         assert.equal(link.searchParams.get('match'), snapshot.match_id);
         await button('Share table invitation').waitFor();
-        if (role === 'seated' && phase === 'OPEN') {
-          snapshot.table.phase = 'LOCKED';
-          await button('Close table sharing').waitFor({ state: 'hidden' });
-          assert.equal(await button('Copy table code').count(), 0, 'locking dismisses an already open sharing sheet');
-        } else await button('Close table sharing').click();
+        await button('Close table sharing').click();
         await button('Close table menu').click();
       }
       snapshot.table.phase = 'STARTED'; snapshot.table.current_user.is_seated = true; snapshot.your_player_id = 1;
@@ -117,7 +114,7 @@ async function exerciseChat(page, label, sendLabel, listId, closeLabel, reopen) 
       assert.equal(history.length, 4);
       assert.deepEqual(gameplay, [], 'chat and sharing must not submit gameplay actions');
       assert.deepEqual(errors, []);
-      await context.close(); console.log(`PASS ${kind}: menu-only sharing for all roles, repeated chat sends, keyboard scrolling, close/reopen, focus`);
+      await context.close(); console.log(`PASS ${kind}: menu and social-view sharing for all roles, repeated chat sends, keyboard scrolling, close/reopen, focus`);
     }
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
