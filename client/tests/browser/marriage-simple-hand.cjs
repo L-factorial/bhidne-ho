@@ -24,6 +24,13 @@ const card=(rank,suit,deck=0)=>({card_id:`D${deck}:${rank}${suit}`,rank,suit,dec
    if(path.startsWith('/test-games/')){
     if(path.endsWith('/action')){
      const cmd=r.request().postDataJSON();commands.push(cmd);
+     if(cmd.command==='DRAW_CARD'){
+      assert.equal(cmd.payload.source,'stock');
+      pub.phase='must_discard';mine.actions.kinds=['discard','show_initial_melds','show_dublees'];
+      pub.revision++;snapshot.game.revision=pub.revision;
+      snapshot.action_ack={match_id:snapshot.match_id,command_id:cmd.command_id,status:'accepted',revision:pub.revision};
+      return r.fulfill({json:snapshot});
+     }
      if(reject)return r.fulfill({status:409,json:{detail:'Hand changed. Please review again.'}});
      const groups=cmd.payload.melds||cmd.payload.pairs;
      const ids=groups.flatMap(g=>g.card_ids);assert.equal(new Set(ids).size,ids.length);assert.ok(ids.every(id=>mine.hand.some(c=>c.card_id===id)));
@@ -41,14 +48,28 @@ const card=(rank,suit,deck=0)=>({card_id:`D${deck}:${rank}${suit}`,rank,suit,dec
   assert.equal(await page.getByTestId('marriage-maal-spot').isDisabled(),true);
   assert.equal(await page.getByTestId('marriage-maal-spot').getAttribute('aria-label'),'Maal hidden');
   assert.equal(await page.getByTestId('marriage-maal-check-1').count(),0);
+  pub.phase='must_draw';mine.actions.kinds=['draw'];mine.actions.drawable_sources=['stock'];
+  pub.revision++;snapshot.game.revision=pub.revision;
+  await btn('Expand your card area').waitFor();await btn('Expand your card area').click();
+  await page.getByTestId('marriage-hand-draw').waitFor();
+  assert.equal(await btn('Tap to take from discard').isDisabled(),true);
+  await btn('Tap to take from deck').click();
+  await page.getByTestId('marriage-hand-draw').waitFor({state:'detached'});
+  assert.equal(commands.at(-1).command,'DRAW_CARD');commands.length=0;
   await btn('Reveal cards').click();
+  await page.getByTestId('marriage-discard-prompt').waitFor();
   await btn('Maal eligible · Show for Maal').waitFor();
   if(routeName==='normal'){
     const legal=[...mine.actions.kinds], original=[...mine.hand];
     pub.current_player_id='2';snapshot.game.turn.player_id=2;mine.actions.kinds=[];pub.revision++;snapshot.game.revision=pub.revision;
     await btn('Expand your card area').click();
-    await btn('Maal eligible · Wait for your turn').waitFor();
-    assert.equal(await btn('Maal eligible · Wait for your turn').isDisabled(),true);
+    await btn('Maal eligible · View options').waitFor();
+    await btn('Maal eligible · View options').click();
+    await page.getByTestId('marriage-maal-preview').waitFor();
+    assert.equal(await btn('Confirm & show').isDisabled(),true);
+    assert.equal(commands.length,0);
+    await btn('Back to your cards').click();
+    assert.equal(await btn('Collapse your card area').getByText(/Your turn/).count(),0);
     pub.current_player_id='1';snapshot.game.turn.player_id=1;mine.actions.kinds=legal;pub.revision++;snapshot.game.revision=pub.revision;
     await btn('Maal eligible · Show for Maal').waitFor();
     mine.hand=original.slice(1);pub.revision++;snapshot.game.revision=pub.revision;
@@ -62,6 +83,12 @@ const card=(rank,suit,deck=0)=>({card_id:`D${deck}:${rank}${suit}`,rank,suit,dec
   await firstCard.click();const selected=await firstCard.getAttribute('aria-label');
   await page.getByRole('tab',{name:'Sequence / Tunnela',exact:true}).click();
   assert.equal(await page.getByTestId('marriage-hand').getByRole('button',{name:selected,exact:true}).getAttribute('aria-pressed'),'true');
+  const packed=await page.getByTestId('marriage-hand').evaluate(el=>{
+    const cards=[...el.querySelectorAll('[role=button]')].map(card=>card.getBoundingClientRect());
+    const columns=Math.floor((el.getBoundingClientRect().width+5)/53);
+    return cards.every((card,i)=>Math.abs(card.y-cards[Math.floor(i/columns)*columns].y)<1);
+  });
+  assert.equal(packed,true,'Suit boundaries must not force a new row');
   await btn('Maal eligible · Show for Maal').click();
   await page.getByTestId('marriage-maal-preview').waitFor();
   assert.equal(commands.length,0);

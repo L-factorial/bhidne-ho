@@ -18,7 +18,7 @@ export function MarriageHandSheet({ mobile, anchor, snap, onSnap, instruction, a
     <Pressable accessibilityRole="button" accessibilityLabel={open ? 'Collapse your card area' : 'Expand your card area'}
       accessibilityHint={attention ? `${instruction}. Open your cards to act.` : 'Open or collapse your cards.'} accessibilityState={{ expanded: open }} onPress={() => onSnap(open ? 'collapsed' : 'expanded')}
       style={{ flex: 1, minHeight: 54, paddingHorizontal: 12, justifyContent: 'center', backgroundColor: colors.tableHeader }}>
-      {!open && !attention ? <HandTrayLabel count={cardCount} /> : <Text accessibilityLiveRegion="polite" style={{ fontFamily: fonts.medium, fontSize: 14, color: attention ? colors.cardInnerBorder : colors.onTableHeader }}>{instruction}</Text>}
+      {open || !attention ? <HandTrayLabel count={cardCount} /> : <Text accessibilityLiveRegion="polite" style={{ fontFamily: fonts.medium, fontSize: 14, color: attention ? colors.cardInnerBorder : colors.onTableHeader }}>{instruction}</Text>}
     </Pressable>
     {open && (['peek', 'expanded'] as const).map(value => <Pressable key={value} accessibilityRole="button"
       accessibilityLabel={value === 'peek' ? 'Peek at your hand' : 'Expand full hand'} accessibilityState={{ selected: snap === value }}

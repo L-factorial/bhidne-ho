@@ -30,17 +30,18 @@ export function MarriageMaalPanel({ hand, shown, unlocked, maal, enabled, visibl
   const command=choice ? canSubmitMarriage(choice.groups) : null;
   const canShow=!!command && enabled && !busy && visible && actions.includes(command.toLowerCase());
   const eligible=visible && options.length>0;
+  const canPreview=eligible && !checking && !busy;
   const text={color:c.text,fontFamily:fonts.body};
   const button=(label:string,onPress:()=>void,disabled=false,primary=false)=><Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled}} disabled={disabled} onPress={onPress}
     style={({pressed})=>({...gameButtonStyle(c,primary?'primary':'secondary',pressed),minHeight:44,justifyContent:'center',opacity:disabled?0.45:1})}><Text style={{color:primary?c.onPrimary:c.onTableHeader,fontFamily:fonts.medium}}>{label}</Text></Pressable>;
   if (!preview) {
-    const label=unlocked?'View Maal':!visible?'Reveal cards to check Maal':checking?'Checking Maal…':eligible?(canShow?'Maal eligible · Show for Maal':'Maal eligible · Wait for your turn'):'Maal not eligible';
+    const label=unlocked?'View Maal':!visible?'Reveal cards to check Maal':checking?'Checking Maal…':eligible?(canShow?'Maal eligible · Show for Maal':'Maal eligible · View options'):'Maal not eligible';
     return <View testID="marriage-maal-eligibility" style={{borderRadius:12,borderWidth:1,borderColor:eligible||unlocked?c.accent:c.border,overflow:'hidden'}}>
-      <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled:unlocked? !visible : !canShow || checking}} disabled={unlocked?!visible:!canShow||checking} onPress={()=>setPreview(true)} style={{minHeight:48,padding:10,flexDirection:'row',alignItems:'center',gap:8,opacity:eligible||unlocked?1:0.5}}>
+      <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled:unlocked? !visible : !canPreview}} disabled={unlocked?!visible:!canPreview} onPress={()=>setPreview(true)} style={{minHeight:48,padding:10,flexDirection:'row',alignItems:'center',gap:8,opacity:eligible||unlocked?1:0.5}}>
         <Ionicons name={eligible||unlocked?'bulb':'bulb-outline'} size={22} color={eligible||unlocked?c.accent:c.textMuted}/>
         <Text accessibilityLiveRegion="polite" style={{...text,color:eligible||unlocked?c.accent:c.textMuted,flexShrink:1}}>{label}</Text>
       </Pressable>
-      <TurnGlow active={eligible && canShow} radius={12}/>
+      <TurnGlow active={canPreview} radius={12}/>
     </View>;
   }
   const ids=new Set(choice?.groups.flatMap(g=>g.card_ids)||[]);
@@ -64,12 +65,9 @@ export function MarriageMaalPanel({ hand, shown, unlocked, maal, enabled, visibl
         <Text style={text}>Cards to show · {ids.size}</Text>
         <MarriageMeldCards groups={choice.groups}/>
         <Text style={text}>Remaining in your hand · {remaining.length} cards</Text>
-        <View testID="marriage-maal-remaining" style={{gap:8}}>
-          {arrangeMarriageHand(remaining,arrangement).map(group=><View key={group.cards[0].card_id} style={{gap:4}}>
-            <Text style={{...text,color:c.textMuted}}>{group.label}</Text>
-            <View style={{flexDirection:'row',flexWrap:'wrap',gap:4}}>{group.cards.map(card=><View key={card.card_id} accessibilityLabel={card.card_id} style={{padding:8,borderRadius:6,backgroundColor:c.cardFace,borderWidth:1,borderColor:c.cardBorder}}>
-              <Text style={{color:card.suit==='H'||card.suit==='D'?c.cardRed:c.cardInk}}>{marriageFace(card)}</Text>
-            </View>)}</View>
+        <View testID="marriage-maal-remaining" style={{flexDirection:'row',flexWrap:'wrap',gap:4}}>
+          {arrangeMarriageHand(remaining,arrangement).flatMap(group=>group.cards).map(card=><View key={card.card_id} accessibilityLabel={card.card_id} style={{padding:8,borderRadius:6,backgroundColor:c.cardFace,borderWidth:1,borderColor:c.cardBorder}}>
+            <Text style={{color:card.suit==='H'||card.suit==='D'?c.cardRed:c.cardInk}}>{marriageFace(card)}</Text>
           </View>)}
         </View>
       </>}

@@ -1,3 +1,4 @@
+import { TurnGlow } from '../components/TurnGlow';
 import { MarriageWinPanel } from '../components/MarriageWinPanel';
 import { MarriageMaalPanel } from '../components/MarriageMaalPanel';
 import { arrangeMarriageHand, type MarriageArrangement } from '../multiplayer/marriageArrangement';
@@ -94,7 +95,9 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const handGroups = allRevealed && !hidden ? arrangeMarriageHand(availableHand, arrangement) : [{label:'', cards:availableHand}];
   const drawnId = drawnCard?.card_id;
   const startCue = ended ? endedNotice : <TableStartCue snapshot={snapshot} busy={busy} onStart={onStart} onTableAction={onTableAction} onNewGame={onNewGame} />;
-  const canDiscard = canAct && isTurn && !!actions?.kinds.includes('discard');
+  const canDiscard = canAct && isTurn && social.connected && !!actions?.kinds.includes('discard');
+  const drawVisible = !own?.folded && decision === 'DRAW_REQUIRED';
+  const canDrawFrom = (source: string) => drawVisible && !busy && social.connected && !!actions?.drawable_sources.includes(source);
   const discardSelected = selected.length === 1 && !!actions?.discardable_card_ids.includes(selected[0]);
   const selectedCard = discardSelected ? hand.find(card => card.card_id === selected[0]) : null;
   const turnInstruction = decision === 'DRAW_REQUIRED' ? 'Your turn · Draw'
@@ -103,7 +106,6 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const turnPrompt = activeGame && pub && <TurnIndicator testID="marriage-turn-instruction" personal={isTurn}
     text={isTurn && decision !== 'WAITING' ? turnInstruction : `${name(pub.current_player_id)}’s turn`} />;
   const mobileHandHeader = <View testID="marriage-hand-header" style={{ backgroundColor: colors.surface, paddingHorizontal: 10, gap: 4 }}>
-    {!mobile && turnPrompt}
     {!!error && !selectedCard && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}
   </View>;
   const discardFooter = selectedCard && <>
@@ -165,6 +167,24 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         enabled={canAct && isTurn && social.connected} visible={allRevealed && !hidden} busy={busy} actions={actions?.kinds || []}
         preview={preview && !hidden} setPreview={setPreview} arrangement={arrangement} error={error} submit={onAction} />)}
       {!preview && !finishPreview && <>
+        {drawVisible && (!mobile || snap === 'expanded') && <View testID="marriage-hand-draw" style={s.drawSection}>
+          {(['discard', 'stock'] as const).map(source => {
+            const allowed = canDrawFrom(source);
+            const label = source === 'discard' ? 'Tap to take from discard' : 'Tap to take from deck';
+            const card = pub.top_discard;
+            return <View key={source} style={s.drawSource}>
+              <Text style={s.small}>{source === 'discard' ? 'Discard pile' : `Deck · ${pub.stock_count}`}</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled: !allowed}}
+                disabled={!allowed} onPress={() => cards.act('DRAW_CARD', {source})}
+                style={[s.card, {width:58,height:84}, source === 'stock' && s.cardBack, !allowed && s.disabled]}>
+                {source === 'stock' ? <MarriageCardBack/> : <Text style={[s.face, {color:card?.suit === 'H' || card?.suit === 'D' ? colors.cardRed : colors.cardInk}]}>{card ? marriageFace(card) : '—'}</Text>}
+                <TurnGlow active={allowed} radius={7}/>
+              </Pressable>
+              <Text style={[s.small, {color:allowed ? colors.accent : colors.textMuted, textAlign:'center'}]}>{allowed ? label : busy ? 'Taking card…' : social.connected ? 'Unavailable' : 'Reconnecting…'}</Text>
+            </View>;
+          })}
+        </View>}
+
         {allRevealed && !own?.has_seen_maal && <View accessibilityRole="tablist" style={s.row}>
           {(['sequence','dublee'] as const).map(value=><Pressable key={value} accessibilityRole="tab" accessibilityLabel={value==='sequence'?'Sequence / Tunnela':'Dublee'}
             accessibilityState={{selected:arrangement===value}} onPress={()=>setArrangement(value)} style={[s.button,arrangement===value&&s.chosen]}>
@@ -172,11 +192,10 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
           </Pressable>)}
         </View>}
         {!hidden && allRevealed && drawnCard && <Text testID="marriage-drawn-card" accessibilityLiveRegion="polite" style={s.heading}>You drew {physicalLabel(drawnCard.card_id)}</Text>}
-        <View testID="marriage-hand" style={{gap:10}}>
-          {handGroups.map(group=><View key={group.cards[0]?.card_id || 'empty'} style={{gap:4}}>
-            {!!group.label&&<Text style={s.small}>{group.label}</Text>}
-            <View style={{flexDirection:'row',flexWrap:'wrap',gap:5}}>
-              {group.cards.map((card,index)=>{
+        {canDiscard && <Text testID="marriage-discard-prompt" accessibilityLiveRegion="polite" style={s.heading}>{selectedCard ? 'Confirm your discard below' : 'Select a card to discard'}</Text>}
+        <View style={{position:'relative',borderRadius:8}}>
+        <View testID="marriage-hand" style={{flexDirection:'row',flexWrap:'wrap',gap:5}}>
+              {handGroups.flatMap(group=>group.cards).map((card,index)=>{
                 const back=hidden||(!allRevealed&&index>=revealed), checked=selected.includes(card.card_id);
                 return <Pressable key={card.card_id} accessibilityRole="button" accessibilityLabel={back?'Hidden card':physicalLabel(card.card_id)}
                   accessibilityHint={!back&&card.card_id===drawnId?'Just drawn':undefined} aria-pressed={checked}
@@ -188,8 +207,8 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
                   {!back&&<Text style={s.copy}>{card.card_type==='man'?'Man':`Copy ${(card.deck_index??0)+1}`}</Text>}
                 </Pressable>;
               })}
-            </View>
-          </View>)}
+        </View>
+        <TurnGlow active={canDiscard} radius={8}/>
         </View>
       </>}
     </View></MarriageHandSheet>}
@@ -213,6 +232,8 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   small: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 12, lineHeight: 19 }, heading: { fontFamily: fonts.medium, color: colors.accent, fontSize: 16 },
   row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }, button: { ...gameButtonStyle(colors), alignItems: 'center', justifyContent: 'center' },
   chosen: { backgroundColor: colors.surfaceSelected }, buttonText: { fontFamily: fonts.medium, color: colors.onTableHeader, fontSize: 12 }, disabled: { opacity: 0.42 },
+  drawSection: { flexDirection:'row', gap:16, justifyContent:'center', padding:10, borderWidth:1, borderColor:colors.border, borderRadius:12, backgroundColor:colors.tableHeader },
+  drawSource: { flex:1, alignItems:'center', gap:6 },
   piles: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 24, minHeight: 130 }, pileFace: { fontSize: 32, backgroundColor: colors.cardFace, color: colors.cardRed, borderRadius: 8, padding: 14 },
   hand: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, position: 'relative', paddingVertical: 6 }, card: { width: 49, height: 78, borderRadius: 7, borderWidth: 2, borderColor: colors.cardBorder, backgroundColor: colors.cardFace, alignItems: 'center', justifyContent: 'center', gap: 3 },
   drawnCard: { borderColor: colors.accent, borderWidth: 3 },
