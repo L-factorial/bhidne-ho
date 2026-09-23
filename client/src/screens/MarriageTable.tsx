@@ -165,8 +165,6 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
     <View testID="marriage-play-area" style={[s.playArea, mobile && mine && activeGame && { paddingBottom: 64 }]}>
       {ended && !pub ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>{endedNotice}</View> : !pub ? <ScrollView contentContainerStyle={s.panel}>
         <PreGameTable snapshot={snapshot}>{startCue}</PreGameTable>
-        <Text style={s.text}>Show three natural melds, see Maal, then complete 21 cards in sequences or sets and discard one to win. Or show seven Dublees and finish with an eighth pair. Open Rules to select scoring before starting.</Text>
-        <Text style={s.text}>Each player draws, shows melds, and discards on their own turn. Play waits for disconnected players to return.</Text>
         {!snapshot.is_creator && <Text style={s.text}>Waiting for the creator to start.</Text>}
       </ScrollView> : <>
         {snapshot.status === 'finished' && <ScrollView style={{ maxHeight: '60%', flexShrink: 1 }} contentContainerStyle={s.panel}><MarriageRoundResults snapshot={snapshot} /><Text accessibilityRole="header" style={s.heading}>{name(pub.winner)} wins!</Text>
