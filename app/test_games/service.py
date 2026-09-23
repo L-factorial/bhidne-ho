@@ -492,6 +492,10 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             else:
                 try: await self.players.player(user_id, target)
                 except PlayerNotFound: reason = "Player not found"
+            room = await self.rooms.room(room_id)
+            if reason is None and room and room["visibility"] != "public" and room["creator_id"] != user_id:
+                if not await self.rooms.can_enter(room_id, target, None):
+                    reason = "Ask the room owner to invite this player first"
             occupied = self._occupied_game(target) if reason is None else None
             if occupied: reason = "Already seated at another active table"
             output.append({"user_id": target, "eligible": reason is None, "reason": reason})
@@ -506,6 +510,9 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         self.invitation_attempts[user_id] = attempts
 
     async def _invite_players(self, game, user_id, recipients):
+        room = await self.rooms.room(game.room_id)
+        if recipients and room and room["visibility"] != "public" and room["creator_id"] == user_id:
+            await self.rooms.invite(game.room_id, user_id, recipients)
         pending = {(item["match_id"], item["recipient_id"]) for item in self.table_invitations.values() if item["status"] == "pending"}
         self._rate_limit_invitations(user_id, sum((game.match_id, target) not in pending for target in recipients))
         output = []
@@ -525,7 +532,8 @@ class TestGameService(GameTableLifecycle, RuleProposals):
     async def invitations_for(self, user_id):
         items = [item for item in self.table_invitations.values() if item["recipient_id"] == user_id]
         for item in items: self._sync_invitation(item)
-        return [await self._invitation_view(item) for item in items if item["status"] == "pending"]
+        return [await self._invitation_view(item) for item in items if item["status"] == "pending"
+                and await self.rooms.can_enter(item["room_id"], user_id, None)]
 
     async def answer_invitation(self, user_id, invitation_id, accept):
         invitation = self.table_invitations.get(invitation_id)
@@ -535,10 +543,11 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         if not game or game.ended:
             invitation["status"] = "cancelled"
             raise HTTPException(409, "This table is no longer active.")
-        invitation["status"] = "accepted" if accept else "declined"
         if not accept:
+            invitation["status"] = "declined"
             return {"status": "declined"}
         await self.rooms.join(invitation["room_id"], user_id)
+        invitation["status"] = "accepted"
         return {key: invitation[key] for key in ("room_id", "match_id", "table_name", "game_type")}
 
     async def next_deal(self, room_id, user_id, match_id, deal_number):

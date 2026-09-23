@@ -35,7 +35,7 @@ async def room_socket(websocket: WebSocket, room_id: str) -> None:
     if not await websocket.app.state.rooms.can_enter(
         room_id, identity.user_id, websocket.app.state.players.are_friends,
     ):
-        await websocket.close(code=1008, reason="This room is for the creator's friends")
+        await websocket.close(code=1008, reason="This room is private. Ask the owner for an invitation.")
         return
 
     connections = websocket.app.state.connections

@@ -17,6 +17,9 @@ def test_active_tables_follow_room_visibility_and_live_seating_permissions():
         assert client.get('/active-tables', headers=viewer).json() == []
         client.post(f"/friends/requests/{friend['user_id']}", headers=host)
         client.post(f"/friends/requests/{owner['user_id']}/accept", headers=viewer)
+        assert client.get('/active-tables', headers=viewer).json() == []
+        assert client.patch(f"/rooms/{room['room_id']}", headers=host, json={'visibility':'public'}).status_code == 200
+        assert len(client.get('/active-tables', headers=outsider).json()) == 1
         table = client.get('/active-tables', headers=viewer).json()[0]
         assert table['room_name'] == 'Family'
         assert table['name'] == 'Evening Flush'

@@ -1,3 +1,4 @@
+import { RoomPrivacySettings } from '../components/RoomPrivacySettings';
 import { gameTabFinish, gameSeparatorFinish, gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { ActiveGames, type ActiveTable } from '../components/ActiveGames';
 import type { TableEntry } from '../multiplayer/tableNavigation';
@@ -44,7 +45,6 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const insets = useSafeAreaInsets();
   const wide = useWindowDimensions().width >= 900;
   const [roomToolsOpen, setRoomToolsOpen] = useState(false);
-  const [roomOptionsOpen, setRoomOptionsOpen] = useState(false);
   const [lobbyTab, setLobbyTab] = useState<'rooms' | 'players' | 'recent' | 'games'>('rooms');
   const [lobbyProfileOpen, setLobbyProfileOpen] = useState(false);
   const [greetingIdentity, setGreetingIdentity] = useState<InvitePlayer | null>(null);
@@ -89,7 +89,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   useEffect(() => { if (gameOpen) setRoomPanel(null); }, [gameOpen]);
   const personal = usePlayerPhrases(session, !!session && !expired);
   const [name, setName] = useState('');
-  const [visibility, setVisibility] = useState<'public' | 'friends'>('public');
+  const [visibility, setVisibility] = useState<'public' | 'private'>('private');
   const [code, setCode] = useState('');
   const [roomInviteQuery, setRoomInviteQuery] = useState('');
   const [roomInviteResults, setRoomInviteResults] = useState<InvitePlayer[]>([]);
@@ -140,7 +140,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
     try {
       const created = await request<Room>('/rooms', session, { name: name.trim(), visibility, invitees: roomInvitees.map(player => player.user_id) });
       if (!mounted.current) return;
-      setName(''); setRoomInviteQuery(''); setRoomInviteResults([]); setRoomInvitees([]); enterRoom(created);
+      setName(''); setVisibility('private'); setRoomInviteQuery(''); setRoomInviteResults([]); setRoomInvitees([]); enterRoom(created);
     } catch (error) { if (mounted.current) setError(error instanceof Error ? error.message : 'Could not create room.'); }
     finally { roomOperationPending.current = false; if (mounted.current) setBusy(false); }
   }
@@ -167,12 +167,18 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   }
   const current = rooms.find(item => item.room_id === room?.room_id) || room;
   const enterRooms = rooms.filter(item => item.creator_id === session?.user_id || item.members.includes(session?.user_id || ''));
-  const friendRooms = rooms.filter(item => !enterRooms.includes(item) && item.feed_source === 'friend');
+  const friendRooms = rooms.filter(item => !enterRooms.includes(item) && item.visibility === 'public');
 
   const recentRooms = recentIds.map(id => rooms.find(item => item.room_id === id)).filter((item): item is Room => !!item);
 
   const roomCard = (item: Room) => <View key={item.room_id} style={wide ? { width: '48.8%' } : { width: '100%' }}>
     <RoomCard room={item} member={enterRooms.includes(item)} busy={busy}
+      owner={item.creator_id === session?.user_id}
+      onRemove={async () => {
+        if (!session) return;
+        await request('/rooms/' + item.room_id + (item.creator_id === session.user_id ? '' : '/leave'), session,
+          item.creator_id === session.user_id ? undefined : {}, undefined, item.creator_id === session.user_id ? 'DELETE' : undefined);
+      }}
       activeTables={shared.memberships.find(m => m.room_id === item.room_id)?.tables.filter(t => t.status !== 'ended').length}
       onPress={() => { setLinkedMatch(undefined); if (enterRooms.includes(item)) enterRoom(item); else joinRoom(item); }} />
   </View>;
@@ -254,9 +260,9 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
               <Pressable accessibilityRole="button" accessibilityLabel="Invite people" aria-expanded={inviteOpen} accessibilityState={{ expanded: inviteOpen }} onPress={() => setInviteOpen(value => !value)} style={styles.sectionToggle}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><Ionicons name="person-add-outline" size={21} color={colors.accent} /><Text style={styles.sectionTitle}>Invite people</Text></View><Text style={styles.sectionTitle}>{inviteOpen ? '-' : '+'}</Text>
               </Pressable>
-            {inviteOpen && <View style={styles.panel}>
+            {inviteOpen && <View style={styles.panel}>{current?.creator_id === session.user_id && <RoomPrivacySettings key={room.room_id} room={current!} session={session} />}
               <View>
-                <Text style={styles.description}>Share the room link or code. After entering, each person can choose a table to play or watch.</Text>
+                <Text style={styles.description}>Share the room link or code. Private rooms also require an invitation from the owner.</Text>
                 <View style={styles.codeBox}><Text style={styles.codeLabel}>ROOM CODE</Text><Text selectable accessibilityLabel={`Room code ${roomInvitationCode(room.room_id)}`} style={styles.code}>{roomInvitationCode(room.room_id)}</Text></View>
                 <View style={styles.gameTabs}><ShareLink roomId={room.room_id} /><CopyRoomCode roomId={room.room_id} /></View>
               </View>
@@ -290,6 +296,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
             <RoomShareActions roomId={room.room_id} menu />
             <Pressable accessibilityRole="button" accessibilityLabel="Ledger & settlements" onPress={() => setRoomPanel('ledger')} style={{ paddingVertical: 16 }}><View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}><Ionicons name="document-text-outline" size={24} color={colors.accent} /><View style={{ flex: 1, gap: 5 }}><Text style={styles.sectionTitle}>Ledger & settlements</Text><Text style={styles.description}>View game history, balances and settlements for this room.</Text></View><Ionicons name="chevron-forward" size={18} color={colors.textMuted} /></View></Pressable>
             {current?.creator_id === session?.user_id && <View style={styles.panel}>
+              <RoomPrivacySettings key={room.room_id} room={current!} session={session} />
               <Text style={styles.sectionTitle}>Room owner controls</Text>
               <Text style={styles.description}>You can delete this room after every active table has ended.</Text>
               {deleteConfirming ? <>
@@ -370,17 +377,17 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
                 <Pressable accessibilityRole="button" accessibilityLabel="Create room" disabled={!session || busy || expired || !name.trim()} accessibilityState={{ disabled: !session || busy || expired || !name.trim() }} onPress={createRoom} style={[styles.button, { backgroundColor: colors.primary }, (!session || busy || expired || !name.trim()) && styles.disabled]}><Text style={[styles.buttonText, { color: colors.onPrimary }]}>Create</Text></Pressable>
               </View>
               {!!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{error || shared.error}</Text>}
-              <Pressable accessibilityRole="button" accessibilityState={{ expanded: roomOptionsOpen }} onPress={() => setRoomOptionsOpen(v => !v)} style={styles.textButton}><Text style={styles.enterText}>Privacy & invitations {roomOptionsOpen ? '−' : '+'}</Text></Pressable>
-              {roomOptionsOpen && <>
+
+              {<>
               <Text style={styles.description}>Who can discover and enter this room?</Text>
               <View style={styles.gameTabs}>
-                {([['public', 'Public'], ['friends', 'Friends only']] as const).map(([value, label]) =>
+                {([['private', 'Private'], ['public', 'Public']] as const).map(([value, label]) =>
                   <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: visibility === value }}
                     onPress={() => setVisibility(value)} style={[styles.gameTab, visibility === value && styles.selectedTab]}>
                     <Text style={[styles.tabText, visibility === value && styles.selectedTabText]}>{label}</Text>
                   </Pressable>)}
               </View>
-              <Text style={styles.description}>{visibility === 'friends' ? 'Only you and accepted friends can see or enter it, even with its code.' : 'Every signed-in player can see and enter it.'}</Text>
+              <Text style={styles.description}>{visibility === 'private' ? 'Only invited people and members can enter. Links and codes do not grant access.' : 'Every signed-in player can see and enter it.'}</Text>
               <Text style={styles.sectionTitle}>Invite people (optional)</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><FormInput accessibilityLabel="Find people to invite to room" value={roomInviteQuery} onChangeText={setRoomInviteQuery} maxLength={64} placeholder="Name, username, or user ID" placeholderTextColor={colors.textMuted} autoCapitalize="none" autoCorrect={false} returnKeyType="search" onSubmitEditing={() => void searchRoomDirectory()} style={[styles.input, { flex: 1, minWidth: 0 }]} />
               <Pressable accessibilityRole="button" accessibilityLabel="Search directory" disabled={roomInviteSearching || roomInviteQuery.trim().length < 2} onPress={() => void searchRoomDirectory()} style={[styles.button, (roomInviteSearching || roomInviteQuery.trim().length < 2) && styles.disabled]}><Text style={styles.buttonText}>{roomInviteSearching ? '…' : 'Search'}</Text></Pressable></View>
@@ -408,7 +415,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
             <Text accessibilityRole="header" style={styles.sectionTitle}>Your rooms</Text>
             {!enterRooms.length && <Text style={styles.description}>Create a room or join your friends to get started.</Text>}
 <View style={styles.roomGrid}>{enterRooms.map(roomCard)}</View>
-            {!!friendRooms.length && <Text accessibilityRole="header" style={styles.sectionTitle}>Friends’ rooms</Text>}
+            {!!friendRooms.length && <Text accessibilityRole="header" style={styles.sectionTitle}>Public rooms</Text>}
             <View style={styles.roomGrid}>{friendRooms.map(roomCard)}</View>
           </>}
         </View>}

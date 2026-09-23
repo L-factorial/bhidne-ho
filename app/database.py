@@ -85,6 +85,17 @@ CREATE TABLE IF NOT EXISTS rooms (
     visibility text NOT NULL CHECK (visibility IN ('public', 'friends')),
     created_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_visibility_check;
+ALTER TABLE rooms ADD CONSTRAINT rooms_visibility_check CHECK (visibility IN ('public', 'private', 'friends'));
+UPDATE rooms SET visibility='private' WHERE visibility='friends';
+CREATE TABLE IF NOT EXISTS room_invitations (
+    id text PRIMARY KEY,
+    room_id text NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+    inviter_id text NOT NULL,
+    recipient_id text NOT NULL,
+    status text NOT NULL DEFAULT 'pending'
+);
+CREATE INDEX IF NOT EXISTS room_invitations_recipient_idx ON room_invitations(recipient_id, status);
 CREATE INDEX IF NOT EXISTS rooms_creator_time_idx ON rooms(creator_id, created_at DESC);
 CREATE TABLE IF NOT EXISTS room_memberships (
     room_id text NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,

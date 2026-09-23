@@ -5,7 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.auth.models import AccountCredentials, AccountInput, GuestCredentials, GuestInput, SignUpInput
 from app.auth.service import AuthenticationError, UsernameTakenError
-from app.models.room import CreateRoom, RoomSummary
+from app.models.room import CreateRoom, RoomSummary, UpdateRoom, InviteRoom
 from app.models.user import UserIdentity
 from app.players.service import PlayerNotFound
 from app.players.models import PlayerSummary
@@ -164,7 +164,7 @@ async def memberships(request: Request, response: Response, user: UserIdentity =
 async def room_state(room_id: str, request: Request, response: Response, user: UserIdentity = Depends(current_user)):
     response.headers["Cache-Control"] = "no-store"
     if not await request.app.state.rooms.can_enter(room_id, user.user_id, request.app.state.players.are_friends):
-        raise HTTPException(403, "This room is for the creator's friends.")
+        raise HTTPException(403, "This room is private. Ask the owner for an invitation.")
     state = await request.app.state.lifecycle.snapshot(room_id, user.user_id)
     record = await request.app.state.rooms.room(room_id)
     if record:
@@ -191,7 +191,7 @@ async def enter_room(room_id: str, request: Request, user: UserIdentity = Depend
     if re.fullmatch(r"[A-Za-z0-9_-]{1,64}", room_id) is None:
         raise HTTPException(422, "Invalid room ID.")
     if not await request.app.state.rooms.can_enter(room_id, user.user_id, request.app.state.players.are_friends):
-        raise HTTPException(403, "This room is for the creator's friends.")
+        raise HTTPException(403, "This room is private. Ask the owner for an invitation.")
     request.app.state.provision_room(room_id)
     return await request.app.state.lifecycle.enter(room_id, user.user_id)
 
@@ -214,3 +214,23 @@ async def delete_room(room_id: str, request: Request, user: UserIdentity = Depen
     if request.app.state.test_games.has_active_tables(room_id):
         raise HTTPException(409, "End every active table before deleting this room.")
     await request.app.state.lifecycle.delete(room_id)
+
+
+@router.patch("/rooms/{room_id}")
+async def update_room(room_id: str, body: UpdateRoom, request: Request, user: UserIdentity = Depends(current_user)):
+    return await request.app.state.rooms.update_visibility(room_id, user.user_id, body.visibility)
+
+
+@router.post("/rooms/{room_id}/invitations")
+async def invite_room(room_id: str, body: InviteRoom, request: Request, user: UserIdentity = Depends(current_user)):
+    for target in body.invitees:
+        if target == user.user_id:
+            raise HTTPException(409, "You cannot invite yourself.")
+        try:
+            await request.app.state.players.player(user.user_id, target)
+        except PlayerNotFound:
+            raise HTTPException(404, "Invited player not found.") from None
+    try:
+        return await request.app.state.rooms.invite(room_id, user.user_id, body.invitees)
+    except ValueError as error:
+        raise HTTPException(403, str(error)) from None

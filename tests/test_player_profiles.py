@@ -37,7 +37,7 @@ def test_signup_username_is_the_game_name_when_profile_name_is_empty():
             'username': username, 'password': 'test-password-123'}).json()
             for username in ('table-alice', 'table-bob')]
         headers = [{'Authorization': f"Bearer {account['token']}"} for account in accounts]
-        room = client.post('/rooms', headers=headers[0], json={'name': 'Names'}).json()['room_id']
+        room = client.post('/rooms', headers=headers[0], json={'name': 'Names', 'visibility': 'public'}).json()['room_id']
         for values in headers:
             assert client.post(f'/rooms/{room}/enter', headers=values).status_code == 200
         game = client.post(f'/test-games/{room}', headers=headers[0], json={
@@ -91,7 +91,7 @@ def test_named_guests_visible_in_every_game_and_room_chat():
         users = [client.post('/auth/guest', json={'display_name': name}).json() for name in ['Prajwal', 'Sita']]
         headers = [{'Authorization': f"Bearer {u['token']}"} for u in users]
         for kind in ['callbreak', 'marriage', 'flush']:
-            room = client.post('/rooms', headers=headers[0], json={'name': kind}).json()['room_id']
+            room = client.post('/rooms', headers=headers[0], json={'name': kind, 'visibility': 'public'}).json()['room_id']
             for h in headers:
                 assert client.post(f'/rooms/{room}/enter', headers=h).status_code == 200
             root = f'/test-games/{room}'

@@ -156,7 +156,7 @@ def test_new_account_can_resolve_shared_room_and_exact_game_invitation():
         invited = client.post('/auth/signup', json={'username': 'new-phone-user', 'password': 'password123'}).json()
         owner_header = {'Authorization': 'Bearer ' + owner['token']}
         invited_header = {'Authorization': 'Bearer ' + invited['token']}
-        room = client.post('/rooms', headers=owner_header, json={'name': 'Friends Night'}).json()
+        room = client.post('/rooms', headers=owner_header, json={'name': 'Friends Night', 'invitees': [invited['user_id']]}).json()
         client.post(f"/rooms/{room['room_id']}/enter", headers=owner_header, json={})
         game = client.post(f"/test-games/{room['room_id']}", headers=owner_header, json={
             'name': 'Main Table', 'game_type': 'callbreak', 'player_count': 4}).json()
@@ -194,7 +194,7 @@ def test_table_invitation_adds_room_access_but_never_assigns_a_seat():
         assert invitation[0]['match_id'] == game.json()['match_id']
         assert invitation[0]['room_name'] == 'Invite room'
         assert invitation[0]['inviter']['username'] == 'table-owner'
-        assert client.get(f"/rooms/{room['room_id']}", headers=invited_headers).status_code == 403
+        assert client.get(f"/rooms/{room['room_id']}", headers=invited_headers).json()["is_member"] is False
 
         accepted = client.post(f"/test-games/invitations/{invitation[0]['id']}/accept",
                                headers=invited_headers, json={})

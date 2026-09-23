@@ -7,7 +7,7 @@ def internal_id(value): return UUID(value.removeprefix("user-"))
 
 
 class MemoryRoomCatalog:
-    def __init__(self): self.rooms, self.memberships, self.deleted_rooms = {}, set(), set()
+    def __init__(self): self.rooms, self.memberships, self.deleted_rooms = {}, set(), set(); self.invitations = {}
 
     async def create(self, room_id, name, creator_id, visibility):
         record = {"room_id": room_id, "name": name, "creator_id": creator_id,
@@ -15,8 +15,17 @@ class MemoryRoomCatalog:
         self.rooms[room_id] = record
         return record
 
+    async def update_visibility(self, room_id, visibility):
+        self.rooms[room_id]["visibility"] = visibility
+
+    async def invitations_for(self, user_id):
+        return [dict(v) for v in self.invitations.values() if v["recipient_id"] == user_id and v["status"] == "pending"]
+
+    async def save_invitation(self, item):
+        self.invitations[item["id"]] = dict(item)
+
     async def get(self, room_id): return self.rooms.get(room_id)
-    async def list(self): return sorted(self.rooms.values(), key=lambda room: (-room["created_at"], room["room_id"]))[:100]
+    async def list(self): return sorted((room for room in self.rooms.values() if room["visibility"] == "public"), key=lambda room: (-room["created_at"], room["room_id"]))[:100]
     async def join(self, room_id, user_id):
         if room_id in self.rooms: self.memberships.add((room_id, user_id))
     async def leave(self, room_id, user_id): self.memberships.discard((room_id, user_id))
@@ -44,6 +53,19 @@ class PostgresRoomCatalog:
             result = await connection.execute("INSERT INTO rooms (id,name,creator_id,visibility) VALUES (%s,%s,%s,%s) RETURNING id,name,creator_id,visibility,created_at", (room_id, name, internal_id(creator_id), visibility))
             return self.record(await result.fetchone())
 
+    async def update_visibility(self, room_id, visibility):
+        async with self.pool.connection() as connection:
+            await connection.execute("UPDATE rooms SET visibility=%s WHERE id=%s", (visibility, room_id))
+
+    async def invitations_for(self, user_id):
+        async with self.pool.connection() as connection:
+            rows = await (await connection.execute("SELECT id,room_id,inviter_id,recipient_id,status FROM room_invitations WHERE recipient_id=%s AND status='pending'", (user_id,))).fetchall()
+        return [dict(zip(("id","room_id","inviter_id","recipient_id","status"), row)) for row in rows]
+
+    async def save_invitation(self, item):
+        async with self.pool.connection() as connection:
+            await connection.execute("INSERT INTO room_invitations (id,room_id,inviter_id,recipient_id,status) VALUES (%s,%s,%s,%s,%s) ON CONFLICT (id) DO UPDATE SET status=EXCLUDED.status", tuple(item[k] for k in ("id","room_id","inviter_id","recipient_id","status")))
+
     async def get(self, room_id):
         async with self.pool.connection() as connection:
             row = await (await connection.execute("SELECT id,name,creator_id,visibility,created_at FROM rooms WHERE id=%s AND NOT EXISTS (SELECT 1 FROM deleted_rooms WHERE deleted_rooms.id=rooms.id)", (room_id,))).fetchone()
@@ -51,7 +73,7 @@ class PostgresRoomCatalog:
 
     async def list(self):
         async with self.pool.connection() as connection:
-            rows = await (await connection.execute("SELECT id,name,creator_id,visibility,created_at FROM rooms WHERE NOT EXISTS (SELECT 1 FROM deleted_rooms WHERE deleted_rooms.id=rooms.id) ORDER BY created_at DESC,id LIMIT 100")).fetchall()
+            rows = await (await connection.execute("SELECT id,name,creator_id,visibility,created_at FROM rooms WHERE visibility='public' AND NOT EXISTS (SELECT 1 FROM deleted_rooms WHERE deleted_rooms.id=rooms.id) ORDER BY created_at DESC,id LIMIT 100")).fetchall()
         return [self.record(row) for row in rows]
 
     async def join(self, room_id, user_id):

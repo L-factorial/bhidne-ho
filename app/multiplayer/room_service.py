@@ -19,13 +19,18 @@ class RoomService:
         self._rooms: dict[str, set[str]] = {}
         self._lock = asyncio.Lock()
         self._catalog = catalog or MemoryRoomCatalog()
-        self._invitations: dict[str, dict] = {}
 
     async def join(self, room_id: str, user_id: str) -> None:
         async with self._lock:
             if await self._catalog.deleted(room_id):
                 raise HTTPException(404, "This room has been deleted.")
+            if not await self.can_enter(room_id, user_id, None):
+                raise HTTPException(403, "This room is private. Ask the owner for an invitation.")
             await self._catalog.join(room_id, user_id)
+            for item in await self._catalog.invitations_for(user_id):
+                if item["room_id"] == room_id:
+                    item["status"] = "accepted"
+                    await self._catalog.save_invitation(item)
             self._rooms.setdefault(room_id, set()).add(user_id)
 
     async def leave(self, room_id: str, user_id: str) -> None:
@@ -36,6 +41,10 @@ class RoomService:
                 if not members:
                     del self._rooms[room_id]
             await self._catalog.leave(room_id, user_id)
+            for item in await self._catalog.invitations_for(user_id):
+                if item["room_id"] == room_id:
+                    item["status"] = "declined"
+                    await self._catalog.save_invitation(item)
 
     async def members(self, room_id: str) -> list[str]:
         async with self._lock:
@@ -47,12 +56,12 @@ class RoomService:
     async def has_membership(self, room_id: str, user_id: str) -> bool:
         return user_id in await self.members(room_id)
 
-    async def create(self, name: str, creator_id: str, visibility: str = "public") -> RoomSummary:
+    async def create(self, name: str, creator_id: str, visibility: str = "private") -> RoomSummary:
         async with self._lock:
             room_id = uuid4().hex[:12]
             while await self._catalog.get(room_id) is not None or await self._catalog.deleted(room_id) or room_id in self._rooms:
                 room_id = uuid4().hex[:12]
-            record = await self._catalog.create(room_id, name, creator_id, visibility)
+            record = await self._catalog.create(room_id, name, creator_id, ("private" if visibility == "friends" else visibility))
             await self._catalog.join(room_id, creator_id)
             self._rooms.setdefault(room_id, set()).add(creator_id)
             # Feed source is viewer-relative and is assigned by list_rooms.
@@ -64,35 +73,42 @@ class RoomService:
             raise ValueError("Only the room creator can invite people.")
         output = []
         for recipient_id in dict.fromkeys(recipient_ids):
-            existing = next((item for item in self._invitations.values()
+            existing = next((item for item in await self._catalog.invitations_for(recipient_id)
                              if item["room_id"] == room_id and item["recipient_id"] == recipient_id
                              and item["status"] == "pending"), None)
             if existing: output.append(existing); continue
             invitation_id = uuid4().hex
             item = {"id": invitation_id, "room_id": room_id, "room_name": room["name"],
                     "inviter_id": creator_id, "recipient_id": recipient_id, "status": "pending"}
-            self._invitations[invitation_id] = item
+            await self._catalog.save_invitation(item)
             output.append(item)
         return output
 
     async def invitations_for(self, user_id):
         output = []
-        for item in self._invitations.values():
-            if item["recipient_id"] != user_id or item["status"] != "pending": continue
-            if await self.room(item["room_id"]): output.append(dict(item))
-            else: item["status"] = "cancelled"
+        for item in await self._catalog.invitations_for(user_id):
+            room = await self.room(item["room_id"])
+            if room:
+                output.append({**item, "room_name": room["name"]})
         return output
 
     async def answer_invitation(self, user_id, invitation_id, accept):
-        item = self._invitations.get(invitation_id)
-        if not item or item["recipient_id"] != user_id or item["status"] != "pending":
+        item = next((i for i in await self.invitations_for(user_id) if i["id"] == invitation_id), None)
+        if not item:
             raise ValueError("Room invitation not found.")
-        if not await self.room(item["room_id"]):
-            item["status"] = "cancelled"
-            raise ValueError("This room is no longer available.")
+        if accept:
+            await self.join(item["room_id"], user_id)
         item["status"] = "accepted" if accept else "declined"
-        if accept: await self.join(item["room_id"], user_id)
-        return dict(item)
+        await self._catalog.save_invitation(item)
+        return item
+
+    async def update_visibility(self, room_id, user_id, visibility):
+        async with self._lock:
+            room = await self.room(room_id)
+            if not room or room["creator_id"] != user_id:
+                raise HTTPException(403, "Only the room owner can change privacy.")
+            await self._catalog.update_visibility(room_id, visibility)
+            return await self.room(room_id)
 
     async def room(self, room_id):
         return await self._catalog.get(room_id)
@@ -105,14 +121,12 @@ class RoomService:
             return True
         if room_id in await self._catalog.joined(user_id):
             return True
-        return await are_friends(user_id, room["creator_id"])
+        return any(i["room_id"] == room_id for i in await self._catalog.invitations_for(user_id))
 
     async def delete(self, room_id: str) -> bool:
         async with self._lock:
             deleted = await self._catalog.delete(room_id)
             self._rooms.pop(room_id, None)
-            for item in self._invitations.values():
-                if item["room_id"] == room_id and item["status"] == "pending": item["status"] = "cancelled"
             return deleted
 
     async def list_rooms(self, viewer_id=None, are_friends=None) -> list[RoomSummary]:
@@ -128,14 +142,14 @@ class RoomService:
             for rid in ids:
                 if await self._catalog.deleted(rid):
                     continue
-                record = catalog.get(rid) or {"room_id": rid, "name": rid, "creator_id": None,
+                record = catalog.get(rid) or await self._catalog.get(rid) or {"room_id": rid, "name": rid, "creator_id": None,
                                               "visibility": "public", "created_at": None}
                 is_owner = bool(viewer_id and record["creator_id"] == viewer_id)
                 members = await self._catalog.members(rid) | self._rooms.get(rid, set())
                 is_joined = (rid in joined or viewer_id in members) and not is_owner
                 is_friend = bool(viewer_id and record["creator_id"] and are_friends
                                  and await are_friends(viewer_id, record["creator_id"]))
-                if viewer_id and not is_owner and not is_joined and not is_friend:
+                if not is_owner and not is_joined and record["visibility"] != "public":
                     continue
                 source = "you" if is_owner else "joined" if is_joined else "friend" if is_friend else "public"
                 output.append(RoomSummary(**record, members=sorted(members),

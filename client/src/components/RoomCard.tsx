@@ -7,8 +7,9 @@ import { RoomShareActions } from './ShareLink';
 import { RoomSheet } from './RoomSheet';
 import type { Room } from '../multiplayer/session';
 
-export function RoomCard({ room, member, busy, activeTables, onPress }: { room: Room; member: boolean; busy: boolean; activeTables?: number; onPress: () => void }) {
+export function RoomCard({ room, member, busy, activeTables, onPress, owner, onRemove }: { room: Room; member: boolean; busy: boolean; activeTables?: number; onPress: () => void; owner?: boolean; onRemove?: () => Promise<void> }) {
   const { colors: c } = useTheme();
+  const [confirming, setConfirming] = useState(false), [removing, setRemoving] = useState(false), [removed, setRemoved] = useState(false), [error, setError] = useState('');
   const [sharing, setSharing] = useState(false);
   const [bannerWidth, setBannerWidth] = useState(340);
   const online = room.connected_members?.length || 0;
@@ -16,13 +17,14 @@ export function RoomCard({ room, member, busy, activeTables, onPress }: { room: 
   const previews = room.member_previews || [];
   const shown = previews.length ? previews.slice(0, 4) : room.members.slice(0, 4).map(user_id => ({ user_id, display_name: '', username: '' }));
   const extra = Math.max(0, room.members.length - shown.length);
+  if (removed) return null;
   return <View testID={`room-card-${room.room_id}`} style={{ ...gamePanelFinish(c), padding: 10, borderRadius: radii.large, backgroundColor: c.surface,
     borderWidth: 1, borderColor: c.borderSubtle, gap: 8, opacity: busy ? 0.55 : 1 }}>
     <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 4, paddingLeft: 3 }}>
       <View style={{ flex: 1, minWidth: 0, gap: 4, paddingTop: 3 }}>
         <Text numberOfLines={2} style={{ color: c.text, fontFamily: fonts.medium, fontSize: typography.cardTitle, lineHeight: 23 }}>{room.name}</Text>
         <Text style={{ color: c.textMuted, fontFamily: fonts.body, fontSize: 12, lineHeight: 18 }}>
-          {room.members.length} {room.members.length === 1 ? 'member' : 'members'} · {tables} {tables === 1 ? 'table' : 'tables'}
+          {room.visibility === 'public' ? 'Public' : 'Private'} · {room.members.length} {room.members.length === 1 ? 'member' : 'members'} · {tables} {tables === 1 ? 'table' : 'tables'}
         </Text>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 6,
@@ -55,16 +57,26 @@ export function RoomCard({ room, member, busy, activeTables, onPress }: { room: 
             </View>}
           </View>
           <Pressable accessibilityRole="button" accessibilityLabel={`${member ? 'Enter' : 'Join'} ${room.name}`} disabled={busy} accessibilityState={{ disabled: busy }} onPress={onPress}
-            style={({ pressed }) => ({ ...gameControlFinish(c, pressed), minHeight: 44, paddingHorizontal: 16, borderRadius: 10, backgroundColor: pressed ? c.primaryPressed : c.primary,
+            style={({ pressed }) => ({ ...gameControlFinish(c, pressed), minHeight: 44, paddingHorizontal: 10, borderRadius: 10, backgroundColor: c.successSurface,
               flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center' })}>
-            <Text style={{ color: c.onPrimary, fontFamily: fonts.medium, fontSize: 13 }}>{member ? 'Enter' : 'Join'}</Text>
-            <Ionicons name="arrow-forward" size={16} color={c.onPrimary} />
+            <Text style={{ color: c.success, fontFamily: fonts.medium, fontSize: 13 }}>{member ? 'Enter' : 'Join'}</Text>
+            <Ionicons name="arrow-forward" size={16} color={c.success} />
           </Pressable>
+          {member && onRemove && <Pressable accessibilityRole="button" accessibilityLabel={`${owner ? 'Delete' : 'Leave'} ${room.name}`} disabled={busy} onPress={() => setConfirming(true)}
+            style={{width:44,minHeight:44,alignItems:'center',justifyContent:'center',borderRadius:10,backgroundColor:c.surface}}>
+            <Ionicons name={owner ? 'trash-outline' : 'exit-outline'} size={19} color={c.danger} />
+          </Pressable>}
         </View>
       </LinearGradient>
     </ImageBackground>
+    <RoomSheet visible={confirming} title={`${owner ? 'Delete' : 'Leave'} ${room.name}?`} onClose={() => { if (!removing) setConfirming(false); }} presentation="dialog">
+      <Text style={{color:c.text}}>{owner ? 'This deletes the room for everyone. End active tables first.' : 'This removes your room membership. Private rooms require a new invitation to rejoin.'}</Text>
+      {!!error && <Text accessibilityRole="alert" style={{color:c.danger}}>{error}</Text>}
+      <Pressable accessibilityRole="button" disabled={removing} onPress={() => setConfirming(false)} style={{minHeight:44,justifyContent:'center'}}><Text style={{color:c.text}}>Cancel</Text></Pressable>
+      <Pressable accessibilityRole="button" disabled={removing} onPress={async () => {setRemoving(true);setError('');try {await onRemove?.();setRemoved(true);setConfirming(false);} catch(e) {setError((e as Error).message);} finally {setRemoving(false);}}} style={{minHeight:44,justifyContent:'center'}}><Text style={{color:c.danger}}>{removing ? 'Working…' : owner ? 'Delete room' : 'Leave room'}</Text></Pressable>
+    </RoomSheet>
     <RoomSheet visible={sharing} title={room.name} closeLabel="Close room sharing" onClose={() => setSharing(false)} presentation="dialog">
-      <Text style={{ color: c.textMuted, fontFamily: fonts.body }}>Invite friends with the room code or link.</Text>
+      <Text style={{ color: c.textMuted, fontFamily: fonts.body }}>Share the room code or link. Private rooms also require an invitation from the owner.</Text>
       <RoomShareActions roomId={room.room_id} />
     </RoomSheet>
   </View>;

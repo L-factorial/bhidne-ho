@@ -23,6 +23,7 @@ class SqlPool:
             PRAGMA foreign_keys=ON;
             CREATE TABLE rooms (id TEXT PRIMARY KEY, name TEXT, creator_id TEXT, visibility TEXT,
                 created_at TEXT DEFAULT '2026-09-21T00:00:00+00:00');
+            CREATE TABLE room_invitations (id TEXT PRIMARY KEY, room_id TEXT, inviter_id TEXT, recipient_id TEXT, status TEXT);
             CREATE TABLE deleted_rooms (id TEXT PRIMARY KEY);
             CREATE TABLE room_memberships (room_id TEXT REFERENCES rooms(id) ON DELETE CASCADE,
                 user_id TEXT, PRIMARY KEY(room_id,user_id));
@@ -120,3 +121,24 @@ async def test_deleted_room_cannot_return_from_stale_in_memory_membership():
     await PostgresRoomCatalog(pool).delete('room')
     assert await service.members('room') == []
     assert await service.list_rooms(owner) == []
+
+
+@pytest.mark.asyncio
+async def test_catalog_persists_private_invitations_and_visibility_updates():
+    pool = SqlPool()
+    catalog = PostgresRoomCatalog(pool)
+    owner, recipient = f'user-{uuid4()}', f'user-{uuid4()}'
+    await catalog.create('private-room', 'Private cards', owner, 'private')
+    first = RoomService(catalog)
+    await first.invite('private-room', owner, [recipient])
+    restarted = RoomService(PostgresRoomCatalog(pool))
+    invitation = (await restarted.invitations_for(recipient))[0]
+    assert await restarted.can_enter('private-room', recipient, None)
+    await restarted.answer_invitation(recipient, invitation['id'], True)
+    assert await restarted.has_membership('private-room', recipient)
+    assert await restarted.invitations_for(recipient) == []
+    await restarted.update_visibility('private-room', owner, 'public')
+    assert (await catalog.get('private-room'))['visibility'] == 'public'
+    await restarted.update_visibility('private-room', owner, 'private')
+    await restarted.leave('private-room', recipient)
+    assert not await restarted.can_enter('private-room', recipient, None)
