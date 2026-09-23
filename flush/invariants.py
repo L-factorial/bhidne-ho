@@ -118,8 +118,12 @@ def validate_game_state(state):
             require(len(active) == 1 and not result.shown_hands and result.winning_hand is None,
                     'Fold win must not show cards.')
         elif result.reason is TerminationReason.SHOW_FOLD:
-            require(len(active) == 1 and tuple(h.player_id for h in result.shown_hands) == active
-                    and result.winning_hand is None, 'A declined show only reveals the requester.')
+            request = next((e for e in reversed(state.history) if e.kind == 'SHOW_REQUESTED'
+                            and e.revision >= state.round_start_revision), None)
+            require(request is not None and len(active) == 1
+                    and active[0] in (request.player_id, request.target_player_id)
+                    and tuple(h.player_id for h in result.shown_hands) == (request.player_id,)
+                    and result.winning_hand is None, 'A folded show only retains the already revealed requester.')
         else:
             require(result.reason is TerminationReason.SHOW and len(active) == 2
                     and tuple(h.player_id for h in result.shown_hands) == active

@@ -14,6 +14,13 @@ from app.multiplayer.table import GameTablePolicy, reject
 
 class GameTableLifecycle:
     async def _advance_table(self, game):
+        if game.pending_flush_departures and (game.flush_open or game.ended):
+            await self._release_durable_players(game)
+            for user in sorted(game.pending_flush_departures):
+                if user in game.users:
+                    game.users.remove(user)
+                game.table.emit('SEAT_RELEASED', user_id=user, match_id=game.match_id, reason='ROUND_COMPLETED')
+            game.pending_flush_departures.clear()
         self._sync_proposal(game)
         previous_phase = game.table.phase
         game.table.advance(game, await self.rooms.members(game.room_id))

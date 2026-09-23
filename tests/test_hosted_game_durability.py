@@ -255,3 +255,40 @@ async def test_marriage_leave_rolls_back_fold_when_durable_commit_fails(monkeypa
         assert 'u1' in store.active_players
     finally:
         await service.close()
+
+
+async def test_flush_leave_retains_reservation_until_round_completion():
+    service, store, started = await durable_host('flush', 3)
+    try:
+        game = service.games['room']
+        state = started
+        for command in ['DEAL_CARDS', 'SKIP_CUT']:
+            actor = game.users[state['game']['turn']['player_id'] - 1]
+            state = await service.action('room', actor, GameAction(match_id=game.match_id,
+                command_id=command, expected_revision=state['game']['revision'], command=command))
+        actor = next(u for u in game.users if game.flush_seats[u] != state['game']['turn']['player_id'])
+        left = await service.leave('room', actor, game.match_id)
+        assert left['status'] == 'playing' and left['flush']['private'] is None
+        assert left['game']['turn'] == state['game']['turn']
+        assert actor in store.active_players and actor in game.users
+        assert actor in game.pending_flush_departures
+        assert len(store.active_players) == 3
+        loaded = await store.load(game.durable_game_id, game.durable_definition)
+        assert loaded.state == service._engine_state(game)
+        again = await service.leave('room', actor, game.match_id)
+        assert again['game']['revision'] == left['game']['revision']
+        other = await service.create('room', 'u3', 2, 'flush', name='Other')
+        with pytest.raises(HTTPException) as reserved:
+            await service.join('room', actor, other['match_id'])
+        assert reserved.value.detail['code'] == 'SEAT_RESERVED_UNTIL_ROUND_END'
+        turn = left['game']['turn']['player_id']
+        user = next(u for u in game.users if game.flush_seats[u] == turn)
+        folded = await service.action('room', user, GameAction(match_id=game.match_id,
+            command_id='remaining-fold', expected_revision=left['game']['revision'], command='FOLD'))
+        assert folded['action_ack']['status'] == 'accepted'
+        assert actor not in game.users and actor not in store.active_players
+        assert not game.pending_flush_departures
+        await service.join('room', actor, other['match_id'])
+        await service.table_command('room', 'u3', other['match_id'], 'lock')
+    finally:
+        await service.close()

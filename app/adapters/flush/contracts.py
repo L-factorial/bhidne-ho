@@ -39,6 +39,7 @@ class CommandName(str, Enum):
     BET = 'BET'
     SEE_CARDS = 'SEE_CARDS'
     FOLD = 'FOLD'
+    FOLD_FOR_LEAVE = 'FOLD_FOR_LEAVE'
     SHOW = 'SHOW'
     REVEAL_CARDS = 'REVEAL_CARDS'
     REQUEST_SIDE_SHOW = 'REQUEST_SIDE_SHOW'
@@ -72,6 +73,7 @@ COMMAND_SPECS = {
     CommandName.START_GAME: CommandSpec(Empty, 'start_game', True),
     CommandName.BET: CommandSpec(BetPayload, 'bet', True),
     CommandName.SEE_CARDS: CommandSpec(Empty, 'see_cards', True),
+    CommandName.FOLD_FOR_LEAVE: CommandSpec(Empty, 'fold_for_leave', True),
     CommandName.FOLD: CommandSpec(Empty, 'fold', True),
     CommandName.SHOW: CommandSpec(Empty, 'show', True),
     CommandName.GET_STATE: CommandSpec(Empty, 'get_player_view', False),

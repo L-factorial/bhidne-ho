@@ -121,7 +121,8 @@ def test_active_room_departure_rejected_and_end_then_leave_preserves_other_seats
 
 
 @pytest.mark.parametrize('table', ['flush'], indirect=True)
-def test_flush_active_leave_folds_once_and_retains_hand_history(table, monkeypatch):
+@pytest.mark.parametrize('off_turn', [False, True])
+def test_flush_active_leave_folds_once_and_retains_hand_history(table, off_turn):
     client, users, headers, root, body, kind, count = table
     state = start(table)
     for command in ['DEAL_CARDS', 'SKIP_CUT']:
@@ -131,9 +132,8 @@ def test_flush_active_leave_folds_once_and_retains_hand_history(table, monkeypat
         assert response.status_code == 200, response.text
         state = response.json()
     actor = state['game']['turn']['player_id'] - 1
-    target = client.app.state.test_games.games['r'].flush_target
-    callback = Mock(wraps=target.handle_player_leave)
-    monkeypatch.setattr(target, 'handle_player_leave', callback)
+    if off_turn:
+        actor = (actor + 1) % count
     revision = state['game']['revision']
     for _ in range(2):
         response = client.post(root + '/leave', headers=headers[actor], json=body)
@@ -141,10 +141,14 @@ def test_flush_active_leave_folds_once_and_retains_hand_history(table, monkeypat
         left = response.json()
         assert left['game']['revision'] == revision + 1
         assert left['your_player_id'] is None and left['flush']['private'] is None
-    callback.assert_called_once_with(users[actor]['user_id'])
     assert len(left['flush']['folds']) == 1
     assert len(left['flush']['public']['players']) == count  # Engine seat retained for settlement.
-    assert len(left['players']) == count - 1
+    assert len(left['players']) == count  # Folded seat stays reserved for this round.
+    assert client.post('/rooms/r/leave', headers=headers[actor], json={}).status_code == 409
+    other = next(i for i in range(count) if i != actor)
+    done = client.post(root + '/leave', headers=headers[other], json=body)
+    assert done.status_code == 200, done.text
+    assert done.json()['flush']['public']['status'] == 'finished'
     assert client.post('/rooms/r/leave', headers=headers[actor], json={}).status_code == 200
 
 

@@ -139,3 +139,18 @@ def test_side_show_requires_completed_personal_bets(threshold, blind_first):
     assert e.can_side_show('b').allowed
     e.request_side_show('b')
     assert e.get_state().pending_side_show.target_id == 'a'
+
+
+@pytest.mark.parametrize('leaving', ['a', 'b', 'c'])
+def test_departure_fold_handles_pending_side_show(leaving):
+    e = game()
+    e.request_side_show('b')
+    before = e.get_state()
+    e.fold_for_leave(leaving)
+    state = e.get_state()
+    assert next(p for p in state.players if p.player_id == leaving).status is PlayerStatus.FOLDED
+    assert state.pot == before.pot
+    assert bool(state.pending_side_show) == (leaving == 'c')
+    assert not state.side_shows
+    assert not any(event.shown_hands for event in e.get_visible_events())
+    validate_game_state(state)

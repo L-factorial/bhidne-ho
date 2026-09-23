@@ -13,7 +13,7 @@ from .invariants import validate_game_state
 from .queries import public_view, player_view, allowed_actions
 from .visibility import visible_events
 from .settlement import settle
-from .turns import (require_turn, next_seat, active_players, required_bet, show_cost,
+from .turns import (require_turn, find_player, next_seat, active_players, required_bet, show_cost,
                     evaluate_see_eligibility, evaluate_show_eligibility, require_eligible)
 
 
@@ -186,6 +186,26 @@ class FlushGameEngine:
             return self._finish(settle(candidate), events)
         candidate = replace(candidate, current_seat=next_seat(candidate))
         return self._commit(candidate, events + [('TURN_CHANGED', {'player_id': candidate.current_player_id})])
+
+    def fold_for_leave(self, player_id):
+        """Explicit table departure may fold on any betting turn."""
+        state = self._state
+        player = find_player(state, player_id)
+        if state.status is not GameStatus.IN_PROGRESS or player.status is not PlayerStatus.ACTIVE:
+            raise InvalidActionError('Only an active player in a dealt round can fold to leave.')
+        candidate = self._replace_player(replace(player, status=PlayerStatus.FOLDED))
+        events = [('PLAYER_FOLDED', {'player_id': player_id})]
+        request = state.pending_side_show
+        if request and (player_id in (request.requester_id, request.target_id) or len(active_players(candidate)) < 3):
+            candidate = replace(candidate, pending_side_show=None,
+                                current_seat=state.config.player_ids.index(request.requester_id))
+            events.append(('SIDE_SHOW_DECLINED', {'player_id': request.requester_id, 'target_player_id': request.target_id}))
+        if len(active_players(candidate)) == 1:
+            return self._finish(settle(candidate), events)
+        if state.current_player_id == player_id or (request and candidate.pending_side_show is None):
+            candidate = replace(candidate, current_seat=next_seat(candidate))
+            events.append(('TURN_CHANGED', {'player_id': candidate.current_player_id}))
+        return self._commit(candidate, events)
 
     def show(self, player_id):
         require_eligible(self.can_show(player_id))

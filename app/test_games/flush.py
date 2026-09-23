@@ -11,7 +11,7 @@ class HostedFlushTarget(FlushCommandTarget):
     def handle_player_leave(self, user_id):
         if self.game.ended or self.game.finished:
             return []
-        # Preserve the engine's turn, preparation, show and side-show validation.
+        # Explicit departure can fold off-turn; preparation remains engine-validated.
         from uuid import uuid4
         from app.models.action import ActionCommand
         if self.game.flush_open:
@@ -21,12 +21,12 @@ class HostedFlushTarget(FlushCommandTarget):
         if state.status.value == "finished" or player.status.value != "active":
             return []
         return self.apply(user_id, ActionCommand(match_id=self.game.match_id,
-            command_id=uuid4().hex, expected_revision=self.revision, command="FOLD"))
+            command_id=uuid4().hex, expected_revision=self.revision, command="FOLD_FOR_LEAVE"))
 
     def authorize(self, user_id):
-        if self.host.games.get(self.game.room_id) is not self.game or self.game.ended:
+        if not self.host._contains(self.game) or self.game.ended:
             raise CommandAccessError(409, 'This game is no longer active.')
-        if user_id not in self.game.users:
+        if user_id not in self.game.users or user_id in self.game.pending_flush_departures:
             raise CommandAccessError(403, "Take a seat before acting.")
         super().authorize(user_id)
 

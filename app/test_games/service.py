@@ -53,6 +53,7 @@ class HostedGame:
     previous_match_id: str | None = None
     rule_proposal: dict | None = None
     departed: set[str] = field(default_factory=set)
+    pending_flush_departures: set[str] = field(default_factory=set)
     commands: CommandSession = field(default_factory=CommandSession)
     settings: dict = field(default_factory=lambda: {"weak_hand_enabled": True, "no_spades_enabled": True, "payments": [0, 0, 0, 0]})
     state: MatchState | None = None
@@ -164,6 +165,9 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         room_id = game.room_id if game else room_id
         occupied = self._occupied_game(user_id, room_id, excluding=game)
         if occupied:
+            if user_id in occupied.pending_flush_departures:
+                raise HTTPException(409, {"code": "SEAT_RESERVED_UNTIL_ROUND_END",
+                    "detail": "Your folded Flush seat remains reserved until the current round finishes."})
             current = occupied.table.view(occupied, user_id)['current_user']
             blocked = occupied.table.phase == 'LOCKED'
             raise HTTPException(409, {"code": "PLAYER_ALREADY_AT_TABLE",
@@ -343,7 +347,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         return result
 
     def _flush_snapshot(self, game, user_id):
-        seat = game.flush_seats.get(user_id) if user_id in game.users and user_id not in game.departed else None
+        seat = game.flush_seats.get(user_id) if user_id in game.users and user_id not in game.departed and user_id not in game.pending_flush_departures else None
         result = {
             "room_id": game.room_id, "match_id": game.match_id, "game_type": "flush",
             "capacity": game.capacity, "ready": len(game.users) >= 2,
@@ -638,19 +642,20 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                 await self._member(room_id, user_id, game)
                 if match_id != game.match_id:
                     raise HTTPException(409, "The game changed. Refresh before leaving.")
-                if user_id not in game.users or user_id in game.departed:
+                if user_id not in game.users or user_id in game.departed or user_id in game.pending_flush_departures:
                     return self._snapshot(game, user_id)
                 try:
-                    if game.marriage_target:
+                    if game.marriage_target or game.flush_target:
                         from uuid import uuid4
                         from app.models.action import ActionCommand
-                        target = game.marriage_target
+                        target = game.marriage_target or game.flush_target
                         player = next(p for p in target.adapter.checkpoint().get_state().players
                                       if p.player_id == target.seat_by_user[user_id])
                         events = []
-                        if not player.folded and not game.finished:
+                        active = not player.folded if game.marriage_target else player.status.value == 'active'
+                        if active and not game.finished:
                             command = ActionCommand(match_id=game.match_id, command_id=uuid4().hex,
-                                                    expected_revision=target.revision, command="FOLD")
+                                                    expected_revision=target.revision, command="FOLD" if game.marriage_target else "FOLD_FOR_LEAVE")
                             checkpoint = target.checkpoint()
                             try:
                                 events = target.apply(user_id, command)
@@ -659,14 +664,16 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                             except Exception:
                                 target.restore(checkpoint)
                                 raise
-                        if self.runtime_mode == "durable":
+                        if self.runtime_mode == "durable" and game.marriage_target:
                             await self.durable_runtime.store.release_departed_player(
                                 game.durable_game_id, game.table.table_id, user_id)
                     else:
                         events = self._leave_target(game).handle_player_leave(user_id)
                 except GameCommandRejected as error:
                     raise HTTPException(409, {"code": error.code, "detail": error.detail}) from error
-                if game.started and game.game_type != "flush":
+                if game.flush_target:
+                    game.pending_flush_departures.add(user_id)
+                elif game.started and game.game_type != "flush":
                     # Fixed engine seats are historical state, not current membership.
                     game.departed.add(user_id)
                 else:
@@ -676,8 +683,8 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                     await self._release_durable_players(game)
                 game.flush_queries.pop(user_id, None)
                 game.marriage_queries.pop(user_id, None)
-                if game.marriage_target:
-                    game.table.emit('SEAT_RELEASED', user_id=user_id, match_id=game.match_id, reason='FOLDED_AND_LEFT')
+                if game.marriage_target or game.flush_target:
+                    game.table.emit('DEPARTURE_PENDING' if game.flush_target else 'SEAT_RELEASED', user_id=user_id, match_id=game.match_id, reason='FOLDED_AND_LEFT')
                     await self._try_record_completed_ledger(game)
                 for event in events:
                     await self._deliver(game, event)

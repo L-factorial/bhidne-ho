@@ -309,3 +309,34 @@ def test_raises_update_both_minimums_without_lowering_stake(multiplier):
 
 def test_initial_blind_bet_defaults_to_one():
     assert FlushRulesConfig(boot_amount=0).initial_blind_bet == 1
+
+
+def test_departure_fold_off_turn_retains_contributions_and_hand():
+    e = engine(3)
+    before = e.get_state()
+    e.fold_for_leave('p0')
+    after = e.get_state()
+    assert after.current_player_id == before.current_player_id
+    assert after.players[0].status is PlayerStatus.FOLDED
+    assert after.players[0].cards == before.players[0].cards
+    assert after.pot == before.pot
+    assert after.players[0].total_contribution == before.players[0].total_contribution
+    assert not any(event.shown_hands for event in e.get_visible_events())
+    unchanged(e, lambda: e.fold_for_leave('p0'))
+    validate_game_state(after)
+
+
+@pytest.mark.parametrize('requester_leaves', [False, True])
+def test_departure_fold_during_final_show_settles_without_exposing_more_cards(requester_leaves):
+    e = engine(2, minimum_blind_rounds_before_show=0)
+    requester = e.get_state().current_player_id
+    e.show(requester)
+    target = e.get_state().pending_show.target_id
+    before = e.get_state()
+    leaving = requester if requester_leaves else target
+    e.fold_for_leave(leaving)
+    state = e.get_state()
+    assert state.status is GameStatus.FINISHED
+    assert state.settlement.winner_ids == ((target if requester_leaves else requester),)
+    assert state.revealed_hands == before.revealed_hands
+    validate_game_state(state)

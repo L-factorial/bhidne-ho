@@ -224,3 +224,18 @@ may FOLD (requester wins; responder cards stay private) or REVEAL_CARDS (both ha
 public and the engine compares them using the configured tie policy). No additional fee
 is charged for revealing. Other actions and roster changes remain blocked while waiting.
 The pending response and revealed requester hand survive reconnects.
+
+## Leaving during a round
+
+Leaving a dealt, active Flush round submits `FOLD_FOR_LEAVE` before closing the
+player's table view. Unlike the ordinary turn-bound Fold action, this command
+allows explicit departure off-turn. Contributions and hidden cards stay in the
+round for settlement. A pending side-show is cancelled if a participant leaves
+or fewer than three active players remain; it reveals no additional cards. A
+final-show departure leaves only the requester’s already-public cards visible.
+
+The departing player’s seat remains reserved until the current round completes
+(or the table is ended). They cannot act or join another table while waiting.
+At completion, pending departures are removed from the next-round roster and
+reservations are released. Repeated leave requests do not fold again. Durable
+mode commits the fold before marking departure pending. Call Break is unchanged.
