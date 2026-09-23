@@ -18,7 +18,7 @@ export function AppHeader({ title, actions, inlineActions, hideProfile = false, 
   const renderProfile = useContext(HeaderProfileContext);
   const [profileOpen, setProfileOpen] = useState(false);
   return <View style={{ ...gamePanelFinish(colors), paddingHorizontal: compact ? 4 : 12, paddingVertical: compact ? 6 : 10, gap: 8,
-    borderBottomWidth: lobby ? 0 : 1, borderColor: colors.border, backgroundColor: lobby ? colors.background : colors.header }}>
+    borderBottomWidth: 1, borderColor: colors.tableTrim, backgroundColor: lobby ? colors.background : colors.header }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
         <BrandIcon size={compact ? headerLogoSize.compact : headerLogoSize.regular} />

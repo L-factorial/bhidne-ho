@@ -1,4 +1,4 @@
-import { gameControlFinish, fonts, useTheme } from '../theme';
+import { gameTabFinish, fonts, useTheme } from '../theme';
 import { useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { AppState, Pressable, ScrollView, Text, View } from 'react-native';
@@ -48,9 +48,9 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms }: { onBrowseR
   const retry = <Pressable accessibilityRole="button" accessibilityLabel="Retry active games" onPress={() => setRefresh(v => v + 1)} style={{ minHeight: 44, paddingHorizontal: 16, borderRadius: 10, backgroundColor: c.primary, justifyContent: 'center' }}><Text style={{ color: c.onPrimary, fontFamily: fonts.medium }}>Retry</Text></Pressable>;
   return <View testID="active-games" style={{ gap: 14, paddingVertical: 16 }}>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} accessibilityRole="tablist" accessibilityLabel="Filter active games">
-      {filters.map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityLabel={`${label} games`} accessibilityState={{ selected: filter === value }} onPress={() => setFilter(value)} style={{ ...gameControlFinish(c), minHeight: 44, paddingHorizontal: 14, borderRadius: 22, borderWidth: 1, borderColor: filter === value ? c.primary : c.borderSubtle, backgroundColor: filter === value ? c.primary : c.surface, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <Text style={{ color: filter === value ? c.onPrimary : c.textMuted, fontFamily: fonts.medium, fontSize: 13 }}>{label}</Text>
-        {loaded && <Text style={{ color: filter === value ? c.onPrimary : c.textMuted, fontSize: 12 }}>{value === 'all' ? tables.length : tables.filter(table => table.game_type === value).length}</Text>}
+      {filters.map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityLabel={`${label} games`} accessibilityState={{ selected: filter === value }} onPress={() => setFilter(value)} style={{ ...gameTabFinish(c, filter === value), minHeight: 44, paddingHorizontal: 14, borderRadius: 22, borderWidth: 1, borderColor: c.tableTrim, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Text style={{ color: filter === value ? c.onCoin : c.textMuted, fontFamily: fonts.medium, fontSize: 13 }}>{label}</Text>
+        {loaded && <Text style={{ color: filter === value ? c.onCoin : c.textMuted, fontSize: 12 }}>{value === 'all' ? tables.length : tables.filter(table => table.game_type === value).length}</Text>}
       </Pressable>)}
     </ScrollView>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>

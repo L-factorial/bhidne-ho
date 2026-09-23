@@ -56,12 +56,18 @@ export function gameControlFinish(c: ThemeColors, pressed = false) {
     borderRadius: 12,
     backgroundColor: pressed ? c.surfaceRaised : c.tableHeader,
     boxShadow: pressed
-      ? `inset 0px 1px 4px ${c.shadow}, inset 0px 0px 0px 1px ${c.tableTrim}`
-      : `0px 3px 7px ${c.shadow}, inset 0px 1px 0px rgba(255,248,235,0.14), inset 0px 0px 0px 1px ${c.tableTrim}`,
+      ? `inset 0px 3px 6px rgba(0,0,0,0.5), inset 0px 0px 0px 2px ${c.tableTrim}`
+      : `inset 0px 0px 0px 2px ${c.tableTrim}, inset 0px 3px 0px rgba(255,248,235,0.28), inset 0px 18px 18px -14px rgba(255,248,235,0.22), inset 0px -4px 0px rgba(0,0,0,0.3), 0px 4px 0px ${c.background}, 0px 7px 12px rgba(0,0,0,0.4)`,
   };
 }
 export function gamePanelFinish(c: ThemeColors) {
-  return { boxShadow: `0px 8px 24px ${c.shadow}, inset 0px 0px 0px 1px ${c.borderSubtle}` };
+  return { boxShadow: `inset 0px 0px 0px 2px ${c.tableTrim}, inset 0px 0px 0px 5px ${c.tableHeader}, inset 0px 0px 0px 6px ${c.borderSubtle}, 0px 6px 0px ${c.background}, 0px 12px 28px rgba(0,0,0,0.4)` };
+}
+export function gameTabFinish(c: ThemeColors, selected = false, pressed = false) {
+  return { ...gameControlFinish(c, pressed), backgroundColor: selected ? c.coin : pressed ? c.surfaceRaised : c.tableHeader };
+}
+export function gameSeparatorFinish(c: ThemeColors) {
+  return { borderColor: c.tableTrim, boxShadow: `0px 2px 0px ${c.background}, 0px 3px 0px ${c.borderSubtle}` };
 }
 export function gameHeadingFinish(c: ThemeColors) {
   return { textShadowColor: c.shadow, textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 };
