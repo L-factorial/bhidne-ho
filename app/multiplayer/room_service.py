@@ -153,6 +153,6 @@ class RoomService:
                     continue
                 source = "you" if is_owner else "joined" if is_joined else "friend" if is_friend else "public"
                 output.append(RoomSummary(**record, members=sorted(members),
-                                          feed_source=source))
+                                          feed_source=source, creator_is_friend=is_friend))
             priority = {"you": 0, "joined": 1, "friend": 2, "public": 3}
             return sorted(output, key=lambda room: (priority[room.feed_source], -(room.created_at or 0), room.room_id))

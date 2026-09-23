@@ -12,6 +12,7 @@ class RoomPresence(BaseModel):
 
 
 class RoomSummary(RoomPresence):
+    creator_is_friend: bool = False
     table_count: int = 0
     member_previews: list[PlayerSummary] = Field(default_factory=list)
     name: str

@@ -9,7 +9,7 @@ try{
  const stamp=Date.now(), owner=await api('/auth/signup',null,{username:'privacy_'+stamp,password:'Privacy-test-123'}), other=await api('/auth/signup',null,{username:'visitor_'+stamp,password:'Privacy-test-123'});
  async function pageFor(user){const ctx=await browser.newContext({viewport:{width:390,height:844},hasTouch:true});await ctx.addInitScript(({site,user})=>sessionStorage.setItem('bhidne.session.v1:'+site,JSON.stringify({session:user,room:null,game:null})),{site,user});const p=await ctx.newPage();p.setDefaultTimeout(10000);await p.goto(site);return p;}
  const page=await pageFor(owner), button=name=>page.getByRole('button',{name,exact:true});
- await button('Create room').click();
+ await button('Create room').first().click();
  await button('Private').waitFor();
  await page.getByRole('textbox',{name:'Room name',exact:true}).fill('Privacy browser room');
  await button('Create room').last().click();
@@ -34,8 +34,11 @@ try{
  await button('Delete Privacy browser room').click();
  await page.getByRole('button',{name:'Cancel',exact:true}).click();
  const visitor=await pageFor(other);
+ await visitor.getByRole('tab',{name:'Friends’ rooms',exact:true}).click();
+ await visitor.getByRole('button',{name:'Browse all public rooms →',exact:true}).click();
  await visitor.getByRole('button',{name:'Join Privacy browser room',exact:true}).click();
  await visitor.getByRole('button',{name:'Back to lobby',exact:true}).click();
+ await visitor.getByRole('tab',{name:'Your rooms',exact:true}).click();
  await visitor.getByRole('button',{name:'Leave Privacy browser room',exact:true}).click();
  const leaveUrl=site+'/rooms/'+room.room_id+'/leave';
  // A failed request that never reaches the server must remain a visible failure.

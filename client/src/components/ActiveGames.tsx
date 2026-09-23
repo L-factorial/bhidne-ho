@@ -9,7 +9,7 @@ import { TableCard } from './TableCard';
 
 export type ActiveTable = TableSummary & { room_id: string; room_name: string };
 const filters = [['all', 'All'], ['flush', 'Flush'], ['marriage', 'Marriage'], ['callbreak', 'Call Break']] as const;
-export function ActiveGames({ session, busy, enter, onBrowseRooms }: { onBrowseRooms: () => void; session: Session; busy: boolean; enter: (table: ActiveTable, action: TableEntry) => void }) {
+export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateRoom }: { onCreateRoom: () => void; onBrowseRooms: () => void; session: Session; busy: boolean; enter: (table: ActiveTable, action: TableEntry) => void }) {
   const { colors: c } = useTheme();
   const [tables, setTables] = useState<ActiveTable[]>([]);
   const [filter, setFilter] = useState<(typeof filters)[number][0]>('all');
@@ -66,6 +66,7 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms }: { onBrowseR
       <Ionicons name="people-outline" size={32} color={c.accent} />
       <Text style={{ color: c.text, fontFamily: fonts.medium, fontSize: 18, textAlign: 'center' }}>{filter === 'all' ? 'No active tables yet' : `No ${filters.find(([key]) => key === filter)?.[1]} tables yet`}</Text>
       <Text style={{ color: c.textMuted, textAlign: 'center', lineHeight: 21 }}>Open a room and create a table, or join your friends when they start playing.</Text>
+      <Pressable accessibilityRole="button" onPress={onCreateRoom} style={{minHeight:44,paddingHorizontal:16,borderRadius:10,backgroundColor:c.primary,justifyContent:'center'}}><Text style={{color:c.onPrimary,fontFamily:fonts.medium}}>Create room</Text></Pressable>
       <Pressable accessibilityRole="button" onPress={() => filter === 'all' ? onBrowseRooms() : setFilter('all')} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: c.accent, fontFamily: fonts.medium }}>{filter === 'all' ? 'Browse rooms' : 'View all games'}</Text></Pressable>
     </View>}
     {visible.map(table => <TableCard key={`${table.room_id}:${table.match_id}`} compact roomName={table.room_name} table={table} roomId={table.room_id} busy={busy} enter={action => enter(table, action)} />)}

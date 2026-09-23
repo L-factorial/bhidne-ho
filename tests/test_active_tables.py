@@ -27,8 +27,12 @@ def test_active_tables_follow_room_visibility_and_live_seating_permissions():
         assert table['current_user']['can_queue']
         assert not table['current_user']['is_seated']
         assert not {'private', 'flush', 'query_result', 'users'} & table.keys()
-        assert friend['user_id'] not in client.get('/rooms', headers=viewer).json()[0]['members']
+        friend_room = client.get('/rooms', headers=viewer).json()[0]
+        assert friend_room['creator_is_friend'] is True
+        assert friend['user_id'] not in friend_room['members']
+        assert client.get('/rooms', headers=outsider).json()[0]['creator_is_friend'] is False
         assert client.post(f"/rooms/{room['room_id']}/enter", headers=viewer).status_code == 200
+        assert client.get('/rooms', headers=viewer).json()[0]['creator_is_friend'] is True
         assert client.post(root + '/join', headers=viewer, json=match).status_code == 200
         table = client.get('/active-tables', headers=viewer).json()[0]
         assert table['current_user']['is_seated']

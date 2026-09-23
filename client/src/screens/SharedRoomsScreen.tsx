@@ -46,7 +46,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const insets = useSafeAreaInsets();
   const wide = useWindowDimensions().width >= 900;
   const [roomToolsOpen, setRoomToolsOpen] = useState(false);
-  const [lobbyTab, setLobbyTab] = useState<'rooms' | 'players' | 'recent' | 'games'>('rooms');
+  const [lobbyTab, setLobbyTab] = useState<'rooms' | 'players' | 'recent' | 'games' | 'friendRooms'>('games');
   const [lobbyProfileOpen, setLobbyProfileOpen] = useState(false);
   const [greetingIdentity, setGreetingIdentity] = useState<InvitePlayer | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -111,7 +111,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
     if (roomOperationPending.current || busy) return;
     roomOperationPending.current = true;
     setBusy(true); setLinkedMatch(undefined); setError('');
-    void shared.joinRoom(target, targetGame).then(ok => { if (ok) setRoomToolsOpen(false); }).finally(() => { roomOperationPending.current = false; if (mounted.current) setBusy(false); });
+    void shared.joinRoom(target, targetGame).then(ok => { if (ok) { setPublicRoomsOpen(false); setRoomToolsOpen(false); } }).finally(() => { roomOperationPending.current = false; if (mounted.current) setBusy(false); });
   }
   function joinByCode() {
     if (!session || busy || expired || roomOperationPending.current) return;
@@ -122,7 +122,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
     joinRoom(rooms.find(item => item.room_id === target.roomId) || { room_id: target.roomId, name: 'Joined room', members: [] });
   }
   function enterRoom(target: Room, targetGame?: 'callbreak' | 'marriage' | 'flush') {
-    setRoomToolsOpen(false); shared.enterRoom(target, targetGame); setError('');
+    setPublicRoomsOpen(false); setRoomToolsOpen(false); shared.enterRoom(target, targetGame); setError('');
   }
   async function enterActiveTable(table: ActiveTable, action: TableEntry) {
     if (!session || busy || roomOperationPending.current) return;
@@ -168,7 +168,11 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   }
   const current = rooms.find(item => item.room_id === room?.room_id) || room;
   const enterRooms = rooms.filter(item => item.creator_id === session?.user_id || item.members.includes(session?.user_id || ''));
-  const friendRooms = rooms.filter(item => !enterRooms.includes(item) && item.visibility === 'public');
+  const ownedRooms = rooms.filter(item => item.creator_id === session?.user_id);
+  const joinedRooms = enterRooms.filter(item => item.creator_id !== session?.user_id);
+  const friendRooms = rooms.filter(item => item.visibility === 'public' && item.creator_is_friend);
+  const publicRooms = rooms.filter(item => item.visibility === 'public');
+  const [publicRoomsOpen, setPublicRoomsOpen] = useState(false);
 
   const recentRooms = recentIds.map(id => rooms.find(item => item.room_id === id)).filter((item): item is Room => !!item);
 
@@ -337,7 +341,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
             <Pressable accessibilityRole="button" accessibilityLabel="Join with code" onPress={() => { setLobbyTab('rooms'); setForm('join'); setRoomToolsOpen(true); }} style={styles.secondaryAction}><Text style={styles.secondaryActionText}>Join with code</Text></Pressable>
           </View>
           <View accessibilityRole="tablist" style={styles.lobbyTabs}>
-            {([['games', 'Active games'], ['rooms', 'Rooms'], ['recent', 'Recent']] as const).map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: lobbyTab === value }} onPress={() => setLobbyTab(value)} style={[styles.lobbyTab, lobbyTab === value && styles.activeLobbyTab]}><Text style={[styles.lobbyTabText, lobbyTab === value && styles.activeLobbyTabText]}>{label}</Text></Pressable>)}
+            {([['games', 'Active games'], ['rooms', 'Your rooms'], ['friendRooms', 'Friends’ rooms'], ['recent', 'Recent']] as const).map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: lobbyTab === value }} onPress={() => setLobbyTab(value)} style={[styles.lobbyTab, lobbyTab === value && styles.activeLobbyTab]}><Text style={[styles.lobbyTabText, lobbyTab === value && styles.activeLobbyTabText]}>{label}</Text></Pressable>)}
           </View>
         </View>}
         {!session && <View style={styles.panel}>
@@ -416,18 +420,30 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
                 <Ionicons name="arrow-forward-circle" size={28} color={colors.accent} />
               </Pressable>;
             })}
-            <Text accessibilityRole="header" style={styles.sectionTitle}>Your rooms</Text>
-            {!enterRooms.length && <Text style={styles.description}>Create a room or join your friends to get started.</Text>}
-<View style={styles.roomGrid}>{enterRooms.map(roomCard)}</View>
-            {!!friendRooms.length && <Text accessibilityRole="header" style={styles.sectionTitle}>Public rooms</Text>}
-            <View style={styles.roomGrid}>{friendRooms.map(roomCard)}</View>
+            <Text accessibilityRole="header" style={styles.sectionTitle}>Rooms you created</Text>
+            {!ownedRooms.length && <Text style={styles.description}>You haven’t created a room yet.</Text>}
+            <View style={styles.roomGrid}>{ownedRooms.map(roomCard)}</View>
+            {!!joinedRooms.length && <>
+              <Text accessibilityRole="header" style={styles.sectionTitle}>Joined rooms</Text>
+              <View style={styles.roomGrid}>{joinedRooms.map(roomCard)}</View>
+            </>}
           </>}
         </View>}
+        {session && !expired && lobbyTab === 'friendRooms' && <View style={styles.columns}>
+          <Text accessibilityRole="header" style={styles.sectionTitle}>Friends’ public rooms</Text>
+          <View style={styles.roomGrid}>{friendRooms.map(roomCard)}</View>
+          {!friendRooms.length && <Text style={styles.description}>Your friends haven’t made any rooms public yet.</Text>}
+          <Pressable accessibilityRole="button" onPress={() => setPublicRoomsOpen(true)} style={styles.textButton}><Text style={styles.enterText}>Browse all public rooms →</Text></Pressable>
+        </View>}
+        <RoomSheet visible={publicRoomsOpen} title="Public rooms" closeLabel="Close public rooms" onClose={() => setPublicRoomsOpen(false)}>
+          <View style={styles.roomGrid}>{publicRooms.map(roomCard)}</View>
+          {!publicRooms.length && <Text style={styles.description}>No public rooms yet.</Text>}
+        </RoomSheet>
         {session && !expired && lobbyTab === 'players' && <View style={styles.playersArea}>
           <FriendsPanel session={session} />
         </View>}
         {session && !expired && lobbyTab === 'games' && !!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{error || shared.error}</Text>}
-        {session && !expired && lobbyTab === 'games' && <ActiveGames onBrowseRooms={() => setLobbyTab('rooms')} session={session} busy={busy} enter={(table, action) => void enterActiveTable(table, action)} />}
+        {session && !expired && lobbyTab === 'games' && <ActiveGames onCreateRoom={() => { setLobbyTab('rooms'); setForm('create'); setRoomToolsOpen(true); }} onBrowseRooms={() => setLobbyTab('friendRooms')} session={session} busy={busy} enter={(table, action) => void enterActiveTable(table, action)} />}
         {session && !expired && lobbyTab === 'recent' && <View style={styles.columns}>
           <Text accessibilityRole="header" style={styles.sectionTitle}>Recently visited</Text>
           <Text style={styles.description}>Your recent rooms on this device.</Text>
