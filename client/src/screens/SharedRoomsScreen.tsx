@@ -302,7 +302,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
           {roomPanel === 'ledger' && <RoomLedger roomId={room.room_id} session={session} embedded />}
         </RoomSheet>}
       </> : <>
-        {session && !expired && <View style={styles.hero}>
+        {session && !expired && lobbyTab !== 'players' && <View style={styles.hero}>
           <Text accessibilityRole="header" style={[styles.title, !wide && styles.mobileTitle]}>Ready to play?</Text>
           <Text style={styles.subtitle}>Open a room or bring your players together.</Text>
           <View style={styles.quickActions}>
@@ -310,7 +310,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
             <Pressable accessibilityRole="button" accessibilityLabel="Join with code" onPress={() => { setLobbyTab('rooms'); setForm('join'); setRoomToolsOpen(true); }} style={styles.secondaryAction}><Text style={styles.secondaryActionText}>Join with code</Text></Pressable>
           </View>
           <View accessibilityRole="tablist" style={styles.lobbyTabs}>
-            {([['games', 'Active games'], ['rooms', 'Rooms'], ['players', 'Friends'], ['recent', 'Recent']] as const).map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: lobbyTab === value }} onPress={() => setLobbyTab(value)} style={[styles.lobbyTab, lobbyTab === value && styles.activeLobbyTab]}><Text style={[styles.lobbyTabText, lobbyTab === value && styles.activeLobbyTabText]}>{label}</Text></Pressable>)}
+            {([['games', 'Active games'], ['rooms', 'Rooms'], ['recent', 'Recent']] as const).map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: lobbyTab === value }} onPress={() => setLobbyTab(value)} style={[styles.lobbyTab, lobbyTab === value && styles.activeLobbyTab]}><Text style={[styles.lobbyTabText, lobbyTab === value && styles.activeLobbyTabText]}>{label}</Text></Pressable>)}
           </View>
         </View>}
         {!session && <View style={styles.panel}>
@@ -397,7 +397,6 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
           </>}
         </View>}
         {session && !expired && lobbyTab === 'players' && <View style={styles.playersArea}>
-          {!!friendRooms.length && <><Text accessibilityRole="header" style={styles.sectionTitle}>Friends’ rooms</Text><View style={styles.roomGrid}>{friendRooms.map(roomCard)}</View></>}
           <FriendsPanel session={session} />
         </View>}
         {session && !expired && lobbyTab === 'games' && !!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{error || shared.error}</Text>}

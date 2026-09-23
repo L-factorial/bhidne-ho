@@ -90,7 +90,7 @@ export function FriendsPanel({ session }: { session: Session }) {
   </View>;
 
   return <View style={styles.panel}>
-    <View style={styles.row}><Text style={styles.title}>Players</Text></View>
+    <View style={styles.row}><Text accessibilityRole="header" style={styles.title}>Friends</Text></View>
     <Text style={styles.detail}>Find a player by username or display name, manage requests, and message your connections.</Text>
     <View style={styles.searchRow}>
       <FormInput accessibilityLabel="Find players" value={query} onChangeText={setQuery} maxLength={50}
@@ -108,7 +108,7 @@ export function FriendsPanel({ session }: { session: Session }) {
     </View>))}</>}
     {!!snapshot.outgoing.length && <><Text style={styles.heading}>Requests sent</Text>{snapshot.outgoing.map(player => row(player,
       <Pressable accessibilityRole="button" onPress={() => void mutate(`/friends/${encodeURIComponent(player.user_id)}`, 'DELETE')} style={styles.linkButton}><Text style={styles.link}>Cancel</Text></Pressable>))}</>}
-    <Text style={styles.heading}>Friends</Text>
+    <Text style={styles.heading}>Your friends</Text>
     {!snapshot.friends.length && <Text style={styles.detail}>No friends yet.</Text>}
     {snapshot.friends.map(player => row(player, <View style={styles.actions}>
       <Pressable accessibilityRole="button" onPress={() => { setMessages([]); setError(''); setSendError(''); setSelected(player); }} style={styles.smallButton}><Text style={styles.buttonText}>Message</Text></Pressable>
