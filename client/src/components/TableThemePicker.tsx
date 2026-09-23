@@ -4,11 +4,11 @@ import { useTableTheme } from '../TableThemeProvider';
 import { tableThemes, type TableThemeId } from '../tableThemes';
 import { TableSurface } from './TableSurface';
 
-export function TableThemePicker() {
+export function TableThemePicker({ showTitle = true }: { showTitle?: boolean }) {
   const { colors } = useTheme();
   const { id, select } = useTableTheme();
   return <View testID="table-theme-picker" style={{ gap: 8, paddingVertical: 12 }}>
-    <Text accessibilityRole="header" style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 16 }}>Table theme</Text>
+    {showTitle && <Text accessibilityRole="header" style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 16 }}>Table theme</Text>}
     <Text style={{ color: colors.textMuted, fontFamily: fonts.body, fontSize: 12 }}>Your view · saved on this device</Text>
     {(Object.keys(tableThemes) as TableThemeId[]).map(key => <Pressable key={key} accessibilityRole="radio" accessibilityLabel={tableThemes[key].name}
       accessibilityState={{ checked: id === key }} onPress={() => select(key)} testID={`table-theme-${key}`}

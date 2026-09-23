@@ -1,4 +1,7 @@
 import { TableThemePicker } from './TableThemePicker';
+import { Ionicons } from '@expo/vector-icons';
+import { RoomSheet } from './RoomSheet';
+import { useTableTheme } from '../TableThemeProvider';
 import { BrandIcon, headerLogoSize } from './BrandArt';
 import { KeyboardFrame } from './KeyboardFrame';
 import { type ReactNode, useEffect, useState } from 'react';
@@ -20,6 +23,16 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
   const mobile = useWindowDimensions().width < 900;
   const small = mobile || compact;
   const [open, setOpen] = useState(false);
+  const [themesOpen, setThemesOpen] = useState(false);
+  const { theme } = useTableTheme();
+  const openThemes = () => { setOpen(false); setThemesOpen(true); };
+  const themeMenuEntry = <Pressable accessibilityRole="button" accessibilityLabel={`Table theme, ${theme.name}`} onPress={openThemes}
+    style={({ pressed }) => ({ minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 8, borderRadius: radii.medium, backgroundColor: pressed ? colors.surfaceRaised : 'transparent' })}>
+    <Ionicons name="color-palette-outline" size={20} color={colors.textMuted} />
+    <View style={{ flex: 1, gap: 2 }}><Text style={{ color: colors.text, fontFamily: fonts.medium }}>Table theme</Text>
+      <Text style={{ color: colors.textMuted, fontFamily: fonts.body, fontSize: 12 }}>{theme.name}</Text></View>
+    <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+  </Pressable>;
   useEffect(() => {
     if (!open || !drawerMetadata || Platform.OS !== 'web') return;
     // A child sheet captures at window first; otherwise consume Escape before the game modal.
@@ -42,6 +55,11 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
         {!tableName && !!path && !compact && <Text numberOfLines={1} style={{ fontFamily: fonts.body, fontSize: 11, color: colors.textMuted }}>{path}</Text>}
       </View>
       {!!roomId && !compact && <ShareLink roomId={roomId} matchId={matchId} compact={mobile} />}
+      <Pressable testID={`${game}-theme-button`} accessibilityRole="button" accessibilityLabel="Choose table theme" accessibilityHint={`Current theme: ${theme.name}`} accessibilityState={{ expanded: themesOpen }} onPress={openThemes}
+        style={({ pressed }) => ({ flexDirection: 'row', flexShrink: 0, gap: 6, minWidth: 44, minHeight: 44, paddingHorizontal: mobile ? 8 : 12, alignItems: 'center', justifyContent: 'center', backgroundColor: pressed ? colors.surfaceRaised : 'transparent', borderRadius: radii.medium })}>
+        <Ionicons name="color-palette-outline" size={22} color={colors.text} />
+        {!mobile && <Text style={{ color: colors.text, fontFamily: fonts.medium }}>Theme</Text>}
+      </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={t('common.tableMenu')} accessibilityState={{ expanded: open }} onPress={() => setOpen(v => !v)}
         style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primarySoft, borderRadius: radii.medium }}>
         <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ gap: 5 }}>
@@ -61,8 +79,8 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
           </View>
           {drawerMetadata}
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 8, marginHorizontal: -8, paddingBottom: 8 }}>
-            <TableThemePicker />
-      {typeof children === 'function' ? children(() => setOpen(false)) : children}
+            {themeMenuEntry}
+            {typeof children === 'function' ? children(() => setOpen(false)) : children}
           </ScrollView>
         </View>
       </KeyboardFrame>
@@ -73,9 +91,12 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
       </View>
       {compact && !!path && <Text style={{ color: colors.textMuted }}>{path}</Text>}
       {compact && !!roomId && <ShareLink roomId={roomId} matchId={matchId} />}
-      <TableThemePicker />
+      {themeMenuEntry}
       {typeof children === 'function' ? children(() => setOpen(false)) : children}
       <View style={{ borderTopWidth: 1, borderColor: colors.border, paddingTop: 4 }}>{endControl}</View>
     </ScrollView>}
+    <RoomSheet visible={themesOpen} title="Table theme" closeLabel="Close table themes" testID="table-theme-sheet" presentation="dialog" onClose={() => setThemesOpen(false)}>
+      <TableThemePicker showTitle={false} />
+    </RoomSheet>
   </>;
 }
