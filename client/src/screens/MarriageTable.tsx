@@ -3,7 +3,6 @@ import { MarriageMaalPanel } from '../components/MarriageMaalPanel';
 import { arrangeMarriageHand, type MarriageArrangement } from '../multiplayer/marriageArrangement';
 import { MarriageAnnouncements } from '../components/MarriageAnnouncements';
 import { PreGameTable } from '../components/PreGameTable';
-import { MarriageRoundResults } from '../components/MarriageScoring';
 import { useTableSocial } from '../components/TableSocial';
 import { TurnIndicator } from '../components/TurnIndicator';
 import { EndedTableNotice } from '../components/EndedTableNotice';
@@ -124,15 +123,13 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         <PreGameTable snapshot={snapshot}>{startCue}</PreGameTable>
         {!snapshot.is_creator && <Text style={s.text}>Waiting for the creator to start.</Text>}
       </ScrollView> : <>
-        {snapshot.status === 'finished' && <ScrollView style={{ maxHeight: '60%', flexShrink: 1 }} contentContainerStyle={s.panel}><MarriageRoundResults snapshot={snapshot} /><Text accessibilityRole="header" style={s.heading}>{name(pub.winner)} wins!</Text>
-          <Text style={s.text}>{pub.normal_finish ? 'Normal hand complete.' : 'Eight Dublees complete.'} Ready for another round?</Text>
-          {startCue}</ScrollView>}
         <View style={s.columns}>
           <View style={s.main}>
             <View style={s.table}>
               <MarriageAnnouncements key={snapshot.match_id} snapshot={snapshot} />
-              <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}><MarriageCardArea snapshot={snapshot} handAnchor={handAnchor} canAct={!busy && activeGame} onAction={cards.act} onPoke={activeGame || ended ? undefined : setPoke} /></ScrollView>
+              <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}><MarriageCardArea snapshot={snapshot} onResult={() => setDetails('points')} handAnchor={handAnchor} canAct={!busy && activeGame} onAction={cards.act} onPoke={activeGame || ended ? undefined : setPoke} /></ScrollView>
               <View style={tableSocial?.canRead ? { marginBottom: 60 } : undefined}>{!isTurn && turnPrompt}</View>
+              {snapshot.status === 'finished' && startCue}
               {ended && <View testID="ended-table-overlay" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center', zIndex: 70 }}>{endedNotice}</View>}
 
             </View>

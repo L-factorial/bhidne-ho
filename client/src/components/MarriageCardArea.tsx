@@ -5,7 +5,7 @@ import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { marriageFace, type MarriageMove } from '../multiplayer/marriage';
 import { MarriagePlayers } from './MarriagePlayers';
 import { MarriageCardBack } from './MarriageCardBack';
-import { fonts, useThemedStyles, type ThemeColors } from '../theme';
+import { fonts, gameButtonStyle, useThemedStyles, type ThemeColors } from '../theme';
 
 type Point = { x: number; y: number };
 function center(node: View): Promise<Point> {
@@ -32,7 +32,8 @@ function FlyingCard({ move, origin, destination, done }: { move: MarriageMove; o
     }]}>{move.card ? <Text style={[styles.face, move.card.suit === 'H' || move.card.suit === 'D' ? styles.red : null]}>{marriageFace(move.card)}</Text> : <MarriageCardBack />}</Animated.View>;
 }
 
-export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAnchor }: {
+export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAnchor, onResult }: {
+  onResult?: () => void;
   handAnchor?: RefObject<View | null>;
   snapshot: RoomSnapshot; canAct: boolean;
   onAction: (command: string, payload?: object) => void; onPoke?: (seat: number) => void;
@@ -84,7 +85,8 @@ export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAncho
   useEffect(() => { if (!privateMaal) setMaalFace({ key: '', visible: false }); }, [!!privateMaal]);
   return <View ref={area} style={styles.area}>
     <MarriagePlayers snapshot={snapshot} onPoke={onPoke} registerSeat={(id, node) => { if (node) seats.current.set(id, node); else seats.current.delete(id); }}>
-    <View testID="marriage-card-spots" style={styles.spots}>
+    {snapshot.status === 'finished' && onResult ? <Pressable accessibilityRole="button" accessibilityLabel="Game result" testID="marriage-game-result"
+      onPress={onResult} style={styles.resultButton}><Text style={styles.resultText}>Game result</Text></Pressable> : <View testID="marriage-card-spots" style={styles.spots}>
       <View style={styles.spot}><Text style={styles.label}>Last discard</Text>
         <Pressable ref={discard} testID="marriage-discard-spot" accessibilityRole="button" accessibilityLabel="Take discard"
           disabled={!legalSource('discard')} accessibilityState={{ disabled: !legalSource('discard') }}
@@ -110,13 +112,15 @@ export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAncho
         </Pressable>
         <Text style={styles.caption}>{maalLabel}</Text>
       </View>
-    </View>
+    </View>}
     </MarriagePlayers>
     {flight && current && flight.sequence === current.sequence && <FlyingCard key={current.sequence} move={current} origin={flight.origin} destination={flight.destination} done={finish} />}
   </View>;
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  resultButton: { ...gameButtonStyle(colors, 'primary'), minHeight: 48, minWidth: 160, alignItems: 'center', justifyContent: 'center' },
+  resultText: { color: colors.onPrimary, fontFamily: fonts.medium, fontSize: 16 },
   backdrop: { flex: 1, paddingHorizontal: 16, backgroundColor: colors.overlay, justifyContent: 'center', alignItems: 'center' },
   dialog: { width: '100%', maxWidth: 440, padding: 16, gap: 20, borderRadius: 16, backgroundColor: colors.surface },
   dialogHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 }, heading: { flex: 1, color: colors.accent, fontFamily: fonts.medium, fontSize: 18 },

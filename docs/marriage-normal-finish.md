@@ -51,7 +51,9 @@ retries return the original result without discarding or scoring again.
 
 Final public snapshots expose `normal_finish`; `PLAYER_FINISHED` exposes its meld
 types, card groups, and final discard ID. Opponents' remaining hands and the hidden
-indicator are not published. Reconnecting viewers recover the same final witness.
+indicator are not published. Final score items include `card_ids` for their scoring
+evidence; these selected scoring cards become public only after the round ends.
+Unscored hidden cards remain private. Reconnecting viewers recover the same final witness.
 
 Final points use the existing scoring policies and actual final holdings, excluding
 the final discard. Normal wins receive no Dublee bonus. The existing `shown`
@@ -83,3 +85,9 @@ node client/tests/browser/marriage-normal-finish.cjs
 The browser test uses engine-generated fixtures and requires the exported web app
 on `TEST_WEB_URL` (default localhost:8083), Python in `.venv` (or `TEST_PYTHON`), and
 Playwright/Chrome (`PLAYWRIGHT_MODULE` if installed outside the client).
+
+After the round, a central **Game result** button reopens the result sheet. The
+points summary comes first, followed by each player’s arithmetic and scoring-card
+evidence, then the winning declaration and final discard. Tunnela evidence may
+overlap Maal evidence because its bonus is additive; Marriage combinations and
+individual Maal allocations remain disjoint.

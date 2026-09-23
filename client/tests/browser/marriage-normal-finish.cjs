@@ -117,6 +117,18 @@ print(json.dumps(asdict(g.get_player_view('0'))))
       await preview.waitFor({state:'hidden'});
       const announcement=page.getByTestId('marriage-announcement');await announcement.waitFor();
       await announcement.getByText('🏆 Round won!',{exact:true}).waitFor();
+      await announcement.getByTestId('round-results-table').waitFor();
+      await button(page,'Close table announcement').click();
+      const resultButton=page.getByTestId('marriage-game-result');await resultButton.waitFor();
+      await resultButton.click();
+      const result=page.getByTestId('marriage-details');await result.waitFor();
+      const resultText=await result.innerText();
+      assert.ok(resultText.indexOf('Round complete!')<resultText.indexOf('How the points were calculated'));
+      await result.getByText('Winning declaration',{exact:true}).waitFor();
+      for(const player of views.after.public.scores.players)for(const item of player.items)assert.ok(item.card_ids.length);
+      await page.screenshot({path:`/tmp/marriage-result-${width}.png`});
+      await button(page,'Close details').click();
+      assert.ok(await resultButton.isVisible());
       assert.deepEqual(commands[0].payload,commands[1].payload);
       assert.deepEqual(views.after.public.normal_finish,commands[1].payload);
       assert.equal(commands.length, 2);

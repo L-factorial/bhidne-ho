@@ -77,3 +77,20 @@ def test_ace_neighbors_and_suit_specific_maal():
 def test_invalid_rules_rejected(value):
     with pytest.raises(ValueError):
         ScoringRules.from_dict(value)
+
+
+def test_score_evidence_uses_owned_disjoint_cards_except_additive_tunnela():
+    hand = [card(r, p) for r in (7, 8, 9) for p in (0, 1, 2)] + [PhysicalCard.man(0)]
+    items = score(hand, replace(ScoringRules(), tunnela_scope='hand'))
+    owned = {c.card_id for c in hand}
+    base_ids = [i for item in items if item.label != 'Tunnela bonus' for i in item.card_ids]
+    assert len(base_ids) == len(set(base_ids))
+    assert set(base_ids) == owned
+    for item in items:
+        assert set(item.card_ids) <= owned
+        assert len(item.card_ids) == item.count * (3 if item.label in ('Marriage', 'Tunnela bonus') else 1)
+    assert score(hand, seen=False) == ()
+    # Favor individual Maal; those witnesses must also use each physical card once.
+    individual = score(hand, replace(ScoringRules(), marriage=(0, 0, 0), tunnela_scope='off'))
+    assert {i for item in individual for i in item.card_ids} == owned
+    assert len([i for item in individual for i in item.card_ids]) == len(owned)

@@ -3,7 +3,7 @@ import { AccessibilityInfo, Animated, Pressable, Text, View } from 'react-native
 import { RoomSheet } from './RoomSheet';
 import { PlayerAvatar } from './PlayerAvatar';
 import { MarriageMeldCards } from './MarriageMeldCards';
-import { MarriageRoundResults } from './MarriageScoring';
+import { MarriagePoints } from './MarriageScoring';
 import { fonts, gameButtonStyle, useTheme } from '../theme';
 import { marriageAnnouncements, type MarriageAnnouncement } from '../multiplayer/marriageAnnouncements';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
@@ -34,7 +34,7 @@ export function MarriageAnnouncements({ snapshot }: { snapshot: RoomSnapshot }) 
     return () => { active = false; subscription.remove(); };
   }, []);
   useEffect(() => {
-    setTab('cards');
+    setTab(current?.kind === 'win' ? 'results' : 'cards');
     opacity.setValue(reduced ? 1 : 0);
     const animation = Animated.timing(opacity, { toValue: 1, duration: reduced ? 0 : 280, useNativeDriver: true });
     animation.start();
@@ -65,7 +65,7 @@ export function MarriageAnnouncements({ snapshot }: { snapshot: RoomSnapshot }) 
         </View>
         {!!review && !win && <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{qualifications.map(event => <View key={event.id}>{action(snapshot.players?.find(p => String(p.player_id) === event.playerId)?.display_name || `Player ${event.playerId}`, () => setReview(event))}</View>)}</View>}
         {win && <View style={{ flexDirection: 'row', gap: 8 }}>{action('Winning hand', () => setTab('cards'))}{action('Round results', () => setTab('results'))}</View>}
-        {tab === 'results' ? <MarriageRoundResults snapshot={snapshot} /> : <>
+        {tab === 'results' ? <MarriagePoints snapshot={snapshot} /> : <>
           {win && current.dublee && <View style={{ gap: 8, borderWidth: 2, borderColor: c.attention, padding: 12, borderRadius: 16 }}>
             <Text style={{ color: c.accent, fontFamily: fonts.medium, textAlign: 'center' }}>Winning eighth pair</Text>
             {current.winningPair.length ? <MarriageMeldCards groups={[{ meld_type: 'dublee', card_ids: current.winningPair }]} /> : <Text style={{ color: c.textMuted }}>Winning pair unavailable in this snapshot.</Text>}

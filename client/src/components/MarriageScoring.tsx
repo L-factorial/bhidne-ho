@@ -1,3 +1,5 @@
+import { MarriageMeldCards } from './MarriageMeldCards';
+import { PlayerAvatar } from './PlayerAvatar';
 import { gameControlFinish, gameHeadingFinish, fonts, useThemedStyles, type ThemeColors } from '../theme';
 import { RoundResultsTable } from './RoundResultsTable';
 import { FormScrollView } from './FormInput';
@@ -81,18 +83,32 @@ export function MarriagePoints({ snapshot }: { snapshot: RoomSnapshot }) {
     {!scores ? <Text style={s.text}>{snapshot.status === 'ended' ? 'The game was ended without a winner. No final points were calculated.'
       : snapshot.status === 'finished' ? 'This round has no scoring breakdown available.' : 'Points appear here when the round finishes, using the saved scoring rules.'}</Text> : <>
       <MarriageRoundResults snapshot={snapshot} />
+      <Text accessibilityRole="header" style={s.heading}>How the points were calculated</Text>
       <Text style={s.text}>Total Maal: {scores.total_maal}. Positive points are won; negative points are paid.</Text>
       <Text style={s.text}>Maal net = players x own Maal - total Maal. Net points = Maal net + winner payment. All net points sum to zero.</Text>
       <Text style={s.text}>Each loser pays {scores.rules.seen_payment} if Maal seen, otherwise {scores.rules.unseen_payment}, plus {scores.rules.dublee_win_bonus} for a Dublee winner.</Text>
       {scores.players.map(p => <View key={p.player_id} style={s.player}>
-        <Text style={s.heading}>{name(p.player_id)}: {signed(p.net_points)} points</Text>
+        <View style={s.row}><PlayerAvatar uri={snapshot.players?.find(player => String(player.player_id) === p.player_id)?.avatar_url} />
+          <Text style={s.heading}>{name(p.player_id)}: {signed(p.net_points)} points</Text></View>
         <Text style={s.text}>{p.has_seen_maal ? 'Maal seen' : 'Maal not seen'}{p.eligible ? '' : ' / not eligible for Maal points'}</Text>
-        {p.items.map((item, i) => <Text key={i} style={s.text}>{item.label} x {item.count}: {item.points}</Text>)}
+        {!p.items.length && <Text style={s.text}>{p.eligible ? 'No scoring cards.' : 'Maal points are not counted because Maal was not seen.'}</Text>}
+        {p.items.map((item, i) => <View key={i} style={{ gap: 6 }}>
+          <Text style={s.text}>{item.label} × {item.count}: {item.points} points</Text>
+          {!!item.card_ids?.length && <MarriageMeldCards groups={[{ meld_type: 'set', card_ids: item.card_ids }]} hideLabels />}
+          {item.label === 'Tunnela bonus' && <Text style={s.text}>Additional bonus: {item.count} × {scores.rules.tunnela_bonus} = {item.points}. These cards can also earn Maal points.</Text>}
+        </View>)}
         <Text style={s.text}>Own Maal: {p.maal_points}</Text>
         <Text style={s.text}>Maal net: {scores.players.length} x {p.maal_points} - {scores.total_maal} = {signed(p.maal_net)}</Text>
         <Text style={s.text}>Winner payment: {signed(p.winner_payment)}</Text>
         <Text style={s.text}>Net: {signed(p.maal_net)} + ({signed(p.winner_payment)}) = {signed(p.net_points)}</Text>
       </View>)}
+      <Text accessibilityRole="header" style={s.heading}>Winning declaration</Text>
+      <MarriageMeldCards groups={snapshot.marriage?.public.normal_finish?.melds || [
+        ...(snapshot.marriage?.public.players.find(p => p.player_id === scores.winner)?.shown_melds || []),
+        ...(snapshot.marriage?.public.winning_pair?.length ? [{ meld_type: 'dublee' as const, card_ids: snapshot.marriage.public.winning_pair }] : []),
+      ]} />
+      {!!snapshot.marriage?.public.normal_finish && <><Text style={s.text}>Final discard · excluded from scoring</Text>
+        <MarriageMeldCards groups={[{ meld_type: 'set', card_ids: [snapshot.marriage.public.normal_finish.discard_card_id] }]} hideLabels /></>}
     </>}
   </View>;
 }

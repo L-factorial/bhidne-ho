@@ -72,7 +72,7 @@ export function MarriagePlayers({ snapshot, onPoke, registerSeat, children }: { 
 export function MarriageDetails({ snapshot, section, onClose, busy, error, onSave }: { busy: boolean; error: string; onSave: (rules: import('../multiplayer/marriage').MarriageScoringRules) => void; snapshot: RoomSnapshot; section: 'stats' | 'rules' | 'points' | null; onClose: () => void }) {
   const styles = useThemedStyles(createStyles);
   const pub = snapshot.marriage?.public;
-  return <RoomSheet visible={section !== null} title={section === 'stats' ? 'Game stats' : section === 'rules' ? 'Marriage rules' : 'Points breakdown'} onClose={onClose} closeLabel="Close details" testID="marriage-details" scrollable={false} contentHandlesBottomInset={section === 'rules'}>
+  return <RoomSheet visible={section !== null} title={section === 'stats' ? 'Game stats' : section === 'rules' ? 'Marriage rules' : 'Game result'} onClose={onClose} closeLabel="Close details" testID="marriage-details" scrollable={false} contentHandlesBottomInset={section === 'rules'}>
         {section === 'rules' ? <MarriageScoring snapshot={snapshot} busy={busy} error={error} onSave={onSave} introduction={<>
             <Text style={styles.text}>21 cards each. Take one card, optionally show melds, then discard.</Text>
             <Text style={styles.text}>Sequence: consecutive ranks in one suit, Ace low. Tunnela: three copies of one face. Dublee: two copies.</Text>
@@ -81,11 +81,6 @@ export function MarriageDetails({ snapshot, section, onClose, busy, error, onSav
             <Text style={styles.text}>After qualification, Man, every Tiplu-rank card, and Jhiplu / Poplu are wildcards. Final sequences have 3 or more cards, Ace low; sets have 3 or 4 cards of one rank in distinct suits. Three natural copies of one face also form a Tunnela. All-wild groups are allowed.</Text>
             <Text style={styles.text}>Other players see your shown groups and completed winning hand. Your hand stays private during play, and Maal faces are shown only to qualified players.</Text>
 </>} /> : <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.details}>
-          {section === 'points' && pub?.normal_finish && <View testID="marriage-winning-hand" style={styles.stat}>
-            <Text style={styles.heading}>Winning hand</Text>
-            {pub.normal_finish.melds.map((meld, i) => <Text key={i} style={styles.text}>{meld.meld_type.replace('_', ' ')}: {meld.card_ids.map(physicalLabel).join('   ')}</Text>)}
-            <Text style={styles.text}>Final discard: {physicalLabel(pub.normal_finish.discard_card_id)}</Text>
-          </View>}
           {section === 'stats' ? pub ? pub.players.map(p => <View key={p.player_id} style={styles.stat}>
             <Text style={styles.name}>{playerName(snapshot, p.player_id)}</Text>
             <Text style={styles.text}>{situation(p, pub)} · {p.hand_count} cards</Text>

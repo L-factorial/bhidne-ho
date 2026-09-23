@@ -4,7 +4,7 @@ export type MarriageScoringRules = {
   seen_payment: number; unseen_payment: number; dublee_win_bonus: number;
 };
 export type MarriageScores = { winner: string; rules: MarriageScoringRules; total_maal: number; players: {
-  player_id: string; has_seen_maal: boolean; eligible: boolean; items: { label: string; count: number; points: number }[];
+  player_id: string; has_seen_maal: boolean; eligible: boolean; items: { label: string; count: number; points: number; card_ids?: string[] }[];
   maal_points: number; maal_net: number; winner_payment: number; net_points: number;
 }[] };
 export type MarriageCard = { card_id: string; card_type: 'standard' | 'man'; rank: number | null; suit: string | null; deck_index: number | null };
