@@ -82,6 +82,7 @@ class PublicGameView:
     scoring_rules: ScoringRules
     scores: RoundScore | None
     normal_finish: NormalFinish | None = None
+    winning_pair: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -104,6 +105,7 @@ def public_view(state: MarriageGameState) -> PublicGameView:
         top_discard=state.discard[-1] if state.discard else None, winner=state.winner,
         scoring_rules=state.config.rules.scoring, scores=calculate_scores(state),
         normal_finish=state.normal_finish,
+        winning_pair=state.winning_pair if state.status is GameStatus.FINISHED else (),
     )
 
 

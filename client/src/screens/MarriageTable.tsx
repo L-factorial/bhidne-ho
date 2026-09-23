@@ -1,3 +1,4 @@
+import { MarriageAnnouncements } from '../components/MarriageAnnouncements';
 import { PreGameTable } from '../components/PreGameTable';
 import { MarriageRoundResults } from '../components/MarriageScoring';
 import { useTableSocial } from '../components/TableSocial';
@@ -6,10 +7,11 @@ import { EndedTableNotice } from '../components/EndedTableNotice';
 import { GameMenu, GameMenuMetadata } from '../components/GameMenu';
 import { GameTableHeader } from '../components/GameTableHeader';
 import { MarriageHandSheet } from '../components/MarriageHandSheet';
+import { MaalProgress } from '../components/MaalProgress';
 import { marriageDecision, marriageHandSnap, marriageHandLayout, type HandSnap } from '../multiplayer/marriageWorkspace';
 import { TableStartCue } from '../components/TableStartCue';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { useMarriageReveal } from '../multiplayer/useMarriageReveal';
 import { MarriageCardArea } from '../components/MarriageCardArea';
@@ -47,10 +49,6 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const [sortBy, setSortBy] = useState<'suit' | 'rank'>('suit');
   const handAnchor = useRef<View>(null);
   const tableSocial = useTableSocial();
-  const [shownPlayer, setShownPlayer] = useState<string | null>(null);
-  const previousShown = useRef<string[] | null>(null);
-  const showOpacity = useRef(new Animated.Value(0)).current;
-  const showTravel = useRef(new Animated.Value(-70)).current;
   const [kind, setKind] = useState<MarriageMeld['meld_type']>('dublee');
   const [details, setDetails] = useState<'stats' | 'rules' | 'points' | null>(null);
   const [poke, setPoke] = useState<number | null | undefined>(undefined);
@@ -66,29 +64,9 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
     setSelected(current => current.filter(id => available.includes(id)));
     setGroups(current => current.filter(g => g.card_ids.every(id => available.includes(id))));
   }, [handKey]);
-  const publicShown = pub?.players.filter(p => p.shown_melds.length) || [];
-  const shownKey = publicShown.map(p => p.player_id).join(',');
   useEffect(() => {
-    const newlyShown = previousShown.current === null ? [] : publicShown.filter(p => !previousShown.current!.includes(p.player_id));
-    if (newlyShown.length) setShownPlayer(newlyShown.at(-1)!.player_id);
-    previousShown.current = publicShown.map(p => p.player_id);
     if (own?.route && own.route !== 'unqualified') { setPreview(false); setSelectingMeld(false); }
-  }, [shownKey, own?.route]);
-  const publicDisplay = publicShown.find(p => p.player_id === shownPlayer);
-  useEffect(() => {
-    if (!shownPlayer) return;
-    showOpacity.setValue(0); showTravel.setValue(-70);
-    const animation = Animated.sequence([
-      Animated.parallel([
-        Animated.timing(showOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-        Animated.timing(showTravel, { toValue: 0, duration: 300, useNativeDriver: true }),
-      ]),
-      Animated.delay(3000),
-      Animated.timing(showOpacity, { toValue: 0, duration: 500, useNativeDriver: true }),
-    ]);
-    animation.start(({ finished }) => { if (finished) setShownPlayer(null); });
-    return () => animation.stop();
-  }, [shownPlayer, showOpacity, showTravel]);
+  }, [own?.route]);
   const allRevealed = revealed >= 21;
   const availableHand = hand.filter(c => !committed.includes(c.card_id));
   const suggestions = useMemo(() => allRevealed ? marriageSuggestions(availableHand) : null, [handKey, allRevealed]);
@@ -193,10 +171,11 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       </ScrollView> : <>
         {snapshot.status === 'finished' && <ScrollView style={{ maxHeight: '60%', flexShrink: 1 }} contentContainerStyle={s.panel}><MarriageRoundResults snapshot={snapshot} /><Text accessibilityRole="header" style={s.heading}>{name(pub.winner)} wins!</Text>
           <Text style={s.text}>{pub.normal_finish ? 'Normal hand complete.' : 'Eight Dublees complete.'} Ready for another round?</Text>
-          {pub.normal_finish && button('View winning hand', () => setDetails('points'))}{startCue}</ScrollView>}
+          {startCue}</ScrollView>}
         <View style={s.columns}>
           <View style={s.main}>
             <View style={s.table}>
+              <MarriageAnnouncements key={snapshot.match_id} snapshot={snapshot} />
               <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}><MarriageCardArea snapshot={snapshot} handAnchor={handAnchor} canAct={!busy && activeGame} onAction={cards.act} onPoke={activeGame || ended ? undefined : setPoke} /></ScrollView>
               <View style={tableSocial?.canRead ? { marginBottom: 60 } : undefined}>{!isTurn && turnPrompt}</View>
               {ended && <View testID="ended-table-overlay" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center', zIndex: 70 }}>{endedNotice}</View>}
@@ -271,12 +250,6 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         </ScrollView>
       </View></View>
     </Modal>
-    {!ended && publicDisplay && <View pointerEvents="none" style={s.shownOverlay}>
-      <Animated.View testID="marriage-shown-melds" style={[s.shownCards, { opacity: showOpacity, transform: [{ translateY: showTravel }] }]}>
-        <Text accessibilityLiveRegion="polite" style={s.heading}>{name(publicDisplay.player_id)} showed {publicDisplay.route === 'dublee' ? 'seven Dublees' : 'three sequences / Tunnelas'}</Text>
-        <MarriageMeldCards groups={publicDisplay.shown_melds} />
-      </Animated.View>
-    </View>}
     <Modal transparent visible={!ended && toolsOpen} animationType="none" onRequestClose={() => setToolsOpen(false)}>
       <View style={s.previewBackdrop}><View accessibilityViewIsModal testID="marriage-hand-tools" style={s.previewPanel}>
         <View style={s.row}><Text accessibilityRole="header" style={[s.heading, { flex: 1 }]}>Hand tools</Text>{button('Close hand tools', () => setToolsOpen(false))}</View>
@@ -284,6 +257,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
             {mine && <View style={s.panel}>
               {!hidden && <>
                 {allRevealed && <>
+                  {!own?.has_seen_maal && own?.route === 'unqualified' && <MaalProgress hand={availableHand} />}
                   <View style={s.row}>{(!mobile && availableHand.length <= 15 ? ['grid', 'fan', 'suits'] as const : ['grid', 'suits'] as const).map(v => <View key={v}>{button(v === 'grid' ? 'Grid' : v === 'fan' ? 'Arc' : 'Suit groups', () => setMode(v), false, mode === v)}</View>)}</View>
                   {mode === 'suits' && <View style={s.row}>{['all', 'S', 'C', 'H', 'D', 'man'].map(v => <View key={v}>{button(suitName[v] || (v === 'all' ? 'All' : 'Man'), () => setSuit(v), false, suit === v)}</View>)}</View>}
                   {own?.route === 'unqualified' && <View style={s.builder}>
@@ -344,8 +318,6 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  shownOverlay: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 60, alignItems: 'center', justifyContent: 'center', padding: 16 },
-  shownCards: { width: '100%', maxWidth: 620, maxHeight: '85%', padding: 14, gap: 12, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.cardBorder, overflow: 'hidden' },
   previewBackdrop: { flex: 1, backgroundColor: colors.overlay, padding: 20, justifyContent: 'center', alignItems: 'center' },
   previewPanel: { width: '100%', maxWidth: 640, maxHeight: '90%', backgroundColor: colors.surface, borderRadius: 16, padding: 16, gap: 16 },
   playArea: { backgroundColor: colors.table, flex: 1, minHeight: 0, padding: 8, gap: 6 }, handDock: { flexShrink: 0, padding: 12, gap: 6, backgroundColor: colors.surface, borderTopWidth: 1, borderColor: colors.tableTrim, borderTopLeftRadius: 20, borderTopRightRadius: 20 },

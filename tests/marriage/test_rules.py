@@ -209,6 +209,7 @@ def test_eighth_pair_finish_and_all_later_mutations_rejected():
     state = game.get_state()
     assert state.status is GameStatus.FINISHED and state.winner == "a"
     assert state.winning_pair == copies(7)
+    assert game.get_public_view().winning_pair == state.winning_pair
     assert state.players[0].hand == before.players[0].hand and len(state.players[0].hand) == 22
     assert len(set(c.card_id for c in state.players[0].hand) - state.players[0].committed_card_ids
                - set(state.winning_pair)) == 6
