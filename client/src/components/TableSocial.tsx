@@ -18,7 +18,7 @@ import type { RoomPoke } from '../multiplayer/pokes';
 type Effect = { id: string; player: number; kind: 'chat' | 'poke'; text: string; expires: number };
 type SocialContext = {
   pokeMode: boolean; eligible: (id: number) => boolean; poke: (id: number) => void;
-  effects: Effect[]; anchor: (node: View | null) => void; openChat: () => void; canRead: boolean;
+  effects: Effect[]; anchor: (node: View | null) => void; openChat: () => void; canRead: boolean; chatOpen: boolean;
   registerSeat: (id: number, node: View | null) => void;
 };
 const Context = createContext<SocialContext | null>(null);
@@ -186,7 +186,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
     finally { sendingRef.current = false; if (!lifetime.current.signal.aborted) setSending(false); }
   }
   const iconStyle = { minWidth:44, minHeight:44, alignItems:'center' as const, justifyContent:'center' as const };
-  return <Context.Provider value={{pokeMode,eligible,poke,effects,anchor,openChat,canRead,registerSeat}}>
+  return <Context.Provider value={{pokeMode,eligible,poke,effects,anchor,openChat,canRead,chatOpen:open&&canRead,registerSeat}}>
     <View ref={root} collapsable={false} style={{flex:1,minHeight:0,minWidth:0,width:'100%'}} onLayout={measureRoot}>
       {children}
       {flights.map(flight => <TableReactionFlight key={flight.event.id} flight={flight} recipient={flight.event.recipient_id === userId}

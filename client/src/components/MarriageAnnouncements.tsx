@@ -3,6 +3,7 @@ import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Pressable, Text, View } from 'react-native';
 import { RoomSheet } from './RoomSheet';
+import { useTableSocial } from './TableSocial';
 import { PlayerAvatar } from './PlayerAvatar';
 import { MarriageMeldCards } from './MarriageMeldCards';
 import { MarriagePoints } from './MarriageScoring';
@@ -13,6 +14,7 @@ import type { RoomSnapshot } from '../screens/LiveGameTable';
 export function MarriageAnnouncements({ snapshot }: { snapshot: RoomSnapshot }) {
   useUiLanguage();
   const { colors: c } = useTheme();
+  const chatOpen = useTableSocial()?.chatOpen ?? false;
   const pub = snapshot.marriage?.public;
   const events = pub ? marriageAnnouncements(pub) : [];
   const seen = useRef<Set<string> | null>(null);
@@ -41,10 +43,11 @@ export function MarriageAnnouncements({ snapshot }: { snapshot: RoomSnapshot }) 
     opacity.setValue(reduced ? 1 : 0);
     const animation = Animated.timing(opacity, { toValue: 1, duration: reduced ? 0 : 280, useNativeDriver: true });
     animation.start();
-    if (!current || review || current.kind === 'win') return () => animation.stop();
+    // Keep queued announcements until the player closes chat and can see them.
+    if (!current || review || current.kind === 'win' || chatOpen) return () => animation.stop();
     const timer = setTimeout(() => setQueue(previous => previous.filter(e => e.id !== current.id)), 6500);
     return () => { clearTimeout(timer); animation.stop(); };
-  }, [current?.id, !!review, reduced, opacity]);
+  }, [current?.id, !!review, reduced, opacity, chatOpen]);
   const close = () => { if (review) setReview(null); else setQueue(previous => previous.slice(1)); };
   const player = snapshot.players?.find(p => String(p.player_id) === current?.playerId);
   const name = player?.display_name || ui("common.player_number", { "number": current?.playerId });
@@ -60,7 +63,7 @@ export function MarriageAnnouncements({ snapshot }: { snapshot: RoomSnapshot }) 
       {!!qualifications.length && action(ui("marriage.view_shown_cards"), () => setReview(qualifications[qualifications.length - 1]))}
       {!!finish && action(ui("marriage.view_winning_hand"), () => setReview(finish))}
     </View>
-    <RoomSheet visible={!!current} title={title} onClose={close} presentation="dialog" testID="marriage-announcement" closeLabel={ui("common.close_table_announcement")}>
+    <RoomSheet visible={!!current && !chatOpen} title={title} onClose={close} presentation="dialog" testID="marriage-announcement" closeLabel={ui("common.close_table_announcement")}>
       {current && <Animated.View style={{ opacity, gap: 14 }}>
         <View style={{ alignItems: 'center', gap: 8 }}>
           <PlayerAvatar uri={player?.avatar_url} />

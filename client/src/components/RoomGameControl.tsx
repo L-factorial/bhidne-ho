@@ -12,7 +12,7 @@ import type { TableEntry } from '../multiplayer/tableNavigation';
 import { RuleProposal } from './RuleProposal';
 import { TableControls } from './TableControls';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useGameNotification } from '../notifications/useGameNotification';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LiveGameTable, RoomSnapshot as Snapshot } from '../screens/LiveGameTable';
@@ -341,7 +341,9 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
         <Pressable accessibilityRole="button" onPress={() => setSeatConflict(null)} style={styles.choice}><Text style={styles.text}>{ui("rooms.stay_as_observer")}</Text></Pressable>
       </View></View></View>
     </Modal>
-    <Modal transparent visible={open} animationType="fade" onRequestClose={collapseGame}>
+    {/* Web registers modal focus after its animation. A late parent onShow can
+        steal focus from chat opened during the transition and block typing. */}
+    <Modal transparent visible={open} animationType={Platform.OS === 'web' ? 'none' : 'fade'} onRequestClose={collapseGame}>
       {live && snapshot ? <View testID="live-game-backdrop" style={[styles.liveBackdrop, {
         backgroundColor: gameTheme.colors.background, paddingTop: insets.top, paddingBottom: insets.bottom,
         paddingLeft: insets.left, paddingRight: insets.right,

@@ -8,13 +8,13 @@ import { RoomSheet } from '../components/RoomSheet';
 import { FormFooter } from '../components/FormFooter';
 import { NumericInput } from '../components/NumericInput';
 import { GameMenuMetadata } from '../components/GameMenu';
-import { useSocialHandAnchor } from '../components/TableSocial';
+import { useSocialHandAnchor, useTableSocial } from '../components/TableSocial';
 import { EndedTableNotice } from '../components/EndedTableNotice';
 import { FlushMenu } from '../components/FlushMenu';
 import { GameTableHeader } from '../components/GameTableHeader';
 import { flushDecision } from '../multiplayer/flushDecision';
 import { type ReactNode, useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import type { RoomSnapshot } from './LiveGameTable';
 import { FlushFoldNotice } from '../components/FlushFoldNotice';
@@ -64,6 +64,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   const [rulesOpen, setRulesOpen] = useState(false);
   const [betsOpen, setBetsOpen] = useState(false);
   const socialAnchor = useSocialHandAnchor();
+  const chatOpen = useTableSocial()?.chatOpen ?? false;
   const [pokeOpen, setPokeOpen] = useState(false);
   const [arenaHeight, setArenaHeight] = useState(280);
   const [draft, setDraft] = useState<Record<string, string | number | boolean>>({ ...settings.rules });
@@ -227,7 +228,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
         </View>
       </View>
     </View>
-    <Modal transparent visible={comparisonOpen && !resultOpen} onRequestClose={acknowledge}>
+    <Modal transparent visible={comparisonOpen && !resultOpen && !chatOpen} onRequestClose={acknowledge}>
       <View style={s.backdrop}><View style={s.modal} accessibilityViewIsModal testID="flush-private-comparison">
         <Text style={s.title}>{ui("flush.private_side_show")}</Text>
         <Text style={s.text}>{ui("flush.flip_player_s_cards", { "player": comparison ? name(comparison.opponent_id) : '' })}</Text>
@@ -240,7 +241,8 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
       footer={!settings.locked && snapshot.is_creator ? <FormFooter>{!!(localError || error) && <Text accessibilityRole="alert" style={s.error}>{uiLabel(localError || error, 'feedback')}</Text>}<View style={[s.row, { flexWrap: 'wrap' }]}>{button('Propose Flush rules', save, busy || !dirty || stale || snapshot.rule_proposal?.status === 'PENDING')}{button('Reload saved rules', reload, busy)}</View></FormFooter> : undefined}>
       {rulesContent}
     </RoomSheet>
-    <Modal transparent visible={finalShowOpen && finalStage !== null} animationType="fade" onRequestClose={() => setFinalShowOpen(false)}>
+    {/* Automatic results wait for chat; a second modal would trap focus behind it. */}
+    <Modal transparent visible={finalShowOpen && finalStage !== null && !chatOpen} animationType={Platform.OS === 'web' ? 'none' : 'fade'} onRequestClose={() => setFinalShowOpen(false)}>
       <View style={s.backdrop}><View style={s.modal} accessibilityViewIsModal testID="flush-show-overlay">
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text accessibilityRole="header" style={s.title}>{finalStage === 'pending' ? ui("flush.final_show") : ui("flush.round_result")}</Text>
@@ -274,7 +276,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
         <FlushBetTable snapshot={snapshot} />
       </View></View>
     </Modal>
-    <Modal transparent visible={resultOpen && comparisonOpen} onRequestClose={acknowledge}>
+    <Modal transparent visible={resultOpen && comparisonOpen && !chatOpen} onRequestClose={acknowledge}>
       <View style={s.backdrop}><View style={s.modal} accessibilityViewIsModal><Text accessibilityRole="alert" style={s.title}>{comparison?.won ? ui("flush.you_stay") : ui("flush.you_lost")}</Text>{button(ui("common.continue"), acknowledge)}</View></View>
     </Modal>
   </View>;
