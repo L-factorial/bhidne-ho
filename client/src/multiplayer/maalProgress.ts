@@ -5,12 +5,12 @@ export type MaalGroup = { kind: MarriageMeld['meld_type']; held: MarriageCard[];
 const suits = ['S', 'C', 'H', 'D'];
 const face = (index: number) => ({ rank: index % 13 === 0 ? 14 : index % 13 + 1, suit: suits[Math.floor(index / 13)] });
 const patterns: Pattern[] = suits.flatMap((_, suit) => [
-  ...Array.from({ length: 11 }, (_, rank) => ({ kind: 'pure_sequence' as const, faces: [0, 1, 2].map(offset => suit * 13 + rank + offset) })),
+  ...Array.from({ length: 12 }, (_, rank) => ({ kind: 'pure_sequence' as const, faces: [0, 1, 2].map(offset => suit * 13 + (rank + offset) % 13) })),
   ...Array.from({ length: 13 }, (_, rank) => ({ kind: 'tunnela' as const, faces: Array(3).fill(suit * 13 + rank) as number[] })),
 ]);
 
 /** Minimum additional natural cards for qualification, not a prediction of draws.
- * Three decks, Ace low, no wild substitutions before Maal is seen.
+ * Three decks, Ace low or high (no wraparound), no wild substitutions before Maal is seen.
  */
 function cardBuckets(hand: MarriageCard[]) {
   const buckets: MarriageCard[][] = Array.from({ length: 52 }, () => []);

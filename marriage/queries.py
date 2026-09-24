@@ -9,7 +9,7 @@ from .errors import InvalidActionError
 from .models import MarriageGameState, Meld, NormalFinish
 from .completion import eighth_pair, normal_finish
 from .maal import MaalView, maal_view
-from .turns import discardable_ids, draw_source_block, find_player, turn_block
+from .turns import discardable_ids, draw_source_block, find_player, turn_block, tunnela_declarations_pending
 
 
 @dataclass(frozen=True)
@@ -33,6 +33,9 @@ def allowed_actions(state: MarriageGameState, player_id: str) -> AllowedActions:
     player = find_player(state, player_id)
     if player.folded:
         return AllowedActions(reason="Player has folded.")
+    if tunnela_declarations_pending(state):
+        return AllowedActions(kinds=() if player.tunnela_declared else (ActionKind.DECLARE_TUNNELAS,),
+                              reason="Waiting for initial Tunnela declarations.")
     fold = (ActionKind.FOLD,) if state.status is GameStatus.IN_PROGRESS else ()
     if (state.status is GameStatus.IN_PROGRESS and state.current_player_id == player_id
             and state.must_finish):
@@ -71,6 +74,8 @@ class PublicPlayerView:
     has_seen_maal: bool
     finished: bool
     folded: bool = False
+    tunnela_declared: bool = False
+    initial_tunnelas: tuple[Meld, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -88,6 +93,7 @@ class PublicGameView:
     normal_finish: NormalFinish | None = None
     winning_pair: tuple[str, ...] = ()
     won_by_fold: bool = False
+    tunnela_declaration_pending: bool = False
 
 
 @dataclass(frozen=True)
@@ -103,13 +109,14 @@ def public_view(state: MarriageGameState) -> PublicGameView:
     return PublicGameView(
         revision=state.revision, status=state.status,
         players=tuple(PublicPlayerView(p.player_id, len(p.hand), p.route,
-                                      p.shown_melds, p.has_seen_maal, p.finished, p.folded)
+                                      p.shown_melds, p.has_seen_maal, p.finished, p.folded, p.tunnela_declared, p.initial_tunnelas)
                       for p in state.players),
         current_player_id=state.current_player_id, phase=state.phase,
         stock_count=len(state.stock),
         top_discard=state.discard[-1] if state.discard else None, winner=state.winner,
         scoring_rules=state.config.rules.scoring, scores=calculate_scores(state),
         normal_finish=state.normal_finish, won_by_fold=state.won_by_fold,
+        tunnela_declaration_pending=tunnela_declarations_pending(state),
         winning_pair=state.winning_pair if state.status is GameStatus.FINISHED else (),
     )
 

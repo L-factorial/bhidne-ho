@@ -19,7 +19,7 @@ async def propose(host, game):
         return await host.configure('r', 'u0', GameSettings(match_id=game.match_id, weak_hand_enabled=False))
     if game.game_type == 'marriage':
         return await host.configure_marriage('r', 'u0', MarriageSettings(match_id=game.match_id,
-            scoring={**snapshot['marriage_scoring'], 'seen_payment': 7}))
+            scoring={**snapshot['marriage_scoring'], 'seen_payment': 7, 'alter': [2, 5, 10], 'initial_tunnela_declaration': False}))
     settings = snapshot['flush_settings']
     return await host.configure_flush('r', 'u0', FlushSettings(match_id=game.match_id,
         rules_revision=settings['rules_revision'], rules={**settings['rules'], 'initial_blind_bet': 7}))
@@ -62,9 +62,15 @@ async def test_rules_require_every_seated_vote_and_viewers_cannot_vote(kind):
         accepted = await vote(host, game, 'u3', True)
         assert accepted['rule_proposal']['status'] == 'ACCEPTED'
         assert current(accepted) != before
+        if kind == 'marriage':
+            assert tuple(current(accepted)['alter']) == (2, 5, 10)
+            assert current(accepted)['initial_tunnela_declaration'] is False
         assert (await vote(host, game, 'u3', True))['rule_proposal']['status'] == 'ACCEPTED'
         if kind != 'callbreak': await cmd(host, game, 'u0', 'lock')
         await host.start('r', 'u0', game.match_id, rules_revision=game.flush_rules_revision)
+        if kind == 'marriage':
+            running = await host.snapshot('r', 'u0')
+            assert running['marriage']['public']['tunnela_declaration_pending'] is False
     finally:
         await host.close()
 

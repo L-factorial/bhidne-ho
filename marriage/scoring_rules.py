@@ -8,8 +8,10 @@ class ScoringRules:
     tiplu: tuple[int, int, int] = (3, 8, 15)
     jhiplu: tuple[int, int, int] = (2, 5, 10)
     poplu: tuple[int, int, int] = (2, 5, 10)
+    alter: tuple[int, int, int] = (1, 2, 3)
     man: tuple[int, int, int] = (2, 5, 10)
     marriage: tuple[int, int, int] = (10, 25, 50)
+    initial_tunnela_declaration: bool = True
     tunnela_bonus: int = 5
     tunnela_scope: str = "shown"
     maal_requires_seen: bool = True
@@ -18,7 +20,7 @@ class ScoringRules:
     dublee_win_bonus: int = 5
 
     def __post_init__(self):
-        for name in ("tiplu", "jhiplu", "poplu", "man", "marriage"):
+        for name in ("tiplu", "jhiplu", "poplu", "alter", "man", "marriage"):
             values = getattr(self, name)
             if not isinstance(values, (tuple, list)) or len(values) != 3:
                 raise ValueError(f"{name} needs totals for one, two and three copies.")
@@ -31,6 +33,8 @@ class ScoringRules:
                 raise ValueError("Scoring values must be whole numbers from 0 to 1000.")
         if self.tunnela_scope not in ("off", "shown", "hand"):
             raise ValueError("Tunnela scope must be off, shown or hand.")
+        if type(self.initial_tunnela_declaration) is not bool:
+            raise ValueError("Initial Tunnela declaration must be boolean.")
         if type(self.maal_requires_seen) is not bool:
             raise ValueError("Maal eligibility must be boolean.")
 
@@ -38,7 +42,8 @@ class ScoringRules:
     def from_dict(cls, value):
         if not isinstance(value, dict) or set(value) - {f.name for f in fields(cls)}:
             raise ValueError("Unknown scoring option.")
-        return cls(**value)
+        # Older saved rules did not award Alter points. Keep their meaning.
+        return cls(**{"alter": (0, 0, 0), "initial_tunnela_declaration": False, **value})
 
 
 SCORING_PRESETS = {

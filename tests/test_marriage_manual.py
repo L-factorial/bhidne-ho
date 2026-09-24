@@ -46,6 +46,10 @@ def test_manual_turns_require_the_seated_player_and_survive_reconnect(capacity):
                 return response.json()
 
             revision = started['game']['revision']
+            for i in range(capacity):
+                declared = action(i, 'DECLARE_TUNNELAS', revision, {'melds': []})
+                assert declared['action_ack']['status'] == 'accepted'
+                revision = declared['game']['revision']
             wrong = action(1, 'DRAW_CARD', revision, {'source': 'stock'})
             assert wrong['action_ack']['status'] == 'rejected'
             assert wrong['game']['revision'] == revision

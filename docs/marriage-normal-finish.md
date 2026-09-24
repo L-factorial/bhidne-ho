@@ -1,7 +1,7 @@
 # Normal-hand completion
 
 This increment extends the original Marriage V1 contract with the following house
-rules. The existing natural qualification, Ace-low convention, Dublee route, and
+rules. The existing natural qualification, Ace-low-or-high convention, Dublee route, and
 configurable scoring policies remain in force.
 
 ## Winning rules
@@ -12,8 +12,8 @@ configurable scoring policies remain in force.
 - After drawing on your turn, a normal win uses 21 of the 22 owned cards in valid
   groups, including the three shown groups. Exactly one uncommitted card is the
   final discard. There are no loose cards, pairs, or reused physical copies.
-- Final sequences contain 3-13 consecutive slots of one suit. Ace is low only:
-  A-2-3 is legal; Q-K-A and K-A-2 are not. Longer sequences are supported.
+- Final sequences contain 3-13 consecutive slots of one suit. Ace is low or high:
+  A-2-3 and Q-K-A are legal; K-A-2 is not. Longer sequences are supported.
 - Final sets contain 3 or 4 cards of one rank in distinct suits. Three natural
   physical copies of the same face form a Tunnela instead. Repeating a suit does
   not make a set.
@@ -21,7 +21,7 @@ configurable scoring policies remain in force.
   the same-suit Jhiplu/Poplu are wildcards. Standard wildcard cards may also form
   natural melds at their printed faces. Each wildcard substitutes one missing
   slot. All-wild groups are permitted. Maal neighbors retain the existing cyclic
-  convention, independent of Ace-low sequences.
+  convention, independent of sequence boundaries.
 
 The engine searches the uncommitted cards for an exact partition. It chooses a
 deterministic witness in canonical card-ID order, including a deterministic final

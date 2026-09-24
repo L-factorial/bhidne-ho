@@ -1,5 +1,5 @@
 export type MarriageScoringRules = {
-  tiplu: number[]; jhiplu: number[]; poplu: number[]; man: number[]; marriage: number[];
+  initial_tunnela_declaration?: boolean; alter?: number[]; tiplu: number[]; jhiplu: number[]; poplu: number[]; man: number[]; marriage: number[];
   tunnela_bonus: number; tunnela_scope: 'off' | 'shown' | 'hand'; maal_requires_seen: boolean;
   seen_payment: number; unseen_payment: number; dublee_win_bonus: number;
 };
@@ -12,8 +12,8 @@ export type MarriageMeld = { meld_type: 'pure_sequence' | 'tunnela' | 'dublee'; 
 export type MarriageWinningMeld = { meld_type: MarriageMeld['meld_type'] | 'sequence' | 'set'; card_ids: string[] };
 export type MarriageNormalFinish = { melds: MarriageWinningMeld[]; discard_card_id: string };
 export type MarriageActions = { kinds: string[]; drawable_sources: string[]; discardable_card_ids: string[]; blocked_sources: { source: string; reason: string }[]; reason?: string | null; normal_finish?: MarriageNormalFinish | null };
-export type MarriagePublic = { won_by_fold?: boolean; winning_pair?: string[]; scoring_rules?: MarriageScoringRules; scores?: MarriageScores | null; normal_finish?: MarriageNormalFinish | null; revision: number; status: string; current_player_id: string | null; phase: string | null; stock_count: number; top_discard: MarriageCard | null; winner: string | null;
-  players: { player_id: string; hand_count: number; route: string; shown_melds: MarriageMeld[]; has_seen_maal: boolean; finished: boolean; folded?: boolean }[] };
+export type MarriagePublic = { tunnela_declaration_pending?: boolean; won_by_fold?: boolean; winning_pair?: string[]; scoring_rules?: MarriageScoringRules; scores?: MarriageScores | null; normal_finish?: MarriageNormalFinish | null; revision: number; status: string; current_player_id: string | null; phase: string | null; stock_count: number; top_discard: MarriageCard | null; winner: string | null;
+  players: { player_id: string; hand_count: number; route: string; shown_melds: MarriageMeld[]; has_seen_maal: boolean; finished: boolean; folded?: boolean; tunnela_declared?: boolean; initial_tunnelas?: MarriageMeld[] }[] };
 export type MarriageMove = { sequence: number; revision: number; kind: 'CARD_DRAWN' | 'CARD_DISCARDED'; player_id: string; source: 'stock' | 'discard' | null; card: MarriageCard | null };
 export type MarriageView = { public: MarriagePublic; moves?: MarriageMove[]; private: { player_id: string; hand: MarriageCard[]; actions: MarriageActions;
   maal: { tiplu: { rank: number; suit: string }; jhiplu: { rank: number; suit: string }; poplu: { rank: number; suit: string } } | null } | null };
@@ -45,10 +45,10 @@ export function marriageSuggestions(hand: MarriageCard[]) {
     if (ids.length >= 2) pairs.push({ meld_type: 'dublee', card_ids: ids.slice(0, 2) });
     if (ids.length === 3) candidates.push({ meld_type: 'tunnela', card_ids: [...ids] });
   }
-  for (const suit of ['S', 'C', 'H', 'D']) for (let rank = 1; rank <= 11; rank++) {
+  for (const suit of ['S', 'C', 'H', 'D']) for (let rank = 1; rank <= 12; rank++) {
     for (const a of faces.get(`${suit}:${rank}`) || [])
       for (const b of faces.get(`${suit}:${rank + 1}`) || [])
-        for (const c of faces.get(`${suit}:${rank + 2}`) || [])
+        for (const c of faces.get(`${suit}:${rank + 2 === 14 ? 1 : rank + 2}`) || [])
           candidates.push({ meld_type: 'pure_sequence', card_ids: [a, b, c] });
   }
   function find(start: number, groups: MarriageMeld[], used: Set<string>): MarriageMeld[] | null {

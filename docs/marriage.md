@@ -171,7 +171,7 @@ plan; they are not claims about every table's Marriage rules.
 | Deal | 21 round-robin passes in configured order. Flip the next card into the discard pile; last pile element is the top. |
 | Remaining stock | 116 / 95 / 74 / 53 for 2 / 3 / 4 / 5 players. |
 | Identity | `D0:7H`, `D1:7H`, `D2:7H` differ physically but share a face. `MAN:0..2` have no rank/suit. |
-| Sequence | At least three consecutive distinct natural ranks in one suit, any submitted order. Ace low: A-2-3 valid; Q-K-A and K-A-2 invalid. |
+| Sequence | At least three consecutive distinct natural ranks in one suit, any submitted order. Ace low or high: A-2-3 and Q-K-A valid; K-A-2 invalid. |
 | Tunnela / Dublee | Exactly three / two distinct physical copies of one standard face. |
 | Man / natural Maal | Qualification remains natural. Normal final partitions allow Man, Tiplu-rank cards, and Jhiplu/Poplu as wildcards; see the extension. Points use natural holdings. |
 | Tiplu | One standard card removed from stock at first qualification. Scan from top, skipping Man without removing/reordering them. Later qualifiers reuse it. |
@@ -298,3 +298,35 @@ seat and active-player reservation. Other players keep playing. Historical seats
 and scoring remain intact; live replacement is not allowed. Failed durable fold
 commits preserve both the original game state and membership. Leaving an already
 folded seat does not apply another fold or penalty.
+
+
+Alter scoring is configurable with `alter: [one, two, three]`, totals for physical
+copies of the same-rank, same-colour, other-suit card (hearts/diamonds or
+spades/clubs). New tables default to `[1, 2, 3]`; `[0, 0, 0]` disables the points
+without changing wildcard eligibility. Older saved rule dictionaries without
+`alter` retain zero Alter points. The usual Maal-seen gate and optional additional
+Tunnela bonus apply. Rule proposals require existing seated-player approval.
+
+
+## Initial Tunnela declaration
+
+New tables enable `initial_tunnela_declaration` by default. It can be disabled
+through the existing game-rule proposal and approval flow. Legacy saved rule
+dictionaries without this field retain the previous behavior.
+
+After dealing, every non-folded player must submit `DECLARE_TUNNELAS` before
+anyone draws. Responses may arrive in any order. The payload is `melds`, a list
+of natural Tunnelas (three physical copies of exactly the same rank and suit);
+an empty list explicitly declares none. Each player responds once.
+
+Your Cards opens with a glowing Tunnela detector. Players reveal their hand,
+select detected triples to show, or declare none. Other play controls remain
+disabled. After responding, the regular hand view returns and waits for other
+responses. Only the selected triples become public; this does not unlock Maal.
+Declared cards stay in the hand, cannot be discarded, and may be included in
+later Maal qualification. The later win detector also protects them from discard.
+
+When this rule is enabled, only these initially declared triples can earn the
+configured Tunnela bonus, subject to the existing eligibility gate and bonus
+switch. With the rule disabled, the existing shown/hand bonus scope applies.
+Disconnecting does not automatically declare none or fold a player.

@@ -1,11 +1,12 @@
 import type { MarriageView } from './marriage';
 
-export type MarriageDecision = 'WAITING' | 'DRAW_REQUIRED' | 'DISCARD_REQUIRED' | 'FINISH_REQUIRED';
-export type HandSnap = 'collapsed' | 'peek' | 'expanded';
+export type MarriageDecision = 'DECLARE_TUNNELAS' | 'DECLARATION_WAIT' | 'WAITING' | 'DRAW_REQUIRED' | 'DISCARD_REQUIRED' | 'FINISH_REQUIRED';
+export type HandSnap = 'collapsed' | 'expanded';
 
 // Presentation only: permissions and card legality always come from the server.
 export function marriageDecision(view: MarriageView | undefined, playing: boolean): MarriageDecision {
   const mine = view?.private;
+  if (playing && mine && view?.public.tunnela_declaration_pending) return mine.actions.kinds.includes('declare_tunnelas')?'DECLARE_TUNNELAS':'DECLARATION_WAIT';
   if (!playing || !mine || mine.player_id !== view?.public.current_player_id) return 'WAITING';
   if (mine.actions.kinds.includes('draw') && mine.actions.drawable_sources.length) return 'DRAW_REQUIRED';
   if (mine.actions.kinds.includes('discard')) return 'DISCARD_REQUIRED';
@@ -13,7 +14,7 @@ export function marriageDecision(view: MarriageView | undefined, playing: boolea
   return 'WAITING';
 }
 export function marriageHandSnap(decision: MarriageDecision): HandSnap {
-  return decision === 'DISCARD_REQUIRED' || decision === 'FINISH_REQUIRED' ? 'expanded' : 'collapsed';
+  return decision === 'DECLARE_TUNNELAS' || decision === 'DECLARATION_WAIT' || decision === 'DISCARD_REQUIRED' || decision === 'FINISH_REQUIRED' ? 'expanded' : 'collapsed';
 }
 
 export function marriageHandLayout(count: number, width: number) {

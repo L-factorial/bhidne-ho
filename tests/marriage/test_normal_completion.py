@@ -1,3 +1,4 @@
+from marriage import MarriageRules, ScoringRules
 """Normal-round contract: real engine transitions and conserved test-only deals."""
 from dataclasses import asdict, replace
 from random import Random
@@ -19,7 +20,7 @@ WILDS = {'D0:3S': 'MAN:0', 'D0:5H': 'D0:8D', 'D0:9S': 'D0:7H', 'D0:JS': 'D0:9H'}
 
 
 def normal_round(count=2, wild=False, remainder=None):
-    game = MarriageGameEngine(tuple(str(i) for i in range(count)), rng=Random(27))
+    game = MarriageGameEngine(tuple(str(i) for i in range(count)), rng=Random(27), rules=MarriageRules(scoring=ScoringRules(initial_tunnela_declaration=False)))
     game.start_game()
     ids = tuple(i for m in INITIAL for i in m.card_ids) + tuple(
         WILDS.get(i, i) if wild else i for i in (remainder or REMAINDER))
@@ -91,8 +92,8 @@ def test_normal_round_qualification_private_preview_finish_and_scores(count, wil
     (('D0:5S', 'D0:5C', 'D0:5D', 'MAN:0', 'MAN:1'), None),
     (('MAN:0', 'MAN:1', 'MAN:2'), MeldType.SEQUENCE),
     (('D0:AS', 'D0:2S', 'MAN:0'), MeldType.SEQUENCE),
-    (('D0:QS', 'D0:KS', 'D0:AS'), None),
-    (('D0:KS', 'D0:AS', 'MAN:0'), None),
+    (('D0:QS', 'D0:KS', 'D0:AS'), MeldType.PURE_SEQUENCE),
+    (('D0:KS', 'D0:AS', 'MAN:0'), MeldType.SEQUENCE),
     (('D0:JS', 'D0:QS', 'MAN:0'), MeldType.SEQUENCE),
     (('D0:2S', 'D0:2S', 'MAN:0'), None),
     (('D0:2S', 'MAN:0'), None),
@@ -208,7 +209,7 @@ def test_selected_partition_is_validated_and_broadcast_exactly():
 
 
 def test_selected_eighth_pair_validates_ownership_and_preserves_other_cards():
-    game = MarriageGameEngine(('0', '1'), rng=Random(27))
+    game = MarriageGameEngine(('0', '1'), rng=Random(27), rules=MarriageRules(scoring=ScoringRules(initial_tunnela_declaration=False)))
     game.start_game()
     pairs = tuple(Meld(MeldType.DUBLEE, (f'D0:{rank}C', f'D1:{rank}C')) for rank in range(2, 9))
     ids = tuple(i for m in pairs for i in m.card_ids) + (

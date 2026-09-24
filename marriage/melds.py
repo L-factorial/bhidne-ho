@@ -5,7 +5,7 @@ from .deck import create_deck
 from .enums import MeldType, QualificationRoute
 from .errors import InvalidMeldError
 from .models import Meld, PlayerState
-from .rank_policy import sequence_rank_order
+from .rank_policy import sequence_rank_orders
 from .rules import MarriageRules
 
 _CARDS = {card.card_id: card for card in create_deck()}
@@ -25,10 +25,13 @@ def validate_meld(player: PlayerState, meld: Meld, rules: MarriageRules,
     if any(c.identity is None for c in cards):
         raise InvalidMeldError("Man cards cannot form natural melds.")
     if meld.meld_type is MeldType.PURE_SEQUENCE:
-        order = sequence_rank_order(rules.ace_sequence)
-        positions = sorted(order.index(c.rank) for c in cards)
-        if (len(cards) < 3 or len({c.suit for c in cards}) != 1
-                or positions != list(range(positions[0], positions[0] + len(cards)))):
+        consecutive = any(
+            sorted(order.index(c.rank) for c in cards) ==
+            list(range(min(order.index(c.rank) for c in cards),
+                       min(order.index(c.rank) for c in cards) + len(cards)))
+            for order in sequence_rank_orders(rules.ace_sequence)
+        ) if len(cards) >= 3 else False
+        if len({c.suit for c in cards}) != 1 or not consecutive:
             raise InvalidMeldError("Sequence requires at least three consecutive distinct ranks in one suit.")
     elif meld.meld_type in (MeldType.TUNNELA, MeldType.DUBLEE):
         size = 3 if meld.meld_type is MeldType.TUNNELA else 2

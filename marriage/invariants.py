@@ -1,11 +1,11 @@
 """Ownership, startup, and active-turn invariants."""
 from dataclasses import replace
 from .deck import validate_deck
-from .enums import GameStatus, QualificationRoute, TurnPhase
+from .enums import GameStatus, QualificationRoute, TurnPhase, MeldType
 from .errors import CardConservationError, InvalidMeldError
-from .events import GameStarted, PlayerFinished, TipluRevealed, TurnChanged
+from .events import CardDrawn, TunnelasDeclared, GameStarted, PlayerFinished, TipluRevealed, TurnChanged
 from .completion import eighth_pair, valid_normal_finish, valid_eighth_pair
-from .melds import validate_declaration
+from .melds import validate_declaration, validate_meld
 from .models import MarriageGameState
 
 
@@ -27,7 +27,7 @@ def validate_initial_state(state: MarriageGameState) -> None:
     require(tuple(p.player_id for p in state.players) == state.config.player_ids,
             "State seats must match configuration order.")
     require(all(p.route == QualificationRoute.UNQUALIFIED and not p.shown_melds
-                and not p.committed_card_ids and not p.has_seen_maal and not p.finished and not p.folded
+                and not p.tunnela_declared and not p.initial_tunnelas and not p.committed_card_ids and not p.has_seen_maal and not p.finished and not p.folded
                 for p in state.players), "Startup players must be unqualified and unfinished.")
     require(state.tiplu is None and state.winner is None and not state.winning_pair
             and state.normal_finish is None and not state.won_by_fold and state.must_finish is False,
@@ -120,6 +120,19 @@ def validate_game_state(state: MarriageGameState) -> None:
         require(len(player.hand) in (21, 22) if player.folded or state.won_by_fold else
                 len(player.hand) == state.config.rules.cards_per_player + extra,
                 "Hands must contain 21 cards, or 22 for the player who drew.")
+        declared = tuple(i for m in player.initial_tunnelas for i in m.card_ids)
+        require(len(set(declared)) == len(declared) and (not declared or player.tunnela_declared),
+                "Initial Tunnelas require a distinct, completed declaration.")
+        for meld in player.initial_tunnelas:
+            require(meld.meld_type is MeldType.TUNNELA, "Initial declarations must be Tunnelas.")
+            try:
+                validate_meld(player, meld, state.config.rules, allow_committed=True)
+            except InvalidMeldError as error:
+                raise CardConservationError("Invalid initial Tunnela.") from error
+        declarations = [e for e in state.history if isinstance(e, TunnelasDeclared) and e.player_id == player.player_id]
+        require(len(declarations) == int(player.tunnela_declared) and
+                (not declarations or declarations[0].card_groups == tuple(m.card_ids for m in player.initial_tunnelas)),
+                "Initial declaration must match its recorded event.")
         shown = tuple(card_id for meld in player.shown_melds for card_id in meld.card_ids)
         require(len(set(shown)) == len(shown) and set(shown) == player.committed_card_ids
                 and player.committed_card_ids <= {card.card_id for card in player.hand},
@@ -141,7 +154,13 @@ def validate_game_state(state: MarriageGameState) -> None:
     require(type(state.revision) is int and state.revision >= 1 and bool(state.history),
             "Active round requires revisioned history.")
     previous_revision = 0
+    draw_started = False
     for sequence, event in enumerate(state.history, start=1):
+        if isinstance(event, CardDrawn):
+            draw_started = True
+        if isinstance(event, TunnelasDeclared):
+            require(state.config.rules.scoring.initial_tunnela_declaration and not draw_started,
+                    "Initial Tunnelas must be declared before the first draw.")
         require(event.sequence == sequence and event.revision in (previous_revision, previous_revision + 1)
                 and event.revision >= 1, "Invalid event ordering.")
         previous_revision = event.revision

@@ -12,10 +12,10 @@ import { fonts, radii, typography, useTheme } from '../theme';
 import { LanguageToggle } from './LanguageToggle';
 import { useTranslation } from 'react-i18next';
 
-export function GameTableHeader({ title, tableName, path, game, roomId, matchId, onBack, endControl, children, mobileTestIds = false, compact = false, drawerMetadata }: {
+export function GameTableHeader({ title, tableName, path, game, roomId, matchId, onBack, endControl, children, mobileTestIds = false, compact = false, drawerMetadata, showShare = false }: {
   tableName?: string; title: string; path?: string; game: string; roomId?: string; matchId?: string; onBack: () => void; endControl?: ReactNode;
   children?: ReactNode | ((closeMenu: () => void) => ReactNode);
-  mobileTestIds?: boolean; compact?: boolean; drawerMetadata?: ReactNode;
+  mobileTestIds?: boolean; compact?: boolean; drawerMetadata?: ReactNode; showShare?: boolean;
 }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -25,6 +25,7 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
   const [open, setOpen] = useState(false);
   const [themesOpen, setThemesOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
+  useEffect(() => { if (!showShare) setSharing(false); }, [showShare]);
   const { theme } = useTableTheme();
   const openThemes = () => { setOpen(false); setThemesOpen(true); };
   const themeMenuEntry = <Pressable accessibilityRole="button" accessibilityLabel={`Table theme, ${theme.name}`} onPress={openThemes}
@@ -61,6 +62,10 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
         style={({ pressed }) => ({ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radii.medium, backgroundColor: pressed ? colors.surfaceRaised : 'transparent' })}>
         <Ionicons name="arrow-back" size={22} color={colors.text} />
       </Pressable>
+      {showShare && !!roomId && !!matchId && <Pressable testID={`${game}-header-share`} accessibilityRole="button" accessibilityLabel="Share table link or code" onPress={() => setSharing(true)}
+        style={({pressed}) => ({width:44,height:44,alignItems:'center',justifyContent:'center',borderRadius:radii.medium,backgroundColor:pressed?colors.surfaceRaised:'transparent'})}>
+        <Ionicons name="share-outline" size={22} color={colors.accent}/>
+      </Pressable>}
       <Pressable accessibilityRole="button" accessibilityLabel={t('common.tableMenu')} accessibilityState={{ expanded: open }} onPress={() => setOpen(v => !v)}
         style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primarySoft, borderRadius: radii.medium }}>
         <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ gap: 5 }}>
@@ -98,7 +103,7 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
       {typeof children === 'function' ? children(() => setOpen(false)) : children}
       <View style={{ borderTopWidth: 1, borderColor: colors.border, paddingTop: 4 }}>{endControl}</View>
     </ScrollView>}
-    {!!roomId && !!matchId && !drawerMetadata && <TableShareSheet roomId={roomId} matchId={matchId} visible={sharing} onClose={() => setSharing(false)} />}
+    {!!roomId && !!matchId && <TableShareSheet roomId={roomId} matchId={matchId} visible={sharing} onClose={() => setSharing(false)} />}
     <RoomSheet visible={themesOpen} title="Table theme" closeLabel="Close table themes" testID="table-theme-sheet" presentation="dialog" onClose={() => setThemesOpen(false)}>
       <TableThemePicker showTitle={false} />
     </RoomSheet>

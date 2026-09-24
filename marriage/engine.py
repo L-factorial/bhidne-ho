@@ -4,11 +4,11 @@ from dataclasses import replace
 from random import Random
 
 from .deck import create_deck, deal_cards
-from .enums import DrawSource, GameStatus, QualificationRoute, TurnPhase
+from .enums import DrawSource, GameStatus, QualificationRoute, TurnPhase, MeldType
 from .errors import InvalidActionError, InvalidTurnError, NoDrawableCardError
 from .events import (ActionResult, CardDiscarded, CardDrawn, DiscardPileRecycled,
                      DomainEvent, GameStarted, MeldsShown, PlayerFinished, PlayerFolded, PlayerSawMaal,
-                     TipluRevealed, TurnChanged)
+                     TipluRevealed, TurnChanged, TunnelasDeclared)
 from .invariants import validate_game_state, validate_initial_state
 from .models import MarriageConfig, MarriageGameState, Meld, PlayerState, NormalFinish
 from .cards import PhysicalCard
@@ -19,7 +19,7 @@ from .visibility import VisibleEvent, visible_events
 from .queries import AllowedActions, PlayerView, PublicGameView, allowed_actions, player_view, public_view
 from .rules import MarriageRules
 from .scoring import RoundScore, calculate_scores
-from .turns import discardable_ids, draw_source_block, find_player, recycle_discards
+from .turns import discardable_ids, draw_source_block, find_player, recycle_discards, tunnela_declarations_pending
 
 
 class MarriageGameEngine:
@@ -80,6 +80,8 @@ class MarriageGameEngine:
             raise InvalidActionError("Game is not in progress.")
         if player.folded:
             raise InvalidActionError("Player has folded.")
+        if tunnela_declarations_pending(self._state):
+            raise InvalidActionError("Complete initial Tunnela declarations before playing.")
         if self._state.current_player_id != player_id:
             raise InvalidTurnError("It is another player's turn.")
         if self._state.phase is not phase or (self._state.must_finish and not finishing):
@@ -96,6 +98,24 @@ class MarriageGameEngine:
             self._rng = rng
         self._state = candidate
         return result
+
+    def declare_tunnelas(self, player_id: str, melds: Sequence[Meld]) -> ActionResult:
+        """Expose selected dealt Tunnelas, or explicitly declare none, before any draw."""
+        player = find_player(self._state, player_id)
+        if not tunnela_declarations_pending(self._state) or player.folded or player.tunnela_declared:
+            raise InvalidActionError("Initial Tunnela declaration is unavailable.")
+        values = tuple(melds)
+        used = set()
+        for meld in values:
+            if meld.meld_type is not MeldType.TUNNELA or used.intersection(meld.card_ids):
+                raise InvalidActionError("Declare distinct natural Tunnelas only.")
+            validate_meld(player, meld, self._state.config.rules)
+            used.update(meld.card_ids)
+        updated = replace(player, tunnela_declared=True, initial_tunnelas=values)
+        players = tuple(updated if p.player_id == player_id else p for p in self._state.players)
+        event = TunnelasDeclared(len(self._state.history) + 1, self._state.revision + 1,
+                                 player_id, tuple(m.card_ids for m in values))
+        return self._commit_turn(replace(self._state, players=players), (event,))
 
     def draw_card(self, player_id: str, source: DrawSource) -> ActionResult:
         """Take one stock/discard card, with atomic recycling and winning-discard policy."""

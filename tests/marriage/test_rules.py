@@ -9,6 +9,7 @@ from marriage import (
     MeldType, PlayerState, QualificationRoute, TipluUnavailableError, TurnPhase,
     create_deck, validate_game_state,
 )
+from marriage import ScoringRules
 from marriage.maal import select_tiplu
 
 DECK = create_deck()
@@ -31,6 +32,8 @@ def pair_hand(eighth=False):
 
 def fixture(hand_ids, *, other_ids=(), rules=None):
     """Conserved trusted fixture; no arbitrary-state API is added to production."""
+    rules = rules or MarriageRules()
+    rules = replace(rules, scoring=replace(rules.scoring, initial_tunnela_declaration=False))
     game = MarriageGameEngine(("a", "b"), rng=Random(7), rules=rules)
     game.start_game()
     game.draw_card("a", DrawSource.STOCK)
@@ -58,7 +61,7 @@ def unchanged(game, error, action):
     (MeldType.PURE_SEQUENCE, ("D0:AC", "D0:2C", "D0:3C"), True),
     (MeldType.PURE_SEQUENCE, ("D0:4C", "D0:2C", "D0:3C", "D0:5C"), True),
     (MeldType.PURE_SEQUENCE, ("D0:JC", "D0:QC", "D0:KC"), True),
-    (MeldType.PURE_SEQUENCE, ("D0:QC", "D0:KC", "D0:AC"), False),
+    (MeldType.PURE_SEQUENCE, ("D0:QC", "D0:KC", "D0:AC"), True),
     (MeldType.PURE_SEQUENCE, ("D0:KC", "D0:AC", "D0:2C"), False),
     (MeldType.PURE_SEQUENCE, ("D0:2C", "D0:3C"), False),
     (MeldType.PURE_SEQUENCE, ("D0:2C", "D0:4C", "D0:5C"), False),
@@ -268,7 +271,7 @@ def test_winning_discard_policy_matrix(unrestricted, exception, winning, permitt
 
 
 def test_event_privacy_cursor_and_pure_reads():
-    game = MarriageGameEngine(("a", "b"), rng=Random(1))
+    game = MarriageGameEngine(("a", "b"), rng=Random(1), rules=MarriageRules(scoring=ScoringRules(initial_tunnela_declaration=False)))
     game.start_game()
     result = game.draw_card("a", DrawSource.STOCK)
     card = result.events[0].card

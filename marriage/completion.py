@@ -7,7 +7,7 @@ from .cards import PhysicalCard
 from .enums import MeldType, QualificationRoute
 from .models import Meld, NormalFinish, PlayerState
 from .maal import maal_view
-from .rank_policy import sequence_rank_order
+from .rank_policy import sequence_rank_orders
 from .rules import MarriageRules
 
 
@@ -24,25 +24,27 @@ def completion_meld(cards: tuple[PhysicalCard, ...], tiplu: PhysicalCard,
 
     Wildcards: Man, any Tiplu-rank card, and same-suit Jhiplu/Poplu.
     Natural faces may always be used at face value. Sets have 3-4 distinct
-    suits; sequences have 3-13 Ace-low slots. All-wild groups are allowed.
+    suits; sequences have 3-13 slots, with Ace low or high by policy. All-wild groups are allowed.
     """
     if len(cards) < 3 or len({c.card_id for c in cards}) != len(cards):
         return None
-    order = sequence_rank_order(rules.ace_sequence)
+    orders = sequence_rank_orders(rules.ace_sequence)
     natural = all(c.identity is not None for c in cards)
     if natural and len(cards) == 3 and len({c.identity for c in cards}) == 1:
         return MeldType.TUNNELA
     if natural and len({c.suit for c in cards}) == 1:
-        ranks = sorted(order.index(c.rank) for c in cards)
-        if ranks == list(range(ranks[0], ranks[0] + len(cards))):
-            return MeldType.PURE_SEQUENCE
+        for order in orders:
+            ranks = sorted(order.index(c.rank) for c in cards)
+            if ranks == list(range(ranks[0], ranks[0] + len(cards))):
+                return MeldType.PURE_SEQUENCE
     maal = maal_view(tiplu, rules)
     fixed = tuple(c for c in cards if c.identity is not None and c.rank != tiplu.rank
                   and c.identity not in (maal.jhiplu, maal.poplu))
     if len(cards) <= 13 and len({c.suit for c in fixed}) <= 1:
-        ranks = sorted(order.index(c.rank) for c in fixed)
-        if len(set(ranks)) == len(ranks) and (not ranks or ranks[-1] - ranks[0] < len(cards)):
-            return MeldType.SEQUENCE
+        for order in orders:
+            ranks = sorted(order.index(c.rank) for c in fixed)
+            if len(set(ranks)) == len(ranks) and (not ranks or ranks[-1] - ranks[0] < len(cards)):
+                return MeldType.SEQUENCE
     if (len(cards) <= 4 and len({c.rank for c in fixed}) <= 1
             and len({c.suit for c in fixed}) == len(fixed)):
         return MeldType.SET
@@ -86,6 +88,8 @@ def normal_finish(player: PlayerState, tiplu: PhysicalCard | None,
         return None
 
     for index, card in enumerate(cards):
+        if any(card.card_id in m.card_ids for m in player.initial_tunnelas):
+            continue
         groups = cover(((1 << len(cards)) - 1) ^ (1 << index))
         if groups is not None:
             return NormalFinish(player.shown_melds + groups, card.card_id)
@@ -118,6 +122,8 @@ def valid_normal_finish(player: PlayerState, tiplu: PhysicalCard | None,
     if (player.folded or player.route is not QualificationRoute.NORMAL or not player.has_seen_maal
             or tiplu is None or len(player.hand) != 22 or len(player.shown_melds) != 3
             or witness.melds[:3] != player.shown_melds):
+        return False
+    if any(witness.discard_card_id in m.card_ids for m in player.initial_tunnelas):
         return False
     owned = {c.card_id: c for c in player.hand}
     ids = tuple(i for m in witness.melds for i in m.card_ids)

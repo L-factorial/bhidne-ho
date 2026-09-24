@@ -34,7 +34,7 @@ test('ready choices update on drawing and disappear when the necessary card is d
   const after = [...before, card(5)];
   assert.equal(maalChoices(after).length, 1);
   assert.deepEqual(maalChoices(after.filter(c => c.card_id !== card(4).card_id)), []);
-  assert.deepEqual(maalChoices([...before, card(12), card(13), card(14)]), []);
+  assert.equal(maalChoices([...before, card(12), card(13), card(14)]).length, 1);
 });
 
 test('duplicate IDs, overlapping groups, and Man never create false qualification', () => {
@@ -89,12 +89,20 @@ test('Dublees count complete pairs and missing partners rather than triples twic
   assert.equal(maalProgress([...hand, card(10), card(10, 'H', 1)]).dublee.missing, 0);
   assert.equal(maalProgress(triple(9, 'S')).dublee.complete, 1);
 });
-test('Ace is low; Man and duplicate physical IDs cannot qualify', () => {
+test('Ace can be low or high; Man and duplicate physical IDs cannot qualify', () => {
   const base = [...triple(9, 'S'), ...triple(12, 'D')];
   assert.equal(maalProgress([...base, card(14), card(2), card(3)]).normal.missing, 0);
-  assert.equal(maalProgress([...base, card(12), card(13), card(14)]).normal.missing, 1);
+  assert.equal(maalProgress([...base, card(12), card(13), card(14)]).normal.missing, 0);
   const man = { card_id: 'MAN:0', card_type: 'man', rank: null, suit: null, deck_index: null };
   assert.equal(maalProgress([man]).normal.missing, 9);
   assert.equal(maalProgress([man]).dublee.missing, 14);
   assert.equal(maalProgress([card(2), card(2)]).dublee.complete, 0);
+});
+
+test('Maal choices include Q-K-A but not K-A-2', () => {
+  const support = [...triple(5, 'C'), ...triple(9, 'D')];
+  const choices = maalChoices([...support, ...[12,13,14].map(r => card(r, 'S'))]);
+  assert.equal(choices.length, 1);
+  assert.equal(choices[0].groups.filter(g => g.meld_type === 'pure_sequence').length, 1);
+  assert.equal(maalChoices([...support, ...[13,14,2].map(r => card(r, 'S'))]).length, 0);
 });

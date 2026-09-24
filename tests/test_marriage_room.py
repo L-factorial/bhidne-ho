@@ -33,7 +33,9 @@ def test_normal_win_http_privacy_reconnect_finish_and_receipt_retry(monkeypatch)
             assert response.status_code == 200, response.text
             return response.json(), body
 
-        drawn, _ = action('DRAW_CARD', started['game']['revision'], {'source': 'stock'})
+        declared, _ = action('DECLARE_TUNNELAS', started['game']['revision'], {'melds': []}, actor=1)
+        declared, _ = action('DECLARE_TUNNELAS', declared['game']['revision'], {'melds': []})
+        drawn, _ = action('DRAW_CARD', declared['game']['revision'], {'source': 'stock'})
         shown, _ = action('SHOW_INITIAL_MELDS', drawn['game']['revision'], {'melds': groups})
         witness = shown['marriage']['private']['actions']['normal_finish']
         assert witness['discard_card_id'] == 'MAN:0'
@@ -75,7 +77,7 @@ def test_marriage_http_lifecycle_private_hands_retries_and_room_chat_policy():
         assert waiting.json()['game_type'] == 'marriage'
         scoring = waiting.json()['marriage_scoring']
         assert scoring['tiplu'] == [3, 8, 15]
-        custom = {**scoring, 'seen_payment': 7, 'man': [1, 3, 6]}
+        custom = {**scoring, 'seen_payment': 7, 'man': [1, 3, 6], 'initial_tunnela_declaration': False}
         settings = {'match_id': mid, 'scoring': custom}
         assert client.post(root + '/marriage-settings', headers=headers[1], json=settings).status_code == 403
         assert client.post(root + '/marriage-settings', headers=headers[0], json={**settings, 'match_id': 'old'}).status_code == 409

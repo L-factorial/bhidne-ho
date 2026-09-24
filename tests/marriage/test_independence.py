@@ -28,6 +28,8 @@ validate_deck(create_deck())
 assert len(MarriageConfig(['p1', 'p2', 'p3', 'p4']).player_ids) == 4
 engine = MarriageGameEngine(['p1', 'p2', 'p3', 'p4'], rng=Random(11))
 engine.start_game()
+for player in engine.get_state().players:
+    engine.declare_tunnelas(player.player_id, ())
 validate_card_conservation(engine.get_state())
 assert len(engine.get_player_view('p1').hand) == 21
 assert engine.get_public_view().stock_count == 74

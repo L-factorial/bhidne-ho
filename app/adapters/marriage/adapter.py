@@ -90,7 +90,7 @@ class MarriageAdapter:
                 result = method(player_id, payload["card_id"])
             elif request.command is CommandName.VALIDATE_MELD:
                 result = method(player_id, meld(payload["meld"]))
-            elif request.command in (CommandName.SHOW_INITIAL_MELDS, CommandName.VALIDATE_INITIAL_MELDS):
+            elif request.command in (CommandName.DECLARE_TUNNELAS, CommandName.SHOW_INITIAL_MELDS, CommandName.VALIDATE_INITIAL_MELDS):
                 result = method(player_id, tuple(meld(value) for value in payload["melds"]))
             elif request.command in (CommandName.SHOW_DUBLEES, CommandName.VALIDATE_DUBLEES):
                 result = method(player_id, tuple(meld(value) for value in payload["pairs"]))

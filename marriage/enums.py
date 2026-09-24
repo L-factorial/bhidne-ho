@@ -26,6 +26,7 @@ class DrawSource(str, Enum):
 class ActionKind(str, Enum):
     DRAW = "draw"
     DISCARD = "discard"
+    DECLARE_TUNNELAS = "declare_tunnelas"
     SHOW_INITIAL_MELDS = "show_initial_melds"
     SHOW_DUBLEES = "show_dublees"
     FINISH = "finish"
@@ -48,6 +49,7 @@ class QualificationRoute(str, Enum):
 
 class AceSequencePolicy(str, Enum):
     LOW_ONLY = "low_only"
+    LOW_OR_HIGH = "low_or_high"
 
 
 class MaalNeighborPolicy(str, Enum):

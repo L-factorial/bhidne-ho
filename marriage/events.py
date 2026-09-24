@@ -114,8 +114,17 @@ class PlayerFolded:
     kind: str = field(default="PLAYER_FOLDED", init=False)
 
 
+@dataclass(frozen=True)
+class TunnelasDeclared:
+    sequence: int
+    revision: int
+    player_id: str
+    card_groups: tuple[tuple[str, ...], ...]
+    kind: str = field(default="TUNNELAS_DECLARED", init=False)
+
+
 DomainEvent: TypeAlias = (GameStarted | TurnChanged | DiscardPileRecycled | CardDrawn | CardDiscarded
-                         | MeldsShown | TipluRevealed | PlayerSawMaal | PlayerFinished | PlayerFolded)
+                         | MeldsShown | TipluRevealed | PlayerSawMaal | PlayerFinished | PlayerFolded | TunnelasDeclared)
 
 
 @dataclass(frozen=True)

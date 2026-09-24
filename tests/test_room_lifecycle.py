@@ -226,3 +226,34 @@ def test_marriage_leave_folds_once_then_allows_room_departure(table):
     remaining = client.get(root, headers=headers[2], params=body).json()
     assert remaining['your_player_id'] == 3
     assert not remaining['marriage']['public']['players'][2]['folded']
+
+
+@pytest.mark.parametrize('departing', [0, 1])
+def test_two_player_marriage_can_reopen_after_fold_and_leave(departing):
+    with TestClient(create_app()) as client:
+        users = [client.post('/auth/guest').json() for _ in range(2)]
+        headers = [{'Authorization': 'Bearer ' + u['token']} for u in users]
+        root = '/test-games/reopen'
+        for header in headers:
+            assert client.post('/rooms/reopen/enter', headers=header, json={}).status_code == 200
+        created = client.post(root, headers=headers[0], json={'game_type': 'marriage', 'player_count': 2}).json()
+        body = {'match_id': created['match_id']}
+        assert client.post(root + '/join', headers=headers[1], json=body).status_code == 200
+        assert client.post(root + '/table/lock', headers=headers[0], json=body).status_code == 200
+        assert client.post(root + '/start', headers=headers[0], json=body).status_code == 200
+        assert client.post(root + '/leave', headers=headers[departing], json=body).status_code == 200
+        remaining = client.get(root, headers=headers[1-departing]).json()
+        assert remaining['status'] == 'finished'
+        assert len(remaining['table']['seated_players']) == 1
+        assert remaining['table']['current_user']['can_next_match']
+        reopened = client.post(root + '/table/next-match', headers=headers[1-departing], json=body)
+        assert reopened.status_code == 200, reopened.text
+        fresh = reopened.json()
+        assert fresh['table']['phase'] == 'OPEN'
+        assert not fresh['table']['current_user']['can_lock']
+        new_body = {'match_id': fresh['match_id']}
+        assert client.post(root + '/join', headers=headers[departing], json=new_body).status_code == 200
+        assert client.post(root + '/table/lock', headers=headers[1-departing], json=new_body).status_code == 200
+        restarted = client.post(root + '/start', headers=headers[1-departing], json=new_body)
+        assert restarted.status_code == 200, restarted.text
+        assert not any(p['folded'] for p in restarted.json()['marriage']['public']['players'])

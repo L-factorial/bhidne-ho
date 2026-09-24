@@ -46,10 +46,11 @@ export function MarriageAnnouncements({ snapshot }: { snapshot: RoomSnapshot }) 
   const player = snapshot.players?.find(p => String(p.player_id) === current?.playerId);
   const name = player?.display_name || `Player ${current?.playerId}`;
   const win = current?.kind === 'win';
-  const title = win ? `${name} won the round!` : `${name} unlocked Maal`;
+  const initialTunnela = current?.kind === 'tunnela';
+  const title = win ? `${name} won the round!` : initialTunnela ? `${name} showed initial Tunnelas` : `${name} unlocked Maal`;
   const action = (label: string, onPress: () => void) => <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress}
     style={({ pressed }) => ({ ...gameButtonStyle(c, 'secondary', pressed), alignItems: 'center' })}><Text style={{ color: c.onTableHeader, fontFamily: fonts.medium }}>{label}</Text></Pressable>;
-  const qualifications = events.filter(e => e.kind === 'qualification');
+  const qualifications = events.filter(e => e.kind !== 'win');
   const finish = events.find(e => e.kind === 'win');
   return <>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
@@ -60,8 +61,8 @@ export function MarriageAnnouncements({ snapshot }: { snapshot: RoomSnapshot }) 
       {current && <Animated.View style={{ opacity, gap: 14 }}>
         <View style={{ alignItems: 'center', gap: 8 }}>
           <PlayerAvatar uri={player?.avatar_url} />
-          <Text accessibilityLiveRegion="polite" style={{ color: c.accent, fontFamily: fonts.medium, fontSize: win ? 24 : 19, textAlign: 'center' }}>{win ? '🏆 Round won!' : '✦ Maal unlocked'}</Text>
-          <Text style={{ color: c.text, fontFamily: fonts.body, textAlign: 'center' }}>{name} {win ? current.wonByFold ? 'won because all other players folded.' : current.dublee ? 'completed the 8th Dublee.' : 'completed a winning hand.' : current.dublee ? 'showed 7 Dublees.' : 'showed 3 sequences / Tunnelas.'}</Text>
+          <Text accessibilityLiveRegion="polite" style={{ color: c.accent, fontFamily: fonts.medium, fontSize: win ? 24 : 19, textAlign: 'center' }}>{win ? '🏆 Round won!' : initialTunnela ? 'Initial Tunnelas shown' : '✦ Maal unlocked'}</Text>
+          <Text style={{ color: c.text, fontFamily: fonts.body, textAlign: 'center' }}>{name} {win ? current.wonByFold ? 'won because all other players folded.' : current.dublee ? 'completed the 8th Dublee.' : 'completed a winning hand.' : initialTunnela ? 'declared Tunnelas before play.' : current.dublee ? 'showed 7 Dublees.' : 'showed 3 sequences / Tunnelas.'}</Text>
         </View>
         {!!review && !win && <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{qualifications.map(event => <View key={event.id}>{action(snapshot.players?.find(p => String(p.player_id) === event.playerId)?.display_name || `Player ${event.playerId}`, () => setReview(event))}</View>)}</View>}
         {win && <View style={{ flexDirection: 'row', gap: 8 }}>{action('Winning hand', () => setTab('cards'))}{action('Round results', () => setTab('results'))}</View>}

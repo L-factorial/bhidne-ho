@@ -20,6 +20,8 @@ def pairs_in(hand):
 def run_demo(seed=42, max_turns=2000):
     game = MarriageGameEngine(("p1", "p2"), rng=Random(seed))
     game.start_game()
+    for player in game.get_state().players:
+        game.declare_tunnelas(player.player_id, ())
     for _ in range(max_turns):
         actor = game.get_public_view().current_player_id
         view = game.get_player_view(actor)

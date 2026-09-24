@@ -18,3 +18,8 @@ def adjacent_maal_ranks(rank: Rank, policy: MaalNeighborPolicy = MaalNeighborPol
         raise ValueError("Maal neighbors require a Rank and supported policy.")
     index = _LOW_ORDER.index(rank)
     return _LOW_ORDER[(index - 1) % 13], _LOW_ORDER[(index + 1) % 13]
+
+
+def sequence_rank_orders(policy: AceSequencePolicy) -> tuple[tuple[Rank, ...], ...]:
+    low = sequence_rank_order(policy)
+    return (low, low[1:] + low[:1]) if policy is AceSequencePolicy.LOW_OR_HIGH else (low,)

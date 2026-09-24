@@ -15,11 +15,18 @@ def find_player(state: MarriageGameState, player_id: str) -> PlayerState:
     raise InvalidActionError("Unknown player ID.")
 
 
+def tunnela_declarations_pending(state: MarriageGameState) -> bool:
+    return (state.status is GameStatus.IN_PROGRESS and state.config.rules.scoring.initial_tunnela_declaration
+            and any(not p.tunnela_declared and not p.folded for p in state.players))
+
+
 def turn_block(state: MarriageGameState, player_id: str) -> str | None:
     if state.status is not GameStatus.IN_PROGRESS:
         return "Game is not in progress."
     if find_player(state, player_id).folded:
         return "Player has folded."
+    if tunnela_declarations_pending(state):
+        return "Waiting for initial Tunnela declarations."
     if state.current_player_id != player_id:
         return "It is another player's turn."
     if state.must_finish:
@@ -46,7 +53,8 @@ def draw_source_block(state: MarriageGameState, player: PlayerState, source: Dra
 def discardable_ids(state: MarriageGameState, player: PlayerState) -> tuple[str, ...]:
     if turn_block(state, player.player_id) or state.phase is not TurnPhase.MUST_DISCARD:
         return ()
-    return tuple(card.card_id for card in player.hand if card.card_id not in player.committed_card_ids)
+    locked = player.committed_card_ids | {i for m in player.initial_tunnelas for i in m.card_ids}
+    return tuple(card.card_id for card in player.hand if card.card_id not in locked)
 
 
 def recycle_discards(discard: tuple[PhysicalCard, ...], rng: Random

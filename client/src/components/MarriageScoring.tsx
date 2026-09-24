@@ -11,16 +11,17 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import type { MarriageScoringRules } from '../multiplayer/marriage';
 
-const tables = ['tiplu', 'jhiplu', 'poplu', 'man', 'marriage'] as const;
+const tables = ['tiplu', 'jhiplu', 'poplu', 'alter', 'man', 'marriage'] as const;
 const amounts = ['tunnela_bonus', 'seen_payment', 'unseen_payment', 'dublee_win_bonus'] as const;
-const labels = { tiplu: 'Tiplu', jhiplu: 'Jhiplu', poplu: 'Poplu', man: 'Man', marriage: 'Marriage combination',
+const labels = { tiplu: 'Tiplu', jhiplu: 'Jhiplu', poplu: 'Poplu', alter: 'Alter', man: 'Man', marriage: 'Marriage combination',
   tunnela_bonus: 'Extra points per Tunnela', seen_payment: 'Loser payment: Maal seen', unseen_payment: 'Loser payment: Maal unseen', dublee_win_bonus: 'Extra per loser: Dublee win' };
 
 export function MarriageScoring({ snapshot, busy, error, onSave, introduction }: {
   introduction?: ReactNode; snapshot: RoomSnapshot; busy: boolean; error: string; onSave: (rules: MarriageScoringRules) => void;
 }) {
   const s = useThemedStyles(createStyles);
-  const saved = snapshot.marriage?.public.scoring_rules || snapshot.marriage_scoring;
+  const source = snapshot.marriage?.public.scoring_rules || snapshot.marriage_scoring;
+  const saved = source ? {...source, alter:source.alter || [0,0,0],initial_tunnela_declaration:source.initial_tunnela_declaration ?? false} : undefined;
   const [draft, setDraft] = useState(saved);
   const savedKey = JSON.stringify(saved);
   useEffect(() => setDraft(saved), [savedKey, snapshot.rule_proposal?.id, snapshot.rule_proposal?.status]);
@@ -41,20 +42,22 @@ export function MarriageScoring({ snapshot, busy, error, onSave, introduction }:
     <Text style={s.heading}>Scoring rules</Text>
     <Text style={s.text}>{editable ? 'House bonus is the default. Choose a preset or edit any value, then propose the change for player approval.' : 'The creator selects these rules before the round. They are locked during play.'}</Text>
     {editable && <View style={s.row}>{Object.entries(snapshot.marriage_scoring_presets || {}).map(([key, rules]) =>
-      <View key={key}>{button(key === 'house' ? 'House bonus (default)' : 'Simple points', () => setDraft(rules), JSON.stringify(draft) === JSON.stringify(rules))}</View>)}</View>}
+      <View key={key}>{button(key === 'house' ? 'House bonus (default)' : 'Simple points', () => setDraft({...rules,alter:rules.alter || [0,0,0],initial_tunnela_declaration:rules.initial_tunnela_declaration ?? false}), JSON.stringify(draft) === JSON.stringify(rules))}</View>)}</View>}
     <Text style={s.text}>Totals for 1 / 2 / 3 copies or combinations</Text>
     {tables.map(key => <View key={key} style={s.row}><Text style={[s.text, s.label]}>{labels[key]}</Text>
       {draft[key].map((value, i) => <View key={i}>{input(`${labels[key]} ${i + 1} total`, value, n => setDraft({ ...draft, [key]: draft[key].map((v, j) => i === j ? n : v) }))}</View>)}
     </View>)}
+    <Text style={s.text}>Alter is the same rank and colour as Tiplu, in the other suit. Its default totals are 1 / 2 / 3; set all three to 0 to disable Alter points. Wildcard use is unchanged.</Text>
     {amounts.map(key => <View key={key} style={s.row}><Text style={[s.text, s.label]}>{labels[key]}</Text>
       {input(labels[key], draft[key], n => setDraft({ ...draft, [key]: n }))}</View>)}
-    <Text style={s.text}>Tunnela bonus applies to</Text>
-    <View style={s.row}>{(['off', 'shown', 'hand'] as const).map(scope => <View key={scope}>{editable
-      ? button(scope === 'off' ? 'None' : scope === 'shown' ? 'Shown Tunnelas' : 'All final Tunnelas', () => setDraft({ ...draft, tunnela_scope: scope }), draft.tunnela_scope === scope)
-      : draft.tunnela_scope === scope && <Text style={s.text}>{scope === 'off' ? 'None' : scope === 'shown' ? 'Shown Tunnelas' : 'All final Tunnelas'}</Text>}</View>)}</View>
+    {button(`Initial Tunnela declaration: ${draft.initial_tunnela_declaration?'On':'Off'}`,()=>setDraft({...draft,initial_tunnela_declaration:!draft.initial_tunnela_declaration,tunnela_scope:!draft.initial_tunnela_declaration && draft.tunnela_scope === 'hand' ? 'shown' : draft.tunnela_scope}),!!draft.initial_tunnela_declaration,!editable)}
+    <Text style={s.text}>{draft.initial_tunnela_declaration?'Before the first draw, every player must show dealt Tunnelas or declare none. Only those initial declarations earn the Tunnela bonus.':'Tunnela bonus applies to'}</Text>
+    <View style={s.row}>{(draft.initial_tunnela_declaration ? ['off','shown'] as const : ['off', 'shown', 'hand'] as const).map(scope => <View key={scope}>{editable
+      ? button(scope === 'off' ? 'None' : scope === 'shown' ? draft.initial_tunnela_declaration?'Initially declared Tunnelas':'Shown Tunnelas' : 'All final Tunnelas', () => setDraft({ ...draft, tunnela_scope: scope }), draft.tunnela_scope === scope)
+      : draft.tunnela_scope === scope && <Text style={s.text}>{scope === 'off' ? 'None' : scope === 'shown' ? draft.initial_tunnela_declaration?'Initially declared Tunnelas':'Shown Tunnelas' : 'All final Tunnelas'}</Text>}</View>)}</View>
     {editable ? button(draft.maal_requires_seen ? 'Maal points: seen players only' : 'Maal points: all players', () => setDraft({ ...draft, maal_requires_seen: !draft.maal_requires_seen }))
       : <Text style={s.text}>Maal points: {draft.maal_requires_seen ? 'seen players only' : 'all players'}</Text>}
-    <Text style={s.text}>The highest scoring combination is used. Marriage replaces its individual Maal points. The Tunnela bonus is additional; it uses shown groups or final holdings, not a declaration at deal time. Eligibility also applies to Man and Tunnela points.</Text>
+    <Text style={s.text}>The highest scoring combination is used. Marriage replaces its individual Maal points. The Tunnela bonus is additional and follows the declaration setting above. Eligibility also applies to Man and Tunnela points.</Text>
     </FormScrollView><FormFooter>
     {editable && <>{button('Propose scoring rules', () => onSave(draft), false, !valid || !changed)}
       <Text style={s.text}>{!valid ? 'Enter whole numbers from 0 to 1000.' : changed ? 'Unsaved changes' : 'Rule changes apply only after every seated player accepts.'}</Text></>}

@@ -12,12 +12,15 @@ export function completionKind(cards: MarriageCard[], maal: SeenMaal): MarriageW
   if (cards.length < 3 || new Set(cards.map(c => c.card_id)).size !== cards.length) return null;
   const natural = cards.every(c => c.card_type === 'standard');
   if (natural && cards.length === 3 && cards.every(c => sameFace(c, cards[0]))) return 'tunnela';
-  const ranks = cards.map(rank).sort((a, b) => a - b);
-  if (natural && cards.every(c => c.suit === cards[0].suit) && ranks.every((r, i) => r === ranks[0] + i)) return 'pure_sequence';
+  const orders = [rank, (card: MarriageCard) => card.rank!];
+  const runs = orders.map(value => cards.map(value).sort((a, b) => a - b));
+  if (natural && cards.every(c => c.suit === cards[0].suit) && runs.some(ranks => ranks.every((r, i) => r === ranks[0] + i))) return 'pure_sequence';
   const fixed = cards.filter(c => !isMarriageWild(c, maal));
   const fixedRanks = fixed.map(rank).sort((a, b) => a - b);
-  if (cards.length <= 13 && new Set(fixed.map(c => c.suit)).size <= 1 && new Set(fixedRanks).size === fixedRanks.length
-    && (!fixedRanks.length || fixedRanks.at(-1)! - fixedRanks[0] < cards.length)) return 'sequence';
+  if (cards.length <= 13 && new Set(fixed.map(c => c.suit)).size <= 1 && orders.some(value => {
+      const ranks = fixed.map(value).sort((a, b) => a - b);
+      return new Set(ranks).size === ranks.length && (!ranks.length || ranks.at(-1)! - ranks[0] < cards.length);
+    })) return 'sequence';
   if (cards.length <= 4 && new Set(fixedRanks).size <= 1 && new Set(fixed.map(c => c.suit)).size === fixed.length) return 'set';
   return null;
 }
@@ -112,7 +115,7 @@ export function finishingGaps(cards: MarriageCard[], hand: MarriageCard[], maal:
 
 export type MarriageWinChoice = { melds: MarriageWinningMeld[]; discard_card_id?: string; winning_pair?: string[] };
 /** Bounded exact covers: alternatives use physical IDs and keep locked melds intact. */
-export function marriageWinChoices(hand: MarriageCard[], shown: MarriageMeld[], maal: SeenMaal, route: string): MarriageWinChoice[] {
+export function marriageWinChoices(hand: MarriageCard[], shown: MarriageMeld[], maal: SeenMaal, route: string, protectedDiscardIds: readonly string[] = []): MarriageWinChoice[] {
   if (hand.length !== 22) return [];
   const cards = remainingCards(hand, shown);
   if (route === 'dublee' && shown.length === 7) {
@@ -150,9 +153,13 @@ export function marriageWinChoices(hand: MarriageCard[], shown: MarriageMeld[], 
     memo.set(mask, result); return result;
   }
   const result: MarriageWinChoice[] = [];
-  for (let i = 0; i < cards.length; i++) for (const groups of covers(full ^ (1 << i))) {
+  const protectedDiscards = new Set(protectedDiscardIds);
+  for (let i = 0; i < cards.length; i++) {
+    if (protectedDiscards.has(cards[i].card_id)) continue;
+    for (const groups of covers(full ^ (1 << i))) {
     result.push({ melds: [...shown, ...groups], discard_card_id: cards[i].card_id });
     if (result.length >= 24) return result;
+    }
   }
   return result;
 }

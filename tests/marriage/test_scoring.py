@@ -13,7 +13,7 @@ def card(rank, pack=0, suit=Suit.HEARTS):
     return PhysicalCard.standard(suit, Rank(rank), pack)
 
 
-def score(hand, rules=ScoringRules(), seen=True, melds=()):
+def score(hand, rules=ScoringRules(initial_tunnela_declaration=False), seen=True, melds=()):
     player = PlayerState('a', tuple(hand), shown_melds=melds,
                          committed_card_ids=frozenset(i for m in melds for i in m.card_ids), has_seen_maal=seen)
     return score_items(player, maal_view(card(8, 2), MarriageRules()), rules)
@@ -35,10 +35,10 @@ def test_tunnela_scope_eligibility_and_additive_bonus():
     meld = Meld(MeldType.TUNNELA, tuple(c.card_id for c in hand))
     assert sum(i.points for i in score(hand)) == 10
     assert sum(i.points for i in score(hand, melds=(meld,))) == 15
-    assert sum(i.points for i in score(hand, replace(ScoringRules(), tunnela_scope='hand'))) == 15
-    assert sum(i.points for i in score(hand, replace(ScoringRules(), tunnela_scope='off'), melds=(meld,))) == 10
+    assert sum(i.points for i in score(hand, replace(ScoringRules(initial_tunnela_declaration=False), tunnela_scope='hand'))) == 15
+    assert sum(i.points for i in score(hand, replace(ScoringRules(initial_tunnela_declaration=False), tunnela_scope='off'), melds=(meld,))) == 10
     assert score(hand, seen=False, melds=(meld,)) == ()
-    assert sum(i.points for i in score(hand, replace(ScoringRules(), maal_requires_seen=False), seen=False, melds=(meld,))) == 15
+    assert sum(i.points for i in score(hand, replace(ScoringRules(initial_tunnela_declaration=False), maal_requires_seen=False), seen=False, melds=(meld,))) == 15
 
 
 @pytest.mark.parametrize('count', [2, 3, 4, 5])
@@ -81,7 +81,7 @@ def test_invalid_rules_rejected(value):
 
 def test_score_evidence_uses_owned_disjoint_cards_except_additive_tunnela():
     hand = [card(r, p) for r in (7, 8, 9) for p in (0, 1, 2)] + [PhysicalCard.man(0)]
-    items = score(hand, replace(ScoringRules(), tunnela_scope='hand'))
+    items = score(hand, replace(ScoringRules(initial_tunnela_declaration=False), tunnela_scope='hand'))
     owned = {c.card_id for c in hand}
     base_ids = [i for item in items if item.label != 'Tunnela bonus' for i in item.card_ids]
     assert len(base_ids) == len(set(base_ids))
@@ -94,3 +94,47 @@ def test_score_evidence_uses_owned_disjoint_cards_except_additive_tunnela():
     individual = score(hand, replace(ScoringRules(), marriage=(0, 0, 0), tunnela_scope='off'))
     assert {i for item in individual for i in item.card_ids} == owned
     assert len([i for item in individual for i in item.card_ids]) == len(owned)
+
+
+@pytest.mark.parametrize('tiplu_suit,alter_suit', [
+    (Suit.HEARTS, Suit.DIAMONDS), (Suit.DIAMONDS, Suit.HEARTS),
+    (Suit.SPADES, Suit.CLUBS), (Suit.CLUBS, Suit.SPADES),
+])
+@pytest.mark.parametrize('count', [1, 2, 3])
+def test_alter_totals_are_configurable_and_have_card_evidence(tiplu_suit, alter_suit, count):
+    held = tuple(card(8, p, alter_suit) for p in range(count))
+    player = PlayerState('a', held, has_seen_maal=True)
+    maal = maal_view(card(8, 2, tiplu_suit), MarriageRules())
+    items = score_items(player, maal, ScoringRules())
+    assert [(i.label, i.count, i.points) for i in items] == [('Alter', count, count)]
+    assert set(items[0].card_ids) == {c.card_id for c in held}
+    custom = replace(ScoringRules(), alter=(2, 5, 10))
+    assert score_items(player, maal, custom)[0].points == custom.alter[count-1]
+    assert score_items(player, maal, replace(custom, alter=(0, 0, 0))) == ()
+    assert score_items(replace(player, has_seen_maal=False), maal, custom) == ()
+    assert score_items(replace(player, has_seen_maal=False), maal,
+                       replace(custom, maal_requires_seen=False))[0].points == custom.alter[count-1]
+
+
+def test_alter_excludes_opposite_colour_and_neighbours_and_preserves_old_rules():
+    held = (card(8, 0, Suit.SPADES), card(8, 0, Suit.CLUBS),
+            card(7, 0, Suit.DIAMONDS), card(9, 0, Suit.DIAMONDS))
+    assert score(held) == ()
+    assert ScoringRules.from_dict({'tiplu': [3, 8, 15]}).alter == (0, 0, 0)
+    assert ScoringRules.from_dict({'alter': [1, 3, 5]}).alter == (1, 3, 5)
+    for value in ([1, 2], [1, True, 3], [-1, 2, 3], [1, 2, 1001]):
+        with pytest.raises(ValueError):
+            ScoringRules.from_dict({'alter': value})
+
+
+def test_alter_tunnela_bonus_is_additive_and_settlement_stays_zero_sum():
+    held = tuple(card(8, p, Suit.DIAMONDS) for p in range(3))
+    rules = replace(ScoringRules(initial_tunnela_declaration=False), tunnela_scope='hand')
+    items = score(held, rules)
+    assert [(i.label, i.points) for i in items] == [('Alter', 3), ('Tunnela bonus', 5)]
+    engine = MarriageGameEngine(('a', 'b'), rules=MarriageRules(scoring=rules))
+    state = replace(engine.get_state(), status=GameStatus.FINISHED, winner='a', tiplu=card(8, 2),
+                    players=(PlayerState('a', held, has_seen_maal=True), PlayerState('b', ())))
+    result = calculate_scores(state)
+    assert result.total_maal == 8
+    assert sum(p.net_points for p in result.players) == 0

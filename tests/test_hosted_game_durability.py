@@ -1,3 +1,4 @@
+from dataclasses import replace
 import pytest
 from fastapi import HTTPException
 
@@ -16,7 +17,7 @@ class Delivery:
         pass
 
 
-async def durable_host(game_type: str, count=None):
+async def durable_host(game_type: str, count=None, *, declarations=False):
     rooms = RoomService()
     for user in ("u0", "u1", "u2", "u3"):
         await rooms.join("room", user)
@@ -29,6 +30,9 @@ async def durable_host(game_type: str, count=None):
     )
     count = count or (4 if game_type == "callbreak" else 2)
     waiting = await service.create("room", "u0", count, game_type)
+    if game_type == "marriage":
+        game = service.games["room"]
+        game.marriage_scoring = replace(game.marriage_scoring, initial_tunnela_declaration=declarations)
     for index in range(1, count):
         await service.join("room", f"u{index}", waiting["match_id"])
     if game_type in ("flush", "marriage"):
@@ -290,5 +294,29 @@ async def test_flush_leave_retains_reservation_until_round_completion():
         assert not game.pending_flush_departures
         await service.join('room', actor, other['match_id'])
         await service.table_command('room', 'u3', other['match_id'], 'lock')
+    finally:
+        await service.close()
+
+
+async def test_initial_tunnela_responses_are_durable_idempotent_and_gate_play():
+    service, store, started = await durable_host('marriage', declarations=True)
+    try:
+        game = service.games['room']
+        assert started['marriage']['public']['tunnela_declaration_pending']
+        command = GameAction(match_id=game.match_id, command_id='initial-none-b',
+            expected_revision=started['game']['revision'], command='DECLARE_TUNNELAS', payload={'melds': []})
+        first = await service.action('room', 'u1', command)
+        assert first['action_ack']['status'] == 'accepted'
+        repeated = await service.action('room', 'u1', command)
+        assert repeated['game']['revision'] == first['game']['revision']
+        loaded = await store.load(game.durable_game_id, game.durable_definition)
+        assert loaded.sequence == 1
+        assert loaded.state == service._engine_state(game)
+        final = await service.action('room', 'u0', GameAction(match_id=game.match_id,
+            command_id='initial-none-a', expected_revision=first['game']['revision'],
+            command='DECLARE_TUNNELAS', payload={'melds': []}))
+        assert final['action_ack']['status'] == 'accepted'
+        assert not final['marriage']['public']['tunnela_declaration_pending']
+        assert 'draw' in final['marriage']['private']['actions']['kinds']
     finally:
         await service.close()

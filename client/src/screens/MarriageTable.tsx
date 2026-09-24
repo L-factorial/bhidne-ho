@@ -1,3 +1,5 @@
+import { MarriageTunnelaPanel } from '../components/MarriageTunnelaPanel';
+import { showTableHeaderShare } from '../multiplayer/tableHeaderSharing';
 import { TurnGlow } from '../components/TurnGlow';
 import { MarriageWinPanel } from '../components/MarriageWinPanel';
 import { MarriageMaalPanel } from '../components/MarriageMaalPanel';
@@ -64,6 +66,8 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
     if (own?.folded || snapshot.status !== 'playing') setConfirmFold(false);
     if (own?.folded) { setSelected([]); setPreview(false); setFinishPreview(false); }
   }, [own?.folded, snapshot.status]);
+  const declaring = !!actions?.kinds.includes('declare_tunnelas');
+  const declarationsPending = !!pub?.tunnela_declaration_pending;
   const allRevealed = revealed >= 21;
   const availableHand = hand.filter(c => !committed.includes(c.card_id));
   const canAct = !own?.folded && !busy && !hidden && allRevealed && snapshot.status === 'playing';
@@ -100,7 +104,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const canDrawFrom = (source: string) => drawVisible && !busy && social.connected && !!actions?.drawable_sources.includes(source);
   const discardSelected = selected.length === 1 && !!actions?.discardable_card_ids.includes(selected[0]);
   const selectedCard = discardSelected ? hand.find(card => card.card_id === selected[0]) : null;
-  const turnInstruction = decision === 'DRAW_REQUIRED' ? 'Your turn · Draw'
+  const turnInstruction = declaring ? 'Declare your initial Tunnelas' : declarationsPending ? 'Waiting for Tunnela declarations' : decision === 'DRAW_REQUIRED' ? 'Your turn · Draw'
     : decision === 'DISCARD_REQUIRED' ? 'Your turn · Discard'
     : decision === 'FINISH_REQUIRED' ? 'Your turn · Finish round' : `Your cards · ${hand.length}`;
   const turnPrompt = activeGame && pub && <TurnIndicator testID="marriage-turn-instruction" personal={isTurn}
@@ -118,14 +122,14 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
     if (error && !busy && selectedCard && decision === 'DISCARD_REQUIRED') setSnap('expanded');
   }, [error, busy, selectedCard?.card_id, decision]);
   return <View style={s.page} testID="marriage-table">
-    <GameTableHeader tableName={snapshot.table_name} compact title="Marriage" path={snapshot.path} game="marriage" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack}
+    <GameTableHeader showShare={showTableHeaderShare(snapshot)} tableName={snapshot.table_name} compact title="Marriage" path={snapshot.path} game="marriage" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack}
       drawerMetadata={<GameMenuMetadata snapshot={snapshot} />}>
       {close => <GameMenu snapshot={snapshot} close={close} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl}
         poke={() => setPoke(null)} pokePlayer={setPoke} canPoke={social.connected}
         gameActions={(['stats', 'rules', 'points'] as const).map(section => ({ label: section === 'stats' ? 'Stats' : section === 'rules' ? 'Rules' : 'Points', action: () => setDetails(section) }))} />}
     </GameTableHeader>
     <View style={{ flex: 1, minHeight: 0 }}>
-    <View testID="marriage-play-area" style={[s.playArea, mobile && mine && activeGame && { paddingBottom: 64 }]}>
+    <View testID="marriage-play-area" style={[s.playArea, mobile && mine && activeGame && { paddingBottom: 84 }]}>
       {ended && !pub ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>{endedNotice}</View> : !pub ? <ScrollView contentContainerStyle={s.panel}>
         <PreGameTable snapshot={snapshot}>{startCue}</PreGameTable>
         {!snapshot.is_creator && <Text style={s.text}>Waiting for the creator to start.</Text>}
@@ -146,7 +150,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       </>}
       {!!error && (!mine || !activeGame || (mobile && snap === 'collapsed')) && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}
     </View>
-    {pub && mine && activeGame && <MarriageHandSheet cardCount={hand.length} anchor={handAnchor} mobile={mobile} snap={snap} onSnap={setSnap} instruction={turnInstruction} attention={isTurn} header={mobileHandHeader} footer={own?.folded || preview || finishPreview ? null : discardFooter}>
+    {pub && mine && activeGame && <MarriageHandSheet cardCount={hand.length} anchor={handAnchor} mobile={mobile} snap={snap} onSnap={setSnap} instruction={turnInstruction} attention={declaring || isTurn && !declarationsPending} header={mobileHandHeader} footer={own?.folded || preview || finishPreview ? null : discardFooter}>
     <View testID="marriage-hand-dock" style={[s.handDock, mobile && { backgroundColor: 'transparent', borderTopWidth: 0, padding: 4 }]}>
       <View style={[s.row, { backgroundColor: colors.tableHeader, borderRadius: 8 }]}><Text style={[s.small, { color: colors.onTableHeader }]}>Your cards · {hand.length}</Text>
         {!own?.folded && button('Fold', () => setConfirmFold(true), busy || !social.connected || !actions?.kinds.includes('fold'))}
@@ -160,7 +164,9 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         <View style={s.row}>{button('Confirm fold', () => { onAction('FOLD'); }, busy || !social.connected || !actions?.kinds.includes('fold'))}
           {button('Keep playing', () => setConfirmFold(false), busy)}</View>
       </View>}
-      {!own?.folded && (own?.has_seen_maal && mine.maal ? <MarriageWinPanel hand={hand} shown={own.shown_melds} maal={mine.maal} route={own.route}
+      {declaring && <MarriageTunnelaPanel hand={hand} visible={allRevealed&&!hidden} busy={busy} connected={social.connected} submit={onAction}/>}
+      {declarationsPending && !declaring && <Text style={s.text}>Declaration recorded · waiting for other players.</Text>}
+      {!declaring && !own?.folded && (own?.has_seen_maal && mine.maal ? <MarriageWinPanel hand={hand} shown={own.shown_melds} initialTunnelas={own.initial_tunnelas} maal={mine.maal} route={own.route}
         visible={allRevealed && !hidden} enabled={canAct && isTurn && social.connected} busy={busy} canFinish={!!actions?.kinds.includes('finish')}
         preview={finishPreview && !hidden} setPreview={setFinishPreview} error={error} submit={onAction} /> :
       <MarriageMaalPanel hand={availableHand} shown={own?.shown_melds || []} unlocked={false} maal={mine.maal}
@@ -185,7 +191,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
           })}
         </View>}
 
-        {allRevealed && !own?.has_seen_maal && <View accessibilityRole="tablist" style={s.row}>
+        {!declaring && allRevealed && !own?.has_seen_maal && <View accessibilityRole="tablist" style={s.row}>
           {(['sequence','dublee'] as const).map(value=><Pressable key={value} accessibilityRole="tab" accessibilityLabel={value==='sequence'?'Sequence / Tunnela':'Dublee'}
             accessibilityState={{selected:arrangement===value}} onPress={()=>setArrangement(value)} style={[s.button,arrangement===value&&s.chosen]}>
             <Text style={s.buttonText}>{value==='sequence'?'Sequence / Tunnela':'Dublee'}</Text>
@@ -199,7 +205,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
                 const back=hidden||(!allRevealed&&index>=revealed), checked=selected.includes(card.card_id);
                 return <Pressable key={card.card_id} accessibilityRole="button" accessibilityLabel={back?'Hidden card':physicalLabel(card.card_id)}
                   accessibilityHint={!back&&card.card_id===drawnId?'Just drawn':undefined} aria-pressed={checked}
-                  accessibilityState={{selected:checked,disabled:busy||back}} disabled={busy||back}
+                  accessibilityState={{selected:checked,disabled:busy||back||declaring}} disabled={busy||back||declaring}
                   onPress={()=>setSelected(ids=>ids.length===1&&ids[0]===card.card_id?[]:[card.card_id])}
                   style={[s.card, {width:48,height:76},back&&s.cardBack,!back&&card.card_id===drawnId&&s.drawnCard,checked&&s.selectedCard]}>
                   {back?<MarriageCardBack/>:<Text style={[s.face,{fontSize:21,color:card.suit==='H'||card.suit==='D'?colors.cardRed:colors.cardInk}]}>{marriageFace(card)}</Text>}

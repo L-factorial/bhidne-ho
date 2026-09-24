@@ -29,6 +29,10 @@ game has no settlement. See [scoring](marriage-scoring.md) for exact rules.
    in the Stats overlay and leave the main hand. Hide/Show cards provides
    local screen privacy. Physical copy numbers distinguish repeated faces across
    the three packs; they do not change meld rules.
+   New tables first open a Tunnela declaration layout. Reveal cards, tap the
+   glowing detector to select natural triples, or tap Declare none. Normal play
+   waits until every active player responds; each responding player returns to
+   their regular hand view. The rule can be disabled in game-rule configuration.
 3. On your turn, take stock or an eligible discard. Select one card and confirm
    Discard to pass the turn. The draw phase prompts Take a card. During discard,
    Select card to discard pulses above the expanded hand, including after reopening

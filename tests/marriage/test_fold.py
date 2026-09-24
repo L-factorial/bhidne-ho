@@ -1,3 +1,4 @@
+from marriage import MarriageRules, ScoringRules
 from dataclasses import asdict
 from random import Random
 
@@ -6,7 +7,7 @@ from marriage import MarriageGameEngine, DrawSource, InvalidActionError, validat
 
 
 def game(count=3):
-    engine = MarriageGameEngine(tuple(str(i) for i in range(count)), rng=Random(8))
+    engine = MarriageGameEngine(tuple(str(i) for i in range(count)), rng=Random(8), rules=MarriageRules(scoring=ScoringRules(initial_tunnela_declaration=False)))
     engine.start_game()
     return engine
 

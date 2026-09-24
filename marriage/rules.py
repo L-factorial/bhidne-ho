@@ -14,7 +14,7 @@ class MarriageRules:
     pack_count: ClassVar[int] = 3
     printed_jokers: ClassVar[int] = 3
     cards_per_player: ClassVar[int] = 21
-    ace_sequence: AceSequencePolicy = AceSequencePolicy.LOW_ONLY
+    ace_sequence: AceSequencePolicy = AceSequencePolicy.LOW_OR_HIGH
     maal_neighbors: MaalNeighborPolicy = MaalNeighborPolicy.CYCLIC
     dublee_player_can_draw_discard: bool = False
     dublee_player_can_take_winning_discard: bool = True

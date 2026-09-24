@@ -1,3 +1,4 @@
+import { showTableHeaderShare } from '../multiplayer/tableHeaderSharing';
 import { FloatingTableAction } from '../components/FloatingTableAction';
 import { PreGameTable } from '../components/PreGameTable';
 import { EndedTableNotice } from '../components/EndedTableNotice';
@@ -107,7 +108,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     ? `${handDealKey}:${game?.phase}:${isTurn}:${game?.current_trick?.trick_number || deal?.tricks_completed || 0}` : null;
   const cards = useCallBreakHand({ deal: handDealKey, turn: !reveal && !busy ? promptKey : null,
     revision: game?.revision ?? 0, hand: mine?.hand ?? [], busy, error }, onAction);
-  const header = <GameTableHeader tableName={snapshot.table_name} compact game="callbreak" title="Call Break" path={snapshot.path} roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack}
+  const header = <GameTableHeader showShare={showTableHeaderShare(snapshot)} tableName={snapshot.table_name} compact game="callbreak" title="Call Break" path={snapshot.path} roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack}
     drawerMetadata={<GameMenuMetadata snapshot={snapshot} />}>
     {close => <GameMenu snapshot={snapshot} close={close} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl}
       poke={() => setPokeTarget(null)} pokePlayer={setPokeTarget} canPoke={social.connected}

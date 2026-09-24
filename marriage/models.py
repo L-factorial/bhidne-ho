@@ -72,6 +72,8 @@ class PlayerState:
     has_seen_maal: bool = False
     finished: bool = False
     folded: bool = False
+    tunnela_declared: bool = False
+    initial_tunnelas: tuple[Meld, ...] = ()
 
     def __post_init__(self):
         _player_id(self.player_id)
@@ -79,6 +81,9 @@ class PlayerState:
             raise ValueError("Player route must be a QualificationRoute.")
         if type(self.has_seen_maal) is not bool or type(self.finished) is not bool or type(self.folded) is not bool:
             raise ValueError("Player flags must be booleans.")
+        if type(self.tunnela_declared) is not bool:
+            raise ValueError("Tunnela declaration flag must be boolean.")
+        object.__setattr__(self, "initial_tunnelas", tuple(self.initial_tunnelas))
         object.__setattr__(self, "hand", tuple(self.hand))
         object.__setattr__(self, "shown_melds", tuple(self.shown_melds))
         if isinstance(self.committed_card_ids, (str, bytes)):

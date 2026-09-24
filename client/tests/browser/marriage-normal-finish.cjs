@@ -93,7 +93,7 @@ print(json.dumps(asdict(g.get_player_view('0'))))
       const eligible='Marriage eligible · Show Marriage';
       await button(page,eligible).waitFor();
       offTurn=true;
-      if(width<900) { await button(page,'Expand your card area').waitFor(); await button(page,'Expand your card area').click(); }
+      await button(page,'Expand your card area').waitFor(); await button(page,'Expand your card area').click();
       await button(page,'Marriage eligible · View options').click();
       await page.getByTestId('marriage-win-preview').waitFor();
       assert.ok(await button(page,'Show Marriage').isDisabled());

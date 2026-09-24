@@ -5,7 +5,7 @@ from .cards import PhysicalCard
 from .enums import DrawSource, MeldType, QualificationRoute, TurnPhase
 from .errors import InvalidActionError
 from .events import (CardDiscarded, CardDrawn, DiscardPileRecycled, GameStarted, MeldsShown,
-                     PlayerFinished, PlayerFolded, PlayerSawMaal, TipluRevealed, TurnChanged)
+                     PlayerFinished, PlayerFolded, PlayerSawMaal, TipluRevealed, TurnChanged, TunnelasDeclared)
 from .models import MarriageGameState
 
 
@@ -47,6 +47,8 @@ def visible_events(state: MarriageGameState, viewer: str | None, after: int) -> 
             fields = dict(player_id=event.player_id, card=event.card)
         elif isinstance(event, DiscardPileRecycled):
             fields = dict(card_count=event.card_count)
+        elif isinstance(event, TunnelasDeclared):
+            fields = dict(player_id=event.player_id, card_groups=event.card_groups)
         elif isinstance(event, MeldsShown):
             fields = dict(player_id=event.player_id, route=event.route,
                           meld_types=event.meld_types, card_groups=event.card_groups)

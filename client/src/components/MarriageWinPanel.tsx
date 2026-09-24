@@ -7,19 +7,19 @@ import { MarriageMeldCards } from './MarriageMeldCards';
 import { TurnGlow } from './TurnGlow';
 import { fonts, gameButtonStyle, useTheme } from '../theme';
 
-export function MarriageWinPanel({ hand, shown, maal, route, visible, enabled, busy, canFinish, preview, setPreview, error, submit }: {
-  hand: MarriageCard[]; shown: MarriageMeld[]; maal: SeenMaal; route: string; visible: boolean; enabled: boolean;
+export function MarriageWinPanel({ hand, shown, initialTunnelas = [], maal, route, visible, enabled, busy, canFinish, preview, setPreview, error, submit }: {
+  hand: MarriageCard[]; shown: MarriageMeld[]; initialTunnelas?: MarriageMeld[]; maal: SeenMaal; route: string; visible: boolean; enabled: boolean;
   busy: boolean; canFinish: boolean; preview: boolean; setPreview: (value: boolean) => void; error: string;
   submit: (command: string, payload: object) => void;
 }) {
   const { colors: c } = useTheme();
-  const key = JSON.stringify([hand.map(c => c.card_id).sort(), shown, maal, route]);
+  const key = JSON.stringify([hand.map(c => c.card_id).sort(), shown, maal, route, initialTunnelas]);
   const [result, setResult] = useState<{ key: string; choices: MarriageWinChoice[] }>({ key: '', choices: [] });
   const [page, setPage] = useState(0);
   const touch = useRef({ x: 0, y: 0 });
   useEffect(() => {
     if (!visible) return;
-    const task = setTimeout(() => { setResult({ key, choices: marriageWinChoices(hand, shown, maal, route) }); setPage(0); }, 0);
+    const task = setTimeout(() => { setResult({ key, choices: marriageWinChoices(hand, shown, maal, route, initialTunnelas.flatMap(m => m.card_ids)) }); setPage(0); }, 0);
     return () => clearTimeout(task);
   }, [key, visible]);
   const checking = visible && (result.key !== key || busy);

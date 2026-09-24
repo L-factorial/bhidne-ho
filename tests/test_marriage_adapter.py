@@ -14,12 +14,12 @@ from app.models.game import GameCommand
 from app.games.base import GameCommandRejected
 from app.runtime.command_runtime import CommandAccessError, CommandRuntime
 from app.runtime.game_registry import GameRegistry
-from marriage import ActionKind, DrawSource, GameStatus, MarriageGameEngine
+from marriage import MarriageRules, ScoringRules, ActionKind, DrawSource, GameStatus, MarriageGameEngine
 from examples.marriage_round import pairs_in
 
 
 def adapter():
-    return MarriageAdapter(MarriageGameEngine(("a", "b"), rng=Random(42)),
+    return MarriageAdapter(MarriageGameEngine(("a", "b"), rng=Random(42), rules=MarriageRules(scoring=ScoringRules(initial_tunnela_declaration=False))),
                            match_id="match", owner_player_id="a")
 
 
@@ -179,7 +179,7 @@ def test_complete_adapter_round_projects_qualification_and_finish():
 def test_normal_meld_commands_and_finish_translate_correctly(selected):
     from dataclasses import replace
     from marriage import PlayerState, create_deck, validate_game_state
-    engine = MarriageGameEngine(("a", "b"), rng=Random(4))
+    engine = MarriageGameEngine(("a", "b"), rng=Random(4), rules=MarriageRules(scoring=ScoringRules(initial_tunnela_declaration=False)))
     engine.start_game()
     engine.draw_card("a", DrawSource.STOCK)
     deck = create_deck()

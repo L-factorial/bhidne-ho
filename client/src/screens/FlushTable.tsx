@@ -1,4 +1,5 @@
-import { TurnGlow } from '../components/TurnGlow';
+import { HandAreaBar } from '../components/HandAreaBar';
+import { showTableHeaderShare } from '../multiplayer/tableHeaderSharing';
 import { FloatingTableAction } from '../components/FloatingTableAction';
 import { RoundResultsTable } from '../components/RoundResultsTable';
 import { RoomSheet } from '../components/RoomSheet';
@@ -56,6 +57,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   const mobile = width < 900;
   const act = onAction;
   const settings = snapshot.flush_settings!;
+  const [handOpen, setHandOpen] = useState(true);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [betsOpen, setBetsOpen] = useState(false);
   const socialAnchor = useSocialHandAnchor();
@@ -174,7 +176,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
     : `${ownPlayer?.status === 'active' && !preparing ? `${visibility} · ` : ownPlayer?.status === 'folded' ? 'Folded · ' : ''}Waiting for ${name(decision.actor)}`
     : `${snapshot.players?.length || 0}/${snapshot.capacity} players seated`;
   return <View style={[s.page, mobile && { padding: 8, gap: 4 }]} testID="flush-table">
-    <GameTableHeader tableName={snapshot.table_name} title="Flush" compact path={snapshot.path} game="flush" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack} mobileTestIds drawerMetadata={<GameMenuMetadata snapshot={snapshot} />}>
+    <GameTableHeader showShare={showTableHeaderShare(snapshot)} tableName={snapshot.table_name} title="Flush" compact path={snapshot.path} game="flush" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack} mobileTestIds drawerMetadata={<GameMenuMetadata snapshot={snapshot} />}>
       {closeMenu => <FlushMenu snapshot={snapshot} close={closeMenu} rules={() => setRulesOpen(true)} history={() => setBetsOpen(true)}
         poke={() => setPokeOpen(true)} canPoke={social.connected} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl} />}
     </GameTableHeader>
@@ -189,7 +191,9 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
       </ScrollView>
       {pub && <View pointerEvents="none" style={s.notice}><FlushFoldNotice key={`folds:${snapshot.match_id}`} snapshot={snapshot} /></View>}
       <View ref={socialAnchor.ref} onLayout={socialAnchor.onLayout} style={s.handDock} testID="flush-hand-dock">
-        <TurnGlow active={myTurn && connectionReady && !ended} />
+        {!!mine && <HandAreaBar open={handOpen} onToggle={() => setHandOpen(value=>!value)} attention={myTurn && connectionReady && !ended}
+          instruction={`Your turn · ${turnText}`}/>}
+        <View style={{display:!mine || handOpen?'flex':'none',alignItems:'center',gap:6,alignSelf:'stretch'}} accessibilityElementsHidden={!!mine&&!handOpen} importantForAccessibility={mine&&!handOpen?'no-hide-descendants':'auto'}>
         {!ended && mine && !preparing && !pub?.settlement && <View style={s.cards} testID="flush-own-cards">
           <View style={s.scaledCards}><FlushCards tapToToggle key={pub?.round_number} cards={mine.cards} /></View>
         </View>}
@@ -217,6 +221,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
           </Pressable>
           {helpOpen && help.map(reason => <Text key={reason} style={s.status}>{reason}</Text>)}
         </>}
+        </View>
       </View>
     </View>
     <Modal transparent visible={comparisonOpen && !resultOpen} onRequestClose={acknowledge}>

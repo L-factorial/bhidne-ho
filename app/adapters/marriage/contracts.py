@@ -68,6 +68,10 @@ class InitialMeldsPayload(Payload):
     melds: Annotated[list[MeldPayload], Field(min_length=3, max_length=3)]
 
 
+class TunnelasPayload(Payload):
+    melds: Annotated[list[MeldPayload], Field(max_length=7)]
+
+
 class DubleesPayload(Payload):
     pairs: Annotated[list[MeldPayload], Field(min_length=7, max_length=7)]
 
@@ -80,6 +84,7 @@ class CommandName(str, Enum):
     START_GAME = "START_GAME"
     DRAW_CARD = "DRAW_CARD"
     DISCARD_CARD = "DISCARD_CARD"
+    DECLARE_TUNNELAS = "DECLARE_TUNNELAS"
     SHOW_INITIAL_MELDS = "SHOW_INITIAL_MELDS"
     SHOW_DUBLEES = "SHOW_DUBLEES"
     FINISH = "FINISH"
@@ -113,6 +118,7 @@ COMMAND_SPECS = {
     CommandName.DISCARD_CARD: CommandSpec(CardPayload, "discard_card", "current_player", True),
     CommandName.SHOW_INITIAL_MELDS: CommandSpec(InitialMeldsPayload, "show_initial_melds", "current_player", True),
     CommandName.SHOW_DUBLEES: CommandSpec(DubleesPayload, "show_dublees", "current_player", True),
+    CommandName.DECLARE_TUNNELAS: CommandSpec(TunnelasPayload, "declare_tunnelas", "seated_player", True),
     CommandName.FOLD: CommandSpec(Empty, "fold", "seated_player", True),
     CommandName.FINISH: CommandSpec(FinishPayload, "finish", "current_player", True),
     CommandName.VALIDATE_MELD: CommandSpec(ValidateMeldPayload, "validate_meld", "seated_player", False),
@@ -216,6 +222,7 @@ class EventName(str, Enum):
     TIPLU_REVEALED = "TIPLU_REVEALED"
     PLAYER_SAW_MAAL = "PLAYER_SAW_MAAL"
     PLAYER_FINISHED = "PLAYER_FINISHED"
+    TUNNELAS_DECLARED = "TUNNELAS_DECLARED"
     PLAYER_FOLDED = "PLAYER_FOLDED"
     PLAYER_STATE = "PLAYER_STATE"
     QUERY_RESULT = "QUERY_RESULT"
@@ -267,6 +274,7 @@ class OutboundEvent(BaseModel):
                 "MELDS_SHOWN": {"player_id", "route", "meld_types", "card_groups"},
                 "SEVEN_DUBLEES_SHOWN": {"player_id", "route", "meld_types", "card_groups"},
                 "TIPLU_REVEALED": set(), "PLAYER_SAW_MAAL": {"player_id"},
+                "TUNNELAS_DECLARED": {"player_id", "card_groups"},
                 "PLAYER_FOLDED": {"player_id"},
                 "PLAYER_FINISHED": {"player_id", "winning_pair", "meld_types", "card_groups", "discard_card_id"},
             }[event.kind] | {"sequence", "revision", "kind"}

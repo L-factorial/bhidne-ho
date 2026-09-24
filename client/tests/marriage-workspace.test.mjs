@@ -27,3 +27,13 @@ test('21–22 cards remain readable and fit their overlapping rows on phones', (
     }
   }
 });
+
+test('Initial declarations open the hand out of turn and keep waiting players informed', () => {
+  const declaring = view({ kinds: ['declare_tunnelas'] }, '2');
+  declaring.public.tunnela_declaration_pending = true;
+  assert.equal(marriageDecision(declaring, true), 'DECLARE_TUNNELAS');
+  declaring.private.actions.kinds = [];
+  assert.equal(marriageDecision(declaring, true), 'DECLARATION_WAIT');
+  assert.equal(marriageHandSnap('DECLARE_TUNNELAS'), 'expanded');
+  assert.equal(marriageHandSnap('DECLARATION_WAIT'), 'expanded');
+});

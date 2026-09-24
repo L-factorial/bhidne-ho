@@ -61,8 +61,8 @@ async function api(path, user, body) {
     assert.ok((await sheet.boundingBox()).height<=64);
     assert.ok(await page.getByTestId('marriage-stock-spot').isDisabled());
     assert.ok(await page.getByTestId('marriage-discard-spot').isDisabled());
-    await button(page,'Peek at your hand').click();const peek=(await sheet.boundingBox()).height;
-    await button(page,'Expand full hand').click();assert.ok((await sheet.boundingBox()).height>peek);
+    await button(page,'Collapse your card area').click();const peek=(await sheet.boundingBox()).height;
+    await button(page,'Expand your card area').click();assert.ok((await sheet.boundingBox()).height>peek);
     assert.equal(await page.getByTestId('marriage-hand').getByRole('button',{name:'Hidden card',exact:true}).count(),21);
     assert.equal(await button(page,'Reveal next card').count(),0);
     await button(page,'Reveal cards').click();assert.equal(await button(page,'Reveal cards').count(),0);
@@ -103,8 +103,8 @@ async function api(path, user, body) {
       assert.deepEqual(await action.boundingBox(),bounds,'scrolling does not move the footer');
       await button(page,'Sort · suit').click();await button(page,'Sort · rank').click();
       assert.equal(await action.isVisible(),true,'sorting preserves the selected action');
-      await button(page,'Peek at your hand').click();assert.ok((await action.boundingBox()).height>=44);
-      await button(page,'Expand full hand').click();
+      await button(page,'Collapse your card area').click();
+      await button(page,'Expand your card area').click();
     }
     await page.screenshot({path:'/tmp/marriage-workspace-discard.png'});
     reject=true;

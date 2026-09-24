@@ -22,7 +22,8 @@ test('normal suggestions search disjoint physical groups, including Ace low', ()
   assert.equal(result.length, 3);
   assert.equal(new Set(result.flatMap(g => g.card_ids)).size, 9);
   assert.ok(result.some(g => g.meld_type === 'tunnela'));
-  assert.equal(marriageSuggestions([card(12, 'S'), card(13, 'S'), card(14, 'S')]).normal.length, 0);
+  assert.equal(marriageSuggestions([card(12, 'S'), card(13, 'S'), card(14, 'S')]).melds.length, 1);
+  assert.equal(marriageSuggestions([card(13, 'S'), card(14, 'S'), card(2, 'S')]).melds.length, 0);
   assert.equal(marriageSuggestions([card(2, 'S'), card(3, 'S'), card(4, 'S'), card(5, 'S'), card(6, 'S')]).normal.length, 0);
 });
 test('awareness hints expose partial Dublees and melds before qualification is ready', () => {

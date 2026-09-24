@@ -2,6 +2,7 @@
 from collections import Counter
 from dataclasses import dataclass
 
+from .cards import CardIdentity, Suit
 from .enums import GameStatus, MeldType, QualificationRoute
 from .maal import maal_view
 from .scoring_rules import ScoringRules
@@ -60,13 +61,22 @@ def score_items(player, maal, rules):
             face = None if label == "Man" else {"Tiplu": maal.tiplu, "Jhiplu": maal.jhiplu, "Poplu": maal.poplu}[label]
             offset = 0 if label == "Man" else marriage_count
             items.append(ScoreItem(label, count, value(table, count), tuple(by_face[face][offset:offset + count])))
-    tunnelas = (sum(m.meld_type is MeldType.TUNNELA for m in player.shown_melds)
-                if rules.tunnela_scope == "shown" else
+    if maal:
+        alternate_suit = {Suit.HEARTS: Suit.DIAMONDS, Suit.DIAMONDS: Suit.HEARTS,
+                          Suit.SPADES: Suit.CLUBS, Suit.CLUBS: Suit.SPADES}[maal.tiplu.suit]
+        alter = CardIdentity(alternate_suit, maal.tiplu.rank)
+        count = faces[alter]
+        if count and value(rules.alter, count):
+            items.append(ScoreItem("Alter", count, value(rules.alter, count), tuple(by_face[alter])))
+    bonus_melds = player.initial_tunnelas if rules.initial_tunnela_declaration else player.shown_melds
+    use_declarations = rules.tunnela_scope != "off" and (rules.initial_tunnela_declaration or rules.tunnela_scope == "shown")
+    tunnelas = (sum(m.meld_type is MeldType.TUNNELA for m in bonus_melds)
+                if use_declarations else
                 sum(count == 3 for face, count in faces.items() if face is not None)
                 if rules.tunnela_scope == "hand" else 0)
     if tunnelas:
-        ids = (tuple(i for m in player.shown_melds if m.meld_type is MeldType.TUNNELA for i in m.card_ids)
-               if rules.tunnela_scope == "shown" else
+        ids = (tuple(i for m in bonus_melds if m.meld_type is MeldType.TUNNELA for i in m.card_ids)
+               if rules.initial_tunnela_declaration or rules.tunnela_scope == "shown" else
                tuple(i for face, cards in by_face.items() if face is not None and len(cards) == 3 for i in cards))
         items.append(ScoreItem("Tunnela bonus", tunnelas, tunnelas * rules.tunnela_bonus, ids))
     return tuple(items)

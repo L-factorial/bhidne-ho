@@ -142,7 +142,8 @@ class TableState:
                 'can_leave_seat': seated and self.phase in ('OPEN', 'COMPLETED', 'ENDED'),
                 'can_abandon_match': seated and self.phase == 'STARTED' and policy.supports_abandonment,
                 'is_in_active_match': seated and self.phase == 'STARTED',
-                'can_next_match': host and self.phase == 'COMPLETED' and valid and not self.releases,
+                'can_next_match': host and self.phase == 'COMPLETED' and
+                    (valid if policy.requires_replacement else 1 <= count <= policy.max_players) and not self.releases,
                 'replacement_offer': next((asdict(o) for o in pending if o.offered_to_player_id == user_id), None),
                 'can_invite_replacement': self.phase == 'COMPLETED' and bool(self.releases) and not self.queue and
                     (host or user_id in self.releases.values()),

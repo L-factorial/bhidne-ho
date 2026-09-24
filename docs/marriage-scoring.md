@@ -5,16 +5,16 @@ uses the immutable policy selected before the round and values final holdings on
 after a legal finish. Existing Dublee completion triggers this calculation.
 Normal-hand completion is also implemented; see [normal wins](marriage-normal-finish.md).
 It scores the winner's 21 retained cards, excludes the final discard, and applies
-no Dublee win bonus. The `shown` Tunnela scope counts initial qualification melds.
+no Dublee win bonus. With initial Tunnela declaration enabled, Tunnela bonuses
+count only the triples declared before the first draw.
 
 ## Presets and custom options
 
 These are explicit **Bhidne Ho house policies**, not a claim that every Nepali table
 uses the same rules. Published rules differ: [Pagat](https://www.pagat.com/rummy/marriage.html)
 describes duplicate bonuses, marriage groups replacing their constituent values,
-pairwise Maal settlement, and additional payments to the winner. Its deal-time
-Tunnela declaration is different from our current shown-meld system. We therefore
-name our Tunnela policy explicitly instead of calling it that traditional rule.
+pairwise Maal settlement, and additional payments to the winner. Our configurable
+initial Tunnela declaration is documented in [the engine guide](marriage.md#initial-tunnela-declaration).
 
 | Option | House bonus (default) | Simple points |
 | --- | --- | --- |
@@ -23,7 +23,8 @@ name our Tunnela policy explicitly instead of calling it that traditional rule.
 | Poplu, totals for 1 / 2 / 3 | 2 / 5 / 10 | 2 / 4 / 6 |
 | Man, totals for 1 / 2 / 3 | 2 / 5 / 10 | 2 / 4 / 6 |
 | Marriage, totals for 1 / 2 / 3 | 10 / 25 / 50 | 0 / 0 / 0 (no bonus) |
-| Extra Tunnela points | 5 per shown Tunnela | Off |
+| Initial Tunnela declaration | On | On |
+| Extra Tunnela points | 5 per initially declared Tunnela | Off |
 | Maal eligibility | Must have seen Maal | Must have seen Maal |
 | Loser payment, seen / unseen Maal | 3 / 10 | 3 / 10 |
 | Extra per loser for Dublee winner | 5 | 0 |
@@ -35,14 +36,17 @@ indicator, so only two Tiplu copies can be held. Presets come from the server;
 clients never supply point results. Custom fields override defaults. Unknown fields,
 booleans as numbers, strings as numbers, and invalid ranges are rejected.
 
-Tunnela scope can be `off`, `shown` (engine-accepted Tunnela declarations) or `hand`
-(every natural three-copy face in final holdings). The bonus is additive to Maal
+With initial declaration enabled, `off` disables the bonus and any other scope
+counts only initial declarations. With it disabled, scope can be `off`, `shown`
+(accepted Maal-qualification Tunnelas) or `hand` (every natural three-copy face
+in final holdings). The bonus is additive to Maal
 points, including on Maal Tunnelas. Man cannot form a Tunnela. Maal eligibility can
 be restricted to players who saw Maal or include everyone; it gates **all** item
 points, including Man and Tunnela bonuses, but never the winner payment.
 
 Only exact Tiplu/Jhiplu/Poplu faces score, using the engine's cyclic neighbors.
-Other suits of the Tiplu rank have no points. All retained cards count, including
+The same-colour other suit at Tiplu rank scores configured Alter points
+(default totals 1 / 2 / 3); opposite-colour suits have no face points. All retained cards count, including
 committed melds and unused Dublee cards. Discards, stock and indicator do not.
 The calculator tries all disjoint marriage-group counts and selects the greatest
 total. A card counted in a marriage is excluded from individual Maal counting.

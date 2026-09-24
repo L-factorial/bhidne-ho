@@ -14,7 +14,7 @@ test('wildcards match Tiplu rank across suits, same-suit neighbors, and Man', ()
 
 test('completion rules allow natural groups, wildcard sets and sequences, and all-wild groups', () => {
   assert.equal(completionKind([card(14), card(2), card(3)], maal), 'pure_sequence');
-  assert.equal(completionKind([card(12), card(13), card(14)], maal), null);
+  assert.equal(completionKind([card(12), card(13), card(14)], maal), 'pure_sequence');
   assert.equal(completionKind([card(4), card(6), man()], maal), 'sequence');
   assert.equal(completionKind([card(4), card(4, 'D'), man()], maal), 'set');
   assert.equal(completionKind([card(4), card(4, 'H', 1), man()], maal), null);
@@ -105,6 +105,10 @@ test('winning slider options cover 21 distinct physical cards and preserve shown
     assert.equal(new Set([...ids,option.discard_card_id]).size,hand.length);
     for (const group of option.melds.slice(3)) assert.equal(completionKind(hand.filter(c => group.card_ids.includes(c.card_id)),maal),group.meld_type);
   }
+  const protectedIds = options.map(option => option.discard_card_id);
+  const protectedOptions = marriageWinChoices(hand, locked, maal, 'normal', protectedIds);
+  assert.ok(protectedOptions.every(option => !protectedIds.includes(option.discard_card_id)));
+  assert.deepEqual(marriageWinChoices(hand, locked, maal, 'normal', hand.map(c => c.card_id)), []);
   assert.deepEqual(marriageWinChoices(hand.slice(1),locked,maal,'normal'),[]);
   assert.deepEqual(marriageWinChoices(hand,locked,maal,'unqualified'),[]);
 });
@@ -120,4 +124,11 @@ test('Dublee slider enumerates physical pairs without reusing locked cards', asy
     assert.equal(option.winning_pair.length,2);
     assert.equal(new Set(option.melds.flatMap(g=>g.card_ids)).size,16);
   }
+});
+
+test('Ace-high wildcard sequences do not permit wraparound or mixed fixed suits', () => {
+  assert.equal(completionKind([card(13), card(14), man()], maal), 'sequence');
+  assert.equal(completionKind([card(12), card(14), man()], maal), 'sequence');
+  assert.equal(completionKind([card(13), card(14), card(2)], maal), null);
+  assert.equal(completionKind([card(12), card(13, 'D'), card(14)], maal), null);
 });

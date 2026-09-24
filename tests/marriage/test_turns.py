@@ -1,3 +1,4 @@
+from marriage import MarriageRules, ScoringRules
 from dataclasses import FrozenInstanceError, asdict, replace
 from random import Random
 
@@ -12,7 +13,7 @@ from marriage import (
 
 
 def started(count=2, seed=12):
-    engine = MarriageGameEngine(tuple(f"p{i}" for i in range(count)), rng=Random(seed))
+    engine = MarriageGameEngine(tuple(f"p{i}" for i in range(count)), rng=Random(seed), rules=MarriageRules(scoring=ScoringRules(initial_tunnela_declaration=False)))
     engine.start_game()
     return engine
 
@@ -61,7 +62,7 @@ def test_draw_discard_and_visible_pickup_preserve_order_and_events():
 
 
 def test_invalid_commands_are_atomic_in_every_turn_phase():
-    engine = MarriageGameEngine(["p0", "p1"], rng=Random(1))
+    engine = MarriageGameEngine(["p0", "p1"], rng=Random(1), rules=MarriageRules(scoring=ScoringRules(initial_tunnela_declaration=False)))
     assert engine.get_allowed_actions("p0").kinds == ()
     assert_rejected(engine, InvalidActionError, lambda: engine.draw_card("p0", DrawSource.STOCK))
     assert_rejected(engine, InvalidActionError, lambda: engine.discard_card("p0", "fake"))
@@ -162,7 +163,7 @@ def test_no_recyclable_stock_reports_block_and_does_not_invent_winner(discard_co
 def qualified_fixture(route, *, unrestricted=False):
     """Future qualification fixture for turn policy; not a public declaration API."""
     engine = MarriageGameEngine(["p0", "p1"], rng=Random(1),
-                                rules=MarriageRules(dublee_player_can_draw_discard=unrestricted))
+                                rules=MarriageRules(dublee_player_can_draw_discard=unrestricted, scoring=ScoringRules(initial_tunnela_declaration=False)))
     engine.start_game()
     state = engine.get_state()
     deck = create_deck()
