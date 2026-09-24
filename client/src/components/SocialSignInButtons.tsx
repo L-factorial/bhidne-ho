@@ -1,3 +1,5 @@
+import { ui } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { startSocialLogin, type SocialProvider } from '../auth/social';
@@ -9,6 +11,7 @@ import { SignInButton } from './SignInButton';
 export function SocialSignInButtons({ onSession, disabled = false, onBusyChange }: {
   onSession: (session: Session) => void; disabled?: boolean; onBusyChange?: (busy: boolean) => void;
 }) {
+  useUiLanguage();
   const { colors } = useTheme();
   const [providers, setProviders] = useState<SocialProvider[]>([]);
   const [busy, setBusy] = useState<SocialProvider | null>(null);
@@ -29,7 +32,7 @@ export function SocialSignInButtons({ onSession, disabled = false, onBusyChange 
       const session = await startSocialLogin(provider);
       if (session && mounted.current) onSession(session);
     } catch (failure) {
-      if (mounted.current) setError(failure instanceof Error ? failure.message : 'Could not sign in. Please try again.');
+      if (mounted.current) setError(failure instanceof Error ? failure.message : ui("feedback.could_not_sign_in_please_try_again"));
     } finally {
       pending.current = false; onBusyChange?.(false);
       if (mounted.current) setBusy(null);
@@ -40,7 +43,7 @@ export function SocialSignInButtons({ onSession, disabled = false, onBusyChange 
   return <View style={{ gap: 12 }}>
     {(['google', 'apple', 'facebook'] as const).filter(provider => providers.includes(provider)).map(provider =>
       <SignInButton key={provider} method={labels[provider]} disabled={disabled || busy !== null}
-        label={busy === provider ? `Signing in with ${labels[provider]}…` : undefined} onPress={() => void signIn(provider)} />)}
+        label={busy === provider ? ui("common.signing_in_with_provider", { "provider": labels[provider] }) : undefined} onPress={() => void signIn(provider)} />)}
     {!!error && <Text accessibilityRole="alert" style={{ color: colors.danger }}>{error}</Text>}
   </View>;
 }

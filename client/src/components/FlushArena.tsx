@@ -1,3 +1,5 @@
+import { ui, uiLabel } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { PlayerAvatar } from './PlayerAvatar';
 import { TableSurface } from './TableSurface';
 import { PlayerSocialEffect, useTableSocial } from './TableSocial';
@@ -10,6 +12,7 @@ import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { minimumArenaHeight, newBets, playerPosition, potBeforeFlights, type FlushBet } from '../multiplayer/flushTable';
 
 export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot: RoomSnapshot; height?: number; centerControl?: ReactNode }) {
+  const uiLanguage = useUiLanguage();
   const social = useTableSocial();
   const s = useThemedStyles(styles);
   const { colors } = useTheme();
@@ -33,32 +36,32 @@ export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot
   const own = roster.findIndex(p => p.player_id === String(snapshot.your_player_id));
   const seated = own < 0 ? roster : [...roster.slice(own), ...roster.slice(0, own)];
   const players = pregame ? [...seated, ...Array.from({ length: Math.max(0, (snapshot.table?.max_players || snapshot.capacity || seated.length) - seated.length) }, (_, index) => ({ player_id: `empty-${index}`, status: 'empty', visibility: '', turn_bet_count: 0 }))] : seated;
-  const minimumHeight = useMemo(() => minimumArenaHeight(players.length, width), [players.length, width]);
+  const minimumHeight = useMemo(() => minimumArenaHeight(players.length, width), [players.length, width, uiLanguage]);
   height = Math.max(pregame ? Math.min(height, 520) : Math.min(height, 420), minimumHeight);
   const current = pending[0];
   const index = current ? players.findIndex(p => p.player_id === current.player_id) : -1;
   return <View style={[s.arena, { height }]} onLayout={e => setWidth(e.nativeEvent.layout.width)} testID="flush-arena">
     <View pointerEvents="none" style={{ position: 'absolute', top: 12, bottom: 12, left: 4, right: 4 }}><TableSurface game="flush" /></View>
-    {!centerControl && <View style={[s.pot, { left: width / 2 - 58, top: height / 2 - 60 }]}><Text style={s.caption}>TOTAL POT</Text><Text testID="flush-pot" accessibilityLiveRegion="polite" style={s.potValue}>{potBeforeFlights(pub?.pot || 0, pending)}</Text><Text style={s.caption}>points</Text>
-      {pub && <><Text style={s.caption}>Round {pub.round_number}</Text><Text style={s.caption}>Blind {pub.current_blind_bet} · Seen {pub.current_seen_bet}</Text></>}
+    {!centerControl && <View style={[s.pot, { left: width / 2 - 58, top: height / 2 - 60 }]}><Text style={s.caption}>{ui("flush.total_pot")}</Text><Text testID="flush-pot" accessibilityLiveRegion="polite" style={s.potValue}>{potBeforeFlights(pub?.pot || 0, pending)}</Text><Text style={s.caption}>{ui("marriage.points")}</Text>
+      {pub && <><Text style={s.caption}>{ui("flush.round_number", { "number": pub.round_number })}</Text><Text style={s.caption}>{ui("common.blind_blindamount_seen_seenamount", { "blindAmount": pub.current_blind_bet, "seenAmount": pub.current_seen_bet })}</Text></>}
     </View>}
     {players.map((p, i) => {
       const pos = playerPosition(i, players.length, width, height), folded = p.status !== 'active';
-      if (p.status === 'empty') return <View key={p.player_id} testID="flush-empty-seat" accessibilityLabel="Empty seat" style={[s.seat, { left: pos.x - 40, top: pos.y - 26 }]}><View style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.onTableHeader, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.onTableHeader, fontSize: 24 }}>+</Text></View><Text style={{ color: colors.onTableHeader, fontSize: 10 }}>Empty</Text></View>;
+      if (p.status === 'empty') return <View key={p.player_id} testID="flush-empty-seat" accessibilityLabel={ui("rooms.empty_seat")} style={[s.seat, { left: pos.x - 40, top: pos.y - 26 }]}><View style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.onTableHeader, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.onTableHeader, fontSize: 24 }}>+</Text></View><Text style={{ color: colors.onTableHeader, fontSize: 10 }}>{ui("flush.empty")}</Text></View>;
       const lastBet = bets.filter(b => b.player_id === p.player_id && b.kind === 'BET_PLACED').at(-1);
-      const name = snapshot.players?.find(row => String(row.player_id) === p.player_id)?.display_name || `Player ${p.player_id}`;
+      const name = snapshot.players?.find(row => String(row.player_id) === p.player_id)?.display_name || ui("common.player_number", { "number": p.player_id });
       const target = !!social?.pokeMode && social.eligible(Number(p.player_id));
       return <Pressable key={p.player_id} ref={node => social?.registerSeat(Number(p.player_id), node)} collapsable={false}
-        testID={`flush-seat-${p.player_id}`} accessibilityRole={target ? 'button' : undefined} accessibilityLabel={target ? `Poke ${name}` : name} disabled={!target}
+        testID={`flush-seat-${p.player_id}`} accessibilityRole={target ? 'button' : undefined} accessibilityLabel={target ? ui("social.poke_player_2", { "player": name }) : name} disabled={!target}
         onTouchStart={event => { if (target) event.stopPropagation(); }} onPointerDown={event => { if (target) event.stopPropagation(); }} onPress={() => social?.poke(Number(p.player_id))}
         style={[s.seat, { left: pos.x - 40, top: pos.y - 38, opacity: folded ? 0.4 : 1, minHeight: 44 }]}>
         <PlayerSocialEffect playerId={Number(p.player_id)} />
         <View style={[s.icon, p.player_id === decision?.actor && s.current, target && {borderColor:colors.accent}]}>
-          {target && <Text style={{position:'absolute',right:-8,top:-8}}>👋</Text>}<PlayerAvatar uri={snapshot.players?.find(row => String(row.player_id) === p.player_id)?.avatar_url} />{!pregame && <Text accessibilityLabel={`${p.turn_bet_count} bets`} style={s.count}>Bets {p.turn_bet_count}</Text>}
-          {p.player_id === decision?.actor && p.player_id !== String(snapshot.your_player_id) && <Text testID="flush-active-turn" style={s.turnLabel}>TURN</Text>}
-          {p.player_id === pub?.dealer_id && <Text accessibilityLabel="Dealer" style={s.dealer}>D</Text>}</View>
+          {target && <Text style={{position:'absolute',right:-8,top:-8}}>👋</Text>}<PlayerAvatar uri={snapshot.players?.find(row => String(row.player_id) === p.player_id)?.avatar_url} />{!pregame && <Text accessibilityLabel={ui("flush.count_bets", { "count": p.turn_bet_count })} style={s.count}>{ui("flush.bets_count", { "count": p.turn_bet_count })}</Text>}
+          {p.player_id === decision?.actor && p.player_id !== String(snapshot.your_player_id) && <Text testID="flush-active-turn" style={s.turnLabel}>{ui("common.turn")}</Text>}
+          {p.player_id === pub?.dealer_id && <Text accessibilityLabel={ui("common.dealer")} style={s.dealer}>D</Text>}</View>
         <Text testID={`flush-turn-name-${p.player_id}`} numberOfLines={1} style={s.name}>{name}</Text>
-        <Text style={s.caption}>{p.player_id === String(snapshot.your_player_id) ? 'YOU · ' : ''}{pregame ? 'Seated' : folded ? 'Folded' : `${p.visibility}${lastBet ? ` · Bet ${lastBet.amount}` : ''}`}</Text>
+        <Text style={s.caption}>{p.player_id === String(snapshot.your_player_id) ? `${ui('common.you')} · ` : ''}{pregame ? ui("flush.seated") : folded ? ui("flush.folded") : `${uiLabel(p.visibility, 'flush')}${lastBet ? ` · ${ui('flush.bet')} ${lastBet.amount}` : ''}`}</Text>
       </Pressable>;
     })}
     {!!centerControl && <View pointerEvents="box-none" style={{ position: 'absolute', left: 56, right: 56, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>{centerControl}</View>}
@@ -67,6 +70,7 @@ export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot
   </View>;
 }
 function CoinFlight({ bet, from, to, onFinish }: { bet: FlushBet; from: { x: number; y: number }; to: { x: number; y: number }; onFinish: () => void }) {
+  const uiLanguage = useUiLanguage();
   const { colors } = useTheme();
   const value = useRef(new Animated.Value(0)).current;
   const done = useRef(onFinish); done.current = onFinish;

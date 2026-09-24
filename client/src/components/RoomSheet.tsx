@@ -1,3 +1,5 @@
+import { ui } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { gamePanelFinish, fonts, radii, space, typography, useTheme } from '../theme';
 import { FormScrollView } from './FormInput';
 import { KeyboardFrame } from './KeyboardFrame';
@@ -5,7 +7,8 @@ import { type ReactNode, useCallback, useEffect, useRef } from 'react';
 import { Keyboard, Modal, Platform, Pressable, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export function RoomSheet({ visible, title, onClose, children, scrollable = true, footer, testID = 'room-sheet', closeLabel = 'Close room panel', contentHandlesBottomInset = false, presentation = 'sheet', tableStyle = false, headerActions }: { headerActions?: ReactNode; tableStyle?: boolean; visible: boolean; title: string; onClose: () => void; children: ReactNode; scrollable?: boolean; footer?: ReactNode; testID?: string; closeLabel?: string; contentHandlesBottomInset?: boolean; presentation?: 'sheet' | 'dialog' }) {
+export function RoomSheet({ visible, title, onClose, children, scrollable = true, footer, testID = 'room-sheet', closeLabel = ui("common.close_room_panel"), contentHandlesBottomInset = false, presentation = 'sheet', tableStyle = false, headerActions }: { headerActions?: ReactNode; tableStyle?: boolean; visible: boolean; title: string; onClose: () => void; children: ReactNode; scrollable?: boolean; footer?: ReactNode; testID?: string; closeLabel?: string; contentHandlesBottomInset?: boolean; presentation?: 'sheet' | 'dialog' }) {
+  const uiLanguage = useUiLanguage();
   const { colors: c } = useTheme();
   const wide = useWindowDimensions().width >= 900;
   const insets = useSafeAreaInsets();
@@ -16,7 +19,7 @@ export function RoomSheet({ visible, title, onClose, children, scrollable = true
     const container = panel.current as unknown as HTMLElement | null;
     // Scope focus to this sheet; another sheet may still be mounted underneath.
     if (!container?.contains(document.activeElement)) (closeButton.current as unknown as HTMLElement | null)?.focus({ preventScroll: true });
-  }, []);
+  }, [uiLanguage]);
   const dialog = presentation === 'dialog';
   useEffect(() => {
     if (!visible || Platform.OS !== 'web') return;

@@ -1,3 +1,5 @@
+import { ui } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { TablePlayer } from './CardTable';
@@ -7,6 +9,7 @@ export function DealStatusPanel({ players, viewerId, activePlayerId, cardsPlayed
   players: TablePlayer[]; viewerId: string; activePlayerId: string; cardsPlayed: number; paused: boolean;
   trickNumber?: number; complete?: boolean;
 }) {
+  useUiLanguage();
   const styles = useThemedStyles(createStyles);
   const [expanded, setExpanded] = useState(false);
   const [offset, setOffset] = useState(0);
@@ -19,40 +22,38 @@ export function DealStatusPanel({ players, viewerId, activePlayerId, cardsPlayed
 
   return <View style={styles.panel}>
     <View style={styles.headingRow}>
-      <Text accessibilityRole="header" style={styles.heading}>Current deal</Text>
+      <Text accessibilityRole="header" style={styles.heading}>{ui("callbreak.current_deal")}</Text>
       <Text style={styles.deal}>1 / 5</Text>
     </View>
-    <Text accessibilityLiveRegion="polite" style={styles.status}>
-      {complete ? 'Deal complete' : paused ? 'Preview paused' : 'Playing'} · Trick {trickNumber} of {tricksPerDeal} · {cardsPlayed}/{players.length} cards played
-    </Text>
-    <Text style={styles.detail}>{complete ? 'All hands played' : `${paused ? 'Next turn' : 'Current turn'}: ${active?.id === viewerId ? 'You' : active?.name}`} · {players.reduce((sum, player) => sum + player.tricks, 0)}/{tricksPerDeal} tricks completed</Text>
+    <Text accessibilityLiveRegion="polite" style={styles.status}>{ui("callbreak.deal_summary", { "status": complete ? ui("callbreak.deal_complete") : paused ? ui("common.preview_paused") : ui("rooms.playing"), "trick": trickNumber, "total": tricksPerDeal, "played": cardsPlayed, "players": players.length })}</Text>
+    <Text style={styles.detail}>{ui("callbreak.tricks_completed", { "status": complete ? ui("callbreak.all_hands_played") : `${paused ? ui("callbreak.next_turn") : ui("common.current_turn")}: ${active?.id === viewerId ? ui("common.you") : active?.name}`, "completed": players.reduce((sum, player) => sum + player.tricks, 0), "total": tricksPerDeal })}</Text>
     <Pressable accessibilityRole="button" accessibilityState={{ expanded }}
       onPress={() => { setExpanded(value => !value); setOffset(0); }} style={styles.toggle}>
-      <Text style={styles.toggleText}>{expanded ? 'Hide bids and player status' : 'View bids and player status'}</Text>
+      <Text style={styles.toggleText}>{expanded ? ui("callbreak.hide_bids_and_player_status") : ui("callbreak.view_bids_and_player_status")}</Text>
       <Text style={styles.toggleText}>{expanded ? '−' : '+'}</Text>
     </Pressable>
     {expanded && <>
       <View style={styles.scrollHeader}>
-        <Text style={styles.detail}>Bids · {players.reduce((sum, player) => sum + player.bid, 0)} total / {tricksPerDeal} available tricks</Text>
+        <Text style={styles.detail}>{ui("callbreak.bids_total", { "bids": players.reduce((sum, player) => sum + player.bid, 0), "available": tricksPerDeal })}</Text>
         <View style={styles.arrows}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Previous bids" disabled={offset <= 1}
+          <Pressable accessibilityRole="button" accessibilityLabel={ui("callbreak.previous_bids")} disabled={offset <= 1}
             accessibilityState={{ disabled: offset <= 1 }} onPress={() => scroll.current?.scrollTo({ x: Math.max(0, offset - 164), animated: true })}
             style={[styles.arrow, offset <= 1 && styles.disabled]}><Text style={styles.toggleText}>←</Text></Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Next bids" disabled={offset >= remaining - 1}
+          <Pressable accessibilityRole="button" accessibilityLabel={ui("callbreak.next_bids")} disabled={offset >= remaining - 1}
             accessibilityState={{ disabled: offset >= remaining - 1 }} onPress={() => scroll.current?.scrollTo({ x: Math.min(remaining, offset + 164), animated: true })}
             style={[styles.arrow, offset >= remaining - 1 && styles.disabled]}><Text style={styles.toggleText}>→</Text></Pressable>
         </View>
       </View>
-      <ScrollView ref={scroll} horizontal showsHorizontalScrollIndicator accessibilityLabel="Current deal player bids"
+      <ScrollView ref={scroll} horizontal showsHorizontalScrollIndicator accessibilityLabel={ui("callbreak.current_deal_player_bids")}
         onLayout={event => setViewportWidth(event.nativeEvent.layout.width)}
         onContentSizeChange={width => setContentWidth(width)} onScroll={event => setOffset(event.nativeEvent.contentOffset.x)} scrollEventThrottle={16}
         contentContainerStyle={styles.bidList}>
         {players.map(player => <View key={player.id} testID={`bid-${player.id}`} style={[styles.bidCard, player.id === activePlayerId && styles.active]}>
-          <Text numberOfLines={1} style={styles.player}>{player.id === viewerId ? 'You' : player.name}</Text>
-          <Text style={styles.bid}>Bid {player.bid}</Text>
-          <Text style={styles.detail}>Won {player.tricks} · Need {Math.max(0, player.bid - player.tricks)}</Text>
-          <Text style={styles.detail}>{player.cardsRemaining} cards left</Text>
-          <Text style={styles.turn}>{player.id === activePlayerId ? paused ? 'Next turn' : 'Current turn' : 'Waiting'}</Text>
+          <Text numberOfLines={1} style={styles.player}>{player.id === viewerId ? ui("common.you") : player.name}</Text>
+          <Text style={styles.bid}>{ui("callbreak.bid_count", { "count": player.bid })}</Text>
+          <Text style={styles.detail}>{ui("callbreak.won_won_need_needed", { "won": player.tricks, "needed": Math.max(0, player.bid - player.tricks) })}</Text>
+          <Text style={styles.detail}>{ui("common.count_cards_left", { "count": player.cardsRemaining })}</Text>
+          <Text style={styles.turn}>{player.id === activePlayerId ? paused ? ui("callbreak.next_turn") : ui("common.current_turn") : ui("rooms.waiting")}</Text>
         </View>)}
       </ScrollView>
       <Text style={styles.hint}>Swipe or use the arrows to see every player’s bid.</Text>

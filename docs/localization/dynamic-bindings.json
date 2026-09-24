@@ -1,0 +1,3206 @@
+{
+  "description": "Text expressions requiring a source/code mapping or carrying user data. Never translate raw user data. Review before wiring.",
+  "expressions": [
+    {
+      "file": "client/src/components/ActiveGames.tsx",
+      "line": 52,
+      "expression": "label"
+    },
+    {
+      "file": "client/src/components/ActiveGames.tsx",
+      "line": 53,
+      "expression": "value === 'all' ? tables.length : tables.filter(table => table.game_type === value).length"
+    },
+    {
+      "file": "client/src/components/ActiveGames.tsx",
+      "line": 61,
+      "expression": "loaded ? 'Couldn’t refresh tables' : 'Couldn’t load tables'"
+    },
+    {
+      "file": "client/src/components/ActiveGames.tsx",
+      "line": 62,
+      "expression": "loaded ? 'Showing the last available tables. Try refreshing again.' : 'Check your connection and try again.'"
+    },
+    {
+      "file": "client/src/components/ActiveGames.tsx",
+      "line": 67,
+      "expression": "filter === 'all' ? 'No active tables yet' : `No ${filters.find(([key]) => key === filter)?.[1]} tables yet`"
+    },
+    {
+      "file": "client/src/components/ActiveGames.tsx",
+      "line": 70,
+      "expression": "filter === 'all' ? 'Browse rooms' : 'View all games'"
+    },
+    {
+      "file": "client/src/components/AppHeader.tsx",
+      "line": 26,
+      "expression": "title"
+    },
+    {
+      "file": "client/src/components/CardFan.tsx",
+      "line": 24,
+      "expression": "card.rank"
+    },
+    {
+      "file": "client/src/components/CardFan.tsx",
+      "line": 25,
+      "expression": "card.suit"
+    },
+    {
+      "file": "client/src/components/CardFan.tsx",
+      "line": 27,
+      "expression": "card.suit"
+    },
+    {
+      "file": "client/src/components/CardFan.tsx",
+      "line": 29,
+      "expression": "card.rank"
+    },
+    {
+      "file": "client/src/components/CardFan.tsx",
+      "line": 30,
+      "expression": "card.suit"
+    },
+    {
+      "file": "client/src/components/CardTable.tsx",
+      "line": 60,
+      "expression": "play.card"
+    },
+    {
+      "file": "client/src/components/CardTable.tsx",
+      "line": 61,
+      "expression": "play.playerId === winnerPlayerId ? 'Won' : playIndex === 0 ? 'Led' : playIndex + 1"
+    },
+    {
+      "file": "client/src/components/ChatComposer.tsx",
+      "line": 32,
+      "expression": "length"
+    },
+    {
+      "file": "client/src/components/ChatComposer.tsx",
+      "line": 32,
+      "expression": "maxLength"
+    },
+    {
+      "file": "client/src/components/ChatMessage.tsx",
+      "line": 13,
+      "expression": "message.sender_name.slice(0, 1).toUpperCase()"
+    },
+    {
+      "file": "client/src/components/ChatMessage.tsx",
+      "line": 15,
+      "expression": "message.sender_name"
+    },
+    {
+      "file": "client/src/components/ChatMessage.tsx",
+      "line": 15,
+      "expression": "own ? ` (${t('chat.you')})` : ''"
+    },
+    {
+      "file": "client/src/components/ChatMessage.tsx",
+      "line": 16,
+      "expression": "new Date(message.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })"
+    },
+    {
+      "file": "client/src/components/ChatMessage.tsx",
+      "line": 18,
+      "expression": "message.text"
+    },
+    {
+      "file": "client/src/components/DealStatusPanel.tsx",
+      "line": 31,
+      "expression": "expanded ? 'Hide bids and player status' : 'View bids and player status'"
+    },
+    {
+      "file": "client/src/components/DealStatusPanel.tsx",
+      "line": 32,
+      "expression": "expanded ? '−' : '+'"
+    },
+    {
+      "file": "client/src/components/DealStatusPanel.tsx",
+      "line": 51,
+      "expression": "player.id === viewerId ? 'You' : player.name"
+    },
+    {
+      "file": "client/src/components/DealStatusPanel.tsx",
+      "line": 55,
+      "expression": "player.id === activePlayerId ? paused ? 'Next turn' : 'Current turn' : 'Waiting'"
+    },
+    {
+      "file": "client/src/components/EndGameControl.tsx",
+      "line": 14,
+      "expression": "label"
+    },
+    {
+      "file": "client/src/components/EndGameControl.tsx",
+      "line": 19,
+      "expression": "confirmation"
+    },
+    {
+      "file": "client/src/components/EndGameControl.tsx",
+      "line": 27,
+      "expression": "confirmation"
+    },
+    {
+      "file": "client/src/components/FloatingTableAction.tsx",
+      "line": 33,
+      "expression": "label"
+    },
+    {
+      "file": "client/src/components/FlushArena.tsx",
+      "line": 42,
+      "expression": "potBeforeFlights(pub?.pot || 0, pending)"
+    },
+    {
+      "file": "client/src/components/FlushArena.tsx",
+      "line": 60,
+      "expression": "name"
+    },
+    {
+      "file": "client/src/components/FlushArena.tsx",
+      "line": 61,
+      "expression": "p.player_id === String(snapshot.your_player_id) ? 'YOU · ' : ''"
+    },
+    {
+      "file": "client/src/components/FlushArena.tsx",
+      "line": 61,
+      "expression": "pregame ? 'Seated' : folded ? 'Folded' : `${p.visibility}${lastBet ? ` · Bet ${lastBet.amount}` : ''}`"
+    },
+    {
+      "file": "client/src/components/FlushArena.tsx",
+      "line": 82,
+      "expression": "bet.amount"
+    },
+    {
+      "file": "client/src/components/FlushBetTable.tsx",
+      "line": 13,
+      "expression": "h"
+    },
+    {
+      "file": "client/src/components/FlushBetTable.tsx",
+      "line": 18,
+      "expression": "name"
+    },
+    {
+      "file": "client/src/components/FlushBetTable.tsx",
+      "line": 19,
+      "expression": "signed(amount)"
+    },
+    {
+      "file": "client/src/components/FlushCards.tsx",
+      "line": 25,
+      "expression": "peekAll ? 'Tap to hide cards' : 'Tap to see cards'"
+    },
+    {
+      "file": "client/src/components/FlushCards.tsx",
+      "line": 61,
+      "expression": "card.slice(0, -1)"
+    },
+    {
+      "file": "client/src/components/FlushCards.tsx",
+      "line": 61,
+      "expression": "symbols[card.slice(-1)]"
+    },
+    {
+      "file": "client/src/components/FlushFoldNotice.tsx",
+      "line": 26,
+      "expression": "notice"
+    },
+    {
+      "file": "client/src/components/FriendsPanel.tsx",
+      "line": 88,
+      "expression": "label(player)"
+    },
+    {
+      "file": "client/src/components/FriendsPanel.tsx",
+      "line": 89,
+      "expression": "player.username"
+    },
+    {
+      "file": "client/src/components/FriendsPanel.tsx",
+      "line": 120,
+      "expression": "sendError || error"
+    },
+    {
+      "file": "client/src/components/FriendsPanel.tsx",
+      "line": 127,
+      "expression": "message.sender_id === session.user_id ? 'You' : label(selected)"
+    },
+    {
+      "file": "client/src/components/FriendsPanel.tsx",
+      "line": 127,
+      "expression": "new Date(message.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })"
+    },
+    {
+      "file": "client/src/components/FriendsPanel.tsx",
+      "line": 128,
+      "expression": "message.text"
+    },
+    {
+      "file": "client/src/components/FriendsPanel.tsx",
+      "line": 132,
+      "expression": "error"
+    },
+    {
+      "file": "client/src/components/GameDetails.tsx",
+      "line": 21,
+      "expression": "busy ? 'Proposing…' : 'Propose rules & bets'"
+    },
+    {
+      "file": "client/src/components/GameDetails.tsx",
+      "line": 29,
+      "expression": "player.player_id === snapshot.your_player_id ? 'You' : player.display_name || `Player ${player.player_id}`"
+    },
+    {
+      "file": "client/src/components/GameDetails.tsx",
+      "line": 49,
+      "expression": "points == null ? '—' : `${points > 0 ? '+' : ''}${(points / 10).toFixed(1)}`"
+    },
+    {
+      "file": "client/src/components/GameDetails.tsx",
+      "line": 57,
+      "expression": "((snapshot.scoreboard?.find(p => p.player_id === player.player_id)?.total_score_tenths ?? 0) / 10).toFixed(1)"
+    },
+    {
+      "file": "client/src/components/GameDetails.tsx",
+      "line": 63,
+      "expression": "snapshot.player_stats?.find(p => p.player_id === player.player_id)?.total_tricks_won ?? 0"
+    },
+    {
+      "file": "client/src/components/GameDetails.tsx",
+      "line": 71,
+      "expression": "editable ? 'Creator settings · save before starting' : 'Only the creator can edit settings before the game starts.'"
+    },
+    {
+      "file": "client/src/components/GameDetails.tsx",
+      "line": 75,
+      "expression": "key === 'weak_hand_enabled' ? 'Redeal with no card above Jack' : 'Redeal with no spades'"
+    },
+    {
+      "file": "client/src/components/GameDetails.tsx",
+      "line": 93,
+      "expression": "value === 'stats' ? 'Stats' : 'Rules'"
+    },
+    {
+      "file": "client/src/components/GameDetails.tsx",
+      "line": 93,
+      "expression": "sidebar ? '' : selectedTab === value ? ' -' : ' +'"
+    },
+    {
+      "file": "client/src/components/GameHistory.tsx",
+      "line": 18,
+      "expression": "value === 'tricks' ? `Deal ${snapshot.deal?.deal_number || 1} tricks` : 'Recent activity'"
+    },
+    {
+      "file": "client/src/components/GameHistory.tsx",
+      "line": 26,
+      "expression": "name(play.player_id)"
+    },
+    {
+      "file": "client/src/components/GameHistory.tsx",
+      "line": 26,
+      "expression": "play.card.slice(0, -1)"
+    },
+    {
+      "file": "client/src/components/GameHistory.tsx",
+      "line": 26,
+      "expression": "suits[play.card.slice(-1)]"
+    },
+    {
+      "file": "client/src/components/GameHistory.tsx",
+      "line": 30,
+      "expression": "event.event.replaceAll('_', ' ').toLowerCase()"
+    },
+    {
+      "file": "client/src/components/GameHistory.tsx",
+      "line": 31,
+      "expression": "event.player_id ? `${name(event.player_id)} · ` : ''"
+    },
+    {
+      "file": "client/src/components/GameHistory.tsx",
+      "line": 31,
+      "expression": "event.action?.replaceAll('_', ' ').toLowerCase() || `Revision ${event.revision}`"
+    },
+    {
+      "file": "client/src/components/GameHistory.tsx",
+      "line": 34,
+      "expression": "tab === 'tricks' ? 'Current deal · newest first' : 'Recent server events · newest first'"
+    },
+    {
+      "file": "client/src/components/GameMenu.tsx",
+      "line": 22,
+      "expression": "label"
+    },
+    {
+      "file": "client/src/components/GameMenu.tsx",
+      "line": 29,
+      "expression": "label"
+    },
+    {
+      "file": "client/src/components/GameMenu.tsx",
+      "line": 30,
+      "expression": "value"
+    },
+    {
+      "file": "client/src/components/GameMenu.tsx",
+      "line": 40,
+      "expression": "player.display_name"
+    },
+    {
+      "file": "client/src/components/GameMenu.tsx",
+      "line": 40,
+      "expression": "String(player.player_id) === String(snapshot.your_player_id) ? ' · You' : ''"
+    },
+    {
+      "file": "client/src/components/GameTableHeader.tsx",
+      "line": 35,
+      "expression": "theme.name"
+    },
+    {
+      "file": "client/src/components/GameTableHeader.tsx",
+      "line": 51,
+      "expression": "tableName || title"
+    },
+    {
+      "file": "client/src/components/GameTableHeader.tsx",
+      "line": 52,
+      "expression": "title"
+    },
+    {
+      "file": "client/src/components/GameTableHeader.tsx",
+      "line": 53,
+      "expression": "path"
+    },
+    {
+      "file": "client/src/components/GameTableHeader.tsx",
+      "line": 84,
+      "expression": "tableName || title"
+    },
+    {
+      "file": "client/src/components/GameTableHeader.tsx",
+      "line": 100,
+      "expression": "path"
+    },
+    {
+      "file": "client/src/components/HandAreaBar.tsx",
+      "line": 14,
+      "expression": "instruction"
+    },
+    {
+      "file": "client/src/components/HandTrayLabel.tsx",
+      "line": 10,
+      "expression": "count === undefined ? 'Your cards' : `Your cards · ${count}`"
+    },
+    {
+      "file": "client/src/components/HeaderAction.tsx",
+      "line": 19,
+      "expression": "label"
+    },
+    {
+      "file": "client/src/components/InvitationPreview.tsx",
+      "line": 36,
+      "expression": "invitation.matchId ? 'Game invitation' : 'Room invitation'"
+    },
+    {
+      "file": "client/src/components/InvitationPreview.tsx",
+      "line": 38,
+      "expression": "invitation.matchId ? 'Entering the room. You can choose whether to take a game seat.' : 'Preview this room, then choose Join room when you’re ready. Joining the room does not take a game seat.'"
+    },
+    {
+      "file": "client/src/components/InvitationPreview.tsx",
+      "line": 40,
+      "expression": "error"
+    },
+    {
+      "file": "client/src/components/LanguageToggle.tsx",
+      "line": 15,
+      "expression": "label"
+    },
+    {
+      "file": "client/src/components/LiveBidPrompt.tsx",
+      "line": 19,
+      "expression": "isTurn ? (revealed ? 'Make your call' : 'Reveal your hand') : 'Bidding'"
+    },
+    {
+      "file": "client/src/components/LiveBidPrompt.tsx",
+      "line": 21,
+      "expression": "isTurn\r\n      ? (revealed ? 'How many tricks will you win?' : 'Flip all cards or reveal them one at a time before choosing your bid.')\r\n      : `${ownBid != null ? `Your bid: ${ownBid}. ` : ''}Waiting for ${bidder} to bid.`"
+    },
+    {
+      "file": "client/src/components/LiveBidPrompt.tsx",
+      "line": 26,
+      "expression": "amount"
+    },
+    {
+      "file": "client/src/components/LobbyNavigation.tsx",
+      "line": 23,
+      "expression": "item.label"
+    },
+    {
+      "file": "client/src/components/MaalProgress.tsx",
+      "line": 19,
+      "expression": "label"
+    },
+    {
+      "file": "client/src/components/MaalProgress.tsx",
+      "line": 24,
+      "expression": "nearest"
+    },
+    {
+      "file": "client/src/components/MaalProgress.tsx",
+      "line": 27,
+      "expression": "ready.length === 2 ? 'Both routes qualify — your choice' : 'A qualifying declaration is ready'"
+    },
+    {
+      "file": "client/src/components/MaalProgress.tsx",
+      "line": 34,
+      "expression": "route === 'normal' ? 'Three sequences / Tunnelas' : 'Seven Dublees'"
+    },
+    {
+      "file": "client/src/components/MaalProgress.tsx",
+      "line": 43,
+      "expression": "index + 1"
+    },
+    {
+      "file": "client/src/components/MaalProgress.tsx",
+      "line": 43,
+      "expression": "group.kind === 'pure_sequence' ? 'Sequence' : group.kind === 'tunnela' ? 'Tunnela' : 'Dublee'"
+    },
+    {
+      "file": "client/src/components/MaalProgress.tsx",
+      "line": 43,
+      "expression": "group.missing.length ? `${group.held.length}/${group.held.length + group.missing.length} held` : 'Ready'"
+    },
+    {
+      "file": "client/src/components/MaalProgress.tsx",
+      "line": 48,
+      "expression": "marriageFace(card)"
+    },
+    {
+      "file": "client/src/components/MaalProgress.tsx",
+      "line": 51,
+      "expression": "!group.held.length ? route === 'dublee' ? 'Need a new matching pair.' : 'Need a new natural sequence or Tunnela.' : `Need: ${group.missing.map(marriageFace).join(' + ')}`"
+    },
+    {
+      "file": "client/src/components/MaalReady.tsx",
+      "line": 27,
+      "expression": "label"
+    },
+    {
+      "file": "client/src/components/MarriageAnnouncements.tsx",
+      "line": 52,
+      "expression": "label"
+    },
+    {
+      "file": "client/src/components/MarriageAnnouncements.tsx",
+      "line": 64,
+      "expression": "win ? '🏆 Round won!' : initialTunnela ? 'Initial Tunnelas shown' : '✦ Maal unlocked'"
+    },
+    {
+      "file": "client/src/components/MarriageAnnouncements.tsx",
+      "line": 65,
+      "expression": "name"
+    },
+    {
+      "file": "client/src/components/MarriageAnnouncements.tsx",
+      "line": 65,
+      "expression": "win ? current.wonByFold ? 'won because all other players folded.' : current.dublee ? 'completed the 8th Dublee.' : 'completed a winning hand.' : initialTunnela ? 'declared Tunnelas before play.' : current.dublee ? 'showed 7 Dublees.' : 'showed 3 sequences / Tunnelas.'"
+    },
+    {
+      "file": "client/src/components/MarriageCardArea.tsx",
+      "line": 32,
+      "expression": "marriageFace(move.card)"
+    },
+    {
+      "file": "client/src/components/MarriageCardArea.tsx",
+      "line": 95,
+      "expression": "current?.kind === 'CARD_DISCARDED' ? '' : pub.top_discard ? marriageFace(pub.top_discard) : '—'"
+    },
+    {
+      "file": "client/src/components/MarriageCardArea.tsx",
+      "line": 111,
+      "expression": "marriageFace(privateMaal.tiplu)"
+    },
+    {
+      "file": "client/src/components/MarriageCardArea.tsx",
+      "line": 113,
+      "expression": "maalLabel"
+    },
+    {
+      "file": "client/src/components/MarriageFinishTool.tsx",
+      "line": 28,
+      "expression": "label"
+    },
+    {
+      "file": "client/src/components/MarriageFinishTool.tsx",
+      "line": 36,
+      "expression": "status"
+    },
+    {
+      "file": "client/src/components/MarriageFinishTool.tsx",
+      "line": 42,
+      "expression": "title"
+    },
+    {
+      "file": "client/src/components/MarriageFinishTool.tsx",
+      "line": 45,
+      "expression": "status"
+    },
+    {
+      "file": "client/src/components/MarriageFinishTool.tsx",
+      "line": 52,
+      "expression": "possibleCopies\n                    ? `Need another ${marriageFace(card)}.` : `${marriageFace(card)} cannot form a new pair: the other two copies are already locked.`"
+    },
+    {
+      "file": "client/src/components/MarriageFinishTool.tsx",
+      "line": 63,
+      "expression": "normal.ready ? 'Suggested final discard' : 'Cards outside these groups'"
+    },
+    {
+      "file": "client/src/components/MarriageMaalPanel.tsx",
+      "line": 36,
+      "expression": "label"
+    },
+    {
+      "file": "client/src/components/MarriageMaalPanel.tsx",
+      "line": 42,
+      "expression": "label"
+    },
+    {
+      "file": "client/src/components/MarriageMaalPanel.tsx",
+      "line": 59,
+      "expression": "checking?'Checking Maal…':`Option ${options.length?index+1:0} of ${options.length}`"
+    },
+    {
+      "file": "client/src/components/MarriageMaalPanel.tsx",
+      "line": 63,
+      "expression": "choice.route==='normal'?'Sequence / Tunnela':'Seven Dublees'"
+    },
+    {
+      "file": "client/src/components/MarriageMaalPanel.tsx",
+      "line": 70,
+      "expression": "marriageFace(card)"
+    },
+    {
+      "file": "client/src/components/MarriageMaalPanel.tsx",
+      "line": 75,
+      "expression": "error"
+    },
+    {
+      "file": "client/src/components/MarriageMeldCards.tsx",
+      "line": 9,
+      "expression": "group.meld_type === 'dublee' ? 'Dublee' : group.meld_type === 'tunnela' ? 'Tunnela' : group.meld_type === 'set' ? 'Set' : group.meld_type === 'sequence' ? 'Sequence (wildcards)' : 'Sequence'"
+    },
+    {
+      "file": "client/src/components/MarriageMeldCards.tsx",
+      "line": 11,
+      "expression": "physicalLabel(id).split(' · ')[0]"
+    },
+    {
+      "file": "client/src/components/MarriagePlayers.tsx",
+      "line": 55,
+      "expression": "detail && playerName(snapshot, detail.player_id)"
+    },
+    {
+      "file": "client/src/components/MarriagePlayers.tsx",
+      "line": 59,
+      "expression": "detail.has_seen_maal ? 'Maal seen' : 'Maal not seen'"
+    },
+    {
+      "file": "client/src/components/MarriagePlayers.tsx",
+      "line": 60,
+      "expression": "route(detail)"
+    },
+    {
+      "file": "client/src/components/MarriagePlayers.tsx",
+      "line": 61,
+      "expression": "snapshot.status === 'ended' ? 'Table ended' : situation(detail, pub)"
+    },
+    {
+      "file": "client/src/components/MarriagePlayers.tsx",
+      "line": 62,
+      "expression": "meld.meld_type.replace('_', ' ')"
+    },
+    {
+      "file": "client/src/components/MarriagePlayers.tsx",
+      "line": 62,
+      "expression": "meld.card_ids.map(physicalLabel).join('   ')"
+    },
+    {
+      "file": "client/src/components/MarriagePlayers.tsx",
+      "line": 78,
+      "expression": "playerName(snapshot, p.player_id)"
+    },
+    {
+      "file": "client/src/components/MarriagePlayers.tsx",
+      "line": 80,
+      "expression": "p.has_seen_maal ? 'Maal seen' : 'Maal not seen'"
+    },
+    {
+      "file": "client/src/components/MarriagePlayers.tsx",
+      "line": 80,
+      "expression": "route(p)"
+    },
+    {
+      "file": "client/src/components/MarriagePlayers.tsx",
+      "line": 82,
+      "expression": "meld.meld_type === 'pure_sequence' ? 'Sequence' : meld.meld_type === 'tunnela' ? 'Tunnela' : 'Dublee'"
+    },
+    {
+      "file": "client/src/components/MarriagePlayers.tsx",
+      "line": 83,
+      "expression": "meld.card_ids.map(physicalLabel).join('   ')"
+    },
+    {
+      "file": "client/src/components/MarriagePlayers.tsx",
+      "line": 98,
+      "expression": "value === 'rules' ? 'Rules' : 'Config'"
+    },
+    {
+      "file": "client/src/components/MarriagePlayers.tsx",
+      "line": 115,
+      "expression": "title"
+    },
+    {
+      "file": "client/src/components/MarriagePlayers.tsx",
+      "line": 115,
+      "expression": "body"
+    },
+    {
+      "file": "client/src/components/MarriageScoring.tsx",
+      "line": 34,
+      "expression": "label"
+    },
+    {
+      "file": "client/src/components/MarriageScoring.tsx",
+      "line": 39,
+      "expression": "value"
+    },
+    {
+      "file": "client/src/components/MarriageScoring.tsx",
+      "line": 43,
+      "expression": "editable ? 'House bonus is the default. Choose a preset or edit any value, then propose the change for player approval.' : 'The creator selects these rules before the round. They are locked during play.'"
+    },
+    {
+      "file": "client/src/components/MarriageScoring.tsx",
+      "line": 47,
+      "expression": "labels[key]"
+    },
+    {
+      "file": "client/src/components/MarriageScoring.tsx",
+      "line": 51,
+      "expression": "labels[key]"
+    },
+    {
+      "file": "client/src/components/MarriageScoring.tsx",
+      "line": 54,
+      "expression": "draft.initial_tunnela_declaration?'Before the first draw, every player must show dealt Tunnelas or declare none. Only those initial declarations earn the Tunnela bonus.':'Tunnela bonus applies to'"
+    },
+    {
+      "file": "client/src/components/MarriageScoring.tsx",
+      "line": 57,
+      "expression": "scope === 'off' ? 'None' : scope === 'shown' ? draft.initial_tunnela_declaration?'Initially declared Tunnelas':'Shown Tunnelas' : 'All final Tunnelas'"
+    },
+    {
+      "file": "client/src/components/MarriageScoring.tsx",
+      "line": 63,
+      "expression": "!valid ? 'Enter whole numbers from 0 to 1000.' : changed ? 'Unsaved changes' : 'Rule changes apply only after every seated player accepts.'"
+    },
+    {
+      "file": "client/src/components/MarriageScoring.tsx",
+      "line": 64,
+      "expression": "error"
+    },
+    {
+      "file": "client/src/components/MarriageScoring.tsx",
+      "line": 86,
+      "expression": "snapshot.status === 'ended' ? 'The game was ended without a winner. No final points were calculated.'\r\n      : snapshot.status === 'finished' ? 'This round has no scoring breakdown available.' : 'Points appear here when the round finishes, using the saved scoring rules.'"
+    },
+    {
+      "file": "client/src/components/MarriageScoring.tsx",
+      "line": 96,
+      "expression": "p.has_seen_maal ? 'Maal seen' : 'Maal not seen'"
+    },
+    {
+      "file": "client/src/components/MarriageScoring.tsx",
+      "line": 96,
+      "expression": "p.eligible ? '' : ' / not eligible for Maal points'"
+    },
+    {
+      "file": "client/src/components/MarriageScoring.tsx",
+      "line": 97,
+      "expression": "p.eligible ? 'No scoring cards.' : 'Maal points are not counted because Maal was not seen.'"
+    },
+    {
+      "file": "client/src/components/MarriageTunnelaPanel.tsx",
+      "line": 27,
+      "expression": "label"
+    },
+    {
+      "file": "client/src/components/MarriageTunnelaPanel.tsx",
+      "line": 36,
+      "expression": "checked?'✓ Selected':'Tap to select'"
+    },
+    {
+      "file": "client/src/components/MarriageTunnelaPanel.tsx",
+      "line": 49,
+      "expression": "busy?'Recording declaration…':label"
+    },
+    {
+      "file": "client/src/components/MarriageWinPanel.tsx",
+      "line": 32,
+      "expression": "label"
+    },
+    {
+      "file": "client/src/components/MarriageWinPanel.tsx",
+      "line": 38,
+      "expression": "label"
+    },
+    {
+      "file": "client/src/components/MarriageWinPanel.tsx",
+      "line": 50,
+      "expression": "checking ? 'Checking Marriage…' : `Option ${choices.length ? index + 1 : 0} of ${choices.length}`"
+    },
+    {
+      "file": "client/src/components/MarriageWinPanel.tsx",
+      "line": 59,
+      "expression": "error"
+    },
+    {
+      "file": "client/src/components/NotificationBell.tsx",
+      "line": 84,
+      "expression": "unread > 9 ? '9+' : unread"
+    },
+    {
+      "file": "client/src/components/NotificationBell.tsx",
+      "line": 113,
+      "expression": "playerName(item.actor).slice(0, 1).toUpperCase()"
+    },
+    {
+      "file": "client/src/components/NotificationBell.tsx",
+      "line": 114,
+      "expression": "playerName(item.actor)"
+    },
+    {
+      "file": "client/src/components/NotificationBell.tsx",
+      "line": 114,
+      "expression": "item.kind === 'friend_request' ? 'sent you a connection request.' : item.kind === 'friend_accepted' ? 'accepted your connection request.' : 'declined your connection request.'"
+    },
+    {
+      "file": "client/src/components/NotificationBell.tsx",
+      "line": 115,
+      "expression": "new Date(item.created_at).toLocaleString()"
+    },
+    {
+      "file": "client/src/components/NotificationBell.tsx",
+      "line": 122,
+      "expression": "error"
+    },
+    {
+      "file": "client/src/components/PlayerHand.tsx",
+      "line": 110,
+      "expression": "card.slice(0, -1)"
+    },
+    {
+      "file": "client/src/components/PlayerHand.tsx",
+      "line": 110,
+      "expression": "suits[suit]"
+    },
+    {
+      "file": "client/src/components/PlayerHand.tsx",
+      "line": 111,
+      "expression": "suitNames[suit]"
+    },
+    {
+      "file": "client/src/components/PlayerHand.tsx",
+      "line": 137,
+      "expression": "card.slice(0, -1)"
+    },
+    {
+      "file": "client/src/components/PlayerHand.tsx",
+      "line": 138,
+      "expression": "suits[suitOf(card)]"
+    },
+    {
+      "file": "client/src/components/PlayerHand.tsx",
+      "line": 150,
+      "expression": "hand.length ? `No ${suitNames[selectedSuit]?.toLowerCase() || 'cards'} left. Choose another suit.` : 'No cards in your hand.'"
+    },
+    {
+      "file": "client/src/components/PlayerHand.tsx",
+      "line": 161,
+      "expression": "suit === 'all' ? 'All' : suits[suit]"
+    },
+    {
+      "file": "client/src/components/PlayerHand.tsx",
+      "line": 161,
+      "expression": "count"
+    },
+    {
+      "file": "client/src/components/PlayerHand.tsx",
+      "line": 183,
+      "expression": "mode === 'fan' ? 'Sorted fan' : mode === 'suits' ? 'Suit fan' : 'Grid'"
+    },
+    {
+      "file": "client/src/components/PlayerPhrases.tsx",
+      "line": 27,
+      "expression": "open ? '−' : '+'"
+    },
+    {
+      "file": "client/src/components/PlayerPhrases.tsx",
+      "line": 34,
+      "expression": "phrase.text"
+    },
+    {
+      "file": "client/src/components/PlayerPhrases.tsx",
+      "line": 47,
+      "expression": "busy ? 'Saving…' : editing ? 'Update' : 'Save'"
+    },
+    {
+      "file": "client/src/components/PlayerPhrases.tsx",
+      "line": 49,
+      "expression": "error || loadError"
+    },
+    {
+      "file": "client/src/components/PlayerSeat.tsx",
+      "line": 47,
+      "expression": "name"
+    },
+    {
+      "file": "client/src/components/PlayerSeat.tsx",
+      "line": 49,
+      "expression": "active ? mine ? 'YOU' : '● TURN' : !connected ? 'Offline' : mine ? 'YOU' : dealer ? 'Dealer' : status"
+    },
+    {
+      "file": "client/src/components/PlayerSeat.tsx",
+      "line": 51,
+      "expression": "!connected && active ? `Offline · ${status}` : status"
+    },
+    {
+      "file": "client/src/components/PokeComposer.tsx",
+      "line": 43,
+      "expression": "notice"
+    },
+    {
+      "file": "client/src/components/PokeComposer.tsx",
+      "line": 44,
+      "expression": "error"
+    },
+    {
+      "file": "client/src/components/PokeComposer.tsx",
+      "line": 47,
+      "expression": "recipient === null ? 'Everyone in this room will see it.' : `Only ${target} will see this message.`"
+    },
+    {
+      "file": "client/src/components/PokeComposer.tsx",
+      "line": 52,
+      "expression": "phrase"
+    },
+    {
+      "file": "client/src/components/PokeOverlay.tsx",
+      "line": 34,
+      "expression": "privatePoke ? '✦ JUST FOR YOU' : '✦ TABLE TALK'"
+    },
+    {
+      "file": "client/src/components/PokeOverlay.tsx",
+      "line": 34,
+      "expression": "poke.sender_name || `Player ${poke.sender_player_id}`"
+    },
+    {
+      "file": "client/src/components/PokeOverlay.tsx",
+      "line": 35,
+      "expression": "poke.text"
+    },
+    {
+      "file": "client/src/components/RoomCard.tsx",
+      "line": 25,
+      "expression": "room.name"
+    },
+    {
+      "file": "client/src/components/RoomCard.tsx",
+      "line": 27,
+      "expression": "room.visibility === 'public' ? 'Public' : 'Private'"
+    },
+    {
+      "file": "client/src/components/RoomCard.tsx",
+      "line": 27,
+      "expression": "room.members.length"
+    },
+    {
+      "file": "client/src/components/RoomCard.tsx",
+      "line": 27,
+      "expression": "room.members.length === 1 ? 'member' : 'members'"
+    },
+    {
+      "file": "client/src/components/RoomCard.tsx",
+      "line": 27,
+      "expression": "tables"
+    },
+    {
+      "file": "client/src/components/RoomCard.tsx",
+      "line": 27,
+      "expression": "tables === 1 ? 'table' : 'tables'"
+    },
+    {
+      "file": "client/src/components/RoomCard.tsx",
+      "line": 51,
+      "expression": "initials"
+    },
+    {
+      "file": "client/src/components/RoomCard.tsx",
+      "line": 56,
+      "expression": "extra"
+    },
+    {
+      "file": "client/src/components/RoomCard.tsx",
+      "line": 62,
+      "expression": "member ? 'Enter' : 'Join'"
+    },
+    {
+      "file": "client/src/components/RoomCard.tsx",
+      "line": 73,
+      "expression": "owner ? 'This deletes the room for everyone. End active tables first.' : 'This removes your room membership. Private rooms require a new invitation to rejoin.'"
+    },
+    {
+      "file": "client/src/components/RoomCard.tsx",
+      "line": 74,
+      "expression": "error"
+    },
+    {
+      "file": "client/src/components/RoomCard.tsx",
+      "line": 76,
+      "expression": "removing ? 'Working…' : owner ? 'Delete room' : 'Leave room'"
+    },
+    {
+      "file": "client/src/components/RoomChat.tsx",
+      "line": 90,
+      "expression": "t('chat.title')"
+    },
+    {
+      "file": "client/src/components/RoomChat.tsx",
+      "line": 90,
+      "expression": "unread ? ` · ${unread}` : ''"
+    },
+    {
+      "file": "client/src/components/RoomChat.tsx",
+      "line": 102,
+      "expression": "t('chat.reconnecting')"
+    },
+    {
+      "file": "client/src/components/RoomChat.tsx",
+      "line": 103,
+      "expression": "error || loadError"
+    },
+    {
+      "file": "client/src/components/RoomGameControl.tsx",
+      "line": 247,
+      "expression": "snapshot.game_type === 'flush' || snapshot.game_type === 'marriage' ? 'Leave Table' : `Leave ${noun}`"
+    },
+    {
+      "file": "client/src/components/RoomGameControl.tsx",
+      "line": 304,
+      "expression": "sessionActive ? 'Loading tables…' : 'Sign in again to load tables.'"
+    },
+    {
+      "file": "client/src/components/RoomGameControl.tsx",
+      "line": 324,
+      "expression": "actionNotice"
+    },
+    {
+      "file": "client/src/components/RoomGameControl.tsx",
+      "line": 325,
+      "expression": "error"
+    },
+    {
+      "file": "client/src/components/RoomGameControl.tsx",
+      "line": 330,
+      "expression": "seatConflict?.departure_command === 'end' ? 'Previous table is reserved' : seatConflict?.departure_command === 'abandon' ? 'Abandon active game?' : 'Leave previous table?'"
+    },
+    {
+      "file": "client/src/components/RoomGameControl.tsx",
+      "line": 332,
+      "expression": "actionError"
+    },
+    {
+      "file": "client/src/components/RoomGameControl.tsx",
+      "line": 336,
+      "expression": "seatConflict?.departure_command === 'end' ? 'Check table status' : seatConflict?.departure_command === 'abandon' ? 'Abandon previous game' : 'Leave previous table'"
+    },
+    {
+      "file": "client/src/components/RoomGameControl.tsx",
+      "line": 362,
+      "expression": "`Join ${noun}`"
+    },
+    {
+      "file": "client/src/components/RoomGameControl.tsx",
+      "line": 365,
+      "expression": "connectionMessage || (!connected ? 'Reconnecting… Your seat is saved.' : 'Updating game…')"
+    },
+    {
+      "file": "client/src/components/RoomGameControl.tsx",
+      "line": 366,
+      "expression": "actionNotice"
+    },
+    {
+      "file": "client/src/components/RoomGameControl.tsx",
+      "line": 376,
+      "expression": "gameType === 'flush' ? '2–10 players · lock the seated roster when ready.' : 'Seats'"
+    },
+    {
+      "file": "client/src/components/RoomGameControl.tsx",
+      "line": 385,
+      "expression": "searchingPlayers ? '…' : 'Search'"
+    },
+    {
+      "file": "client/src/components/RoomGameControl.tsx",
+      "line": 391,
+      "expression": "player.display_name || player.username || 'Player'"
+    },
+    {
+      "file": "client/src/components/RoomGameControl.tsx",
+      "line": 392,
+      "expression": "player.username ? `@${player.username} · ` : ''"
+    },
+    {
+      "file": "client/src/components/RoomGameControl.tsx",
+      "line": 392,
+      "expression": "player.user_id"
+    },
+    {
+      "file": "client/src/components/RoomGameControl.tsx",
+      "line": 392,
+      "expression": "player.eligible === false ? ` · ${player.reason}` : ''"
+    },
+    {
+      "file": "client/src/components/RoomGameControl.tsx",
+      "line": 394,
+      "expression": "inviteError"
+    },
+    {
+      "file": "client/src/components/RoomGameControl.tsx",
+      "line": 398,
+      "expression": "error"
+    },
+    {
+      "file": "client/src/components/RoomGameControl.tsx",
+      "line": 399,
+      "expression": "sessionActive ? 'Waiting for the table service. Your form will stay open while it retries.' : 'Sign in again before creating a table.'"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 36,
+      "expression": "t('ledger.noResults')"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 37,
+      "expression": "name(id)"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 40,
+      "expression": "personal ? `${roomName} / ` : ''"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 40,
+      "expression": "tableName || t('ledger.tableName')"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 41,
+      "expression": "t('ledger.roomCode', { code: roomId })"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 42,
+      "expression": "t('ledger.tableCode', { code: tableId })"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 49,
+      "expression": "t('ledger.from')"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 49,
+      "expression": "t('ledger.to')"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 49,
+      "expression": "t('ledger.amount')"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 52,
+      "expression": "row.amount"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 54,
+      "expression": "t(`ledger.status${row.status || 'SUGGESTED'}`)"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 56,
+      "expression": "t('ledger.markPaid')"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 57,
+      "expression": "t('ledger.confirmReceived')"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 63,
+      "expression": "t('ledger.section')"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 63,
+      "expression": "open ? '−' : '+'"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 65,
+      "expression": "t(label)"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 65,
+      "expression": "error"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 67,
+      "expression": "showCodes ? 'Hide room/table codes' : 'Show room/table codes'"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 68,
+      "expression": "t('ledger.roomCode', { code: roomId })"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 69,
+      "expression": "t('ledger.gameCount', { count: table.game_count })"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 69,
+      "expression": "expanded === table.table_id ? '−' : '+'"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 69,
+      "expression": "t('ledger.summary')"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 69,
+      "expression": "t('ledger.startTable')"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 69,
+      "expression": "t('ledger.games')"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 69,
+      "expression": "t('ledger.settleGame')"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 69,
+      "expression": "t('ledger.toPay')"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 69,
+      "expression": "t('ledger.toReceive')"
+    },
+    {
+      "file": "client/src/components/RoomLedger.tsx",
+      "line": 69,
+      "expression": "t('ledger.resolved')"
+    },
+    {
+      "file": "client/src/components/RoomPrivacySettings.tsx",
+      "line": 31,
+      "expression": "value === 'private' ? 'Private' : 'Public'"
+    },
+    {
+      "file": "client/src/components/RoomPrivacySettings.tsx",
+      "line": 34,
+      "expression": "visibility === 'private' ? 'Only invited people and existing members can enter. Links do not grant access.' : 'Everyone can discover and join this room.'"
+    },
+    {
+      "file": "client/src/components/RoomPrivacySettings.tsx",
+      "line": 39,
+      "expression": "message"
+    },
+    {
+      "file": "client/src/components/RoomSheet.tsx",
+      "line": 33,
+      "expression": "title"
+    },
+    {
+      "file": "client/src/components/RoomToolbar.tsx",
+      "line": 26,
+      "expression": "item.label"
+    },
+    {
+      "file": "client/src/components/RoomToolbar.tsx",
+      "line": 28,
+      "expression": "unread"
+    },
+    {
+      "file": "client/src/components/RoundResultsTable.tsx",
+      "line": 18,
+      "expression": "title"
+    },
+    {
+      "file": "client/src/components/RoundResultsTable.tsx",
+      "line": 19,
+      "expression": "subtitle"
+    },
+    {
+      "file": "client/src/components/RoundResultsTable.tsx",
+      "line": 24,
+      "expression": "playerHeading"
+    },
+    {
+      "file": "client/src/components/RoundResultsTable.tsx",
+      "line": 25,
+      "expression": "column"
+    },
+    {
+      "file": "client/src/components/RoundResultsTable.tsx",
+      "line": 30,
+      "expression": "row.name"
+    },
+    {
+      "file": "client/src/components/RoundResultsTable.tsx",
+      "line": 30,
+      "expression": "row.own ? ' · You' : ''"
+    },
+    {
+      "file": "client/src/components/RoundResultsTable.tsx",
+      "line": 33,
+      "expression": "value.text"
+    },
+    {
+      "file": "client/src/components/RoundSummary.tsx",
+      "line": 30,
+      "expression": "error"
+    },
+    {
+      "file": "client/src/components/RuleProposal.tsx",
+      "line": 29,
+      "expression": "label(key)"
+    },
+    {
+      "file": "client/src/components/RuleProposal.tsx",
+      "line": 29,
+      "expression": "show(old[key])"
+    },
+    {
+      "file": "client/src/components/RuleProposal.tsx",
+      "line": 29,
+      "expression": "show(value)"
+    },
+    {
+      "file": "client/src/components/RuleProposal.tsx",
+      "line": 32,
+      "expression": "error"
+    },
+    {
+      "file": "client/src/components/ShareLink.tsx",
+      "line": 32,
+      "expression": "label || (menu ? 'Copy Invite Link' : t('common.copyLink'))"
+    },
+    {
+      "file": "client/src/components/ShareLink.tsx",
+      "line": 34,
+      "expression": "url"
+    },
+    {
+      "file": "client/src/components/ShareLink.tsx",
+      "line": 35,
+      "expression": "disabled ? 'Sharing unavailable · table ended' : notice"
+    },
+    {
+      "file": "client/src/components/ShareLink.tsx",
+      "line": 56,
+      "expression": "inline ? value : `Copy ${kind} code`"
+    },
+    {
+      "file": "client/src/components/ShareLink.tsx",
+      "line": 58,
+      "expression": "value"
+    },
+    {
+      "file": "client/src/components/ShareLink.tsx",
+      "line": 59,
+      "expression": "notice"
+    },
+    {
+      "file": "client/src/components/ShareLink.tsx",
+      "line": 100,
+      "expression": "error"
+    },
+    {
+      "file": "client/src/components/SignInButton.tsx",
+      "line": 40,
+      "expression": "text"
+    },
+    {
+      "file": "client/src/components/SocialSignInButtons.tsx",
+      "line": 44,
+      "expression": "error"
+    },
+    {
+      "file": "client/src/components/TableCard.tsx",
+      "line": 15,
+      "expression": "label"
+    },
+    {
+      "file": "client/src/components/TableCard.tsx",
+      "line": 19,
+      "expression": "table.name"
+    },
+    {
+      "file": "client/src/components/TableCard.tsx",
+      "line": 20,
+      "expression": "tablePhase(table)"
+    },
+    {
+      "file": "client/src/components/TableCard.tsx",
+      "line": 23,
+      "expression": "player.display_name.trim().slice(0, 1).toUpperCase() || '•'"
+    },
+    {
+      "file": "client/src/components/TableCard.tsx",
+      "line": 25,
+      "expression": "players.length - (compact ? 3 : 5)"
+    },
+    {
+      "file": "client/src/components/TableCard.tsx",
+      "line": 26,
+      "expression": "actionLabel"
+    },
+    {
+      "file": "client/src/components/TableCard.tsx",
+      "line": 28,
+      "expression": "players.slice(0, 3).map(p => p.display_name).join(' · ')"
+    },
+    {
+      "file": "client/src/components/TableCard.tsx",
+      "line": 28,
+      "expression": "players.length > 3 ? ` · +${players.length - 3}` : ''"
+    },
+    {
+      "file": "client/src/components/TableCard.tsx",
+      "line": 28,
+      "expression": "actionLabel"
+    },
+    {
+      "file": "client/src/components/TableCard.tsx",
+      "line": 29,
+      "expression": "me?.is_queued ? `Queue #${me.queue_position}` : `${table.queue_size} waiting`"
+    },
+    {
+      "file": "client/src/components/TableControls.tsx",
+      "line": 28,
+      "expression": "label"
+    },
+    {
+      "file": "client/src/components/TableControls.tsx",
+      "line": 32,
+      "expression": "table.phase === 'COMPLETED' ? 'Match completed · seats for the next match' : table.phase === 'LOCKED' ? 'Roster locked · ready to start' : `${table.seated_players.length}/${table.max_players} seated · ${table.phase.toLowerCase()}`"
+    },
+    {
+      "file": "client/src/components/TableControls.tsx",
+      "line": 33,
+      "expression": "me.is_seated ? ` · Your seat ${me.seat_id}` : me.is_queued ? ` · Waitlist position ${me.queue_position}` : ' · Observing'"
+    },
+    {
+      "file": "client/src/components/TableControls.tsx",
+      "line": 34,
+      "expression": "table.queue.length > 0 && !me.is_queued ? ` · ${table.queue.length} waiting` : ''"
+    },
+    {
+      "file": "client/src/components/TableControls.tsx",
+      "line": 36,
+      "expression": "table.seated_players.map(p => `Seat ${p.seat_id}: ${p.display_name || p.user_id}`).join(' · ')"
+    },
+    {
+      "file": "client/src/components/TableReactionFlight.tsx",
+      "line": 46,
+      "expression": "reaction.emoji"
+    },
+    {
+      "file": "client/src/components/TableReactionFlight.tsx",
+      "line": 49,
+      "expression": "reaction.emoji"
+    },
+    {
+      "file": "client/src/components/TableSocial.tsx",
+      "line": 198,
+      "expression": "player.display_name"
+    },
+    {
+      "file": "client/src/components/TableSocial.tsx",
+      "line": 206,
+      "expression": "tableReactions[id].emoji"
+    },
+    {
+      "file": "client/src/components/TableSocial.tsx",
+      "line": 206,
+      "expression": "tableReactions[id].label"
+    },
+    {
+      "file": "client/src/components/TableSocial.tsx",
+      "line": 209,
+      "expression": "error"
+    },
+    {
+      "file": "client/src/components/TableSocial.tsx",
+      "line": 212,
+      "expression": "error"
+    },
+    {
+      "file": "client/src/components/TableSocial.tsx",
+      "line": 215,
+      "expression": "unread > 99 ? '99+' : unread"
+    },
+    {
+      "file": "client/src/components/TableSocial.tsx",
+      "line": 217,
+      "expression": "pokeSent ? '✓' : '👋'"
+    },
+    {
+      "file": "client/src/components/TableSocial.tsx",
+      "line": 227,
+      "expression": "error"
+    },
+    {
+      "file": "client/src/components/TableSocial.tsx",
+      "line": 254,
+      "expression": "effect.text"
+    },
+    {
+      "file": "client/src/components/TableStartCue.tsx",
+      "line": 22,
+      "expression": "table?.phase === 'LOCKED' ? 'Players locked' : finished ? 'Ready for another round?' : 'Waiting for players'"
+    },
+    {
+      "file": "client/src/components/TableStartCue.tsx",
+      "line": 26,
+      "expression": "(seatCount) < (table?.min_players || snapshot.capacity || 2) ? `Need at least ${table?.min_players || snapshot.capacity} players` : 'Waiting for eligible seats and rule approval.'"
+    },
+    {
+      "file": "client/src/components/TableThemePicker.tsx",
+      "line": 17,
+      "expression": "tableThemes[key].name"
+    },
+    {
+      "file": "client/src/components/TableThemePicker.tsx",
+      "line": 17,
+      "expression": "id === key ? ' ✓' : ''"
+    },
+    {
+      "file": "client/src/components/TableThemePicker.tsx",
+      "line": 18,
+      "expression": "tableThemes[key].description"
+    },
+    {
+      "file": "client/src/components/TurnIndicator.tsx",
+      "line": 7,
+      "expression": "text"
+    },
+    {
+      "file": "client/src/components/TurnPulse.tsx",
+      "line": 26,
+      "expression": "text ?? children"
+    },
+    {
+      "file": "client/src/screens/CallBreakTableScreen.tsx",
+      "line": 40,
+      "expression": "tableName"
+    },
+    {
+      "file": "client/src/screens/CallBreakTableScreen.tsx",
+      "line": 44,
+      "expression": "played ? 'Card placed · preview paused' : 'Your turn · choose a card'"
+    },
+    {
+      "file": "client/src/screens/CallBreakTableScreen.tsx",
+      "line": 51,
+      "expression": "card.slice(0, -1)"
+    },
+    {
+      "file": "client/src/screens/CallBreakTableScreen.tsx",
+      "line": 52,
+      "expression": "card.slice(-1)"
+    },
+    {
+      "file": "client/src/screens/CallBreakTableScreen.tsx",
+      "line": 60,
+      "expression": "played ? 'Reset table preview' : selected ? `Place ${selected} on the table` : 'Select a card to place'"
+    },
+    {
+      "file": "client/src/screens/FlushTable.tsx",
+      "line": 100,
+      "expression": "starting ? 'Players locked' : 'Waiting for players'"
+    },
+    {
+      "file": "client/src/screens/FlushTable.tsx",
+      "line": 105,
+      "expression": "dirty || stale ? 'Save or reload rule changes first.' : snapshot.rule_proposal?.status === 'PENDING' ? 'Waiting for rule approval.' : 'Waiting for eligible players.'"
+    },
+    {
+      "file": "client/src/screens/FlushTable.tsx",
+      "line": 140,
+      "expression": "caption"
+    },
+    {
+      "file": "client/src/screens/FlushTable.tsx",
+      "line": 149,
+      "expression": "settings.locked ? 'Rules locked for this game' : 'Rules before starting'"
+    },
+    {
+      "file": "client/src/screens/FlushTable.tsx",
+      "line": 155,
+      "expression": "label"
+    },
+    {
+      "file": "client/src/screens/FlushTable.tsx",
+      "line": 158,
+      "expression": "title"
+    },
+    {
+      "file": "client/src/screens/FlushTable.tsx",
+      "line": 163,
+      "expression": "settings.locked ? 'New rules can be chosen for the next game.' : dirty ? 'Propose these changes for approval before starting.' : 'Edits need every seated player’s approval. One rejection keeps the current rules.'"
+    },
+    {
+      "file": "client/src/screens/FlushTable.tsx",
+      "line": 164,
+      "expression": "localError || error"
+    },
+    {
+      "file": "client/src/screens/FlushTable.tsx",
+      "line": 200,
+      "expression": "!ended && !connectionReady ? 'Reconnecting… Updating game' : busy && myTurn ? 'Sending your action…' : turnText"
+    },
+    {
+      "file": "client/src/screens/FlushTable.tsx",
+      "line": 201,
+      "expression": "localError || error"
+    },
+    {
+      "file": "client/src/screens/FlushTable.tsx",
+      "line": 220,
+      "expression": "helpOpen ? 'Hide action help' : 'Why are some actions unavailable?'"
+    },
+    {
+      "file": "client/src/screens/FlushTable.tsx",
+      "line": 222,
+      "expression": "reason"
+    },
+    {
+      "file": "client/src/screens/FlushTable.tsx",
+      "line": 237,
+      "expression": "localError || error"
+    },
+    {
+      "file": "client/src/screens/FlushTable.tsx",
+      "line": 243,
+      "expression": "finalStage === 'pending' ? 'Final show' : 'Round result'"
+    },
+    {
+      "file": "client/src/screens/FlushTable.tsx",
+      "line": 265,
+      "expression": "error"
+    },
+    {
+      "file": "client/src/screens/FlushTable.tsx",
+      "line": 275,
+      "expression": "comparison?.won ? 'You stay' : 'You lost'"
+    },
+    {
+      "file": "client/src/screens/GameRoomsScreen.tsx",
+      "line": 38,
+      "expression": "game.name"
+    },
+    {
+      "file": "client/src/screens/GameRoomsScreen.tsx",
+      "line": 40,
+      "expression": "game.symbol"
+    },
+    {
+      "file": "client/src/screens/GameRoomsScreen.tsx",
+      "line": 58,
+      "expression": "item.name"
+    },
+    {
+      "file": "client/src/screens/GameRoomsScreen.tsx",
+      "line": 59,
+      "expression": "item.description"
+    },
+    {
+      "file": "client/src/screens/GameRoomsScreen.tsx",
+      "line": 60,
+      "expression": "item.detail"
+    },
+    {
+      "file": "client/src/screens/LiveGameTable.tsx",
+      "line": 128,
+      "expression": "snapshot.ready ? 'Everyone is here. The first dealer will be chosen at random.' : 'Waiting for everyone to take a seat.'"
+    },
+    {
+      "file": "client/src/screens/LiveGameTable.tsx",
+      "line": 130,
+      "expression": "error"
+    },
+    {
+      "file": "client/src/screens/LiveGameTable.tsx",
+      "line": 162,
+      "expression": "guidance.title.replace(/^Your turn[: ·]+/i, '')"
+    },
+    {
+      "file": "client/src/screens/LiveGameTable.tsx",
+      "line": 163,
+      "expression": "error || snapshot.error"
+    },
+    {
+      "file": "client/src/screens/LiveGameTable.tsx",
+      "line": 170,
+      "expression": "pokeNotice.text"
+    },
+    {
+      "file": "client/src/screens/LiveGameTable.tsx",
+      "line": 178,
+      "expression": "expandedLastTrick === trickKey ? '-' : '+'"
+    },
+    {
+      "file": "client/src/screens/LiveGameTable.tsx",
+      "line": 182,
+      "expression": "playerName(play.player_id)"
+    },
+    {
+      "file": "client/src/screens/LiveGameTable.tsx",
+      "line": 185,
+      "expression": "face(play.card)"
+    },
+    {
+      "file": "client/src/screens/LiveGameTable.tsx",
+      "line": 187,
+      "expression": "play.player_id === last.winner ? 'Winner' : index === 0 ? 'Led' : `Play ${index + 1}`"
+    },
+    {
+      "file": "client/src/screens/LiveGameTable.tsx",
+      "line": 200,
+      "expression": "mine ? `Your hand · ${mine.hand.length} cards` : 'Spectator view'"
+    },
+    {
+      "file": "client/src/screens/LiveGameTable.tsx",
+      "line": 203,
+      "expression": "error"
+    },
+    {
+      "file": "client/src/screens/LobbyScreen.tsx",
+      "line": 28,
+      "expression": "caption || label"
+    },
+    {
+      "file": "client/src/screens/LobbyScreen.tsx",
+      "line": 77,
+      "expression": "roomCode"
+    },
+    {
+      "file": "client/src/screens/LobbyScreen.tsx",
+      "line": 96,
+      "expression": "error"
+    },
+    {
+      "file": "client/src/screens/LobbyScreen.tsx",
+      "line": 111,
+      "expression": "value === 'all' ? 'All tables' : 'Open seats'"
+    },
+    {
+      "file": "client/src/screens/LobbyScreen.tsx",
+      "line": 117,
+      "expression": "table.name"
+    },
+    {
+      "file": "client/src/screens/LobbyScreen.tsx",
+      "line": 118,
+      "expression": "table.playing ? 'Playing' : 'Waiting'"
+    },
+    {
+      "file": "client/src/screens/LobbyScreen.tsx",
+      "line": 125,
+      "expression": "table.players[index]?.[0] || '+'"
+    },
+    {
+      "file": "client/src/screens/LobbyScreen.tsx",
+      "line": 150,
+      "expression": "seated.name"
+    },
+    {
+      "file": "client/src/screens/LobbyScreen.tsx",
+      "line": 152,
+      "expression": "roomCode"
+    },
+    {
+      "file": "client/src/screens/LobbyScreen.tsx",
+      "line": 154,
+      "expression": "index + 1"
+    },
+    {
+      "file": "client/src/screens/LobbyScreen.tsx",
+      "line": 155,
+      "expression": "seated.players[index] || 'Waiting for a friend…'"
+    },
+    {
+      "file": "client/src/screens/MarriageTable.tsx",
+      "line": 97,
+      "expression": "label"
+    },
+    {
+      "file": "client/src/screens/MarriageTable.tsx",
+      "line": 113,
+      "expression": "error"
+    },
+    {
+      "file": "client/src/screens/MarriageTable.tsx",
+      "line": 116,
+      "expression": "error"
+    },
+    {
+      "file": "client/src/screens/MarriageTable.tsx",
+      "line": 119,
+      "expression": "busy ? 'Sending…' : `Discard ${marriageFace(selectedCard)}`"
+    },
+    {
+      "file": "client/src/screens/MarriageTable.tsx",
+      "line": 151,
+      "expression": "error"
+    },
+    {
+      "file": "client/src/screens/MarriageTable.tsx",
+      "line": 167,
+      "expression": "source === 'discard' ? 'Discard pile' : `Deck · ${pub.stock_count}`"
+    },
+    {
+      "file": "client/src/screens/MarriageTable.tsx",
+      "line": 171,
+      "expression": "card ? marriageFace(card) : '—'"
+    },
+    {
+      "file": "client/src/screens/MarriageTable.tsx",
+      "line": 174,
+      "expression": "allowed ? label : busy ? 'Taking card…' : social.connected ? 'Unavailable' : 'Reconnecting…'"
+    },
+    {
+      "file": "client/src/screens/MarriageTable.tsx",
+      "line": 198,
+      "expression": "value==='sequence'?'Sequence / Tunnela':'Dublee'"
+    },
+    {
+      "file": "client/src/screens/MarriageTable.tsx",
+      "line": 202,
+      "expression": "selectedCard ? 'Confirm your discard below' : 'Select a card to discard'"
+    },
+    {
+      "file": "client/src/screens/MarriageTable.tsx",
+      "line": 212,
+      "expression": "marriageFace(card)"
+    },
+    {
+      "file": "client/src/screens/MarriageTable.tsx",
+      "line": 214,
+      "expression": "card.card_type==='man'?'Man':`Copy ${(card.deck_index??0)+1}`"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 218,
+      "expression": "error || shared.error"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 228,
+      "expression": "current?.name || room.name"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 238,
+      "expression": "member.display_name.trim().slice(0, 1).toUpperCase()"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 239,
+      "expression": "roomMembers.length - previewMembers.length"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 256,
+      "expression": "value === 'callbreak' ? 'Call Break' : value === 'flush' ? 'Flush' : 'Marriage'"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 269,
+      "expression": "inviteOpen ? '-' : '+'"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 274,
+      "expression": "roomInvitationCode(room.room_id)"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 282,
+      "expression": "memberError"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 288,
+      "expression": "online ? 'ONLINE' : 'OFFLINE'"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 288,
+      "expression": "members.length"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 295,
+      "expression": "label[0]"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 296,
+      "expression": "label"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 324,
+      "expression": "shared.abandonRequired ? 'Abandon the active match and leave the room? The match will stop for everyone.' : 'You are seated in a game. Leave the game and room? The game’s departure rules still apply.'"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 327,
+      "expression": "shared.abandonRequired ? 'Abandon match and leave room' : 'Leave game and room'"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 330,
+      "expression": "error || shared.error"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 336,
+      "expression": "greetingName ? `Welcome, ${greetingName}` : 'Welcome'"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 344,
+      "expression": "label"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 349,
+      "expression": "authMode === 'signup' ? 'Create your account' : 'Welcome back'"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 354,
+      "expression": "label"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 358,
+      "expression": "authMode === 'signup'\r\n              ? 'Create an account so your identity and profile can follow you across sign-ins.'\r\n              : 'Sign in with your Bhidne Ho username and password.'"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 387,
+      "expression": "error || shared.error"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 395,
+      "expression": "label"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 398,
+      "expression": "visibility === 'private' ? 'Only invited people and members can enter. Links and codes do not grant access.' : 'Every signed-in player can see and enter it.'"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 401,
+      "expression": "roomInviteSearching ? '…' : 'Search'"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 403,
+      "expression": "player.display_name || player.username || 'Player'"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 403,
+      "expression": "player.username ? `@${player.username} · ` : ''"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 403,
+      "expression": "player.user_id"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 404,
+      "expression": "roomInviteError"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 411,
+      "expression": "error || shared.error"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 419,
+      "expression": "({callbreak: 'Call Break', marriage: 'Marriage', flush: 'Flush'})[active.game_type]"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 419,
+      "expression": "target.name"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 445,
+      "expression": "error || shared.error"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 466,
+      "expression": "shared.error"
+    },
+    {
+      "file": "client/src/screens/SharedRoomsScreen.tsx",
+      "line": 470,
+      "expression": "shared.loggingIn ? 'Please wait…' : authMode === 'signup' ? 'Create account' : 'Sign in'"
+    },
+    {
+      "file": "client/src/screens/WelcomeScreen.tsx",
+      "line": 41,
+      "expression": "t('welcome.heading')"
+    },
+    {
+      "file": "client/src/screens/WelcomeScreen.tsx",
+      "line": 42,
+      "expression": "t('welcome.subtitle')"
+    },
+    {
+      "file": "client/src/screens/WelcomeScreen.tsx",
+      "line": 48,
+      "expression": "t('welcome.heading')"
+    },
+    {
+      "file": "client/src/screens/WelcomeScreen.tsx",
+      "line": 49,
+      "expression": "t('welcome.subtitle')"
+    },
+    {
+      "file": "client/src/screens/WelcomeScreen.tsx",
+      "line": 57,
+      "expression": "t('welcome.helper')"
+    },
+    {
+      "file": "client/src/screens/WelcomeScreen.tsx",
+      "line": 59,
+      "expression": "notice"
+    },
+    {
+      "file": "client/src/screens/WelcomeScreen.tsx",
+      "line": 61,
+      "expression": "t('welcome.dismiss')"
+    },
+    {
+      "file": "client/src/screens/WelcomeScreen.tsx",
+      "line": 65,
+      "expression": "t('welcome.terms')"
+    },
+    {
+      "file": "client/src/screens/WelcomeScreen.tsx",
+      "line": 67,
+      "expression": "t('welcome.privacy')"
+    }
+  ],
+  "codes": [
+    {
+      "code": "ENDED",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/components/ActiveGames.tsx",
+          "line": 30
+        },
+        {
+          "file": "client/src/components/GameMenu.tsx",
+          "line": 18
+        },
+        {
+          "file": "client/src/components/RoomGameControl.tsx",
+          "line": 47
+        },
+        {
+          "file": "client/src/components/RoomGameControl.tsx",
+          "line": 82
+        },
+        {
+          "file": "client/src/components/TableCard.tsx",
+          "line": 14
+        },
+        {
+          "file": "client/src/multiplayer/tableNavigation.ts",
+          "line": 12
+        }
+      ]
+    },
+    {
+      "code": "OPEN",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/components/ActiveGames.tsx",
+          "line": 46
+        },
+        {
+          "file": "client/src/components/FlushArena.tsx",
+          "line": 23
+        },
+        {
+          "file": "client/src/components/RoomLedger.tsx",
+          "line": 56
+        },
+        {
+          "file": "client/src/components/TableControls.tsx",
+          "line": 41
+        },
+        {
+          "file": "client/src/components/TableStartCue.tsx",
+          "line": 11
+        },
+        {
+          "file": "client/src/components/TableStartCue.tsx",
+          "line": 16
+        },
+        {
+          "file": "client/src/multiplayer/tableHeaderSharing.ts",
+          "line": 9
+        },
+        {
+          "file": "client/src/multiplayer/tableNavigation.ts",
+          "line": 15
+        },
+        {
+          "file": "client/src/multiplayer/tableNavigation.ts",
+          "line": 16
+        },
+        {
+          "file": "client/src/screens/FlushTable.tsx",
+          "line": 93
+        }
+      ]
+    },
+    {
+      "code": "LOCKED",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/components/FlushArena.tsx",
+          "line": 23
+        },
+        {
+          "file": "client/src/components/TableControls.tsx",
+          "line": 32
+        },
+        {
+          "file": "client/src/components/TableControls.tsx",
+          "line": 42
+        },
+        {
+          "file": "client/src/components/TableStartCue.tsx",
+          "line": 16
+        },
+        {
+          "file": "client/src/components/TableStartCue.tsx",
+          "line": 22
+        },
+        {
+          "file": "client/src/screens/FlushTable.tsx",
+          "line": 94
+        }
+      ]
+    },
+    {
+      "code": "BET_PLACED",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/components/FlushArena.tsx",
+          "line": 48
+        }
+      ]
+    },
+    {
+      "code": "DELETE",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/components/FriendsPanel.tsx",
+          "line": 107
+        },
+        {
+          "file": "client/src/components/FriendsPanel.tsx",
+          "line": 110
+        },
+        {
+          "file": "client/src/components/FriendsPanel.tsx",
+          "line": 115
+        },
+        {
+          "file": "client/src/components/NotificationBell.tsx",
+          "line": 59
+        },
+        {
+          "file": "client/src/multiplayer/usePlayerPhrases.ts",
+          "line": 43
+        },
+        {
+          "file": "client/src/multiplayer/useRoomSession.ts",
+          "line": 147
+        },
+        {
+          "file": "client/src/screens/SharedRoomsScreen.tsx",
+          "line": 185
+        }
+      ]
+    },
+    {
+      "code": "PENDING",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/components/GameDetails.tsx",
+          "line": 18
+        },
+        {
+          "file": "client/src/components/MarriageScoring.tsx",
+          "line": 28
+        },
+        {
+          "file": "client/src/components/RoomGameControl.tsx",
+          "line": 326
+        },
+        {
+          "file": "client/src/components/RoomGameControl.tsx",
+          "line": 347
+        },
+        {
+          "file": "client/src/components/RoomGameControl.tsx",
+          "line": 352
+        },
+        {
+          "file": "client/src/components/RoomGameControl.tsx",
+          "line": 356
+        },
+        {
+          "file": "client/src/components/RoomGameControl.tsx",
+          "line": 369
+        },
+        {
+          "file": "client/src/components/RuleProposal.tsx",
+          "line": 17
+        },
+        {
+          "file": "client/src/components/RuleProposal.tsx",
+          "line": 22
+        },
+        {
+          "file": "client/src/components/RuleProposal.tsx",
+          "line": 33
+        },
+        {
+          "file": "client/src/components/TableStartCue.tsx",
+          "line": 19
+        },
+        {
+          "file": "client/src/screens/FlushTable.tsx",
+          "line": 78
+        },
+        {
+          "file": "client/src/screens/FlushTable.tsx",
+          "line": 95
+        },
+        {
+          "file": "client/src/screens/FlushTable.tsx",
+          "line": 105
+        },
+        {
+          "file": "client/src/screens/FlushTable.tsx",
+          "line": 237
+        }
+      ]
+    },
+    {
+      "code": "PLACE_BID",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/components/LiveBidPrompt.tsx",
+          "line": 28
+        },
+        {
+          "file": "client/src/multiplayer/useMobileCards.ts",
+          "line": 21
+        }
+      ]
+    },
+    {
+      "code": "CARD_DRAWN",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/components/MarriageCardArea.tsx",
+          "line": 23
+        },
+        {
+          "file": "client/src/components/MarriageCardArea.tsx",
+          "line": 75
+        },
+        {
+          "file": "client/src/components/MarriageCardArea.tsx",
+          "line": 75
+        }
+      ]
+    },
+    {
+      "code": "CARD_DISCARDED",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/components/MarriageCardArea.tsx",
+          "line": 68
+        },
+        {
+          "file": "client/src/components/MarriageCardArea.tsx",
+          "line": 95
+        }
+      ]
+    },
+    {
+      "code": "DRAW_CARD",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/components/MarriageCardArea.tsx",
+          "line": 93
+        },
+        {
+          "file": "client/src/components/MarriageCardArea.tsx",
+          "line": 102
+        },
+        {
+          "file": "client/src/screens/MarriageTable.tsx",
+          "line": 169
+        }
+      ]
+    },
+    {
+      "code": "SHOW_DUBLEES",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/components/MarriageMaalPanel.tsx",
+          "line": 76
+        },
+        {
+          "file": "client/src/multiplayer/marriage.ts",
+          "line": 31
+        }
+      ]
+    },
+    {
+      "code": "DECLARE_TUNNELAS",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/components/MarriageTunnelaPanel.tsx",
+          "line": 25
+        },
+        {
+          "file": "client/src/multiplayer/marriageWorkspace.ts",
+          "line": 9
+        },
+        {
+          "file": "client/src/multiplayer/marriageWorkspace.ts",
+          "line": 17
+        }
+      ]
+    },
+    {
+      "code": "FINISH",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/components/MarriageWinPanel.tsx",
+          "line": 60
+        },
+        {
+          "file": "client/src/multiplayer/useMobileCards.ts",
+          "line": 21
+        }
+      ]
+    },
+    {
+      "code": "YOU",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/components/PlayerSeat.tsx",
+          "line": 49
+        },
+        {
+          "file": "client/src/components/PlayerSeat.tsx",
+          "line": 49
+        }
+      ]
+    },
+    {
+      "code": "PLAYER_ALREADY_AT_TABLE",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/components/RoomGameControl.tsx",
+          "line": 182
+        },
+        {
+          "file": "client/src/components/RoomGameControl.tsx",
+          "line": 289
+        }
+      ]
+    },
+    {
+      "code": "SUGGESTED",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/components/RoomLedger.tsx",
+          "line": 54
+        }
+      ]
+    },
+    {
+      "code": "MARKED_PAID",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/components/RoomLedger.tsx",
+          "line": 57
+        }
+      ]
+    },
+    {
+      "code": "RESOLVED",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/components/RoomLedger.tsx",
+          "line": 69
+        },
+        {
+          "file": "client/src/components/RoomLedger.tsx",
+          "line": 69
+        },
+        {
+          "file": "client/src/components/RoomLedger.tsx",
+          "line": 69
+        }
+      ]
+    },
+    {
+      "code": "PATCH",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/components/RoomPrivacySettings.tsx",
+          "line": 14
+        },
+        {
+          "file": "client/src/multiplayer/usePlayerPhrases.ts",
+          "line": 49
+        }
+      ]
+    },
+    {
+      "code": "COMPLETED",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/components/TableControls.tsx",
+          "line": 32
+        },
+        {
+          "file": "client/src/components/TableControls.tsx",
+          "line": 36
+        },
+        {
+          "file": "client/src/components/TableStartCue.tsx",
+          "line": 12
+        },
+        {
+          "file": "client/src/multiplayer/tableHeaderSharing.ts",
+          "line": 9
+        },
+        {
+          "file": "client/src/multiplayer/tableNavigation.ts",
+          "line": 17
+        }
+      ]
+    },
+    {
+      "code": "TABLE_CHAT_MESSAGE",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/components/TableSocial.tsx",
+          "line": 133
+        }
+      ]
+    },
+    {
+      "code": "TABLE_CHAT_HISTORY",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/components/TableSocial.tsx",
+          "line": 135
+        }
+      ]
+    },
+    {
+      "code": "TABLE_POKE_SEND",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/components/TableSocial.tsx",
+          "line": 171
+        }
+      ]
+    },
+    {
+      "code": "TABLE_CHAT_SEND",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/components/TableSocial.tsx",
+          "line": 180
+        }
+      ]
+    },
+    {
+      "code": "POST",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/api.ts",
+          "line": 29
+        },
+        {
+          "file": "client/src/multiplayer/GameCommandClient.ts",
+          "line": 47
+        }
+      ]
+    },
+    {
+      "code": "GET",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/api.ts",
+          "line": 29
+        },
+        {
+          "file": "client/src/multiplayer/GameCommandClient.ts",
+          "line": 47
+        }
+      ]
+    },
+    {
+      "code": "SHOW_INITIAL_MELDS",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/marriage.ts",
+          "line": 32
+        }
+      ]
+    },
+    {
+      "code": "DECLARATION_WAIT",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/marriageWorkspace.ts",
+          "line": 9
+        },
+        {
+          "file": "client/src/multiplayer/marriageWorkspace.ts",
+          "line": 17
+        }
+      ]
+    },
+    {
+      "code": "WAITING",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/marriageWorkspace.ts",
+          "line": 10
+        },
+        {
+          "file": "client/src/multiplayer/marriageWorkspace.ts",
+          "line": 14
+        },
+        {
+          "file": "client/src/screens/MarriageTable.tsx",
+          "line": 111
+        }
+      ]
+    },
+    {
+      "code": "DRAW_REQUIRED",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/marriageWorkspace.ts",
+          "line": 11
+        },
+        {
+          "file": "client/src/screens/MarriageTable.tsx",
+          "line": 103
+        },
+        {
+          "file": "client/src/screens/MarriageTable.tsx",
+          "line": 107
+        }
+      ]
+    },
+    {
+      "code": "DISCARD_REQUIRED",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/marriageWorkspace.ts",
+          "line": 12
+        },
+        {
+          "file": "client/src/multiplayer/marriageWorkspace.ts",
+          "line": 17
+        },
+        {
+          "file": "client/src/screens/MarriageTable.tsx",
+          "line": 108
+        },
+        {
+          "file": "client/src/screens/MarriageTable.tsx",
+          "line": 122
+        }
+      ]
+    },
+    {
+      "code": "FINISH_REQUIRED",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/marriageWorkspace.ts",
+          "line": 13
+        },
+        {
+          "file": "client/src/multiplayer/marriageWorkspace.ts",
+          "line": 17
+        },
+        {
+          "file": "client/src/screens/MarriageTable.tsx",
+          "line": 109
+        }
+      ]
+    },
+    {
+      "code": "ROOM_POKE",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/pokes.ts",
+          "line": 15
+        }
+      ]
+    },
+    {
+      "code": "ROOM_LEFT",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/RoomConnection.ts",
+          "line": 58
+        },
+        {
+          "file": "client/src/multiplayer/useRoomSession.ts",
+          "line": 86
+        }
+      ]
+    },
+    {
+      "code": "CONNECTED",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/RoomConnection.ts",
+          "line": 61
+        }
+      ]
+    },
+    {
+      "code": "HEARTBEAT_ACK",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/RoomConnection.ts",
+          "line": 63
+        }
+      ]
+    },
+    {
+      "code": "HEARTBEAT",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/RoomConnection.ts",
+          "line": 72
+        }
+      ]
+    },
+    {
+      "code": "AWAITING_SHUFFLE",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/roundFlow.ts",
+          "line": 16
+        },
+        {
+          "file": "client/src/screens/LiveGameTable.tsx",
+          "line": 147
+        },
+        {
+          "file": "client/src/screens/LiveGameTable.tsx",
+          "line": 148
+        }
+      ]
+    },
+    {
+      "code": "SHUFFLING",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/roundFlow.ts",
+          "line": 17
+        }
+      ]
+    },
+    {
+      "code": "AWAITING_CUT",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/roundFlow.ts",
+          "line": 18
+        },
+        {
+          "file": "client/src/screens/LiveGameTable.tsx",
+          "line": 147
+        },
+        {
+          "file": "client/src/screens/LiveGameTable.tsx",
+          "line": 149
+        }
+      ]
+    },
+    {
+      "code": "AWAITING_DISTRIBUTION",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/roundFlow.ts",
+          "line": 19
+        },
+        {
+          "file": "client/src/screens/LiveGameTable.tsx",
+          "line": 147
+        },
+        {
+          "file": "client/src/screens/LiveGameTable.tsx",
+          "line": 150
+        }
+      ]
+    },
+    {
+      "code": "HAND_REVIEW",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/roundFlow.ts",
+          "line": 20
+        },
+        {
+          "file": "client/src/notifications/gameNotification.ts",
+          "line": 26
+        }
+      ]
+    },
+    {
+      "code": "BIDDING",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/roundFlow.ts",
+          "line": 21
+        },
+        {
+          "file": "client/src/notifications/gameNotification.ts",
+          "line": 25
+        },
+        {
+          "file": "client/src/notifications/gameNotification.ts",
+          "line": 27
+        },
+        {
+          "file": "client/src/screens/LiveGameTable.tsx",
+          "line": 162
+        },
+        {
+          "file": "client/src/screens/LiveGameTable.tsx",
+          "line": 164
+        },
+        {
+          "file": "client/src/screens/LiveGameTable.tsx",
+          "line": 194
+        },
+        {
+          "file": "client/src/screens/LiveGameTable.tsx",
+          "line": 197
+        }
+      ]
+    },
+    {
+      "code": "PLAYING",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/roundFlow.ts",
+          "line": 22
+        },
+        {
+          "file": "client/src/notifications/gameNotification.ts",
+          "line": 25
+        },
+        {
+          "file": "client/src/screens/LiveGameTable.tsx",
+          "line": 162
+        },
+        {
+          "file": "client/src/screens/LiveGameTable.tsx",
+          "line": 164
+        },
+        {
+          "file": "client/src/screens/LiveGameTable.tsx",
+          "line": 196
+        },
+        {
+          "file": "client/src/screens/LiveGameTable.tsx",
+          "line": 202
+        }
+      ]
+    },
+    {
+      "code": "DEAL_COMPLETE",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/roundFlow.ts",
+          "line": 27
+        }
+      ]
+    },
+    {
+      "code": "MATCH_COMPLETE",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/roundFlow.ts",
+          "line": 28
+        }
+      ]
+    },
+    {
+      "code": "TABLE_REACTION",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/tableReactions.ts",
+          "line": 18
+        }
+      ]
+    },
+    {
+      "code": "TABLE_SOCIAL_ACK",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/TableSocialChannel.ts",
+          "line": 21
+        }
+      ]
+    },
+    {
+      "code": "PLAY_CARD",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/useCallBreakHand.ts",
+          "line": 14
+        },
+        {
+          "file": "client/src/multiplayer/useMobileCards.ts",
+          "line": 21
+        },
+        {
+          "file": "client/src/screens/LiveGameTable.tsx",
+          "line": 202
+        }
+      ]
+    },
+    {
+      "code": "ACCEPT_HAND",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/useMobileCards.ts",
+          "line": 21
+        },
+        {
+          "file": "client/src/screens/LiveGameTable.tsx",
+          "line": 199
+        }
+      ]
+    },
+    {
+      "code": "CLAIM_REDEAL",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/useMobileCards.ts",
+          "line": 21
+        },
+        {
+          "file": "client/src/screens/LiveGameTable.tsx",
+          "line": 199
+        }
+      ]
+    },
+    {
+      "code": "DISCARD_CARD",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/useMobileCards.ts",
+          "line": 21
+        },
+        {
+          "file": "client/src/screens/MarriageTable.tsx",
+          "line": 118
+        }
+      ]
+    },
+    {
+      "code": "ROOM_DELETED",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/multiplayer/useRoomSession.ts",
+          "line": 89
+        }
+      ]
+    },
+    {
+      "code": "MUST_DRAW",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/notifications/gameNotification.ts",
+          "line": 18
+        }
+      ]
+    },
+    {
+      "code": "DEAL_CARDS",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/screens/FlushTable.tsx",
+          "line": 144
+        }
+      ]
+    },
+    {
+      "code": "CUT_DECK",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/screens/FlushTable.tsx",
+          "line": 145
+        },
+        {
+          "file": "client/src/screens/LiveGameTable.tsx",
+          "line": 149
+        }
+      ]
+    },
+    {
+      "code": "SKIP_CUT",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/screens/FlushTable.tsx",
+          "line": 146
+        },
+        {
+          "file": "client/src/screens/LiveGameTable.tsx",
+          "line": 149
+        }
+      ]
+    },
+    {
+      "code": "BET",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/screens/FlushTable.tsx",
+          "line": 206
+        },
+        {
+          "file": "client/src/screens/FlushTable.tsx",
+          "line": 207
+        }
+      ]
+    },
+    {
+      "code": "SEE_CARDS",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/screens/FlushTable.tsx",
+          "line": 209
+        }
+      ]
+    },
+    {
+      "code": "SHOW",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/screens/FlushTable.tsx",
+          "line": 210
+        }
+      ]
+    },
+    {
+      "code": "REQUEST_SIDE_SHOW",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/screens/FlushTable.tsx",
+          "line": 211
+        }
+      ]
+    },
+    {
+      "code": "ACCEPT_SIDE_SHOW",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/screens/FlushTable.tsx",
+          "line": 212
+        }
+      ]
+    },
+    {
+      "code": "DECLINE_SIDE_SHOW",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/screens/FlushTable.tsx",
+          "line": 213
+        }
+      ]
+    },
+    {
+      "code": "REVEAL_CARDS",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/screens/FlushTable.tsx",
+          "line": 214
+        },
+        {
+          "file": "client/src/screens/FlushTable.tsx",
+          "line": 253
+        }
+      ]
+    },
+    {
+      "code": "FOLD",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/screens/FlushTable.tsx",
+          "line": 215
+        },
+        {
+          "file": "client/src/screens/FlushTable.tsx",
+          "line": 253
+        },
+        {
+          "file": "client/src/screens/MarriageTable.tsx",
+          "line": 181
+        }
+      ]
+    },
+    {
+      "code": "SHUFFLE_DECK",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/screens/LiveGameTable.tsx",
+          "line": 148
+        }
+      ]
+    },
+    {
+      "code": "START_DISTRIBUTION",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/screens/LiveGameTable.tsx",
+          "line": 150
+        }
+      ]
+    },
+    {
+      "code": "ONLINE",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/screens/SharedRoomsScreen.tsx",
+          "line": 288
+        }
+      ]
+    },
+    {
+      "code": "OFFLINE",
+      "label_en": "",
+      "label_ne": "",
+      "sources": [
+        {
+          "file": "client/src/screens/SharedRoomsScreen.tsx",
+          "line": 288
+        }
+      ]
+    }
+  ]
+}

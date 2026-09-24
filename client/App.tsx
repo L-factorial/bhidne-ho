@@ -1,4 +1,5 @@
 import './src/auth/installStorage';
+import { ui, uiLabel } from './src/i18n/copy';
 import { readInvitation, type Invitation } from './src/multiplayer/invitations';
 import { Image, Linking, Platform, Text, View } from 'react-native';
 import { branding } from './src/branding';
@@ -72,8 +73,8 @@ function AppContent() {
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
-      {!!authError && <Text accessibilityRole="alert" style={{ padding: 16, color: colors.danger }}>{authError}</Text>}
-      {finishingSignIn ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.text }}>Completing sign-in…</Text></View>
+      {!!authError && <Text accessibilityRole="alert" style={{ padding: 16, color: colors.danger }}>{uiLabel(authError, 'feedback')}</Text>}
+      {finishingSignIn ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.text }}>{ui('common.completing_sign_in')}</Text></View>
         : inRooms || invitation ? <SharedRoomsScreen key={authVersion} invitation={invitation} dismissInvitation={dismissInvitation} onExit={() => { dismissInvitation(); setInRooms(false); }} />
         : <WelcomeScreen onEnterLobby={() => setInRooms(true)} />}
     </SafeAreaProvider>

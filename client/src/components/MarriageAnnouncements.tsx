@@ -1,3 +1,5 @@
+import { ui } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Pressable, Text, View } from 'react-native';
 import { RoomSheet } from './RoomSheet';
@@ -9,6 +11,7 @@ import { marriageAnnouncements, type MarriageAnnouncement } from '../multiplayer
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 
 export function MarriageAnnouncements({ snapshot }: { snapshot: RoomSnapshot }) {
+  useUiLanguage();
   const { colors: c } = useTheme();
   const pub = snapshot.marriage?.public;
   const events = pub ? marriageAnnouncements(pub) : [];
@@ -44,38 +47,38 @@ export function MarriageAnnouncements({ snapshot }: { snapshot: RoomSnapshot }) 
   }, [current?.id, !!review, reduced, opacity]);
   const close = () => { if (review) setReview(null); else setQueue(previous => previous.slice(1)); };
   const player = snapshot.players?.find(p => String(p.player_id) === current?.playerId);
-  const name = player?.display_name || `Player ${current?.playerId}`;
+  const name = player?.display_name || ui("common.player_number", { "number": current?.playerId });
   const win = current?.kind === 'win';
   const initialTunnela = current?.kind === 'tunnela';
-  const title = win ? `${name} won the round!` : initialTunnela ? `${name} showed initial Tunnelas` : `${name} unlocked Maal`;
+  const title = win ? ui("marriage.player_won_the_round", { "player": name }) : initialTunnela ? ui("marriage.player_showed_initial_tunnelas", { "player": name }) : ui("marriage.player_unlocked_maal", { "player": name });
   const action = (label: string, onPress: () => void) => <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress}
     style={({ pressed }) => ({ ...gameButtonStyle(c, 'secondary', pressed), alignItems: 'center' })}><Text style={{ color: c.onTableHeader, fontFamily: fonts.medium }}>{label}</Text></Pressable>;
   const qualifications = events.filter(e => e.kind !== 'win');
   const finish = events.find(e => e.kind === 'win');
   return <>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
-      {!!qualifications.length && action('View shown cards', () => setReview(qualifications[qualifications.length - 1]))}
-      {!!finish && action('View winning hand', () => setReview(finish))}
+      {!!qualifications.length && action(ui("marriage.view_shown_cards"), () => setReview(qualifications[qualifications.length - 1]))}
+      {!!finish && action(ui("marriage.view_winning_hand"), () => setReview(finish))}
     </View>
-    <RoomSheet visible={!!current} title={title} onClose={close} presentation="dialog" testID="marriage-announcement" closeLabel="Close table announcement">
+    <RoomSheet visible={!!current} title={title} onClose={close} presentation="dialog" testID="marriage-announcement" closeLabel={ui("common.close_table_announcement")}>
       {current && <Animated.View style={{ opacity, gap: 14 }}>
         <View style={{ alignItems: 'center', gap: 8 }}>
           <PlayerAvatar uri={player?.avatar_url} />
-          <Text accessibilityLiveRegion="polite" style={{ color: c.accent, fontFamily: fonts.medium, fontSize: win ? 24 : 19, textAlign: 'center' }}>{win ? '🏆 Round won!' : initialTunnela ? 'Initial Tunnelas shown' : '✦ Maal unlocked'}</Text>
-          <Text style={{ color: c.text, fontFamily: fonts.body, textAlign: 'center' }}>{name} {win ? current.wonByFold ? 'won because all other players folded.' : current.dublee ? 'completed the 8th Dublee.' : 'completed a winning hand.' : initialTunnela ? 'declared Tunnelas before play.' : current.dublee ? 'showed 7 Dublees.' : 'showed 3 sequences / Tunnelas.'}</Text>
+          <Text accessibilityLiveRegion="polite" style={{ color: c.accent, fontFamily: fonts.medium, fontSize: win ? 24 : 19, textAlign: 'center' }}>{win ? ui("marriage.round_won") : initialTunnela ? ui("marriage.initial_tunnelas_shown") : ui("marriage.maal_unlocked_2")}</Text>
+          <Text style={{ color: c.text, fontFamily: fonts.body, textAlign: 'center' }}>{name} {win ? current.wonByFold ? ui("marriage.won_because_all_other_players_folded") : current.dublee ? ui("marriage.completed_the_8th_dublee") : ui("marriage.completed_a_winning_hand") : initialTunnela ? ui("marriage.declared_tunnelas_before_play") : current.dublee ? ui("marriage.showed_7_dublees") : ui("marriage.showed_3_sequences_tunnelas")}</Text>
         </View>
-        {!!review && !win && <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{qualifications.map(event => <View key={event.id}>{action(snapshot.players?.find(p => String(p.player_id) === event.playerId)?.display_name || `Player ${event.playerId}`, () => setReview(event))}</View>)}</View>}
-        {win && <View style={{ flexDirection: 'row', gap: 8 }}>{action('Winning hand', () => setTab('cards'))}{action('Round results', () => setTab('results'))}</View>}
+        {!!review && !win && <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{qualifications.map(event => <View key={event.id}>{action(snapshot.players?.find(p => String(p.player_id) === event.playerId)?.display_name || ui("common.player_number", { "number": event.playerId }), () => setReview(event))}</View>)}</View>}
+        {win && <View style={{ flexDirection: 'row', gap: 8 }}>{action(ui("marriage.winning_hand"), () => setTab('cards'))}{action(ui("marriage.round_results"), () => setTab('results'))}</View>}
         {tab === 'results' ? <MarriagePoints snapshot={snapshot} /> : <>
           {win && current.dublee && <View style={{ gap: 8, borderWidth: 2, borderColor: c.attention, padding: 12, borderRadius: 16 }}>
-            <Text style={{ color: c.accent, fontFamily: fonts.medium, textAlign: 'center' }}>Winning eighth pair</Text>
-            {current.winningPair.length ? <MarriageMeldCards groups={[{ meld_type: 'dublee', card_ids: current.winningPair }]} /> : <Text style={{ color: c.textMuted }}>Winning pair unavailable in this snapshot.</Text>}
+            <Text style={{ color: c.accent, fontFamily: fonts.medium, textAlign: 'center' }}>{ui("marriage.winning_eighth_pair")}</Text>
+            {current.winningPair.length ? <MarriageMeldCards groups={[{ meld_type: 'dublee', card_ids: current.winningPair }]} /> : <Text style={{ color: c.textMuted }}>{ui("marriage.winning_pair_unavailable_in_this_snapshot")}</Text>}
           </View>}
-          {win && current.dublee && <Text style={{ color: c.textMuted }}>Seven previously shown Dublees</Text>}
+          {win && current.dublee && <Text style={{ color: c.textMuted }}>{ui("marriage.seven_previously_shown_dublees")}</Text>}
           <MarriageMeldCards groups={current.groups} />
-          {!!current.discard && <View style={{ gap: 8 }}><Text style={{ color: c.accent, fontFamily: fonts.medium }}>Final discard</Text><MarriageMeldCards groups={[{ meld_type: 'set', card_ids: [current.discard] }]} hideLabels /></View>}
+          {!!current.discard && <View style={{ gap: 8 }}><Text style={{ color: c.accent, fontFamily: fonts.medium }}>{ui("marriage.final_discard")}</Text><MarriageMeldCards groups={[{ meld_type: 'set', card_ids: [current.discard] }]} hideLabels /></View>}
         </>}
-        {action(win ? 'Continue to table' : 'Back to table', close)}
+        {action(win ? ui("common.continue_to_table") : ui("common.back_to_table"), close)}
       </Animated.View>}
     </RoomSheet>
   </>;

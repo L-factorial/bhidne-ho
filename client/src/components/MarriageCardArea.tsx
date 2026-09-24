@@ -1,3 +1,5 @@
+import { ui } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { ActionCue } from './ActionCue';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -13,6 +15,7 @@ function center(node: View): Promise<Point> {
 }
 
 function FlyingCard({ move, origin, destination, done }: { move: MarriageMove; origin: Point; destination: Point; done: () => void }) {
+  const uiLanguage = useUiLanguage();
   const styles = useThemedStyles(createStyles);
   const progress = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -20,7 +23,7 @@ function FlyingCard({ move, origin, destination, done }: { move: MarriageMove; o
     animation.start(({ finished }) => { if (finished) done(); });
     return () => animation.stop();
   }, [progress, done]);
-  return <Animated.View pointerEvents="none" testID="marriage-flying-card" accessibilityLabel={move.kind === 'CARD_DRAWN' ? 'Card moving to player' : 'Card moving to discard'}
+  return <Animated.View pointerEvents="none" testID="marriage-flying-card" accessibilityLabel={move.kind === 'CARD_DRAWN' ? ui("marriage.card_moving_to_player") : ui("marriage.card_moving_to_discard")}
     style={[styles.card, styles.flying, !move.card && styles.back, {
       opacity: progress.interpolate({ inputRange: [0, 0.85, 1], outputRange: [1, 1, 0] }),
       transform: [
@@ -38,6 +41,7 @@ export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAncho
   snapshot: RoomSnapshot; canAct: boolean;
   onAction: (command: string, payload?: object) => void; onPoke?: (seat: number) => void;
 }) {
+  const uiLanguage = useUiLanguage();
   const styles = useThemedStyles(createStyles);
   const [maalFace, setMaalFace] = useState({ key: '', visible: false });
   const area = useRef<View>(null), stock = useRef<View>(null), discard = useRef<View>(null);
@@ -81,33 +85,33 @@ export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAncho
   const legalSource = (source: string) => canAct && !!mine?.actions.kinds.includes('draw') && !!mine.actions.drawable_sources.includes(source);
   const maalKey = `${snapshot.match_id}:${mine?.player_id}:${privateMaal?.tiplu.rank}:${privateMaal?.tiplu.suit}`;
   const maalVisible = !!privateMaal && maalFace.key === maalKey && maalFace.visible;
-  const maalLabel = !privateMaal ? 'Hidden' : maalVisible ? 'Tap to hide the Maal' : 'Tap to see the Maal';
+  const maalLabel = !privateMaal ? ui("common.hidden") : maalVisible ? ui("marriage.tap_to_hide_the_maal") : ui("marriage.tap_to_see_the_maal");
   useEffect(() => { if (!privateMaal) setMaalFace({ key: '', visible: false }); }, [!!privateMaal]);
   return <View ref={area} style={styles.area}>
     <MarriagePlayers snapshot={snapshot} onPoke={onPoke} registerSeat={(id, node) => { if (node) seats.current.set(id, node); else seats.current.delete(id); }}>
-    {snapshot.status === 'finished' && onResult ? <Pressable accessibilityRole="button" accessibilityLabel="Game result" testID="marriage-game-result"
-      onPress={onResult} style={styles.resultButton}><Text style={styles.resultText}>Game result</Text></Pressable> : <View testID="marriage-card-spots" style={styles.spots}>
-      <View style={styles.spot}><Text style={styles.label}>Last discard</Text>
-        <Pressable ref={discard} testID="marriage-discard-spot" accessibilityRole="button" accessibilityLabel="Take discard"
+    {snapshot.status === 'finished' && onResult ? <Pressable accessibilityRole="button" accessibilityLabel={ui("marriage.game_result")} testID="marriage-game-result"
+      onPress={onResult} style={styles.resultButton}><Text style={styles.resultText}>{ui("marriage.game_result")}</Text></Pressable> : <View testID="marriage-card-spots" style={styles.spots}>
+      <View style={styles.spot}><Text style={styles.label}>{ui("marriage.last_discard")}</Text>
+        <Pressable ref={discard} testID="marriage-discard-spot" accessibilityRole="button" accessibilityLabel={ui("marriage.take_discard")}
           disabled={!legalSource('discard')} accessibilityState={{ disabled: !legalSource('discard') }}
           onPress={() => onAction('DRAW_CARD', { source: 'discard' })} style={[styles.card, legalSource('discard') && styles.legal]}>
           <Text style={[styles.face, pub.top_discard?.suit === 'H' || pub.top_discard?.suit === 'D' ? styles.red : null]}>
             {current?.kind === 'CARD_DISCARDED' ? '' : pub.top_discard ? marriageFace(pub.top_discard) : '—'}</Text>
         </Pressable>
-        {legalSource('discard') && <ActionCue active style={styles.caption}>Tap to draw</ActionCue>}
+        {legalSource('discard') && <ActionCue active style={styles.caption}>{ui("marriage.tap_draw")}</ActionCue>}
       </View>
-      <View style={styles.spot}><Text style={styles.label}>Deck · {pub.stock_count}</Text>
-        <Pressable ref={stock} testID="marriage-stock-spot" accessibilityRole="button" accessibilityLabel={`Take stock · ${pub.stock_count}`}
+      <View style={styles.spot}><Text style={styles.label}>{ui("marriage.deck_count", { "count": pub.stock_count })}</Text>
+        <Pressable ref={stock} testID="marriage-stock-spot" accessibilityRole="button" accessibilityLabel={ui("marriage.take_stock_count", { "count": pub.stock_count })}
           disabled={!legalSource('stock')} accessibilityState={{ disabled: !legalSource('stock') }}
           onPress={() => onAction('DRAW_CARD', { source: 'stock' })} style={[styles.card, styles.back, styles.stack, legalSource('stock') && styles.legal]}>
           <MarriageCardBack />
         </Pressable>
-        {legalSource('stock') && <ActionCue active style={styles.caption}>Tap to draw</ActionCue>}
+        {legalSource('stock') && <ActionCue active style={styles.caption}>{ui("marriage.tap_draw")}</ActionCue>}
       </View>
-      <View style={styles.spot}><Text style={styles.label}>Maal</Text>
+      <View style={styles.spot}><Text style={styles.label}>{ui("marriage.maal")}</Text>
         <Pressable accessibilityRole="button" disabled={!privateMaal} accessibilityState={{ disabled: !privateMaal, expanded: maalVisible }}
           onPress={() => setMaalFace({ key: maalKey, visible: !maalVisible })} testID="marriage-maal-spot"
-          accessibilityLabel={privateMaal ? maalLabel : 'Maal hidden'} style={[styles.card, !maalVisible && styles.back]}>
+          accessibilityLabel={privateMaal ? maalLabel : ui("marriage.maal_hidden")} style={[styles.card, !maalVisible && styles.back]}>
           {maalVisible && privateMaal ? <Text style={[styles.face, (privateMaal.tiplu.suit === 'H' || privateMaal.tiplu.suit === 'D') && styles.red]}>{marriageFace(privateMaal.tiplu)}</Text> : <MarriageCardBack />}
         </Pressable>
         <Text style={styles.caption}>{maalLabel}</Text>

@@ -1,3 +1,5 @@
+import { ui, uiLabel } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { CardBack } from './CardBack';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -29,6 +31,7 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
   view?: HandView; onViewChange?: (view: HandView) => void; dealKey?: string;
   hand: string[]; legalCards: string[]; canPlay: boolean; onPlay: (card: string) => void;
 }) {
+  useUiLanguage();
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const [suitLayout, setSuitLayout] = useState(() => ({ dealKey, order: shuffledSuits() }));
@@ -61,7 +64,7 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
     });
   }
   function revealAll() { setRevealed({ dealKey, cards: [...hand] }); }
-  const selectedSuit = selection.dealKey === dealKey ? selection.suit : 'all';
+  const selectedSuit = selection.dealKey === dealKey ? selection.suit : ui("rooms.all");
   const sortedCards = [...hand].sort((a, b) => suitOrder.indexOf(suitOf(a)) - suitOrder.indexOf(suitOf(b))
     || ranks.indexOf(a.slice(0, -1)) - ranks.indexOf(b.slice(0, -1)));
   const cards = revealing ? hand : view === 'suits' && selectedSuit !== 'all' ? sortedCards.filter(card => suitOf(card) === selectedSuit) : sortedCards;
@@ -83,7 +86,7 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
     const spread = Math.max(0, hand.length - 1) * 10;
     const width = Math.ceil(2 * (170 * Math.sin(spread * Math.PI / 360) + 50) + 32);
     return <View testID="player-hand">
-      <ScrollView horizontal contentContainerStyle={styles.scroll} accessibilityLabel="Your hand is face down">
+      <ScrollView horizontal contentContainerStyle={styles.scroll} accessibilityLabel={ui("common.your_hand_is_face_down")}>
         <View style={{ width, height: 250 }}>
           {hand.map((card, index) => <View key={card} accessible={false} style={[styles.card, styles.cardBack, {
             left: width / 2 - 32 + (hand.length > 1 ? index / (hand.length - 1) * 2 - 1 : 0) * 18,
@@ -92,28 +95,28 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
         </View>
       </ScrollView>
       <View style={styles.selector}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Show cards" onPress={() => setHiddenDeal(null)} style={styles.option}><Text style={styles.optionText}>Show cards</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={ui("common.show_cards")} onPress={() => setHiddenDeal(null)} style={styles.option}><Text style={styles.optionText}>{ui("common.show_cards")}</Text></Pressable>
       </View>
     </View>;
   }
 
   return <View testID="player-hand">
-    {revealing && <Text style={styles.empty}>Tap the arc to reveal the next card. {hand.filter(isRevealed).length}/{hand.length} revealed.</Text>}
-    {!revealing && view === 'grid' ? <ScrollView style={{ height: 250 }} contentContainerStyle={styles.grid} accessibilityLabel="Card grid">
+    {revealing && <Text style={styles.empty}>{ui("callbreak.reveal_arc", { "shown": hand.filter(isRevealed).length, "total": hand.length })}</Text>}
+    {!revealing && view === 'grid' ? <ScrollView style={{ height: 250 }} contentContainerStyle={styles.grid} accessibilityLabel={ui("common.card_grid")}>
       {cards.map((card, index) => {
         const suit = suitOf(card), faceUp = isRevealed(card), enabled = faceUp && canPlay && legalCards.includes(card);
-        return <Pressable key={card} accessibilityRole="button" accessibilityLabel={faceUp ? `Select ${card}` : `Reveal card ${index + 1}`}
-          accessibilityHint={faceUp ? `${card.slice(0, -1)} of ${suitNames[suit]}` : 'Turn this card face up without playing it'} disabled={faceUp && !enabled} accessibilityState={{ disabled: faceUp && !enabled, selected: selectedCard === card }} aria-pressed={selectedCard === card}
+        return <Pressable key={card} accessibilityRole="button" accessibilityLabel={faceUp ? ui("common.select_card", { "card": card }) : ui("common.reveal_card_card", { "card": index + 1 })}
+          accessibilityHint={faceUp ? `${card.slice(0, -1)} of ${uiLabel(suitNames[suit])}` : ui("common.turn_this_card_face_up_without_playing_it")} disabled={faceUp && !enabled} accessibilityState={{ disabled: faceUp && !enabled, selected: selectedCard === card }} aria-pressed={selectedCard === card}
           onHoverIn={() => { if (enabled) setHovered(card); }} onHoverOut={() => setHovered(null)}
           onPress={() => { if (enabled) selectCard(card); }} style={[styles.gridCard, enabled && hovered === card && { transform: [{ translateY: -4 }] }, !faceUp && styles.cardBack, enabled && styles.legal, selectedCard === card && styles.chosenGrid, faceUp && canPlay && !enabled && { opacity: 0.55 }]}>
           {faceUp ? <>
           <Text style={[styles.gridRank, /[HD]/.test(suit) && styles.red, suit === 'C' && styles.club]}>{card.slice(0, -1)}{suits[suit]}</Text>
-          <Text style={[styles.suitName, /[HD]/.test(suit) && styles.red, suit === 'C' && styles.club]}>{suitNames[suit]}</Text>
+          <Text style={[styles.suitName, /[HD]/.test(suit) && styles.red, suit === 'C' && styles.club]}>{uiLabel(suitNames[suit])}</Text>
           </> : <CardBack />}
         </Pressable>;
       })}
     </ScrollView> : <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.scroll}
-      accessibilityLabel={revealing ? "Your hand in dealt order" : `Your hand, grouped by suit: ${suitOrder.map(suit => suitNames[suit]).join(', ')}`}>
+      accessibilityLabel={revealing ? ui("common.your_hand_in_dealt_order") : ui("common.your_hand_grouped_by_suit_suits", { "suits": suitOrder.map(suit => uiLabel(suitNames[suit])).join(', ') })}>
       <View style={{ width: fanWidth, height: 250 }}>
         {cards.map((card, index) => {
           if (!revealing && index > 0 && suitOf(card) !== suitOf(cards[index - 1])) groupAngle += 3;
@@ -121,7 +124,7 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
           const angle = index * 10 + groupAngle - spread / 2;
           const faceUp = isRevealed(card), legal = legalCards.includes(card), enabled = !revealing && faceUp && canPlay && legal;
           const red = /[HD]$/.test(card), club = suitOf(card) === 'C';
-          return <Pressable key={card} accessibilityRole="button" accessibilityLabel={revealing ? `Reveal next card from position ${index + 1}` : `Select ${card}`}
+          return <Pressable key={card} accessibilityRole="button" accessibilityLabel={revealing ? ui("common.reveal_next_card_from_position_position", { "position": index + 1 }) : ui("common.select_card", { "card": card })}
             accessibilityHint={revealing ? (faceUp ? `${card} is revealed. Reveal the next card in dealt order.` : 'Reveal the next card in dealt order without playing it') : undefined}
             accessibilityState={{ disabled: !revealing && !enabled, selected: selectedCard === card }} aria-pressed={selectedCard === card} disabled={!revealing && !enabled} onPress={() => { if (revealing) revealNext(); else if (enabled) selectCard(card); }}
             onHoverIn={() => { if (enabled) setHovered(card); }} onHoverOut={() => setHovered(null)}
@@ -142,45 +145,45 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
       </View>
     </ScrollView>}
     {selectedCard && <View style={styles.selector}>
-      <Pressable accessibilityRole="button" accessibilityLabel={`Play ${selectedCard}`} onPress={confirmCard} style={({ pressed }) => [styles.option, styles.confirm, pressed && { backgroundColor: colors.primaryPressed }]}>
-        <Text style={[styles.optionText, { color: colors.onPrimary }]}>Play {selectedCard.slice(0, -1)}{suits[suitOf(selectedCard)]}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={ui("callbreak.play_card", { "card": selectedCard })} onPress={confirmCard} style={({ pressed }) => [styles.option, styles.confirm, pressed && { backgroundColor: colors.primaryPressed }]}>
+        <Text style={[styles.optionText, { color: colors.onPrimary }]}>{ui("callbreak.play")}{selectedCard.slice(0, -1)}{suits[suitOf(selectedCard)]}</Text>
       </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel="Cancel card selection" onPress={() => setChosen(null)} style={styles.option}><Text style={styles.optionText}>Cancel</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={ui("common.cancel_card_selection")} onPress={() => setChosen(null)} style={styles.option}><Text style={styles.optionText}>{ui("common.cancel")}</Text></Pressable>
     </View>}
-    {!cards.length && <Text style={styles.empty}>{hand.length ? `No ${suitNames[selectedSuit]?.toLowerCase() || 'cards'} left. Choose another suit.` : 'No cards in your hand.'}</Text>}
+    {!cards.length && <Text style={styles.empty}>{hand.length ? ui("callbreak.no_suit_left_choose_another_suit", { "suit": suitNames[selectedSuit]?.toLowerCase() || 'cards' }) : ui("callbreak.no_cards_in_your_hand")}</Text>}
     {revealing && <View style={styles.selector}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Reveal next card" onPress={revealNext} style={styles.option}><Text style={styles.optionText}>Reveal next</Text></Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel="Flip all cards" onPress={revealAll} style={styles.option}><Text style={styles.optionText}>Flip all</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={ui("common.reveal_next_card")} onPress={revealNext} style={styles.option}><Text style={styles.optionText}>{ui("common.reveal_next")}</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={ui("common.flip_all_cards")} onPress={revealAll} style={styles.option}><Text style={styles.optionText}>{ui("common.flip_all")}</Text></Pressable>
     </View>}
-    {!revealing && view === 'suits' && <View accessibilityRole="radiogroup" accessibilityLabel="Filter hand by suit" style={styles.selector}>
-      {['all', ...suitOrder].map(suit => {
+    {!revealing && view === 'suits' && <View accessibilityRole="radiogroup" accessibilityLabel={ui("common.filter_hand_by_suit")} style={styles.selector}>
+      {[ui("rooms.all"), ...suitOrder].map(suit => {
         const count = suit === 'all' ? hand.length : hand.filter(card => suitOf(card) === suit).length;
-        return <Pressable key={suit} accessibilityRole="radio" accessibilityLabel={`${suit === 'all' ? 'All suits' : suitNames[suit]}, ${count} cards`}
+        return <Pressable key={suit} accessibilityRole="radio" accessibilityLabel={`${suit === 'all' ? ui("common.all_suits") : uiLabel(suitNames[suit])}, ${count} cards`}
           accessibilityState={{ checked: selectedSuit === suit, disabled: count === 0 }} aria-checked={selectedSuit === suit} disabled={count === 0}
           onPress={() => setSelection({ dealKey, suit })} style={[styles.option, selectedSuit === suit && styles.selected, count === 0 && { opacity: 0.4 }]}>
-          <Text style={[styles.optionText, suit === 'C' && { color: colors.text }]}>{suit === 'all' ? 'All' : suits[suit]} {count}</Text>
+          <Text style={[styles.optionText, suit === 'C' && { color: colors.text }]}>{suit === 'all' ? ui("rooms.all") : suits[suit]} {count}</Text>
         </Pressable>;
       })}
     </View>}
     {!revealing && compactControls && <View style={{ alignItems: 'flex-end' }}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Hand options" accessibilityState={{ expanded: optionsOpen }}
+      <Pressable accessibilityRole="button" accessibilityLabel={ui("common.hand_options")} accessibilityState={{ expanded: optionsOpen }}
         onPress={() => setOptionsOpen(value => !value)} style={({ pressed }) => ({ ...gameButtonStyle(colors, 'secondary', pressed), alignItems: 'center', justifyContent: 'center' })}>
         <Text style={styles.optionText}>•••</Text>
       </Pressable>
     </View>}
     {(!compactControls || optionsOpen) && <>
     {!revealing && hand.length > 0 && <View style={styles.selector}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Hide cards" onPress={() => setHiddenDeal(dealKey)} style={styles.option}><Text style={styles.optionText}>Hide cards</Text></Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel="Shuffle suits" onPress={shuffleGroups} style={styles.option}>
-        <Text style={styles.optionText}>Shuffle suits</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={ui("common.hide_cards")} onPress={() => setHiddenDeal(dealKey)} style={styles.option}><Text style={styles.optionText}>{ui("common.hide_cards")}</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={ui("common.shuffle_suits")} onPress={shuffleGroups} style={styles.option}>
+        <Text style={styles.optionText}>{ui("common.shuffle_suits")}</Text>
       </Pressable>
     </View>}
-    {!revealing && onViewChange && <View accessibilityRole="radiogroup" accessibilityLabel="Hand view" style={styles.selector}>
-      {(['fan', 'suits', 'grid'] as const).map(mode => <Pressable key={mode} accessibilityRole="radio"
-        accessibilityLabel={`${mode === 'fan' ? 'Sorted fan' : mode === 'suits' ? 'Suit fan' : 'Card grid'} view`}
+    {!revealing && onViewChange && <View accessibilityRole="radiogroup" accessibilityLabel={ui("common.hand_view")} style={styles.selector}>
+      {(["fan", 'suits', "grid"] as const).map(mode => <Pressable key={mode} accessibilityRole="radio"
+        accessibilityLabel={`${mode === 'fan' ? ui("common.sorted_fan") : mode === 'suits' ? ui("common.suit_fan") : ui("common.card_grid")} view`}
         accessibilityState={{ checked: view === mode }} aria-checked={view === mode} onPress={() => onViewChange(mode)}
         style={[styles.option, view === mode && styles.selected]}>
-        <Text style={styles.optionText}>{mode === 'fan' ? 'Sorted fan' : mode === 'suits' ? 'Suit fan' : 'Grid'}</Text>
+        <Text style={styles.optionText}>{mode === 'fan' ? ui("common.sorted_fan") : mode === 'suits' ? ui("common.suit_fan") : ui("common.grid")}</Text>
       </Pressable>)}
     </View>}
     </>}

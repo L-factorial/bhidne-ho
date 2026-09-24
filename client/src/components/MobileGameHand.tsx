@@ -1,3 +1,5 @@
+import { ui } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { HandAreaBar } from './HandAreaBar';
 import { useSocialHandAnchor } from './TableSocial';
 import { type ReactNode, useEffect, useRef } from 'react';
@@ -10,6 +12,7 @@ export function MobileGameHand({ mobile, open, onToggle, docked = false, desktop
   game?: string; keepMounted?: boolean;
   mobile: boolean; open: boolean; onToggle: () => void; myTurn: boolean; children: ReactNode;
 }) {
+  useUiLanguage();
   const socialAnchor = useSocialHandAnchor();
   const { colors } = useTheme();
   const content = useRef<ScrollView>(null);
@@ -25,7 +28,7 @@ export function MobileGameHand({ mobile, open, onToggle, docked = false, desktop
   }, [open, slide]);
   if (!mobile && !desktopDrawer) return <>{children}</>;
   return <>
-    {open && !docked && <Pressable testID={`${game}-hand-backdrop`} accessibilityRole="button" accessibilityLabel="Close your card area"
+    {open && !docked && <Pressable testID={`${game}-hand-backdrop`} accessibilityRole="button" accessibilityLabel={ui("common.close_your_card_area")}
       onPress={onToggle} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 29, backgroundColor: colors.overlay }} />}
     <Animated.View ref={socialAnchor.ref} onLayout={socialAnchor.onLayout} testID={`${game}-mobile-hand`} style={{ position: docked ? 'relative' : 'absolute', bottom: 0, left: 0, right: 0,
     maxHeight: docked ? '42%' : '88%', flexShrink: 0, zIndex: 30, elevation: 16, transform: [{ translateY: slide }], borderWidth: 1, borderColor: colors.tableTrim,
@@ -35,7 +38,7 @@ export function MobileGameHand({ mobile, open, onToggle, docked = false, desktop
     </View>
     <Animated.View testID={`${game}-hand-attention`} style={{ position: 'relative' }}>
     <HandAreaBar open={open} onToggle={onToggle} count={cardCount} attention={attention}
-      instruction={myTurn ? `Your turn · ${attentionText || 'Choose an action'}` : attentionText}/>
+      instruction={myTurn ? ui("common.your_turn_action", { "action": attentionText || 'Choose an action' }) : attentionText}/>
     </Animated.View>
     {(open || keepMounted) && <ScrollView ref={content} style={!open && { display: 'none' }} accessibilityElementsHidden={!open} importantForAccessibility={open ? 'auto' : 'no-hide-descendants'} testID={`${game}-hand-content`} contentContainerStyle={{ padding: 8, paddingBottom: 18 }} nestedScrollEnabled>
       {header}{children}

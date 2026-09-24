@@ -1,15 +1,18 @@
+import { ui } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { StyleSheet, Text, View } from 'react-native';
 import { physicalLabel, type MarriageWinningMeld } from '../multiplayer/marriage';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 export function MarriageMeldCards({ groups, hideLabels = false }: { groups: MarriageWinningMeld[]; hideLabels?: boolean }) {
+  useUiLanguage();
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   return <View style={styles.groups}>{groups.map((group, index) => <View key={index} style={styles.group}>
-    {!hideLabels && <Text style={styles.label}>{group.meld_type === 'dublee' ? 'Dublee' : group.meld_type === 'tunnela' ? 'Tunnela' : group.meld_type === 'set' ? 'Set' : group.meld_type === 'sequence' ? 'Sequence (wildcards)' : 'Sequence'}</Text>}
+    {!hideLabels && <Text style={styles.label}>{group.meld_type === 'dublee' ? ui("marriage.dublee") : group.meld_type === 'tunnela' ? ui("marriage.tunnela") : group.meld_type === 'set' ? ui("marriage.set") : group.meld_type === 'sequence' ? ui("marriage.sequence_wildcards") : ui("marriage.sequence")}</Text>}
     <View style={styles.cards}>{group.card_ids.map(id => <View key={id} accessibilityLabel={physicalLabel(id)} style={styles.card}>
       <Text style={[styles.face, /[HD]$/.test(id) && { color: colors.cardRed }]}>{physicalLabel(id).split(' · ')[0]}</Text>
-      <Text style={styles.copy}>Copy {physicalLabel(id).split(' · ')[1]}</Text>
+      <Text style={styles.copy}>{ui("common.copy_copynumber", { "copyNumber": physicalLabel(id).split(' · ')[1] })}</Text>
     </View>)}</View>
   </View>)}</View>;
 }

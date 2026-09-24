@@ -1,3 +1,5 @@
+import { ui, uiLabel } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, ThemeContext, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { useTableTheme } from '../TableThemeProvider';
 import { FormInput, FormScrollView } from './FormInput';
@@ -35,6 +37,7 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
   userId: string; pokes: RoomPoke[]; personal: ReturnType<typeof usePlayerPhrases>;
   roomId: string; apiUrl: string; token: string; connected: boolean; sessionActive?: boolean; members: string[]; roomMembers?: string[]; connectionMessage?: string;
 }) {
+  const uiLanguage = useUiLanguage();
   const { colors } = useTheme();
   const { theme: gameTheme } = useTableTheme();
   const styles = useThemedStyles(createStyles);
@@ -63,11 +66,11 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
   const [formationBlocked, setFormationBlocked] = useState(false);
   const base = `${apiUrl}/test-games/${encodeURIComponent(roomId)}`;
   const selectedMatch = useRef<string | undefined>(requestedMatchId);
-  const transport = useMemo(() => createHttpGameTransport<Snapshot>(base, token, globalThis.fetch, () => selectedMatch.current), [base, token]);
+  const transport = useMemo(() => createHttpGameTransport<Snapshot>(base, token, globalThis.fetch, () => selectedMatch.current), [base, token, uiLanguage]);
   useEffect(() => {
     if (requestedMatchId) { selectedMatch.current = requestedMatchId; setActionTick(v => v + 1); }
   }, [requestedMatchId]);
-  const commandClient = useMemo(() => new GameCommandClient(transport), [transport]);
+  const commandClient = useMemo(() => new GameCommandClient(transport), [transport, uiLanguage]);
   const [actionTick, setActionTick] = useState(0);
   const [actionNotice, setActionNotice] = useState('');
   const [synced, setSynced] = useState(false);
@@ -127,7 +130,7 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
       try {
         if (!pending.current) {
           const hadPending = commandClient.pending;
-          if (hadPending) setActionNotice('Confirming your action…');
+          if (hadPending) setActionNotice(ui("feedback.confirming_your_action"));
           const result = await commandClient.refresh(controller.signal);
           if (controller.signal.aborted || generation.current !== version) return;
           const data = result.snapshot;
@@ -140,9 +143,9 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
         }
       } catch (error) {
         if (!controller.signal.aborted && generation.current === version) {
-          const message = error instanceof Error ? error.message : 'Cannot load game.';
+          const message = error instanceof Error ? error.message : ui("feedback.cannot_load_game");
           setSynced(false);
-          if (commandClient.pending) setActionNotice('Connection interrupted. Your action will be checked automatically…');
+          if (commandClient.pending) setActionNotice(ui("common.connection_interrupted_your_action_will_be_checked_automatically"));
           setRefreshError(message);
         }
       }
@@ -163,12 +166,12 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
         setSnapshot(data); setLive(data.status !== 'empty'); setOpen(true);
       }
     } catch (error) {
-      if (alive.current) setError(error instanceof Error ? error.message : 'Could not restore game.');
+      if (alive.current) setError(error instanceof Error ? error.message : ui("feedback.could_not_restore_game"));
     } finally { pending.current = false; if (alive.current) setBusy(false); }
   }
   async function act(join: boolean) {
     if (!canSend.current || pending.current) return;
-    if (!join && !tableName.trim()) { setError('Enter a table name.'); return; }
+    if (!join && !tableName.trim()) { setError(ui("feedback.enter_a_table_name")); return; }
     pending.current = true; const version = ++generation.current; setBusy(true); setError('');
     try {
       const data = await api(join ? '/join' : '', join ? { match_id: snapshot?.match_id } : { player_count: gameType === 'flush' ? 10 : capacity, game_type: gameType, name: tableName.trim(), invitees: selectedInvitees.map(player => player.user_id) });
@@ -182,7 +185,7 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
         if (error instanceof GameRequestError && error.detail?.code === 'PLAYER_ALREADY_AT_TABLE') {
           setSeatConflict(error.detail); setOpen(false);
         }
-        setError(error instanceof Error ? error.message : 'Cannot update game.');
+        setError(error instanceof Error ? error.message : ui("feedback.cannot_update_game"));
       }
     }
     finally { pending.current = false; if (alive.current) setBusy(false); }
@@ -206,9 +209,9 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
       await request(`/test-games/${encodeURIComponent(seatConflict.room_id)}/${command}`,
         { user_id: userId, token }, { match_id: seatConflict.match_id });
       setSeatConflict(null);
-      setError('Previous table left. You can now take a seat here.');
+      setError(ui("rooms.previous_table_left_you_can_now_take_a_seat_here"));
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Could not leave the previous table.');
+      setError(error instanceof Error ? error.message : ui("feedback.could_not_leave_the_previous_table"));
     } finally { pending.current = false; setBusy(false); }
   }
   const mobileGame = mobile;
@@ -221,7 +224,7 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
     if (!canSend.current || !snapshot?.game || !snapshot.match_id || pending.current) return;
     if (!commandClient.submit(snapshot, command, payload)) return;
     canSend.current = false; generation.current++;
-    setBusy(true); setError(''); setActionNotice('Sending your action…');
+    setBusy(true); setError(''); setActionNotice(ui("feedback.sending_your_action"));
     setActionTick(value => value + 1);
   }
   async function lobbyAction(suffix: string, payload: object = {}) {
@@ -233,7 +236,7 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
         selectedMatch.current = data.match_id; setSnapshot(data);
         if (suffix === '/leave' || suffix === '/table/leave-seat' || suffix === '/table/abandon') { setOpen(false); setLive(false); }
       }
-    } catch (error) { if (alive.current && generation.current === version) setError(error instanceof Error ? error.message : 'Could not update game.'); }
+    } catch (error) { if (alive.current && generation.current === version) setError(error instanceof Error ? error.message : ui("feedback.could_not_update_game")); }
     finally { pending.current = false; if (alive.current) setBusy(false); }
   }
   const endControl = canEnd
@@ -244,8 +247,8 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
   const menuLeaveControl = snapshot?.table ? <TableControls menuSection="leave" table={snapshot.table} members={roomMembers} userId={userId} busy={busy}
     act={(command, payload) => lobbyAction(`/table/${command}`, payload)} start={() => lobbyAction('/start')} /> : null;
   const leaveControl = !snapshot?.table?.current_user.can_leave_seat && !snapshot?.table?.current_user.can_abandon_match && snapshot?.your_player_id
-    ? <Pressable accessibilityRole="button" accessibilityLabel={snapshot.game_type === 'flush' || snapshot.game_type === 'marriage' ? 'Leave Table' : `Leave ${noun}`} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => void lobbyAction('/leave')} style={{ minHeight: 44, padding: 10, justifyContent: 'center' }}><Text style={[styles.text, live && open && { color: colors.text }, { color: colors.danger }]}>{snapshot.game_type === 'flush' || snapshot.game_type === 'marriage' ? 'Leave Table' : `Leave ${noun}`}</Text></Pressable> : null;
-  const ruleReview = snapshot?.rule_proposal && <RuleProposal key={snapshot.rule_proposal.id} proposal={snapshot.rule_proposal} busy={busy} userId={userId} error={error} vote={accept => void lobbyAction('/rule-vote', { proposal_id: snapshot.rule_proposal!.id, accept })} />;
+    ? <Pressable accessibilityRole="button" accessibilityLabel={snapshot.game_type === 'flush' || snapshot.game_type === 'marriage' ? ui("rooms.leave_table") : ui("common.leave_gameortable", { "gameOrTable": noun })} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => void lobbyAction('/leave')} style={{ minHeight: 44, padding: 10, justifyContent: 'center' }}><Text style={[styles.text, live && open && { color: colors.text }, { color: colors.danger }]}>{snapshot.game_type === 'flush' || snapshot.game_type === 'marriage' ? ui("rooms.leave_table") : ui("common.leave_gameortable", { "gameOrTable": noun })}</Text></Pressable> : null;
+  const ruleReview = snapshot?.rule_proposal && <RuleProposal key={snapshot.rule_proposal.id} proposal={snapshot.rule_proposal} busy={busy} userId={userId} error={uiLabel(error, 'feedback')} vote={accept => void lobbyAction('/rule-vote', { proposal_id: snapshot.rule_proposal!.id, accept })} />;
   async function eligiblePlayers(players: InvitePlayer[], signal?: AbortSignal) {
     if (!players.length) return [];
     const eligibility = await request<{ user_id: string; eligible: boolean; reason?: string | null }[]>(
@@ -260,7 +263,7 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
       try {
         const players = await request<InvitePlayer[]>(`/players/search?q=${encodeURIComponent(inviteQuery.trim())}`, { user_id: userId, token }, undefined, controller.signal);
         setInviteResults(await eligiblePlayers(players, controller.signal)); setInviteError('');
-      } catch (error) { if (!controller.signal.aborted) setInviteError(error instanceof Error ? error.message : 'Could not search recent players.'); }
+      } catch (error) { if (!controller.signal.aborted) setInviteError(error instanceof Error ? error.message : ui("feedback.could_not_search_recent_players")); }
     }, 250);
     return () => { clearTimeout(timer); controller.abort(); };
   }, [inviteQuery, live, open, roomId, token, userId]);
@@ -270,8 +273,8 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
     try {
       const players = await request<InvitePlayer[]>(`/players/directory?q=${encodeURIComponent(inviteQuery.trim())}`, { user_id: userId, token });
       setInviteResults(await eligiblePlayers(players));
-      if (!players.length) setInviteError('No player found with that exact name, username, or user ID.');
-    } catch (error) { setInviteError(error instanceof Error ? error.message : 'Could not search the player directory.'); }
+      if (!players.length) setInviteError(ui("feedback.no_player_found_with_that_exact_name_username_or_user_id"));
+    } catch (error) { setInviteError(error instanceof Error ? error.message : ui("feedback.could_not_search_the_player_directory")); }
     finally { setSearchingPlayers(false); }
   }
   async function enterTable(matchId: string, action: TableEntry) {
@@ -285,7 +288,7 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
       setSnapshot(data); setLive(true); setOpen(true);
     } catch (failure) {
       if (!alive.current || generation.current !== version) return;
-      setError(failure instanceof Error ? failure.message : 'Could not enter this table.');
+      setError(failure instanceof Error ? failure.message : ui("feedback.could_not_enter_this_table"));
       if (failure instanceof GameRequestError && failure.detail?.code === 'PLAYER_ALREADY_AT_TABLE') setSeatConflict(failure.detail);
     } finally {
       pending.current = false;
@@ -301,41 +304,41 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
     void enterTable(requestedMatchId, requestedEntry);
   }, [requestedMatchId, requestedEntry, busy, snapshot?.match_id]);
   return <>
-    {!snapshot && !refreshError && <Text accessibilityLiveRegion="polite" style={styles.text}>{sessionActive ? 'Loading tables…' : 'Sign in again to load tables.'}</Text>}
-    {refreshError && <Pressable accessibilityRole="button" accessibilityLabel="Retry loading tables" disabled={pendingAction || !sessionActive}
-      onPress={() => setActionTick(value => value + 1)} style={styles.choice}><Text style={styles.text}>Retry loading tables</Text></Pressable>}
-    {!snapshot && <Pressable accessibilityRole="button" accessibilityLabel="Create table" disabled={pendingAction || !sessionActive || !creationEnabled}
+    {!snapshot && !refreshError && <Text accessibilityLiveRegion="polite" style={styles.text}>{sessionActive ? ui("rooms.loading_tables") : ui("feedback.sign_in_again_to_load_tables")}</Text>}
+    {refreshError && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.retry_loading_tables")} disabled={pendingAction || !sessionActive}
+      onPress={() => setActionTick(value => value + 1)} style={styles.choice}><Text style={styles.text}>{ui("rooms.retry_loading_tables")}</Text></Pressable>}
+    {!snapshot && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_table")} disabled={pendingAction || !sessionActive || !creationEnabled}
       onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 48 }]}>
-      <Text style={[styles.buttonText, { color: colors.onPrimary }]}>+ Create table</Text>
+      <Text style={[styles.buttonText, { color: colors.onPrimary }]}>{ui("rooms.create_table_2")}</Text>
     </Pressable>}
     {snapshot && !visibleTables.length && <View testID="room-empty-tables" style={{ flexGrow: 1, minHeight: 260, alignItems: 'center', justifyContent: 'center', paddingVertical: 32, gap: 24 }}>
-      <Text style={[styles.text, { textAlign: 'center', maxWidth: 320, fontSize: 17, lineHeight: 26 }]}>No tables yet. Start a table and invite your friends.</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="Create table" disabled={pendingAction || !sessionActive || !creationEnabled} accessibilityState={{ disabled: pendingAction || !sessionActive || !creationEnabled }} onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 48, paddingHorizontal: 24, opacity: pendingAction || !sessionActive || !creationEnabled ? 0.5 : 1 }]}>
-        <Text style={[styles.buttonText, { color: colors.onPrimary, fontSize: 15 }]}>+ Create table</Text>
+      <Text style={[styles.text, { textAlign: 'center', maxWidth: 320, fontSize: 17, lineHeight: 26 }]}>{ui("rooms.no_tables_yet_start_a_table_and_invite_your_friends")}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_table")} disabled={pendingAction || !sessionActive || !creationEnabled} accessibilityState={{ disabled: pendingAction || !sessionActive || !creationEnabled }} onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 48, paddingHorizontal: 24, opacity: pendingAction || !sessionActive || !creationEnabled ? 0.5 : 1 }]}>
+        <Text style={[styles.buttonText, { color: colors.onPrimary, fontSize: 15 }]}>{ui("rooms.create_table_2")}</Text>
       </Pressable>
     </View>}
     {visibleTables.map(table => <TableCard key={table.match_id} roomId={roomId} table={table} busy={busy} enter={action => void enterTable(table.match_id, action)} />)}
-      {!!visibleTables.length && <Pressable accessibilityRole="button" accessibilityLabel="Create table" disabled={pendingAction || !sessionActive || !creationEnabled} onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 52, marginBottom: 16 }]}>
-        <Text style={[styles.buttonText, { color: colors.onPrimary }]}>+ Create New Table</Text>
+      {!!visibleTables.length && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_table")} disabled={pendingAction || !sessionActive || !creationEnabled} onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 52, marginBottom: 16 }]}>
+        <Text style={[styles.buttonText, { color: colors.onPrimary }]}>{ui("rooms.create_new_table")}</Text>
       </Pressable>}
     {collapsed && !!notification.notice && <Animated.View style={{ opacity: notification.opacity }}>
-      <Pressable accessibilityRole="button" onPress={() => void returnToGame()} style={styles.choice}><Text style={styles.text}>{notification.notice} · Return to table</Text></Pressable>
+      <Pressable accessibilityRole="button" onPress={() => void returnToGame()} style={styles.choice}><Text style={styles.text}>{ui("rooms.return_table_status", { "status": notification.notice })}</Text></Pressable>
     </Animated.View>}
     {!!actionNotice && !open && <Text accessibilityLiveRegion="polite" style={styles.note}>{actionNotice}</Text>}
-    {!!error && !open && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
+    {!!error && !open && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
     {!open && snapshot?.status !== 'ended' && snapshot?.rule_proposal?.status === 'PENDING' && ruleReview}
     {!open && <PokeOverlay pokes={pokes} matchId={snapshot?.match_id} />}
     <Modal transparent visible={!!seatConflict} animationType="fade" onRequestClose={() => setSeatConflict(null)}>
       <View style={styles.overlay}><View accessibilityViewIsModal style={styles.modal}><View style={styles.body}>
-        <Text accessibilityRole="header" style={styles.title}>{seatConflict?.departure_command === 'end' ? 'Previous table is reserved' : seatConflict?.departure_command === 'abandon' ? 'Abandon active game?' : 'Leave previous table?'}</Text>
+        <Text accessibilityRole="header" style={styles.title}>{seatConflict?.departure_command === 'end' ? ui("rooms.previous_table_is_reserved") : seatConflict?.departure_command === 'abandon' ? ui("rooms.abandon_active_game") : ui("rooms.leave_previous_table_2")}</Text>
         <Text style={styles.text}>You can visit this room, but each account can occupy only one table at a time.</Text>
         <Text style={styles.text}>{actionError}</Text>
         {seatConflict?.departure_command === 'end' && <Text style={styles.text}>Ask the creator to end the previous table. You do not need to leave it after it ends.</Text>}
         {seatConflict?.departure_command === 'abandon' && <Text style={styles.error}>Abandoning stops the active match for everyone at that table.</Text>}
         <Pressable accessibilityRole="button" disabled={pendingAction} onPress={() => void leavePreviousTable()} style={[styles.button, { backgroundColor: colors.dangerSurface, borderWidth: 1, borderColor: colors.danger }]}>
-          <Text style={[styles.buttonText, { color: colors.danger }]}>{seatConflict?.departure_command === 'end' ? 'Check table status' : seatConflict?.departure_command === 'abandon' ? 'Abandon previous game' : 'Leave previous table'}</Text>
+          <Text style={[styles.buttonText, { color: colors.danger }]}>{seatConflict?.departure_command === 'end' ? ui("rooms.check_table_status") : seatConflict?.departure_command === 'abandon' ? ui("rooms.abandon_previous_game") : ui("rooms.leave_previous_table")}</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => setSeatConflict(null)} style={styles.choice}><Text style={styles.text}>Stay as observer</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => setSeatConflict(null)} style={styles.choice}><Text style={styles.text}>{ui("rooms.stay_as_observer")}</Text></Pressable>
       </View></View></View>
     </Modal>
     <Modal transparent visible={open} animationType="fade" onRequestClose={collapseGame}>
@@ -344,25 +347,25 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
         paddingLeft: insets.left, paddingRight: insets.right,
       }]}><View accessibilityViewIsModal testID="live-game-overlay" style={[styles.liveOverlay, (mobileGame || snapshot.game_type === 'flush') && !chat && { paddingBottom: 0 }]}>
         <ThemeContext.Provider value={gameTheme}><TableSocialProvider key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} channel={socialChannel} connected={connected} userId={userId} pokes={pokes}>
-        {snapshot.game_type === 'flush' ? <FlushTable connectionReady={connected && synced} onLock={() => void lobbyAction('/table/lock')} tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onFormationBlocked={setFormationBlocked} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={error}
+        {snapshot.game_type === 'flush' ? <FlushTable connectionReady={connected && synced} onLock={() => void lobbyAction('/table/lock')} tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onFormationBlocked={setFormationBlocked} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={uiLabel(error, 'feedback')}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: text => social.send(snapshot.match_id!, null, text) }}
           onSave={payload => lobbyAction('/flush-settings', payload)} onStart={rules_revision => lobbyAction('/start', { rules_revision })}
           onAction={gameAction} onBack={collapseGame} onNewGame={() => { setLive(false); setOpen(true); }} lobbyControl={<>{menuLeaveControl}{leaveControl}</>}
           endControl={canEnd ? <EndGameControl table compact busy={busy} onEnd={() => lobbyAction('/end')} /> : null} />
-        : snapshot.game_type === 'marriage' ? <MarriageTable tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onTableAction={command => void lobbyAction(`/table/${command}`)} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={error} lobbyControl={<>{menuLeaveControl}{leaveControl}</>} onSave={scoring => lobbyAction('/marriage-settings', { scoring })}
+        : snapshot.game_type === 'marriage' ? <MarriageTable tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onTableAction={command => void lobbyAction(`/table/${command}`)} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={uiLabel(error, 'feedback')} lobbyControl={<>{menuLeaveControl}{leaveControl}</>} onSave={scoring => lobbyAction('/marriage-settings', { scoring })}
           onAction={gameAction} onStart={() => lobbyAction('/start', { play_mode: 'manual' })} onBack={collapseGame}
           onNewGame={() => { setLive(false); setOpen(true); }} endControl={canEnd ? <EndGameControl compact busy={busy} onEnd={() => lobbyAction('/end')} /> : null}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: (recipient, text) => social.send(snapshot.match_id!, recipient, text) }} />
-        : <LiveGameTable lobbyControl={<>{menuLeaveControl}{leaveControl}</>} tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onTableAction={command => void lobbyAction(`/table/${command}`)} endControl={canEnd ? <EndGameControl compact busy={busy} onEnd={() => lobbyAction('/end')} /> : null} onNextDeal={() => lobbyAction('/next-deal', { deal_number: snapshot.round_review?.deal_number })} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={error} onAction={gameAction} onNewGame={() => { setCapacity(snapshot.capacity === 5 ? 5 : 4); setLive(false); setOpen(true); }} onStart={() => lobbyAction('/start', { play_mode: 'manual' })} onSave={settings => lobbyAction('/settings', settings)} onBack={collapseGame}
+        : <LiveGameTable lobbyControl={<>{menuLeaveControl}{leaveControl}</>} tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onTableAction={command => void lobbyAction(`/table/${command}`)} endControl={canEnd ? <EndGameControl compact busy={busy} onEnd={() => lobbyAction('/end')} /> : null} onNextDeal={() => lobbyAction('/next-deal', { deal_number: snapshot.round_review?.deal_number })} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={uiLabel(error, 'feedback')} onAction={gameAction} onNewGame={() => { setCapacity(snapshot.capacity === 5 ? 5 : 4); setLive(false); setOpen(true); }} onStart={() => lobbyAction('/start', { play_mode: 'manual' })} onSave={settings => lobbyAction('/settings', settings)} onBack={collapseGame}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: (recipient, text) => social.send(snapshot.match_id!, recipient, text) }} />}
         <ScrollView testID="game-footer" style={[styles.gameFooter, mobileGame && { borderTopWidth: 0 }]} contentContainerStyle={{ gap: 4 }} nestedScrollEnabled>
           {snapshot.can_join && !snapshot.your_player_id && <View testID="in-game-invitation" style={[styles.invitation, { padding: 14, margin: 12, marginBottom: 0 }]}>
-            <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={styles.summary}>A new {gameName} {noun} is ready!</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Join ${noun}`} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => void act(true)} style={styles.button}>
-              <Text style={styles.buttonText}>{`Join ${noun}`}</Text>
+            <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={styles.summary}>{ui("rooms.new_game_ready", { "game": gameName, "kind": noun })}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={ui("common.join_tablename", { "tableName": noun })} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => void act(true)} style={styles.button}>
+              <Text style={styles.buttonText}>{ui("common.join_tablename", { "tableName": noun })}</Text>
             </Pressable>
           </View>}
-          {(!connected || !synced) && <Text accessibilityRole="alert" style={styles.connectionNotice}>{connectionMessage || (!connected ? 'Reconnecting… Your seat is saved.' : 'Updating game…')}</Text>}
+          {(!connected || !synced) && <Text accessibilityRole="alert" style={styles.connectionNotice}>{connectionMessage || (!connected ? ui("feedback.reconnecting_your_seat_is_saved") : ui("feedback.updating_game"))}</Text>}
           {!!actionNotice && <Text accessibilityLiveRegion="polite" style={styles.connectionNotice}>{actionNotice}</Text>}
         </ScrollView>
         {chat}
@@ -371,35 +374,35 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
       </View></View> :
       <KeyboardFrame style={[styles.overlay, { paddingVertical: 16 }]}><View accessibilityViewIsModal style={styles.modal}>
         <FormScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-          <Text accessibilityRole="header" style={styles.title}>Create table</Text>
+          <Text accessibilityRole="header" style={styles.title}>{ui("rooms.create_table")}</Text>
           {createContent}
-          <Text style={styles.text}>{gameType === 'flush' ? '2–10 players · lock the seated roster when ready.' : 'Seats'}</Text>
+          <Text style={styles.text}>{gameType === 'flush' ? '2–10 players · lock the seated roster when ready.' : ui("rooms.seats")}</Text>
           <View style={[styles.choices, { flexWrap: 'wrap' }]}>{(gameType === 'flush' ? [] : gameType === 'marriage' ? [2, 3, 4, 5] : [4, 5]).map(size => <Pressable key={size} accessibilityRole="button" accessibilityState={{ selected: capacity === size }}
-            onPress={() => setCapacity(size)} style={[styles.choice, { minHeight: 48 }, size === capacity && { borderColor: colors.accent }]}><Text style={styles.text}>{size} players</Text></Pressable>)}</View>
-            <Text style={styles.text}>Table name (required)</Text><FormInput accessibilityLabel="Table name" accessibilityHint="Required to create a table" aria-required value={tableName} onChangeText={setTableName} maxLength={60} placeholder={`${selectedGameName} table`} placeholderTextColor={colors.textMuted} style={[styles.choice, { color: colors.text }]} />
-            <Text style={styles.text}>Invite players (optional)</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><FormInput accessibilityLabel="Find players to invite" value={inviteQuery} onChangeText={setInviteQuery} maxLength={64}
-              placeholder="Name, username, or user ID" placeholderTextColor={colors.textMuted} autoCapitalize="none" autoCorrect={false}
+            onPress={() => setCapacity(size)} style={[styles.choice, { minHeight: 48 }, size === capacity && { borderColor: colors.accent }]}><Text style={styles.text}>{ui("rooms.count_players", { "count": size })}</Text></Pressable>)}</View>
+            <Text style={styles.text}>{ui("rooms.table_name_required")}</Text><FormInput accessibilityLabel={ui("rooms.table_name")} accessibilityHint={ui("rooms.required_to_create_a_table")} aria-required value={tableName} onChangeText={setTableName} maxLength={60} placeholder={ui("common.game_table", { "game": selectedGameName })} placeholderTextColor={colors.textMuted} style={[styles.choice, { color: colors.text }]} />
+            <Text style={styles.text}>{ui("rooms.invite_players_optional")}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><FormInput accessibilityLabel={ui("rooms.find_players_to_invite")} value={inviteQuery} onChangeText={setInviteQuery} maxLength={64}
+              placeholder={ui("rooms.name_username_or_user_id")} placeholderTextColor={colors.textMuted} autoCapitalize="none" autoCorrect={false}
               returnKeyType="search" onSubmitEditing={() => void searchDirectory()} style={[styles.choice, { flex: 1, minWidth: 0, color: colors.text }]} />
-            <Pressable accessibilityRole="button" accessibilityLabel="Search directory" disabled={searchingPlayers || inviteQuery.trim().length < 2} onPress={() => void searchDirectory()} style={[styles.choice, (searchingPlayers || inviteQuery.trim().length < 2) && { opacity: 0.5 }]}>
-              <Text style={styles.text}>{searchingPlayers ? '…' : 'Search'}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.search_directory")} disabled={searchingPlayers || inviteQuery.trim().length < 2} onPress={() => void searchDirectory()} style={[styles.choice, (searchingPlayers || inviteQuery.trim().length < 2) && { opacity: 0.5 }]}>
+              <Text style={styles.text}>{searchingPlayers ? '…' : ui("common.search")}</Text>
             </Pressable></View>
-            {!!selectedInvitees.length && <View style={styles.choices}>{selectedInvitees.map(player => <Pressable key={player.user_id} accessibilityRole="button" accessibilityLabel={`Remove ${player.display_name || player.username || player.user_id}`} onPress={() => setSelectedInvitees(current => current.filter(item => item.user_id !== player.user_id))} style={styles.choice}>
-              <Text style={styles.text}>{player.display_name || player.username || player.user_id} · Remove</Text>
+            {!!selectedInvitees.length && <View style={styles.choices}>{selectedInvitees.map(player => <Pressable key={player.user_id} accessibilityRole="button" accessibilityLabel={ui("rooms.remove_player", { "player": player.display_name || player.username || player.user_id })} onPress={() => setSelectedInvitees(current => current.filter(item => item.user_id !== player.user_id))} style={styles.choice}>
+              <Text style={styles.text}>{ui("common.player_remove", { "player": player.display_name || player.username || player.user_id })}</Text>
             </Pressable>)}</View>}
-            {!!inviteResults.length && <View>{inviteResults.filter(player => !selectedInvitees.some(selected => selected.user_id === player.user_id)).map(player => <Pressable key={player.user_id} accessibilityRole="button" disabled={player.eligible === false} accessibilityLabel={`Invite ${player.display_name || player.username || player.user_id}`} onPress={() => setSelectedInvitees(current => [...current, player])} style={[styles.choice, player.eligible === false && { opacity: 0.5 }]}>
-              <Text style={styles.summary}>{player.display_name || player.username || 'Player'}</Text>
+            {!!inviteResults.length && <View>{inviteResults.filter(player => !selectedInvitees.some(selected => selected.user_id === player.user_id)).map(player => <Pressable key={player.user_id} accessibilityRole="button" disabled={player.eligible === false} accessibilityLabel={ui("rooms.invite_player", { "player": player.display_name || player.username || player.user_id })} onPress={() => setSelectedInvitees(current => [...current, player])} style={[styles.choice, player.eligible === false && { opacity: 0.5 }]}>
+              <Text style={styles.summary}>{player.display_name || player.username || ui("common.player")}</Text>
               <Text style={styles.note}>{player.username ? `@${player.username} · ` : ''}{player.user_id}{player.eligible === false ? ` · ${player.reason}` : ''}</Text>
             </Pressable>)}</View>}
-            {!!inviteError && <Text accessibilityRole="alert" style={styles.error}>{inviteError}</Text>}
+            {!!inviteError && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(inviteError, 'feedback')}</Text>}
           <Text style={styles.note}>Review advanced rules at the table before starting. Rule changes still require player approval.</Text>
         </FormScrollView>
         <FormFooter>
-          {!!error && <Text accessibilityRole="alert" style={styles.modalError}>{error}</Text>}
-          {!synced && <Text accessibilityLiveRegion="polite" style={styles.note}>{sessionActive ? 'Waiting for the table service. Your form will stay open while it retries.' : 'Sign in again before creating a table.'}</Text>}
-          {refreshError && sessionActive && <Pressable accessibilityRole="button" accessibilityLabel="Retry table service" onPress={() => setActionTick(value => value + 1)} style={styles.choice}><Text style={styles.text}>Retry table service</Text></Pressable>}
-          <Pressable accessibilityRole="button" accessibilityLabel="Create this table" disabled={busy || !creationEnabled || !tableName.trim()} accessibilityState={{ disabled: busy || !creationEnabled || !tableName.trim() }} onPress={() => void act(false)} style={[styles.button, (busy || !creationEnabled || !tableName.trim()) && { opacity: 0.5 }]}><Text style={styles.buttonText}>Create table</Text></Pressable>
-          <Pressable accessibilityRole="button" onPress={() => setOpen(false)} style={styles.choice}><Text style={styles.text}>Back to room</Text></Pressable>
+          {!!error && <Text accessibilityRole="alert" style={styles.modalError}>{uiLabel(error, 'feedback')}</Text>}
+          {!synced && <Text accessibilityLiveRegion="polite" style={styles.note}>{sessionActive ? ui("common.waiting_for_the_table_service_your_form_will_stay_open_while_it_retries") : ui("feedback.sign_in_again_before_creating_a_table")}</Text>}
+          {refreshError && sessionActive && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.retry_table_service")} onPress={() => setActionTick(value => value + 1)} style={styles.choice}><Text style={styles.text}>{ui("rooms.retry_table_service")}</Text></Pressable>}
+          <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_this_table")} disabled={busy || !creationEnabled || !tableName.trim()} accessibilityState={{ disabled: busy || !creationEnabled || !tableName.trim() }} onPress={() => void act(false)} style={[styles.button, (busy || !creationEnabled || !tableName.trim()) && { opacity: 0.5 }]}><Text style={styles.buttonText}>{ui("rooms.create_table")}</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => setOpen(false)} style={styles.choice}><Text style={styles.text}>{ui("common.back_to_room")}</Text></Pressable>
         </FormFooter>
       </View></KeyboardFrame>}
     </Modal>

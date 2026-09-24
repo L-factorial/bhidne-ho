@@ -1,9 +1,12 @@
+import { ui } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import type { RoomPoke } from '../multiplayer/pokes';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 function PokeBubble({ poke, reduceMotion }: { poke: RoomPoke; reduceMotion: boolean }) {
+  const uiLanguage = useUiLanguage();
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const opacity = useRef(new Animated.Value(0)).current;
@@ -31,12 +34,13 @@ function PokeBubble({ poke, reduceMotion }: { poke: RoomPoke; reduceMotion: bool
   return <Animated.View testID="poke-popup" accessibilityLiveRegion="polite" accessibilityRole="alert"
     style={[styles.bubble, privatePoke && styles.privateBubble, reduceMotion && { backgroundColor: privatePoke ? colors.success : colors.accent, boxShadow: 'none' }, { opacity }]}>
     {!reduceMotion && <Animated.View style={[StyleSheet.absoluteFill, styles.glow, privatePoke && styles.privateGlow, { opacity: glow }]} />}
-    <Text style={styles.label}>{privatePoke ? '✦ JUST FOR YOU' : '✦ TABLE TALK'} · {poke.sender_name || `Player ${poke.sender_player_id}`}</Text>
+    <Text style={styles.label}>{privatePoke ? '✦ JUST FOR YOU' : '✦ TABLE TALK'} · {poke.sender_name || ui("common.player_number", { "number": poke.sender_player_id })}</Text>
     <Text style={styles.text}>{poke.text}</Text>
   </Animated.View>;
 }
 
 export function PokeOverlay({ pokes, matchId }: { pokes: RoomPoke[]; matchId?: string }) {
+  const uiLanguage = useUiLanguage();
   const styles = useThemedStyles(createStyles);
   const compact = useWindowDimensions().width < 900;
   const [reduceMotion, setReduceMotion] = useState(false);

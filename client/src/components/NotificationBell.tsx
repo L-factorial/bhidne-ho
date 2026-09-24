@@ -1,3 +1,5 @@
+import { ui } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
@@ -14,6 +16,7 @@ type RoomInvitation = { id: string; room_id: string; room_name: string; inviter_
 const playerName = (player: Player) => player.display_name || player.username || player.user_id;
 
 export function NotificationBell({ session, onOpenTable, onOpenRoom }: { session: Session; onOpenTable?: (invitation: TableInvitation) => void; onOpenRoom?: (invitation: RoomInvitation) => void }) {
+  useUiLanguage();
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const compact = useWindowDimensions().width < 900;
@@ -35,7 +38,7 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom }: { session
         actor, created_at: Date.now(), read: false }));
       if (!signal?.aborted) { setItems([...requests, ...value]); setTableInvitations(invitations); setRoomInvitations(rooms); setError(''); }
     } catch (failure) {
-      if (!signal?.aborted) setError(failure instanceof Error ? failure.message : 'Could not load notifications.');
+      if (!signal?.aborted) setError(failure instanceof Error ? failure.message : ui("feedback.could_not_load_notifications"));
     }
   }
   useEffect(() => {
@@ -50,7 +53,7 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom }: { session
     try {
       await request('/notifications/read', session, {});
       setItems(current => current.map(item => ({ ...item, read: true })));
-    } catch (failure) { setError(failure instanceof Error ? failure.message : 'Could not update notifications.'); }
+    } catch (failure) { setError(failure instanceof Error ? failure.message : ui("feedback.could_not_update_notifications")); }
   }
   async function answerRequest(player: Player, accept: boolean) {
     try {
@@ -58,21 +61,21 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom }: { session
       await request(accept ? `/friends/requests/${id}/accept` : `/friends/${id}`, session,
         accept ? {} : undefined, undefined, accept ? undefined : 'DELETE');
       setItems(current => current.filter(item => item.kind !== 'friend_request' || item.actor.user_id !== player.user_id));
-    } catch (failure) { setError(failure instanceof Error ? failure.message : 'Could not update the request.'); }
+    } catch (failure) { setError(failure instanceof Error ? failure.message : ui("feedback.could_not_update_the_request")); }
   }
   async function answerTable(invitation: TableInvitation, accept: boolean) {
     try {
       await request(`/test-games/invitations/${encodeURIComponent(invitation.id)}/${accept ? 'accept' : 'decline'}`, session, {});
       setTableInvitations(current => current.filter(item => item.id !== invitation.id));
       if (accept) { setOpen(false); onOpenTable?.(invitation); }
-    } catch (failure) { setError(failure instanceof Error ? failure.message : 'Could not update the table invitation.'); }
+    } catch (failure) { setError(failure instanceof Error ? failure.message : ui("feedback.could_not_update_the_table_invitation")); }
   }
   async function answerRoom(invitation: RoomInvitation, accept: boolean) {
     try {
       await request(`/room-invitations/${encodeURIComponent(invitation.id)}/${accept ? 'accept' : 'decline'}`, session, {});
       setRoomInvitations(current => current.filter(item => item.id !== invitation.id));
       if (accept) { setOpen(false); onOpenRoom?.(invitation); }
-    } catch (failure) { setError(failure instanceof Error ? failure.message : 'Could not update the room invitation.'); }
+    } catch (failure) { setError(failure instanceof Error ? failure.message : ui("feedback.could_not_update_the_room_invitation")); }
   }
   const unread = items.filter(item => !item.read).length + tableInvitations.length + roomInvitations.length;
   return <>
@@ -87,35 +90,35 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom }: { session
       <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
         <Pressable accessibilityViewIsModal style={[styles.sheet, !compact && styles.desktopSheet]} onPress={() => {}}>
           <View style={styles.headingRow}>
-            <View><Text accessibilityRole="header" style={styles.title}>Notifications</Text><Text style={styles.detail}>Requests and social updates</Text></View>
-            <Pressable accessibilityRole="button" accessibilityLabel="Close notifications" onPress={() => setOpen(false)} style={styles.close}><Text style={styles.link}>Close</Text></Pressable>
+            <View><Text accessibilityRole="header" style={styles.title}>{ui("common.notifications")}</Text><Text style={styles.detail}>{ui("social.requests_and_social_updates")}</Text></View>
+            <Pressable accessibilityRole="button" accessibilityLabel={ui("common.close_notifications")} onPress={() => setOpen(false)} style={styles.close}><Text style={styles.link}>{ui("common.close")}</Text></Pressable>
           </View>
-          {!!unread && <Pressable accessibilityRole="button" onPress={() => void markAllRead()} style={styles.markRead}><Text style={styles.link}>Mark all as read</Text></Pressable>}
+          {!!unread && <Pressable accessibilityRole="button" onPress={() => void markAllRead()} style={styles.markRead}><Text style={styles.link}>{ui("common.mark_all_as_read")}</Text></Pressable>}
           <ScrollView style={styles.list}>
-            {!items.length && !tableInvitations.length && !roomInvitations.length && <View style={styles.empty}><Text style={styles.name}>You’re all caught up</Text><Text style={styles.detail}>Friend and room activity will appear here.</Text></View>}
+            {!items.length && !tableInvitations.length && !roomInvitations.length && <View style={styles.empty}><Text style={styles.name}>{ui("common.you_re_all_caught_up")}</Text><Text style={styles.detail}>{ui("social.friend_and_room_activity_will_appear_here")}</Text></View>}
             {roomInvitations.map(invitation => <View key={invitation.id} style={[styles.notice, styles.unread]}>
               <View style={styles.avatar}><Text style={styles.avatarText}>R</Text></View>
-              <View style={{ flex: 1 }}><Text style={styles.name}>{invitation.inviter ? playerName(invitation.inviter) : 'A player'} invited you to {invitation.room_name}.</Text><Text style={styles.detail}>Accepting adds this room to your memberships.</Text></View>
+              <View style={{ flex: 1 }}><Text style={styles.name}>{ui("social.player_invited_you_to_tablename", { "player": invitation.inviter ? playerName(invitation.inviter) : 'A player', "tableName": invitation.room_name })}</Text><Text style={styles.detail}>{ui("common.accepting_adds_this_room_to_your_memberships")}</Text></View>
               <View style={styles.requestActions}>
-                <Pressable accessibilityRole="button" onPress={() => void answerRoom(invitation, true)} style={styles.accept}><Text style={styles.acceptText}>Open room</Text></Pressable>
-                <Pressable accessibilityRole="button" onPress={() => void answerRoom(invitation, false)} style={styles.decline}><Text style={styles.link}>Decline</Text></Pressable>
+                <Pressable accessibilityRole="button" onPress={() => void answerRoom(invitation, true)} style={styles.accept}><Text style={styles.acceptText}>{ui("common.open_room")}</Text></Pressable>
+                <Pressable accessibilityRole="button" onPress={() => void answerRoom(invitation, false)} style={styles.decline}><Text style={styles.link}>{ui("common.decline")}</Text></Pressable>
               </View>
             </View>)}
             {tableInvitations.map(invitation => <View key={invitation.id} style={[styles.notice, styles.unread]}>
               <View style={styles.avatar}><Text style={styles.avatarText}>♠</Text></View>
-              <View style={{ flex: 1 }}><Text style={styles.name}>{invitation.inviter ? playerName(invitation.inviter) : 'A player'} invited you to {invitation.table_name}.</Text><Text style={styles.detail}>{invitation.room_name} · {invitation.game_type} · {invitation.seated}/{invitation.capacity} seated · {invitation.seat_available ? 'Seat available' : 'Watch or join the waitlist'} · Opening does not take a seat.</Text></View>
+              <View style={{ flex: 1 }}><Text style={styles.name}>{ui("social.player_invited_you_to_tablename", { "player": invitation.inviter ? playerName(invitation.inviter) : 'A player', "tableName": invitation.table_name })}</Text><Text style={styles.detail}>{ui("rooms.invitation_summary", { "game": invitation.room_name, "phase": invitation.game_type, "seated": invitation.seated, "capacity": invitation.capacity, "players": invitation.seat_available ? ui("rooms.seat_available") : ui("rooms.watch_or_join_the_waitlist") })}</Text></View>
               <View style={styles.requestActions}>
-                <Pressable accessibilityRole="button" onPress={() => void answerTable(invitation, true)} style={styles.accept}><Text style={styles.acceptText}>Open table</Text></Pressable>
-                <Pressable accessibilityRole="button" onPress={() => void answerTable(invitation, false)} style={styles.decline}><Text style={styles.link}>Decline</Text></Pressable>
+                <Pressable accessibilityRole="button" onPress={() => void answerTable(invitation, true)} style={styles.accept}><Text style={styles.acceptText}>{ui("common.open_table")}</Text></Pressable>
+                <Pressable accessibilityRole="button" onPress={() => void answerTable(invitation, false)} style={styles.decline}><Text style={styles.link}>{ui("common.decline")}</Text></Pressable>
               </View>
             </View>)}
             {items.map(item => <View key={item.id} style={[styles.notice, !item.read && styles.unread]}>
               <View style={styles.avatar}><Text style={styles.avatarText}>{playerName(item.actor).slice(0, 1).toUpperCase()}</Text></View>
-              <View style={{ flex: 1 }}><Text style={styles.name}>{playerName(item.actor)} {item.kind === 'friend_request' ? 'sent you a connection request.' : item.kind === 'friend_accepted' ? 'accepted your connection request.' : 'declined your connection request.'}</Text>
+              <View style={{ flex: 1 }}><Text style={styles.name}>{playerName(item.actor)} {item.kind === 'friend_request' ? ui("social.sent_you_a_connection_request") : item.kind === 'friend_accepted' ? ui("social.accepted_your_connection_request") : ui("social.declined_your_connection_request")}</Text>
                 <Text style={styles.detail}>{new Date(item.created_at).toLocaleString()}</Text></View>
               {item.kind === 'friend_request' && <View style={styles.requestActions}>
-                <Pressable accessibilityRole="button" onPress={() => void answerRequest(item.actor, true)} style={styles.accept}><Text style={styles.acceptText}>Accept</Text></Pressable>
-                <Pressable accessibilityRole="button" onPress={() => void answerRequest(item.actor, false)} style={styles.decline}><Text style={styles.link}>Decline</Text></Pressable>
+                <Pressable accessibilityRole="button" onPress={() => void answerRequest(item.actor, true)} style={styles.accept}><Text style={styles.acceptText}>{ui("common.accept")}</Text></Pressable>
+                <Pressable accessibilityRole="button" onPress={() => void answerRequest(item.actor, false)} style={styles.decline}><Text style={styles.link}>{ui("common.decline")}</Text></Pressable>
               </View>}
             </View>)}
           </ScrollView>

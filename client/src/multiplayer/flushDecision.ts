@@ -5,7 +5,7 @@ export function flushDecision(view: FlushView | undefined, playing: boolean) {
   if (!playing || !pub || pub.status === 'finished') return null;
   const actor = pub.pending_show?.target_id ?? pub.pending_side_show?.target_id ?? pub.current_player_id;
   if (!actor) return null;
-  const phase = pub.pending_show ? 'show' : pub.pending_side_show ? `side-show:${pub.pending_side_show.revision}` : pub.status;
+  const phase = pub.pending_show ? "show" : pub.pending_side_show ? `side-show:${pub.pending_side_show.revision}` : pub.status;
   return { actor, key: `${pub.round_number}:${phase}:${actor}` };
 }
 

@@ -1,3 +1,4 @@
+import { ui } from '../i18n/copy.ts';
 import { leaveRoomMembership } from './leaveRoomMembership';
 import { TableSocialChannel } from './TableSocialChannel';
 import { useEffect, useRef, useState } from 'react';
@@ -43,7 +44,7 @@ export function useRoomSession() {
       setSession(value); setExpired(false);
       return true;
     } catch (error) {
-      setError(error instanceof Error ? error.message : `Could not ${signup ? 'create your account' : 'sign in'}. Please try again.`);
+      setError(error instanceof Error ? error.message : `Could not ${signup ? ui("common.create_your_account") : ui("common.sign_in")}. Please try again.`);
       return false;
     } finally { loginPending.current = false; setLoggingIn(false); }
   }
@@ -69,7 +70,7 @@ export function useRoomSession() {
           if (error instanceof ApiError && error.status === 401) {
             saveSession(apiUrl, null); setExpired(true); setError(error.message); return;
           }
-          setError('Connection interrupted. Retrying…');
+          setError(ui("feedback.connection_interrupted_retrying"));
         }
       } finally { if (!controller.signal.aborted) timer = setTimeout(refresh, 2000); }
     }
@@ -87,7 +88,7 @@ export function useRoomSession() {
           setRoom(null); setGame(null); setLeaveGameRequired(null); return;
         }
         if ((message as { type?: string })?.type === 'ROOM_DELETED') {
-          setRoom(null); setGame(null); setLeaveGameRequired(null); setError('This room was deleted by its owner.'); return;
+          setRoom(null); setGame(null); setLeaveGameRequired(null); setError(ui("rooms.this_room_was_deleted_by_its_owner")); return;
         }
         socialChannel.receive(message);
         const poke = readPoke(message, room.room_id, session.user_id);
@@ -111,7 +112,7 @@ export function useRoomSession() {
       setStatus('connecting'); setRoom(target); setGame(selectedGame); setLeaveGameRequired(null); setError('');
       return true;
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Could not enter the room.');
+      setError(error instanceof Error ? error.message : ui("feedback.could_not_enter_the_room"));
       return false;
     }
   }
@@ -133,7 +134,7 @@ export function useRoomSession() {
           setLeaveGameRequired(error.detail.match_id || null);
           setAbandonRequired(error.detail.departure_command === 'abandon');
         }
-        setError(error instanceof Error ? error.message : 'Could not leave the room.');
+        setError(error instanceof Error ? error.message : ui("feedback.could_not_leave_the_room"));
         return false;
       }
     }
@@ -149,7 +150,7 @@ export function useRoomSession() {
       saveSession(apiUrl, { session, room: null, game: null });
       return true;
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Could not delete the room.');
+      setError(error instanceof Error ? error.message : ui("feedback.could_not_delete_the_room"));
       return false;
     }
   }
@@ -159,7 +160,7 @@ export function useRoomSession() {
       await request(`/test-games/${encodeURIComponent(room.room_id)}/${abandonRequired ? 'table/abandon' : 'leave'}`, session, { match_id: leaveGameRequired });
       return await leaveRoom();
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Could not leave the game.');
+      setError(error instanceof Error ? error.message : ui("feedback.could_not_leave_the_game"));
       return false;
     }
   }

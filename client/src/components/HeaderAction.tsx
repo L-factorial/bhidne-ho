@@ -1,3 +1,5 @@
+import { ui } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { gameControlFinish, fonts, useTheme } from '../theme';
 import { Pressable, Text } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
@@ -5,9 +7,10 @@ import Svg, { Circle, Path } from 'react-native-svg';
 export function HeaderAction({ icon, label, onPress, compact = false }: {
   icon: 'profile' | 'leave'; label: string; onPress: () => void; compact?: boolean;
 }) {
+  useUiLanguage();
   const { colors } = useTheme();
   const color = icon === 'leave' ? colors.textMuted : colors.accent;
-  return <Pressable accessibilityRole="button" accessibilityLabel={icon === 'profile' ? 'Open profile' : label}
+  return <Pressable accessibilityRole="button" accessibilityLabel={icon === 'profile' ? ui("common.open_profile") : label}
     onPress={onPress} style={({ pressed }) => ({ ...gameControlFinish(colors, pressed), minWidth: 44, minHeight: 44, paddingHorizontal: compact ? 10 : 14,
       flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 12,
       borderWidth: 1, borderColor: colors.border, backgroundColor: pressed ? colors.surfaceSelected : colors.surface,

@@ -1,0 +1,357 @@
+[
+  {
+    "id": "language.english",
+    "en": "English",
+    "ne": "English"
+  },
+  {
+    "id": "language.nepali",
+    "en": "नेपाली",
+    "ne": "नेपाली"
+  },
+  {
+    "id": "language.switchTo",
+    "en": "Switch language to {{language}}",
+    "ne": "भाषा {{language}} मा बदल्नुहोस्"
+  },
+  {
+    "id": "common.profile",
+    "en": "Profile",
+    "ne": "प्रोफाइल"
+  },
+  {
+    "id": "common.backToLobby",
+    "en": "Back to lobby",
+    "ne": "लबीमा फर्कनुहोस्"
+  },
+  {
+    "id": "common.tableMenu",
+    "en": "Table menu",
+    "ne": "टेबल मेनु"
+  },
+  {
+    "id": "common.copyLink",
+    "en": "Copy link",
+    "ne": "लिङ्क कपी गर्नुहोस्"
+  },
+  {
+    "id": "common.copyGameLink",
+    "en": "Copy game link",
+    "ne": "खेलको लिङ्क कपी गर्नुहोस्"
+  },
+  {
+    "id": "common.copyRoomLink",
+    "en": "Copy room link",
+    "ne": "कोठाको लिङ्क कपी गर्नुहोस्"
+  },
+  {
+    "id": "common.copied",
+    "en": "Link copied. Paste it into any messaging app.",
+    "ne": "लिङ्क कपी भयो। कुनै पनि मेसेजिङ एपमा पेस्ट गर्नुहोस्।"
+  },
+  {
+    "id": "common.copyFallback",
+    "en": "Select and copy the link below.",
+    "ne": "तलको लिङ्क छानेर कपी गर्नुहोस्।"
+  },
+  {
+    "id": "common.loading",
+    "en": "Loading Bhidne Ho",
+    "ne": "भिड्ने हो लोड हुँदैछ"
+  },
+  {
+    "id": "welcome.heading",
+    "en": "Take your seat.",
+    "ne": "आफ्नो सिट लिनुहोस्।"
+  },
+  {
+    "id": "welcome.subtitle",
+    "en": "Call Break, Marriage and Flush with friends.",
+    "ne": "साथीहरूसँग कल ब्रेक, म्यारिज र फ्लस खेल्नुहोस्।"
+  },
+  {
+    "id": "welcome.or",
+    "en": "or",
+    "ne": "वा"
+  },
+  {
+    "id": "welcome.account",
+    "en": "Sign in or create account",
+    "ne": "साइन इन वा खाता बनाउनुहोस्"
+  },
+  {
+    "id": "welcome.helper",
+    "en": "Sign in with your Bhidne Ho account or create a new one.",
+    "ne": "आफ्नो भिड्ने हो खातामा साइन इन गर्नुहोस् वा नयाँ खाता बनाउनुहोस्।"
+  },
+  {
+    "id": "welcome.dismiss",
+    "en": "Dismiss",
+    "ne": "हटाउनुहोस्"
+  },
+  {
+    "id": "welcome.dismissMessage",
+    "en": "Dismiss message",
+    "ne": "सन्देश हटाउनुहोस्"
+  },
+  {
+    "id": "welcome.terms",
+    "en": "Terms",
+    "ne": "सर्तहरू"
+  },
+  {
+    "id": "welcome.privacy",
+    "en": "Privacy",
+    "ne": "गोपनीयता"
+  },
+  {
+    "id": "welcome.termsNotice",
+    "en": "Terms will be available before account sign-in launches.",
+    "ne": "खाता साइन इन सुरु हुनुअघि सर्तहरू उपलब्ध हुनेछन्।"
+  },
+  {
+    "id": "welcome.privacyNotice",
+    "en": "The privacy policy will be available before account sign-in launches.",
+    "ne": "खाता साइन इन सुरु हुनुअघि गोपनीयता नीति उपलब्ध हुनेछ।"
+  },
+  {
+    "id": "chat.title",
+    "en": "Room chat",
+    "ne": "कोठाको च्याट"
+  },
+  {
+    "id": "chat.paused",
+    "en": "Paused",
+    "ne": "रोकिएको"
+  },
+  {
+    "id": "chat.unread",
+    "en": "{{count}} new",
+    "ne": "{{count}} नयाँ"
+  },
+  {
+    "id": "chat.close",
+    "en": "Close chat",
+    "ne": "च्याट बन्द गर्नुहोस्"
+  },
+  {
+    "id": "chat.soundOn",
+    "en": "Chat sound on",
+    "ne": "च्याट ध्वनि चालु"
+  },
+  {
+    "id": "chat.soundOff",
+    "en": "Chat sound off",
+    "ne": "च्याट ध्वनि बन्द"
+  },
+  {
+    "id": "chat.empty",
+    "en": "Drop a goofy line. Challenge your friends. Get the game going!",
+    "ne": "रमाइलो कुरा लेख्नुहोस्। साथीहरूलाई चुनौती दिनुहोस्। खेल सुरु गरौँ!"
+  },
+  {
+    "id": "chat.reconnecting",
+    "en": "Reconnecting to room...",
+    "ne": "कोठामा पुनः जडान हुँदैछ..."
+  },
+  {
+    "id": "chat.placeholder",
+    "en": "Got a bold prediction or a punchline?",
+    "ne": "कुनै अनुमान वा रमाइलो कुरा?"
+  },
+  {
+    "id": "chat.send",
+    "en": "Send",
+    "ne": "पठाउनुहोस्"
+  },
+  {
+    "id": "chat.sending",
+    "en": "Sending...",
+    "ne": "पठाउँदै..."
+  },
+  {
+    "id": "chat.you",
+    "en": "You",
+    "ne": "तपाईं"
+  },
+  {
+    "id": "chat.hintPaused",
+    "en": "Chat is paused while you are playing.",
+    "ne": "खेलिरहँदा च्याट रोकिएको छ।"
+  },
+  {
+    "id": "chat.hintUnread",
+    "en": "{{count}} unread messages",
+    "ne": "{{count}} नपढिएका सन्देश"
+  },
+  {
+    "id": "chat.hintToggle",
+    "en": "Expand or minimize room chat",
+    "ne": "कोठाको च्याट खोल्नुहोस् वा सानो बनाउनुहोस्"
+  },
+  {
+    "id": "ledger.balanceSummary",
+    "en": "Balances",
+    "ne": "हिसाब सारांश"
+  },
+  {
+    "id": "ledger.player",
+    "en": "Player",
+    "ne": "खेलाडी"
+  },
+  {
+    "id": "ledger.net",
+    "en": "Net",
+    "ne": "खुद"
+  },
+  {
+    "id": "ledger.from",
+    "en": "From",
+    "ne": "तिर्ने"
+  },
+  {
+    "id": "ledger.to",
+    "en": "To",
+    "ne": "पाउने"
+  },
+  {
+    "id": "ledger.amount",
+    "en": "Amount",
+    "ne": "रकम"
+  },
+  {
+    "id": "ledger.statusSUGGESTED",
+    "en": "Suggested",
+    "ne": "सुझाव"
+  },
+  {
+    "id": "ledger.statusOPEN",
+    "en": "Awaiting payment",
+    "ne": "भुक्तानी बाँकी"
+  },
+  {
+    "id": "ledger.statusMARKED_PAID",
+    "en": "Awaiting confirmation",
+    "ne": "पुष्टि बाँकी"
+  },
+  {
+    "id": "ledger.statusRESOLVED",
+    "en": "Resolved",
+    "ne": "मिलिसकेको"
+  },
+  {
+    "id": "ledger.roomName",
+    "en": "Room",
+    "ne": "कोठा"
+  },
+  {
+    "id": "ledger.tableName",
+    "en": "Table",
+    "ne": "टेबल"
+  },
+  {
+    "id": "ledger.roomCode",
+    "en": "Room code: {{code}}",
+    "ne": "कोठाको कोड: {{code}}"
+  },
+  {
+    "id": "ledger.tableCode",
+    "en": "Table code: {{code}}",
+    "ne": "टेबलको कोड: {{code}}"
+  },
+  {
+    "id": "ledger.gameCount",
+    "en": "{{count}} games",
+    "ne": "{{count}} खेल"
+  },
+  {
+    "id": "ledger.section",
+    "en": "Ledger & settlements",
+    "ne": "हिसाब र मिलान"
+  },
+  {
+    "id": "ledger.ledger",
+    "en": "Ledger",
+    "ne": "हिसाब"
+  },
+  {
+    "id": "ledger.personal",
+    "en": "My settlements",
+    "ne": "मेरो मिलान"
+  },
+  {
+    "id": "ledger.roomResults",
+    "en": "Room results",
+    "ne": "कोठाको नतिजा"
+  },
+  {
+    "id": "ledger.noResults",
+    "en": "No completed game results yet.",
+    "ne": "अहिलेसम्म पूरा भएको खेलको नतिजा छैन।"
+  },
+  {
+    "id": "ledger.table",
+    "en": "Table {{id}} · {{count}} games",
+    "ne": "टेबल {{id}} · {{count}} खेल"
+  },
+  {
+    "id": "ledger.tableShort",
+    "en": "Table {{id}}",
+    "ne": "टेबल {{id}}"
+  },
+  {
+    "id": "ledger.summary",
+    "en": "Two-party summary",
+    "ne": "दुई-पक्षीय सारांश"
+  },
+  {
+    "id": "ledger.startTable",
+    "en": "Start table settlement",
+    "ne": "टेबल मिलान सुरु गर्नुहोस्"
+  },
+  {
+    "id": "ledger.games",
+    "en": "Games",
+    "ne": "खेलहरू"
+  },
+  {
+    "id": "ledger.inSettlement",
+    "en": "In settlement",
+    "ne": "मिलानमा"
+  },
+  {
+    "id": "ledger.open",
+    "en": "Open",
+    "ne": "खुला"
+  },
+  {
+    "id": "ledger.settleGame",
+    "en": "Settle game",
+    "ne": "खेल मिलाउनुहोस्"
+  },
+  {
+    "id": "ledger.toPay",
+    "en": "To pay",
+    "ne": "तिर्नुपर्ने"
+  },
+  {
+    "id": "ledger.toReceive",
+    "en": "To receive",
+    "ne": "पाउनुपर्ने"
+  },
+  {
+    "id": "ledger.resolved",
+    "en": "Resolved",
+    "ne": "मिलिसकेको"
+  },
+  {
+    "id": "ledger.markPaid",
+    "en": "Mark paid",
+    "ne": "तिरेको चिन्ह लगाउनुहोस्"
+  },
+  {
+    "id": "ledger.confirmReceived",
+    "en": "Confirm received",
+    "ne": "प्राप्त भएको पुष्टि गर्नुहोस्"
+  }
+]

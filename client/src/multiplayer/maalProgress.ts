@@ -6,7 +6,7 @@ const suits = ['S', 'C', 'H', 'D'];
 const face = (index: number) => ({ rank: index % 13 === 0 ? 14 : index % 13 + 1, suit: suits[Math.floor(index / 13)] });
 const patterns: Pattern[] = suits.flatMap((_, suit) => [
   ...Array.from({ length: 12 }, (_, rank) => ({ kind: 'pure_sequence' as const, faces: [0, 1, 2].map(offset => suit * 13 + (rank + offset) % 13) })),
-  ...Array.from({ length: 13 }, (_, rank) => ({ kind: 'tunnela' as const, faces: Array(3).fill(suit * 13 + rank) as number[] })),
+  ...Array.from({ length: 13 }, (_, rank) => ({ kind: "tunnela" as const, faces: Array(3).fill(suit * 13 + rank) as number[] })),
 ]);
 
 /** Minimum additional natural cards for qualification, not a prediction of draws.
@@ -57,7 +57,7 @@ export function maalChoices(hand: MarriageCard[]): MaalChoice[] {
     visit(0);
   }
   enumerate('normal', patterns.filter(p => p.faces.every(f => buckets[f].length >= (p.kind === 'tunnela' ? 3 : 1))), 3, true);
-  enumerate('dublee', buckets.flatMap((cards, f) => cards.length >= 2 ? [{ kind: 'dublee' as const, faces: [f, f] }] : []), 7, false);
+  enumerate("dublee", buckets.flatMap((cards, f) => cards.length >= 2 ? [{ kind: "dublee" as const, faces: [f, f] }] : []), 7, false);
   return choices;
 }
 

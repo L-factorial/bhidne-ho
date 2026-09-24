@@ -1,12 +1,15 @@
+import { ui } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { CardBack } from './CardBack';
 import { useTheme } from '../theme';
 
 const symbols: Record<string, string> = { S: '♠', H: '♥', D: '♦', C: '♣' };
-export function FlushCards({ cards, hidden = false, label = 'Your card', onComplete, autoReveal = false, autoHideMs = 0, tapToToggle = false }: {
+export function FlushCards({ cards, hidden = false, label = ui("flush.your_card"), onComplete, autoReveal = false, autoHideMs = 0, tapToToggle = false }: {
   cards: string[]; tapToToggle?: boolean; autoHideMs?: number; autoReveal?: boolean; hidden?: boolean; label?: string; onComplete?: () => void;
 }) {
+  const uiLanguage = useUiLanguage();
   const [peekAll, setPeekAll] = useState(false);
   const [revealed, setRevealed] = useState<number[]>([]);
   const { colors } = useTheme();
@@ -18,18 +21,19 @@ export function FlushCards({ cards, hidden = false, label = 'Your card', onCompl
       autoHideMs={autoReveal ? 0 : autoHideMs} onConceal={() => setRevealed(current => current.filter(i => i !== index))}
       onFlip={() => { const next = [...revealed, index]; setRevealed(next); if (next.length === 3) onComplete?.(); }} />)}
     {tapToToggle && !hidden && cards.length === 3 && <Pressable accessibilityRole="button"
-      accessibilityLabel={peekAll ? 'Hide cards' : 'Tap to see cards'}
+      accessibilityLabel={peekAll ? ui("common.hide_cards") : ui("flush.tap_to_see_cards")}
       accessibilityState={{ expanded: peekAll }}
       onPress={() => setPeekAll(value => !value)}
       style={[StyleSheet.absoluteFill, { justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 4 }]}>
-      <Text style={{ color: colors.textMuted, fontSize: 12 }}>{peekAll ? 'Tap to hide cards' : 'Tap to see cards'}</Text>
+      <Text style={{ color: colors.textMuted, fontSize: 12 }}>{peekAll ? ui("flush.tap_to_hide_cards") : ui("flush.tap_to_see_cards")}</Text>
     </Pressable>}
-    {!cards.length && <Text style={{ color: colors.textMuted, textAlign: 'center', position: 'absolute', bottom: 0, width: '100%' }}>Blind · See cards when eligible</Text>}
+    {!cards.length && <Text style={{ color: colors.textMuted, textAlign: 'center', position: 'absolute', bottom: 0, width: '100%' }}>{ui("flush.blind_see_cards_when_eligible")}</Text>}
   </View>;
 }
 function FlipCard({ card, index, label, revealed, disabled, onFlip, autoHideMs, onConceal }: {
   autoHideMs: number; onConceal: () => void; card?: string; index: number; label: string; revealed: boolean; disabled: boolean; onFlip: () => void;
 }) {
+  const uiLanguage = useUiLanguage();
   const { colors } = useTheme();
   const conceal = useRef(onConceal);
   conceal.current = onConceal;

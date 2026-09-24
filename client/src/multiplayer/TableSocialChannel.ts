@@ -1,3 +1,4 @@
+import { ui } from '../i18n/copy.ts';
 export type TableMessage = { type: 'TABLE_CHAT_MESSAGE'; id: string; room_id: string; match_id: string; sender_id: string; sender_player_id: number; sender_name: string; text: string; sent_at: number };
 export type SocialAck = { type: 'TABLE_SOCIAL_ACK'; room_id: string; match_id: string; command_id: string; status: 'accepted' | 'rejected'; detail?: string; messages?: TableMessage[]; message?: TableMessage };
 export class TableSocialChannel {
@@ -15,16 +16,16 @@ export class TableSocialChannel {
         clearTimeout(timer); unsubscribe(); signal.removeEventListener('abort', cancel);
         if (error) reject(new Error(error)); else resolve(result!);
       };
-      const cancel = () => finish('Social request cancelled.');
+      const cancel = () => finish(ui("feedback.social_request_cancelled"));
       const unsubscribe = this.subscribe(value => {
         const event = value as SocialAck;
         if (event?.type === 'TABLE_SOCIAL_ACK' && event.match_id === match_id && event.command_id === command_id) {
-          finish(event.status === 'accepted' ? undefined : event.detail || 'Social action rejected.', event);
+          finish(event.status === 'accepted' ? undefined : event.detail || ui("feedback.social_action_rejected"), event);
         }
       });
       const attempt = () => {
         if (signal.aborted) { cancel(); return; }
-        if (attempts++ >= 3) { finish('Could not confirm delivery. Check the conversation before sending again.'); return; }
+        if (attempts++ >= 3) { finish(ui("common.could_not_confirm_delivery_check_the_conversation_before_sending_again")); return; }
         // Retry the same ID; the server deduplicates across reconnects/tabs.
         timer = setTimeout(attempt, 4000);
         this.send(command);

@@ -1,3 +1,5 @@
+import { ui, uiLabel } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { AppHeader } from '../components/AppHeader';
 import { GameIcon } from '../components/BrandArt';
@@ -7,18 +9,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type GameId = 'callbreak' | 'flush' | 'marriage';
 const gameOptions = (colors: ThemeColors) => [
-  { id: 'callbreak', name: 'Call Break', symbol: '♠', cards: 'K ♠   Q ♠   J ♠',
-    description: 'Make your call. Take the trick. Find your table.', detail: '4 or 5 players · Five deals', tint: colors.surface },
-  { id: 'flush', name: 'Flush', symbol: '♦', cards: 'A ♦   K ♦   Q ♦',
-    description: 'A little suspense. A familiar circle of friends.', detail: 'Game room preview', tint: colors.dangerSurface },
-  { id: 'marriage', name: 'Marriage', symbol: '♥', cards: 'J ♥   Q ♥   K ♥',
-    description: 'Bring your people together for another round.', detail: 'Game room preview', tint: colors.dangerSurface },
+  { id: 'callbreak', name: ui("rooms.call_break"), symbol: '♠', cards: 'K ♠   Q ♠   J ♠',
+    description: 'Make your call. Take the trick. Find your table.', detail: ui("common.4_or_5_players_five_deals"), tint: colors.surface },
+  { id: 'flush', name: "flush", symbol: '♦', cards: 'A ♦   K ♦   Q ♦',
+    description: ui("common.a_little_suspense_a_familiar_circle_of_friends"), detail: ui("common.game_room_preview"), tint: colors.dangerSurface },
+  { id: 'marriage', name: "marriage", symbol: '♥', cards: 'J ♥   Q ♥   K ♥',
+    description: ui("common.bring_your_people_together_for_another_round"), detail: ui("common.game_room_preview"), tint: colors.dangerSurface },
 ] as const;
 
 export function GameRoomsScreen({ selected, onSelect, onBack, onLeave }: {
   selected: Exclude<GameId, 'callbreak'> | null;
   onSelect: (game: GameId) => void; onBack: () => void; onLeave: () => void;
 }) {
+  useUiLanguage();
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const wide = useWindowDimensions().width >= 960;
@@ -31,21 +34,21 @@ export function GameRoomsScreen({ selected, onSelect, onBack, onLeave }: {
       paddingLeft: Math.max(insets.left, wide ? 40 : 20), paddingRight: Math.max(insets.right, wide ? 40 : 20),
     }]}>
       <View style={styles.content}>
-        <AppHeader actions={<Pressable accessibilityRole="button" onPress={onLeave} style={styles.linkButton}><Text style={{ color: colors.accent }}>Exit preview</Text></Pressable>} />
+        <AppHeader actions={<Pressable accessibilityRole="button" onPress={onLeave} style={styles.linkButton}><Text style={{ color: colors.accent }}>{ui("common.exit_preview")}</Text></Pressable>} />
         {game ? <>
-          <Pressable accessibilityRole="button" onPress={onBack} style={styles.back}><Text style={styles.link}>← All games</Text></Pressable>
-          <Text style={styles.eyebrow}>GAME ROOM</Text>
-          <Text accessibilityRole="header" style={styles.title}>{game.name}</Text>
+          <Pressable accessibilityRole="button" onPress={onBack} style={styles.back}><Text style={styles.link}>{ui("common.all_games_arrow")}</Text></Pressable>
+          <Text style={styles.eyebrow}>{ui("rooms.game_room")}</Text>
+          <Text accessibilityRole="header" style={styles.title}>{uiLabel(game.name, "rooms")}</Text>
           <View style={styles.emptyRoom}>
             <Text style={styles.emptySymbol}>{game.symbol}</Text>
-            <Text accessibilityRole="header" style={styles.emptyTitle}>The table is taking shape.</Text>
-            <Text style={styles.emptyText}>You’re in the {game.name} room preview. Tables and gameplay are coming next.</Text>
-            <Pressable accessibilityRole="button" onPress={onBack} style={styles.button}><Text style={styles.buttonText}>Choose another game</Text></Pressable>
+            <Text accessibilityRole="header" style={styles.emptyTitle}>{ui("common.the_table_is_taking_shape")}</Text>
+            <Text style={styles.emptyText}>You’re in the {uiLabel(game.name, "rooms")} room preview. Tables and gameplay are coming next.</Text>
+            <Pressable accessibilityRole="button" onPress={onBack} style={styles.button}><Text style={styles.buttonText}>{ui("rooms.choose_another_game")}</Text></Pressable>
           </View>
         </> : <>
           <View style={styles.hero}>
-            <Text style={styles.eyebrow}>PICK YOUR GAME</Text>
-            <Text accessibilityRole="header" style={[styles.title, !wide && { fontSize: 44 }]}>What are we playing?</Text>
+            <Text style={styles.eyebrow}>{ui("rooms.pick_your_game")}</Text>
+            <Text accessibilityRole="header" style={[styles.title, !wide && { fontSize: 44 }]}>{ui("rooms.what_are_we_playing")}</Text>
             <Text style={styles.subtitle}>Your friends. Your favorite game. Enter a room to get started.</Text>
           </View>
           <View style={[styles.grid, wide && styles.wideGrid]}>
@@ -55,19 +58,19 @@ export function GameRoomsScreen({ selected, onSelect, onBack, onLeave }: {
 
               </LinearGradient>
               <View style={styles.cardBody}>
-                <Text accessibilityRole="header" style={styles.gameName}>{item.name}</Text>
-                <Text style={styles.description}>{item.description}</Text>
+                <Text accessibilityRole="header" style={styles.gameName}>{uiLabel(item.name, "rooms")}</Text>
+                <Text style={styles.description}>{uiLabel(item.description)}</Text>
                 <Text style={styles.detail}>{item.detail}</Text>
-                <Pressable accessibilityRole="button" accessibilityLabel={`Enter ${item.name} game room`}
+                <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.enter_game_game_room", { "game": item.name })}
                   onPress={() => onSelect(item.id)} style={({ pressed }) => [styles.button, pressed && { opacity: 0.8 }]}>
-                  <Text style={styles.buttonText}>Enter game room →</Text>
+                  <Text style={styles.buttonText}>{ui("common.enter_room_arrow")}</Text>
                 </Pressable>
               </View>
             </View>)}
           </View>
         </>}
         <Text style={styles.preview}>Design preview · No live accounts, tables, or games.</Text>
-        <Text style={styles.footer}>Good cards. Better company.</Text>
+        <Text style={styles.footer}>{ui("common.good_cards_better_company")}</Text>
       </View>
     </ScrollView>
   </LinearGradient>;

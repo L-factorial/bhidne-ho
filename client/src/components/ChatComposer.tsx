@@ -1,20 +1,23 @@
+import { ui } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { FormInput } from './FormInput';
 import { useCallback, useRef, useState } from 'react';
 import { Keyboard, Pressable, Text, TextInput, View, type TextInputProps } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fonts, useTheme } from '../theme';
 
-export function ChatComposer({ value, onChange, onSend, disabled, placeholder, label, sendLabel = 'Send chat message', maxLength = 500, editable = true }: {
+export function ChatComposer({ value, onChange, onSend, disabled, placeholder, label, sendLabel = ui("social.send_chat_message"), maxLength = 500, editable = true }: {
   value: string; onChange: (value: string) => void; onSend: () => void;
   disabled: boolean; placeholder: string; label: string; sendLabel?: string; maxLength?: number; editable?: boolean;
 }) {
+  const uiLanguage = useUiLanguage();
   const { colors: c } = useTheme();
   const input = useRef<TextInput>(null);
   const [height, setHeight] = useState(44);
   const onContentSizeChange = useCallback<NonNullable<TextInputProps['onContentSizeChange']>>(event => {
     const next = Math.max(44, Math.min(104, Math.ceil(event.nativeEvent.contentSize.height)));
     setHeight(current => current === next ? current : next);
-  }, []);
+  }, [uiLanguage]);
   const length = Array.from(value).length;
   const unavailable = disabled || !value.trim() || length > maxLength;
   return <View style={{ gap: 4 }}>

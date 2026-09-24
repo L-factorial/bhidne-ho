@@ -1,3 +1,4 @@
+import { ui } from '../i18n/copy.ts';
 import { PendingGameAction, GameRequestError } from './PendingGameAction.ts';
 import type { ActionAck, ActionRequest } from './PendingGameAction.ts';
 
@@ -50,7 +51,7 @@ export function createHttpGameTransport<T extends GameSnapshot>(baseUrl: string,
       });
       const data = await response.json();
       if (!response.ok) throw new GameRequestError(response.status,
-        typeof data.detail === 'string' ? data.detail : data.detail?.detail || 'Game request failed. Try again.',
+        typeof data.detail === 'string' ? data.detail : data.detail?.detail || ui("feedback.game_request_failed_try_again"),
         typeof data.detail === 'object' ? data.detail : undefined);
       return data;
     } finally {

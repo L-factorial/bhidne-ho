@@ -1,3 +1,5 @@
+import { ui } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { gameControlFinish, gameHeadingFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { RoundResultsTable } from './RoundResultsTable';
 import type { ReactNode } from 'react';
@@ -9,15 +11,16 @@ export function RoundSummary({ snapshot, busy, error, onContinue, onBack, onNewG
   controls?: ReactNode; hideNavigation?: boolean;
   snapshot: RoomSnapshot; busy: boolean; error: string; onContinue: () => void; onBack: () => void; onNewGame: () => void;
 }) {
+  useUiLanguage();
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const round = [...(snapshot.deal_history || [])].reverse().find(d => d.complete);
   const final = snapshot.game?.finished;
-  const name = (id: number) => snapshot.players?.find(p => p.player_id === id)?.display_name || `Player ${id}`;
+  const name = (id: number) => snapshot.players?.find(p => p.player_id === id)?.display_name || ui("common.player_number", { "number": id });
   const score = (n: number | null | undefined) => n == null ? '—' : `${n > 0 ? '+' : ''}${(n / 10).toFixed(1)}`;
   return <ScrollView testID="round-summary" style={styles.page} contentContainerStyle={styles.body}>
-    <RoundResultsTable title={final ? 'Final scores' : `Deal ${round?.deal_number} complete`}
-      subtitle={final ? `Winner${snapshot.game!.winners.length > 1 ? 's' : ''}: ${snapshot.game!.winners.map(name).join(', ')}` : 'Round complete · Call Break'}
+    <RoundResultsTable title={final ? ui("callbreak.final_scores") : ui("callbreak.deal_number_complete", { "number": round?.deal_number })}
+      subtitle={final ? `Winner${snapshot.game!.winners.length > 1 ? 's' : ''}: ${snapshot.game!.winners.map(name).join(', ')}` : ui("callbreak.round_complete_call_break")}
       columns={['Bid', 'Taken', 'Score', 'Total']} rows={(round?.players || []).map(player => {
         const total = snapshot.scoreboard?.find(p => p.player_id === player.player_id)?.total_score_tenths;
         return { id: String(player.player_id), name: name(player.player_id), avatarUrl: snapshot.players?.find(p => p.player_id === player.player_id)?.avatar_url,
@@ -29,9 +32,9 @@ export function RoundSummary({ snapshot, busy, error, onContinue, onBack, onNewG
     {controls}
     {!!error && <Text accessibilityRole="alert" style={styles.note}>{error}</Text>}
     {controls === undefined && (final && snapshot.table?.requires_replacement ? <Text style={styles.note}>Keep your seat for the next match, or choose Leave Seat above. The host can prepare the next match when every seat is filled.</Text> : (final || snapshot.round_review?.can_continue) ? <Pressable accessibilityRole="button" disabled={busy} onPress={final ? onNewGame : onContinue}
-      style={[styles.button, busy && { opacity: 0.5 }]}><ActionCue active={!busy} style={styles.name}>{final ? 'Start a new game' : 'Start next deal'}</ActionCue></Pressable>
-      : <Text style={styles.note}>Waiting for the creator to start the next deal.</Text>)}
-    {!hideNavigation && <Pressable accessibilityRole="button" onPress={onBack} style={styles.back}><Text style={styles.note}>Back to room</Text></Pressable>}
+      style={[styles.button, busy && { opacity: 0.5 }]}><ActionCue active={!busy} style={styles.name}>{final ? ui("rooms.start_a_new_game") : ui("callbreak.start_next_deal")}</ActionCue></Pressable>
+      : <Text style={styles.note}>{ui("common.waiting_for_the_creator_to_start_the_next_deal")}</Text>)}
+    {!hideNavigation && <Pressable accessibilityRole="button" onPress={onBack} style={styles.back}><Text style={styles.note}>{ui("common.back_to_room")}</Text></Pressable>}
   </ScrollView>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({

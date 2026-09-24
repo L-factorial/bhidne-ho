@@ -1,3 +1,5 @@
+import { ui, uiLabel } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { Ionicons } from '@expo/vector-icons';
 import { TableReactionFlight, type ReactionFlight } from './TableReactionFlight';
 import { readTableReaction, tableReactions, type ReactionId } from '../multiplayer/tableReactions';
@@ -37,6 +39,7 @@ export function useSocialHandAnchor(existing?: RefObject<View | null>) {
 export function TableSocialProvider({ children, snapshot, channel, connected, userId, pokes }: {
   children: ReactNode; snapshot: RoomSnapshot; channel?: TableSocialChannel; connected: boolean; userId: string; pokes: RoomPoke[];
 }) {
+  const uiLanguage = useUiLanguage();
   const { colors: c } = useTheme();
   const { height: viewportHeight, width } = useWindowDimensions();
   const root = useRef<View>(null), anchorNode = useRef<View | null>(null);
@@ -91,11 +94,8 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
     });
     return () => { active = false; unsubscribe(); };
   }, [channel, connected, snapshot.room_id, snapshot.match_id, snapshot.status]);
-  useEffect(() => {
-    if (!flights.length) return;
-    const timer = setTimeout(() => setFlights(current => current.filter(f => f.event.expires_at > Date.now())), Math.max(1, Math.min(...flights.map(f => f.event.expires_at)) - Date.now()));
-    return () => clearTimeout(timer);
-  }, [flights]);
+  // Expiry rejects stale incoming events; an accepted flight stays until its
+  // animation completes, including the longer recipient catch and fade.
   const measure = useRef((node: View | null) => {});
   measure.current = node => {
     if (!node) { setBottom(16); return; }
@@ -125,7 +125,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
     if (!historical) {
       const received = fresh.filter(m => m.sender_id !== userId);
       if (!openRef.current) setUnread(n => n+received.length);
-      setEffects(current => [...current, ...received.filter(m => Date.now()-m.sent_at < 5000).map(m => ({id:m.id,player:players.find(p => p.user_id === m.sender_id)?.player_id ?? -1,kind:'chat' as const,text:m.text,expires:Date.now()+3500}))].slice(-6));
+      setEffects(current => [...current, ...received.filter(m => Date.now()-m.sent_at < 5000).map(m => ({id:m.id,player:players.find(p => p.user_id === m.sender_id)?.player_id ?? -1,kind:"chat" as const,text:m.text,expires:Date.now()+3500}))].slice(-6));
     }
   };
   useEffect(() => {
@@ -144,7 +144,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
     const fresh = pokes.filter(p => p.match_id === snapshot.match_id && p.expires_at > Date.now() && !seenPokes.current.has(p.id));
     fresh.forEach(p => seenPokes.current.add(p.id));
     if (seenPokes.current.size > 100) seenPokes.current = new Set([...seenPokes.current].slice(-50));
-    if (fresh.length) setEffects(current => [...current, ...fresh.map(p => ({ id:p.id, player:players.find(row => row.user_id === (p.recipient_id ?? p.sender_id))?.player_id ?? -1, kind:'poke' as const, text:p.text, expires:Math.min(p.expires_at,Date.now()+3500) }))].slice(-6));
+    if (fresh.length) setEffects(current => [...current, ...fresh.map(p => ({ id:p.id, player:players.find(row => row.user_id === (p.recipient_id ?? p.sender_id))?.player_id ?? -1, kind:"poke" as const, text:p.text, expires:Math.min(p.expires_at,Date.now()+3500) }))].slice(-6));
   }, [pokes, snapshot.match_id]);
   useEffect(() => {
     if (!effects.length) return;
@@ -189,49 +189,50 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
   return <Context.Provider value={{pokeMode,eligible,poke,effects,anchor,openChat,canRead,registerSeat}}>
     <View ref={root} collapsable={false} style={{flex:1,minHeight:0,minWidth:0,width:'100%'}} onLayout={measureRoot}>
       {children}
-      {flights.map(flight => <TableReactionFlight key={flight.event.id} flight={flight} recipient={flight.event.recipient_id === userId} />)}
-      <RoomSheet visible={pokeMode || targetPlayer !== null} title={`Poke ${players.find(p => p.player_id === targetPlayer)?.display_name || 'player'}`} closeLabel="Close poke tools" testID="poke-tools" presentation="dialog" onClose={() => { setPokeMode(false); setTargetPlayer(null); }}>
-        <Text style={{ color: c.textMuted, fontFamily: fonts.body }}>Choose a player</Text>
+      {flights.map(flight => <TableReactionFlight key={flight.event.id} flight={flight} recipient={flight.event.recipient_id === userId}
+        onComplete={() => setFlights(current => current.filter(item => item.event.id !== flight.event.id))} />)}
+      <RoomSheet visible={pokeMode || targetPlayer !== null} title={ui("social.poke_player_2", { "player": players.find(p => p.player_id === targetPlayer)?.display_name || 'player' })} closeLabel={ui("common.close_poke_tools")} testID="poke-tools" presentation="dialog" onClose={() => { setPokeMode(false); setTargetPlayer(null); }}>
+        <Text style={{ color: c.textMuted, fontFamily: fonts.body }}>{ui("social.choose_a_player")}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           {players.filter(player => eligible(player.player_id)).map(player => <Pressable key={player.player_id}
-            accessibilityRole="button" accessibilityLabel={`Poke ${player.display_name}`} accessibilityState={{ selected: targetPlayer === player.player_id, disabled: sendingPoke }} disabled={sendingPoke}
+            accessibilityRole="button" accessibilityLabel={ui("social.poke_player_2", { "player": player.display_name })} accessibilityState={{ selected: targetPlayer === player.player_id, disabled: sendingPoke }} disabled={sendingPoke}
             onPress={() => poke(player.player_id)} style={{ minHeight: 48, padding: 12, gap: 8, flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1,
               borderColor: targetPlayer === player.player_id ? c.accent : c.border, backgroundColor: targetPlayer === player.player_id ? c.surfaceSelected : c.surfaceRaised }}>
             <PlayerAvatar uri={player.avatar_url} /><Text style={{ color: c.text, fontFamily: fonts.medium, flexShrink: 1 }}>{player.display_name}</Text>
           </Pressable>)}
         </View>
-        {!players.some(player => eligible(player.player_id)) && <Text style={{ color: c.textMuted }}>No other seated players to poke yet.</Text>}
-        <Text style={{ color: c.textMuted, fontFamily: fonts.body }}>Choose a reaction. Everyone at this table can see it.</Text>
+        {!players.some(player => eligible(player.player_id)) && <Text style={{ color: c.textMuted }}>{ui("social.no_other_seated_players_to_poke_yet")}</Text>}
+        <Text style={{ color: c.textMuted, fontFamily: fonts.body }}>{ui("social.choose_a_reaction_everyone_at_this_table_can_see_it")}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {(Object.keys(tableReactions) as ReactionId[]).map(id => <Pressable key={id} accessibilityRole="button" accessibilityLabel={`Send ${tableReactions[id].label}`} disabled={sendingPoke || targetPlayer === null} accessibilityState={{ disabled: sendingPoke || targetPlayer === null }} onPress={() => void sendReaction(id)}
+          {(Object.keys(tableReactions) as ReactionId[]).map(id => <Pressable key={id} accessibilityRole="button" accessibilityLabel={ui("social.send_reaction", { "reaction": uiLabel(tableReactions[id].label, 'social') })} disabled={sendingPoke || targetPlayer === null} accessibilityState={{ disabled: sendingPoke || targetPlayer === null }} onPress={() => void sendReaction(id)}
             style={({ pressed }) => ({ width: '30%', flexGrow: 1, minHeight: 88, gap: 6, alignItems: 'center', justifyContent: 'center', borderRadius: 14, borderWidth: 1, borderColor: c.tableTrim, backgroundColor: pressed ? c.surfaceSelected : c.surfaceRaised, opacity: sendingPoke || targetPlayer === null ? 0.5 : 1 })}>
-            <Text style={{ fontSize: 32 }}>{tableReactions[id].emoji}</Text><Text style={{ fontFamily: fonts.medium, color: c.text, fontSize: 12 }}>{tableReactions[id].label}</Text>
+            <Text style={{ fontSize: 32 }}>{tableReactions[id].emoji}</Text><Text style={{ fontFamily: fonts.medium, color: c.text, fontSize: 12 }}>{uiLabel(tableReactions[id].label, 'social')}</Text>
           </Pressable>)}
         </View>
-        {!!error && <Text accessibilityRole="alert" style={{ color: c.danger }}>{error}</Text>}
+        {!!error && <Text accessibilityRole="alert" style={{ color: c.danger }}>{uiLabel(error, 'feedback')}</Text>}
       </RoomSheet>
       {canRead && <View testID="game-social-controls" onTouchStart={event => event.stopPropagation()} onPointerDown={event => event.stopPropagation()} style={{position:'absolute',right:14,bottom,zIndex:45,alignItems:'flex-end',maxWidth:240}}>
-        {!!error && !open && <Pressable accessibilityRole="button" accessibilityLabel="Dismiss social error" onPress={() => setError('')}><Text style={{color:c.danger,backgroundColor:c.surface,padding:6}}>{error}</Text></Pressable>}
+        {!!error && !open && <Pressable accessibilityRole="button" accessibilityLabel={ui("common.dismiss_social_error")} onPress={() => setError('')}><Text style={{color:c.danger,backgroundColor:c.surface,padding:6}}>{uiLabel(error, 'feedback')}</Text></Pressable>}
         <View style={{flexDirection:'row',backgroundColor:c.tableHeader,borderColor:c.tableTrim,borderWidth:1,borderRadius:24}}>
-          <Pressable accessibilityRole="button" accessibilityLabel={`Table Chat${unread ? `, ${unread} unread` : ''}`} onPress={openChat} style={[iconStyle,{flexDirection:'row',paddingHorizontal:8}]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={unread ? ui('common.chat_unread', { count: unread }) : ui('common.table_chat')} onPress={openChat} style={[iconStyle,{flexDirection:'row',paddingHorizontal:8}]}>
             <Ionicons name="chatbubble-outline" size={22} color={c.onTableHeader} />{unread > 0 && <Text testID="table-chat-unread" style={{color:c.onPrimary,backgroundColor:c.primary,borderRadius:10,fontSize:11,paddingHorizontal:5}}>{unread > 99 ? '99+' : unread}</Text>}
           </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Poke a player" accessibilityState={{selected:pokeMode,disabled:!enabled}} disabled={!enabled} onPress={() => { closeChat(); setError(''); setTargetPlayer(null); setPokeMode(true); }} style={[iconStyle,{opacity:enabled?1:0.4,backgroundColor:pokeMode?c.surfaceSelected:undefined,borderRadius:24}]}><Text accessibilityLiveRegion="polite" accessibilityLabel={pokeSent ? 'Poke sent' : undefined} style={{fontSize:20,color:c.onTableHeader}}>{pokeSent ? '✓' : '👋'}</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={ui("social.poke_a_player")} accessibilityState={{selected:pokeMode,disabled:!enabled}} disabled={!enabled} onPress={() => { closeChat(); setError(''); setTargetPlayer(null); setPokeMode(true); }} style={[iconStyle,{opacity:enabled?1:0.4,backgroundColor:pokeMode?c.surfaceSelected:undefined,borderRadius:24}]}><Text accessibilityLiveRegion="polite" accessibilityLabel={pokeSent ? ui("social.poke_sent") : undefined} style={{fontSize:20,color:c.onTableHeader}}>{pokeSent ? '✓' : '👋'}</Text></Pressable>
         </View>
       </View>}
-      {open && canRead && <RoomSheet visible tableStyle title="Table Chat" testID="table-chat-panel" closeLabel="Close table chat" onClose={closeChat} scrollable={false}>
+      {open && canRead && <RoomSheet visible tableStyle title={ui("common.table_chat")} testID="table-chat-panel" closeLabel={ui("common.close_table_chat")} onClose={closeChat} scrollable={false}>
         <View style={{flex:1,minHeight:0,gap:8,overflow:'hidden',padding:12,backgroundColor:c.background}}>
-          {myTurn && <Pressable accessibilityRole="button" onPress={closeChat} style={{minHeight:44,justifyContent:'center'}}><Text accessibilityLiveRegion="polite" style={{color:c.accent}}>Your turn · Return to game</Text></Pressable>}
+          {myTurn && <Pressable accessibilityRole="button" onPress={closeChat} style={{minHeight:44,justifyContent:'center'}}><Text accessibilityLiveRegion="polite" style={{color:c.accent}}>{ui("social.your_turn_return_to_game")}</Text></Pressable>}
           <ScrollView ref={scroll} testID="table-chat-messages" style={{flex:1,minHeight:0}} keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} keyboardShouldPersistTaps="always" onLayout={() => { if(follow.current) scroll.current?.scrollToEnd({animated:false}); }} onScroll={({nativeEvent:e}) => { follow.current = e.contentSize.height-e.contentOffset.y-e.layoutMeasurement.height < 40; }} scrollEventThrottle={16} onContentSizeChange={() => { if(follow.current) scroll.current?.scrollToEnd({animated:false}); }}>
-            {!messages.length && <Text style={{color:c.textMuted}}>Start the table conversation.</Text>}
+            {!messages.length && <Text style={{color:c.textMuted}}>{ui("social.start_the_table_conversation")}</Text>}
             {messages.map(message => <ChatMessage tableStyle key={message.id} message={message} own={message.sender_id === userId} />)}
           </ScrollView>
-          {!!error && <Text accessibilityRole="alert" style={{color:c.danger}}>{error}</Text>}
-          {!connected && <Text style={{color:c.textMuted}}>Reconnecting…</Text>}
+          {!!error && <Text accessibilityRole="alert" style={{color:c.danger}}>{uiLabel(error, 'feedback')}</Text>}
+          {!connected && <Text style={{color:c.textMuted}}>{ui("feedback.reconnecting")}</Text>}
           {seated ? <View testID="table-chat-composer" style={{flexShrink:0}}>
             <ChatComposer value={draft} onChange={setDraft} onSend={() => void send()} disabled={!enabled || sending}
-              label="Table message" sendLabel="Send table message" placeholder={t('chat.placeholder')} />
-          </View> : <Text style={{color:c.textMuted}}>Waiting players can read. Take a seat to chat.</Text>}
+              label={ui("social.table_message")} sendLabel="Send table message" placeholder={t('chat.placeholder')} />
+          </View> : <Text style={{color:c.textMuted}}>{ui("social.waiting_players_can_read_take_a_seat_to_chat")}</Text>}
         </View>
       </RoomSheet>}
     </View>
@@ -239,6 +240,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
 }
 
 export function PlayerSocialEffect({ playerId }: { playerId?: number }) {
+  const uiLanguage = useUiLanguage();
   const social = useTableSocial(), { colors:c } = useTheme();
   const effect = social?.effects.filter(e => e.player === playerId).at(-1);
   const fade = useRef(new Animated.Value(1)).current;

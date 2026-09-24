@@ -11,7 +11,7 @@ export function isMarriageWild(card: MarriageCard, maal: SeenMaal) {
 export function completionKind(cards: MarriageCard[], maal: SeenMaal): MarriageWinningMeld['meld_type'] | null {
   if (cards.length < 3 || new Set(cards.map(c => c.card_id)).size !== cards.length) return null;
   const natural = cards.every(c => c.card_type === 'standard');
-  if (natural && cards.length === 3 && cards.every(c => sameFace(c, cards[0]))) return 'tunnela';
+  if (natural && cards.length === 3 && cards.every(c => sameFace(c, cards[0]))) return "tunnela";
   const orders = [rank, (card: MarriageCard) => card.rank!];
   const runs = orders.map(value => cards.map(value).sort((a, b) => a - b));
   if (natural && cards.every(c => c.suit === cards[0].suit) && runs.some(ranks => ranks.every((r, i) => r === ranks[0] + i))) return 'pure_sequence';
@@ -20,8 +20,8 @@ export function completionKind(cards: MarriageCard[], maal: SeenMaal): MarriageW
   if (cards.length <= 13 && new Set(fixed.map(c => c.suit)).size <= 1 && orders.some(value => {
       const ranks = fixed.map(value).sort((a, b) => a - b);
       return new Set(ranks).size === ranks.length && (!ranks.length || ranks.at(-1)! - ranks[0] < cards.length);
-    })) return 'sequence';
-  if (cards.length <= 4 && new Set(fixedRanks).size <= 1 && new Set(fixed.map(c => c.suit)).size === fixed.length) return 'set';
+    })) return "sequence";
+  if (cards.length <= 4 && new Set(fixedRanks).size <= 1 && new Set(fixed.map(c => c.suit)).size === fixed.length) return "set";
   return null;
 }
 
@@ -38,7 +38,7 @@ export function dubleeFinishProgress(hand: MarriageCard[], shown: MarriageMeld[]
     const key = `${card.rank}:${card.suit}`;
     faces.set(key, [...(faces.get(key) || []), card]);
   }
-  const pairs = [...faces.values()].filter(group => group.length >= 2).map(group => ({ meld_type: 'dublee' as const, card_ids: group.slice(0, 2).map(c => c.card_id) }));
+  const pairs = [...faces.values()].filter(group => group.length >= 2).map(group => ({ meld_type: "dublee" as const, card_ids: group.slice(0, 2).map(c => c.card_id) }));
   const waiting = [...faces.values()].filter(group => group.length === 1).map(group => ({ card: group[0],
     // Three physical copies total; copies committed to shown pairs cannot return.
     possibleCopies: 3 - hand.filter(c => c.card_type === 'standard' && sameFace(c, group[0])).length,

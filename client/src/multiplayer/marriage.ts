@@ -1,3 +1,4 @@
+import { ui } from '../i18n/copy.ts';
 export type MarriageScoringRules = {
   initial_tunnela_declaration?: boolean; alter?: number[]; tiplu: number[]; jhiplu: number[]; poplu: number[]; man: number[]; marriage: number[];
   tunnela_bonus: number; tunnela_scope: 'off' | 'shown' | 'hand'; maal_requires_seen: boolean;
@@ -20,10 +21,10 @@ export type MarriageView = { public: MarriagePublic; moves?: MarriageMove[]; pri
 const suits: Record<string, string> = { S: '♠', C: '♣', H: '♥', D: '♦' };
 export const suitName: Record<string, string> = { S: 'Spades', C: 'Clubs', H: 'Hearts', D: 'Diamonds' };
 export function marriageFace(card: { rank: number | null; suit: string | null }) {
-  return card.rank === null || card.suit === null ? 'Man' : `${({ 11: 'J', 12: 'Q', 13: 'K', 14: 'A' } as Record<number, string>)[card.rank] || card.rank}${suits[card.suit]}`;
+  return card.rank === null || card.suit === null ? ui("common.man") : `${({ 11: 'J', 12: 'Q', 13: 'K', 14: 'A' } as Record<number, string>)[card.rank] || card.rank}${suits[card.suit]}`;
 }
 export function physicalLabel(id: string) {
-  if (id.startsWith('MAN:')) return `Man · ${Number(id.slice(4)) + 1}`;
+  if (id.startsWith('MAN:')) return ui("common.man_copynumber", { "copyNumber": Number(id.slice(4)) + 1 });
   const [pack, face] = id.split(':');
   return `${face.slice(0, -1)}${suits[face.slice(-1)]} · ${Number(pack.slice(1)) + 1}`;
 }

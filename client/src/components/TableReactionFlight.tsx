@@ -1,3 +1,5 @@
+import { ui, uiLabel } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Text, View } from 'react-native';
 import { fonts, useTheme } from '../theme';
@@ -6,7 +8,8 @@ import { tableReactions, type TableReaction } from '../multiplayer/tableReaction
 export type ReactionFlight = { event: TableReaction; from: { x: number; y: number }; to: { x: number; y: number } };
 
 /** Measured seat positions are local to the viewer, so rotated seating stays correct. */
-export function TableReactionFlight({ flight, recipient }: { flight: ReactionFlight; recipient: boolean }) {
+export function TableReactionFlight({ flight, recipient, onComplete }: { flight: ReactionFlight; recipient: boolean; onComplete: () => void }) {
+  useUiLanguage();
   const { colors: c } = useTheme();
   const { event, from, to } = flight;
   const progress = useRef(new Animated.Value(0)).current;
@@ -14,6 +17,8 @@ export function TableReactionFlight({ flight, recipient }: { flight: ReactionFli
   const opacity = useRef(new Animated.Value(1)).current;
   const [reduced, setReduced] = useState<boolean | null>(null);
   const [arrived, setArrived] = useState(false);
+  const complete = useRef(onComplete);
+  complete.current = onComplete;
   useEffect(() => {
     let active = true;
     void AccessibilityInfo.isReduceMotionEnabled().then(value => { if (active) setReduced(value); }).catch(() => { if (active) setReduced(true); });
@@ -23,14 +28,14 @@ export function TableReactionFlight({ flight, recipient }: { flight: ReactionFli
   useEffect(() => {
     if (reduced === null) return;
     progress.setValue(reduced ? 1 : 0); impact.setValue(0); opacity.setValue(1); setArrived(reduced);
-    const arrival = setTimeout(() => setArrived(true), reduced ? 0 : 850);
+    const arrival = setTimeout(() => setArrived(true), reduced ? 0 : 1700);
     const animation = Animated.sequence([
-      Animated.timing(progress, { toValue: 1, duration: reduced ? 0 : 850, useNativeDriver: true }),
-      Animated.timing(impact, { toValue: 1, duration: reduced ? 0 : 400, useNativeDriver: true }),
-      Animated.delay(recipient ? 1300 : 650),
-      Animated.timing(opacity, { toValue: 0, duration: reduced ? 0 : 250, useNativeDriver: true }),
+      Animated.timing(progress, { toValue: 1, duration: reduced ? 0 : 1700, useNativeDriver: true }),
+      Animated.timing(impact, { toValue: 1, duration: reduced ? 0 : 800, useNativeDriver: true }),
+      Animated.delay(recipient ? 2600 : 1300),
+      Animated.timing(opacity, { toValue: 0, duration: reduced ? 0 : 500, useNativeDriver: true }),
     ]);
-    animation.start();
+    animation.start(({ finished }) => { if (finished) complete.current(); });
     return () => { clearTimeout(arrival); animation.stop(); };
   }, [reduced, progress, impact, opacity, recipient]);
   if (reduced === null) return null;
@@ -45,7 +50,7 @@ export function TableReactionFlight({ flight, recipient }: { flight: ReactionFli
     {arrived && recipient && <Animated.View testID="table-reaction-catch" accessibilityLiveRegion="polite" accessibilityRole="alert"
       style={{ position: 'absolute', top: '25%', alignSelf: 'center', maxWidth: '85%', alignItems: 'center', padding: 16, borderRadius: 22, borderWidth: 2, borderColor: c.tableTrim, backgroundColor: c.tableHeader, boxShadow: `0px 8px 28px ${c.shadow}`, opacity }}>
       <Text style={{ fontSize: 48 }}>{reaction.emoji}</Text>
-      <Text style={{ color: c.onTableHeader, fontFamily: fonts.medium, textAlign: 'center' }}>{event.sender_name} sent you {reaction.label.toLowerCase()}!</Text>
+      <Text style={{ color: c.onTableHeader, fontFamily: fonts.medium, textAlign: 'center' }}>{ui("social.player_sent_you_reaction", { "player": event.sender_name, "reaction": uiLabel(reaction.label, 'social') })}</Text>
     </Animated.View>}
   </View>;
 }

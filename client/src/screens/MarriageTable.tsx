@@ -1,3 +1,5 @@
+import { ui, uiLabel } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { MarriageTunnelaPanel } from '../components/MarriageTunnelaPanel';
 import { showTableHeaderShare } from '../multiplayer/tableHeaderSharing';
 import { TurnGlow } from '../components/TurnGlow';
@@ -33,12 +35,13 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   onAction: (command: string, payload?: object) => void; onStart: () => void; onBack: () => void; onNewGame: () => void;
   social: { connected: boolean; phrases: PlayerPhrase[]; save: (text: string) => Promise<void>; send: (recipient: number | null, text: string) => Promise<void> };
 }) {
+  useUiLanguage();
   const { colors } = useTheme();
   const ended = snapshot.status === 'ended';
   const endedNotice = <EndedTableNotice onBack={onBack} onNewGame={onNewGame} />;
   const s = useThemedStyles(createStyles);
   const mobile = useWindowDimensions().width < 900;
-  const [arrangement, setArrangement] = useState<MarriageArrangement>('sequence');
+  const [arrangement, setArrangement] = useState<MarriageArrangement>("sequence");
   const [confirmFold, setConfirmFold] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
@@ -71,7 +74,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const allRevealed = revealed >= 21;
   const availableHand = hand.filter(c => !committed.includes(c.card_id));
   const canAct = !own?.folded && !busy && !hidden && allRevealed && snapshot.status === 'playing';
-  const name = (id: string | null) => snapshot.players?.find(p => String(p.player_id) === id)?.display_name || `Player ${id}`;
+  const name = (id: string | null) => snapshot.players?.find(p => String(p.player_id) === id)?.display_name || ui("common.player_number", { "number": id });
   const isTurn = !!mine && mine.player_id === pub?.current_player_id;
   // The private hand preserves receipt order; draws append, even after reconnecting.
   const drawnCard = isTurn && pub?.phase === 'must_discard' ? hand.at(-1) : undefined;
@@ -90,8 +93,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   };
   useEffect(() => { if (!activeGame || hidden || !allRevealed) setFinishPreview(false); }, [activeGame, hidden, allRevealed]);
   useEffect(() => { setFinishPreview(false); setPreview(false); }, [snapshot.match_id, mine?.player_id]);
-  function button(label: string, action: () => void, disabled = false, chosen = false) {
-    const primary = /^(Confirm fold|Finish round|Confirm finish|Show three melds|Show seven Dublees)$/.test(label);
+  function button(label: string, action: () => void, disabled = false, chosen = false, primary = false) {
     return <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled}
       accessibilityState={{ disabled, selected: chosen }} onPress={action} style={({ pressed }) => [s.button, gameButtonStyle(colors, primary ? 'primary' : 'secondary', pressed), chosen && s.chosen, disabled && s.disabled]}>
       <Text style={[s.buttonText, primary && { color: colors.onPrimary }]}>{label}</Text></Pressable>;
@@ -104,41 +106,41 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const canDrawFrom = (source: string) => drawVisible && !busy && social.connected && !!actions?.drawable_sources.includes(source);
   const discardSelected = selected.length === 1 && !!actions?.discardable_card_ids.includes(selected[0]);
   const selectedCard = discardSelected ? hand.find(card => card.card_id === selected[0]) : null;
-  const turnInstruction = declaring ? 'Declare your initial Tunnelas' : declarationsPending ? 'Waiting for Tunnela declarations' : decision === 'DRAW_REQUIRED' ? 'Your turn · Draw a card'
-    : decision === 'DISCARD_REQUIRED' ? selectedCard ? 'Your turn · Confirm discard' : 'Your turn · Select a card to discard'
-    : decision === 'FINISH_REQUIRED' ? 'Your turn · Finish round' : `Your cards · ${hand.length}`;
+  const turnInstruction = declaring ? ui("marriage.declare_your_initial_tunnelas") : declarationsPending ? ui("marriage.waiting_for_tunnela_declarations") : decision === 'DRAW_REQUIRED' ? ui("marriage.your_turn_draw_a_card")
+    : decision === 'DISCARD_REQUIRED' ? selectedCard ? ui("marriage.your_turn_confirm_discard") : ui("marriage.your_turn_select_a_card_to_discard")
+    : decision === 'FINISH_REQUIRED' ? ui("marriage.your_turn_finish_round") : ui("common.your_cards_status", { "status": hand.length });
   const turnPrompt = activeGame && pub && <TurnIndicator testID="marriage-turn-instruction" personal={isTurn}
-    text={isTurn && decision !== 'WAITING' ? turnInstruction : `${name(pub.current_player_id)}’s turn`} />;
+    text={isTurn && decision !== 'WAITING' ? turnInstruction : ui("common.player_s_turn", { "player": name(pub.current_player_id) })} />;
   const mobileHandHeader = <View testID="marriage-hand-header" style={{ backgroundColor: colors.surface, paddingHorizontal: 10, gap: 4 }}>
-    {!!error && !selectedCard && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}
+    {!!error && !selectedCard && <Text accessibilityRole="alert" style={s.error}>{uiLabel(error, 'feedback')}</Text>}
   </View>;
   const discardFooter = selectedCard && <>
-    {!!error && <Text accessibilityRole="alert" style={[s.small, { color: colors.danger }]}>{error}</Text>}
-    <Pressable testID="marriage-discard-action" accessibilityRole="button" accessibilityLabel={`Discard ${physicalLabel(selectedCard.card_id)}`}
+    {!!error && <Text accessibilityRole="alert" style={[s.small, { color: colors.danger }]}>{uiLabel(error, 'feedback')}</Text>}
+    <Pressable testID="marriage-discard-action" accessibilityRole="button" accessibilityLabel={ui("marriage.discard_card", { "card": physicalLabel(selectedCard.card_id) })}
       disabled={!canDiscard} accessibilityState={{ disabled: !canDiscard }} onPress={() => cards.act('DISCARD_CARD', { card_id: selectedCard.card_id })}
-      style={({ pressed }) => [s.button, gameButtonStyle(colors, 'primary', pressed), !canDiscard && s.disabled]}><Text style={[s.buttonText, { color: colors.onPrimary }]}>{busy ? 'Sending…' : `Discard ${marriageFace(selectedCard)}`}</Text></Pressable>
+      style={({ pressed }) => [s.button, gameButtonStyle(colors, 'primary', pressed), !canDiscard && s.disabled]}><Text style={[s.buttonText, { color: colors.onPrimary }]}>{busy ? ui("social.sending") : ui("marriage.discard_card", { "card": marriageFace(selectedCard) })}</Text></Pressable>
   </>;
   useEffect(() => {
     if (error && !busy && selectedCard && decision === 'DISCARD_REQUIRED') setSnap('expanded');
   }, [error, busy, selectedCard?.card_id, decision]);
   return <View style={s.page} testID="marriage-table">
-    <GameTableHeader showShare={showTableHeaderShare(snapshot)} tableName={snapshot.table_name} compact title="Marriage" path={snapshot.path} game="marriage" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack}
+    <GameTableHeader showShare={showTableHeaderShare(snapshot)} tableName={snapshot.table_name} compact title={ui("rooms.marriage")} path={snapshot.path} game="marriage" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack}
       drawerMetadata={<GameMenuMetadata snapshot={snapshot} />}>
       {close => <GameMenu snapshot={snapshot} close={close} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl}
         poke={() => setPoke(null)} pokePlayer={setPoke} canPoke={social.connected}
-        gameActions={(['stats', 'rules', 'points'] as const).map(section => ({ label: section === 'stats' ? 'Stats' : section === 'rules' ? 'Rules and config' : 'Points', action: () => setDetails(section) }))} />}
+        gameActions={(['stats', 'rules', 'points'] as const).map(section => ({ label: section === 'stats' ? ui("common.stats") : section === 'rules' ? ui("common.rules_and_config") : ui("marriage.points"), action: () => setDetails(section) }))} />}
     </GameTableHeader>
     <View style={{ flex: 1, minHeight: 0 }}>
     <View testID="marriage-play-area" style={[s.playArea, mobile && mine && activeGame && { paddingBottom: 84 }]}>
       {ended && !pub ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>{endedNotice}</View> : !pub ? <ScrollView contentContainerStyle={s.panel}>
         <PreGameTable snapshot={snapshot}>{startCue}</PreGameTable>
-        {!snapshot.is_creator && <Text style={s.text}>Waiting for the creator to start.</Text>}
+        {!snapshot.is_creator && <Text style={s.text}>{ui("common.waiting_for_the_creator_to_start")}</Text>}
       </ScrollView> : <>
         <View style={s.columns}>
           <View style={s.main}>
             <View style={s.table}>
               <MarriageAnnouncements key={snapshot.match_id} snapshot={snapshot} />
-              <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}><MarriageCardArea snapshot={snapshot} onResult={() => setDetails('points')} handAnchor={handAnchor} canAct={!busy && activeGame} onAction={cards.act} onPoke={activeGame || ended ? undefined : setPoke} /></ScrollView>
+              <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}><MarriageCardArea snapshot={snapshot} onResult={() => setDetails("points")} handAnchor={handAnchor} canAct={!busy && activeGame} onAction={cards.act} onPoke={activeGame || ended ? undefined : setPoke} /></ScrollView>
               <View style={tableSocial?.canRead ? { marginBottom: 60 } : undefined}>{!isTurn && turnPrompt}</View>
               {snapshot.status === 'finished' && startCue}
               {ended && <View testID="ended-table-overlay" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center', zIndex: 70 }}>{endedNotice}</View>}
@@ -148,70 +150,70 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
           </View>
         </View>
       </>}
-      {!!error && (!mine || !activeGame || (mobile && snap === 'collapsed')) && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}
+      {!!error && (!mine || !activeGame || (mobile && snap === 'collapsed')) && <Text accessibilityRole="alert" style={s.error}>{uiLabel(error, 'feedback')}</Text>}
     </View>
     {pub && mine && activeGame && <MarriageHandSheet cardCount={hand.length} anchor={handAnchor} mobile={mobile} snap={snap} onSnap={setSnap} instruction={turnInstruction} attention={declaring || isTurn && !declarationsPending} header={mobileHandHeader} footer={own?.folded || preview || finishPreview ? null : discardFooter}>
     <View testID="marriage-hand-dock" style={[s.handDock, mobile && { backgroundColor: 'transparent', borderTopWidth: 0, padding: 4 }]}>
-      <View style={[s.row, { backgroundColor: colors.tableHeader, borderRadius: 8 }]}><Text style={[s.small, { color: colors.onTableHeader }]}>Your cards · {hand.length}</Text>
-        {!own?.folded && button('Fold', () => setConfirmFold(true), busy || !social.connected || !actions?.kinds.includes('fold'))}
-        {!!own?.folded && <Text style={s.small}>Folded · Watching this round</Text>}
-        {!allRevealed && button('Reveal cards', () => reveal(true), busy)}
-        {allRevealed && button(hidden ? 'Show cards' : 'Hide cards', () => { setHidden(v => !v); setSelected([]); setPreview(false); setFinishPreview(false); })}
+      <View style={[s.row, { backgroundColor: colors.tableHeader, borderRadius: 8 }]}><Text style={[s.small, { color: colors.onTableHeader }]}>{ui("common.your_cards_status", { "status": hand.length })}</Text>
+        {!own?.folded && button(ui("marriage.fold"), () => setConfirmFold(true), busy || !social.connected || !actions?.kinds.includes('fold'))}
+        {!!own?.folded && <Text style={s.small}>{ui("marriage.folded_watching_this_round")}</Text>}
+        {!allRevealed && button(ui("common.reveal_cards"), () => reveal(true), busy)}
+        {allRevealed && button(hidden ? ui("common.show_cards") : ui("common.hide_cards"), () => { setHidden(v => !v); setSelected([]); setPreview(false); setFinishPreview(false); })}
       </View>
         {!preview && !finishPreview && drawVisible && (!mobile || snap === 'expanded') && <View testID="marriage-hand-draw" style={s.drawSection}>
           {(['discard', 'stock'] as const).map(source => {
             const allowed = canDrawFrom(source);
-            const label = source === 'discard' ? 'Tap to take from discard' : 'Tap to take from deck';
+            const label = source === 'discard' ? ui("marriage.tap_to_take_from_discard") : ui("marriage.tap_to_take_from_deck");
             const card = pub.top_discard;
             return <View key={source} style={s.drawSource}>
-              <Text style={s.small}>{source === 'discard' ? 'Discard pile' : `Deck · ${pub.stock_count}`}</Text>
+              <Text style={s.small}>{source === 'discard' ? ui("marriage.discard_pile") : ui("marriage.deck_count", { "count": pub.stock_count })}</Text>
               <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled: !allowed}}
                 disabled={!allowed} onPress={() => cards.act('DRAW_CARD', {source})}
                 style={[s.card, {width:58,height:84}, source === 'stock' && s.cardBack, !allowed && s.disabled]}>
                 {source === 'stock' ? <MarriageCardBack/> : <Text style={[s.face, {color:card?.suit === 'H' || card?.suit === 'D' ? colors.cardRed : colors.cardInk}]}>{card ? marriageFace(card) : '—'}</Text>}
                 <TurnGlow active={allowed} radius={7}/>
               </Pressable>
-              <Text style={[s.small, {color:allowed ? colors.accent : colors.textMuted, textAlign:'center'}]}>{allowed ? label : busy ? 'Taking card…' : social.connected ? 'Unavailable' : 'Reconnecting…'}</Text>
+              <Text style={[s.small, {color:allowed ? colors.accent : colors.textMuted, textAlign:'center'}]}>{allowed ? label : busy ? ui("marriage.taking_card") : social.connected ? ui("feedback.unavailable") : ui("feedback.reconnecting")}</Text>
             </View>;
           })}
         </View>}
 
       {confirmFold && !own?.folded && <View style={s.panel}>
         <Text style={s.text}>Fold this round? You can keep watching. Your final points will still be settled.</Text>
-        <View style={s.row}>{button('Confirm fold', () => { onAction('FOLD'); }, busy || !social.connected || !actions?.kinds.includes('fold'))}
-          {button('Keep playing', () => setConfirmFold(false), busy)}</View>
+        <View style={s.row}>{button(ui("marriage.confirm_fold"), () => { onAction('FOLD'); }, busy || !social.connected || !actions?.kinds.includes('fold'))}
+          {button(ui("common.keep_playing"), () => setConfirmFold(false), busy)}</View>
       </View>}
       {declaring && <MarriageTunnelaPanel hand={hand} visible={allRevealed&&!hidden} busy={busy} connected={social.connected} submit={onAction}/>}
-      {declarationsPending && !declaring && <Text style={s.text}>Declaration recorded · waiting for other players.</Text>}
+      {declarationsPending && !declaring && <Text style={s.text}>{ui("marriage.declaration_recorded_waiting_for_other_players")}</Text>}
       {!declaring && !own?.folded && (own?.has_seen_maal && mine.maal ? <MarriageWinPanel hand={hand} shown={own.shown_melds} initialTunnelas={own.initial_tunnelas} maal={mine.maal} route={own.route}
         visible={allRevealed && !hidden} enabled={canAct && isTurn && social.connected} busy={busy} canFinish={!!actions?.kinds.includes('finish')}
-        preview={finishPreview && !hidden} setPreview={setFinishPreview} error={error} submit={onAction} /> :
+        preview={finishPreview && !hidden} setPreview={setFinishPreview} error={uiLabel(error, 'feedback')} submit={onAction} /> :
       <MarriageMaalPanel hand={availableHand} shown={own?.shown_melds || []} unlocked={false} maal={mine.maal}
         enabled={canAct && isTurn && social.connected} visible={allRevealed && !hidden} busy={busy} actions={actions?.kinds || []}
-        preview={preview && !hidden} setPreview={setPreview} arrangement={arrangement} error={error} submit={onAction} />)}
+        preview={preview && !hidden} setPreview={setPreview} arrangement={arrangement} error={uiLabel(error, 'feedback')} submit={onAction} />)}
       {!preview && !finishPreview && <>
 
 
         {!declaring && allRevealed && !own?.has_seen_maal && <View accessibilityRole="tablist" style={s.row}>
-          {(['sequence','dublee'] as const).map(value=><Pressable key={value} accessibilityRole="tab" accessibilityLabel={value==='sequence'?'Sequence / Tunnela':'Dublee'}
+          {(["sequence","dublee"] as const).map(value=><Pressable key={value} accessibilityRole="tab" accessibilityLabel={value==='sequence'?ui("marriage.sequence_tunnela"):ui("marriage.dublee")}
             accessibilityState={{selected:arrangement===value}} onPress={()=>setArrangement(value)} style={[s.button,arrangement===value&&s.chosen]}>
-            <Text style={s.buttonText}>{value==='sequence'?'Sequence / Tunnela':'Dublee'}</Text>
+            <Text style={s.buttonText}>{value==='sequence'?ui("marriage.sequence_tunnela"):ui("marriage.dublee")}</Text>
           </Pressable>)}
         </View>}
-        {!hidden && allRevealed && drawnCard && <Text testID="marriage-drawn-card" accessibilityLiveRegion="polite" style={s.heading}>You drew {physicalLabel(drawnCard.card_id)}</Text>}
-        {canDiscard && <Text testID="marriage-discard-prompt" accessibilityLiveRegion="polite" style={s.heading}>{selectedCard ? 'Confirm your discard below' : 'Select a card to discard'}</Text>}
+        {!hidden && allRevealed && drawnCard && <Text testID="marriage-drawn-card" accessibilityLiveRegion="polite" style={s.heading}>{ui("marriage.you_drew_card", { "card": physicalLabel(drawnCard.card_id) })}</Text>}
+        {canDiscard && <Text testID="marriage-discard-prompt" accessibilityLiveRegion="polite" style={s.heading}>{selectedCard ? ui("marriage.confirm_your_discard_below") : ui("marriage.select_a_card_to_discard")}</Text>}
         <View style={{position:'relative',borderRadius:8}}>
         <View testID="marriage-hand" style={{flexDirection:'row',flexWrap:'wrap',gap:5}}>
               {handGroups.flatMap(group=>group.cards).map((card,index)=>{
                 const back=hidden||(!allRevealed&&index>=revealed), checked=selected.includes(card.card_id);
-                return <Pressable key={card.card_id} accessibilityRole="button" accessibilityLabel={back?'Hidden card':physicalLabel(card.card_id)}
-                  accessibilityHint={!back&&card.card_id===drawnId?'Just drawn':undefined} aria-pressed={checked}
+                return <Pressable key={card.card_id} accessibilityRole="button" accessibilityLabel={back?ui("common.hidden_card"):physicalLabel(card.card_id)}
+                  accessibilityHint={!back&&card.card_id===drawnId?ui("marriage.just_drawn"):undefined} aria-pressed={checked}
                   accessibilityState={{selected:checked,disabled:busy||back||declaring}} disabled={busy||back||declaring}
                   onPress={()=>setSelected(ids=>ids.length===1&&ids[0]===card.card_id?[]:[card.card_id])}
                   style={[s.card, {width:48,height:76},back&&s.cardBack,!back&&card.card_id===drawnId&&s.drawnCard,checked&&s.selectedCard]}>
                   {back?<MarriageCardBack/>:<Text style={[s.face,{fontSize:21,color:card.suit==='H'||card.suit==='D'?colors.cardRed:colors.cardInk}]}>{marriageFace(card)}</Text>}
-                  {!back&&card.card_id===drawnId&&<Text style={{fontSize:9,color:colors.cardInk}}>NEW</Text>}
-                  {!back&&<Text style={s.copy}>{card.card_type==='man'?'Man':`Copy ${(card.deck_index??0)+1}`}</Text>}
+                  {!back&&card.card_id===drawnId&&<Text style={{fontSize:9,color:colors.cardInk}}>{ui("marriage.new")}</Text>}
+                  {!back&&<Text style={s.copy}>{card.card_type==='man'?ui("common.man"):ui("common.copy_copynumber", { "copyNumber": (card.deck_index??0)+1 })}</Text>}
                 </Pressable>;
               })}
         </View>
@@ -220,7 +222,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       </>}
     </View></MarriageHandSheet>}
     </View>
-    <MarriageDetails busy={busy} error={error} onSave={onSave} snapshot={snapshot} section={details} onClose={() => setDetails(null)} />
+    <MarriageDetails busy={busy} error={uiLabel(error, 'feedback')} onSave={onSave} snapshot={snapshot} section={details} onClose={() => setDetails(null)} />
     {!ended && poke !== undefined && <PokeComposer recipient={poke} recipientName={snapshot.players?.find(p => p.player_id === poke)?.display_name} connected={social.connected} phrases={social.phrases} onSave={social.save}
       onSend={text => social.send(poke, text)} onClose={() => setPoke(undefined)} />}
   </View>;

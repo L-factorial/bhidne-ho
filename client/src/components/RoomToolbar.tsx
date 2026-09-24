@@ -1,3 +1,5 @@
+import { ui } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,19 +9,20 @@ export function RoomToolbar({ panel, unread, chatBlocked, onTables, onChat, onMe
   inline?: boolean; onLedger?: () => void; panel: string | null; unread: number; chatBlocked: boolean;
   onTables: () => void; onChat: () => void; onMembers: () => void; onMore: () => void;
 }) {
+  useUiLanguage();
   const { colors: c } = useTheme();
   const insets = useSafeAreaInsets();
   return <View testID="room-toolbar" style={{ position: inline ? 'relative' : 'absolute', bottom: 0, left: 0, right: 0, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: c.surface,
     borderTopWidth: 1, borderColor: c.border, paddingBottom: inline ? 0 : Math.max(8, insets.bottom), paddingHorizontal: Math.max(12, insets.left, insets.right) }}>
     <View style={{ flexDirection: 'row', width: '100%', maxWidth: 720, alignSelf: 'center' }}>
       {[
-        { key: 'tables', label: 'Tables', icon: 'grid-outline' as const, action: onTables, disabled: false },
-        { key: 'chat', icon: 'chatbubble-outline' as const, label: chatBlocked ? 'Chat · paused' : 'Chat', action: onChat, disabled: chatBlocked },
-        { key: 'members', icon: 'people-outline' as const, label: 'Members', action: onMembers, disabled: false },
-        { key: onLedger ? 'ledger' : 'more', icon: 'receipt-outline' as const, label: onLedger ? 'Ledger' : 'More', action: onLedger || onMore, disabled: false },
-      ].map(item => <Pressable key={item.key} accessibilityRole="button" accessibilityLabel={item.key === 'chat' ? 'Room chat' : item.key === 'more' ? 'More room actions' : item.key === 'tables' ? 'Room tables' : item.key === 'ledger' ? 'Room ledger' : 'Room members'}
+        { key: 'tables', label: ui("rooms.tables"), icon: 'grid-outline' as const, action: onTables, disabled: false },
+        { key: 'chat', icon: 'chatbubble-outline' as const, label: chatBlocked ? ui("social.chat_paused") : ui("social.chat"), action: onChat, disabled: chatBlocked },
+        { key: 'members', icon: 'people-outline' as const, label: ui("rooms.members"), action: onMembers, disabled: false },
+        { key: onLedger ? "ledger" : "more", icon: 'receipt-outline' as const, label: onLedger ? ui("ledger.ledger") : ui("common.more"), action: onLedger || onMore, disabled: false },
+      ].map(item => <Pressable key={item.key} accessibilityRole="button" accessibilityLabel={item.key === 'chat' ? ui("rooms.room_chat") : item.key === 'more' ? ui("rooms.more_room_actions") : item.key === 'tables' ? ui("rooms.room_tables") : item.key === 'ledger' ? ui("rooms.room_ledger") : ui("rooms.room_members")}
         aria-pressed={(panel || 'tables') === item.key || (item.key === 'more' && panel === 'ledger')}
-        accessibilityHint={item.key === 'chat' && unread ? `${unread} unread messages` : undefined}
+        accessibilityHint={item.key === 'chat' && unread ? ui("social.count_unread_messages", { "count": unread }) : undefined}
         accessibilityState={{ selected: (panel || 'tables') === item.key || (item.key === 'more' && panel === 'ledger'), expanded: panel === item.key || (item.key === 'more' && panel === 'ledger'), disabled: item.disabled }} disabled={item.disabled}
         onPress={item.action} style={{ flex: 1, minHeight: 64, flexDirection: 'column', gap: 4, alignItems: 'center', justifyContent: 'center', opacity: item.disabled ? 0.5 : 1 }}>
         {!inline && <Ionicons name={item.icon} size={21} color={(panel || 'tables') === item.key || (item.key === 'more' && panel === 'ledger') ? c.accent : c.textMuted} />}

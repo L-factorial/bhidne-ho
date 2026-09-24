@@ -1,3 +1,5 @@
+import { ui } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { gameControlFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -7,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 
 export type SignInMethod = 'Apple' | 'Google' | 'Facebook' | 'account';
 function GoogleIcon() {
+  const uiLanguage = useUiLanguage();
   return (
     <Svg width={22} height={22} viewBox="0 0 48 48">
       <Path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5Z" />
@@ -17,13 +20,14 @@ function GoogleIcon() {
   );
 }
 export function SignInButton({ method, onPress, disabled = false, label }: { method: SignInMethod; onPress: () => void; disabled?: boolean; label?: string }) {
+  const uiLanguage = useUiLanguage();
   const { colors } = useTheme();
   const { t } = useTranslation();
   const styles = useThemedStyles(createStyles);
   const [focused, setFocused] = useState(false);
   const backgroundColor = { Apple: '#141414', Google: '#FFFFFF', Facebook: '#0866FF', account: colors.primary }[method];
   const color = method === 'Google' ? '#242424' : '#FFFFFF';
-  const text = label || (method === 'account' ? t('welcome.account') : `Continue with ${method}`);
+  const text = label || (method === 'account' ? t('welcome.account') : ui("common.continue_with_provider", { "provider": method }));
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={text}
       disabled={disabled} accessibilityState={{ disabled }}

@@ -1,3 +1,4 @@
+import { ui } from '../i18n/copy.ts';
 import { ApiError, request } from './api';
 import type { Session } from './session';
 
@@ -15,6 +16,6 @@ export async function leaveRoomMembership(roomId: string, session: Session) {
     } catch {
       // An unavailable verification request is not evidence of a successful leave.
     }
-    throw new Error('Could not confirm leaving this room. Please try again.');
+    throw new Error(ui("feedback.could_not_confirm_leaving_this_room_please_try_again"));
   }
 }

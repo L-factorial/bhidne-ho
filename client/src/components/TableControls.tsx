@@ -1,3 +1,6 @@
+import { phaseLabel } from '../i18n/display';
+import { ui } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { ActionCue } from './ActionCue';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
@@ -18,51 +21,52 @@ export function TableControls({ table, members, userId, busy, act, start, format
   menuSection?: 'manage' | 'leave'; table: TableView; members: string[]; userId: string; busy: boolean; formationBlocked?: boolean;
   act: (command: string, payload?: object) => Promise<void>; start: () => Promise<void>;
 }) {
+  useUiLanguage();
   const { colors } = useTheme();
   const [abandon, setAbandon] = useState(false), [invite, setInvite] = useState(false);
   const manage = menuSection !== 'leave', leave = menuSection !== 'manage';
   const me = table.current_user, offer = me.replacement_offer;
-  const button = (label: string, action: () => void, disabled = false) => <Pressable accessibilityRole="button"
+  const button = (label: string, action: () => void, disabled = false, prominent = false, pulse = false, danger = false) => <Pressable accessibilityRole="button"
     accessibilityLabel={label} disabled={busy || disabled} onPress={action}
-    style={({ pressed }) => [{ padding: 10, minHeight: 44, borderRadius: 8, justifyContent: 'center', opacity: busy || disabled ? 0.45 : 1 }, ['Lock game', 'Start game', 'Accept seat', 'Prepare next match'].includes(label) && primaryAction(colors, pressed)]}>
-    {['Lock game', 'Start game'].includes(label) ? <ActionCue active={!busy && !disabled} style={{ color: colors.onPrimary, fontFamily: fonts.medium }}>{label}</ActionCue> : <Text style={{ color: menuSection === 'leave' || label === 'Confirm abandon match' ? colors.danger : ['Accept seat', 'Prepare next match'].includes(label) ? colors.onPrimary : colors.text, fontFamily: fonts.medium }}>{label}</Text>}
+    style={({ pressed }) => [{ padding: 10, minHeight: 44, borderRadius: 8, justifyContent: 'center', opacity: busy || disabled ? 0.45 : 1 }, prominent && primaryAction(colors, pressed)]}>
+    {pulse ? <ActionCue active={!busy && !disabled} style={{ color: colors.onPrimary, fontFamily: fonts.medium }}>{label}</ActionCue> : <Text style={{ color: menuSection === 'leave' || danger ? colors.danger : prominent ? colors.onPrimary : colors.text, fontFamily: fonts.medium }}>{label}</Text>}
   </Pressable>;
   return <View testID="table-lifecycle" style={{ backgroundColor: colors.surface, padding: 8, gap: 4 }}>
     {!menuSection && <Text style={{ color: colors.textMuted, fontFamily: fonts.body }}>
-      {table.phase === 'COMPLETED' ? 'Match completed · seats for the next match' : table.phase === 'LOCKED' ? 'Roster locked · ready to start' : `${table.seated_players.length}/${table.max_players} seated · ${table.phase.toLowerCase()}`}
-      {me.is_seated ? ` · Your seat ${me.seat_id}` : me.is_queued ? ` · Waitlist position ${me.queue_position}` : ' · Observing'}
-      {table.queue.length > 0 && !me.is_queued ? ` · ${table.queue.length} waiting` : ''}
+      {table.phase === 'COMPLETED' ? ui("rooms.match_completed_seats_for_the_next_match") : table.phase === 'LOCKED' ? ui("rooms.roster_locked_ready_to_start") : ui("rooms.seat_summary", { "seated": table.seated_players.length, "capacity": table.max_players, "phase": phaseLabel(table.phase) })}
+      {me.is_seated ? ui("rooms.your_seat", { "seat": me.seat_id }) : me.is_queued ? ui("rooms.queue_suffix", { "position": me.queue_position }) : ui("rooms.observing_suffix")}
+      {table.queue.length > 0 && !me.is_queued ? ui("rooms.waiting_suffix", { "count": table.queue.length }) : ''}
     </Text>}
-    {manage && table.phase === 'COMPLETED' && <Text style={{ color: colors.text }}>{table.seated_players.map(p => `Seat ${p.seat_id}: ${p.display_name || p.user_id}`).join(' · ')}</Text>}
-    {manage && !!table.released_seats.length && <Text style={{ color: colors.textMuted }}>Waiting for {table.released_seats.length} replacement seat{table.released_seats.length === 1 ? '' : 's'} to be accepted.</Text>}
+    {manage && table.phase === 'COMPLETED' && <Text style={{ color: colors.text }}>{table.seated_players.map(p => ui("rooms.seat_seat_player", { "seat": p.seat_id, "player": p.display_name || p.user_id })).join(' · ')}</Text>}
+    {manage && !!table.released_seats.length && <Text style={{ color: colors.textMuted }}>{ui("rooms.waiting_replacements", { "count": table.released_seats.length, "suffix": table.released_seats.length === 1 ? '' : 's' })}</Text>}
     <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-      {manage && me.can_queue && !me.can_join && button('Join waitlist', () => void act('join-queue'))}
-      {manage && me.is_queued && button('Leave waitlist', () => void act('leave-queue'))}
-      {manage && table.requires_explicit_lock && table.phase === 'OPEN' && button('Lock game', () => void act('lock'), !me.can_lock || formationBlocked)}
-      {manage && table.requires_explicit_lock && table.phase === 'LOCKED' && button('Start game', () => void start(), !me.can_start || formationBlocked)}
-      {leave && me.can_leave_seat && button(menuSection ? 'Leave Table' : 'Leave Seat', () => void act('leave-seat'))}
-      {manage && me.can_next_match && button('Prepare next match', () => void act('next-match'))}
-      {leave && me.can_abandon_match && button(menuSection ? 'Leave Table' : 'Abandon match', () => setAbandon(true))}
-      {manage && me.can_invite_replacement && button('Invite a replacement', () => setInvite(v => !v))}
+      {manage && me.can_queue && !me.can_join && button(ui("rooms.join_waitlist"), () => void act('join-queue'))}
+      {manage && me.is_queued && button(ui("rooms.leave_waitlist"), () => void act('leave-queue'))}
+      {manage && table.requires_explicit_lock && table.phase === 'OPEN' && button(ui("rooms.lock_game"), () => void act('lock'), !me.can_lock || formationBlocked, true, true)}
+      {manage && table.requires_explicit_lock && table.phase === 'LOCKED' && button(ui("rooms.start_game"), () => void start(), !me.can_start || formationBlocked, true, true)}
+      {leave && me.can_leave_seat && button(menuSection ? ui("rooms.leave_table") : ui("rooms.leave_seat"), () => void act('leave-seat'))}
+      {manage && me.can_next_match && button(ui("rooms.prepare_next_match"), () => void act('next-match'), false, true)}
+      {leave && me.can_abandon_match && button(menuSection ? ui("rooms.leave_table") : ui("rooms.abandon_match"), () => setAbandon(true))}
+      {manage && me.can_invite_replacement && button(ui("rooms.invite_a_replacement"), () => setInvite(v => !v))}
     </View>
-    {manage && formationBlocked && <Text style={{ color: colors.text }}>Save or reload your rule changes before locking or starting.</Text>}
+    {manage && formationBlocked && <Text style={{ color: colors.text }}>{ui("rooms.save_rules_first")}</Text>}
     {manage && offer && <View>
-      <Text style={{ color: colors.text }}>Seat {offer.seat_id} is offered to you for the next match.</Text>
+      <Text style={{ color: colors.text }}>{ui("rooms.seat_seat_is_offered_to_you_for_the_next_match", { "seat": offer.seat_id })}</Text>
       <View style={{ flexDirection: 'row' }}>
-        {button('Accept seat', () => void act('accept-seat', { offer_id: offer.offer_id }))}
-        {button('Decline seat', () => void act('decline-seat', { offer_id: offer.offer_id }))}
+        {button(ui("rooms.accept_seat"), () => void act('accept-seat', { offer_id: offer.offer_id }), false, true)}
+        {button(ui("rooms.decline_seat"), () => void act('decline-seat', { offer_id: offer.offer_id }))}
       </View>
     </View>}
     {abandon && me.can_abandon_match && <View>
       <Text style={{ color: colors.text }}>Abandon this active match? It will stop for everyone. No penalty is currently applied.</Text>
-      {button('Confirm abandon match', () => { setAbandon(false); void act('abandon'); })}
-      {button('Keep playing', () => setAbandon(false))}
+      {button(ui("rooms.confirm_abandon_match"), () => { setAbandon(false); void act('abandon'); }, false, false, false, true)}
+      {button(ui("common.keep_playing"), () => setAbandon(false))}
     </View>}
     {invite && me.can_invite_replacement && <View>
       {table.released_seats.map(seat => <View key={seat.seat_id}>
-        <Text style={{ color: colors.text }}>Ask someone to take seat {seat.seat_id}</Text>
+        <Text style={{ color: colors.text }}>{ui("rooms.ask_someone_to_take_seat_seat", { "seat": seat.seat_id })}</Text>
         {members.filter(user => !table.seated_players.some(p => p.user_id === user) && user !== userId).map(user =>
-          <View key={user}>{button(`Invite ${user}`, () => void act('invite-seat', { seat_id: seat.seat_id, recipient: user }))}</View>)}
+          <View key={user}>{button(ui("rooms.invite_player", { "player": user }), () => void act('invite-seat', { seat_id: seat.seat_id, recipient: user }))}</View>)}
       </View>)}
     </View>}
   </View>;

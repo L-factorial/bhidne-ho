@@ -1,3 +1,4 @@
+import { ui } from '../i18n/copy.ts';
 import { Ionicons } from '@expo/vector-icons';
 import { ChatMessage } from './ChatMessage';
 import { RoomSheet } from './RoomSheet';
@@ -63,7 +64,7 @@ export function useRoomChat({ roomId, session, connected, hideWhenBlocked = fals
           const paused = failure instanceof ApiError && failure.status === 403 && failure.message.startsWith('Chat is paused');
           setBlocked(paused);
           if (paused) { setOpen(false); setMessages([]); setUnread(0); previousIds.current = null; }
-          setLoadError(failure instanceof Error ? failure.message : 'Could not load chat.');
+          setLoadError(failure instanceof Error ? failure.message : ui("feedback.could_not_load_chat"));
         }
       } finally {
         if (!controller.signal.aborted) timer = setTimeout(refresh, 1000);
@@ -81,7 +82,7 @@ export function useRoomChat({ roomId, session, connected, hideWhenBlocked = fals
       await request<Message>(path, session, { text: draft }, signal);
       if (!signal?.aborted) { setDraft(current => current === sentDraft ? '' : current); followLatest.current = true; }
     } catch (failure) {
-      if (!signal?.aborted) setError(failure instanceof Error ? failure.message : 'Could not send message.');
+      if (!signal?.aborted) setError(failure instanceof Error ? failure.message : ui("feedback.could_not_send_message"));
     } finally { sending.current = false; setBusy(false); }
   }
   if (blocked && hideWhenBlocked) return { view: null, navigation: null };
@@ -96,7 +97,7 @@ export function useRoomChat({ roomId, session, connected, hideWhenBlocked = fals
         <ScrollView ref={scroll} testID="room-chat-history" keyboardShouldPersistTaps="always" style={{ flex: 1, minHeight: 0 }} scrollEventThrottle={16}
           onScroll={({ nativeEvent: { contentOffset, contentSize, layoutMeasurement } }) => { followLatest.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 40; }}
           onContentSizeChange={() => { if (followLatest.current) scroll.current?.scrollToEnd({ animated: false }); }}>
-          {!messages.length && <View style={{ paddingVertical: 32, gap: 8, alignItems: 'center' }}><Ionicons name="chatbubbles-outline" size={30} color={colors.textMuted} /><Text style={styles.heading}>No messages yet</Text><Text style={styles.note}>Say something to get the table going.</Text></View>}
+          {!messages.length && <View style={{ paddingVertical: 32, gap: 8, alignItems: 'center' }}><Ionicons name="chatbubbles-outline" size={30} color={colors.textMuted} /><Text style={styles.heading}>{ui("social.no_messages_yet")}</Text><Text style={styles.note}>{ui("social.say_something_to_get_the_table_going")}</Text></View>}
           {messages.map(message => <ChatMessage tableStyle key={message.id} message={message} own={message.sender_id === session.user_id} />)}
         </ScrollView>
         {!connected && <Text style={styles.note}>{t('chat.reconnecting')}</Text>}

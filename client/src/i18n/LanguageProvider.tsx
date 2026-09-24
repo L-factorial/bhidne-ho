@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import i18n, { deviceLanguage, type AppLanguage } from './index';
 
 const storageKey = 'bhidne.language';
@@ -8,18 +8,25 @@ const LanguageContext = createContext({ language: 'en' as AppLanguage, setLangua
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<AppLanguage>(deviceLanguage);
   const [hydrated, setHydrated] = useState(false);
+  const changed = useRef(false);
+  const writes = useRef(Promise.resolve());
+  const setLanguage = useCallback((next: AppLanguage) => {
+    changed.current = true;
+    void i18n.changeLanguage(next);
+    setLanguageState(next);
+  }, []);
   useEffect(() => {
     let mounted = true;
     void AsyncStorage.getItem(storageKey).then(saved => {
-      if (mounted && (saved === 'en' || saved === 'ne')) setLanguageState(saved);
+      if (mounted && !changed.current && (saved === 'en' || saved === 'ne')) setLanguageState(saved);
     }).catch(() => {}).finally(() => { if (mounted) setHydrated(true); });
     return () => { mounted = false; };
   }, []);
   useEffect(() => {
     void i18n.changeLanguage(language);
-    if (hydrated) void AsyncStorage.setItem(storageKey, language).catch(() => {});
+    if (hydrated) writes.current = writes.current.then(() => AsyncStorage.setItem(storageKey, language)).catch(() => {});
   }, [hydrated, language]);
-  const value = useMemo(() => ({ language, setLanguage: setLanguageState }), [language]);
+  const value = useMemo(() => ({ language, setLanguage }), [language, setLanguage]);
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }
 

@@ -11,7 +11,7 @@ export function marriageAnnouncements(pub: MarriagePublic): MarriageAnnouncement
   }));
   shown.push(...pub.players.filter(p => p.initial_tunnelas?.length).map(p => ({
     id:`tunnela:${p.player_id}:${p.initial_tunnelas!.flatMap(m=>m.card_ids).join(',')}`,
-    playerId:p.player_id,kind:'tunnela' as const,dublee:false,groups:p.initial_tunnelas!,winningPair:[],
+    playerId:p.player_id,kind:"tunnela" as const,dublee:false,groups:p.initial_tunnelas!,winningPair:[],
   })));
   const winner = pub.players.find(p => p.player_id === pub.winner && p.finished);
   if (winner && pub.status === 'finished') shown.push({

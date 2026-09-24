@@ -1,3 +1,4 @@
+import { ui } from '../i18n/copy.ts';
 export type ActionRequest = {
   command_id: string; match_id: string; expected_revision: number; command: string; payload: object;
 };
@@ -35,10 +36,10 @@ export class PendingGameAction {
       const ack = result.action_ack;
       if (result.match_id !== request.match_id || ack?.command_id !== request.command_id
           || !['accepted', 'rejected'].includes(ack.status) || !Number.isInteger(ack.revision)) {
-        throw new Error('Waiting for the server to confirm your action.');
+        throw new Error(ui("feedback.waiting_for_the_server_to_confirm_your_action"));
       }
       this.request = null;
-      return { snapshot: result, error: ack.status === 'rejected' ? ack.detail || 'Action rejected.' : '' };
+      return { snapshot: result, error: ack.status === 'rejected' ? ack.detail || ui("feedback.action_rejected") : '' };
     } catch (error) {
       if (signal.aborted || this.request !== request) return { snapshot, error: '' };
       // Membership (403) can briefly disappear while the room socket reconnects.

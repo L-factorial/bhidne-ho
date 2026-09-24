@@ -1,0 +1,7153 @@
+{
+  "description": "Server copy candidates; map stable error/action codes at the UI boundary, never change protocol values or translate user text.",
+  "messages": [
+    {
+      "id": "server.edb64f1b7228",
+      "en": "A GameConfig is required.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/engine.py",
+          "line": 27,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "callbreak/setup.py",
+          "line": 25,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.f67d73d04808",
+      "en": "A RedealPolicy is required.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/config.py",
+          "line": 20,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.6d51a2441782",
+      "en": "A card cannot appear twice in a trick.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/models.py",
+          "line": 42,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.912fe5bc57c8",
+      "en": "A committed engine state must advance its revision.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/durable_games/hosted.py",
+          "line": 33,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.4a6564d361b2",
+      "en": "A dealer must request the shuffle first.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/engine.py",
+          "line": 68,
+          "call": "_reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.3a64eef25cea",
+      "en": "A hand cannot contain duplicate cards.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/rules.py",
+          "line": 49,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.e037f11566bb",
+      "en": "A match contains exactly five deals.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/config.py",
+          "line": 18,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.dc2335c3f6be",
+      "en": "A natural identity requires Suit and Rank enum values.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/cards.py",
+          "line": 15,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.40af82184510",
+      "en": "A physical card cannot be repeated within a meld.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/models.py",
+          "line": 52,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.d507205571ed",
+      "en": "A play requires a Card.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/models.py",
+          "line": 17,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.8489dcd925a5",
+      "en": "A player may occur only once in a game result.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/ledger/models.py",
+          "line": 24,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.ed4d5064fa0b",
+      "en": "A remaining hand cannot contain a card already played.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/rules.py",
+          "line": 51,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.28549e782597",
+      "en": "A seat offer is already pending.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_lifecycle.py",
+          "line": 171,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.681a3de7afac",
+      "en": "A seated player is still assigned to another active game. End or abandon that game, then try again.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 907,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.a910b53822e2",
+      "en": "A seated player is still assigned to another table. Leave or abandon it, then try again.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 932,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.5cf05feabd05",
+      "en": "A trick requires four or five players.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/models.py",
+          "line": 28,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.86f5dcf14473",
+      "en": "Accepted events did not advance the game revision.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/durable_games/store.py",
+          "line": 386,
+          "call": "DurableGameCompatibilityError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.73444e422105",
+      "en": "Action is unavailable in this turn phase.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/engine.py",
+          "line": 88,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.ce09f819ff83",
+      "en": "Action rejected.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_social.py",
+          "line": 108,
+          "call": "detail.get",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.77858aa748df",
+      "en": "Actor must be a participant.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/setup.py",
+          "line": 36,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.863307823b9e",
+      "en": "Admin must be a player.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/setup.py",
+          "line": 27,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.fc694b3fa03e",
+      "en": "Admin starts the agreed match.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/setup.py",
+          "line": 59,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.2368a5c6f0a1",
+      "en": "All seated players must accept the proposed rules before starting.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 739,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.eba86d054a20",
+      "en": "All seated players must be room members.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_lifecycle.py",
+          "line": 157,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.8f9f83ead5a5",
+      "en": "All seated players must belong to this room.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 746,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.54ba19334c97",
+      "en": "An authoritative engine state is required.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/durable_games/hosted.py",
+          "line": 31,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.09b41c05600c",
+      "en": "An open table with that name already exists in this room.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 456,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.b19a5452ba3b",
+      "en": "Archived deal is incomplete.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/audit.py",
+          "line": 100,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.8c37aaef951c",
+      "en": "Ask the creator to end {{value1}}/{{value2}} before joining another table.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 174,
+          "call": "HTTPException",
+          "bindings": {
+            "value1": "occupied.room_id",
+            "value2": "occupied.name"
+          }
+        }
+      ]
+    },
+    {
+      "id": "server.cdcce37228e6",
+      "en": "BHIDNE_HO_GAME_RUNTIME_MODE must be 'durable' or 'memory'.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/main.py",
+          "line": 52,
+          "call": "RuntimeError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.a14f6fac7559",
+      "en": "BHIDNE_WEB_DIR must contain the exported frontend index.html",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/main.py",
+          "line": 149,
+          "call": "RuntimeError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c3b028efb659",
+      "en": "Bet must be a whole number at least the current minimum.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/engine.py",
+          "line": 151,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.76454cb35a57",
+      "en": "Bid must be an integer within the deal's trick count.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/engine.py",
+          "line": 213,
+          "call": "_reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.b8cf5dae0463",
+      "en": "Blind show is disabled.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/turns.py",
+          "line": 74,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.2448666a9c09",
+      "en": "Blind show requires an active-player maximum of at least two.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/rules.py",
+          "line": 49,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.3e68275cc1c0",
+      "en": "Broadcast cannot specify a recipient.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/flush/contracts.py",
+          "line": 212,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "app/adapters/marriage/contracts.py",
+          "line": 296,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.83c8350cb66f",
+      "en": "Broadcast events cannot specify a private recipient.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/callbreak/contracts.py",
+          "line": 353,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.4a10eb12af39",
+      "en": "Broadcast must redact hidden cards.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/marriage/contracts.py",
+          "line": 267,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.e2891f9d74ba",
+      "en": "Call Break requires four or five players.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/http.py",
+          "line": 30,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.b614a22b05ba",
+      "en": "Call Break settings only apply to Call Break.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 698,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.9fa981ec6f9a",
+      "en": "Cannot abandon a deal after bidding.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/audit.py",
+          "line": 134,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.28532359397d",
+      "en": "Cannot distribute cards in this phase.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/engine.py",
+          "line": 80,
+          "call": "_reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.4d31ebfdf3a4",
+      "en": "Cannot prepare a deal in this phase.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/engine.py",
+          "line": 55,
+          "call": "_reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.9f499d242ca9",
+      "en": "Cannot resolve an incomplete trick.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/rules.py",
+          "line": 38,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.e4cb5a64c13d",
+      "en": "Card ID does not match its face and pack.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/cards.py",
+          "line": 35,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.d89bc6ac9f27",
+      "en": "Card must be owned and uncommitted.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/engine.py",
+          "line": 156,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.a87900ee63e3",
+      "en": "Card requires a string ID and CardType enum value.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/cards.py",
+          "line": 28,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.84166287f1a8",
+      "en": "Cards have already been seen.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/turns.py",
+          "line": 59,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.8f48306ad6d9",
+      "en": "Choose 2-10 players for Flush, 2-5 for Marriage or 4-5 for Call Break.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 439,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c8068645530a",
+      "en": "Choose a supported game.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 437,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.d8a5fcafe46e",
+      "en": "Choose an unseated room member without another pending offer.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_lifecycle.py",
+          "line": 175,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.5ebd19aaf52b",
+      "en": "Choose another player to poke.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/room_pokes.py",
+          "line": 34,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.cb1a4e4688a0",
+      "en": "Choose four or five players.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/config.py",
+          "line": 16,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.2a3c51969537",
+      "en": "Command ID already used for a different request.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/runtime/command_runtime.py",
+          "line": 77,
+          "call": "CommandAccessError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.bfa9f4e4a211",
+      "en": "Command ID already used for a different social action.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_social.py",
+          "line": 59,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.a70e866a71de",
+      "en": "Command is not allowed in this phase.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/engine.py",
+          "line": 186,
+          "call": "_reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.42e09a24735b",
+      "en": "Committed IDs must be a collection, not a string.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/models.py",
+          "line": 90,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c2eee495f64e",
+      "en": "Committed cards must exactly match shown melds and remain owned.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/models.py",
+          "line": 103,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.2997e298ef88",
+      "en": "Complete initial Tunnela declarations before playing.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/engine.py",
+          "line": 84,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.840e9d4a6564",
+      "en": "Complete the required personal bets before requesting side-show.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/side_show.py",
+          "line": 57,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.7e538e024021",
+      "en": "Complete the required personal blind bets before showing.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/turns.py",
+          "line": 76,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.4297ffbf67ca",
+      "en": "Configuration requires MarriageRules.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/models.py",
+          "line": 26,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.18f2a282d3cc",
+      "en": "Connect to this room before using its game.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/transport/game_actions.py",
+          "line": 15,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.3fbc2387701e",
+      "en": "Connect to this room before using its test game.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 238,
+          "call": "HTTPException",
+          "bindings": {}
+        },
+        {
+          "file": "app/test_games/service.py",
+          "line": 583,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.410724b4d43b",
+      "en": "Connect to this room to use pokes.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/room_pokes.py",
+          "line": 27,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.100cbe99f528",
+      "en": "Create a fresh setup to change the roster size.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/setup.py",
+          "line": 46,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.8a7af0494291",
+      "en": "Cut position must be an integer from 1 to 51.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/engine.py",
+          "line": 113,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c953db9156f8",
+      "en": "Cut position must be an integer from 1 to 51; use SkipCut otherwise.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/engine.py",
+          "line": 176,
+          "call": "_reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.1afaebcc0de4",
+      "en": "Deal number must be an integer from 1 to 5.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/queries.py",
+          "line": 40,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.8330e4378fc0",
+      "en": "Dealer must be a player in the match.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/engine.py",
+          "line": 29,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.ecb8bec2846d",
+      "en": "Dealer must occupy a seat.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/models.py",
+          "line": 30,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.0fbf38f83454",
+      "en": "Deck does not match the canonical Marriage deck.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/deck.py",
+          "line": 23,
+          "call": "CardConservationError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.53e8490cef88",
+      "en": "Deck entries must be physical cards.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/deck.py",
+          "line": 19,
+          "call": "CardConservationError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.fb814e37cf42",
+      "en": "Deck must be a list.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/replay.py",
+          "line": 95,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.36c65a767cdc",
+      "en": "Deck must contain 159 distinct physical card IDs.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/deck.py",
+          "line": 21,
+          "call": "CardConservationError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.229d29dba098",
+      "en": "Deck supplied before shuffle completion.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/audit.py",
+          "line": 87,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.ebef9886532e",
+      "en": "Declare distinct natural Tunnelas only.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/engine.py",
+          "line": 111,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.5fefcad46cda",
+      "en": "Discard policies must be booleans.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/rules.py",
+          "line": 32,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.2f4300a00608",
+      "en": "Domain event identity/revision mismatch.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/marriage/contracts.py",
+          "line": 262,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.92beede48036",
+      "en": "Domain identity/revision mismatch.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/flush/contracts.py",
+          "line": 192,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.5e0ac53540a7",
+      "en": "Draw event requires its source.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/marriage/contracts.py",
+          "line": 264,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.0c3b01969260",
+      "en": "Dublee finish requires a pair, not a normal partition.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/engine.py",
+          "line": 284,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.07ab9098ebf8",
+      "en": "Durable game runtime requires PostgreSQL. Configure BHIDNE_HO_DATABASE_URL, or explicitly set BHIDNE_HO_GAME_RUNTIME_MODE=memory for emergency rollback.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/main.py",
+          "line": 55,
+          "call": "RuntimeError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.1ec8205a0221",
+      "en": "Each room must own a separate Flush adapter.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/flush/host.py",
+          "line": 65,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.b0a3fd313252",
+      "en": "Each room must own a separate Marriage adapter.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/marriage/host.py",
+          "line": 65,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.1694e02368a9",
+      "en": "Each room must own a separate command target",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/runtime/game_registry.py",
+          "line": 35,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.b2ad1ed87f16",
+      "en": "Each room must own a separate engine instance",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/runtime/game_registry.py",
+          "line": 33,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.9246e6992f0d",
+      "en": "Echo does not define configurable rules.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/games/echo.py",
+          "line": 42,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.8aa960601f54",
+      "en": "Echo event actor is invalid.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/games/echo.py",
+          "line": 68,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.8d532637759e",
+      "en": "Echo event command count is not contiguous.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/games/echo.py",
+          "line": 66,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.f8c6296d774f",
+      "en": "Echo event message is invalid.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/games/echo.py",
+          "line": 70,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.04e33fa601ce",
+      "en": "Editing permission must be boolean.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/setup.py",
+          "line": 29,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.9c08483b9f9d",
+      "en": "Eligibility and reasons must agree.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/callbreak/contracts.py",
+          "line": 183,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.93cc089dce96",
+      "en": "Eligibility requires a nonempty hand of cards.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/house_rules.py",
+          "line": 27,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.96a094be7d10",
+      "en": "End every active table before deleting this room.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 223,
+          "call": "HTTPException",
+          "bindings": {}
+        },
+        {
+          "file": "app/transport/http.py",
+          "line": 215,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.e8ce6c79d984",
+      "en": "Enter a keyword or punchline.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/models/poke.py",
+          "line": 15,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.0c35f34cdcf7",
+      "en": "Enter a message.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/models/chat.py",
+          "line": 16,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.efa79315d772",
+      "en": "Enter the room before sending messages.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/transport/websocket.py",
+          "line": 96,
+          "call": "CommandError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.d3c0427e0ad3",
+      "en": "Entries must be a list.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/replay.py",
+          "line": 86,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.32c51fe3995c",
+      "en": "Evaluate exactly three distinct standard cards.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/evaluator.py",
+          "line": 29,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.ca0c8ca0303b",
+      "en": "Event contains fields outside its public audience contract.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/marriage/contracts.py",
+          "line": 282,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.70f76b9b1c40",
+      "en": "Event cursor must be a nonnegative integer.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/visibility.py",
+          "line": 26,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.32ac3ee6a0c9",
+      "en": "Event cursor must be a nonnegative sequence number.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/visibility.py",
+          "line": 32,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.8e284c2b2e0c",
+      "en": "Event has no safe visibility projection.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/visibility.py",
+          "line": 35,
+          "call": "InvalidActionError",
+          "bindings": {}
+        },
+        {
+          "file": "marriage/visibility.py",
+          "line": 64,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.1f98a035734b",
+      "en": "Event payload must match its exact schema.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/flush/contracts.py",
+          "line": 188,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.540ad8df11cf",
+      "en": "Event payload must match the exact declared schema.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/marriage/contracts.py",
+          "line": 258,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.5fe48da4fa71",
+      "en": "Every participant must accept these settings.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/setup.py",
+          "line": 61,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c43dc9afaea1",
+      "en": "Every seat must belong to a room member.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_lifecycle.py",
+          "line": 224,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.d4b230ba8cc2",
+      "en": "Expected GAME_COMMAND with a command and object payload, or MESSAGE with an object payload.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/transport/websocket.py",
+          "line": 92,
+          "call": "CommandError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.1b52012b1814",
+      "en": "Expected a JSON text message.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/transport/websocket.py",
+          "line": 67,
+          "call": "CommandError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.569958af427d",
+      "en": "Expected game event sequence {{value1}}, received {{value2}}.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/durable_games/replay.py",
+          "line": 22,
+          "call": "GameJournalError",
+          "bindings": {
+            "value1": "expected",
+            "value2": "sequence"
+          }
+        }
+      ]
+    },
+    {
+      "id": "server.eac9ece831fc",
+      "en": "Fifth deal must end the match.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/audit.py",
+          "line": 126,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.6afbcbb4ebdc",
+      "en": "Fill all required seats and resolve replacement offers first.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_lifecycle.py",
+          "line": 220,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.85e3869482a1",
+      "en": "Final show reveals only the requester hand.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/flush/contracts.py",
+          "line": 194,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.13393d33fc96",
+      "en": "Finish requires seven committed Dublees and a separate eighth pair.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/engine.py",
+          "line": 287,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.bb81fd0c2114",
+      "en": "First player must be one of the configured seats.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/models.py",
+          "line": 36,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.a41e87bfb6a2",
+      "en": "Flush rules changed. Reload them before saving.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 393,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.204aaa99171c",
+      "en": "Flush rules changed. Review the saved rules before starting.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 756,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c05fa88a6b7b",
+      "en": "Flush settings only apply to Flush.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 391,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.d3f3eca3068b",
+      "en": "Flush supports at most 10 players.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/rules.py",
+          "line": 42,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.41ca67445302",
+      "en": "Flush tables require limits of 2 to 10 players.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 399,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.e351685692c0",
+      "en": "FlushRulesConfig is required.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/models.py",
+          "line": 22,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.d1d1e3e61b84",
+      "en": "Game changed. Refresh and join again.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 617,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.76e55a53e73d",
+      "en": "Game decision mutated state before commit.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/durable_games/store.py",
+          "line": 375,
+          "call": "DurableGameCompatibilityError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.e7abc3467d58",
+      "en": "Game has already started.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/engine.py",
+          "line": 78,
+          "call": "InvalidActionError",
+          "bindings": {}
+        },
+        {
+          "file": "marriage/engine.py",
+          "line": 50,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.1b04cfe50136",
+      "en": "Game is not in progress.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/turns.py",
+          "line": 28,
+          "call": "InvalidActionError",
+          "bindings": {}
+        },
+        {
+          "file": "marriage/engine.py",
+          "line": 80,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.a1df4ebd93f2",
+      "en": "Game ledger results must be zero-sum.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/ledger/models.py",
+          "line": 26,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.eed4e1e6050a",
+      "en": "Game result already exists with different values.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/ledger/store.py",
+          "line": 44,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "app/ledger/store.py",
+          "line": 133,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.f53914ddbb41",
+      "en": "Game state changed without a canonical event.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/durable_games/store.py",
+          "line": 388,
+          "call": "DurableGameCompatibilityError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.b4ffdef6f071",
+      "en": "GameQuery requires a MatchState.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/queries.py",
+          "line": 27,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.26c400f18caa",
+      "en": "Games support manual multiplayer only.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 750,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.95920bd626a8",
+      "en": "Give that poke a moment before sending another.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/room_pokes.py",
+          "line": 42,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.a1e331a819b9",
+      "en": "Guest login is temporarily disabled. Sign in or create an account.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/transport/http.py",
+          "line": 25,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.f21635f2e42a",
+      "en": "Hand contains duplicate physical IDs.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/models.py",
+          "line": 96,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c957bb6a93cd",
+      "en": "Hand entries must be Card values.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/rules.py",
+          "line": 47,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c8120f4b8b80",
+      "en": "Hand entries must be physical cards.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/models.py",
+          "line": 93,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.2236262a36ba",
+      "en": "Hand exceeds the cards per player for this game.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/rules.py",
+          "line": 53,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.8a1b81fb0e1a",
+      "en": "Hands not accepted before bidding.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/audit.py",
+          "line": 118,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.b62e461fb02b",
+      "en": "Heartbeat timed out",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/transport/websocket.py",
+          "line": 106,
+          "call": "websocket.close",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.5d1df4bd9a6a",
+      "en": "History has no payload.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_social.py",
+          "line": 50,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.40f0cab8f10b",
+      "en": "Incorrect active deal sequence.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/audit.py",
+          "line": 112,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.af546d64764c",
+      "en": "Initial Tunnela declaration is unavailable.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/engine.py",
+          "line": 106,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.788ebf791935",
+      "en": "Initial Tunnela declaration must be boolean.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/scoring_rules.py",
+          "line": 37,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.b6da0fc61a80",
+      "en": "Initial phase cannot contain completed deals.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/audit.py",
+          "line": 128,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c90410627f7e",
+      "en": "Invalid Echo command count.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/games/echo.py",
+          "line": 84,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.eb9a4c937cc9",
+      "en": "Invalid Echo initial state.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/games/echo.py",
+          "line": 81,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.0bedeade27d4",
+      "en": "Invalid archived deal.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/audit.py",
+          "line": 98,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.84c47547cc76",
+      "en": "Invalid bid.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/scoring.py",
+          "line": 9,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.568cf1e66267",
+      "en": "Invalid bidding range.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/callbreak/contracts.py",
+          "line": 199,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.1372ccad8b31",
+      "en": "Invalid bidding state.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/audit.py",
+          "line": 120,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.d38deeb2431d",
+      "en": "Invalid deal boundary.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/audit.py",
+          "line": 130,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.28b5f3e694ea",
+      "en": "Invalid deal preparation.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/audit.py",
+          "line": 82,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.b2126d609ea3",
+      "en": "Invalid entry.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/replay.py",
+          "line": 90,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.eab85832c5e4",
+      "en": "Invalid hand review state.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/audit.py",
+          "line": 115,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.2aef31f91299",
+      "en": "Invalid initial Tunnela.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/invariants.py",
+          "line": 131,
+          "call": "CardConservationError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.42528efbb72c",
+      "en": "Invalid initial dealer.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/audit.py",
+          "line": 71,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.4dfa91d83673",
+      "en": "Invalid match ID.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/flush/adapter.py",
+          "line": 32,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "app/adapters/marriage/adapter.py",
+          "line": 33,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.adcaf52eccd1",
+      "en": "Invalid match metadata.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/audit.py",
+          "line": 69,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.71f29ae2149b",
+      "en": "Invalid normal finish selection.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/engine.py",
+          "line": 267,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.f88abbee81bf",
+      "en": "Invalid player.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/engine.py",
+          "line": 140,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "callbreak/views.py",
+          "line": 43,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.e933bf79d4ea",
+      "en": "Invalid prepared deck.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/audit.py",
+          "line": 85,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.1b849b995a14",
+      "en": "Invalid recorded cut.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/audit.py",
+          "line": 90,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.d92679c9f445",
+      "en": "Invalid replay entry {{value1}}: {{value2}}",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/replay.py",
+          "line": 41,
+          "call": "ValueError",
+          "bindings": {
+            "value1": "i",
+            "value2": "result.code"
+          }
+        }
+      ]
+    },
+    {
+      "id": "server.deddc7651a95",
+      "en": "Invalid replay fields.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/replay.py",
+          "line": 74,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.21bed7a76d3f",
+      "en": "Invalid room ID.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/transport/http.py",
+          "line": 192,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.dbf19155de33",
+      "en": "Invalid social command.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/transport/websocket.py",
+          "line": 80,
+          "call": "",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.f266cc8653bc",
+      "en": "Invalid trick number.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/queries.py",
+          "line": 141,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.fafbae6a24b9",
+      "en": "Invite at most 20 players at once.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 431,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.8ce4acbcbe1d",
+      "en": "Invited player not found.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/transport/http.py",
+          "line": 133,
+          "call": "HTTPException",
+          "bindings": {}
+        },
+        {
+          "file": "app/transport/http.py",
+          "line": 232,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.588f3f6e8b9b",
+      "en": "It is another player's turn.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/engine.py",
+          "line": 86,
+          "call": "InvalidTurnError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.531ca331675d",
+      "en": "It is another player’s turn.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/turns.py",
+          "line": 36,
+          "call": "InvalidTurnError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.7875f09e8ae8",
+      "en": "Join this room to view its ledger.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/ledger/service.py",
+          "line": 30,
+          "call": "PermissionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.3c0306806158",
+      "en": "Join this room to view its members.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/transport/http.py",
+          "line": 184,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.099dfe7b5156",
+      "en": "Leader must identify a player in this trick.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/models.py",
+          "line": 30,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.449b89c05dc9",
+      "en": "Lease duration must be positive.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/durable_games/store.py",
+          "line": 204,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "app/durable_games/store.py",
+          "line": 302,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "app/durable_games/store.py",
+          "line": 320,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "app/durable_games/store.py",
+          "line": 468,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "app/durable_games/store.py",
+          "line": 579,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "app/durable_games/store.py",
+          "line": 599,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.45d4d1ea412d",
+      "en": "Leave the active game explicitly before leaving the room.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_lifecycle.py",
+          "line": 99,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.61d66d817012",
+      "en": "Leave the game explicitly before leaving this room.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/lifecycle.py",
+          "line": 39,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.e8033481e571",
+      "en": "Leave {{value1}}/{{value2}} before joining another table.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 175,
+          "call": "HTTPException",
+          "bindings": {
+            "value1": "occupied.room_id",
+            "value2": "occupied.name"
+          }
+        }
+      ]
+    },
+    {
+      "id": "server.f2967f27f236",
+      "en": "Ledger players require durable user IDs.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/ledger/store.py",
+          "line": 12,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.259becaff3a8",
+      "en": "Lock the roster before starting the game.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 742,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.dedbd92de585",
+      "en": "Maal eligibility must be boolean.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/scoring_rules.py",
+          "line": 39,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.e38aa7f6daf2",
+      "en": "Maal neighbors require a Rank and supported policy.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/rank_policy.py",
+          "line": 18,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.ed6257c1df80",
+      "en": "Malformed replay.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/replay.py",
+          "line": 117,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.7ad8118780b6",
+      "en": "Man cards cannot form natural melds.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/melds.py",
+          "line": 26,
+          "call": "InvalidMeldError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.3a47fa0d7a30",
+      "en": "Man cards require MAN:0..2 and no natural face or pack.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/cards.py",
+          "line": 38,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.79b41e7690bf",
+      "en": "Man index must be 0, 1, or 2.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/cards.py",
+          "line": 47,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.ac245a868612",
+      "en": "Marriage and Call Break support at most five players.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/http.py",
+          "line": 28,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.a99198cc5822",
+      "en": "Marriage scoring only applies to Marriage.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 713,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.53afcf84336a",
+      "en": "Marriage supports two through five players.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/models.py",
+          "line": 28,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.ae47f3696ccd",
+      "en": "Match ended early.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/audit.py",
+          "line": 124,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.776889aa8976",
+      "en": "Meld IDs must be distinct canonical physical cards.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/marriage/contracts.py",
+          "line": 49,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c58749660f2f",
+      "en": "Meld cannot reuse committed cards.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/melds.py",
+          "line": 23,
+          "call": "InvalidMeldError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.35f69dc62423",
+      "en": "Meld card IDs must be nonempty strings.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/models.py",
+          "line": 50,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.aeeac705610c",
+      "en": "Meld cards must be distinct, canonical, and owned.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/melds.py",
+          "line": 21,
+          "call": "InvalidMeldError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.60df7446ffd9",
+      "en": "Meld requires a MeldType and sequence of card IDs.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/models.py",
+          "line": 47,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.fd5f4f3b7dfd",
+      "en": "Mutation commands cannot produce query results.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/marriage/contracts.py",
+          "line": 204,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.507f63e7e821",
+      "en": "No active player remains.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/turns.py",
+          "line": 22,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.923b11d32cc6",
+      "en": "No game engine is registered for this room.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/runtime/game_runtime.py",
+          "line": 22,
+          "call": "CommandAccessError",
+          "bindings": {}
+        },
+        {
+          "file": "app/runtime/game_runtime.py",
+          "line": 57,
+          "call": "CommandError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.9f28ce859505",
+      "en": "No previous active seen player is available.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/side_show.py",
+          "line": 61,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.3eb9c61619c5",
+      "en": "No standard card is available for Tiplu.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/maal.py",
+          "line": 36,
+          "call": "TipluUnavailableError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.0623f0655b8e",
+      "en": "No test game in this room.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 246,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.2a5ea62ba25a",
+      "en": "Normal finish requires 21 cards in valid melds and one final discard.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/engine.py",
+          "line": 271,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.ee330fe69536",
+      "en": "Normal qualification must leave a card available to discard.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/melds.py",
+          "line": 62,
+          "call": "InvalidMeldError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.56740604dcad",
+      "en": "One or more games are already in a settlement.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/ledger/store.py",
+          "line": 61,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "app/ledger/store.py",
+          "line": 192,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.12a96ecc0e0a",
+      "en": "Only a finished round can publish shown hands or winners.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/flush/contracts.py",
+          "line": 196,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.51a8369e186d",
+      "en": "Only a player with an outstanding balance may start this settlement.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/ledger/service.py",
+          "line": 95,
+          "call": "PermissionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.658442df0636",
+      "en": "Only an active player can fold.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/engine.py",
+          "line": 241,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.764ce764771d",
+      "en": "Only an active player in a dealt round can fold to leave.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/engine.py",
+          "line": 195,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.b8b8cf5ae4ce",
+      "en": "Only an open transfer can be marked paid.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/ledger/store.py",
+          "line": 91,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "app/ledger/store.py",
+          "line": 225,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c12d2c845bfe",
+      "en": "Only queries may return query results.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/flush/contracts.py",
+          "line": 141,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.00fa72624e71",
+      "en": "Only seated players can send; seated and waiting players can read table chat.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_social.py",
+          "line": 39,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.1369ac6c5cec",
+      "en": "Only seated players may vote on rules.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/rule_proposals.py",
+          "line": 68,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.be00f4cedc27",
+      "en": "Only the admin may propose settings.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/setup.py",
+          "line": 44,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.624fd75acc72",
+      "en": "Only the creator can start the next deal.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 564,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.7e3d82d429af",
+      "en": "Only the dealer can distribute.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/engine.py",
+          "line": 160,
+          "call": "_reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c9b3a7045a21",
+      "en": "Only the dealer can start the deal.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/engine.py",
+          "line": 103,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c25fbe356bb5",
+      "en": "Only the designated player may perform this action.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/engine.py",
+          "line": 169,
+          "call": "_reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.7f48de6d1b8c",
+      "en": "Only the game creator can do this.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 724,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.883804fd4236",
+      "en": "Only the game creator or the sole person in the room can end the game.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 586,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.44521f3940e9",
+      "en": "Only the game owner can start this round.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/flush/adapter.py",
+          "line": 76,
+          "call": "reject",
+          "bindings": {}
+        },
+        {
+          "file": "app/adapters/marriage/adapter.py",
+          "line": 74,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.b44afe6c1d6c",
+      "en": "Only the other final player can reveal or fold.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/engine.py",
+          "line": 232,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.42f0f228bd01",
+      "en": "Only the payee can confirm receipt.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/ledger/store.py",
+          "line": 95,
+          "call": "PermissionError",
+          "bindings": {}
+        },
+        {
+          "file": "app/ledger/store.py",
+          "line": 228,
+          "call": "PermissionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.85ff72b320a8",
+      "en": "Only the payer can mark this transfer paid.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/ledger/store.py",
+          "line": 89,
+          "call": "PermissionError",
+          "bindings": {}
+        },
+        {
+          "file": "app/ledger/store.py",
+          "line": 224,
+          "call": "PermissionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.6af2463080d6",
+      "en": "Only the player after the dealer can cut or skip.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/engine.py",
+          "line": 122,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.2fd3a180fee7",
+      "en": "Only the previous winner can start the next round.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/engine.py",
+          "line": 90,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.2ce198a96851",
+      "en": "Only the requested player can respond to this side-show.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/engine.py",
+          "line": 269,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.f9c5537864b7",
+      "en": "Only the room creator can invite people.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/room_service.py",
+          "line": 73,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.f5275dbea195",
+      "en": "Only the room owner can change privacy.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/room_service.py",
+          "line": 109,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.bbc5a8496634",
+      "en": "Only the room owner can delete this room.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/transport/http.py",
+          "line": 213,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.b03f4999da08",
+      "en": "Only the table host can lock the roster.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_lifecycle.py",
+          "line": 147,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.a5e2384ad8fe",
+      "en": "Owner must occupy a configured seat.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/flush/adapter.py",
+          "line": 30,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "app/adapters/marriage/adapter.py",
+          "line": 31,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.e2f5972b57c3",
+      "en": "Phase does not agree with current deal.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/audit.py",
+          "line": 108,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.0fb973deca0f",
+      "en": "Player ID is outside this game.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/queries.py",
+          "line": 31,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "callbreak/rules.py",
+          "line": 60,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.d67bcf86418b",
+      "en": "Player ID must be an integer from 1 to 5.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/models.py",
+          "line": 15,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.e1e3c9ba0da5",
+      "en": "Player IDs must be distinct.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/models.py",
+          "line": 26,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.63d320aa4ebd",
+      "en": "Player IDs must be nonempty strings without control characters.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/models.py",
+          "line": 12,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.9e784c97e55e",
+      "en": "Player IDs must be nonempty strings.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/models.py",
+          "line": 24,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.3cde75f5fed8",
+      "en": "Player IDs must be unique.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/models.py",
+          "line": 32,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.0276443bee9a",
+      "en": "Player count is outside configured limits.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/models.py",
+          "line": 28,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.7e3a5477eee2",
+      "en": "Player flags must be booleans.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/models.py",
+          "line": 83,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.feccc40b9894",
+      "en": "Player has already qualified; routes cannot be changed.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/engine.py",
+          "line": 200,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.4fa184848f4c",
+      "en": "Player has folded.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/engine.py",
+          "line": 82,
+          "call": "InvalidActionError",
+          "bindings": {}
+        },
+        {
+          "file": "marriage/queries.py",
+          "line": 35,
+          "call": "AllowedActions",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.3d1f5bd37f39",
+      "en": "Player is not active.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/turns.py",
+          "line": 34,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.24657ec5a989",
+      "en": "Player is not in this match.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/engine.py",
+          "line": 153,
+          "call": "_reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.6acbf5e1b167",
+      "en": "Player limits must include this room's seat count.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 401,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.d037e6b8c4ba",
+      "en": "Player not found.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/players/http.py",
+          "line": 40,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.50ef99ee9249",
+      "en": "Player route must be a QualificationRoute.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/models.py",
+          "line": 81,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.e4c240798287",
+      "en": "Players must have nonempty string IDs.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/engine.py",
+          "line": 31,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.2cdfa0db2adf",
+      "en": "Playing requires a current trick.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/audit.py",
+          "line": 122,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.39f7513271e2",
+      "en": "Plays must follow player order, starting with the leader.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/models.py",
+          "line": 40,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.8e2c42dedb6e",
+      "en": "Preparation command is not allowed in this phase.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/engine.py",
+          "line": 167,
+          "call": "_reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.0d0b50b485d3",
+      "en": "Preparation does not agree with phase.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/audit.py",
+          "line": 76,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.9628526d1db9",
+      "en": "Private recipient must match payload seat.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/flush/contracts.py",
+          "line": 210,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.7f877a88bc8c",
+      "en": "Private recipient must match the event's player.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/callbreak/contracts.py",
+          "line": 356,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.bea1f5f3da41",
+      "en": "Private recipient must match the payload seat.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/marriage/contracts.py",
+          "line": 298,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.3ea179bc39d8",
+      "en": "Provide one bid and trick count per player.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/scoring.py",
+          "line": 6,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.23005e53579f",
+      "en": "Qualified melds are invalid.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/invariants.py",
+          "line": 150,
+          "call": "CardConservationError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.3ab40efae050",
+      "en": "Query result must match its exact schema.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/flush/contracts.py",
+          "line": 145,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.941c27d17a5f",
+      "en": "Query result must match the exact declared schema.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/marriage/contracts.py",
+          "line": 208,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.375a7dbb58cc",
+      "en": "Query state must belong to its recipient.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/flush/contracts.py",
+          "line": 147,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "app/adapters/marriage/contracts.py",
+          "line": 210,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.eaa771d6d185",
+      "en": "Recorded scores do not agree with history.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/audit.py",
+          "line": 104,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.fd7316687343",
+      "en": "Redeal switches must be booleans.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/house_rules.py",
+          "line": 16,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.13cd284c5a5e",
+      "en": "Refresh the game before retrying.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/flush/adapter.py",
+          "line": 74,
+          "call": "reject",
+          "bindings": {}
+        },
+        {
+          "file": "app/adapters/marriage/adapter.py",
+          "line": 72,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.4279793afe50",
+      "en": "Rejected game decision mutated state.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/durable_games/store.py",
+          "line": 380,
+          "call": "DurableGameCompatibilityError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.fc979e5d9f28",
+      "en": "Replayed revision does not match the game record.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/durable_games/store.py",
+          "line": 260,
+          "call": "DurableGameCompatibilityError",
+          "bindings": {}
+        },
+        {
+          "file": "app/durable_games/store.py",
+          "line": 677,
+          "call": "DurableGameCompatibilityError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.6cfe4a2ef948",
+      "en": "Request belongs to another match.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/flush/adapter.py",
+          "line": 70,
+          "call": "reject",
+          "bindings": {}
+        },
+        {
+          "file": "app/adapters/marriage/adapter.py",
+          "line": 68,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.d318aa110051",
+      "en": "Requires normal qualification and a 21-card partition after drawing.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/engine.py",
+          "line": 235,
+          "call": "Capability",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.a0317f2dadca",
+      "en": "Resolve seat transfers before starting.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 748,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.2743d8ccd6e9",
+      "en": "Resolve the pending rule proposal before submitting another.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/rule_proposals.py",
+          "line": 47,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.ce91312d22b6",
+      "en": "Resolve the proposed rules before locking.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_lifecycle.py",
+          "line": 145,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.2dfaa5804379",
+      "en": "Room already has an engine",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/runtime/game_registry.py",
+          "line": 31,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.270c0254d2cd",
+      "en": "Room invitation not found.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/room_service.py",
+          "line": 98,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.96ec667f9924",
+      "en": "Room not found.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/transport/http.py",
+          "line": 211,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c9330d13b03c",
+      "en": "Room owners cannot leave their room. Delete it after ending every active table.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/transport/http.py",
+          "line": 203,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.2ba7e4acfdf1",
+      "en": "Roster changed",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/rule_proposals.py",
+          "line": 19,
+          "call": "game.table.emit",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.623edee51c2e",
+      "en": "Roster must map unique authenticated users to every configured seat exactly once.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/flush/host.py",
+          "line": 18,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "app/adapters/marriage/host.py",
+          "line": 18,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.4ec60cc2f966",
+      "en": "Scoring requires ScoringRules.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/rules.py",
+          "line": 25,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.4763fa68291b",
+      "en": "Scoring values must be whole numbers from 0 to 1000.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/scoring_rules.py",
+          "line": 28,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "marriage/scoring_rules.py",
+          "line": 33,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.93c53443e104",
+      "en": "Seat enough players before locking the roster.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_lifecycle.py",
+          "line": 155,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.8e81b6be302a",
+      "en": "See your cards before requesting side-show.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/side_show.py",
+          "line": 55,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.3396429e30e8",
+      "en": "Seen show is disabled.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/turns.py",
+          "line": 80,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.1715e4707dba",
+      "en": "Sequence requires at least three consecutive distinct ranks in one suit.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/melds.py",
+          "line": 35,
+          "call": "InvalidMeldError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.58f025ac4b8d",
+      "en": "Settings and start are only available before this game begins.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 726,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.9445b1f88254",
+      "en": "Settings are frozen after start.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/setup.py",
+          "line": 34,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.2e22f511c737",
+      "en": "Settlement not found.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/ledger/service.py",
+          "line": 106,
+          "call": "KeyError",
+          "bindings": {}
+        },
+        {
+          "file": "app/ledger/store.py",
+          "line": 80,
+          "call": "KeyError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c51d214d3f2b",
+      "en": "Show requires exactly two active players.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/rules.py",
+          "line": 47,
+          "call": "UnsupportedRuleError",
+          "bindings": {}
+        },
+        {
+          "file": "flush/turns.py",
+          "line": 71,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.7162c1f5c2ec",
+      "en": "Shown declarations must be Meld values.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/models.py",
+          "line": 98,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.09ac3786c763",
+      "en": "Shown melds cannot reuse a physical card.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/models.py",
+          "line": 101,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.7b9f2ab1e73a",
+      "en": "Side-show is disabled.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/side_show.py",
+          "line": 53,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.9a78430145b2",
+      "en": "Sign in to continue",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/transport/http.py",
+          "line": 51,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.8669ec512211",
+      "en": "Skipped cuts require position=null; completed cuts require a position.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/callbreak/contracts.py",
+          "line": 143,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.0ef9017fde31",
+      "en": "Source must be a DrawSource enum value.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/engine.py",
+          "line": 124,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.a923651a6b29",
+      "en": "Spectators cannot play.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/callbreak/host.py",
+          "line": 21,
+          "call": "CommandAccessError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.17d40b318b81",
+      "en": "Spectators cannot submit player commands.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/flush/adapter.py",
+          "line": 72,
+          "call": "reject",
+          "bindings": {}
+        },
+        {
+          "file": "app/adapters/flush/host.py",
+          "line": 28,
+          "call": "CommandAccessError",
+          "bindings": {}
+        },
+        {
+          "file": "app/adapters/marriage/adapter.py",
+          "line": 70,
+          "call": "reject",
+          "bindings": {}
+        },
+        {
+          "file": "app/adapters/marriage/host.py",
+          "line": 28,
+          "call": "CommandAccessError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c3fddab03510",
+      "en": "Stale settings revision.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/setup.py",
+          "line": 38,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.444e7954f20c",
+      "en": "Standard cards require pack index 0, 1, or 2.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/cards.py",
+          "line": 32,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.4d1fdbbabc15",
+      "en": "State must belong to its recipient.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/flush/contracts.py",
+          "line": 125,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "app/adapters/marriage/contracts.py",
+          "line": 177,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.e554a53a495d",
+      "en": "Stored event count does not match current sequence.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/durable_games/store.py",
+          "line": 258,
+          "call": "DurableGameCompatibilityError",
+          "bindings": {}
+        },
+        {
+          "file": "app/durable_games/store.py",
+          "line": 675,
+          "call": "DurableGameCompatibilityError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.cbd8b15fb40a",
+      "en": "Stored game rules are incompatible or corrupted.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/durable_games/store.py",
+          "line": 254,
+          "call": "DurableGameCompatibilityError",
+          "bindings": {}
+        },
+        {
+          "file": "app/durable_games/store.py",
+          "line": 672,
+          "call": "DurableGameCompatibilityError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.8597b2365fc7",
+      "en": "Supply a Meld with physical card IDs.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/melds.py",
+          "line": 17,
+          "call": "InvalidMeldError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.6796a4910117",
+      "en": "Supply a collection of melds.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/melds.py",
+          "line": 50,
+          "call": "InvalidMeldError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c9b304ef6a79",
+      "en": "Supply a sequence of player IDs, not one string.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/models.py",
+          "line": 23,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.80a17d4a56d8",
+      "en": "Supply a sequence of player IDs.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/engine.py",
+          "line": 28,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "flush/models.py",
+          "line": 19,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.ae24034f5660",
+      "en": "Supply each of the 52 standard cards exactly once.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/engine.py",
+          "line": 83,
+          "call": "_reject",
+          "bindings": {}
+        },
+        {
+          "file": "callbreak/engine.py",
+          "line": 71,
+          "call": "_reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.14925e7e26d5",
+      "en": "Supply the complete Flush ruleset without unknown fields.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 396,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.8fa1a72c6aed",
+      "en": "Table invitation not found.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 544,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.f55c962b9caf",
+      "en": "Table name must be between 1 and 60 characters.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 454,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c12d04f9407a",
+      "en": "Take a seat before acting.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/flush.py",
+          "line": 30,
+          "call": "CommandAccessError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.91037e5d671c",
+      "en": "Take a seat before sending a poke.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 1022,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.2361dbbac858",
+      "en": "That deal has not started.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/queries.py",
+          "line": 48,
+          "call": "LookupError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.4c2b832e4f4b",
+      "en": "That phrase is not in your collection.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/player_phrases.py",
+          "line": 31,
+          "call": "HTTPException",
+          "bindings": {}
+        },
+        {
+          "file": "app/multiplayer/player_phrases.py",
+          "line": 41,
+          "call": "HTTPException",
+          "bindings": {}
+        },
+        {
+          "file": "app/multiplayer/player_phrases.py",
+          "line": 100,
+          "call": "HTTPException",
+          "bindings": {}
+        },
+        {
+          "file": "app/multiplayer/player_phrases.py",
+          "line": 110,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.62ac2258ee48",
+      "en": "That player is offline. Try when they return.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/room_pokes.py",
+          "line": 36,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.b29c170a98b9",
+      "en": "That seat is empty.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_social.py",
+          "line": 65,
+          "call": "HTTPException",
+          "bindings": {}
+        },
+        {
+          "file": "app/test_games/service.py",
+          "line": 1026,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.1c877c3dcbfb",
+      "en": "That trick has not started.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/queries.py",
+          "line": 148,
+          "call": "LookupError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.7a0b82c07d31",
+      "en": "The deal must account for all 52 cards exactly once with the correct hand sizes.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/engine.py",
+          "line": 110,
+          "call": "_reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.dde730274f16",
+      "en": "The deal must account for all 52 cards exactly once.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/engine.py",
+          "line": 97,
+          "call": "_reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.78de05da25bd",
+      "en": "The five-deal match has finished.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/engine.py",
+          "line": 52,
+          "call": "_reject",
+          "bindings": {}
+        },
+        {
+          "file": "callbreak/engine.py",
+          "line": 155,
+          "call": "_reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.0fa20966f09e",
+      "en": "The game changed. Refresh before ending it.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 580,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.134b223aebf8",
+      "en": "The game changed. Refresh before leaving.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 644,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.d8cddceb44e9",
+      "en": "The game changed. Reopen the table to send a poke.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 1019,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.0da2d667f10b",
+      "en": "The game engine could not process this command.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/runtime/game_runtime.py",
+          "line": 69,
+          "call": "CommandError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.2896ad4dd706",
+      "en": "The game is full. You can join the waitlist.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 623,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.d2fa1405ea92",
+      "en": "The game state changed; refresh and try again.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/durable_games/store.py",
+          "line": 368,
+          "call": "DurableCommandReceipt",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.65d27fb1c9d9",
+      "en": "The host or departing player may invite after the queue is empty.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_lifecycle.py",
+          "line": 165,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.b8980c63b897",
+      "en": "The hosted engine must supply its authoritative initial state.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/durable_games/hosted.py",
+          "line": 26,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.0793a7aad56a",
+      "en": "The locked roster remains reserved until the game is ended.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_lifecycle.py",
+          "line": 72,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.852697d19276",
+      "en": "The match changed. Refresh the table.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_lifecycle.py",
+          "line": 125,
+          "call": "reject",
+          "bindings": {}
+        },
+        {
+          "file": "app/test_games/service.py",
+          "line": 240,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.d4b794af8ae6",
+      "en": "The payer must mark this transfer paid first.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/ledger/store.py",
+          "line": 97,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "app/ledger/store.py",
+          "line": 229,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.11f13d19b83f",
+      "en": "The roster is closed. You can join the waitlist.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 621,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.f799eb8f7e39",
+      "en": "The round changed. Refresh the table.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 566,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.ff3193516a85",
+      "en": "The seats changed. Choose a player again.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_social.py",
+          "line": 69,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.80217120735f",
+      "en": "The stored game requires an unsupported engine version.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/durable_games/store.py",
+          "line": 113,
+          "call": "DurableGameCompatibilityError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.89d894075ea8",
+      "en": "There are no unsettled completed games in this scope.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/ledger/service.py",
+          "line": 90,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.7ca9852b2cff",
+      "en": "This engine has no shared command adapter.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/runtime/game_runtime.py",
+          "line": 24,
+          "call": "CommandAccessError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.d951cc21cdc9",
+      "en": "This game has already finished.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 590,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.02b948b8b9fd",
+      "en": "This game is no longer active.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/flush/host.py",
+          "line": 26,
+          "call": "CommandAccessError",
+          "bindings": {}
+        },
+        {
+          "file": "app/adapters/marriage/host.py",
+          "line": 26,
+          "call": "CommandAccessError",
+          "bindings": {}
+        },
+        {
+          "file": "app/test_games/flush.py",
+          "line": 28,
+          "call": "CommandAccessError",
+          "bindings": {}
+        },
+        {
+          "file": "app/test_games/marriage.py",
+          "line": 25,
+          "call": "CommandAccessError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.e6d70829e32a",
+      "en": "This game is not active. Refresh its state.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/callbreak/host.py",
+          "line": 19,
+          "call": "CommandAccessError",
+          "bindings": {}
+        },
+        {
+          "file": "app/durable_games/runtime.py",
+          "line": 54,
+          "call": "CommandAccessError",
+          "bindings": {}
+        },
+        {
+          "file": "app/runtime/command_runtime.py",
+          "line": 70,
+          "call": "CommandAccessError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c5cc7aa1b588",
+      "en": "This match has reached its command receipt limit.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/runtime/command_runtime.py",
+          "line": 80,
+          "call": "CommandAccessError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.633f25cc4579",
+      "en": "This offer is no longer available.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_lifecycle.py",
+          "line": 185,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.ddd580790297",
+      "en": "This qualification requires exactly {{value1}} melds.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/melds.py",
+          "line": 54,
+          "call": "InvalidMeldError",
+          "bindings": {
+            "value1": "count"
+          }
+        }
+      ]
+    },
+    {
+      "id": "server.a7c2c2801a9d",
+      "en": "This room has been deleted.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/room_service.py",
+          "line": 26,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.f692cc433c6c",
+      "en": "This room is private. Ask the owner for an invitation.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/room_service.py",
+          "line": 28,
+          "call": "HTTPException",
+          "bindings": {}
+        },
+        {
+          "file": "app/transport/http.py",
+          "line": 167,
+          "call": "HTTPException",
+          "bindings": {}
+        },
+        {
+          "file": "app/transport/http.py",
+          "line": 194,
+          "call": "HTTPException",
+          "bindings": {}
+        },
+        {
+          "file": "app/transport/websocket.py",
+          "line": 38,
+          "call": "websocket.close",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.ec43299ed9f4",
+      "en": "This roster cannot be locked now.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_lifecycle.py",
+          "line": 153,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.3c17745a768b",
+      "en": "This round is no longer available.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 562,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.4776a5cce678",
+      "en": "This rule proposal has already been resolved.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/rule_proposals.py",
+          "line": 73,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c372f2c68dc1",
+      "en": "This rule proposal is no longer current.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/rule_proposals.py",
+          "line": 66,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.bfb5428a575b",
+      "en": "This scope has no outstanding balance.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/ledger/service.py",
+          "line": 98,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.4bf45416854f",
+      "en": "This seat is no longer transferable.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_lifecycle.py",
+          "line": 189,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.1de4b53913ac",
+      "en": "This seat offer does not belong to you.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_lifecycle.py",
+          "line": 180,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.087aeb000747",
+      "en": "This table has ended.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_lifecycle.py",
+          "line": 137,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.478a4630efa4",
+      "en": "This table is no longer active.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 548,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.8d0c6407cbbc",
+      "en": "This table is no longer available.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 1007,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.92b069049b26",
+      "en": "This table locks when the match starts.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_lifecycle.py",
+          "line": 149,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.3f7eb7fa5c0e",
+      "en": "Too many active players for blind show.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/turns.py",
+          "line": 78,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.60bb3bdeb3f9",
+      "en": "Too many deals.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/audit.py",
+          "line": 92,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.bdef3e7043f2",
+      "en": "Too many invitations. Wait a minute before inviting more players.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 511,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.9cc33170e73b",
+      "en": "Too many plays in a trick.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/models.py",
+          "line": 33,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.37adec967c24",
+      "en": "Transfer not found.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/ledger/store.py",
+          "line": 83,
+          "call": "KeyError",
+          "bindings": {}
+        },
+        {
+          "file": "app/ledger/store.py",
+          "line": 219,
+          "call": "KeyError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.e6eb33d74288",
+      "en": "Trick counts must account for the completed deal.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/scoring.py",
+          "line": 11,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.9bb97f5e5b71",
+      "en": "Trick entries must be Play values.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/models.py",
+          "line": 37,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.8e47e86e1c1a",
+      "en": "Tunnela declaration flag must be boolean.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/models.py",
+          "line": 85,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.506bd85526d7",
+      "en": "Tunnela scope must be off, shown or hand.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/scoring_rules.py",
+          "line": 35,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c84fbc5ac334",
+      "en": "Unknown Flush action.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/engine.py",
+          "line": 296,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.5f6599c6af1d",
+      "en": "Unknown controller command.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/engine.py",
+          "line": 76,
+          "call": "_reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.779d6b3f76c4",
+      "en": "Unknown invitation action.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/transport/http.py",
+          "line": 152,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.66e7d2edf221",
+      "en": "Unknown physical card ID.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/marriage/contracts.py",
+          "line": 37,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.9092e626133a",
+      "en": "Unknown player ID.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/queries.py",
+          "line": 129,
+          "call": "InvalidActionError",
+          "bindings": {}
+        },
+        {
+          "file": "marriage/turns.py",
+          "line": 15,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.a462a13d30c2",
+      "en": "Unknown player command.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/engine.py",
+          "line": 183,
+          "call": "_reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.fbb6d0e138b2",
+      "en": "Unknown player.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/turns.py",
+          "line": 10,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.f0a8475c49f6",
+      "en": "Unknown replay command.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/replay.py",
+          "line": 111,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.e14f3a3169d6",
+      "en": "Unknown scoring option.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/scoring_rules.py",
+          "line": 44,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.d33a1f0eda74",
+      "en": "Unknown settlement action.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/ledger/store.py",
+          "line": 100,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "app/ledger/store.py",
+          "line": 231,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.5eb2ba3a3c2b",
+      "en": "Unknown table command.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_lifecycle.py",
+          "line": 241,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.041c766b23bc",
+      "en": "Unsupported Ace sequence policy.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/evaluator.py",
+          "line": 24,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "flush/rules.py",
+          "line": 51,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "marriage/rank_policy.py",
+          "line": 11,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "marriage/rules.py",
+          "line": 27,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c893dee68a50",
+      "en": "Unsupported Echo event.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/games/echo.py",
+          "line": 63,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.6e521e6cd95c",
+      "en": "Unsupported Maal neighbor policy.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/rules.py",
+          "line": 29,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.523c53c4f345",
+      "en": "Unsupported domain outcome: {{value1}}",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/callbreak/adapter.py",
+          "line": 112,
+          "call": "ValueError",
+          "bindings": {
+            "value1": "event.name"
+          }
+        }
+      ]
+    },
+    {
+      "id": "server.39f96945d4e5",
+      "en": "Unsupported hosted-engine event.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/durable_games/hosted.py",
+          "line": 38,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.fd7fa738201e",
+      "en": "Unsupported meld type.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/melds.py",
+          "line": 41,
+          "call": "InvalidMeldError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.42f4d053bf7f",
+      "en": "Unsupported protocol version.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/adapters/callbreak/contracts.py",
+          "line": 89,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "app/adapters/flush/contracts.py",
+          "line": 101,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "app/adapters/marriage/contracts.py",
+          "line": 153,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.a957abe653b2",
+      "en": "Unsupported replay command.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/replay.py",
+          "line": 60,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.94fea4621337",
+      "en": "Unsupported replay version.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/replay.py",
+          "line": 79,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.cf7fa53d1d81",
+      "en": "Unsupported ruleset or undealt-card policy.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/config.py",
+          "line": 22,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.5c67c134756f",
+      "en": "Unsupported tie policy.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/rules.py",
+          "line": 53,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.1d9afb56e096",
+      "en": "Use Show when only two players remain.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/side_show.py",
+          "line": 59,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.9855ae7e7d5e",
+      "en": "Use text without control characters.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/models/chat.py",
+          "line": 13,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.d173bc8d9c2e",
+      "en": "Use the explicit active-match departure action.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_lifecycle.py",
+          "line": 70,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.d928e67149aa",
+      "en": "Valid normal-hand partition.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/engine.py",
+          "line": 234,
+          "call": "Capability",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c04dcfbc2b7c",
+      "en": "Wait a moment before sending another message.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_social.py",
+          "line": 80,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c17a4a98d6e5",
+      "en": "Wait for enough players to take a seat.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 744,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.4fab05d1592d",
+      "en": "Wait for the cutter before distributing.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/engine.py",
+          "line": 158,
+          "call": "_reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.8cddf031638e",
+      "en": "Wait for your turn.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/engine.py",
+          "line": 210,
+          "call": "_reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.4c5824b4cd65",
+      "en": "Waiting for initial Tunnela declarations.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/queries.py",
+          "line": 38,
+          "call": "AllowedActions",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.f08183a7cf67",
+      "en": "Waiting for the final player to reveal or fold.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/turns.py",
+          "line": 30,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.baf0b9e2be50",
+      "en": "Waiting for the side-show response.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/turns.py",
+          "line": 32,
+          "call": "InvalidActionError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.e0061958e828",
+      "en": "Weak-hand threshold must be Jack or Queen.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/house_rules.py",
+          "line": 18,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.aaac2ab4c499",
+      "en": "Winning discard requires finishing.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/queries.py",
+          "line": 43,
+          "call": "AllowedActions",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.70efa5df9762",
+      "en": "Wrong meld type or overlapping physical cards in declaration.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/melds.py",
+          "line": 59,
+          "call": "InvalidMeldError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.9bd8c5cc6fef",
+      "en": "You already have a seat.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_lifecycle.py",
+          "line": 135,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c072924543a9",
+      "en": "You already have that phrase.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/player_phrases.py",
+          "line": 33,
+          "call": "HTTPException",
+          "bindings": {}
+        },
+        {
+          "file": "app/multiplayer/player_phrases.py",
+          "line": 94,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.882da54e5708",
+      "en": "You are not playing an active match that supports abandonment.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_lifecycle.py",
+          "line": 208,
+          "call": "reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.7ff347f8afa7",
+      "en": "You cannot invite yourself.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/transport/http.py",
+          "line": 131,
+          "call": "HTTPException",
+          "bindings": {}
+        },
+        {
+          "file": "app/transport/http.py",
+          "line": 228,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.eac8c1f00778",
+      "en": "You have 25 phrases. Remove one to add another.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/player_phrases.py",
+          "line": 22,
+          "call": "HTTPException",
+          "bindings": {}
+        },
+        {
+          "file": "app/multiplayer/player_phrases.py",
+          "line": 78,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.90b3129324fe",
+      "en": "You have already accepted this hand.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/engine.py",
+          "line": 193,
+          "call": "_reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.5ad5f89762fd",
+      "en": "You have left this seat.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/marriage.py",
+          "line": 27,
+          "call": "CommandAccessError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.8ad97e753cdb",
+      "en": "You may only invite a replacement for your own seat.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/table_lifecycle.py",
+          "line": 167,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.ee8f4b938010",
+      "en": "Your bid is already recorded.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/engine.py",
+          "line": 215,
+          "call": "_reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.ff7640690a3c",
+      "en": "Your folded Flush seat remains reserved until the current round finishes.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/test_games/service.py",
+          "line": 170,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.1edf1a5ad7b4",
+      "en": "Your hand does not qualify for a redeal.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "callbreak/engine.py",
+          "line": 197,
+          "call": "_reject",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.0b4ce9ec26d6",
+      "en": "Your vote has already been recorded.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/multiplayer/rule_proposals.py",
+          "line": 77,
+          "call": "HTTPException",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.c1ece522758a",
+      "en": "game_id is required only for game settlement.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "app/ledger/models.py",
+          "line": 40,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.84e06bcda445",
+      "en": "rng must be a random.Random instance.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/engine.py",
+          "line": 35,
+          "call": "ValueError",
+          "bindings": {}
+        },
+        {
+          "file": "marriage/engine.py",
+          "line": 40,
+          "call": "ValueError",
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "id": "server.caeba6fb08a4",
+      "en": "{{value1}} must be a boolean.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/rules.py",
+          "line": 45,
+          "call": "ValueError",
+          "bindings": {
+            "value1": "name"
+          }
+        }
+      ]
+    },
+    {
+      "id": "server.e92a31c9addc",
+      "en": "{{value1}} must be an integer >= {{value2}}.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "flush/rules.py",
+          "line": 10,
+          "call": "ValueError",
+          "bindings": {
+            "value1": "name",
+            "value2": "minimum"
+          }
+        }
+      ]
+    },
+    {
+      "id": "server.d14f41050cce",
+      "en": "{{value1}} needs totals for one, two and three copies.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/scoring_rules.py",
+          "line": 26,
+          "call": "ValueError",
+          "bindings": {
+            "value1": "name"
+          }
+        }
+      ]
+    },
+    {
+      "id": "server.c6d98a0ef9e4",
+      "en": "{{value1}} requires exactly {{value2}} physical copies of one face.",
+      "ne": "",
+      "sources": [
+        {
+          "file": "marriage/melds.py",
+          "line": 39,
+          "call": "InvalidMeldError",
+          "bindings": {
+            "value1": "meld.meld_type.value",
+            "value2": "size"
+          }
+        }
+      ]
+    }
+  ],
+  "enums": [
+    {
+      "enum": "CommandName",
+      "code": "SHUFFLE_DECK",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 49
+    },
+    {
+      "enum": "CommandName",
+      "code": "CUT_DECK",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 50
+    },
+    {
+      "enum": "CommandName",
+      "code": "SKIP_CUT",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 51
+    },
+    {
+      "enum": "CommandName",
+      "code": "START_DISTRIBUTION",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 52
+    },
+    {
+      "enum": "CommandName",
+      "code": "ACCEPT_HAND",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 53
+    },
+    {
+      "enum": "CommandName",
+      "code": "CLAIM_REDEAL",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 54
+    },
+    {
+      "enum": "CommandName",
+      "code": "PLACE_BID",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 55
+    },
+    {
+      "enum": "CommandName",
+      "code": "PLAY_CARD",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 56
+    },
+    {
+      "enum": "ControllerAction",
+      "code": "PREPARE_DEAL",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 118
+    },
+    {
+      "enum": "ControllerAction",
+      "code": "COMPLETE_SHUFFLE",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 119
+    },
+    {
+      "enum": "ControllerAction",
+      "code": "ADVANCE_DISTRIBUTION",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 120
+    },
+    {
+      "enum": "EventName",
+      "code": "DEALER_ASSIGNED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 263
+    },
+    {
+      "enum": "EventName",
+      "code": "SHUFFLE_REQUESTED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 264
+    },
+    {
+      "enum": "EventName",
+      "code": "DECK_SHUFFLED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 265
+    },
+    {
+      "enum": "EventName",
+      "code": "CUT_REQUESTED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 266
+    },
+    {
+      "enum": "EventName",
+      "code": "CUT_COMPLETED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 267
+    },
+    {
+      "enum": "EventName",
+      "code": "DISTRIBUTION_REQUESTED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 268
+    },
+    {
+      "enum": "EventName",
+      "code": "DISTRIBUTION_STARTED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 269
+    },
+    {
+      "enum": "EventName",
+      "code": "CARD_DEALT",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 270
+    },
+    {
+      "enum": "EventName",
+      "code": "CARD_DISTRIBUTED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 271
+    },
+    {
+      "enum": "EventName",
+      "code": "DISTRIBUTION_COMPLETED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 272
+    },
+    {
+      "enum": "EventName",
+      "code": "HAND_REVIEW_REQUESTED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 273
+    },
+    {
+      "enum": "EventName",
+      "code": "HAND_ACCEPTED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 274
+    },
+    {
+      "enum": "EventName",
+      "code": "REDEAL_REQUESTED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 275
+    },
+    {
+      "enum": "EventName",
+      "code": "REDEAL_ELIGIBLE",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 276
+    },
+    {
+      "enum": "EventName",
+      "code": "BIDDING_STARTED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 277
+    },
+    {
+      "enum": "EventName",
+      "code": "BID_REQUESTED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 278
+    },
+    {
+      "enum": "EventName",
+      "code": "BID_PLACED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 279
+    },
+    {
+      "enum": "EventName",
+      "code": "BIDDING_COMPLETED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 280
+    },
+    {
+      "enum": "EventName",
+      "code": "PLAY_STARTED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 281
+    },
+    {
+      "enum": "EventName",
+      "code": "CARD_PLAYED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 282
+    },
+    {
+      "enum": "EventName",
+      "code": "TRICK_COMPLETED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 283
+    },
+    {
+      "enum": "EventName",
+      "code": "DEAL_COMPLETED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 284
+    },
+    {
+      "enum": "EventName",
+      "code": "MATCH_COMPLETED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 285
+    },
+    {
+      "enum": "EventName",
+      "code": "TURN_CHANGED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/callbreak/contracts.py",
+      "line": 286
+    },
+    {
+      "enum": "CommandName",
+      "code": "DEAL_CARDS",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 34
+    },
+    {
+      "enum": "CommandName",
+      "code": "CUT_DECK",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 35
+    },
+    {
+      "enum": "CommandName",
+      "code": "SKIP_CUT",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 36
+    },
+    {
+      "enum": "CommandName",
+      "code": "START_NEXT_ROUND",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 37
+    },
+    {
+      "enum": "CommandName",
+      "code": "START_GAME",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 38
+    },
+    {
+      "enum": "CommandName",
+      "code": "BET",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 39
+    },
+    {
+      "enum": "CommandName",
+      "code": "SEE_CARDS",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 40
+    },
+    {
+      "enum": "CommandName",
+      "code": "FOLD",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 41
+    },
+    {
+      "enum": "CommandName",
+      "code": "FOLD_FOR_LEAVE",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 42
+    },
+    {
+      "enum": "CommandName",
+      "code": "SHOW",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 43
+    },
+    {
+      "enum": "CommandName",
+      "code": "REVEAL_CARDS",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 44
+    },
+    {
+      "enum": "CommandName",
+      "code": "REQUEST_SIDE_SHOW",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 45
+    },
+    {
+      "enum": "CommandName",
+      "code": "ACCEPT_SIDE_SHOW",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 46
+    },
+    {
+      "enum": "CommandName",
+      "code": "DECLINE_SIDE_SHOW",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 47
+    },
+    {
+      "enum": "CommandName",
+      "code": "CAN_SIDE_SHOW",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 48
+    },
+    {
+      "enum": "CommandName",
+      "code": "GET_STATE",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 49
+    },
+    {
+      "enum": "CommandName",
+      "code": "GET_ALLOWED_ACTIONS",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 50
+    },
+    {
+      "enum": "CommandName",
+      "code": "CAN_SEE_CARDS",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 51
+    },
+    {
+      "enum": "CommandName",
+      "code": "CAN_SHOW",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 52
+    },
+    {
+      "enum": "CommandName",
+      "code": "GET_EVENTS",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 53
+    },
+    {
+      "enum": "EventName",
+      "code": "ROUND_STARTED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 152
+    },
+    {
+      "enum": "EventName",
+      "code": "DEAL_REQUESTED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 153
+    },
+    {
+      "enum": "EventName",
+      "code": "DECK_CUT",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 154
+    },
+    {
+      "enum": "EventName",
+      "code": "CUT_SKIPPED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 155
+    },
+    {
+      "enum": "EventName",
+      "code": "CARDS_DEALT",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 156
+    },
+    {
+      "enum": "EventName",
+      "code": "GAME_STARTED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 157
+    },
+    {
+      "enum": "EventName",
+      "code": "BOOT_COLLECTED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 158
+    },
+    {
+      "enum": "EventName",
+      "code": "TURN_CHANGED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 159
+    },
+    {
+      "enum": "EventName",
+      "code": "BET_PLACED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 160
+    },
+    {
+      "enum": "EventName",
+      "code": "CARDS_SEEN",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 161
+    },
+    {
+      "enum": "EventName",
+      "code": "PLAYER_FOLDED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 162
+    },
+    {
+      "enum": "EventName",
+      "code": "SHOW_REQUESTED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 163
+    },
+    {
+      "enum": "EventName",
+      "code": "ROUND_FINISHED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 164
+    },
+    {
+      "enum": "EventName",
+      "code": "SIDE_SHOW_REQUESTED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 165
+    },
+    {
+      "enum": "EventName",
+      "code": "SIDE_SHOW_DECLINED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 166
+    },
+    {
+      "enum": "EventName",
+      "code": "SIDE_SHOW_RESOLVED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 167
+    },
+    {
+      "enum": "EventName",
+      "code": "PLAYER_STATE",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 168
+    },
+    {
+      "enum": "EventName",
+      "code": "QUERY_RESULT",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/flush/contracts.py",
+      "line": 169
+    },
+    {
+      "enum": "CommandName",
+      "code": "START_GAME",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 84
+    },
+    {
+      "enum": "CommandName",
+      "code": "DRAW_CARD",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 85
+    },
+    {
+      "enum": "CommandName",
+      "code": "DISCARD_CARD",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 86
+    },
+    {
+      "enum": "CommandName",
+      "code": "DECLARE_TUNNELAS",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 87
+    },
+    {
+      "enum": "CommandName",
+      "code": "SHOW_INITIAL_MELDS",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 88
+    },
+    {
+      "enum": "CommandName",
+      "code": "SHOW_DUBLEES",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 89
+    },
+    {
+      "enum": "CommandName",
+      "code": "FINISH",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 90
+    },
+    {
+      "enum": "CommandName",
+      "code": "FOLD",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 91
+    },
+    {
+      "enum": "CommandName",
+      "code": "VALIDATE_MELD",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 92
+    },
+    {
+      "enum": "CommandName",
+      "code": "VALIDATE_INITIAL_MELDS",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 93
+    },
+    {
+      "enum": "CommandName",
+      "code": "VALIDATE_DUBLEES",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 94
+    },
+    {
+      "enum": "CommandName",
+      "code": "GET_STATE",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 95
+    },
+    {
+      "enum": "CommandName",
+      "code": "GET_ALLOWED_ACTIONS",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 96
+    },
+    {
+      "enum": "CommandName",
+      "code": "GET_MAAL",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 97
+    },
+    {
+      "enum": "CommandName",
+      "code": "CAN_SEE_MAAL",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 98
+    },
+    {
+      "enum": "CommandName",
+      "code": "READ_LAST_CARD",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 99
+    },
+    {
+      "enum": "CommandName",
+      "code": "HAS_EIGHTH_DUBLEE",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 100
+    },
+    {
+      "enum": "CommandName",
+      "code": "CAN_FINISH_NORMAL_HAND",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 101
+    },
+    {
+      "enum": "CommandName",
+      "code": "GET_EVENTS",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 102
+    },
+    {
+      "enum": "CommandName",
+      "code": "GET_SCORES",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 103
+    },
+    {
+      "enum": "EventName",
+      "code": "GAME_STARTED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 215
+    },
+    {
+      "enum": "EventName",
+      "code": "TURN_CHANGED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 216
+    },
+    {
+      "enum": "EventName",
+      "code": "DISCARD_PILE_RECYCLED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 217
+    },
+    {
+      "enum": "EventName",
+      "code": "CARD_DRAWN",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 218
+    },
+    {
+      "enum": "EventName",
+      "code": "CARD_DISCARDED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 219
+    },
+    {
+      "enum": "EventName",
+      "code": "MELDS_SHOWN",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 220
+    },
+    {
+      "enum": "EventName",
+      "code": "SEVEN_DUBLEES_SHOWN",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 221
+    },
+    {
+      "enum": "EventName",
+      "code": "TIPLU_REVEALED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 222
+    },
+    {
+      "enum": "EventName",
+      "code": "PLAYER_SAW_MAAL",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 223
+    },
+    {
+      "enum": "EventName",
+      "code": "PLAYER_FINISHED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 224
+    },
+    {
+      "enum": "EventName",
+      "code": "TUNNELAS_DECLARED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 225
+    },
+    {
+      "enum": "EventName",
+      "code": "PLAYER_FOLDED",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 226
+    },
+    {
+      "enum": "EventName",
+      "code": "PLAYER_STATE",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 227
+    },
+    {
+      "enum": "EventName",
+      "code": "QUERY_RESULT",
+      "label_en": "",
+      "label_ne": "",
+      "file": "app/adapters/marriage/contracts.py",
+      "line": 228
+    },
+    {
+      "enum": "Phase",
+      "code": "AWAITING_DEAL",
+      "label_en": "",
+      "label_ne": "",
+      "file": "callbreak/game.py",
+      "line": 12
+    },
+    {
+      "enum": "Phase",
+      "code": "AWAITING_SHUFFLE",
+      "label_en": "",
+      "label_ne": "",
+      "file": "callbreak/game.py",
+      "line": 13
+    },
+    {
+      "enum": "Phase",
+      "code": "SHUFFLING",
+      "label_en": "",
+      "label_ne": "",
+      "file": "callbreak/game.py",
+      "line": 14
+    },
+    {
+      "enum": "Phase",
+      "code": "AWAITING_CUT",
+      "label_en": "",
+      "label_ne": "",
+      "file": "callbreak/game.py",
+      "line": 15
+    },
+    {
+      "enum": "Phase",
+      "code": "AWAITING_DISTRIBUTION",
+      "label_en": "",
+      "label_ne": "",
+      "file": "callbreak/game.py",
+      "line": 16
+    },
+    {
+      "enum": "Phase",
+      "code": "HAND_REVIEW",
+      "label_en": "",
+      "label_ne": "",
+      "file": "callbreak/game.py",
+      "line": 17
+    },
+    {
+      "enum": "Phase",
+      "code": "AWAITING_REDEAL",
+      "label_en": "",
+      "label_ne": "",
+      "file": "callbreak/game.py",
+      "line": 18
+    },
+    {
+      "enum": "Phase",
+      "code": "BIDDING",
+      "label_en": "",
+      "label_ne": "",
+      "file": "callbreak/game.py",
+      "line": 19
+    },
+    {
+      "enum": "Phase",
+      "code": "PLAYING",
+      "label_en": "",
+      "label_ne": "",
+      "file": "callbreak/game.py",
+      "line": 20
+    },
+    {
+      "enum": "Phase",
+      "code": "DEAL_COMPLETE",
+      "label_en": "",
+      "label_ne": "",
+      "file": "callbreak/game.py",
+      "line": 21
+    },
+    {
+      "enum": "Phase",
+      "code": "MATCH_COMPLETE",
+      "label_en": "",
+      "label_ne": "",
+      "file": "callbreak/game.py",
+      "line": 22
+    },
+    {
+      "enum": "GameStatus",
+      "code": "waiting",
+      "label_en": "",
+      "label_ne": "",
+      "file": "flush/enums.py",
+      "line": 5
+    },
+    {
+      "enum": "GameStatus",
+      "code": "awaiting_deal",
+      "label_en": "",
+      "label_ne": "",
+      "file": "flush/enums.py",
+      "line": 6
+    },
+    {
+      "enum": "GameStatus",
+      "code": "awaiting_cut",
+      "label_en": "",
+      "label_ne": "",
+      "file": "flush/enums.py",
+      "line": 7
+    },
+    {
+      "enum": "GameStatus",
+      "code": "in_progress",
+      "label_en": "",
+      "label_ne": "",
+      "file": "flush/enums.py",
+      "line": 8
+    },
+    {
+      "enum": "GameStatus",
+      "code": "finished",
+      "label_en": "",
+      "label_ne": "",
+      "file": "flush/enums.py",
+      "line": 9
+    },
+    {
+      "enum": "PlayerStatus",
+      "code": "active",
+      "label_en": "",
+      "label_ne": "",
+      "file": "flush/enums.py",
+      "line": 13
+    },
+    {
+      "enum": "PlayerStatus",
+      "code": "folded",
+      "label_en": "",
+      "label_ne": "",
+      "file": "flush/enums.py",
+      "line": 14
+    },
+    {
+      "enum": "PlayerStatus",
+      "code": "out",
+      "label_en": "",
+      "label_ne": "",
+      "file": "flush/enums.py",
+      "line": 15
+    },
+    {
+      "enum": "Visibility",
+      "code": "blind",
+      "label_en": "",
+      "label_ne": "",
+      "file": "flush/enums.py",
+      "line": 19
+    },
+    {
+      "enum": "Visibility",
+      "code": "seen",
+      "label_en": "",
+      "label_ne": "",
+      "file": "flush/enums.py",
+      "line": 20
+    },
+    {
+      "enum": "AceSequencePolicy",
+      "code": "akq_first_a23_second",
+      "label_en": "",
+      "label_ne": "",
+      "file": "flush/enums.py",
+      "line": 24
+    },
+    {
+      "enum": "AceSequencePolicy",
+      "code": "a23_first",
+      "label_en": "",
+      "label_ne": "",
+      "file": "flush/enums.py",
+      "line": 25
+    },
+    {
+      "enum": "AceSequencePolicy",
+      "code": "a23_lowest",
+      "label_en": "",
+      "label_ne": "",
+      "file": "flush/enums.py",
+      "line": 26
+    },
+    {
+      "enum": "TiePolicy",
+      "code": "requester_loses",
+      "label_en": "",
+      "label_ne": "",
+      "file": "flush/enums.py",
+      "line": 30
+    },
+    {
+      "enum": "TiePolicy",
+      "code": "split",
+      "label_en": "",
+      "label_ne": "",
+      "file": "flush/enums.py",
+      "line": 31
+    },
+    {
+      "enum": "TerminationReason",
+      "code": "last_player_remaining",
+      "label_en": "",
+      "label_ne": "",
+      "file": "flush/enums.py",
+      "line": 35
+    },
+    {
+      "enum": "TerminationReason",
+      "code": "show",
+      "label_en": "",
+      "label_ne": "",
+      "file": "flush/enums.py",
+      "line": 36
+    },
+    {
+      "enum": "TerminationReason",
+      "code": "show_fold",
+      "label_en": "",
+      "label_ne": "",
+      "file": "flush/enums.py",
+      "line": 37
+    },
+    {
+      "enum": "CardType",
+      "code": "standard",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 6
+    },
+    {
+      "enum": "CardType",
+      "code": "man",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 7
+    },
+    {
+      "enum": "GameStatus",
+      "code": "waiting",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 11
+    },
+    {
+      "enum": "GameStatus",
+      "code": "in_progress",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 12
+    },
+    {
+      "enum": "GameStatus",
+      "code": "finished",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 13
+    },
+    {
+      "enum": "TurnPhase",
+      "code": "must_draw",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 17
+    },
+    {
+      "enum": "TurnPhase",
+      "code": "must_discard",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 18
+    },
+    {
+      "enum": "DrawSource",
+      "code": "stock",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 22
+    },
+    {
+      "enum": "DrawSource",
+      "code": "discard",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 23
+    },
+    {
+      "enum": "ActionKind",
+      "code": "draw",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 27
+    },
+    {
+      "enum": "ActionKind",
+      "code": "discard",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 28
+    },
+    {
+      "enum": "ActionKind",
+      "code": "declare_tunnelas",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 29
+    },
+    {
+      "enum": "ActionKind",
+      "code": "show_initial_melds",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 30
+    },
+    {
+      "enum": "ActionKind",
+      "code": "show_dublees",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 31
+    },
+    {
+      "enum": "ActionKind",
+      "code": "finish",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 32
+    },
+    {
+      "enum": "ActionKind",
+      "code": "fold",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 33
+    },
+    {
+      "enum": "MeldType",
+      "code": "pure_sequence",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 37
+    },
+    {
+      "enum": "MeldType",
+      "code": "tunnela",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 38
+    },
+    {
+      "enum": "MeldType",
+      "code": "dublee",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 39
+    },
+    {
+      "enum": "MeldType",
+      "code": "sequence",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 40
+    },
+    {
+      "enum": "MeldType",
+      "code": "set",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 41
+    },
+    {
+      "enum": "QualificationRoute",
+      "code": "unqualified",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 45
+    },
+    {
+      "enum": "QualificationRoute",
+      "code": "normal",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 46
+    },
+    {
+      "enum": "QualificationRoute",
+      "code": "dublee",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 47
+    },
+    {
+      "enum": "AceSequencePolicy",
+      "code": "low_only",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 51
+    },
+    {
+      "enum": "AceSequencePolicy",
+      "code": "low_or_high",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 52
+    },
+    {
+      "enum": "MaalNeighborPolicy",
+      "code": "cyclic",
+      "label_en": "",
+      "label_ne": "",
+      "file": "marriage/enums.py",
+      "line": 56
+    }
+  ]
+}

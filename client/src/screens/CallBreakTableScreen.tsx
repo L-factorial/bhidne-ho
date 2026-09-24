@@ -1,3 +1,5 @@
+import { ui } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { AppHeader } from '../components/AppHeader';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
@@ -12,6 +14,7 @@ const sampleHand = ['A♠', 'K♠', 'J♠', '8♠', '3♠', 'K♥', '9♥', '4�
 export function CallBreakTableScreen({ capacity, names, tableName, onBack }: {
   capacity: 4 | 5; names: string[]; tableName: string; onBack: () => void;
 }) {
+  useUiLanguage();
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
@@ -21,7 +24,7 @@ export function CallBreakTableScreen({ capacity, names, tableName, onBack }: {
   const hand = sampleHand.slice(0, capacity === 4 ? 13 : 10).filter(card => card !== played);
   // Only the local hand exists in this fixture; opponents expose card counts, never faces.
   const players: TablePlayer[] = Array.from({ length: capacity }, (_, index) => ({
-    id: `seat-${index}`, name: names[index] || `Player ${index + 1}`, bid: index === 0 ? 4 : 3,
+    id: `seat-${index}`, name: names[index] || ui("common.player_number", { "number": index + 1 }), bid: index === 0 ? 4 : 3,
     tricks: 0, cardsRemaining: capacity === 4 ? 13 : 10,
   }));
   const viewer = players.find(player => player.name === 'You') || players[0];
@@ -36,28 +39,28 @@ export function CallBreakTableScreen({ capacity, names, tableName, onBack }: {
       paddingLeft: Math.max(insets.left, 12), paddingRight: Math.max(insets.right, 12),
     }]}>
       <View style={[styles.content, { width }]}>
-        <AppHeader title="Call Break" actions={<Pressable accessibilityRole="button" onPress={onBack} style={styles.linkButton}><Text style={styles.link}>← Back to lobby</Text></Pressable>} />
+        <AppHeader title={ui("rooms.call_break")} actions={<Pressable accessibilityRole="button" onPress={onBack} style={styles.linkButton}><Text style={styles.link}>{ui("common.back_lobby_arrow")}</Text></Pressable>} />
         <Text accessibilityRole="header" style={styles.title}>{tableName}</Text>
-        <Text style={styles.meta}>Call Break · Deal 1 of 5 · Spades trump</Text>
+        <Text style={styles.meta}>{ui("callbreak.preview_deal")}</Text>
         <DealStatusPanel players={players} viewerId={viewer.id} activePlayerId={played ? nextPlayer.id : viewer.id}
           cardsPlayed={plays.length} paused={!!played} />
-        <Text accessibilityLiveRegion="polite" style={styles.turn}>{played ? 'Card placed · preview paused' : 'Your turn · choose a card'}</Text>
+        <Text accessibilityLiveRegion="polite" style={styles.turn}>{played ? ui("common.card_placed_preview_paused") : ui("callbreak.your_turn_choose_a_card")}</Text>
         <CardTable players={players} viewerId={viewer.id} activePlayerId={played ? nextPlayer.id : viewer.id} width={width} plays={plays} />
-        <View style={styles.handHeader}><Text style={styles.handTitle}>Your hand</Text><Text style={styles.meta}>{hand.length} cards · Only visible to you</Text></View>
-        <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.hand} accessibilityLabel="Your face-up cards">
-          {hand.map(card => <Pressable key={card} accessibilityRole="button" accessibilityLabel={`Select ${card}`}
+        <View style={styles.handHeader}><Text style={styles.handTitle}>{ui("common.your_hand")}</Text><Text style={styles.meta}>{ui("common.count_cards_only_visible_to_you", { "count": hand.length })}</Text></View>
+        <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.hand} accessibilityLabel={ui("common.your_face_up_cards")}>
+          {hand.map(card => <Pressable key={card} accessibilityRole="button" accessibilityLabel={ui("common.select_card", { "card": card })}
             accessibilityState={{ selected: selected === card, disabled: !!played }} disabled={!!played} onPress={() => setSelected(card)}
             style={[styles.card, selected === card && styles.selectedCard]}>
             <Text style={[styles.rank, /[♥♦]/.test(card) && styles.red]}>{card.slice(0, -1)}</Text>
             <Text style={[styles.suit, /[♥♦]/.test(card) && styles.red]}>{card.slice(-1)}</Text>
           </Pressable>)}
         </ScrollView>
-        <Text style={styles.hint}>Swipe your hand to see every card.</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel={played ? 'Reset table preview' : 'Place selected card'}
+        <Text style={styles.hint}>{ui("common.swipe_your_hand_to_see_every_card")}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={played ? ui("common.reset_table_preview") : ui("common.place_selected_card")}
           accessibilityState={{ disabled: !played && !selected }} disabled={!played && !selected}
           onPress={() => { if (played) { setPlayed(null); setSelected(null); } else { setPlayed(selected); setSelected(null); } }}
           style={[styles.action, !played && !selected && { opacity: 0.5 }]}>
-          <Text style={styles.actionText}>{played ? 'Reset table preview' : selected ? `Place ${selected} on the table` : 'Select a card to place'}</Text>
+          <Text style={styles.actionText}>{played ? ui("common.reset_table_preview") : selected ? ui("common.place_card_on_the_table", { "card": selected }) : ui("common.select_a_card_to_place")}</Text>
         </Pressable>
         <Text style={styles.notice}>Layout preview with sample cards and seats. Card placement is local; turns and game rules aren’t connected yet.</Text>
       </View>

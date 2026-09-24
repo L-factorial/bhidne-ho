@@ -1,3 +1,5 @@
+import { ui, uiLabel } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { PlayerAvatar } from './PlayerAvatar';
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,9 +8,10 @@ import { fonts, useTheme } from '../theme';
 
 export type ResultRow = { id: string; name: string; avatarUrl?: string; own?: boolean; winner?: boolean; values: { text: string; amount?: number }[] };
 
-export function RoundResultsTable({ title = 'Round complete!', subtitle, columns, rows, testID = 'round-results-table', icon = 'trophy-outline', playerHeading = 'Player', compact = false }: {
+export function RoundResultsTable({ title = ui('flush.round_complete') + '!', subtitle, columns, rows, testID = 'round-results-table', icon = 'trophy-outline', playerHeading = ui("common.player"), compact = false }: {
   compact?: boolean; icon?: 'trophy-outline' | 'receipt-outline'; playerHeading?: string; title?: string; subtitle?: string; columns: string[]; rows: ResultRow[]; testID?: string;
 }) {
+  useUiLanguage();
   const { colors: c } = useTheme();
   const [width, setWidth] = useState(0);
   const cellWidth = columns.length === 1 ? 88 : columns.length > 3 ? 48 : 58;
@@ -22,13 +25,13 @@ export function RoundResultsTable({ title = 'Round complete!', subtitle, columns
       <View style={{ width: Math.max(width - 2, 132 + columns.length * cellWidth) }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: c.surfaceRaised, paddingVertical: 12 }}>
           <Text style={{ flex: 1, minWidth: 132, paddingLeft: 12, color: c.textMuted, fontFamily: fonts.medium, fontSize: 12 }}>{playerHeading}</Text>
-          {columns.map(column => <Text key={column} style={{ width: cellWidth, textAlign: 'center', fontFamily: fonts.medium, fontSize: 11, color: c.textMuted }}>{column}</Text>)}
+          {columns.map(column => <Text key={column} style={{ width: cellWidth, textAlign: 'center', fontFamily: fonts.medium, fontSize: 11, color: c.textMuted }}>{uiLabel(column)}</Text>)}
         </View>
         {rows.map(row => <View key={row.id} testID={`result-player-${row.id}`} style={{ flexDirection: 'row', alignItems: 'center', minHeight: 64, borderTopWidth: 1, borderColor: c.borderSubtle, backgroundColor: row.own ? c.resultOwnSurface : c.surface }}>
           <View style={{ flex: 1, minWidth: 132, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <PlayerAvatar uri={row.avatarUrl} />
-            <View style={{ flex: 1, paddingVertical: 8 }}><Text numberOfLines={2} style={{ fontFamily: fonts.medium, color: c.text, fontSize: 12 }}>{row.name}{row.own ? ' · You' : ''}</Text>
-              {row.winner && <Text style={{ fontFamily: fonts.body, color: c.success, fontSize: 10 }}>Winner</Text>}</View>
+            <View style={{ flex: 1, paddingVertical: 8 }}><Text numberOfLines={2} style={{ fontFamily: fonts.medium, color: c.text, fontSize: 12 }}>{row.name}{row.own ? ` · ${ui('common.you')}` : ''}</Text>
+              {row.winner && <Text style={{ fontFamily: fonts.body, color: c.success, fontSize: 10 }}>{ui("marriage.winner")}</Text>}</View>
           </View>
           {row.values.map((value, index) => <Text key={index} style={{ width: cellWidth, paddingHorizontal: 2, textAlign: 'center', fontFamily: fonts.medium, fontSize: 13, fontVariant: ['tabular-nums'], color: value.amount === undefined || value.amount === 0 ? c.text : value.amount < 0 ? c.danger : c.success }}>{value.text}</Text>)}
         </View>)}

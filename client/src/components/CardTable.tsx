@@ -1,3 +1,5 @@
+import { ui } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, StyleSheet, Text, View } from 'react-native';
 import { PlayerSeat } from './PlayerSeat';
@@ -15,6 +17,7 @@ type Props = {
 };
 
 export function CardTable({ players, viewerId, activePlayerId, width, plays, pendingBidPlayerId, dealerId, winnerPlayerId, collecting = false, collectionKey, onPokePlayer, onPokeTable, centerControl, compact = false, showScores = true }: Props) {
+  useUiLanguage();
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const progress = useRef(new Animated.Value(0)).current;
@@ -43,13 +46,13 @@ export function CardTable({ players, viewerId, activePlayerId, width, plays, pen
       const winner = layout.positions[winnerIndex];
       return <View testID="current-trick-area" style={{ position: 'absolute', left: layout.center.x - 72, width: 144, ...(centerControl ? { top: 0, bottom: 0, justifyContent: 'center' } : { top: layout.center.y - 57, height: 114 }) }}>
         {centerControl || <>
-          {!plays.length && <Text style={[styles.empty, { textAlign: 'center', paddingTop: 42, fontSize: 12 }]}>Current trick</Text>}
+          {!plays.length && <Text style={[styles.empty, { textAlign: 'center', paddingTop: 42, fontSize: 12 }]}>{ui("callbreak.current_trick")}</Text>}
           {plays.map((play, playIndex) => {
             const index = ordered.findIndex(player => player.id === play.playerId);
             const player = ordered[index];
             const columns = ordered.length > 4 ? 3 : 2;
             const x = 72 + (playIndex % columns - (columns - 1) / 2) * 46, y = 28 + Math.floor(playIndex / columns) * 58;
-            return <View key={play.playerId} accessibilityLabel={`${player?.id === viewerId ? 'You' : player?.name} played ${play.card}${playIndex === 0 ? ', led this trick' : ''}`}
+            return <View key={play.playerId} accessibilityLabel={`${player?.id === viewerId ? ui("common.you") : player?.name} played ${play.card}${playIndex === 0 ? ', led this trick' : ''}`}
               style={{ position: 'absolute', left: x - 20, top: y - 28 }}>
               <Animated.View testID={play.playerId === winnerPlayerId ? 'winning-card' : 'trick-card'} style={[styles.playedCard,
                 play.playerId === winnerPlayerId && { borderWidth: 3, borderColor: colors.cardSelectedBorder, backgroundColor: colors.cardSelected },
@@ -58,7 +61,7 @@ export function CardTable({ players, viewerId, activePlayerId, width, plays, pen
                   { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, winner ? winner.y - (layout.center.y - 57 + y) : 0] }) },
                   { scale: progress.interpolate({ inputRange: [0, 1], outputRange: [1, .35] }) }] }]}>
                 <Text style={[styles.playedText, /[♥♦]/.test(play.card) && styles.red, play.card.endsWith('♣') && styles.club]}>{play.card}</Text>
-                <Text style={styles.playOrder}>{play.playerId === winnerPlayerId ? 'Won' : playIndex === 0 ? 'Led' : playIndex + 1}</Text>
+                <Text style={styles.playOrder}>{play.playerId === winnerPlayerId ? ui("callbreak.won") : playIndex === 0 ? ui("callbreak.led") : playIndex + 1}</Text>
               </Animated.View>
             </View>;
           })}

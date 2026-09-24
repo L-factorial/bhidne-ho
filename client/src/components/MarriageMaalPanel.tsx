@@ -1,3 +1,5 @@
+import { ui } from '../i18n/copy.ts';
+import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
@@ -13,6 +15,7 @@ export function MarriageMaalPanel({ hand, shown, unlocked, maal, enabled, visibl
   enabled: boolean; visible: boolean; busy: boolean; actions: string[]; preview: boolean; setPreview: (value:boolean)=>void;
   arrangement: MarriageArrangement; error: string; submit:(command:string,payload:object)=>void;
 }) {
+  useUiLanguage();
   const {colors:c}=useTheme();
   const key=hand.map(card=>card.card_id).sort().join(',')+'|'+shown.flatMap(g=>g.card_ids).sort().join(',');
   const [result,setResult]=useState<{key:string;choices:MaalChoice[]}>({key:'',choices:[]});
@@ -35,7 +38,7 @@ export function MarriageMaalPanel({ hand, shown, unlocked, maal, enabled, visibl
   const button=(label:string,onPress:()=>void,disabled=false,primary=false)=><Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled}} disabled={disabled} onPress={onPress}
     style={({pressed})=>({...gameButtonStyle(c,primary?'primary':'secondary',pressed),minHeight:44,justifyContent:'center',opacity:disabled?0.45:1})}><Text style={{color:primary?c.onPrimary:c.onTableHeader,fontFamily:fonts.medium}}>{label}</Text></Pressable>;
   if (!preview) {
-    const label=unlocked?'View Maal':!visible?'Reveal cards to check Maal':checking?'Checking Maal…':eligible?(canShow?'Maal eligible · Show for Maal':'Maal eligible · View options'):'Maal not eligible';
+    const label=unlocked?ui("marriage.view_maal"):!visible?ui("marriage.reveal_cards_to_check_maal"):checking?ui("marriage.checking_maal"):eligible?(canShow?ui("marriage.maal_eligible_show_for_maal"):ui("marriage.maal_eligible_view_options")):ui("marriage.maal_not_eligible");
     return <View testID="marriage-maal-eligibility" style={{borderRadius:12,borderWidth:1,borderColor:eligible||unlocked?c.accent:c.border,overflow:'hidden'}}>
       <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled:unlocked? !visible : !canPreview}} disabled={unlocked?!visible:!canPreview} onPress={()=>setPreview(true)} style={{minHeight:48,padding:10,flexDirection:'row',alignItems:'center',gap:8,opacity:eligible||unlocked?1:0.5}}>
         <Ionicons name={eligible||unlocked?'bulb':'bulb-outline'} size={22} color={eligible||unlocked?c.accent:c.textMuted}/>
@@ -49,32 +52,32 @@ export function MarriageMaalPanel({ hand, shown, unlocked, maal, enabled, visibl
   return <View testID="marriage-maal-preview" style={{gap:12}}
     onTouchStart={e=>{touch.current={x:e.nativeEvent.pageX,y:e.nativeEvent.pageY};}}
     onTouchEnd={e=>{const dx=e.nativeEvent.pageX-touch.current.x,dy=e.nativeEvent.pageY-touch.current.y;if(!busy&&Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.5)setPage(Math.max(0,Math.min(options.length-1,index+(dx<0?1:-1))));}}>
-    {button('Back to your cards',()=>setPreview(false))}
+    {button(ui("common.back_to_your_cards"),()=>setPreview(false))}
     {unlocked && maal ? <>
-      <Text style={text}>Maal</Text>
-      <Text style={text}>Tiplu {marriageFace(maal.tiplu)} · Jhiplu {marriageFace(maal.jhiplu)} · Poplu {marriageFace(maal.poplu)}</Text>
+      <Text style={text}>{ui("marriage.maal")}</Text>
+      <Text style={text}>{ui("common.tiplu_tiplu_jhiplu_jhiplu_poplu_poplu", { "tiplu": marriageFace(maal.tiplu), "jhiplu": marriageFace(maal.jhiplu), "poplu": marriageFace(maal.poplu) })}</Text>
     </> : <>
       <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8}}>
-        {button('Previous option',()=>setPage(index-1),busy||checking||index===0)}
-        <Text accessibilityLiveRegion="polite" style={text}>{checking?'Checking Maal…':`Option ${options.length?index+1:0} of ${options.length}`}</Text>
-        {button('Next option',()=>setPage(index+1),busy||checking||index>=options.length-1)}
+        {button(ui("marriage.previous_option"),()=>setPage(index-1),busy||checking||index===0)}
+        <Text accessibilityLiveRegion="polite" style={text}>{checking?ui("marriage.checking_maal"):ui("marriage.option_number_of_total", { "number": options.length?index+1:0, "total": options.length })}</Text>
+        {button(ui("marriage.next_option"),()=>setPage(index+1),busy||checking||index>=options.length-1)}
       </View>
       {choice && <>
-        <Text style={{...text,color:c.accent}}>{choice.route==='normal'?'Sequence / Tunnela':'Seven Dublees'}</Text>
-        {!!shown.length && <><Text style={text}>Already shown</Text><MarriageMeldCards groups={shown}/></>}
-        <Text style={text}>Cards to show · {ids.size}</Text>
+        <Text style={{...text,color:c.accent}}>{choice.route==='normal'?ui("marriage.sequence_tunnela"):ui("marriage.seven_dublees")}</Text>
+        {!!shown.length && <><Text style={text}>{ui("marriage.already_shown")}</Text><MarriageMeldCards groups={shown}/></>}
+        <Text style={text}>{ui("marriage.cards_to_show_count", { "count": ids.size })}</Text>
         <MarriageMeldCards groups={choice.groups}/>
-        <Text style={text}>Remaining in your hand · {remaining.length} cards</Text>
+        <Text style={text}>{ui("marriage.remaining_in_your_hand_count_cards", { "count": remaining.length })}</Text>
         <View testID="marriage-maal-remaining" style={{flexDirection:'row',flexWrap:'wrap',gap:4}}>
           {arrangeMarriageHand(remaining,arrangement).flatMap(group=>group.cards).map(card=><View key={card.card_id} accessibilityLabel={card.card_id} style={{padding:8,borderRadius:6,backgroundColor:c.cardFace,borderWidth:1,borderColor:c.cardBorder}}>
             <Text style={{color:card.suit==='H'||card.suit==='D'?c.cardRed:c.cardInk}}>{marriageFace(card)}</Text>
           </View>)}
         </View>
       </>}
-      {!checking&&!choice&&<Text style={text}>Your hand no longer qualifies. Go back to your cards.</Text>}
+      {!checking&&!choice&&<Text style={text}>{ui("marriage.your_hand_no_longer_qualifies_go_back_to_your_cards")}</Text>}
       {!!error&&<Text accessibilityRole="alert" style={{color:c.danger}}>{error}</Text>}
-      {button(busy?'Showing…':'Confirm & show',()=>{if(command&&choice&&canShow){submitted.current=true;submit(command,command==='SHOW_DUBLEES'?{pairs:choice.groups}:{melds:choice.groups});}},!canShow||checking,true)}
-      {!!choice&&!canShow&&!busy&&<Text style={{...text,color:c.textMuted}}>You can show after drawing on your turn.</Text>}
+      {button(busy?'Showing…':ui("marriage.confirm_show"),()=>{if(command&&choice&&canShow){submitted.current=true;submit(command,command==='SHOW_DUBLEES'?{pairs:choice.groups}:{melds:choice.groups});}},!canShow||checking,true)}
+      {!!choice&&!canShow&&!busy&&<Text style={{...text,color:c.textMuted}}>{ui("marriage.you_can_show_after_drawing_on_your_turn")}</Text>}
     </>}
   </View>;
 }
