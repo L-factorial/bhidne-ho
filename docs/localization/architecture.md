@@ -37,11 +37,11 @@ Keys are checked by TypeScript. Keep keys stable when changing the text. Keep `{
 
 ## Language preference
 
-`LanguageProvider.tsx` owns `en` / `ne`, saved under `bhidne.language`. A saved choice wins on the next visit; otherwise the device locale selects Nepali for `ne` and English for other languages. An explicit selection made during storage hydration wins over the old saved value. Storage writes are serialized.
+`LanguageProvider.tsx` owns `en` / `ne`, saved under `bhidne.language`. A saved choice wins on the next visit; otherwise English is the default regardless of device locale. An explicit selection made during storage hydration wins over the old saved value. Storage writes are serialized.
 
 Language and visual table theme are independent. Selecting Nepali changes wording, while selecting Nepali Heritage changes appearance. Switching either preserves the current page and form state.
 
-`core.ts` initializes the shared i18next instance with English fallback. It has no Expo or React Native dependency, so presentation helpers and Node tests can use it. `index.ts` connects that instance to React and device locale detection.
+`core.ts` initializes the shared i18next instance with English fallback. It has no Expo or React Native dependency, so presentation helpers and Node tests can use it. `index.ts` connects that instance to React and defines the English default.
 
 ## Validation
 

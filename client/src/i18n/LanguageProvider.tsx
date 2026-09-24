@@ -1,12 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import i18n, { deviceLanguage, type AppLanguage } from './index';
+import i18n, { defaultLanguage, type AppLanguage } from './index';
 
 const storageKey = 'bhidne.language';
-const LanguageContext = createContext({ language: 'en' as AppLanguage, setLanguage: (_: AppLanguage) => {} });
+const LanguageContext = createContext({ language: defaultLanguage, setLanguage: (_: AppLanguage) => {} });
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<AppLanguage>(deviceLanguage);
+  const [language, setLanguageState] = useState<AppLanguage>(defaultLanguage);
   const [hydrated, setHydrated] = useState(false);
   const changed = useRef(false);
   const writes = useRef(Promise.resolve());
