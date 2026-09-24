@@ -245,7 +245,7 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
     act={(command, payload) => lobbyAction(`/table/${command}`, payload)} start={() => lobbyAction('/start')} /> : null;
   const leaveControl = !snapshot?.table?.current_user.can_leave_seat && !snapshot?.table?.current_user.can_abandon_match && snapshot?.your_player_id
     ? <Pressable accessibilityRole="button" accessibilityLabel={snapshot.game_type === 'flush' || snapshot.game_type === 'marriage' ? 'Leave Table' : `Leave ${noun}`} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => void lobbyAction('/leave')} style={{ minHeight: 44, padding: 10, justifyContent: 'center' }}><Text style={[styles.text, live && open && { color: colors.text }, { color: colors.danger }]}>{snapshot.game_type === 'flush' || snapshot.game_type === 'marriage' ? 'Leave Table' : `Leave ${noun}`}</Text></Pressable> : null;
-  const ruleReview = snapshot?.rule_proposal && <RuleProposal key={snapshot.rule_proposal.id} proposal={snapshot.rule_proposal} busy={busy} vote={accept => void lobbyAction('/rule-vote', { proposal_id: snapshot.rule_proposal!.id, accept })} />;
+  const ruleReview = snapshot?.rule_proposal && <RuleProposal key={snapshot.rule_proposal.id} proposal={snapshot.rule_proposal} busy={busy} userId={userId} error={error} vote={accept => void lobbyAction('/rule-vote', { proposal_id: snapshot.rule_proposal!.id, accept })} />;
   async function eligiblePlayers(players: InvitePlayer[], signal?: AbortSignal) {
     if (!players.length) return [];
     const eligibility = await request<{ user_id: string; eligible: boolean; reason?: string | null }[]>(
@@ -323,6 +323,7 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
     </Animated.View>}
     {!!actionNotice && !open && <Text accessibilityLiveRegion="polite" style={styles.note}>{actionNotice}</Text>}
     {!!error && !open && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
+    {!open && snapshot?.status !== 'ended' && snapshot?.rule_proposal?.status === 'PENDING' && ruleReview}
     {!open && <PokeOverlay pokes={pokes} matchId={snapshot?.match_id} />}
     <Modal transparent visible={!!seatConflict} animationType="fade" onRequestClose={() => setSeatConflict(null)}>
       <View style={styles.overlay}><View accessibilityViewIsModal style={styles.modal}><View style={styles.body}>
@@ -363,9 +364,9 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
           </View>}
           {(!connected || !synced) && <Text accessibilityRole="alert" style={styles.connectionNotice}>{connectionMessage || (!connected ? 'Reconnecting… Your seat is saved.' : 'Updating game…')}</Text>}
           {!!actionNotice && <Text accessibilityLiveRegion="polite" style={styles.connectionNotice}>{actionNotice}</Text>}
-          {snapshot.status !== 'ended' && snapshot.rule_proposal?.status === 'PENDING' && ruleReview}
         </ScrollView>
         {chat}
+        {snapshot.status !== 'ended' && snapshot.rule_proposal?.status === 'PENDING' && ruleReview}
         </TableSocialProvider></ThemeContext.Provider>
       </View></View> :
       <KeyboardFrame style={[styles.overlay, { paddingVertical: 16 }]}><View accessibilityViewIsModal style={styles.modal}>

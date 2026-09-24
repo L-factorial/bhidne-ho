@@ -46,19 +46,17 @@ async function api(path, user, body) {
         return api(root + '/flush-settings', users[0], { ...body, rules_revision: 0, rules: { ...initial.flush_settings.rules, initial_blind_bet: 7 } });
       }
       await propose();
-      for (const page of [player, viewer]) await page.getByRole('button', { name: 'Review rule change', exact: true }).click();
+      await player.getByTestId('rule-proposal-dialog').waitFor();
+      await viewer.getByRole('button', { name: 'Review rule change', exact: true }).click();
       assert.equal(await viewer.getByRole('button', { name: 'Accept rules', exact: true }).count(), 0);
       await viewer.getByRole('button', { name: 'Close rule review', exact: true }).click();
       await player.getByRole('button', { name: 'Reject rules', exact: true }).click();
-      await player.getByText(/^rejected ·/).waitFor();
-      await player.getByRole('button', { name: 'Close rule review', exact: true }).click();
+      await player.getByTestId('rule-proposal-dialog').waitFor({state:'hidden'});
       const proposal = (await propose()).rule_proposal;
-      await player.getByText(/proposed rule changes · pending/).waitFor();
-      await player.getByRole('button', { name: 'Review rule change', exact: true }).click();
+      await player.getByTestId('rule-proposal-dialog').waitFor();
       await player.getByRole('button', { name: 'Accept rules', exact: true }).click();
       for (const user of users.slice(2, count)) await api(root + '/rule-vote', user, { ...body, proposal_id: proposal.id, accept: true });
-      await player.getByText(/^accepted · \d\/\d accepted/).waitFor();
-      await player.getByRole('button', { name: 'Close rule review', exact: true }).click();
+      await player.getByTestId('rule-proposal-dialog').waitFor({state:'hidden'});
       if (kind !== 'callbreak') await api(root + '/table/lock', users[0], body);
       const current = await api(root, users[0]);
       await api(root + '/start', users[0], { ...body, rules_revision: current.flush_settings?.rules_revision ?? 0 });
