@@ -50,8 +50,8 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const [poke, setPoke] = useState<number | null | undefined>(undefined);
   const pub = snapshot.marriage?.public, mine = snapshot.marriage?.private;
   const hand = mine?.hand || [], actions = mine?.actions;
-  // Revealing is local: another player's move must not expose this hand.
-  const { revealed, reveal } = useMarriageReveal(snapshot.match_id, mine?.player_id, false);
+  // Start face up; Hide remains a local privacy choice.
+  const { revealed, reveal } = useMarriageReveal(snapshot.match_id, mine?.player_id, true);
   const own = pub?.players.find(p => p.player_id === mine?.player_id);
   const committed = own?.shown_melds.flatMap(m => m.card_ids) || [];
   const handKey = hand.map(c => c.card_id).join(',') + committed.join(',');
@@ -104,8 +104,8 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const canDrawFrom = (source: string) => drawVisible && !busy && social.connected && !!actions?.drawable_sources.includes(source);
   const discardSelected = selected.length === 1 && !!actions?.discardable_card_ids.includes(selected[0]);
   const selectedCard = discardSelected ? hand.find(card => card.card_id === selected[0]) : null;
-  const turnInstruction = declaring ? 'Declare your initial Tunnelas' : declarationsPending ? 'Waiting for Tunnela declarations' : decision === 'DRAW_REQUIRED' ? 'Your turn · Draw'
-    : decision === 'DISCARD_REQUIRED' ? 'Your turn · Discard'
+  const turnInstruction = declaring ? 'Declare your initial Tunnelas' : declarationsPending ? 'Waiting for Tunnela declarations' : decision === 'DRAW_REQUIRED' ? 'Your turn · Draw a card'
+    : decision === 'DISCARD_REQUIRED' ? selectedCard ? 'Your turn · Confirm discard' : 'Your turn · Select a card to discard'
     : decision === 'FINISH_REQUIRED' ? 'Your turn · Finish round' : `Your cards · ${hand.length}`;
   const turnPrompt = activeGame && pub && <TurnIndicator testID="marriage-turn-instruction" personal={isTurn}
     text={isTurn && decision !== 'WAITING' ? turnInstruction : `${name(pub.current_player_id)}’s turn`} />;
@@ -126,7 +126,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       drawerMetadata={<GameMenuMetadata snapshot={snapshot} />}>
       {close => <GameMenu snapshot={snapshot} close={close} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl}
         poke={() => setPoke(null)} pokePlayer={setPoke} canPoke={social.connected}
-        gameActions={(['stats', 'rules', 'points'] as const).map(section => ({ label: section === 'stats' ? 'Stats' : section === 'rules' ? 'Rules' : 'Points', action: () => setDetails(section) }))} />}
+        gameActions={(['stats', 'rules', 'points'] as const).map(section => ({ label: section === 'stats' ? 'Stats' : section === 'rules' ? 'Rules and config' : 'Points', action: () => setDetails(section) }))} />}
     </GameTableHeader>
     <View style={{ flex: 1, minHeight: 0 }}>
     <View testID="marriage-play-area" style={[s.playArea, mobile && mine && activeGame && { paddingBottom: 84 }]}>
@@ -158,22 +158,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         {!allRevealed && button('Reveal cards', () => reveal(true), busy)}
         {allRevealed && button(hidden ? 'Show cards' : 'Hide cards', () => { setHidden(v => !v); setSelected([]); setPreview(false); setFinishPreview(false); })}
       </View>
-
-      {confirmFold && !own?.folded && <View style={s.panel}>
-        <Text style={s.text}>Fold this round? You can keep watching. Your final points will still be settled.</Text>
-        <View style={s.row}>{button('Confirm fold', () => { onAction('FOLD'); }, busy || !social.connected || !actions?.kinds.includes('fold'))}
-          {button('Keep playing', () => setConfirmFold(false), busy)}</View>
-      </View>}
-      {declaring && <MarriageTunnelaPanel hand={hand} visible={allRevealed&&!hidden} busy={busy} connected={social.connected} submit={onAction}/>}
-      {declarationsPending && !declaring && <Text style={s.text}>Declaration recorded · waiting for other players.</Text>}
-      {!declaring && !own?.folded && (own?.has_seen_maal && mine.maal ? <MarriageWinPanel hand={hand} shown={own.shown_melds} initialTunnelas={own.initial_tunnelas} maal={mine.maal} route={own.route}
-        visible={allRevealed && !hidden} enabled={canAct && isTurn && social.connected} busy={busy} canFinish={!!actions?.kinds.includes('finish')}
-        preview={finishPreview && !hidden} setPreview={setFinishPreview} error={error} submit={onAction} /> :
-      <MarriageMaalPanel hand={availableHand} shown={own?.shown_melds || []} unlocked={false} maal={mine.maal}
-        enabled={canAct && isTurn && social.connected} visible={allRevealed && !hidden} busy={busy} actions={actions?.kinds || []}
-        preview={preview && !hidden} setPreview={setPreview} arrangement={arrangement} error={error} submit={onAction} />)}
-      {!preview && !finishPreview && <>
-        {drawVisible && (!mobile || snap === 'expanded') && <View testID="marriage-hand-draw" style={s.drawSection}>
+        {!preview && !finishPreview && drawVisible && (!mobile || snap === 'expanded') && <View testID="marriage-hand-draw" style={s.drawSection}>
           {(['discard', 'stock'] as const).map(source => {
             const allowed = canDrawFrom(source);
             const label = source === 'discard' ? 'Tap to take from discard' : 'Tap to take from deck';
@@ -190,6 +175,22 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
             </View>;
           })}
         </View>}
+
+      {confirmFold && !own?.folded && <View style={s.panel}>
+        <Text style={s.text}>Fold this round? You can keep watching. Your final points will still be settled.</Text>
+        <View style={s.row}>{button('Confirm fold', () => { onAction('FOLD'); }, busy || !social.connected || !actions?.kinds.includes('fold'))}
+          {button('Keep playing', () => setConfirmFold(false), busy)}</View>
+      </View>}
+      {declaring && <MarriageTunnelaPanel hand={hand} visible={allRevealed&&!hidden} busy={busy} connected={social.connected} submit={onAction}/>}
+      {declarationsPending && !declaring && <Text style={s.text}>Declaration recorded · waiting for other players.</Text>}
+      {!declaring && !own?.folded && (own?.has_seen_maal && mine.maal ? <MarriageWinPanel hand={hand} shown={own.shown_melds} initialTunnelas={own.initial_tunnelas} maal={mine.maal} route={own.route}
+        visible={allRevealed && !hidden} enabled={canAct && isTurn && social.connected} busy={busy} canFinish={!!actions?.kinds.includes('finish')}
+        preview={finishPreview && !hidden} setPreview={setFinishPreview} error={error} submit={onAction} /> :
+      <MarriageMaalPanel hand={availableHand} shown={own?.shown_melds || []} unlocked={false} maal={mine.maal}
+        enabled={canAct && isTurn && social.connected} visible={allRevealed && !hidden} busy={busy} actions={actions?.kinds || []}
+        preview={preview && !hidden} setPreview={setPreview} arrangement={arrangement} error={error} submit={onAction} />)}
+      {!preview && !finishPreview && <>
+
 
         {!declaring && allRevealed && !own?.has_seen_maal && <View accessibilityRole="tablist" style={s.row}>
           {(['sequence','dublee'] as const).map(value=><Pressable key={value} accessibilityRole="tab" accessibilityLabel={value==='sequence'?'Sequence / Tunnela':'Dublee'}

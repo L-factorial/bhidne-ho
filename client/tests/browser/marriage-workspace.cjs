@@ -63,9 +63,9 @@ async function api(path, user, body) {
     assert.ok(await page.getByTestId('marriage-discard-spot').isDisabled());
     await button(page,'Collapse your card area').click();const peek=(await sheet.boundingBox()).height;
     await button(page,'Expand your card area').click();assert.ok((await sheet.boundingBox()).height>peek);
-    assert.equal(await page.getByTestId('marriage-hand').getByRole('button',{name:'Hidden card',exact:true}).count(),21);
+    assert.equal(await page.getByTestId('marriage-hand').getByRole('button',{name:'Hidden card',exact:true}).count(),0);
     assert.equal(await button(page,'Reveal next card').count(),0);
-    await button(page,'Reveal cards').click();assert.equal(await button(page,'Reveal cards').count(),0);
+    assert.equal(await button(page,'Reveal cards').count(),0);
     publish();await page.waitForTimeout(1200);assert.ok(await button(page,'Collapse your card area').isVisible(),'waiting polls preserve manual expansion');
     pub.current_player_id='1';mine.actions={kinds:['draw'],drawable_sources:['stock'],discardable_card_ids:[],blocked_sources:[]};publish();
     await button(page,'Expand your card area').waitFor();

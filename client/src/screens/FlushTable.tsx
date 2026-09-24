@@ -172,7 +172,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
     ? pub?.pending_side_show ? `Accept or decline ${name(pub.pending_side_show.requester_id)}’s side-show`
       : pub?.pending_show ? 'Reveal or fold'
       : preparing ? `${pub?.status === 'awaiting_deal' ? 'Deal cards' : 'Cut or skip'}`
-      : `${visibility} · Choose an action`
+      : `${visibility} · ${[['bet', 'Bet'], ['show', 'Show'], ['side_show', 'Side-show'], ['fold', 'Fold']].filter(([kind]) => available(kind)).map(([, label]) => label).join(' / ') || 'Choose an action'}`
     : `${ownPlayer?.status === 'active' && !preparing ? `${visibility} · ` : ownPlayer?.status === 'folded' ? 'Folded · ' : ''}Waiting for ${name(decision.actor)}`
     : `${snapshot.players?.length || 0}/${snapshot.capacity} players seated`;
   return <View style={[s.page, mobile && { padding: 8, gap: 4 }]} testID="flush-table">

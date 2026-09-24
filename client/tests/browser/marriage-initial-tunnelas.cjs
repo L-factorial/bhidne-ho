@@ -31,9 +31,11 @@ const card=(rank,suit,deck=0)=>({card_id:`D${deck}:${rank}${suit}`,rank,suit,dec
   const page=await ctx.newPage();page.setDefaultTimeout(10000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(site);await page.getByRole('button',{name:/Return to table/}).first().click();
   const btn=name=>page.getByRole('button',{name,exact:true});
+  assert.equal(await btn('Reveal cards').count(),0);
+  await btn('Hide cards').click();
   assert.ok(await btn('Reveal cards to check Tunnela').isDisabled());
   assert.ok(await btn('Fold').isDisabled());
-  await btn('Reveal cards').click();
+  await btn('Show cards').click();
   assert.equal(await page.getByTestId('marriage-maal-eligibility').count(),0);
   assert.equal(await page.getByTestId('marriage-hand-draw').count(),0);
   if(hasTunnela){
@@ -55,7 +57,7 @@ const card=(rank,suit,deck=0)=>({card_id:`D${deck}:${rank}${suit}`,rank,suit,dec
   await page.getByTestId('marriage-maal-eligibility').waitFor();
   pub.tunnela_declaration_pending=false;pub.current_player_id=mine.player_id;pub.players.forEach(p=>p.tunnela_declared=true);
   mine.actions.kinds=['draw'];mine.actions.drawable_sources=['stock'];pub.revision++;snapshot.game.revision=pub.revision;
-  await btn('Expand your card area').waitFor();await btn('Expand your card area').click();
+  await btn('Expand your card area').waitFor();await btn('Expand your card area').click({position:{x:20,y:20}});
   await page.getByTestId('marriage-hand-draw').waitFor();
   assert.deepEqual(errors,[]);await ctx.close();
   console.log(`PASS initial Tunnela ${hasTunnela?'selection':'none'} at ${width}px`);

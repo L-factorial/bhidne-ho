@@ -89,7 +89,7 @@ print(json.dumps(asdict(g.get_player_view('0'))))
       await page.goto(site);
       await page.waitForTimeout(1200);
       if(await page.getByRole('button',{name:/Return to table/}).count())await page.getByRole('button',{name:/Return to table/}).first().click();
-      await button(page,'Reveal cards').click();
+      assert.equal(await button(page,'Reveal cards').count(),0);
       const eligible='Marriage eligible · Show Marriage';
       await button(page,eligible).waitFor();
       offTurn=true;

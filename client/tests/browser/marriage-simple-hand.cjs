@@ -52,11 +52,14 @@ const card=(rank,suit,deck=0)=>({card_id:`D${deck}:${rank}${suit}`,rank,suit,dec
   pub.revision++;snapshot.game.revision=pub.revision;
   await btn('Expand your card area').waitFor();await btn('Expand your card area').click();
   await page.getByTestId('marriage-hand-draw').waitFor();
+  const drawBox=await page.getByTestId('marriage-hand-draw').boundingBox();
+  const bulbBox=await page.getByTestId('marriage-maal-eligibility').boundingBox();
+  assert.ok(drawBox.y < bulbBox.y, 'draw row precedes eligibility controls');
   assert.equal(await btn('Tap to take from discard').isDisabled(),true);
   await btn('Tap to take from deck').click();
   await page.getByTestId('marriage-hand-draw').waitFor({state:'detached'});
   assert.equal(commands.at(-1).command,'DRAW_CARD');commands.length=0;
-  await btn('Reveal cards').click();
+  assert.equal(await btn('Reveal cards').count(),0);
   await page.getByTestId('marriage-discard-prompt').waitFor();
   await btn('Maal eligible · Show for Maal').waitFor();
   if(routeName==='normal'){

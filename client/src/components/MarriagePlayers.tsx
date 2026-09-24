@@ -72,15 +72,8 @@ export function MarriagePlayers({ snapshot, onPoke, registerSeat, children }: { 
 export function MarriageDetails({ snapshot, section, onClose, busy, error, onSave }: { busy: boolean; error: string; onSave: (rules: import('../multiplayer/marriage').MarriageScoringRules) => void; snapshot: RoomSnapshot; section: 'stats' | 'rules' | 'points' | null; onClose: () => void }) {
   const styles = useThemedStyles(createStyles);
   const pub = snapshot.marriage?.public;
-  return <RoomSheet visible={section !== null} title={section === 'stats' ? 'Game stats' : section === 'rules' ? 'Marriage rules' : 'Game result'} onClose={onClose} closeLabel="Close details" testID="marriage-details" scrollable={false} contentHandlesBottomInset={section === 'rules'}>
-        {section === 'rules' ? <MarriageScoring snapshot={snapshot} busy={busy} error={error} onSave={onSave} introduction={<>
-            <Text style={styles.text}>21 cards each. Take one card, optionally show melds, then discard.</Text>
-            <Text style={styles.text}>Sequence: consecutive ranks in one suit, Ace low. Tunnela: three copies of one face. Dublee: two copies.</Text>
-            <Text style={styles.text}>Show seven Dublees, then finish with an eighth uncommitted pair. A winning discard must be followed by Finish.</Text>
-            <Text style={styles.text}>Normal route: three natural sequences / Tunnelas unlock Maal and stay fixed. Complete 21 cards in melds and discard the remaining card to finish.</Text>
-            <Text style={styles.text}>After qualification, Man, every Tiplu-rank card, and Jhiplu / Poplu are wildcards. Final sequences have 3 or more cards, Ace low; sets have 3 or 4 cards of one rank in distinct suits. Three natural copies of one face also form a Tunnela. All-wild groups are allowed.</Text>
-            <Text style={styles.text}>Other players see your shown groups and completed winning hand. Your hand stays private during play, and Maal faces are shown only to qualified players.</Text>
-</>} /> : <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.details}>
+  return <RoomSheet visible={section !== null} title={section === 'stats' ? 'Game stats' : section === 'rules' ? 'Rules and config' : 'Game result'} onClose={onClose} closeLabel="Close details" testID="marriage-details" scrollable={false} contentHandlesBottomInset={section === 'rules'}>
+        {section === 'rules' ? <MarriageRulesAndConfig snapshot={snapshot} busy={busy} error={error} onSave={onSave} /> : <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.details}>
           {section === 'stats' ? pub ? pub.players.map(p => <View key={p.player_id} style={styles.stat}>
             <Text style={styles.name}>{playerName(snapshot, p.player_id)}</Text>
             <Text style={styles.text}>{situation(p, pub)} · {p.hand_count} cards</Text>
@@ -94,7 +87,39 @@ export function MarriageDetails({ snapshot, section, onClose, busy, error, onSav
   </RoomSheet>;
 }
 
+function MarriageRulesAndConfig(props: React.ComponentProps<typeof MarriageScoring>) {
+  const [tab, setTab] = useState<'rules' | 'config'>('config');
+  const styles = useThemedStyles(createStyles);
+  return <View style={{flex:1,minHeight:0}}>
+    <View accessibilityRole="tablist" style={{flexDirection:'row',padding:12,gap:8}}>
+      {(['rules','config'] as const).map(value => <Pressable key={value} accessibilityRole="tab"
+        accessibilityLabel={value === 'rules' ? 'Rules' : 'Config'} accessibilityState={{selected:tab === value}}
+        onPress={() => setTab(value)} style={[styles.tab,tab === value && styles.tabSelected]}>
+        <Text style={styles.name}>{value === 'rules' ? 'Rules' : 'Config'}</Text>
+      </Pressable>)}
+    </View>
+    <View style={{flex:1,minHeight:0,display:tab === 'config' ? 'flex' : 'none'}} accessibilityElementsHidden={tab !== 'config'} importantForAccessibility={tab === 'config' ? 'auto' : 'no-hide-descendants'}>
+      <MarriageScoring {...props}/>
+    </View>
+    {tab === 'rules' && <ScrollView testID="marriage-static-rules" contentContainerStyle={styles.details}>
+      {[
+        ['Deal and turns', 'Each player receives 21 cards. On your turn, draw from the deck or an allowed discard, then discard one card.'],
+        ['Initial Tunnelas', 'Enabled by default: before the first draw, everyone shows selected dealt Tunnelas or declares none. Declared cards stay in your hand and cannot be discarded. This does not unlock Maal. The rule can be disabled in Config.'],
+        ['Natural groups', 'A sequence has at least three consecutive cards of one suit. A-2-3 and Q-K-A are valid; K-A-2 is not. A Tunnela is three physical copies of the same rank and suit. A Dublee is two copies.'],
+        ['Seeing Maal', 'Show three disjoint natural sequences or Tunnelas, or seven disjoint Dublees. These shown groups stay fixed. Wildcards cannot replace natural cards in this qualification.'],
+        ['Tiplu, Jhiplu, Poplu and Alter', 'Tiplu is the revealed indicator. Jhiplu is the previous rank in the same suit; Poplu is the next. With A♥ as Tiplu, these are K♥ and 2♥. Alter is the same-rank card in the other suit of the same colour: A♦ in this example. Points follow Config.'],
+        ['Winning after Maal', 'On the normal route, after drawing, arrange 21 cards into valid groups including your three fixed groups, and discard the remaining card. Final groups can include sequences, Tunnelas, or sets of 3–4 same-rank cards in different suits. Man, all Tiplu-rank cards, and same-suit Jhiplu/Poplu can act as wildcards. All-wild groups are allowed.'],
+        ['Dublee finish', 'After showing seven Dublees, finish with an eighth natural pair using uncommitted cards. A permitted winning discard must be followed by Finish.'],
+        ['Points and privacy', 'Scoring values, Maal eligibility and bonuses follow the approved configuration. Other players see your declarations and completed winning hand; your remaining cards stay private. Only qualified players can see Maal.'],
+        ['Folding', 'Folding withdraws you from the round. If only one player remains, they win by fold; points still settle under the configured rules.'],
+      ].map(([title,body]) => <View key={title} style={{gap:6}}><Text accessibilityRole="header" style={styles.heading}>{title}</Text><Text style={styles.text}>{body}</Text></View>)}
+    </ScrollView>}
+  </View>;
+}
+
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  tab: { flex:1,minHeight:44,alignItems:'center',justifyContent:'center',borderRadius:10,borderWidth:1,borderColor:colors.border },
+  tabSelected: { backgroundColor:colors.surfaceSelected,borderColor:colors.accent },
   seat: { width: '100%', position: 'relative' },
   maalCheck: { position: 'absolute', top: -8, right: -6, width: 44, height: 44, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
   maalCheckCircle: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#167A46', borderWidth: 2, borderColor: colors.table, alignItems: 'center', justifyContent: 'center' },
