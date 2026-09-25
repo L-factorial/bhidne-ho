@@ -64,7 +64,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   const [rulesOpen, setRulesOpen] = useState(false);
   const [betsOpen, setBetsOpen] = useState(false);
   const socialAnchor = useSocialHandAnchor();
-  const chatOpen = useTableSocial()?.chatOpen ?? false;
+  const chatOpen = useTableSocial()?.overlayOpen ?? false;
   const [pokeOpen, setPokeOpen] = useState(false);
   const [arenaHeight, setArenaHeight] = useState(280);
   const [draft, setDraft] = useState<Record<string, string | number | boolean>>({ ...settings.rules });

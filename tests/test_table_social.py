@@ -159,6 +159,43 @@ async def test_reaction_rejects_invalid_tools_spoofing_and_self(payload):
 
 
 @pytest.mark.parametrize('kind', ['callbreak', 'marriage', 'flush'])
+async def test_punchline_broadcast_dedup_cooldown_and_game_isolation(kind):
+    host, service, game, sockets, _, _ = await fixture(kind)
+    try:
+        game.table.queue.clear()
+        state, log = game.state, list(game.log)
+        cmd = command('TABLE_POKE_SEND', game.match_id, recipient_player_id=2,
+                      reaction='punchline', text='  Nice   move!  ')
+        first, retry = await asyncio.gather(service.handle('room', 'u0', cmd), service.handle('room', 'u0', cmd))
+        assert first == retry and first['status'] == 'accepted'
+        assert [len(s.messages) for s in sockets] == [1, 1, 1, 1, 1, 1, 0]
+        event = sockets[0].messages[0]
+        assert event['type'] == 'TABLE_REACTION' and event['reaction'] == 'punchline'
+        assert event['text'] == 'Nice move!' and event['scope'] == 'table'
+        assert event['sender_player_id'] == 1 and event['recipient_player_id'] == 2
+        assert event['recipient_id'] == 'u1'
+        assert game.state is state and game.log == log and not game.commands.receipts
+        assert not service.state('room', game.match_id)['messages']
+        assert (await service.handle('room', 'u0', command('TABLE_POKE_SEND', game.match_id, 'fast', recipient_player_id=2, reaction='love')))['status'] == 'rejected'
+        assert (await service.handle('room', 'u4', command('TABLE_POKE_SEND', game.match_id, 'spectator', recipient_player_id=2, reaction='punchline', text='Hi')))['status'] == 'rejected'
+    finally:
+        await host.close()
+
+
+@pytest.mark.parametrize('text', [None, '', '   ', 'x' * 61, '\x00hello', 'hello\x7f'])
+async def test_punchline_rejects_missing_empty_long_or_control_text(text):
+    host, service, game, sockets, _, _ = await fixture()
+    try:
+        payload = {} if text is None else {'text': text}
+        result = await service.handle('room', 'u0', command('TABLE_POKE_SEND', game.match_id,
+            recipient_player_id=2, reaction='punchline', **payload))
+        assert result['status'] == 'rejected'
+        assert all(not socket.messages for socket in sockets)
+    finally:
+        await host.close()
+
+
+@pytest.mark.parametrize('kind', ['callbreak', 'marriage', 'flush'])
 async def test_table_chat_uses_account_identity_and_repairs_legacy_guest_history(kind):
     host, service, game, sockets, _, _ = await fixture(kind)
     try:

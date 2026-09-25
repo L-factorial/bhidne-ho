@@ -14,7 +14,7 @@ import type { RoomSnapshot } from '../screens/LiveGameTable';
 export function MarriageAnnouncements({ snapshot }: { snapshot: RoomSnapshot }) {
   useUiLanguage();
   const { colors: c } = useTheme();
-  const chatOpen = useTableSocial()?.chatOpen ?? false;
+  const chatOpen = useTableSocial()?.overlayOpen ?? false;
   const pub = snapshot.marriage?.public;
   const events = pub ? marriageAnnouncements(pub) : [];
   const seen = useRef<Set<string> | null>(null);

@@ -1,5 +1,15 @@
 // Editable English social copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "emoji_tab": "Emoji",
+  "punchlines_tab": "Punchlines",
+  "punchline_message": "Punchline",
+  "send_punchline": "Send punchline",
+  "punchline_public": "Everyone at the table can see your punchline.",
+  "punchline_from": "{{player}} sent you a punchline",
+  "preset_nice_move": "Nice move!",
+  "preset_your_move": "Your move, superstar!",
+  "preset_lucky_cards": "Save some luck for me!",
+  "preset_well_played": "Well played, my friend!",
   "your_friends": "Your friends",
   "add_friend": "Add friend",
   "already_connected": "Already connected",

@@ -1,5 +1,34 @@
 # Room pokes and punchlines
 
+## Public table balloons
+
+The shared poke picker in Call Break, Flush, and Marriage has Emoji and Punchlines
+tabs. Punchlines can be typed (up to 60 Unicode code points), selected from
+translated presets, or loaded from the player's saved phrases. Selecting a phrase
+fills the editable field; the arrow on its right sends it to the selected seat.
+
+`TABLE_POKE_SEND` accepts `{recipient_player_id, reaction: "punchline", text}`.
+The server requires explicit nonempty text, normalizes whitespace, checks the
+sender/target seats and connectivity, and applies the same cooldown and command-ID
+deduplication as emoji reactions. It broadcasts `TABLE_REACTION` with
+`reaction: "punchline"` and `text` to room sockets, including spectators. Clients
+filter by the current match. Existing private `ROOM_POKE` delivery stays private.
+
+The text balloon uses each viewer's measured seat positions, floats for 1.7 seconds,
+squeezes/rebounds for 0.8 seconds, rests for 3.2 seconds, and fades for 1.2 seconds.
+The recipient sees a larger balloon and a sender caption. Reduced motion skips
+travel and bounce. Balloons let touches pass through, are bounded to three active
+flights, and are neither recorded in chat nor replayed on reconnect. Expiry rejects
+stale incoming events; accepted animations finish even after the event expiry.
+No gameplay state, revision, or game-command receipt changes.
+
+Verification: `tests/test_table_social.py`, `client/tests/table-reactions.test.mjs`,
+and `client/tests/browser/punchline-pokes.cjs`. The browser test uses snapshots from
+`scripts/social_browser_fixtures.py` (`FIXTURE_DIR` overrides their location), a
+local web export (`TEST_WEB_URL`), and an optional `ARTIFACT_DIR` for screenshots.
+
+## Legacy private poke flow
+
 Call Break players can send short private pokes or messages to the whole table.
 Every custom message and saved phrase is limited to **25 characters**, including
 spaces and punctuation. The UI counts Unicode characters without splitting

@@ -348,7 +348,7 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
         backgroundColor: gameTheme.colors.background, paddingTop: insets.top, paddingBottom: insets.bottom,
         paddingLeft: insets.left, paddingRight: insets.right,
       }]}><View accessibilityViewIsModal testID="live-game-overlay" style={[styles.liveOverlay, (mobileGame || snapshot.game_type === 'flush') && !chat && { paddingBottom: 0 }]}>
-        <ThemeContext.Provider value={gameTheme}><TableSocialProvider key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} channel={socialChannel} connected={connected} userId={userId} pokes={pokes}>
+        <ThemeContext.Provider value={gameTheme}><TableSocialProvider key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} channel={socialChannel} connected={connected} userId={userId} pokes={pokes} phrases={personal.phrases}>
         {snapshot.game_type === 'flush' ? <FlushTable connectionReady={connected && synced} onLock={() => void lobbyAction('/table/lock')} tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onFormationBlocked={setFormationBlocked} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={uiLabel(error, 'feedback')}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: text => social.send(snapshot.match_id!, null, text) }}
           onSave={payload => lobbyAction('/flush-settings', payload)} onStart={rules_revision => lobbyAction('/start', { rules_revision })}

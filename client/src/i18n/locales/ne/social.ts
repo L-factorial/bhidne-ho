@@ -1,5 +1,15 @@
 // Editable Nepali social copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "emoji_tab": "इमोजी",
+  "punchlines_tab": "रमाइला भनाइ",
+  "punchline_message": "रमाइलो भनाइ",
+  "send_punchline": "भनाइ पठाउने",
+  "punchline_public": "तपाईँको भनाइ टेबलका सबैले देख्न सक्छन्।",
+  "punchline_from": "{{player}} ले तपाईँलाई रमाइलो भनाइ पठाउनुभयो",
+  "preset_nice_move": "क्या राम्रो चाल!",
+  "preset_your_move": "अब तिम्रो पालो, हिरो!",
+  "preset_lucky_cards": "अलिकति भाग्य मलाई पनि देऊ!",
+  "preset_well_played": "राम्रो खेल्यौ, साथी!",
   "your_friends": "तपाईँका साथीहरू",
   "add_friend": "साथी बनाउने",
   "already_connected": "पहिले नै साथी हुनुहुन्छ",
