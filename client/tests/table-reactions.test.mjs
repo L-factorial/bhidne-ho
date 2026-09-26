@@ -16,3 +16,12 @@ test('ignore other matches, expired, private and malformed events', () => {
   }
   assert.equal(readTableReaction(null, 'room', 'match', 1000), null);
 });
+
+test('punchlines retain literal text and reject malformed or oversized messages', () => {
+  const punchline = { ...event, reaction: 'punchline', text: 'Nice move!' };
+  assert.equal(readTableReaction(punchline, 'room', 'match', 1000).text, 'Nice move!');
+  assert.equal(readTableReaction({ ...punchline, text: '😀'.repeat(60) }, 'room', 'match', 1000).text.length, 120);
+  for (const text of [undefined, null, '', '  ', 'x'.repeat(61), '\u0000Hi', 'Hi\u007f']) {
+    assert.equal(readTableReaction({ ...punchline, text }, 'room', 'match', 1000), null);
+  }
+});

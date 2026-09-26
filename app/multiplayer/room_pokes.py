@@ -53,7 +53,8 @@ class RoomPokeService:
             # Public, ephemeral visuals. Room clients render only their open match;
             # this also lets unseated spectators see reactions without chat access.
             event.update(type='TABLE_REACTION', reaction=reaction, scope='table')
-            event.pop('text')
+            if reaction != 'punchline':
+                event.pop('text')
             await self.connections.broadcast(room_id, event)
         elif recipient_user_id is None:
             await self.connections.broadcast(room_id, event)
