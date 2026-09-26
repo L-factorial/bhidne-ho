@@ -1,15 +1,19 @@
 // Generate snapshots with scripts/social_browser_fixtures.py; set FIXTURE_DIR if needed.
+// Optional ROUND_FIXTURE from scripts/chat_round_browser_fixtures.py uses real engine transitions.
+// TEST_BROWSER=webkit runs the same checks in Safari's browser engine.
 // Touch/focus regression only: a real iPhone is still needed to verify its keyboard.
-const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const { chromium, webkit } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8099';
 (async () => {
-  const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  const browser = await (process.env.TEST_BROWSER === 'webkit' ? webkit.launch({ headless: true }) : chromium.launch({ channel: 'chrome', headless: true }));
   try {
     for (const kind of ['flush', 'callbreak', 'marriage']) {
-      const snapshot = JSON.parse(fs.readFileSync(path.join(process.env.FIXTURE_DIR || '/tmp', `bhidne-social-${kind}.json`)));
+      const rounds = kind === 'flush' && process.env.ROUND_FIXTURE ? JSON.parse(fs.readFileSync(process.env.ROUND_FIXTURE)) : null;
+      let snapshot = rounds?.[0].start || JSON.parse(fs.readFileSync(path.join(process.env.FIXTURE_DIR || '/tmp', `bhidne-social-${kind}.json`)));
+      let roundIndex = 0;
       const room = { room_id: 'room', name: 'Chat room', members: ['u0', 'u1'], connected_members: ['u0', 'u1'] };
       const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
       await context.addInitScript(({ room, kind, site }) => {
@@ -24,7 +28,28 @@ const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8099';
         if (pathname === '/rooms') data = [room];
         if (pathname.startsWith('/test-games/')) {
           data = snapshot;
-          if (route.request().method() === 'POST') gameplay.push(pathname);
+          if (route.request().method() === 'POST') {
+            gameplay.push(pathname);
+            if (pathname.endsWith('/table/lock')) {
+              if (rounds) snapshot = structuredClone(rounds[roundIndex].locked);
+              else {
+                snapshot.table.phase = 'LOCKED';
+                snapshot.table.current_user.can_lock = false;
+                snapshot.table.current_user.can_start = true;
+              }
+            }
+            if (pathname.endsWith('/start')) {
+              if (rounds) snapshot = structuredClone(rounds[roundIndex++].restarted);
+              else {
+                snapshot.table.phase = 'STARTED';
+                snapshot.table.current_user.can_start = false;
+                snapshot.flush.public.status = 'awaiting_deal';
+                snapshot.flush.public.round_number += 1;
+                snapshot.flush.public.settlement = null;
+              }
+            }
+            data = snapshot;
+          }
         }
         await route.fulfill({ json: data });
       });
@@ -67,7 +92,7 @@ const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8099';
         await page.waitForTimeout(400);
         assert.ok(await input.evaluate(el => el === document.activeElement), 'tapping after send must focus chat');
         await page.keyboard.type('Draft');
-        if (kind === 'flush' && cycle === 2) {
+        if (kind === 'flush' && cycle === 2 && !rounds) {
           snapshot.flush.public.round_number += 1;
           snapshot.flush.public.settlement = { winner_ids: ['1'], payouts: [], shown_hands: [] };
         }
@@ -80,7 +105,7 @@ const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8099';
         assert.ok(await input.evaluate(el => el === document.activeElement), 'snapshot polling must preserve focus');
         await input.fill('');
         await button('Close table chat').tap();
-        if (kind === 'flush' && cycle === 2) {
+        if (kind === 'flush' && cycle === 2 && !rounds) {
           await button('Close final show').tap();
           snapshot.flush.public.settlement = null;
         }
@@ -88,12 +113,42 @@ const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8099';
           await page.getByTestId('marriage-announcement').waitFor();
           await button('Close table announcement').tap();
         }
+        if (kind === 'flush') {
+          if (rounds) snapshot = structuredClone(rounds[cycle].finished);
+          else {
+            snapshot.flush.public.status = 'finished';
+            snapshot.flush.public.settlement = { winner_ids: ['1'], payouts: [], shown_hands: [] };
+            snapshot.table.phase = 'OPEN';
+            snapshot.table.current_user.can_lock = true;
+          }
+          if (cycle !== 2 || rounds) await button('Close final show').tap();
+          await button('Lock players').tap();
+          await button('Start game').waitFor();
+          await button('Table Chat').tap();
+          // Reproduce a stale underlying modal becoming active after chat opens.
+          // RN Web registers focus ownership when its animation callback fires.
+          await page.evaluate(() => {
+            let element = document.querySelector('[data-testid="live-game-backdrop"]');
+            while (element && getComputedStyle(element).zIndex !== '9999') element = element.parentElement;
+            if (!element) throw new Error('Game modal animation container not found');
+            element.dispatchEvent(new Event('animationend', { bubbles: true }));
+          });
+          await input.tap();
+          await page.keyboard.type('Locked table draft');
+          assert.equal(await input.inputValue(), 'Locked table draft', 'typing after relocking the same table');
+          await input.fill('');
+          if (cycle % 2 === 0) await page.keyboard.press('Escape');
+          else await button('Close table chat').tap();
+          assert.ok(await page.getByTestId('live-game-overlay').isVisible(), 'closing chat must not also close the game');
+          await button('Start game').tap();
+          await button('Start game').waitFor({ state: 'hidden' });
+        }
       }
       assert.equal(history.length, 6);
-      assert.deepEqual(gameplay, [], 'chat must not send gameplay commands');
+      assert.deepEqual(gameplay, kind === 'flush' ? Array.from({ length: 6 }, () => ['/test-games/room/table/lock', '/test-games/room/start']).flat() : [], 'only explicit lifecycle actions submit gameplay requests');
       assert.deepEqual(errors, []);
       await context.close();
-      console.log(`PASS ${kind}: repeated touch open/send/reopen, menu transitions, focus during polling and automatic results/announcements`);
+      console.log(`PASS ${kind}: repeated touch open/send/reopen, menu transitions, focus during polling and automatic results/announcements${kind === 'flush' ? ', six same-table complete/lock/restart cycles' : ''}`);
     }
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

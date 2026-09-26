@@ -14,8 +14,9 @@ deduplication as emoji reactions. It broadcasts `TABLE_REACTION` with
 `reaction: "punchline"` and `text` to room sockets, including spectators. Clients
 filter by the current match. Existing private `ROOM_POKE` delivery stays private.
 
-The text balloon uses each viewer's measured seat positions, floats for 1.7 seconds,
-squeezes/rebounds for 0.8 seconds, rests for 3.2 seconds, and fades for 1.2 seconds.
+The text balloon uses each viewer's measured seat positions, floats for 3.4 seconds,
+squeezes/rebounds for 0.8 seconds, rests for 1.5 seconds, and fades for 1.2 seconds.
+Its translucent cyan/lilac/pink tint, pale rim, and highlights resemble a soap bubble.
 The recipient sees a larger balloon and a sender caption. Reduced motion skips
 travel and bounce. Balloons let touches pass through, are bounded to three active
 flights, and are neither recorded in chat nor replayed on reconnect. Expiry rejects
