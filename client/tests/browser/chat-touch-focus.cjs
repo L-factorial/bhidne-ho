@@ -1,6 +1,7 @@
 // Generate snapshots with scripts/social_browser_fixtures.py; set FIXTURE_DIR if needed.
 // Optional ROUND_FIXTURE from scripts/chat_round_browser_fixtures.py uses real engine transitions.
 // TEST_BROWSER=webkit runs the same checks in Safari's browser engine.
+// CHAT_DIAGNOSTICS=1 also checks opt-in recording, copying, and privacy in Flush.
 // Touch/focus regression only: a real iPhone is still needed to verify its keyboard.
 const { chromium, webkit } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const assert = require('node:assert/strict');
@@ -11,6 +12,7 @@ const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8099';
   const browser = await (process.env.TEST_BROWSER === 'webkit' ? webkit.launch({ headless: true }) : chromium.launch({ channel: 'chrome', headless: true }));
   try {
     for (const kind of ['flush', 'callbreak', 'marriage']) {
+      const debug = kind === 'flush' && process.env.CHAT_DIAGNOSTICS === '1';
       const rounds = kind === 'flush' && process.env.ROUND_FIXTURE ? JSON.parse(fs.readFileSync(process.env.ROUND_FIXTURE)) : null;
       let snapshot = rounds?.[0].start || JSON.parse(fs.readFileSync(path.join(process.env.FIXTURE_DIR || '/tmp', `bhidne-social-${kind}.json`)));
       let roundIndex = 0;
@@ -68,8 +70,12 @@ const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8099';
         });
       });
       const page = await context.newPage(); page.setDefaultTimeout(10000);
+      if (debug) await page.addInitScript(() => {
+        // Exercise report copying without an OS clipboard permission prompt stealing focus.
+        Object.defineProperty(navigator, 'clipboard', { value: { writeText: async text => { window.chatDiagnosticCopy = text; } } });
+      });
       page.on('pageerror', error => errors.push(error.message));
-      await page.goto(site);
+      await page.goto(debug ? site + '/?chatDebug=1' : site);
       const button = name => page.getByRole('button', { name, exact: true });
       await page.getByRole('button', { name: /Return to table/ }).first().tap();
       await page.getByTestId('game-social-controls').waitFor().catch(async error => {
@@ -85,12 +91,16 @@ const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8099';
         await input.tap();
         await page.waitForTimeout(400);
         assert.ok(await input.evaluate(el => el === document.activeElement), `${kind} cycle ${cycle}: tapping must focus chat; active=${await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 500))}`);
+        // Auto-follow and keyboard resizing can scroll history without a user drag.
+        await page.getByTestId('table-chat-messages').evaluate(el => el.dispatchEvent(new Event('scroll')));
+        await page.waitForTimeout(200);
+        assert.ok(await input.evaluate(el => el === document.activeElement), 'history scrolling must not blur the composer');
         await page.keyboard.type(`Message ${cycle}`);
         await button('Send table message').tap();
         await page.getByTestId('table-chat-messages').getByText(`Message ${cycle}`, { exact: true }).waitFor();
         await input.tap();
         await page.waitForTimeout(400);
-        assert.ok(await input.evaluate(el => el === document.activeElement), 'tapping after send must focus chat');
+        assert.ok(await input.evaluate(el => el === document.activeElement), `${kind} cycle ${cycle}: tapping after send must focus chat; active=${await page.evaluate(() => document.activeElement?.tagName)}`);
         await page.keyboard.type('Draft');
         if (kind === 'flush' && cycle === 2 && !rounds) {
           snapshot.flush.public.round_number += 1;
@@ -104,6 +114,19 @@ const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8099';
         assert.equal(await input.inputValue(), 'Draft');
         assert.ok(await input.evaluate(el => el === document.activeElement), 'snapshot polling must preserve focus');
         await input.fill('');
+        const diagnostics = page.getByTestId('chat-input-diagnostics-report');
+        if (debug) {
+          await button('Copy chat diagnostics').tap();
+          const report = JSON.parse(await diagnostics.innerText());
+          assert.deepEqual(JSON.parse(await page.evaluate(() => window.chatDiagnosticCopy)), report);
+          assert.ok(report.events.some(event => event.event === 'input' && event.input.focused));
+          assert.ok(report.events.some(event => event.target === 'chat-input'));
+          assert.ok(report.events.length <= 20);
+          const serialized = JSON.stringify(report);
+          for (const privateText of ['Draft', `Message ${cycle}`, 'mock', 'Chat room']) {
+            assert.ok(!serialized.includes(privateText), 'diagnostics must exclude message and account data');
+          }
+        } else assert.equal(await diagnostics.count(), 0, 'diagnostics are opt-in');
         await button('Close table chat').tap();
         if (kind === 'flush' && cycle === 2 && !rounds) {
           await button('Close final show').tap();

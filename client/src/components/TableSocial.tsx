@@ -10,6 +10,7 @@ import { RoomSheet } from './RoomSheet';
 import { ChatMessage } from './ChatMessage';
 import { useTranslation } from 'react-i18next';
 import { ChatComposer } from './ChatComposer';
+import { ChatInputDiagnostics } from './ChatInputDiagnostics';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { AccessibilityInfo, Animated, Keyboard, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { fonts, useTheme } from '../theme';
@@ -249,7 +250,8 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
       {open && canRead && <RoomSheet visible tableStyle isolateKeyboard title={ui("common.table_chat")} testID="table-chat-panel" closeLabel={ui("common.close_table_chat")} onClose={closeChat} scrollable={false}>
         <View style={{flex:1,minHeight:0,gap:8,overflow:'hidden',padding:12,backgroundColor:c.background}}>
           {myTurn && <Pressable accessibilityRole="button" onPress={closeChat} style={{minHeight:44,justifyContent:'center'}}><Text accessibilityLiveRegion="polite" style={{color:c.accent}}>{ui("social.your_turn_return_to_game")}</Text></Pressable>}
-          <ScrollView ref={scroll} testID="table-chat-messages" style={{flex:1,minHeight:0}} keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} keyboardShouldPersistTaps="always" onLayout={() => { if(follow.current) scroll.current?.scrollToEnd({animated:false}); }} onScroll={({nativeEvent:e}) => { follow.current = e.contentSize.height-e.contentOffset.y-e.layoutMeasurement.height < 40; }} scrollEventThrottle={16} onContentSizeChange={() => { if(follow.current) scroll.current?.scrollToEnd({animated:false}); }}>
+          {/* RN Web's on-drag dismisses on every scroll, including auto-scroll and keyboard resizing. */}
+          <ScrollView ref={scroll} testID="table-chat-messages" style={{flex:1,minHeight:0}} keyboardDismissMode={Platform.OS === 'web' ? 'none' : Platform.OS === 'ios' ? 'interactive' : 'on-drag'} keyboardShouldPersistTaps="always" onLayout={() => { if(follow.current) scroll.current?.scrollToEnd({animated:false}); }} onScroll={({nativeEvent:e}) => { follow.current = e.contentSize.height-e.contentOffset.y-e.layoutMeasurement.height < 40; }} scrollEventThrottle={16} onContentSizeChange={() => { if(follow.current) scroll.current?.scrollToEnd({animated:false}); }}>
             {!messages.length && <Text style={{color:c.textMuted}}>{ui("social.start_the_table_conversation")}</Text>}
             {messages.map(message => <ChatMessage tableStyle key={message.id} message={message} own={message.sender_id === userId} />)}
           </ScrollView>
@@ -258,6 +260,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
           {seated ? <View testID="table-chat-composer" style={{flexShrink:0}}>
             <ChatComposer value={draft} onChange={setDraft} onSend={() => void send()} disabled={!enabled || sending}
               label={ui("social.table_message")} sendLabel="Send table message" placeholder={t('chat.placeholder')} />
+            <ChatInputDiagnostics />
           </View> : <Text style={{color:c.textMuted}}>{ui("social.waiting_players_can_read_take_a_seat_to_chat")}</Text>}
         </View>
       </RoomSheet>}
