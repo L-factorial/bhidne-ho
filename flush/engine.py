@@ -1,5 +1,6 @@
 """Marriage-style transactional facade. Callers serialize use of each instance."""
 from dataclasses import replace
+from copy import deepcopy
 from random import Random
 from card_utils import standard_52, shuffle, deal
 from .actions import RevealCards, StartNextRound, DealCards, CutDeck, SkipCut, Bet, SeeCards, Fold, Show, RequestSideShow, AcceptSideShow, DeclineSideShow
@@ -41,6 +42,22 @@ class FlushGameEngine:
 
     def get_state(self):
         return self._state
+
+    @classmethod
+    def from_state(cls, state: FlushGameState, *, rng: Random | None = None):
+        """Restore a trusted round without startup, dealing, or new events."""
+        if type(state) is not FlushGameState:
+            raise ValueError('FlushGameState is required.')
+        if rng is not None and not isinstance(rng, Random):
+            raise ValueError('rng must be a random.Random instance.')
+        restored = deepcopy(state)
+        validate_game_state(restored)
+        engine = cls.__new__(cls)
+        engine._state = restored
+        engine._rng = Random()
+        if rng is not None:
+            engine._rng.setstate(rng.getstate())
+        return engine
 
     def get_public_view(self):
         return public_view(self._state)

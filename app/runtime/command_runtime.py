@@ -20,6 +20,11 @@ class CommandAccessError(Exception):
         self.status, self.detail = status, detail
 
 
+def request_fingerprint(command: ActionCommand) -> str:
+    """Shared original-request identity for live execution and receipt recovery."""
+    return json.dumps(command.model_dump(mode="json", exclude={"command_id"}), sort_keys=True)
+
+
 @dataclass(frozen=True)
 class OutgoingEvent:
     message: dict
@@ -64,13 +69,14 @@ class CommandRuntime:
     async def execute(self, session: CommandSession, target: CommandTarget, user_id: str,
                       command: ActionCommand,
                       deliver: Callable[[list[OutgoingEvent]], Awaitable[None]],
-                      commit: Callable[[], Awaitable[None]] | None = None) -> dict:
+                      commit: Callable[[], Awaitable[None]] | None = None,
+                      commit_outcome: Callable[[dict], Awaitable[None]] | None = None) -> dict:
         async with session.lock:
             if command.match_id != session.match_id:
                 raise CommandAccessError(409, "This game is not active. Refresh its state.")
             target.authorize(user_id)
             key = (user_id, command.command_id)
-            fingerprint = json.dumps(command.model_dump(mode="json", exclude={"command_id"}), sort_keys=True)
+            fingerprint = request_fingerprint(command)
             if command.command_id and key in session.receipts:
                 original, receipt = session.receipts[key]
                 if original != fingerprint:
@@ -101,6 +107,12 @@ class CommandRuntime:
             except Exception:
                 target.restore(checkpoint)
                 raise
+            if commit_outcome is not None:
+                try:
+                    await commit_outcome(receipt)
+                except BaseException:
+                    target.restore(checkpoint)
+                    raise
             if command.command_id:
                 session.receipts[key] = (fingerprint, receipt)
             # First possible yield after applying state: the outcome is now recorded.

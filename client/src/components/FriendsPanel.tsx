@@ -13,11 +13,17 @@ import type { Session } from '../multiplayer/session';
 
 type Player = { user_id: string; display_name: string; username?: string | null };
 type Snapshot = { friends: Player[]; incoming: Player[]; outgoing: Player[] };
-type Message = { id: string; sender_id: string; recipient_id: string; text: string; sent_at: number };
+export type Message = { id: string; sender_id: string; recipient_id: string; text: string; sent_at: number };
 const empty: Snapshot = { friends: [], incoming: [], outgoing: [] };
 const label = (player: Player) => player.display_name || player.username || ui("common.player");
 
-export function FriendsPanel({ session }: { session: Session }) {
+export type FriendsTransport = {
+  history(other: string, signal: AbortSignal): Promise<Message[]>;
+  mutate(other: string, action: 'request-friend'|'accept-friend'|'remove-friend'): Promise<void>;
+  send(other: string, text: string): Promise<void>; busy: boolean; error: string;
+  sent?: {id:string;recipient:string;text:string};
+};
+export function FriendsPanel({ session, transport }: { session: Session; transport?: FriendsTransport }) {
   useUiLanguage();
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
@@ -28,9 +34,14 @@ export function FriendsPanel({ session }: { session: Session }) {
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const draft = selected ? drafts[selected.user_id] || '' : '';
   const selectedId = useRef<string | null>(null); selectedId.current = selected?.user_id ?? null;
-  const [busy, setBusy] = useState(false), [error, setError] = useState('');
+  const [localBusy, setBusy] = useState(false), [localError, setError] = useState('');
+  const busy=localBusy||!!transport?.busy, error=transport?.error||localError;
   const sending = useRef(false);
   const [sendError, setSendError] = useState('');
+  useEffect(()=>{
+    const sent=transport?.sent;
+    if(sent)setDrafts(current=>current[sent.recipient]===sent.text?{...current,[sent.recipient]:''}:current);
+  },[transport?.sent?.id]);
 
   async function refresh(signal?: AbortSignal) {
     const value = await request<Snapshot>('/friends', session, undefined, signal);
@@ -53,13 +64,13 @@ export function FriendsPanel({ session }: { session: Session }) {
     const controller = new AbortController(); let timer: ReturnType<typeof setTimeout>;
     async function poll() {
       try {
-        const value = await request<Message[]>(`/friends/${encodeURIComponent(selected!.user_id)}/messages`, session, undefined, controller.signal);
+        const value = await (transport ? transport.history(selected!.user_id, controller.signal) : request<Message[]>(`/friends/${encodeURIComponent(selected!.user_id)}/messages`, session, undefined, controller.signal));
         if (!controller.signal.aborted) { setMessages(value); setError(''); }
       } catch (failure) { if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : ui("feedback.could_not_load_messages")); }
       finally { if (!controller.signal.aborted) timer = setTimeout(poll, 1500); }
     }
     void poll(); return () => { controller.abort(); clearTimeout(timer); };
-  }, [selected?.user_id, session.token]);
+  }, [selected?.user_id, session.token, transport?.history]);
 
   async function search() {
     if (query.trim().length < 2 || busy) return;
@@ -68,20 +79,22 @@ export function FriendsPanel({ session }: { session: Session }) {
     catch (failure) { setError(failure instanceof Error ? failure.message : ui("feedback.could_not_search_players")); }
     finally { setBusy(false); }
   }
-  async function mutate(path: string, method?: 'DELETE') {
+  async function mutate(other: string, action: 'request-friend'|'accept-friend'|'remove-friend') {
+    const method = action === 'remove-friend' ? 'DELETE' : undefined;
+    const path = method ? `/friends/${encodeURIComponent(other)}` : `/friends/requests/${encodeURIComponent(other)}${action === 'accept-friend' ? '/accept' : ''}`;
     if (busy) return;
     setBusy(true); setError('');
-    try { await request(path, session, method ? undefined : {}, undefined, method); await refresh(); }
+    try { if (transport) await transport.mutate(other, action); else await request(path, session, method ? undefined : {}, undefined, method); await refresh(); }
     catch (failure) { setError(failure instanceof Error ? failure.message : ui("feedback.could_not_update_friendship")); }
     finally { setBusy(false); }
   }
   async function send() {
-    if (!selected || sending.current || !draft.trim() || Array.from(draft).length > 500) return;
+    if (!selected || busy || sending.current || !draft.trim() || Array.from(draft).length > 500) return;
     const recipientId = selected.user_id, submitted = draft;
     sending.current = true; setBusy(true); setSendError('');
     try {
-      const message = await request<Message>(`/friends/${encodeURIComponent(recipientId)}/messages`, session, { text: submitted });
-      if (selectedId.current === recipientId) setMessages(current => current.some(item => item.id === message.id) ? current : [...current, message]);
+      const message = transport ? (await transport.send(recipientId, submitted), null) : await request<Message>(`/friends/${encodeURIComponent(recipientId)}/messages`, session, { text: submitted });
+      if (message && selectedId.current === recipientId) setMessages(current => current.some(item => item.id === message.id) ? current : [...current, message]);
       setDrafts(current => current[recipientId] === submitted ? { ...current, [recipientId]: '' } : current);
     } catch (failure) { if (selectedId.current === recipientId) setSendError(failure instanceof Error ? failure.message : ui("feedback.could_not_send_message")); }
     finally { sending.current = false; setBusy(false); }
@@ -103,19 +116,19 @@ export function FriendsPanel({ session }: { session: Session }) {
     </View>
     {results.map(player => row(player, related.has(player.user_id)
       ? <Text style={styles.detail}>{ui("social.already_connected")}</Text>
-      : <Pressable accessibilityRole="button" onPress={() => void mutate(`/friends/requests/${encodeURIComponent(player.user_id)}`)} style={styles.smallButton}><Text style={styles.buttonText}>{ui("social.add_friend")}</Text></Pressable>))}
+      : <Pressable accessibilityRole="button" onPress={() => void mutate(player.user_id, 'request-friend')} style={styles.smallButton}><Text style={styles.buttonText}>{ui("social.add_friend")}</Text></Pressable>))}
 
     {!!snapshot.incoming.length && <><Text style={styles.heading}>{ui("social.requests_received")}</Text>{snapshot.incoming.map(player => row(player, <View style={styles.actions}>
-      <Pressable accessibilityRole="button" onPress={() => void mutate(`/friends/requests/${encodeURIComponent(player.user_id)}/accept`)} style={styles.smallButton}><Text style={styles.buttonText}>{ui("common.accept")}</Text></Pressable>
-      <Pressable accessibilityRole="button" onPress={() => void mutate(`/friends/${encodeURIComponent(player.user_id)}`, "DELETE")} style={styles.linkButton}><Text style={styles.link}>{ui("common.decline")}</Text></Pressable>
+      <Pressable accessibilityRole="button" onPress={() => void mutate(player.user_id, 'accept-friend')} style={styles.smallButton}><Text style={styles.buttonText}>{ui("common.accept")}</Text></Pressable>
+      <Pressable accessibilityRole="button" onPress={() => void mutate(player.user_id, 'remove-friend')} style={styles.linkButton}><Text style={styles.link}>{ui("common.decline")}</Text></Pressable>
     </View>))}</>}
     {!!snapshot.outgoing.length && <><Text style={styles.heading}>{ui("social.requests_sent")}</Text>{snapshot.outgoing.map(player => row(player,
-      <Pressable accessibilityRole="button" onPress={() => void mutate(`/friends/${encodeURIComponent(player.user_id)}`, "DELETE")} style={styles.linkButton}><Text style={styles.link}>{ui("common.cancel")}</Text></Pressable>))}</>}
+      <Pressable accessibilityRole="button" onPress={() => void mutate(player.user_id, 'remove-friend')} style={styles.linkButton}><Text style={styles.link}>{ui("common.cancel")}</Text></Pressable>))}</>}
     <Text style={styles.heading}>{ui("social.your_friends")}</Text>
     {!snapshot.friends.length && <Text style={styles.detail}>{ui("social.no_friends_yet")}</Text>}
     {snapshot.friends.map(player => row(player, <View style={styles.actions}>
       <Pressable accessibilityRole="button" onPress={() => { setMessages([]); setError(''); setSendError(''); setSelected(player); }} style={styles.smallButton}><Text style={styles.buttonText}>{ui("social.message")}</Text></Pressable>
-      <Pressable accessibilityRole="button" onPress={() => void mutate(`/friends/${encodeURIComponent(player.user_id)}`, "DELETE")} style={styles.linkButton}><Text style={styles.link}>{ui("common.remove")}</Text></Pressable>
+      <Pressable accessibilityRole="button" onPress={() => void mutate(player.user_id, 'remove-friend')} style={styles.linkButton}><Text style={styles.link}>{ui("common.remove")}</Text></Pressable>
     </View>))}
 
     {selected && <RoomSheet visible title={ui("social.chat_with_player", { "player": label(selected) })} closeLabel={ui("common.close_private_chat")} onClose={() => setSelected(null)} scrollable={false}

@@ -1,0 +1,13 @@
+FROM python:3.14-slim-bookworm
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+WORKDIR /app
+COPY pyproject.toml ./
+COPY app/ app/
+COPY card_utils/ card_utils/
+COPY callbreak/ callbreak/
+COPY marriage/ marriage/
+COPY flush/ flush/
+RUN pip install --no-cache-dir '.[redis]' && useradd --uid 10001 --create-home bhidne
+USER bhidne
+EXPOSE 8080
+CMD ["uvicorn", "app.durable_games.bootstrap:create_app", "--factory", "--host", "0.0.0.0", "--port", "8080", "--workers", "1"]

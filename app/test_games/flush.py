@@ -4,8 +4,11 @@ from app.runtime.command_runtime import CommandAccessError
 
 
 class HostedFlushTarget(FlushCommandTarget):
-    def __init__(self, host, game, adapter):
-        super().__init__(adapter, seat_by_user={u: str(game.flush_seats[u]) for u in game.users})
+    def __init__(self, host, game, adapter, *, seat_by_user=None):
+        # Recovery can retain a finished engine's roster while the table forms
+        # its next round. Normal creation still uses the current seated users.
+        super().__init__(adapter, seat_by_user=(
+            {u: str(game.flush_seats[u]) for u in game.users} if seat_by_user is None else seat_by_user))
         self.host, self.game = host, game
 
     def handle_player_leave(self, user_id):

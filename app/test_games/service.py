@@ -828,7 +828,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             result = await self.command_runtime.execute(
                 game.commands, game.flush_target or game.marriage_target or CallBreakCommandTarget(self, game),
                 user_id, body, deliver,
-                commit=(lambda: self._commit_durable_state(game, user_id, body))
+                commit_outcome=(lambda outcome: self._commit_durable_state(game, user_id, body, outcome=outcome))
                 if self.runtime_mode == "durable" else None)
             await self._try_record_completed_ledger(game)
             return result
@@ -932,7 +932,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                 "A seated player is still assigned to another table. Leave or abandon it, then try again.") from error
         game.durable_table_reserved = True
 
-    async def _commit_durable_state(self, game, user_id, command):
+    async def _commit_durable_state(self, game, user_id, command, *, outcome=None):
         store = self.durable_runtime.store
         ownership = game.durable_ownership
         if ownership is None:
@@ -946,9 +946,17 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         payload = {"command_payload": command.payload, "authoritative_state": self._engine_state(game)}
         result = await store.execute(game.durable_game_id, game.durable_definition, actor_id=user_id,
             command_id=command.command_id, expected_revision=command.expected_revision,
-            command=str(command.command), payload=payload, ownership=ownership)
-        if result.receipt.status != "accepted":
+            command=command.model_dump(mode="json")["command"], payload=payload, ownership=ownership,
+            original_request=command.model_dump(mode="json"),
+            rejection_detail=outcome["detail"] if outcome and outcome["status"] == "rejected" else None)
+        if result.receipt.status != (outcome["status"] if outcome else "accepted"):
             raise DurableGameConflict(result.receipt.detail or "Durable command was rejected.")
+        if (result.game.state != self._engine_state(game) or
+                (outcome and (result.receipt.revision != outcome["revision"] or
+                              result.receipt.detail != outcome.get("detail")))):
+            # A retry after an unknown commit can have rerolled speculative cards.
+            # Never publish those cards; recovery must reload the committed state.
+            raise DurableGameConflict("Committed state differs; reload the durable game before continuing.")
 
     async def _record_completed_ledger(self, game):
         """Publish an engine-authored, zero-sum result once per completed game/round."""

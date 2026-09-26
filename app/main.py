@@ -43,7 +43,14 @@ from app.ledger import LedgerService, InMemoryLedgerStore, PostgresLedgerStore
 from app.ledger.http import router as ledger_router
 
 
-def create_app() -> FastAPI:
+def create_app(*, runtime_mode="legacy", distributed_server=None) -> FastAPI:
+    # Application selection is distinct from the legacy engine's durable/memory
+    # setting. No environment flag can accidentally enable an incomplete cutover.
+    if runtime_mode == "distributed-integration":
+        from app.durable_games.application import create_integration_app
+        return create_integration_app(distributed_server)
+    if runtime_mode != "legacy" or distributed_server is not None:
+        raise ValueError("Production distributed activation is unavailable; use an explicit integration assembly.")
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         database_url = os.environ.get("BHIDNE_HO_DATABASE_URL") or os.environ.get("DATABASE_URL")

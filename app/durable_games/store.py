@@ -19,6 +19,8 @@ from psycopg.types.json import Jsonb
 from psycopg.errors import UniqueViolation
 
 from app.games.base import GameCommandRejected
+from app.models.action import ReliableActionCommand
+from app.runtime.command_runtime import request_fingerprint
 
 from .models import (
     CanonicalGameEvent,
@@ -134,6 +136,7 @@ class _MemoryGame:
     start_command_id: str | None = None
     events: list[tuple[CommittedGameEvent, str, str]] = field(default_factory=list)
     commands: dict[tuple[str, str], tuple[str, DurableCommandReceipt]] = field(default_factory=dict)
+    original_requests: dict = field(default_factory=dict)
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
 
@@ -265,11 +268,12 @@ class InMemoryGameStore:
 
     async def execute(self, game_id: UUID, definition: DurableGameDefinition, *, actor_id: str,
                       command_id: str, expected_revision: int, command: str, payload: dict,
-                      ownership: GameOwnership):
+                      ownership: GameOwnership, original_request: dict | None = None,
+                      rejection_detail: str | None = None):
         game = self.games.get(game_id)
         if game is None:
             raise DurableGameNotFound(str(game_id))
-        fingerprint = command_fingerprint(expected_revision, command, payload)
+        fingerprint = _request_identity(original_request, command_id, expected_revision, command, payload)
         async with game.lock:
             loaded = self._load_locked(game, definition)
             if game.status != "active":
@@ -283,9 +287,10 @@ class InMemoryGameStore:
                     raise DurableGameConflict("Command ID already identifies a different request.")
                 return DurableCommandResult(loaded, receipt, (), True)
             receipt, events, state = _decide(
-                definition, loaded, actor_id, command_id, expected_revision, command, payload,
+                definition, loaded, actor_id, command_id, expected_revision, command, payload, rejection_detail,
             )
             game.commands[key] = (fingerprint, receipt)
+            game.original_requests[key] = deepcopy(original_request)
             if events:
                 game.events.extend((item, actor_id, command_id) for item in events)
                 game.current_sequence = events[-1].sequence
@@ -362,7 +367,21 @@ class InMemoryGameStore:
             raise StaleGameOwner("The game lease is missing, expired, or fenced.")
 
 
-def _decide(definition, loaded, actor_id, command_id, expected_revision, command, payload):
+def _request_identity(original, command_id, expected_revision, command, payload):
+    if original is None:
+        return command_fingerprint(expected_revision, command, payload)
+    request = ReliableActionCommand.model_validate(original)
+    if (request.command_id != command_id or request.expected_revision != expected_revision
+            or request.command != command):
+        raise DurableGameConflict("Original request does not match command identity.")
+    return request_fingerprint(request)
+
+
+def _decide(definition, loaded, actor_id, command_id, expected_revision, command, payload,
+            rejection_detail=None):
+    if rejection_detail is not None:
+        return DurableCommandReceipt(command_id, "rejected", loaded.revision,
+            rejection_code="HOSTED_REJECTION", detail=rejection_detail), (), loaded.state
     if expected_revision != loaded.revision:
         receipt = DurableCommandReceipt(command_id, "rejected", loaded.revision,
             rejection_code="STALE_REVISION", detail="The game state changed; refresh and try again.")
@@ -526,8 +545,9 @@ class PostgresGameStore:
 
     async def execute(self, game_id: UUID, definition: DurableGameDefinition, *, actor_id: str,
                       command_id: str, expected_revision: int, command: str, payload: dict,
-                      ownership: GameOwnership):
-        fingerprint = command_fingerprint(expected_revision, command, payload)
+                      ownership: GameOwnership, original_request: dict | None = None,
+                      rejection_detail: str | None = None):
+        fingerprint = _request_identity(original_request, command_id, expected_revision, command, payload)
         async with self.pool.connection() as connection:
             async with connection.transaction():
                 row = await self._game_row(connection, game_id, lock=True)
@@ -548,16 +568,16 @@ class PostgresGameStore:
                                                     prior[5], prior[6])
                     return DurableCommandResult(loaded, receipt, (), True)
                 receipt, committed, state = _decide(
-                    definition, loaded, actor_id, command_id, expected_revision, command, payload,
+                    definition, loaded, actor_id, command_id, expected_revision, command, payload, rejection_detail,
                 )
                 await connection.execute("""
                     INSERT INTO game_commands
                         (game_id,actor_id,command_id,request_fingerprint,expected_revision,status,
-                         first_sequence,last_sequence,resulting_revision,rejection_code,rejection_detail)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                         first_sequence,last_sequence,resulting_revision,rejection_code,rejection_detail,original_request)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 """, (game_id, actor_id, command_id, fingerprint, expected_revision, receipt.status,
                       receipt.first_sequence, receipt.last_sequence, receipt.revision,
-                      receipt.rejection_code, receipt.detail))
+                      receipt.rejection_code, receipt.detail, Jsonb(original_request) if original_request is not None else None))
                 for item in committed:
                     await connection.execute("""
                         INSERT INTO game_events

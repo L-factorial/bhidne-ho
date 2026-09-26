@@ -320,3 +320,77 @@ async def test_initial_tunnela_responses_are_durable_idempotent_and_gate_play():
         assert 'draw' in final['marriage']['private']['actions']['kinds']
     finally:
         await service.close()
+
+
+async def test_hosted_rejection_is_durable_and_identity_excludes_computed_state():
+    from app.runtime.command_runtime import request_fingerprint
+    service, store, started = await durable_host('marriage')
+    try:
+        game = service.games['room']
+        body = GameAction(match_id=game.match_id, command_id='stale-draw',
+            expected_revision=0, command='DRAW_CARD', payload={'source': 'stock'})
+        result = await service.action('room', 'u0', body)
+        assert result['action_ack']['status'] == 'rejected'
+        journal = store.games[game.durable_game_id]
+        fingerprint, receipt = journal.commands['u0', body.command_id]
+        assert fingerprint == request_fingerprint(body)
+        assert journal.original_requests['u0', body.command_id] == body.model_dump(mode='json')
+        assert receipt.detail == result['action_ack']['detail']
+        assert journal.events == []
+        # Stored identity is the original request, regardless of a recalculated state.
+        repeated = await store.execute(game.durable_game_id, game.durable_definition,
+            actor_id='u0', command_id=body.command_id, expected_revision=0, command='DRAW_CARD',
+            payload={'authoritative_state': {'invalid': True}}, ownership=game.durable_ownership,
+            original_request=body.model_dump(mode='json'))
+        assert repeated.duplicate and repeated.receipt == receipt
+    finally:
+        await service.close()
+
+
+async def test_failed_rejection_commit_does_not_cache_outcome(monkeypatch):
+    service, store, started = await durable_host('marriage')
+    try:
+        game = service.games['room']
+        before = service._engine_state(game)
+        async def fail(*args, **kwargs):
+            raise RuntimeError('storage unavailable')
+        monkeypatch.setattr(store, 'execute', fail)
+        body = GameAction(match_id=game.match_id, command_id='stale', expected_revision=0,
+                          command='DRAW_CARD', payload={'source': 'stock'})
+        with pytest.raises(RuntimeError, match='storage unavailable'):
+            await service.action('room', 'u0', body)
+        assert game.commands.receipts == {}
+        assert service._engine_state(game) == before
+    finally:
+        await service.close()
+
+
+async def test_unknown_commit_retry_cannot_publish_rerolled_cards(monkeypatch):
+    service, store, started = await durable_host('callbreak')
+    try:
+        game = service.games['room']
+        body = GameAction(match_id=game.match_id, command_id='shuffle-uncertain',
+                          expected_revision=game.state.revision, command='SHUFFLE_DECK')
+        actor = game.users[game.state.current_player - 1]
+        execute = store.execute
+        async def lost_response(*args, **kwargs):
+            await execute(*args, **kwargs)
+            raise RuntimeError('lost commit response')
+        monkeypatch.setattr(store, 'execute', lost_response)
+        before = game.state
+        with pytest.raises(RuntimeError, match='lost commit response'):
+            await service.action('room', actor, body)
+        assert game.state == before and not game.commands.receipts
+        committed = await store.load(game.durable_game_id, game.durable_definition)
+        assert committed.revision > before.revision
+        # Simulate a mismatching post-commit result deterministically.
+        async def changed_result(*args, **kwargs):
+            result = await execute(*args, **kwargs)
+            return replace(result, game=replace(result.game, state={'revision': committed.revision, 'value': {}}))
+        monkeypatch.setattr(store, 'execute', changed_result)
+        with pytest.raises(DurableGameConflict, match='reload'):
+            await service.action('room', actor, body)
+        assert game.state == before and not game.commands.receipts
+        assert len(store.games[game.durable_game_id].events) == 1
+    finally:
+        await service.close()

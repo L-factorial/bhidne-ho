@@ -15,7 +15,7 @@ class CallBreakCommandTarget:
             "Call Break does not support departure during play. The creator can end the game.")
 
     def authorize(self, user_id):
-        if self.host.games.get(self.game.room_id) is not self.game or self.game.state is None or self.game.ended:
+        if not self.host._contains(self.game) or self.game.state is None or self.game.ended:
             raise CommandAccessError(409, "This game is not active. Refresh its state.")
         if user_id not in self.game.users or user_id in self.game.departed:
             raise CommandAccessError(403, "Spectators cannot play.")

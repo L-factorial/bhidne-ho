@@ -2,6 +2,8 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
+from psycopg.pq import TransactionStatus
+
 from .models import GameLedgerResult
 
 
@@ -111,26 +113,32 @@ class PostgresLedgerStore:
 
     async def record_game(self, result):
         async with self.pool.connection() as connection, connection.transaction():
-            row = await (await connection.execute(
-                "INSERT INTO ledger_games (game_id,room_id,table_id,game_type,table_name) VALUES (%s,%s,%s,%s,%s) "
-                "ON CONFLICT (game_id) DO NOTHING RETURNING game_id",
-                (result.game_id, result.room_id, result.table_id, result.game_type, result.table_name))).fetchone()
-            if row:
-                await _executemany(connection,
+            await self.record_game_in_transaction(connection, result)
+
+    async def record_game_in_transaction(self, connection, result):
+        """Compose a result projection with durable finalization in one commit."""
+        if connection.info.transaction_status != TransactionStatus.INTRANS:
+            raise RuntimeError('Ledger projection requires an open transaction.')
+        row = await (await connection.execute(
+            "INSERT INTO ledger_games (game_id,room_id,table_id,game_type,table_name) VALUES (%s,%s,%s,%s,%s) "
+            "ON CONFLICT (game_id) DO NOTHING RETURNING game_id",
+            (result.game_id, result.room_id, result.table_id, result.game_type, result.table_name))).fetchone()
+        if row:
+            for item in result.amounts:
+                await connection.execute(
                     "INSERT INTO game_ledger_entries (game_id,player_id,amount) VALUES (%s,%s,%s)",
-                    [(result.game_id, _database_user_id(item.player_id), item.amount)
-                     for item in result.amounts])
-                return
-            existing = await (await connection.execute(
-                "SELECT room_id,table_id::text,game_type FROM ledger_games WHERE game_id=%s", (result.game_id,))).fetchone()
-            amounts = await (await connection.execute(
-                "SELECT player_id::text,amount FROM game_ledger_entries WHERE game_id=%s ORDER BY player_id",
-                (result.game_id,))).fetchall()
-            expected = (result.room_id, _application_object_id(result.table_id), result.game_type)
-            existing = (existing[0], _application_object_id(existing[1]), existing[2])
-            if tuple(existing) != expected or [(_application_user_id(r[0]), r[1]) for r in amounts] != sorted(
-                    [(x.player_id, x.amount) for x in result.amounts]):
-                raise ValueError("Game result already exists with different values.")
+                    (result.game_id, _database_user_id(item.player_id), item.amount))
+            return
+        existing = await (await connection.execute(
+            "SELECT room_id,table_id::text,game_type FROM ledger_games WHERE game_id=%s", (result.game_id,))).fetchone()
+        amounts = await (await connection.execute(
+            "SELECT player_id::text,amount FROM game_ledger_entries WHERE game_id=%s ORDER BY player_id",
+            (result.game_id,))).fetchall()
+        expected = (result.room_id, _application_object_id(result.table_id), result.game_type)
+        existing = (existing[0], _application_object_id(existing[1]), existing[2])
+        if tuple(existing) != expected or [(_application_user_id(r[0]), r[1]) for r in amounts] != sorted(
+                [(x.player_id, x.amount) for x in result.amounts]):
+            raise ValueError("Game result already exists with different values.")
 
     async def room_games(self, room_id):
         async with self.pool.connection() as connection:

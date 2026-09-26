@@ -1,0 +1,52 @@
+# Explicit integration stack; does not extend or modify the production compose file.
+name: bhidne-distributed-integration
+x-gateway: &gateway
+  build:
+    context: ..
+    dockerfile: deploy/Dockerfile.distributed
+  environment: &environment
+    BHIDNE_DISTRIBUTED_ISOLATED: '1'
+    BHIDNE_DISTRIBUTED_DATABASE_URL: postgresql://integration:${DISTRIBUTED_DB_PASSWORD:?set a test database password}@postgres/bhidne_distributed_integration
+    BHIDNE_DISTRIBUTED_REDIS_URL: redis://redis:6379/0
+    BHIDNE_DISTRIBUTED_SIGNAL_SECRET: ${DISTRIBUTED_SIGNAL_SECRET:?set a shared 64-character hexadecimal test secret}
+    BHIDNE_DISTRIBUTED_ORIGINS: ${DISTRIBUTED_CLIENT_ORIGIN:?set the exact integration client origin}
+    BHIDNE_DISTRIBUTED_ADDRESS: http://gateway_a:8080
+  depends_on:
+    postgres:
+      condition: service_healthy
+  stop_grace_period: 30s
+services:
+  postgres:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: bhidne_distributed_integration
+      POSTGRES_USER: integration
+      POSTGRES_PASSWORD: ${DISTRIBUTED_DB_PASSWORD:?set a test database password}
+    volumes:
+      - integration-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U integration -d bhidne_distributed_integration']
+      interval: 2s
+      timeout: 2s
+      retries: 20
+  redis:
+    image: redis:7-bookworm
+    command: ['redis-server', '--save', '', '--appendonly', 'no']
+  initialize:
+    <<: *gateway
+    profiles: ['initialize']
+    command: ['python', '-m', 'app.durable_games.bootstrap', 'initialize']
+  gateway_a:
+    <<: *gateway
+  gateway_b:
+    <<: *gateway
+    environment:
+      <<: *environment
+      BHIDNE_DISTRIBUTED_ADDRESS: http://gateway_b:8080
+  balancer:
+    image: nginx:1.28-bookworm
+    ports: ['127.0.0.1:18081:8080']
+    volumes: ['./distributed-nginx.conf:/etc/nginx/conf.d/default.conf:ro']
+    depends_on: [gateway_a, gateway_b]
+volumes:
+  integration-data:

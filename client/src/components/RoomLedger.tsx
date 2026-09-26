@@ -11,13 +11,14 @@ import type { Session } from '../multiplayer/session';
 import { useTranslation } from 'react-i18next';
 
 type Balance = { player_id: string; amount: number };
-type Transfer = { transfer_id?: string; payer_id: string; payee_id: string; amount: number; status?: string; batch_id?: string; table_id?: string };
+export type Transfer = { transfer_id?: string; payer_id: string; payee_id: string; amount: number; status?: string; batch_id?: string; table_id?: string };
 type Game = { game_id: string; game_type: string; settled: boolean; balances?: Balance[] };
 type Table = { table_id: string; table_name?: string; game_count: number; balances: Balance[]; games: Game[]; suggested_transfers: Transfer[]; transactions: Transfer[] };
-type Ledger = { player_profiles?: Record<string, { display_name: string; avatar_url?: string }>; room_name?: string; players: Record<string, string>; balances: Balance[]; tables: Table[]; personal_settlements: Transfer[] };
+export type Ledger = { player_profiles?: Record<string, { display_name: string; avatar_url?: string }>; room_name?: string; players: Record<string, string>; balances: Balance[]; tables: Table[]; personal_settlements: Transfer[] };
 const key = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-export function RoomLedger({ roomId, session, embedded = false }: { roomId: string; session: Session; embedded?: boolean }) {
+export type LedgerTransport = { load(): Promise<Ledger>; start(table: string, game?: string): Promise<void>; act(row: Transfer, action: 'mark-paid'|'confirm'): Promise<void>; busy: boolean; error: string };
+export function RoomLedger({ roomId, session, embedded = false, transport }: { roomId: string; session: Session; embedded?: boolean; transport?: LedgerTransport }) {
   const uiLanguage = useUiLanguage();
   const styles = useThemedStyles(createStyles), [tab, setTab] = useState<'ledger' | 'personal'>("ledger");
   const { t } = useTranslation();
@@ -25,13 +26,14 @@ export function RoomLedger({ roomId, session, embedded = false }: { roomId: stri
   const [showCodes, setShowCodes] = useState(false);
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<Ledger>(), [expanded, setExpanded] = useState<string>();
-  const [busy, setBusy] = useState(false), [error, setError] = useState('');
-  const load = useCallback(async () => { try { setData(await request<Ledger>(`/rooms/${encodeURIComponent(roomId)}/ledger`, session)); setError(''); } catch (e) { setError(e instanceof Error ? e.message : ui("feedback.could_not_load_ledger")); } }, [roomId, session, uiLanguage]);
+  const [localBusy, setBusy] = useState(false), [localError, setError] = useState('');
+  const busy = localBusy || !!transport?.busy, error = transport?.error || localError;
+  const load = useCallback(async () => { try { setData(await (transport ? transport.load() : request<Ledger>(`/rooms/${encodeURIComponent(roomId)}/ledger`, session))); setError(''); } catch (e) { setError(e instanceof Error ? e.message : ui("feedback.could_not_load_ledger")); } }, [roomId, session, uiLanguage, transport?.load]);
   useEffect(() => { setOpen(false); setExpanded(undefined); }, [roomId]);
   useEffect(() => { void load(); const timer = setInterval(() => void load(), 15_000); return () => clearInterval(timer); }, [load]);
   const name = (id: string) => id === session.user_id ? ui("common.you") : data?.player_profiles?.[id]?.display_name || data?.players[id] || ui("common.player_number", { "number": id.slice(0, 6) });
-  async function start(tableId: string, gameId?: string) { setBusy(true); try { await request(`/rooms/${encodeURIComponent(roomId)}/ledger/settlements`, session, { scope: gameId ? 'game' : 'table', table_id: tableId, ...(gameId && { game_id: gameId }), idempotency_key: key() }); await load(); } catch (e) { setError(e instanceof Error ? e.message : ui("feedback.could_not_start_settlement")); } finally { setBusy(false); } }
-  async function act(row: Transfer, action: 'mark-paid' | 'confirm') { if (!row.batch_id || !row.transfer_id) return; setBusy(true); try { await request(`/rooms/${encodeURIComponent(roomId)}/ledger/settlements/${row.batch_id}/transfers/${row.transfer_id}/${action}`, session, { idempotency_key: key() }); await load(); } catch (e) { setError(e instanceof Error ? e.message : ui("feedback.could_not_update_settlement")); } finally { setBusy(false); } }
+  async function start(tableId: string, gameId?: string) { setBusy(true); try { if (transport) await transport.start(tableId, gameId); else await request(`/rooms/${encodeURIComponent(roomId)}/ledger/settlements`, session, { scope: gameId ? 'game' : 'table', table_id: tableId, ...(gameId && { game_id: gameId }), idempotency_key: key() }); await load(); } catch (e) { setError(e instanceof Error ? e.message : ui("feedback.could_not_start_settlement")); } finally { setBusy(false); } }
+  async function act(row: Transfer, action: 'mark-paid' | 'confirm') { if (!row.batch_id || !row.transfer_id) return; setBusy(true); try { if (transport) await transport.act(row, action); else await request(`/rooms/${encodeURIComponent(roomId)}/ledger/settlements/${row.batch_id}/transfers/${row.transfer_id}/${action}`, session, { idempotency_key: key() }); await load(); } catch (e) { setError(e instanceof Error ? e.message : ui("feedback.could_not_update_settlement")); } finally { setBusy(false); } }
   const avatar = (id: string) => data?.player_profiles?.[id]?.avatar_url;
   const balances = (rows: Balance[]) => rows.length ? <RoundResultsTable compact icon="receipt-outline" title={t('ledger.balanceSummary')} playerHeading={t('ledger.player')}
     columns={[t('ledger.net')]} rows={rows.map(row => ({ id: row.player_id, name: data?.player_profiles?.[row.player_id]?.display_name || data?.players[row.player_id] || name(row.player_id), avatarUrl: avatar(row.player_id), own: row.player_id === session.user_id,

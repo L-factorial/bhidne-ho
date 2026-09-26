@@ -10,6 +10,8 @@ the shared adapter handles full gameplay; production runtime integration remains
 
 ## Documentation
 
+- [Distributed runtime implementation plan](docs/distributed-runtime-plan.md): agreed multi-server architecture, database and Redis design, failover, incremental checklist, and deferred operational work.
+
 - [Standalone Marriage engine API](docs/marriage.md): dealing, turns, meld validation, Maal entitlement, Dublee completion, safe views/events, and a runnable example.
 - [Marriage commands and adapter](docs/marriage-adapter.md): strict command/event catalogs, authenticated roster mapping, private delivery, and shared-runtime registration.
 - [Marriage UI and room integration](docs/marriage-ui.md): playable room flow, hand views, meld controls, private Maal, supported completion, and browser checks.

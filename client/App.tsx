@@ -17,6 +17,7 @@ import { apiUrl } from './src/multiplayer/api';
 import { readSession, saveSession } from './src/multiplayer/session';
 import { completeSocialLogin, isSocialReturn } from './src/auth/social';
 import { SharedRoomsScreen } from './src/screens/SharedRoomsScreen';
+import { DistributedRoomsScreen } from './src/screens/DistributedRoomsScreen';
 import { LanguageProvider } from './src/i18n/LanguageProvider';
 import { useTranslation } from 'react-i18next';
 
@@ -75,6 +76,7 @@ function AppContent() {
       <StatusBar style="light" />
       {!!authError && <Text accessibilityRole="alert" style={{ padding: 16, color: colors.danger }}>{uiLabel(authError, 'feedback')}</Text>}
       {finishingSignIn ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.text }}>{ui('common.completing_sign_in')}</Text></View>
+        : process.env.EXPO_PUBLIC_RUNTIME_MODE === 'distributed-integration' ? <DistributedRoomsScreen key={authVersion} />
         : inRooms || invitation ? <SharedRoomsScreen key={authVersion} invitation={invitation} dismissInvitation={dismissInvitation} onExit={() => { dismissInvitation(); setInRooms(false); }} />
         : <WelcomeScreen onEnterLobby={() => setInRooms(true)} />}
     </SafeAreaProvider>

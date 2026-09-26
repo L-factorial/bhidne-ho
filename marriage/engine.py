@@ -1,5 +1,6 @@
 """Standalone transactional facade for startup and draw/discard turns."""
 from collections.abc import Sequence
+from copy import deepcopy
 from dataclasses import replace
 from random import Random
 
@@ -73,6 +74,26 @@ class MarriageGameEngine:
     def get_state(self) -> MarriageGameState:
         """Trusted diagnostic state. Use safe views for players or spectators."""
         return self._state
+
+    @classmethod
+    def from_state(cls, state: MarriageGameState, *, rng: Random | None = None):
+        """Restore trusted committed facts without starting or dealing a round.
+
+        Future random decisions use a fresh generator (or a caller-supplied copy);
+        recovery never rerolls cards or events already present in the state.
+        """
+        if type(state) is not MarriageGameState:
+            raise ValueError('MarriageGameState is required.')
+        if rng is not None and not isinstance(rng, Random):
+            raise ValueError('rng must be a random.Random instance.')
+        restored = deepcopy(state)
+        validate_game_state(restored)
+        engine = cls.__new__(cls)
+        engine._state = restored
+        engine._rng = Random()
+        if rng is not None:
+            engine._rng.setstate(rng.getstate())
+        return engine
 
     def _require_turn(self, player_id: str, phase: TurnPhase, *, finishing: bool = False) -> PlayerState:
         player = find_player(self._state, player_id)
