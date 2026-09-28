@@ -250,3 +250,54 @@ async def test_metrics_are_private_and_report_commits_and_json_logs(cluster):
         assert len(committed) == 1 and committed[0]['room_id'] == room_id
         assert committed[0]['result'] == 'accepted'
         assert all('payload' not in row and 'token' not in row for row in rows)
+
+
+async def test_local_and_remote_commands_wake_owner_without_scan_delay(cluster):
+    """Measure real ingress-to-commit latency after ownership has been established."""
+    import time
+    async with httpx.AsyncClient(timeout=12) as client:
+        alice, ha = await signup(client, cluster.urls[0], 'latency_alice')
+        bob, hb = await signup(client, cluster.urls[1], 'latency_bob')
+        room_id = await room(client, cluster, ha)
+        room_target = dict(kind='room', room_id=room_id)
+        assert (await submit(client, cluster.urls[1], hb, room_target, 'enter-room'))[0]['status'] == 'accepted'
+        owner, _, _ = await cluster.owner(room_id)
+        samples = []
+
+        async def measured(gateway, headers, target, command, payload=None, **kwargs):
+            started = time.monotonic()
+            result, _ = await submit(client, cluster.urls[gateway], headers, target, command, payload, **kwargs)
+            elapsed = time.monotonic() - started
+            assert result['status'] == 'accepted', result
+            samples.append((command, 'local' if gateway == owner else 'remote', elapsed))
+            # The healthy safety scan is five seconds. Interactive work must use
+            # the direct/Redis wakeup path, not wait for that fallback cadence.
+            assert elapsed < 3, samples
+            return result
+
+        created = await measured(owner, ha, room_target, 'create-table', dict(game_type='marriage', capacity=2))
+        table, match = created['outcome']['table_id'], created['outcome']['match_id']
+        target = dict(kind='table', room_id=room_id, table_id=table)
+        async def view():
+            r = await client.get(cluster.urls[owner] + f'/distributed/rooms/{room_id}', params={'table_id': table}, headers=ha)
+            assert r.status_code == 200, r.text
+            return r.json()['snapshot']
+
+        for gateway, headers, command in [(1-owner, hb, 'join-seat'), (owner, ha, 'lock'), (1-owner, ha, 'start')]:
+            snapshot = await view()
+            await measured(gateway, headers, target, command, match=match, revision=snapshot['table_revision'])
+        snapshot = await view()
+        game = dict(kind='game', room_id=room_id, table_id=table, game_id=snapshot['durable_game_id'])
+        turn = snapshot['game']['turn']['player_id']
+        actor = next(p['user_id'] for p in snapshot['players'] if p['player_id'] == turn)
+        first, second = (ha, hb) if actor == alice['user_id'] else (hb, ha)
+        for gateway, headers in ((owner, first), (1-owner, second)):
+            snapshot = await view()
+            await measured(gateway, headers, game,
+                           'DECLARE_TUNNELAS', {'melds': []}, match=match, revision=snapshot['game']['revision'])
+        for gateway, headers in ((owner, ha), (1-owner, hb)):
+            await measured(gateway, headers, dict(kind='table_chat', room_id=room_id, table_id=table),
+                           'send-chat', {'text': 'Wakeup latency check'})
+        print('WAKEUP_LATENCY_SECONDS', [(command, route, round(seconds, 3)) for command, route, seconds in samples])
+        for index in range(2):
+            assert 'ingress_wakeup_failed' not in (cluster.directory / f'gateway-{index}.log').read_text()

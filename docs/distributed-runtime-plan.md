@@ -4374,3 +4374,28 @@ rollout. The next concrete step is the staging collection/alert setup described 
   observability, database HA, provider credential configuration and native-device
   release validation. Exact next task is an operational readiness increment when
   requested; no original-frontend implementation or deployment step remains open.
+
+
+### Interactive action latency correction — 2026-09-28
+
+- User reported multi-second moves with the first two production players. Read-only
+  inspection showed low app resource use and repeated `ingress_wakeup_failed`;
+  matching submitted/committed command IDs showed roughly 5–8-second game delays.
+- Root cause: server assembly supplied `RoomCommandRouter.wake(lane_id)` directly
+  to hosted/chat ingress, whose callback contract is `(room_id, lane_id)`. The
+  resulting TypeError was swallowed by the advisory-wakeup boundary. Durable
+  fallback scans eventually committed commands, hiding the defect in functional
+  acceptance without latency assertions. Existing routing tests used an adapter;
+  production assembly had omitted it.
+- Added the adapter in server assembly; routing still derives the room from the
+  durable lane. Persistence, authorization, fencing, deduplication and safety scans
+  are unchanged. Social ingress already used its correct one-argument callback.
+- Added a deterministic assembly-contract regression and native local/remote owner
+  latency acceptance for table controls, game commands and chat. Initial native
+  result: all eight commands completed in 0.11–0.13 seconds on disposable local
+  PostgreSQL/Redis/two gateways. This is not a production network latency promise.
+- Verification: server assembly suite 16 passed; routing/Redis/ingress/chat suite
+  51 passed; all six native process checks passed, including latency, Redis loss,
+  owner takeover, database outage, deduplication and Nginx delivery.
+- Exact next step: deploy through production CI, verify both host revisions/health,
+  and inspect post-deployment wakeup diagnostics.

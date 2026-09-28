@@ -154,8 +154,13 @@ def build_server(pool, redis, *, internal_address, signal_secret, auth, allowed_
     signals.on_health = server.observe_health
     router = RoomCommandRouter(runtime.inbox, runtime.ownership,
                                local_receiver=receiver, send_remote=signals.send_wakeup)
-    server.router = create_router(auth=auth, hosted=HostedCommandIngress(runtime.inbox, wakeup=router.wake),
-        chat=ChatIngress(runtime.inbox, wakeup=router.wake),
+    async def wake_room_lane(room_id, lane_id):
+        # Ingress supplies room + lane; routing derives the authoritative room
+        # from the persisted lane and accepts only the lane ID.
+        return await router.wake(lane_id)
+
+    server.router = create_router(auth=auth, hosted=HostedCommandIngress(runtime.inbox, wakeup=wake_room_lane),
+        chat=ChatIngress(runtime.inbox, wakeup=wake_room_lane),
         social=SocialIngress(runtime.inbox, wakeup=social.wake), gateway=gateway,
         allowed_origins=server.allowed_origins, reads=DistributedReads(pool), catalog=PostgresRoomCreation(pool),
         presence=presence, presence_room=store.presence_room, admission=server.admission)

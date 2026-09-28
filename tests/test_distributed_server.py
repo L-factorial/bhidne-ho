@@ -9,6 +9,29 @@ from test_checkpoint_store import database
 from test_redis_signals import Broker, SECRET, eventually
 
 
+async def test_assembled_hosted_and_chat_wakeups_use_router_lane_contract(monkeypatch):
+    from unittest.mock import AsyncMock
+    from uuid import uuid4
+    from app.durable_games.routing import RoomCommandRouter
+    import app.durable_games.transport as transport
+
+    captured = {}
+    def capture_router(**kwargs):
+        captured.update(kwargs)
+        return object()
+
+    wake = AsyncMock(return_value='signalled')
+    monkeypatch.setattr(RoomCommandRouter, 'wake', wake)
+    monkeypatch.setattr(transport, 'create_router', capture_router)
+    build_server(object(), Broker(), internal_address='wakeup-test', signal_secret=SECRET,
+                 auth=None, allowed_origins=set())
+    for kind in ('hosted', 'chat'):
+        lane = uuid4()
+        assert await captured[kind].wakeup('room', lane) == 'signalled'
+        wake.assert_awaited_with(lane)
+    assert wake.await_count == 2
+
+
 class Component:
     def __init__(self, name, log):
         self.name, self.log = name, log
