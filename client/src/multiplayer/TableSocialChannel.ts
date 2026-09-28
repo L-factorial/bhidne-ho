@@ -1,12 +1,14 @@
 import { ui } from '../i18n/copy.ts';
-export type TableMessage = { type: 'TABLE_CHAT_MESSAGE'; id: string; room_id: string; match_id: string; sender_id: string; sender_player_id: number; sender_name: string; text: string; sent_at: number };
+export type TableMessage = { type: 'TABLE_CHAT_MESSAGE'; id: string; room_id: string; match_id: string; sender_id: string; sender_player_id?: number; sender_name: string; text: string; sent_at: number };
 export type SocialAck = { type: 'TABLE_SOCIAL_ACK'; room_id: string; match_id: string; command_id: string; status: 'accepted' | 'rejected'; detail?: string; messages?: TableMessage[]; message?: TableMessage };
 export class TableSocialChannel {
+  transport?: (type: 'TABLE_CHAT_SEND' | 'TABLE_CHAT_HISTORY' | 'TABLE_POKE_SEND', match:string,payload:object,signal:AbortSignal)=>Promise<SocialAck>;
   send: (message: object) => boolean = () => false;
   private listeners = new Set<(event: unknown) => void>();
   subscribe(listener: (event: unknown) => void) { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; }
   receive(event: unknown) { this.listeners.forEach(listener => listener(event)); }
   request(type: 'TABLE_CHAT_SEND' | 'TABLE_CHAT_HISTORY' | 'TABLE_POKE_SEND', match_id: string, payload: object, signal: AbortSignal): Promise<SocialAck> {
+    if(this.transport)return this.transport(type,match_id,payload,signal);
     const command_id = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
     const command = { type, match_id, command_id, payload };
     return new Promise((resolve, reject) => {

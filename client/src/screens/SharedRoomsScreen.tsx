@@ -1,6 +1,7 @@
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
-import { leaveRoomMembership } from '../multiplayer/leaveRoomMembership';
+import { legacyRoomActions } from '../multiplayer/legacyRoomActions';
+import type { RoomActions } from '../multiplayer/RoomActions';
 import { RoomPrivacySettings } from '../components/RoomPrivacySettings';
 import { gameTabFinish, gameSeparatorFinish, gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { ActiveGames, type ActiveTable } from '../components/ActiveGames';
@@ -39,7 +40,7 @@ import { SocialSignInButtons } from '../components/SocialSignInButtons';
 
 type InvitePlayer = { user_id: string; display_name: string; username?: string | null };
 
-export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dismissInvitation }: { onExit: () => void; invitation?: Invitation | null; dismissInvitation?: () => void }) {
+export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dismissInvitation, roomActions = legacyRoomActions }: { roomActions?: RoomActions; onExit: () => void; invitation?: Invitation | null; dismissInvitation?: () => void }) {
   useUiLanguage();
   const [codeInvitation, setCodeInvitation] = useState<Invitation | null>(null);
   const invitation = codeInvitation || externalInvitation;
@@ -67,7 +68,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const missingProfileName = authMode === 'signup' && !profileName.trim();
   const [password, setPassword] = useState('');
   const usernameInput = useRef<TextInput>(null), passwordInput = useRef<TextInput>(null);
-  const shared = useRoomSession();
+  const shared = useRoomSession(roomActions);
   const { session, rooms, room, game, setGame, expired } = shared;
   useEffect(() => {
     if (!session || expired) { setGreetingIdentity(null); return; }
@@ -142,7 +143,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
     if (!name.trim()) { setError(ui("feedback.enter_a_room_name")); return; }
     roomOperationPending.current = true; setBusy(true); setError('');
     try {
-      const created = await request<Room>('/rooms', session, { name: name.trim(), visibility, invitees: roomInvitees.map(player => player.user_id) });
+      const created = await shared.roomActions.create(session, { name: name.trim(), visibility, invitees: roomInvitees.map(player => player.user_id) });
       if (!mounted.current) return;
       setName(''); setVisibility("private"); setRoomInviteQuery(''); setRoomInviteResults([]); setRoomInvitees([]); enterRoom(created);
     } catch (error) { if (mounted.current) setError(error instanceof Error ? error.message : ui("feedback.could_not_create_room")); }
@@ -185,9 +186,9 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
       onRemove={async () => {
         if (!session) return;
         if (item.creator_id === session.user_id) {
-          await request('/rooms/' + item.room_id, session, undefined, undefined, 'DELETE');
+          await shared.roomActions.remove(session, item.room_id);
         } else {
-          await leaveRoomMembership(item.room_id, session);
+          await shared.roomActions.leave(session, item.room_id);
         }
       }}
       activeTables={shared.memberships.find(m => m.room_id === item.room_id)?.tables.filter(t => t.status !== 'ended').length}
@@ -220,7 +221,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
       }} onOpenRoom={invited => enterRoom({ room_id: invited.room_id, name: invited.room_name, members: [] })} /> : null} />
       {session && !roomToolsOpen && !!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error || shared.error, 'feedback')}</Text>}
       {room && !expired && shared.status !== 'connected'  && <Text accessibilityLiveRegion="polite" style={styles.subtitle}>{ui("feedback.reconnecting_to_your_room")}</Text>}
-      {invitation && session ? <InvitationPreview key={`${invitation.roomId}:${invitation.matchId}`} invitation={invitation} session={session}
+      {invitation && session ? <InvitationPreview key={`${invitation.roomId}:${invitation.matchId}`} invitation={invitation} session={session} ready={process.env.EXPO_PUBLIC_RUNTIME_MODE !== 'distributed-original' || !!shared.runtime}
         dismiss={clearInvitation} join={async (target, gameType, matchId) => {
           const joined = await shared.joinRoom(target, gameType);
           if (joined) { setLinkedEntry(undefined); setLinkedMatch(matchId); clearInvitation(); }
@@ -229,7 +230,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
         <View testID="room-hero" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderSubtle, borderRadius: 24, padding: 16, gap: 18, marginTop: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <View style={{ flex: 1, minWidth: 0 }}><Text accessibilityRole="header" style={{ fontFamily: fonts.editorial, fontSize: 30, color: colors.text }}>{current?.name || room.name}</Text>
-              <Text style={{ fontFamily: fonts.body, color: colors.textMuted, fontSize: 13 }}>{ui("rooms.members_members_online_online", { "members": roomMembers.length, "online": current?.connected_members?.length || 0 })}</Text><CopyRoomCode roomId={room.room_id} inline menu />
+              <Text style={{ fontFamily: fonts.body, color: colors.textMuted, fontSize: 13 }}>{ui("rooms.members_members_online_online", { "members": roomMembers.length, "online": current?.presence_status && current.presence_status !== 'observed' ? '—' : current?.connected_members?.length || 0 })}</Text><CopyRoomCode roomId={room.room_id} inline menu />
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 }}>
             <Pressable accessibilityRole="button" accessibilityLabel={ui("common.back_to_lobby")} onPress={() => { setLinkedMatch(undefined); shared.exitRoom(); }} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="arrow-back" size={24} color={colors.accent} /></Pressable>
@@ -247,7 +248,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
         {!gameOpen && roomPanel === null && chat.navigation}
         <View style={[styles.columns, { flex: 1 }]}>
           <View style={styles.mainColumn}>
-            {session && <RoomGameControl socialChannel={shared.socialChannel} onOpenChange={setGameOpen} requestedMatchId={linkedMatch} requestedEntry={linkedEntry && linkedEntry.matchId === linkedMatch ? linkedEntry.action : undefined} personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={current?.connected_members || []} roomMembers={roomMembers} connectionMessage={expired ? shared.error : undefined}
+            {session && <RoomGameControl runtime={shared.runtime} socialChannel={shared.socialChannel} onOpenChange={setGameOpen} requestedMatchId={linkedMatch} requestedEntry={linkedEntry && linkedEntry.matchId === linkedMatch ? linkedEntry.action : undefined} personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={current?.connected_members || []} roomMembers={roomMembers} connectionMessage={expired ? shared.error : undefined}
               sessionActive={!expired} gameType={selectedGame} createContent={<>
             <Text style={styles.eyebrowDark}>{ui("rooms.choose_a_game")}</Text>
             <View style={styles.gameTabs}>

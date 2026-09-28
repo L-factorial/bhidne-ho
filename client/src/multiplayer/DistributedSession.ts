@@ -105,7 +105,7 @@ export class DistributedSession<T> {
       // Sequential bounded command recovery; slots remain owned even offscreen.
       for (const c of this.commands.values()) {
         if (connection.signal.aborted) break;
-        if (c.pending) try { await c.reconcile(connection.signal); } catch (e) { this.error(null, e); }
+        if (c.pending && !c.reconciling) try { await c.reconcile(connection.signal); } catch (e) { this.error(null, e); }
       }
     } catch (e) { if (!connection.signal.aborted) this.error(null, e); }
     finally {

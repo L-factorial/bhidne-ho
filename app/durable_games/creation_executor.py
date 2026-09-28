@@ -148,6 +148,11 @@ class RoomCreationExecutor:
             events = []
             if detail is not None:
                 outcome['detail'] = detail
+                if actor_id is not None and detail == 'Leave your existing seat before creating another table.':
+                    from .departure_context import occupied_context
+                    context = await occupied_context(claim.connection, self.inbox.pool, actor)
+                    if context is not None:
+                        outcome['context'] = context
             else:
                 table_id, match_id = creation_ids(claim.entry.lane_id, actor, request.command_id)
                 # A previously committed creation is resolved from the inbox, not

@@ -3,6 +3,7 @@ from typing import Annotated
 from uuid import uuid5, NAMESPACE_URL
 from pydantic import Field
 from app.models.poke import PlayerPhraseInput
+from app.models.table_social import TablePokePayload
 from app.runtime.command_runtime import OutgoingEvent
 from .checkpoint_store import user_uuid
 from .checkpoints import canonical_json
@@ -26,7 +27,9 @@ async def execute(claim, checkpoints):
     detail = None
     try:
         await require_member(connection, claim.target.room_id, actor)
-        poke = Poke.model_validate_json(canonical_json(request.payload))
+        poke = (TablePokePayload if request.command == 'send-reaction' else Poke).model_validate_json(canonical_json(request.payload))
+        if request.command == 'send-reaction' and poke.reaction is None:
+            raise ValueError('Choose a reaction.')
         if game.ended or request.match_id != game.match_id or request.expected_revision != data['table_revision']:
             raise ValueError('The table changed. Reopen it before sending a poke.')
         users = game.table.next_seats if game.table.next_seats is not None else game.users
@@ -42,7 +45,7 @@ async def execute(claim, checkpoints):
         if not timing[1]:
             raise ValueError('This poke expired before it could be sent.')
         recent = await (await connection.execute('''SELECT 1 FROM command_inbox WHERE lane_id=%s AND actor_id=%s
-            AND command='send-poke' AND status='accepted' AND completed_at>clock_timestamp()-interval '1.5 seconds' LIMIT 1''',
+            AND command IN ('send-poke','send-reaction') AND status='accepted' AND completed_at>clock_timestamp()-interval '1.5 seconds' LIMIT 1''',
             (claim.entry.lane_id,actor))).fetchone()
         if recent:
             raise ValueError('Give that poke a moment before sending another.')
@@ -60,7 +63,15 @@ async def execute(claim, checkpoints):
             sender_name=(row[0] if row else None) or f'Player {seats[actor]}',recipient_id=recipient,
             recipient_player_id=poke.recipient_player_id,scope='private' if recipient else 'table',text=poke.text,
             expires_at=int(timing[0].timestamp()*1000)+5000)
-        events.append(OutgoingEvent(event,recipient))
+        if request.command == 'send-reaction':
+            event.update(type='TABLE_REACTION', reaction=poke.reaction, scope='table')
+            if poke.reaction != 'punchline':
+                event.pop('text')
+            # Original table reactions are public visuals for authorized table
+            # viewers, including spectators. Private pokes retain their recipient.
+            events.append(OutgoingEvent(event, None))
+        else:
+            events.append(OutgoingEvent(event,recipient))
     events.append(OutgoingEvent(dict(type='TABLE_COMMAND_ACK',**outcome),actor))
     await append_lane_events(claim,events)
     await claim.complete(outcome)

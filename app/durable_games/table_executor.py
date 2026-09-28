@@ -42,7 +42,7 @@ class TableStateRejected(DurableGameConflict):
 
 class TableLaneExecutor:
     roster_commands = frozenset({'join-seat', 'leave-seat', 'join-queue', 'leave-queue'})
-    commands = frozenset({'join-seat', 'leave-seat', 'join-queue', 'leave-queue', 'lock', 'start', 'end', 'abandon', 'next-match', 'expire-seat-offer', 'answer-table-invitation', 'send-poke'}) | OFFER_COMMANDS | RULE_COMMANDS
+    commands = frozenset({'join-seat', 'leave-seat', 'join-queue', 'leave-queue', 'lock', 'start', 'end', 'abandon', 'next-match', 'expire-seat-offer', 'answer-table-invitation', 'send-poke', 'send-reaction'}) | OFFER_COMMANDS | RULE_COMMANDS
 
     def __init__(self, inbox, *, max_events=512, round_summary_seconds=8):
         if type(max_events) is not int or max_events < 1 or round_summary_seconds < 0:
@@ -58,7 +58,7 @@ class TableLaneExecutor:
             if claim.target.kind != 'table':
                 raise DurableGameConflict('This executor handles table lanes only.')
             request = claim.entry.request
-            if request.command == 'send-poke':
+            if request.command in ('send-poke', 'send-reaction'):
                 from .pokes import execute
                 return await execute(claim, self.checkpoints)
             if request.command == 'expire-seat-offer':
@@ -78,6 +78,7 @@ class TableLaneExecutor:
             game = host.game = rebuild_hosted_game(host, stored.checkpoint,
                 receipt_snapshot=stored.receipt_snapshot).game
             detail = None
+            context = None
             offer_payload = None
             payload_error = None
             if offer_command:
@@ -145,6 +146,9 @@ class TableLaneExecutor:
                         # Leaving a queue must remain possible while seated elsewhere.
                         if request.command in ('join-seat', 'join-queue', 'start', 'next-match') or user != claim.entry.actor_id:
                             detail = 'A player is already seated at another table.'
+                            if user == claim.entry.actor_id:
+                                from .departure_context import occupied_context
+                                context = await occupied_context(claim.connection, self.inbox.pool, user, claim.target.table_id)
                             break
             events = []
             invitations = data['invitations']
@@ -232,6 +236,8 @@ class TableLaneExecutor:
             if detail is not None:
                 events = []
                 outcome['detail'] = detail
+                if context is not None:
+                    outcome['context'] = context
             if actor_id is not None:
                 events.append(OutgoingEvent({'type': 'TABLE_COMMAND_ACK', **outcome}, claim.entry.actor_id))
             await append_lane_events(claim, events, max_events=self.max_events)

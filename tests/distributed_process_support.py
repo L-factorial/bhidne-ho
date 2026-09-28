@@ -46,7 +46,8 @@ class GatewayProcess:
 
 
 class Cluster:
-    def __init__(self, directory, pg, redis):
+    def __init__(self, directory, pg, redis, *, origins=('http://localhost',)):
+        self.origins = origins
         self.directory, self.pg = Path(directory), Path(pg)
         self.redis = LocalRedis(directory, redis)
         self.processes, self.logs, self.urls = [], [], []
@@ -79,7 +80,7 @@ class Cluster:
                 return False
         await until(ready,15)
         await self.redis.start()
-        await initialize(Settings(self.dburl,self.redis.url,b'x'*32,'test',('http://localhost',)))
+        await initialize(Settings(self.dburl,self.redis.url,b'x'*32,'test',self.origins))
         self.pool=AsyncConnectionPool(self.dburl,min_size=1,max_size=4,open=False)
         await self.pool.open(wait=True)
         await self.gateway()
@@ -108,7 +109,7 @@ class Cluster:
         env=os.environ.copy()
         env.update(BHIDNE_DISTRIBUTED_ISOLATED='1',BHIDNE_DISTRIBUTED_DATABASE_URL=self.dburl,
             BHIDNE_DISTRIBUTED_REDIS_URL=self.redis.url,BHIDNE_DISTRIBUTED_SIGNAL_SECRET=(b'x'*32).hex(),
-            BHIDNE_DISTRIBUTED_ADDRESS=url,BHIDNE_DISTRIBUTED_ORIGINS='http://localhost',
+            BHIDNE_DISTRIBUTED_ADDRESS=url,BHIDNE_DISTRIBUTED_ORIGINS=','.join(self.origins),
             BHIDNE_DISTRIBUTED_METRICS_PORT=str(metrics_port),BHIDNE_DISTRIBUTED_METRICS_ADDRESS='127.0.0.1')
         logfile=open(self.directory/f'gateway-{index}.log','wb');self.logs.append(logfile)
         process=GatewayProcess([sys.executable,'-m','uvicorn','app.durable_games.bootstrap:create_app',

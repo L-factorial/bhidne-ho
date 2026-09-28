@@ -2,8 +2,8 @@ import type { DurableCommandTransport } from './DurableCommandClient.ts';
 
 export class DistributedRequestError extends Error {
   readonly status: number;
-  constructor(status: number) {
-    super(`Distributed request failed (${status}); outcome unresolved.`); this.status = status;
+  constructor(status: number, message?:string) {
+    super(message ?? `Distributed request failed (${status}); outcome unresolved.`); this.status = status;
   }
 }
 

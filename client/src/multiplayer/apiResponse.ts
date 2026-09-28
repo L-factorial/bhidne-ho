@@ -1,7 +1,7 @@
 import { ui } from '../i18n/copy.ts';
 export class ApiError extends Error {
   status: number;
-  detail?: { code?: string; match_id?: string; requires_leave_game?: boolean; departure_command?: 'abandon' | 'leave' };
+  detail?: { code?: string; room_id?:string; match_id?: string; requires_leave_game?: boolean; departure_command?: 'abandon' | 'leave' | 'end' };
   constructor(status: number, message: string, detail?: ApiError['detail']) {
     super(message); this.status = status; this.detail = detail;
   }

@@ -1,3 +1,6 @@
+import type { OriginalDistributedRuntime } from '../multiplayer/OriginalDistributedRuntime';
+import type { SelectedTable } from '../multiplayer/DistributedControls';
+import { DistributedGameCommandClient } from '../multiplayer/DistributedGameCommandClient';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, ThemeContext, useTheme, useThemedStyles, type ThemeColors } from '../theme';
@@ -29,7 +32,8 @@ import { request } from '../multiplayer/api';
 
 type InvitePlayer = { user_id: string; display_name: string; username?: string | null; eligible?: boolean; reason?: string | null };
 
-export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMatchId, requestedEntry, roomId, apiUrl, token, connected, sessionActive = true, members, roomMembers = members, connectionMessage, userId, pokes, personal, createContent, creationEnabled = true, gameType = 'callbreak' }: {
+export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, requestedMatchId, requestedEntry, roomId, apiUrl, token, connected, sessionActive = true, members, roomMembers = members, connectionMessage, userId, pokes, personal, createContent, creationEnabled = true, gameType = 'callbreak' }: {
+  runtime?: OriginalDistributedRuntime | null;
   socialChannel?: TableSocialChannel; chat?: ReactNode; onOpenChange?: (open: boolean) => void;
   requestedMatchId?: string; requestedEntry?: TableEntry;
   gameType?: 'callbreak' | 'marriage' | 'flush';
@@ -46,6 +50,10 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
   const social = useRoomPokes(roomId, userId, token, connected);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [open, setOpen] = useState(false);
+  useEffect(()=>{
+    if(!runtime||!snapshot?.table_id)return;
+    void runtime.root.select({room:roomId,table:snapshot.table_id,chat:['room_chat','table_chat']}).catch(()=>{});
+  },[runtime,roomId,snapshot?.table_id,snapshot?.durable_game_id]);
   const [seatConflict, setSeatConflict] = useState<GameRequestDetail | null>(null);
   const visibleTables = snapshot?.tables?.filter(table => table.status !== 'ended' && table.phase !== 'ENDED') || [];
   useEffect(() => { onOpenChange?.(open); }, [open, onOpenChange]);
@@ -66,11 +74,19 @@ export function RoomGameControl({ socialChannel, chat, onOpenChange, requestedMa
   const [formationBlocked, setFormationBlocked] = useState(false);
   const base = `${apiUrl}/test-games/${encodeURIComponent(roomId)}`;
   const selectedMatch = useRef<string | undefined>(requestedMatchId);
-  const transport = useMemo(() => createHttpGameTransport<Snapshot>(base, token, globalThis.fetch, () => selectedMatch.current), [base, token, uiLanguage]);
+  const transport = useMemo(() => {
+    if(process.env.EXPO_PUBLIC_RUNTIME_MODE !== 'distributed-original')return createHttpGameTransport<Snapshot>(base,token,globalThis.fetch,()=>selectedMatch.current);
+    const send=(suffix='',body?:object,signal?:AbortSignal)=>request<Snapshot>(`/test-games/${encodeURIComponent(roomId)}${suffix}`,{user_id:userId,token},body,signal);
+    return {request:send,snapshot:(signal:AbortSignal)=>send(selectedMatch.current?`?match_id=${encodeURIComponent(selectedMatch.current)}`:'',undefined,signal),
+      action:(body:object,signal:AbortSignal)=>send('/action',body,signal)};
+  },[base,token,roomId,userId,runtime,uiLanguage]);
   useEffect(() => {
     if (requestedMatchId) { selectedMatch.current = requestedMatchId; setActionTick(v => v + 1); }
   }, [requestedMatchId]);
-  const commandClient = useMemo(() => new GameCommandClient(transport), [transport, uiLanguage]);
+  const commandClient = useMemo(() => runtime
+    ? new DistributedGameCommandClient(runtime.root.session.command('original-game-actions'),transport.snapshot,
+      snapshot=>({...snapshot,room_id:roomId}) as unknown as SelectedTable)
+    : new GameCommandClient(transport), [transport,runtime,roomId,uiLanguage]);
   const [actionTick, setActionTick] = useState(0);
   const [actionNotice, setActionNotice] = useState('');
   const [synced, setSynced] = useState(false);

@@ -4,7 +4,7 @@ WORKDIR /client
 COPY client/package.json client/package-lock.json ./
 RUN npm ci
 COPY client/ ./
-RUN npm run build:production && tar -czf /frontend.tar.gz -C dist .
+RUN node --experimental-strip-types --test tests/*.test.mjs && npm run build:production && tar -czf /frontend.tar.gz -C dist .
 
 FROM python:3.14-slim-bookworm
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1

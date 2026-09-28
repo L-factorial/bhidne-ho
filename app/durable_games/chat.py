@@ -50,7 +50,7 @@ async def authorize_chat(connection, target, actor, *, write=False, checkpoints=
             game = rebuild_hosted_game(host, saved.checkpoint, receipt_snapshot=saved.receipt_snapshot).game
             host.tables.setdefault(target.room_id, {})[game.match_id] = game
             if host.chat_blocked(target.room_id, actor):
-                raise QueryAccessDenied('Room chat is paused during active play.')
+                raise QueryAccessDenied('Chat is paused during active play.')
         return
     if lock:
         await connection.execute('SELECT table_id FROM room_tables WHERE table_id=%s FOR SHARE', (target.table_id,))
@@ -194,9 +194,9 @@ class ChatHistory:
                 await connection.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
                 target, _, _ = await self._target(connection, lane_id)
                 await authorize_chat(connection, target, actor, checkpoints=self.checkpoints)
-                rows = await (await connection.execute('''SELECT id,sequence,sender_id,text,sent_at FROM room_chat_messages
+                rows = await (await connection.execute('''SELECT id,sequence,sender_id,text,sent_at,command_id FROM room_chat_messages
                     WHERE lane_id=%s AND sequence>%s ORDER BY sequence LIMIT %s''', (lane_id,after,limit+1))).fetchall()
-                return dict(items=[dict(id=str(r[0]),sequence=r[1],sender_id=f'user-{r[2]}',text=r[3],sent_at=r[4].isoformat())
+                return dict(items=[dict(id=str(r[0]),sequence=r[1],sender_id=f'user-{r[2]}',text=r[3],sent_at=r[4].isoformat(),command_id=r[5] if f'user-{r[2]}' == actor else None)
                     for r in rows[:limit]], next_sequence=rows[limit-1][1] if len(rows)>limit else None)
 
     async def _target(self, connection, lane_id):

@@ -3,10 +3,12 @@ import type { CommandTarget } from './DurableCommandClient.ts';
 import { discoverDeliveryStreams } from './DurableDeliveryClient.ts';
 import type { StreamCatalogPage } from './DurableDeliveryClient.ts';
 import { loadSequencedHistory } from './DistributedViews.ts';
+import type { Room } from './session';
 export type HistoryItem = { id: string; sequence: number; [key: string]: unknown };
 export type LegacyCursor = { at: string; id: string };
 export type LegacyPage = { source: 'legacy'; items: { id: string; [key: string]: unknown }[]; next_before: LegacyCursor | null };
 export type CatalogRoom = {room_id:string;name:string;creator_id:string;visibility:string;created_at:string;open_table_count:number;is_member:boolean};
+export type MemberProfile = {user_id:string;display_name:string;username:string|null};
 export type TableInvitation = {id:string;room_id:string;room_name:string;table_id:string;table_name:string;table_revision:number;match_id:string};
 
 // Read routes never mutate game state or advance delivery ACKs. Caller owns the
@@ -25,15 +27,88 @@ export class DistributedReadClient {
     const result = await this.fetcher(this.base + path, { signal:abort.signal, cache:'no-store',
       method:body === undefined ? 'GET':'POST', headers:{Authorization:`Bearer ${this.token}`,'Content-Type':'application/json'},
       ...(body === undefined ? {} : {body:JSON.stringify(body)}) });
-    if (!result.ok) throw new DistributedRequestError(result.status);
+    if (!result.ok) {
+      let message:string|undefined;
+      try {const body=await result.json();if(typeof body.detail==='string')message=body.detail;}catch {}
+      throw new DistributedRequestError(result.status,message);
+    }
     return await result.json();
     } finally {clearTimeout(timer);signal.removeEventListener('abort',cancel);}
   }
   room<T>(room: string, table: string | null, signal: AbortSignal): Promise<T> {
     return this.request(`/rooms/${encodeURIComponent(room)}${table ? `?table_id=${encodeURIComponent(table)}` : ''}`, signal);
   }
+  gameView<T>(room: string, match: string | null, signal: AbortSignal): Promise<T> {
+    return this.request(`/ui/rooms/${encodeURIComponent(room)}/game${match ? `?match_id=${encodeURIComponent(match)}` : ''}`,signal);
+  }
+  preview<T extends Room>(room: string, signal: AbortSignal): Promise<T> {
+    return this.request(`/ui/rooms/${encodeURIComponent(room)}`,signal);
+  }
+  eligibility(room: string, player_ids: string[], signal: AbortSignal) {
+    return this.request(`/ui/rooms/${encodeURIComponent(room)}/invitation-eligibility`,signal,{player_ids});
+  }
+  async memberProfiles(room: string, signal: AbortSignal): Promise<MemberProfile[]> {
+    const items: MemberProfile[] = [], seen = new Set<string>();
+    let after: string | null = null;
+    for (let page = 0; page < 10; page++) {
+      const result: {items:MemberProfile[];next_user_id:string|null} = await this.request(
+        `/ui/rooms/${encodeURIComponent(room)}/members${after ? `?after_user_id=${encodeURIComponent(after)}` : ''}`,signal);
+      if (signal.aborted) throw Error('Member load aborted.');
+      if (!Array.isArray(result.items) || result.items.length > 100) throw Error('Invalid member profile page.');
+      for (const profile of result.items) {
+        if (!profile.user_id || seen.has(profile.user_id)) throw Error('Repeated member profile.');
+        seen.add(profile.user_id); items.push(profile);
+      }
+      if (result.next_user_id === null) return items;
+      if (!result.items.length || result.next_user_id !== result.items.at(-1)?.user_id
+          || (after !== null && result.next_user_id <= after)) throw Error('Invalid member profile cursor.');
+      after = result.next_user_id;
+    }
+    throw Error('Room exceeds the supported membership limit.');
+  }
   catalog(after: string | null, signal: AbortSignal) {
     return this.request<{items:CatalogRoom[];next_room_id:string|null}>(`/rooms?limit=50${after ? `&after_room_id=${encodeURIComponent(after)}`:''}`,signal);
+  }
+  async lobby(signal: AbortSignal): Promise<Room[]> {
+    const rooms: Room[] = [], seen = new Set<string>();
+    let after: string | null = null;
+    // Fail visibly instead of displaying a silently truncated original lobby.
+    for (let page = 0; page < 100; page++) {
+      const result: {items: Room[]; next_room_id: string | null} = await this.request(
+        `/ui/rooms?limit=100${after ? `&after_room_id=${encodeURIComponent(after)}` : ''}`, signal);
+      if (signal.aborted) throw Error('Lobby load aborted.');
+      if (!Array.isArray(result.items) || result.items.length > 100) throw Error('Invalid lobby page.');
+      for (const room of result.items) {
+        if (!room.room_id || seen.has(room.room_id)) throw Error('Repeated lobby room.');
+        seen.add(room.room_id); rooms.push(room);
+      }
+      if (result.next_room_id === null) {
+        const rank = {you:0, joined:1, friend:2, public:3};
+        return rooms.sort((a,b) => rank[a.feed_source ?? 'public'] - rank[b.feed_source ?? 'public']
+          || (b.created_at ?? 0) - (a.created_at ?? 0) || a.room_id.localeCompare(b.room_id));
+      }
+      if (!result.items.length || result.next_room_id !== result.items.at(-1)?.room_id
+          || (after !== null && result.next_room_id <= after)) throw Error('Invalid lobby cursor.');
+      after = result.next_room_id;
+    }
+    throw Error('Lobby exceeds the supported room limit.');
+  }
+  async activity<T>(kind: 'memberships'|'active-tables', signal: AbortSignal): Promise<T[]> {
+    const items: T[] = [];
+    let after: string | null = null;
+    for (let page = 0; page < 500; page++) {
+      const result: {items:T[];next_room_id:string|null} = await this.request(
+        `/ui/${kind}${after ? `?after_room_id=${encodeURIComponent(after)}` : ''}`,signal);
+      if (signal.aborted) throw Error('Activity load aborted.');
+      if (!Array.isArray(result.items) || result.items.length > 100) throw Error('Invalid activity page.');
+      items.push(...result.items);
+      if (result.next_room_id === null) return items;
+      // A page can have no tables, while still advancing over rooms.
+      if (typeof result.next_room_id !== 'string' || !result.next_room_id
+          || (after !== null && result.next_room_id <= after)) throw Error('Invalid activity cursor.');
+      after = result.next_room_id;
+    }
+    throw Error('Activity exceeds the supported room limit.');
   }
   members(room: string, after: string | null, signal: AbortSignal) {
     return this.request<{items:string[];next_user_id:string|null}>(`/rooms/${encodeURIComponent(room)}/members?limit=100${after ? `&after_user_id=${encodeURIComponent(after)}`:''}`,signal);

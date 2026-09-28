@@ -1,3 +1,4 @@
+import { runtimeRequest, sharedPlatformPath } from './RuntimeRequests';
 import { Platform } from 'react-native';
 import type { Session } from './session';
 import { decodeApiResponse } from './apiResponse';
@@ -12,7 +13,7 @@ export const apiUrl = (
     : 'https://api-bhidne-ho.lfactorial.com')
 ).replace(/\/$/, '');
 
-export async function request<T>(path: string, session: Session | null, body?: object, signal?: AbortSignal, method?: 'DELETE' | 'PATCH'): Promise<T> {
+export async function sharedRequest<T>(path: string, session: Session | null, body?: object, signal?: AbortSignal, method?: 'DELETE' | 'PATCH'): Promise<T> {
   const controller = new AbortController();
   const abort = () => controller.abort();
   if (signal?.aborted) abort();
@@ -38,4 +39,13 @@ export async function request<T>(path: string, session: Session | null, body?: o
     });
     return decodeApiResponse<T>(raw, response.status);
   } finally { clearTimeout(timeout); signal?.removeEventListener('abort', abort); }
+}
+
+export async function request<T>(path: string, session: Session | null, body?: object, signal?: AbortSignal, method?: 'DELETE' | 'PATCH'): Promise<T> {
+  const adapter = runtimeRequest(session);
+  if (adapter) return adapter<T>(path, session, body, signal, method);
+  if (process.env.EXPO_PUBLIC_RUNTIME_MODE === 'distributed-original' && !sharedPlatformPath(path, body, method)) {
+    throw Error('Preparing the distributed session. Please retry in a moment.');
+  }
+  return sharedRequest<T>(path, session, body, signal, method);
 }

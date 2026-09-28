@@ -2,6 +2,7 @@ import { readAuthValue, writeAuthValue } from '../auth/storage.ts';
 
 export type Session = { user_id: string; token: string };
 export type Room = { room_id: string; name: string; members: string[]; connected_members?: string[];
+  presence_status?: 'observed'|'unknown'|'overflow';
   table_count?: number; member_previews?: { user_id: string; display_name: string; username?: string | null }[];
   creator_is_friend?: boolean; creator_id?: string | null; visibility?: 'public' | 'private' | 'friends'; created_at?: number | null;
   feed_source?: 'you' | 'joined' | 'friend' | 'public' };

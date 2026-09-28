@@ -42,11 +42,11 @@ class SocialHistory:
                 target,_,_ = await self.inbox._lane(connection,lane_id)
                 await authorize_social(connection,target,actor)
                 if target.kind == 'conversation':
-                    rows = await (await connection.execute('''SELECT id,sequence,sender_id,recipient_id,text,sent_at
+                    rows = await (await connection.execute('''SELECT id,sequence,sender_id,recipient_id,text,sent_at,command_id
                         FROM direct_messages WHERE lane_id=%s AND sequence>%s ORDER BY sequence LIMIT %s''',
                         (lane_id,after,limit+1))).fetchall()
                     items = [dict(id=str(r[0]),sequence=r[1],sender_id=f'user-{r[2]}',recipient_id=f'user-{r[3]}',
-                                  text=r[4],sent_at=r[5].isoformat()) for r in rows[:limit]]
+                                  text=r[4],sent_at=r[5].isoformat(),command_id=r[6] if f'user-{r[2]}' == actor else None) for r in rows[:limit]]
                 else:
                     rows = await (await connection.execute('''SELECT id,sequence,kind,COALESCE(source_actor_id,actor_id),
                         payload,created_at,read_at FROM friend_notifications

@@ -33,7 +33,7 @@ export function RoomCard({ room, member, busy, activeTables, onPress, owner, onR
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 6,
         marginTop: 3, borderRadius: 20, backgroundColor: online ? c.successSurface : c.surfaceRaised }}>
         <Ionicons name="people" size={12} color={online ? c.success : c.textMuted} />
-        <Text style={{ color: online ? c.success : c.textMuted, fontFamily: fonts.medium, fontSize: 11 }}>{ui("rooms.count_online", { "count": online })}</Text>
+        <Text style={{ color: online ? c.success : c.textMuted, fontFamily: fonts.medium, fontSize: 11 }}>{ui("rooms.count_online", { "count": room.presence_status && room.presence_status !== 'observed' ? '—' : online })}</Text>
       </View>
       <Pressable accessibilityRole="button" accessibilityLabel={ui("common.share_name", { "name": room.name })} onPress={() => setSharing(true)}
         style={({ pressed }) => ({ width: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: pressed ? c.surfaceRaised : 'transparent' })}>

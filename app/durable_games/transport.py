@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect, Query
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
+from pydantic import Field
 
 from app.auth.service import AuthenticationError
 from .checkpoint_store import user_uuid
@@ -20,6 +21,10 @@ from .socket_session import SocketSession
 class Submission(Record):
     target: LaneTarget
     body: InboxRequest
+
+
+class InvitationEligibility(Record):
+    player_ids: list[str] = Field(min_length=1, max_length=20)
 
 
 def create_router(*, auth, hosted, chat, social, gateway, allowed_origins, reads=None, catalog=None,
@@ -103,7 +108,73 @@ def create_router(*, auth, hosted, chat, social, gateway, allowed_origins, reads
                 return await catalog.create(who, body.model_dump(mode='json'))
             return await execute(work)
 
+    async def present_rooms(items):
+        if presence is None:
+            return items
+        concurrency = asyncio.Semaphore(4)
+        async def decorate(room):
+            async with concurrency:
+                observed = await presence.store.observe('room', room['room_id'])
+                room['presence_status'] = observed.status
+                if observed.status == 'observed':
+                    members = set(room['members'])
+                    connected = sorted({c.user_id for c in observed.connections if c.user_id in members})
+                    room['connected_members'] = connected
+                    preview = sorted(members, key=lambda user: (user not in connected, user))[:4]
+                    room['member_previews'] = await reads.hosted.profile_summaries(preview)
+            return room
+        return await asyncio.gather(*(decorate(room) for room in items))
+
     if reads is not None:
+        @router.post('/ui/rooms/{room_id}/invitation-eligibility')
+        async def original_invitation_eligibility(request: Request, room_id: str):
+            who = await http_actor(request)
+            async def work():
+                raw = bytearray()
+                async for chunk in request.stream():
+                    raw.extend(chunk)
+                    if len(raw) > 65536:
+                        raise HTTPException(413, 'Eligibility request exceeds limit.')
+                payload = InvitationEligibility.model_validate_json(bytes(raw))
+                return await reads.hosted.invitation_eligibility(room_id, who, payload.player_ids)
+            return await execute(work)
+
+        @router.get('/ui/rooms/{room_id}')
+        async def original_room_preview(request: Request, room_id: str):
+            who = await http_actor(request)
+            return await execute(lambda: reads.hosted.room(room_id, who, invitation_preview=True))
+
+        @router.get('/ui/rooms/{room_id}/members')
+        async def original_member_profiles(request: Request, room_id: str,
+                                           after_user_id: str | None = Query(None, max_length=128)):
+            who = await http_actor(request)
+            return await execute(lambda: reads.hosted.member_profiles(room_id, who, after_user_id=after_user_id))
+
+        @router.get('/ui/memberships')
+        async def original_memberships(request: Request, after_room_id: str = Query('', max_length=128)):
+            who = await http_actor(request)
+            return await execute(lambda: reads.hosted.activity(who, memberships=True, after_room_id=after_room_id))
+
+        @router.get('/ui/active-tables')
+        async def original_active_tables(request: Request, after_room_id: str = Query('', max_length=128)):
+            who = await http_actor(request)
+            return await execute(lambda: reads.hosted.activity(who, after_room_id=after_room_id))
+
+        @router.get('/ui/rooms/{room_id}/game')
+        async def original_game_view(request: Request, room_id: str, match_id: UUID | None = None):
+            who = await http_actor(request)
+            return await execute(lambda: reads.hosted.game_view(room_id, who, match_id=match_id))
+
+        @router.get('/ui/rooms')
+        async def lobby_page(request: Request, after_room_id: str = Query('', max_length=128),
+                             limit: int = Query(50, ge=1, le=100)):
+            who = await http_actor(request)
+            async def work():
+                page = await reads.hosted.lobby(who, after_room_id=after_room_id, limit=limit)
+                page['items'] = await present_rooms(page['items'])
+                return page
+            return await execute(work)
+
         @router.get('/rooms')
         async def catalog_page(request: Request, after_room_id: str = Query('', max_length=128),
                                limit: int = Query(50, ge=1, le=100)):

@@ -7,8 +7,8 @@ import type { Invitation } from '../multiplayer/invitations';
 import type { Room, Session } from '../multiplayer/session';
 import { useTheme } from '../theme';
 
-export function InvitationPreview({ invitation, session, join, dismiss }: {
-  invitation: Invitation; session: Session;
+export function InvitationPreview({ invitation, session, join, dismiss, ready = true }: {
+  invitation: Invitation; session: Session; ready?: boolean;
   join: (room: Room, gameType?: string, matchId?: string) => Promise<boolean>; dismiss: () => void;
 }) {
   useUiLanguage();
@@ -17,7 +17,9 @@ export function InvitationPreview({ invitation, session, join, dismiss }: {
   const [error, setError] = useState(''), [busy, setBusy] = useState(false), [attempt, setAttempt] = useState(0);
   const joinRef = useRef(join); joinRef.current = join;
   useEffect(() => {
-    const controller = new AbortController(); setError(''); setBusy(true); setTarget(null);
+    setError(''); setBusy(true); setTarget(null);
+    if (!ready) return;
+    const controller = new AbortController();
     async function load() {
       try {
         const state = await request<Room & { tables?: { match_id: string; game_type: string; status: string }[] }>(
@@ -34,7 +36,7 @@ export function InvitationPreview({ invitation, session, join, dismiss }: {
       finally { if (!controller.signal.aborted) setBusy(false); }
     }
     void load(); return () => controller.abort();
-  }, [invitation.roomId, invitation.matchId, session.token, attempt]);
+  }, [invitation.roomId, invitation.matchId, session.token, attempt, ready]);
   return <View style={{ padding: 20, gap: 12, backgroundColor: colors.surface }}>
     <Text accessibilityRole="header" style={{ color: colors.text, fontSize: 22 }}>{invitation.matchId ? ui("social.game_invitation") : ui("rooms.room_invitation")}</Text>
     {target && <Text style={{ color: colors.text }}>{target.name} · {target.members.length} {ui("rooms.room_members")}</Text>}

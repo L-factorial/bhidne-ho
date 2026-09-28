@@ -125,7 +125,12 @@ async def test_active_seat_blocks_room_departure_without_mutation(database, kind
     try:
         await store.save(capture_checkpoint(game, table_revision=0), expected_revision=None, fence=fence)
         before = await store.load(game.table.table_id)
-        assert (await run(pool, fence, users[1], 'leave-room'))['status'] == 'rejected'
+        rejected = await run(pool, fence, users[1], 'leave-room')
+        assert rejected['status'] == 'rejected'
+        assert rejected['context']['code'] == 'LEAVE_GAME_REQUIRED'
+        assert rejected['context']['room_id'] == 'room'
+        assert rejected['context']['match_id'] == game.match_id
+        assert rejected['context']['departure_command'] in ('leave', 'abandon', 'end')
         assert await store.load(game.table.table_id) == before
         assert (await pool.execute('SELECT 1 FROM room_memberships WHERE user_id=%s',(UUID(users[1][5:]),))).rows == [(1,)]
         # An unseated spectator can still leave an active room.

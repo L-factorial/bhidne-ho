@@ -71,7 +71,9 @@ async def departure(claim, inbox, fence, *, max_tables=5):
         host = _LobbyHost(8)
         game = host.game = rebuild_hosted_game(host, saved.checkpoint, receipt_snapshot=saved.receipt_snapshot).game
         if actor in game.table.seats(game) and game.table.phase in ('STARTED', 'LOCKED'):
-            return 'Leave the active game or resolve the locked roster before leaving this room.'
+            from .departure_context import game_departure
+            return dict(detail='Leave the active game or resolve the locked roster before leaving this room.',
+                        context=game_departure(game, actor))
         if actor in game.table.seats(game) and game.started:
             round_number = saved.checkpoint['data']['engine']['state']['round_number'] if game.game_type == 'flush' else 0
             intent = await (await connection.execute('''SELECT 1 FROM game_finalization_jobs
@@ -133,6 +135,7 @@ async def departure(claim, inbox, fence, *, max_tables=5):
 async def execute(claim, inbox, fence, *, max_events=512):
     request, actor, connection, room_id = claim.entry.request, claim.entry.actor_id, claim.connection, claim.target.room_id
     detail, payload, actor_id = None, None, None
+    context = None
     try:
         actor_id = user_uuid(actor)
         payload = MODELS[request.command].model_validate_json(canonical_json(request.payload))
@@ -161,6 +164,8 @@ async def execute(claim, inbox, fence, *, max_events=512):
                 await connection.execute("UPDATE room_invitations SET status='accepted' WHERE room_id=%s AND recipient_id=%s AND status='pending'", (room_id, actor))
         elif command == 'leave-room':
             detail = await departure(claim, inbox, fence)
+            if isinstance(detail, dict):
+                context, detail = detail['context'], detail['detail']
         elif command == 'delete-room':
             active = await (await connection.execute("SELECT 1 FROM room_tables WHERE room_id=%s AND status<>'closed' LIMIT 1", (room_id,))).fetchone()
             if active:
@@ -199,6 +204,8 @@ async def execute(claim, inbox, fence, *, max_events=512):
     events = []
     if detail:
         outcome['detail'] = detail
+        if context is not None:
+            outcome['context'] = context
     else:
         events.append(OutgoingEvent(dict(type='ROOM_STATE_CHANGED', room_id=room_id, command=request.command)))
     if actor_id is not None:

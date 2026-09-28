@@ -79,6 +79,60 @@ class PostgresHostedQueries:
                 created_at=r[4].isoformat(), open_table_count=r[5], is_member=r[6]) for r in rows[:limit]],
                 next_room_id=rows[limit - 1][0] if len(rows)>limit else None)
 
+    @observe('read.lobby')
+    async def lobby(self, actor, *, after_room_id='', limit=50):
+        """Original room-card contract, from committed shared state.
+
+        Invitation discovery remains separate: an invitation alone must not put a
+        private room into the public/friend feed. Presence is deliberately absent
+        here; membership is not evidence that a player is currently connected.
+        Pagination uses stable IDs; the client sorts the complete feed by source
+        and creation time, just as the original lobby does.
+        """
+        user = user_uuid(actor)
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise ValueError('Invalid lobby page limit.')
+        async with self.pool.connection() as connection:
+            async with connection.transaction():
+                await connection.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
+                rows = await (await connection.execute('''SELECT r.id,r.name,r.creator_id,r.visibility,r.created_at,
+                    r.open_table_count,EXISTS(SELECT 1 FROM room_memberships m WHERE m.room_id=r.id AND m.user_id=%s) AS is_member,
+                    EXISTS(SELECT 1 FROM friendships f WHERE f.status='accepted'
+                        AND f.user_low=LEAST(r.creator_id,%s::uuid) AND f.user_high=GREATEST(r.creator_id,%s::uuid)) AS creator_is_friend
+                    FROM rooms r WHERE r.id>%s AND NOT EXISTS(SELECT 1 FROM deleted_rooms d WHERE d.id=r.id)
+                    AND (r.visibility='public' OR r.creator_id=%s OR EXISTS
+                        (SELECT 1 FROM room_memberships m WHERE m.room_id=r.id AND m.user_id=%s))
+                    ORDER BY r.id LIMIT %s''', (user, user, user, after_room_id, user, user, limit + 1))).fetchall()
+                items = []
+                for room, name, creator, visibility, created, tables, joined, friend in rows[:limit]:
+                    members = await (await connection.execute('''SELECT m.user_id,
+                        COALESCE(NULLIF(p.display_name,''),a.username),a.username
+                        FROM room_memberships m LEFT JOIN user_profiles p ON p.user_id=m.user_id
+                        LEFT JOIN account_credentials a ON a.user_id=m.user_id
+                        WHERE m.room_id=%s ORDER BY m.user_id LIMIT 1001''', (room,))).fetchall()
+                    # Never silently turn a truncated member list into a false
+                    # count or false membership decision in an existing card.
+                    if len(members) > 1000:
+                        raise DurableGameConflict('Room exceeds the lobby membership limit.')
+                    items.append(dict(room_id=room, name=name, creator_id=f'user-{creator}',
+                        visibility=visibility, created_at=created.timestamp(), table_count=tables,
+                        members=[f'user-{m[0]}' for m in members], creator_is_friend=friend,
+                        member_previews=[dict(user_id=f'user-{m[0]}', display_name=m[1] or f'user-{m[0]}',
+                                              username=m[2]) for m in members[:4]],
+                        feed_source='you' if creator == user else 'joined' if joined else 'friend' if friend else 'public'))
+                return dict(items=items, next_room_id=rows[limit - 1][0] if len(rows) > limit else None)
+
+    async def profile_summaries(self, users):
+        if len(users) > 100:
+            raise ValueError('Too many profile summaries.')
+        async with self.pool.connection() as connection:
+            rows = await (await connection.execute('''SELECT u.id,COALESCE(NULLIF(p.display_name,''),a.username),a.username
+                FROM users u LEFT JOIN user_profiles p ON p.user_id=u.id
+                LEFT JOIN account_credentials a ON a.user_id=u.id WHERE u.id=ANY(%s::uuid[])''',
+                ([str(user_uuid(user)) for user in users],))).fetchall()
+            profiles = {f'user-{r[0]}': dict(user_id=f'user-{r[0]}',display_name=r[1] or f'user-{r[0]}',username=r[2]) for r in rows}
+            return [profiles[user] for user in users if user in profiles]
+
     @observe('read.members')
     async def members(self, room_id, actor, *, after_user_id=None, limit=100):
         if type(limit) is not int or not 1 <= limit <= 1000:
@@ -139,7 +193,8 @@ class PostgresHostedQueries:
                 return dict(items=items, next_table_id=str(rows[limit - 1][0]) if len(rows) > limit else None)
 
     @observe('read.room')
-    async def room(self, room_id, actor, *, table_id=None):
+    async def room(self, room_id, actor, *, table_id=None, match_id=None, select_default=False,
+                   public_preview=False, invitation_preview=False):
         """Return bounded room previews and optionally one explicitly selected table.
 
         A closed table may be selected by its stable ID. Never fall back to some
@@ -147,10 +202,37 @@ class PostgresHostedQueries:
         Raw recovery envelopes and other players' private projections never leave.
         """
         selected_id = UUID(str(table_id)) if table_id is not None else None
+        if match_id is not None and table_id is not None:
+            raise ValueError('Select a table or a match, not both.')
+        selected_match = UUID(str(match_id)) if match_id is not None else None
+        if (public_preview or invitation_preview) and (selected_id is not None or selected_match is not None or select_default):
+            raise ValueError('Public previews cannot select private game snapshots.')
         async with self.pool.connection() as connection:
             async with connection.transaction():
                 await connection.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
-                await require_member(connection, room_id, actor)
+                if invitation_preview:
+                    from .room_commands import can_enter
+                    preview_room = await (await connection.execute('''SELECT id,creator_id,visibility FROM rooms
+                        WHERE id=%s AND NOT EXISTS(SELECT 1 FROM deleted_rooms WHERE id=%s)''', (room_id, room_id))).fetchone()
+                    if preview_room is None or not await can_enter(connection, preview_room, actor):
+                        raise QueryAccessDenied('Room invitation is unavailable.')
+                elif public_preview:
+                    visible = await (await connection.execute('''SELECT 1 FROM rooms r WHERE r.id=%s
+                        AND NOT EXISTS(SELECT 1 FROM deleted_rooms d WHERE d.id=r.id)
+                        AND (r.visibility='public' OR r.creator_id=%s OR EXISTS
+                            (SELECT 1 FROM room_memberships m WHERE m.room_id=r.id AND m.user_id=%s))''',
+                        (room_id, user_uuid(actor), user_uuid(actor)))).fetchone()
+                    if visible is None:
+                        raise QueryAccessDenied('Room is not visible in this lobby.')
+                else:
+                    await require_member(connection, room_id, actor)
+                if selected_match is not None:
+                    selected = await (await connection.execute('''SELECT t.table_id FROM room_tables t
+                        JOIN table_recovery_state s USING(table_id)
+                        WHERE t.room_id=%s AND s.match_id=%s''', (room_id, selected_match))).fetchone()
+                    if selected is None:
+                        raise DurableGameNotFound('Match not found in this room.')
+                    selected_id = selected[0]
                 room = await (await connection.execute('SELECT name,creator_id,visibility,created_at FROM rooms WHERE id=%s', (room_id,))).fetchone()
                 rows = await (await connection.execute('''SELECT table_id FROM room_tables
                     WHERE room_id=%s AND status<>'closed' ORDER BY created_at,table_id LIMIT %s''',
@@ -183,7 +265,19 @@ class PostgresHostedQueries:
                 result = dict(room_id=room_id, tables=host.table_previews(room_id, actor),
                     active_game=host.membership(room_id, actor), snapshot=None, name=room[0],
                     creator_id=f'user-{room[1]}', visibility=room[2], created_at=room[3].isoformat())
+                if invitation_preview:
+                    members = await (await connection.execute('''SELECT user_id FROM room_memberships
+                        WHERE room_id=%s ORDER BY user_id LIMIT 1001''', (room_id,))).fetchall()
+                    if len(members) > 1000:
+                        raise DurableGameConflict('Room exceeds the lobby membership limit.')
+                    result['members'] = [f'user-{m[0]}' for m in members]
+                    result['created_at'] = room[3].timestamp()
                 games = host._room_games(room_id)
+                if selected_id is None and select_default:
+                    game = next((g for g in games if actor in g.table.seats(g) and not g.ended), None)
+                    game = game or next((g for g in reversed(games) if not g.ended), None)
+                    if game is not None:
+                        selected_id = UUID(game.table.table_id)
                 for preview in result['tables']:
                     game = next(g for g in games if g.match_id == preview['match_id'])
                     preview.update(table_id=game.table.table_id, table_revision=revisions[game.table.table_id])
@@ -197,3 +291,53 @@ class PostgresHostedQueries:
                 # Detached objects are discarded; no close() hook with reservation
                 # release or other mutation is appropriate for this read-only host.
                 return deepcopy(result)
+
+    async def game_view(self, room_id, actor, *, match_id=None):
+        """Original game-screen read contract, without legacy read-time writes."""
+        view = await self.room(room_id, actor, match_id=match_id, select_default=True)
+        return view['snapshot'] or dict(room_id=room_id, status='empty', tables=view['tables'])
+
+    async def member_profiles(self, room_id, actor, *, after_user_id=None, limit=100):
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise ValueError('Invalid member profile page limit.')
+        after = user_uuid(after_user_id) if after_user_id else UUID(int=0)
+        async with self.pool.connection() as connection:
+            async with connection.transaction():
+                await connection.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
+                await require_member(connection, room_id, actor)
+                rows = await (await connection.execute('''SELECT m.user_id,
+                    COALESCE(NULLIF(p.display_name,''),a.username),a.username
+                    FROM room_memberships m LEFT JOIN user_profiles p ON p.user_id=m.user_id
+                    LEFT JOIN account_credentials a ON a.user_id=m.user_id
+                    WHERE m.room_id=%s AND m.user_id>%s ORDER BY m.user_id LIMIT %s''',
+                    (room_id, after, limit + 1))).fetchall()
+                return dict(items=[dict(user_id=f'user-{r[0]}', display_name=r[1] or f'user-{r[0]}',
+                                        username=r[2]) for r in rows[:limit]],
+                    next_user_id=f'user-{rows[limit - 1][0]}' if len(rows) > limit else None)
+
+    async def activity(self, actor, *, memberships=False, after_room_id='', limit=20):
+        """Bounded room pages for original membership and active-table panels.
+
+        Authorization is checked again within each projection snapshot, including
+        when a room becomes private while this page is being assembled.
+        """
+        user = user_uuid(actor)
+        if type(limit) is not int or not 1 <= limit <= 20:
+            raise ValueError('Invalid activity page limit.')
+        async with self.pool.connection() as connection:
+            rows = await (await connection.execute('''SELECT r.id FROM rooms r WHERE r.id>%s
+                AND NOT EXISTS(SELECT 1 FROM deleted_rooms d WHERE d.id=r.id)
+                AND (EXISTS(SELECT 1 FROM room_memberships m WHERE m.room_id=r.id AND m.user_id=%s)
+                     OR (%s=false AND (r.visibility='public' OR r.creator_id=%s)))
+                ORDER BY r.id LIMIT %s''', (after_room_id, user, memberships, user, limit + 1))).fetchall()
+        items = []
+        for (room,) in rows[:limit]:
+            try:
+                view = await self.room(room, actor, public_preview=not memberships)
+            except QueryAccessDenied:
+                continue  # Room ceased to be visible; disclose no cached preview.
+            if memberships:
+                items.append(dict(room_id=room, tables=view['tables'], active_game=view['active_game']))
+            else:
+                items.extend(dict(table, room_id=room, room_name=view['name']) for table in view['tables'])
+        return dict(items=items, next_room_id=rows[limit - 1][0] if len(rows) > limit else None)

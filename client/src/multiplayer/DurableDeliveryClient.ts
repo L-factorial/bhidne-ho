@@ -104,7 +104,7 @@ export class DurableDeliveryClient<T> {
       if (this.cursor === null) throw new Error('Recover the view before delivery.');
       if (page.after_sequence > this.cursor) throw new Error('Delivery gap: resubscribe and reconcile.');
       if (page.scanned_sequence > this.cursor) {
-        const transient = page.events.filter(e => e.sequence > this.cursor! && e.event_type === 'ROOM_POKE');
+        const transient = page.events.filter(e => e.sequence > this.cursor! && ['ROOM_POKE','TABLE_REACTION'].includes(e.event_type));
         // Events invalidate current state; never replay old engine deltas over a
         // newer snapshot. Hidden-only pages need no view refresh.
         if (page.events.some(e => e.sequence > this.cursor!)) {

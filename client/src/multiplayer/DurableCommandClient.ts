@@ -9,6 +9,7 @@ export type CommandEnvelope = { target: CommandTarget; body: CommandBody };
 export type StatusReference = { lane_id: string; command_id: string };
 export type CommandOutcome = {
   command_id: string; status: 'accepted' | 'rejected'; revision?: number | null;
+  context?: {code:'PLAYER_ALREADY_AT_TABLE'|'LEAVE_GAME_REQUIRED';room_id:string;match_id:string;requires_leave_game:boolean;departure_command:'leave'|'abandon'|'end'} | null;
   detail?: string | null; table_id?: string | null; match_id?: string | null;
 };
 export type CommandReceipt = StatusReference & {
@@ -43,6 +44,9 @@ function receipt(value: unknown, commandId: string, previous: CommandReceipt | n
     if (r.outcome !== null) throw new Error('Pending command cannot have an outcome.');
   } else if (r.status === 'accepted' || r.status === 'rejected') {
     const o = r.outcome;
+    if (o?.context && (r.status!=='rejected'||!['PLAYER_ALREADY_AT_TABLE','LEAVE_GAME_REQUIRED'].includes(o.context.code)
+        ||!nonempty(o.context.room_id)||!nonempty(o.context.match_id)||typeof o.context.requires_leave_game!=='boolean'
+        ||!['leave','abandon','end'].includes(o.context.departure_command)))throw new Error('Invalid departure context.');
     if (!o || o.command_id !== commandId || o.status !== r.status
         || (o.revision != null && (!Number.isSafeInteger(o.revision) || o.revision < 0))
         || (o.detail != null && typeof o.detail !== 'string')
@@ -118,6 +122,7 @@ export class DurableCommandClient {
       this.envelope = restored.request; this.result = restored.receipt;
     }
   }
+  get reconciling() { return this.active; }
   get pending() { return this.envelope !== null && (!this.result || this.result.status === 'pending'); }
   get request(): CommandEnvelope | null { return this.envelope && copy(this.envelope); }
   get latest(): DurableReceipt | null { return this.result && copy(this.result); }

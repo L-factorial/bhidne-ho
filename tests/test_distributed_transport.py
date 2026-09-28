@@ -188,3 +188,39 @@ def test_socket_presence_uses_authenticated_actor_and_authorized_room(authorized
         assert not p.entries and not g.handles
         assert all(e.user_id.endswith('0001') for e in p.attached)
         assert len(p.attached) == (2 if authorized else 1)
+
+
+def test_original_ui_read_routes_are_authenticated_and_use_explicit_projections():
+    class Views:
+        def __init__(self): self.calls = []
+        async def lobby(self, who, **kwargs):
+            self.calls.append(('lobby', who, kwargs));return dict(items=[], next_room_id=None)
+        async def activity(self, who, **kwargs):
+            self.calls.append(('activity', who, kwargs));return dict(items=[], next_room_id=None)
+        async def room(self, room, who, **kwargs):
+            self.calls.append(('room', who, dict(room=room, **kwargs)));return dict(room_id=room, snapshot=None)
+        async def game_view(self, room, who, **kwargs):
+            self.calls.append(('game', who, dict(room=room, **kwargs)));return dict(room_id=room, status='empty')
+        async def member_profiles(self, room, who, **kwargs):
+            self.calls.append(('members', who, dict(room=room, **kwargs)));return dict(items=[], next_user_id=None)
+    views = Views()
+    app = FastAPI()
+    ingress = Ingress()
+    app.include_router(create_router(auth=Auth(), hosted=ingress, chat=ingress, social=ingress,
+        gateway=Gateway(), allowed_origins={'https://game.test'}, reads=SimpleNamespace(hosted=views)))
+    with TestClient(app) as client:
+        routes = ['/ui/rooms', '/ui/rooms/room', '/ui/rooms/room/game', '/ui/rooms/room/members',
+                  '/ui/memberships', '/ui/active-tables']
+        for route in routes:
+            assert client.get('/distributed' + route).status_code == 401
+        assert views.calls == []
+        for route in routes:
+            response = client.get('/distributed' + route, headers={'Authorization': 'Bearer valid'})
+            assert response.status_code == 200
+            assert response.headers['cache-control'] == 'no-store'
+        assert all(call[1] == 'user-00000000-0000-0000-0000-000000000001' for call in views.calls)
+        assert views.calls[1][2] == dict(room='room', invitation_preview=True)
+        assert views.calls[2][2] == dict(room='room', match_id=None)
+        assert views.calls[4][2]['memberships'] is True
+        assert 'memberships' not in views.calls[5][2]
+        assert ingress.calls == []

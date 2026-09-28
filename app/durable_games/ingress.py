@@ -83,9 +83,10 @@ class HostedCommandIngress:
                         if target.kind == 'table':
                             if request.command not in TableLaneExecutor.commands or request.command == 'expire-seat-offer':
                                 raise DurableGameConflict('Unsupported player table command.')
-                            if request.command == 'send-poke':
-                                from .pokes import Poke
-                                Poke.model_validate_json(canonical_json(request.payload))
+                            if request.command in ('send-poke', 'send-reaction'):
+                                from .pokes import Poke, TablePokePayload
+                                model = TablePokePayload if request.command == 'send-reaction' else Poke
+                                model.model_validate_json(canonical_json(request.payload))
                             # Match execution's lane -> table order. Checkpoint
                             # state stores the engine separately from table JSON.
                             await connection.execute('SELECT lane_id FROM command_lanes WHERE lane_id=%s FOR UPDATE', (lane_id,))

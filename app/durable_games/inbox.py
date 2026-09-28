@@ -53,16 +53,27 @@ class InboxRequest(Record):
     payload: dict[str, JsonValue] = Field(default_factory=dict)
 
 
+class RejectionContext(Record):
+    code: Literal['PLAYER_ALREADY_AT_TABLE', 'LEAVE_GAME_REQUIRED']
+    room_id: Identity
+    match_id: Identity
+    requires_leave_game: bool
+    departure_command: Literal['leave', 'abandon', 'end']
+
+
 class InboxOutcome(Record):
     command_id: CommandId
     status: Literal['accepted', 'rejected']
     revision: Nonnegative | None = None
     detail: str | None = None
+    context: RejectionContext | None = None
     table_id: Identity | None = None
     match_id: Identity | None = None
 
     @model_validator(mode='after')
     def creation_identity(self):
+        if self.context is not None and self.status != 'rejected':
+            raise ValueError('Departure context requires a rejected command.')
         if self.table_id is not None or self.match_id is not None:
             if self.status != 'accepted' or self.table_id is None or self.match_id is None:
                 raise ValueError('Created table and match identities require an accepted paired result.')

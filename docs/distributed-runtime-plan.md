@@ -4204,3 +4204,108 @@ rollout. The next concrete step is the staging collection/alert setup described 
   continue to test, build and deploy automatically.
 - Next operational work: authenticated gameplay acceptance, off-server database
   backup/restore, monitoring and capacity/recovery verification before wider use.
+
+### P3 original frontend parity — requirement correction and first increment
+
+- User clarified that merging main was intended to preserve the exact original
+  layout/pages/experience with a distributed backend. The separate integration
+  screen does not satisfy that requirement. User authorized implementation;
+  no production activation of partial parity is authorized by this increment.
+- Added docs/distributed-ui-parity.md with the original frontend reference,
+  implementation/acceptance checklist, activation boundary and known contracts.
+- P3a extracts RoomActions for create/enter/leave/delete from SharedRoomsScreen
+  and useRoomSession. Legacy transport remains default; JSX layouts, root build
+  selection, authentication, existing room reads and sockets are unchanged.
+- Added DistributedRoomActions for a dedicated journaled command slot. Awaited
+  completion means durable acceptance, not pending admission. Same-intention
+  retry preserves IDs/payloads, background acceptance cannot duplicate a mutation,
+  restored operations can be recovered before new actions, and account changes
+  or disposal prevent late success. The adapter is not yet mounted.
+- Known gap: legacy active-game leave confirmation uses structured error data;
+  durable room rejection currently has text. Adapt authoritative state/metadata
+  before activation rather than inventing success or parsing error text.
+- Verification: TypeScript check and 58 targeted adapter/controller/session/command
+  tests passed. Full client suite:245 passed, zero failures/skips. Whitespace
+  validation passed.
+- Exact next increment: P3b, authenticated runtime composition and original lobby
+  read contracts, preserving pending-operation recovery and original navigation.
+  No server changes, build flag changes, commits, pushes or deployments in P3a.
+
+### P3b original UI adapters — in progress
+
+- Added an authenticated OriginalDistributedRuntime owner using the existing
+  exclusive account journal lifecycle. It retains uncertain room work on logout,
+  recovers accepted creation after reload, and retires terminal room intentions
+  only after the caller acknowledges persisted navigation. It is not mounted yet.
+- Added committed, read-only /distributed/ui projections for original lobby cards,
+  memberships, active tables and game selection. Private invitations stay outside
+  the public/friend room feed. Public table previews never grant membership or
+  expose engine snapshots. Explicit unknown match IDs fail instead of selecting
+  a different match. Shared projection reads do not execute legacy timers/writes.
+- Added bounded client pagination preserving original category/recency ordering;
+  invalid/repeating cursors fail visibly. Presence is still absent, not fabricated
+  from membership. Member previews currently use stable ID order pending presence.
+- Added DistributedGameCommandClient with the original submit/refresh interface.
+  Durable slot ownership survives screen changes; pending is not success and a
+  failed projection read after command acceptance does not repeat the mutation.
+- Verification: TypeScript check passed. Backend targeted suite:28 passed with
+  PostgreSQL/WASM enabled; the additional authenticated UI-route test passed
+  in the11-test transport suite. Full client suite:257 passed, zero failures or
+  skips. Whitespace check passed. No production activation or deployment.
+- Remaining in this increment: mount these adapters through original UI lifecycle,
+  implement distributed presence/social bridge and original request contracts,
+  and test recovery/navigation. Build mode and production deployment unchanged.
+
+- Added invitation-preview and paginated member-profile reads. An invitation
+  allows a room preview but does not join it or grant private game/member-profile
+  access; revoking the invitation removes preview access. Exact next step remains
+  original-screen composition, beginning with session/read/connection injection;
+  these adapters alone do not complete frontend parity.
+
+### P3b original screen composition — acceptance in progress
+
+- Mounted one account-owned runtime behind the original screens in the explicit
+  `distributed-original` mode. Production remains `distributed-integration` until
+  the complete acceptance checklist passes. No production deployment yet.
+- Added authenticated request routing for original room, table, social, chat,
+  notification and ledger controls. Unknown distributed routes fail closed;
+  shared authentication/profile reads retain their existing platform endpoints.
+- Table/game commands retain distinct identities and revisions. Accepted commands
+  with failed follow-up reads keep their journal intention without resubmission.
+  Completed-table replacement retains its original revision through retry.
+- Added actor-specific structured departure conflicts, persisted table reactions,
+  own-command identifiers in chat history, and observed Redis presence in lobby
+  projections. Unknown presence displays as unknown. Original styles unchanged.
+- Original invitation entry now waits for account runtime initialization. A
+  successful membership read clears revoked room navigation without racing a
+  newer entry. Chat history establishes its baseline before unread live delivery.
+- Verified original welcome, styled sign-in/sign-up, lobby, room creation and
+  two-player Marriage table creation in Chromium against disposable native
+  PostgreSQL/Redis and two gateways. No browser JavaScript errors in those paths.
+- Verification so far: TypeScript passed; full client suite 262 passed before
+  four additional recovery/chat regression tests (all nine API tests pass).
+  Room departure/creation backend suite: 34 passed. Full backend and independent
+  process suites are running. Browser gameplay/social acceptance remains ongoing.
+- Exact next step: finish guest seat/start/gameplay for Marriage, Flush and Call
+  Break; verify original social/ledger/recovery journeys and mobile screens; fix
+  any contract gaps, then activate only after the remaining acceptance checks.
+
+### P3 acceptance progress
+
+- Full backend run: 1,607 passed, 15 opt-in skips, and one metrics-listener failure
+  caused by the filesystem/network sandbox denying socket bind. That exact test
+  passed with local socket permission; no application change was required.
+- All five real PostgreSQL/Redis/two-gateway process checks passed, including the
+  actual Nginx HTTP/WebSocket/retry contract (run separately with Nginx configured).
+- New checked-in original UI adapter acceptance passed on a fresh native cluster:
+  all three games create/seat/chat/start/end, private reads, ledger/departure,
+  friendship/direct messaging and notification read state. Node 22 is now explicit
+  in production CI, and image builds run the complete client regression suite.
+- Client suite: 269 passed with zero skips; typecheck passed. Added regressions for
+  own-profile chat lookup, retained selected match/replacement revisions, failed
+  follow-up reads, restored offscreen intentions and concurrent receipt recovery.
+- Browser: original Marriage desktop/mobile declaration commands passed; original
+  Flush desktop/mobile dealt, cut and bet successfully. No JavaScript errors.
+  Final Call Break browser check and production-mode build remain next.
+- Public table reactions preserve original spectator visibility; private pokes
+  remain recipient-only. Three focused durable poke/reaction tests passed.
