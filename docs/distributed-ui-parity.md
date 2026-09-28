@@ -107,7 +107,7 @@ reload. No JavaScript errors occurred in these paths. These checks are not a cla
 of exhaustive manual play through every game outcome; existing engine/table tests
 cover those rules and the unchanged original game components remain in use.
 
-Production activation uses two releases: compatibility backend `91ac85f` first
+Production activation uses two releases: compatibility backend `a2e072e` first
 on both hosts with the integration frontend, then the original-frontend build.
 The final activation check remains open until that second rollout is verified.
 Provider credentials for social sign-in remain an external configuration concern;

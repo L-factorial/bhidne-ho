@@ -4336,3 +4336,18 @@ rollout. The next concrete step is the staging collection/alert setup described 
   ahead of the long backend suite. It had passed locally with dependencies present.
   Production mode remains integration for this corrected compatibility release;
   activation will be committed again only after both hosts receive it.
+
+
+### P3 original frontend activation — compatibility verified
+
+- Corrected compatibility release `a2e072e` deployed successfully through GitHub
+  Actions run `36387386219`. CI passed original-UI native acceptance (1), the
+  backend suite (1,618), all independent process checks (5), client tests and the
+  image build. No tests were skipped in those CI acceptance suites.
+- Direct SSH verification confirmed both hosts run revision `a2e072e` and image
+  `sha256:98879f8adaca4c3bbede5f5946de559a491dd5c733a5601f2bcaef4119c2ba08`,
+  return healthy API responses, and serve identical frontend index files.
+- Switching production build to `distributed-original` is now safe across both
+  load-balancer targets. Exact next step: push activation, complete its required
+  CI/rolling deployment, then verify original public desktop/mobile pages and
+  identical healthy releases on both hosts.

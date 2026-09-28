@@ -54,7 +54,7 @@ before removing anything still referenced by a current release or open browser.
 
 This release procedure does not ensure old frontend/new backend compatibility:
 rolling releases must retain API compatibility across the deployed versions.
-For the original-frontend cutover, first deploy compatibility release `91ac85f`
+For the original-frontend cutover, first deploy compatibility release `a2e072e`
 to both hosts while retaining the integration frontend. Only then deploy the
 `distributed-original` build, so every load-balancer target supports its new API
 routes before browsers receive the new frontend.
