@@ -59,6 +59,11 @@ to both hosts while retaining the integration frontend. Only then deploy the
 `distributed-original` build, so every load-balancer target supports its new API
 routes before browsers receive the new frontend.
 
+This cutover completed on 2026-09-28: activation `45ad67c`, GitHub Actions run
+`36390417629`, image
+`sha256:a4be23258b76b5a0c6a40bc5770fae9512d4b898ea2eae6d7f39931ea5abe091`.
+Both app hosts and public desktop/mobile welcome/authentication pages were verified.
+
 ## Managed load balancer setup
 
 User-supplied public load balancer IP: `129.212.208.25`. This is the DNS

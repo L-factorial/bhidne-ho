@@ -45,7 +45,7 @@ parity activation.
   welcome, sign-in/sign-up, lobby tabs, rooms, each game, profile and social panels.
 - [x] Real two-server acceptance: delayed/lost replies, same-ID retries, refreshed
   tabs, reconnect to another gateway and revoked membership/session handling.
-- [ ] Switch production composition only after all preceding acceptance checks.
+- [x] Switch production composition only after all preceding acceptance checks.
 
 ## P3a contract and limitations
 
@@ -109,6 +109,11 @@ cover those rules and the unchanged original game components remain in use.
 
 Production activation uses two releases: compatibility backend `a2e072e` first
 on both hosts with the integration frontend, then the original-frontend build.
-The final activation check remains open until that second rollout is verified.
+Activation `45ad67c` completed successfully in GitHub Actions run `36390417629`
+on 2026-09-28. Both app hosts run the same image, serve identical frontend index
+files, and return healthy API responses. Public desktop/mobile Chromium checks
+verified the original welcome, sign-in and sign-up pages without JavaScript
+errors or failed requests. Authenticated gameplay acceptance used disposable
+local accounts; no production test accounts were created.
 Provider credentials for social sign-in remain an external configuration concern;
 this change preserves the existing controls and authentication contracts.

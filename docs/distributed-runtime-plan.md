@@ -4351,3 +4351,26 @@ rollout. The next concrete step is the staging collection/alert setup described 
   load-balancer targets. Exact next step: push activation, complete its required
   CI/rolling deployment, then verify original public desktop/mobile pages and
   identical healthy releases on both hosts.
+
+
+### P3 complete — original frontend deployed and verified (2026-09-28)
+
+- Activation commit `45ad67c` deployed successfully through GitHub Actions run
+  `36390417629`: original-UI native acceptance (1), backend suite (1,618), all
+  independent process checks (5), client suite (269), typecheck and image build.
+- Both app hosts directly verified at revision `45ad67c` and image
+  `sha256:a4be23258b76b5a0c6a40bc5770fae9512d4b898ea2eae6d7f39931ea5abe091`.
+  APIs are healthy and frontend release paths/index hashes agree across hosts.
+- Public `https://prod.bhidne-ho.lfactorial.com` serves the original welcome,
+  sign-in and sign-up layouts on desktop/mobile Chromium, with no JavaScript
+  errors or failed requests. Authenticated original UI/game/social acceptance
+  was performed against disposable native infrastructure, not production users.
+- Public original-UI API routes require authentication (401 without a session),
+  and production-origin CORS preflight succeeds. Backend runtime/database marker
+  remains distributed-integration by design; original frontend uses distributed-original.
+- Main/GitHub Pages remains unchanged. No environment-toggle UI was introduced.
+  Temporary local browser/native cluster services are stopped.
+- Remaining limitations are the separately scoped operational task set: capacity,
+  observability, database HA, provider credential configuration and native-device
+  release validation. Exact next task is an operational readiness increment when
+  requested; no original-frontend implementation or deployment step remains open.
