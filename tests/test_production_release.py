@@ -173,3 +173,90 @@ def test_registry_credentials_are_temporary_and_not_logged(monkeypatch, tmp_path
             release.main()
         deployed.assert_not_called()
     assert directories and not directories[0].exists()
+
+
+def test_frontend_failure_restores_backend_and_frontend(monkeypatch, tmp_path):
+    command, ready = boundaries(monkeypatch, [OLD, None, {'Config': {}}])
+    monkeypatch.setattr(release, 'FRONTEND', tmp_path)
+    previous = tmp_path / 'old'
+    previous.mkdir()
+    (tmp_path / 'current').symlink_to(previous)
+    staged = tmp_path / 'new'
+    monkeypatch.setattr(release, 'stage_frontend', Mock(return_value=staged))
+    monkeypatch.setattr(release, 'verify_frontend', Mock(side_effect=RuntimeError('bad frontend')))
+    with pytest.raises(RuntimeError, match='bad frontend'):
+        release.release(CONFIG | {'frontend': True}, 'deploy', DIGEST)
+    assert (tmp_path / 'current').resolve() == previous
+    assert ('docker', 'start', release.CONTAINER) in [call.args for call in command.call_args_list]
+    assert ready.call_count == 2
+
+
+def test_frontend_check_stages_without_activation(monkeypatch, tmp_path):
+    boundaries(monkeypatch, [])
+    monkeypatch.setattr(release, 'FRONTEND', tmp_path)
+    staged = Mock(return_value=tmp_path / 'staged')
+    monkeypatch.setattr(release, 'stage_frontend', staged)
+    activate = Mock()
+    monkeypatch.setattr(release, 'switch_frontend', activate)
+    release.release(CONFIG | {'frontend': True}, 'check', DIGEST)
+    staged.assert_called_once_with(CONFIG['repository'] + '@' + DIGEST, DIGEST)
+    activate.assert_not_called()
+
+
+def archive_file(tmp_path, entries):
+    import io
+    import tarfile
+    archive = tmp_path / 'frontend.tar.gz'
+    with tarfile.open(archive, 'w:gz') as output:
+        for name, kind, data in entries:
+            info = tarfile.TarInfo(name)
+            info.type = kind
+            info.size = len(data) if kind == tarfile.REGTYPE else 0
+            info.linkname = '../../outside'
+            output.addfile(info, io.BytesIO(data) if info.size else None)
+    return archive
+
+
+@pytest.mark.parametrize('name,kind', [('../escape', b'0'), ('/absolute', b'0'),
+                                     ('link', b'2'), ('hardlink', b'1'), ('device', b'3')])
+def test_frontend_archive_rejects_unsafe_members(tmp_path, name, kind):
+    archive = archive_file(tmp_path, [(name, kind, b'bad')])
+    destination = tmp_path / 'out'
+    destination.mkdir()
+    with pytest.raises(ValueError, match='Invalid'):
+        release.unpack_frontend(archive, destination)
+
+
+def test_frontend_archive_requires_index_and_rejects_duplicates(tmp_path):
+    destination = tmp_path / 'out'
+    destination.mkdir()
+    archive = archive_file(tmp_path, [('asset.js', b'0', b'js')])
+    with pytest.raises(ValueError, match='Missing'):
+        release.unpack_frontend(archive, destination)
+    archive = archive_file(tmp_path, [('index.html', b'0', b'html'), ('index.html', b'0', b'other')])
+    with pytest.raises(ValueError, match='Duplicate'):
+        release.unpack_frontend(archive, destination)
+
+
+def test_frontend_stage_retains_assets_and_rejects_conflicts(monkeypatch, tmp_path):
+    import shutil
+    archive = archive_file(tmp_path, [('index.html', b'0', b'<html>test</html>'),
+                                     ('_expo/app.hash.js', b'0', b'javascript')])
+    root = tmp_path / 'frontend'
+    monkeypatch.setattr(release, 'FRONTEND', root)
+    def docker(*args, **kwargs):
+        if args[1] == 'cp':
+            shutil.copyfile(archive, args[-1])
+    monkeypatch.setattr(release, 'command', docker)
+    staged = release.stage_frontend('image', DIGEST)
+    assert (root / 'shared/_expo/app.hash.js').read_bytes() == b'javascript'
+    assert not (root / 'current').exists()
+    release.switch_frontend(staged)
+    assert (root / 'current/index.html').read_bytes() == b'<html>test</html>'
+    assert release.stage_frontend('image', DIGEST) == staged
+    other = 'sha256:' + 'b' * 64
+    archive_file(tmp_path, [('index.html', b'0', b'new'), ('_expo/app.hash.js', b'0', b'conflicting')])
+    with pytest.raises(ValueError, match='collision'):
+        release.stage_frontend('image', other)
+    assert (root / 'shared/_expo/app.hash.js').read_bytes() == b'javascript'
+    assert (root / 'current/index.html').read_bytes() == b'<html>test</html>'

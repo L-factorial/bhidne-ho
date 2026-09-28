@@ -8,8 +8,11 @@ all:
     app_private_ips: [10.104.0.7, 10.104.0.2]
     # Set true only after verifying host or cloud firewall restrictions to app hosts.
     private_firewall_ready: false
-    # Private app 8080: load balancer + app peers only; SSH: trusted admin/CI sources.
+    # Private Nginx80: LB only; app8080: self + peers only; SSH: admin/CI sources.
     application_firewall_ready: false
+    # Verified private source IPs used by the managed LB, including health checks.
+    load_balancer_public_ip: 129.212.208.25
+    load_balancer_private_ips: []
     postgres_private_ip: 10.104.0.9
     redis_private_ip: 10.104.0.8
     client_origin: https://prod.bhidne-ho.lfactorial.com

@@ -8,16 +8,20 @@ import os
 from pathlib import Path
 import re
 import signal
+import shutil
+import tarfile
+import uuid
 import subprocess
 import sys
 import tempfile
 import time
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 CONTAINER = 'bhidne-prod-app'
 PREVIOUS = 'bhidne-prod-previous'
 CONFIG = Path('/etc/bhidne-prod/release.json')
 ENVIRONMENT = '/etc/bhidne-prod/runtime.env'
+FRONTEND = Path('/srv/bhidne-prod/frontend')
 CHECK = '''import asyncio
 from app.durable_games.bootstrap import Settings, verify_dataset
 from psycopg_pool import AsyncConnectionPool
@@ -112,12 +116,110 @@ def environment_revision():
     return hashlib.sha256(Path(ENVIRONMENT).read_bytes()).hexdigest()
 
 
+def unpack_frontend(archive, destination):
+    """Bounded extraction of regular build files; never trust archive paths/links."""
+    size = 0
+    seen = set()
+    with tarfile.open(archive, 'r:gz') as bundle:
+        for index, member in enumerate(bundle):
+            if index >= 20000:
+                raise ValueError('Too many frontend files.')
+            path = Path(member.name)
+            if path.is_absolute() or '..' in path.parts or not (member.isdir() or member.isfile()):
+                raise ValueError('Invalid frontend archive member.')
+            if path == Path('.'):
+                if member.isdir():
+                    continue
+                raise ValueError('Invalid root entry.')
+            if str(path) in seen:
+                raise ValueError('Duplicate frontend archive member.')
+            seen.add(str(path))
+            target = destination / path
+            size += member.size
+            if size > 128 * 1024 * 1024:
+                raise ValueError('Frontend export exceeds size limit.')
+            target.parent.mkdir(parents=True, exist_ok=True, mode=0o755)
+            if member.isdir():
+                target.mkdir(exist_ok=True, mode=0o755)
+            else:
+                with bundle.extractfile(member) as source, target.open('xb') as output:
+                    shutil.copyfileobj(source, output)
+                target.chmod(0o644)
+    if not (destination / 'index.html').is_file() or not (destination / 'index.html').stat().st_size:
+        raise ValueError('Missing frontend index.')
+
+
+def stage_frontend(image, digest):
+    """Pre-stage hashed assets on BOTH hosts before either release is activated."""
+    if not re.fullmatch(r'sha256:[0-9a-f]{64}', digest):
+        raise ValueError('Invalid frontend image digest.')
+    FRONTEND.mkdir(parents=True, exist_ok=True, mode=0o755)
+    releases = FRONTEND / 'releases'
+    releases.mkdir(exist_ok=True, mode=0o755)
+    target = releases / digest.split(':')[1]
+    if not target.exists():
+        with tempfile.TemporaryDirectory(dir=releases, prefix='staging-') as directory:
+            staging = Path(directory)
+            name = 'bhidne-prod-assets-' + uuid.uuid4().hex
+            command('docker', 'create', '--name', name, image)
+            try:
+                command('docker', 'cp', name + ':/opt/bhidne-frontend.tar.gz', str(staging / 'export.tar.gz'))
+            finally:
+                command('docker', 'rm', name)
+            if (staging / 'export.tar.gz').stat().st_size > 32 * 1024 * 1024:
+                raise ValueError('Compressed frontend export exceeds size limit.')
+            content = staging / 'content'
+            content.mkdir(mode=0o755)
+            unpack_frontend(staging / 'export.tar.gz', content)
+            content.rename(target)
+    # Expo places content-addressed scripts/fonts/images in these two directories.
+    # Keep older assets for open tabs and rollback; never overwrite a conflicting name.
+    for subtree in ('assets', '_expo'):
+        source_root = target / subtree
+        if not source_root.exists():
+            continue
+        for source in source_root.rglob('*'):
+            if not source.is_file():
+                continue
+            destination = FRONTEND / 'shared' / source.relative_to(target)
+            destination.parent.mkdir(parents=True, exist_ok=True, mode=0o755)
+            if destination.exists():
+                if source.read_bytes() != destination.read_bytes():
+                    raise ValueError('Frontend asset name collision.')
+                continue
+            temporary = destination.with_name(destination.name + '.staging')
+            shutil.copyfile(source, temporary)
+            temporary.chmod(0o644)
+            os.replace(temporary, destination)
+    return target
+
+
+def switch_frontend(target):
+    current = FRONTEND / 'current'
+    if target is None:
+        current.unlink(missing_ok=True)
+        return
+    temporary = FRONTEND / 'next'
+    temporary.unlink(missing_ok=True)
+    temporary.symlink_to(target)
+    os.replace(temporary, current)
+
+
+def verify_frontend(target):
+    request = Request('http://127.0.0.1/', headers={'Host': 'prod.bhidne-ho.lfactorial.com'})
+    with urlopen(request, timeout=5) as response:
+        if response.status != 200 or response.read(2 * 1024 * 1024) != (target / 'index.html').read_bytes():
+            raise RuntimeError('Nginx frontend verification failed.')
+
+
 def release(config, operation, digest):
     validate_config(config)
     image = config['repository'] + '@' + digest
     command('docker', 'pull', image)
     # A schema mismatch or dependency outage must fail before stopping the old app.
     command('docker', 'run', '--rm', *sandbox(), image, 'python', '-c', CHECK)
+    frontend = stage_frontend(image, digest) if config.get('frontend') else None
+    old_frontend = (FRONTEND / 'current').resolve() if (FRONTEND / 'current').is_symlink() else None
     if operation == 'check':
         print('Image and dependency/schema checks passed.')
         return
@@ -128,6 +230,13 @@ def release(config, operation, digest):
     if (old and old['Config']['Image'] == image
             and (old['Config'].get('Labels') or {}).get('com.bhidne.environment') == revision
             and health(config['private_ip'])):
+        if frontend:
+            try:
+                switch_frontend(frontend)
+                verify_frontend(frontend)
+            except BaseException:
+                switch_frontend(old_frontend)
+                raise
         print('Requested image is already healthy.')
         return
     if old and not health(config['peer_ip']):
@@ -152,7 +261,12 @@ def release(config, operation, digest):
                 '--host', '0.0.0.0', '--port', '8080', '--workers', '1',
                 '--no-access-log', '--timeout-graceful-shutdown', '30')
         wait_ready(config['private_ip'])
+        if frontend:
+            switch_frontend(frontend)
+            verify_frontend(frontend)
     except BaseException:
+        if frontend:
+            switch_frontend(old_frontend)
         if renamed or old is None:
             if inspect_container(CONTAINER):
                 command('docker', 'rm', '-f', CONTAINER)

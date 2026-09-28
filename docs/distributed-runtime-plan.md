@@ -4071,3 +4071,113 @@ rollout. The next concrete step is the staging collection/alert setup described 
   the repository through Cloudflare Pages, configure its custom domain, then
   validate against the deployed backend. Backend load balancer/TLS, application
   rollout and the separate GitHub deployment-key approval remain outstanding.
+
+### P2 app-host frontend and managed load balancer
+
+- User chose native Nginx/frontend on both app VMs behind a managed DigitalOcean
+  LB. Cloudflare files replaced with a general production export script. Added
+  `Dockerfile.production`: Node builds the frontend in CI, then the export joins
+  the backend runtime image. Existing distributed development Dockerfile and main
+  Pages deployment remain unchanged.
+- Both hosts stage validated frontend assets in the preflight release phase, before
+  either index is activated. Bounded archive extraction refuses traversal/links,
+  assets are append-only with collision checks, and frontend activation follows
+  backend readiness. Failure restores prior frontend and backend. Release history
+  is retained; retention and cross-version API compatibility remain operator duties.
+- App provisioning installs native Nginx, validates config before reload, serves
+  static content on the frontend Host and proxies API/WebSockets on the API Host.
+  Private80 ingress is restricted to configured LB sources; health includes frontend
+  presence and local backend health. LB source addresses/firewall readiness are
+  required before the full app playbook can run.
+- Verification: 36 release tests, six provisioning guard tests, Ansible syntax,
+  workflow YAML/shell validation and production frontend typecheck/export passed.
+  Nginx 1.24 Ubuntu package installed on both apps with auto-start blocked, then
+  explicitly stopped/disabled at boot. Both hosts passed nginx -t against the
+  rendered config; no production listeners were enabled. A temporary loopback-only
+  Nginx instance on app1 passed index/SPA routing, hashed asset caching, missing
+  asset404, API proxy, unknown-Host404 and combined readiness200/503 checks, then
+  was stopped and removed.
+- Full Docker image build and live image/frontend release remain unverified:
+  the local controller has no Docker binary. The CI recipe builds the frontend
+  in a separate Node stage. No app provisioning or frontend files have yet been
+  activated on the VMs; full provisioning remains gated on LB/firewall inputs.
+- Exact next step: finish validation, obtain managed LB details and app firewall
+  configuration, resolve pending exact deployment-key upload approval, then apply
+  app provisioning, initialize the empty dataset once and publish/deploy the release.
+  No frontend/backend release, DNS change or key upload has occurred in this step.
+
+### P2 managed load balancer address
+
+- User supplied public LB IP `129.212.208.25`; recorded in example and ignored
+  local inventories and deployment instructions. This does not establish its
+  private source addresses, LB type, attached droplets, TLS or forwarding rules.
+- No DigitalOcean connector or doctl is available. Requested the provider page
+  link and current settings to resolve private ingress/forwarding configuration.
+  No firewall readiness flag, Nginx allowlist or remote configuration was changed.
+- Exact next step: verify the LB configuration and app firewall restrictions, then
+  finish app provisioning and release. Public DNS/TLS checks are recorded below.
+- Public checks: HTTP80 returned503 for the API Host; a TLS handshake on443
+  timed out. Neither production hostname resolved from the controller. These
+  observations do not establish the LB's configured forwarding rules or TLS state.
+  Inventory edits passed whitespace validation; no DNS records were changed.
+
+### P2 production DNS delegation
+
+- User approved delegating only `prod.bhidne-ho.lfactorial.com` to DigitalOcean
+  for managed Let's Encrypt; the parent domain remains on GoDaddy. Documented
+  exact child-zone A records, parent-zone NS records, verification commands and
+  certificate names. No provider account access is available, so DNS and
+  certificate mutations remain dashboard steps for the user.
+- Authoritative checks: GoDaddy returned the parent SOA with no production NS
+  delegation; ns1.digitalocean.com refused the child-zone SOA query. Recursive
+  production A/CNAME/NS and parent CAA queries returned no answer records.
+- User screenshots show regional external HTTP LB in SGP1/default-sgp1, HTTP80
+  to droplet80, health path /, Proxy Protocol disabled, keepalive enabled and no
+  HTTPS rule yet. The last screenshot is the new-certificate wizard, not evidence
+  of an issued certificate or saved forwarding rule.
+- Exact next step: create the DigitalOcean child zone before adding the three
+  GoDaddy NS records, verify propagation, then issue the certificate and finish
+  the HTTPS forwarding rule. App firewall/LB sources and key upload remain pending.
+
+### P2 load balancer and firewall dashboard progress
+
+- User completed certificate, redirect and /health dashboard steps, attached both
+  app droplets (screenshot confirmed), and reported creating the app firewall
+  after correcting the peer TCP port to8080. Final saved firewall rules still
+  need verification; application_firewall_ready remains false.
+- Live checks: SSH works on both apps; Nginx remains inactive. Both production
+  HTTPS domains validate certificates and return503, consistent with no healthy
+  application targets. No application release was activated.
+- Header-only private-interface captures on both apps observed three TCP80
+  probes each, at ten-second intervals, from10.104.0.3. Recorded this observed LB
+  source in the ignored local inventory; future source changes require updates.
+- Next: verify saved firewall rules/boundaries and resolve exact GitHub deployment
+  key upload approval, then complete app provisioning and initial release.
+
+### P2 GitHub production secrets authorized and saved
+
+- User explicitly approved uploading the dedicated deployment private key to
+  L-factorial/bhidne-ho's production environment as BHIDNE_PROD_DEPLOY_SSH_KEY.
+  Uploaded it using GitHub's public-key encryption, along with the verified app
+  host keys as BHIDNE_PROD_KNOWN_HOSTS. API metadata confirms both secret names
+  exist. No credential values were printed or committed.
+- The earlier exact key-upload approval blocker is resolved. This does not
+  activate a deployment: app provisioning, firewall verification, initial schema
+  initialization and image release remain outstanding.
+
+### P2 application hosts provisioned
+
+- User screenshot confirms saved app firewall: SSH22, HTTP80 from managed LB,
+  TCP8080 from10.104.0.2/32 and10.104.0.7/32, default outbound rules, two droplets.
+  Enabled the ignored inventory firewall readiness flag and populated the
+  dedicated deployment public key. Applied apps.yml successfully to both hosts:
+  each ok19, changed11, failed0, unreachable0.
+- Docker and Nginx are now active; protected runtime configuration, constrained
+  deployment receiver, dedicated authorized key and frontend/API virtual hosts
+  are installed. Both apps passed database-port checks and nginx configuration
+  validation. Local /health returns503 until the application and frontend exist.
+- Dedicated key SSH authentication succeeds but arbitrary shell commands are
+  rejected by the receiver. Release tests:36 passed. No image release or database
+  initialization occurred. Next: publish the production branch's prepared changes,
+  build the tested image in CI, initialize the empty production schema once from
+  that immutable image and rerun deployment; verify public login and runtime.

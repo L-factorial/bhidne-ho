@@ -1,0 +1,80 @@
+# Managed by deploy/provision/apps.yml. TLS terminates at the managed LB.
+map $http_upgrade $bhidne_connection_upgrade {
+    default upgrade;
+    '' close;
+}
+server {
+    listen {{ private_ip }}:80 default_server;
+    listen 127.0.0.1:80 default_server;
+    server_name _;
+    access_log off;
+    allow 127.0.0.1;
+{% for address in load_balancer_private_ips %}
+    allow {{ address }};
+{% endfor %}
+    deny all;
+    location = /health {
+        if (!-f /srv/bhidne-prod/frontend/current/index.html) { return 503; }
+        proxy_pass http://{{ private_ip }}:8080/health;
+        proxy_set_header Host api.prod.bhidne-ho.lfactorial.com;
+    }
+    location / { return 404; }
+}
+server {
+    listen {{ private_ip }}:80;
+    listen 127.0.0.1:80;
+    server_name prod.bhidne-ho.lfactorial.com;
+    allow 127.0.0.1;
+{% for address in load_balancer_private_ips %}
+    allow {{ address }};
+{% endfor %}
+    deny all;
+    root /srv/bhidne-prod/frontend/current;
+    index index.html;
+    access_log off;
+    gzip on;
+    gzip_types application/javascript application/json text/css image/svg+xml;
+    gzip_vary on;
+    location = /health {
+        if (!-f /srv/bhidne-prod/frontend/current/index.html) { return 503; }
+        proxy_pass http://{{ private_ip }}:8080/health;
+    }
+    location ~ ^/(assets|_expo)/ {
+        root /srv/bhidne-prod/frontend/shared;
+        try_files $uri =404;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+    location / {
+        try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache" always;
+    }
+}
+server {
+    listen {{ private_ip }}:80;
+    listen 127.0.0.1:80;
+    server_name api.prod.bhidne-ho.lfactorial.com;
+    allow 127.0.0.1;
+{% for address in load_balancer_private_ips %}
+    allow {{ address }};
+{% endfor %}
+    deny all;
+    access_log off;
+    client_max_body_size 1m;
+    location = /health {
+        if (!-f /srv/bhidne-prod/frontend/current/index.html) { return 503; }
+        proxy_pass http://{{ private_ip }}:8080/health;
+    }
+    location / {
+        proxy_pass http://{{ private_ip }}:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $bhidne_connection_upgrade;
+        proxy_read_timeout 120s;
+        proxy_send_timeout 120s;
+        proxy_buffering off;
+    }
+}

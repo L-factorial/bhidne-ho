@@ -1,4 +1,4 @@
-name: Deploy production backend
+name: Deploy production application
 on:
   push:
     branches: [bhidne-ho-scalability-prod]
@@ -67,7 +67,7 @@ jobs:
           image=ghcr.io/l-factorial/bhidne-ho-backend-prod
           printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
           trap 'docker logout ghcr.io >/dev/null 2>&1' EXIT
-          docker build --pull -f deploy/Dockerfile.distributed \
+          docker build --pull -f deploy/Dockerfile.production \
             --label "org.opencontainers.image.source=https://github.com/L-factorial/bhidne-ho" \
             --label "org.opencontainers.image.revision=$GITHUB_SHA" \
             -t "$image:$GITHUB_SHA" .
@@ -128,3 +128,5 @@ jobs:
           done
           curl --fail --silent --show-error --max-time 15 --retry 3 \
             https://api.prod.bhidne-ho.lfactorial.com/health
+          curl --fail --silent --show-error --max-time 15 --retry 3 \
+            https://prod.bhidne-ho.lfactorial.com/ -o /dev/null

@@ -37,7 +37,7 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "build:web": "expo export --platform web",
-    "build:cloudflare": "node scripts/build-cloudflare.mjs"
+    "build:production": "node scripts/build-production.mjs"
   },
   "private": true
 }

@@ -1,11 +1,11 @@
 # Production branch deployments
 
 Pushes to `bhidne-ho-scalability-prod` run `.github/workflows/backend-production.yml`.
-The workflow tests the backend with PostgreSQL 17, Redis, nginx and PGlite, builds
-one image, publishes it to private GHCR, then deploys the exact digest to app1
+The workflow tests the backend with PostgreSQL 17, Redis, nginx and PGlite, builds the production frontend in a Node build stage and
+packages it with the backend in one image, publishes it to private GHCR, then deploys the exact digest to app1
 and app2 sequentially. Their addresses come from GitHub production-environment
 variables `BHIDNE_PROD_APP1_HOST` and `BHIDNE_PROD_APP2_HOST`. It ends with a public
-HTTPS health check at `api.prod.bhidne-ho.lfactorial.com`. Deployments are serialized
+HTTPS checks at both the API and frontend domains. Deployments are serialized
 and running rollouts are not canceled by a later push. Manual dispatch is supported
 on this branch. `main` retains its existing testing workflow.
 
@@ -16,7 +16,10 @@ configured. Native PostgreSQL 17.11 and Redis 7.0.15 are installed and authentic
 checks pass. Both app hosts can reach the private services; public service ports
 and cross-database-host access are blocked. An unchanged provisioning rerun made
 zero changes. Database credentials remain in encrypted local inputs.
-Application VMs, DNS and load balancing remain unconfigured. Local uncommitted files are not deployed:
+Docker and Nginx are provisioned and active on both app VMs; configuration checks
+passed. DNS, HTTPS certificates and the app cloud firewall are configured. The
+dedicated GitHub production secrets are saved. The initial application image and
+empty-dataset initialization remain pending. Local uncommitted files are not deployed:
 only code committed and pushed to this branch reaches GitHub Actions.
 
 ## Production frontend and domains
@@ -28,15 +31,101 @@ The production backend target remains `https://api.prod.bhidne-ho.lfactorial.com
 Frontend runtime selection is build-time: `EXPO_PUBLIC_RUNTIME_MODE=distributed-integration`
 selects the existing distributed client; other builds use the previous client.
 
-The scalability frontend will use Cloudflare Pages from `bhidne-ho-scalability-prod`
-at `https://prod.bhidne-ho.lfactorial.com`, matching the provisioning `client_origin`.
-Use [the Cloudflare setup guide](cloudflare-pages.md) for the repository build
-command, Git connection, branch controls and DNS steps. The existing main GitHub
-Pages deployment remains separate. Cloudflare account setup is still pending.
+The scalability frontend deployment is configured to use native Nginx on both app VMs at
+`https://prod.bhidne-ho.lfactorial.com`, matching the provisioning `client_origin`.
+The DigitalOcean managed load balancer terminates HTTPS and forwards HTTP to private
+Nginx port 80. Nginx selects frontend files or the local backend by Host header.
+The previous Cloudflare preparation was replaced by `npm run build:production`.
+No Cloudflare account or second frontend repository is required.
 
-The API hostname must resolve to the backend load balancer, with TLS and WebSocket
-forwarding to the private application listeners. Load-balancer/DNS configuration
-and the actual production application release remain pending.
+`deploy/Dockerfile.production` builds the frontend in CI and includes its compressed
+export in the same immutable image as the backend. The runtime stage contains no
+Node tooling. Both hosts' `check` phase extracts and validates the export and stages
+hashed assets. Only after both checks pass does the workflow deploy sequentially.
+Each host switches its frontend symlink after its backend is healthy, verifies
+Nginx serves that exact index, and restores both on a failed activation. Shared
+hashed assets remain available across releases for old tabs and rollback. Assets
+and release directories are retained; monitor disk use and establish retention
+before removing anything still referenced by a current release or open browser.
+
+This release procedure does not ensure old frontend/new backend compatibility:
+rolling releases must retain API compatibility across the deployed versions.
+The distributed client still has its own login/lobby implementation.
+
+## Managed load balancer setup
+
+User-supplied public load balancer IP: `129.212.208.25`. This is the DNS
+destination. Health probes observed on both app VMs originate from private
+address `10.104.0.3`, recorded in the local Nginx allowlist.
+
+1. Create a regional managed load balancer in SGP1 on the apps' VPC and add both app
+   droplets. Set forwarding HTTPS443 → HTTP80, preserving the original Host header.
+   Install a certificate covering both `prod.bhidne-ho.lfactorial.com` and
+   `api.prod.bhidne-ho.lfactorial.com`. Redirect incoming HTTP80 to HTTPS.
+2. Set an HTTP health check on port80, path `/health`. It requires both a published
+   frontend index and a healthy local backend; an uninitialized host remains down.
+   Leave PROXY protocol disabled. Allow WebSocket upgrades and choose an idle timeout
+   longer than the client's heartbeat interval. Existing sockets reconnect after
+   a backend restart; no zero-downtime guarantee is made.
+3. Obtain the verified private source addresses the LB uses, including health
+   checks, and populate `load_balancer_private_ips`. Keep these updated if the LB's
+   sources change. Nginx explicitly allows these addresses and loopback, then denies
+   all other clients. It listens only on each host's VPC address and loopback.
+4. Configure cloud firewall rules: port80 to apps from the managed LB only;
+   app8080 from the app peers/self only; administrative/CI SSH as appropriate.
+   Docker-published ports require cloud firewall or Docker-aware filtering; ordinary
+   UFW rules alone do not establish app8080 restrictions. Set
+   `application_firewall_ready` only after verifying these rules. Then run apps.yml.
+5. Point both production DNS names to the managed LB's public IP. The existing main
+   frontend and single-droplet API DNS stay as they are.
+
+Load balancer attachment, app firewall readiness and API DNS/TLS are configured;
+the live application release remains pending. Do not claim deployment complete based only on a local
+build, Nginx installation, or configuration syntax check.
+
+## Production subdomain DNS delegation and managed certificate
+
+Delegate only `prod.bhidne-ho.lfactorial.com` from GoDaddy to DigitalOcean.
+The user approved this arrangement. Account/dashboard access is still required;
+no provider DNS changes have been made from the controller.
+
+1. In DigitalOcean **Networking → Domains**, add a DNS zone named exactly
+   `prod.bhidne-ho.lfactorial.com`. Within that zone, add A records `@` and `api`,
+   both pointing to `129.212.208.25`. Keep the zone's default NS/SOA records.
+2. In GoDaddy's DNS records for `lfactorial.com`, add these three records with
+   TTL 1 hour. These are subdomain NS records, not a registrar nameserver change:
+
+   | Type | Name | Value |
+   | --- | --- | --- |
+   | NS | prod.bhidne-ho | ns1.digitalocean.com |
+   | NS | prod.bhidne-ho | ns2.digitalocean.com |
+   | NS | prod.bhidne-ho | ns3.digitalocean.com |
+
+3. Verify delegation from the parent and resolution from the child:
+
+   ```sh
+   dig @ns65.domaincontrol.com prod.bhidne-ho.lfactorial.com NS +norecurse
+   dig @ns1.digitalocean.com prod.bhidne-ho.lfactorial.com A
+   dig @ns1.digitalocean.com api.prod.bhidne-ho.lfactorial.com A
+   dig prod.bhidne-ho.lfactorial.com A
+   dig api.prod.bhidne-ho.lfactorial.com A
+   ```
+
+4. In the LB certificate wizard choose Let's Encrypt and the delegated production
+   zone. Select specific names covering both the zone apex and `api`; verify the
+   resulting names are `prod.bhidne-ho.lfactorial.com` and
+   `api.prod.bhidne-ho.lfactorial.com`. Use certificate name `bhidne-ho-prod`.
+   Keep forwarding HTTPS443 → HTTP80. Enable HTTP-to-HTTPS redirect after the
+   certificate and HTTPS forwarding are active.
+
+Existing `lfactorial.com` nameservers and main frontend/API records remain at
+GoDaddy. The initial authoritative check found no production delegation; the
+DigitalOcean nameserver refused the proposed zone query, so zone creation has
+not been verified. DNS propagation and certificate issuance must be checked
+before claiming HTTPS is ready.
+
+References: [GoDaddy NS records](https://www.godaddy.com/en-ca/help/add-an-ns-record-19212),
+[DigitalOcean SSL termination](https://docs.digitalocean.com/products/networking/load-balancers/how-to/ssl-termination/).
 
 ## Access and secrets
 
@@ -77,8 +166,8 @@ and the actual production application release remain pending.
    HTTPS origin. Supply per-host `ansible_ssh_private_key_file` if PostgreSQL uses
    a different administrator key. See [service provisioning](../deploy/provision/README.md).
 2. Set firewall rules before enabling the readiness booleans in inventory:
-   PostgreSQL 5432 and Redis 6379 from app private IPs only; private app 8080 from
-   the load balancer and peer app hosts only. SSH needs verified administrator and
+   PostgreSQL 5432 and Redis 6379 from app private IPs only; private Nginx80 from
+   the managed LB only, and app8080 from self/peer app hosts only. SSH needs verified administrator and
    CI access. GitHub-hosted runner egress is not a single fixed IP: select suitable
    firewall rules or a runner with controlled egress for your policy. This work
    does not configure a cloud firewall or create a runner. Native database hosts
@@ -98,7 +187,7 @@ and the actual production application release remain pending.
    runtime files and deployment key, and checks service ports from both app hosts.
    It does not start the application or initialize the database. Use dedicated
    application hosts; existing Docker workloads are not modified by this playbook.
-5. Configure a load balancer for the two private app addresses, HTTP port 8080,
+5. Configure a load balancer for the two private app addresses, HTTP port 80,
    `/health` checks, WebSocket support and appropriate idle timeouts. Configure DNS
    and TLS for `api.prod.bhidne-ho.lfactorial.com`. Metrics bind only to host
    loopback at 9108. No affinity is required; sockets reconnect after replacement.

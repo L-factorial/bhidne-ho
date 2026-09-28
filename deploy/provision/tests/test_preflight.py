@@ -115,6 +115,26 @@ class PreflightTests(unittest.TestCase):
                 self.run_guard(name, {**baseline, key: value}, False)
 
 
+    def test_app_ingress_requires_verified_private_lb_sources(self):
+        name = 'Validate application hosts and explicit network configuration'
+        baseline = {
+            'groups': {'apps': ['app1', 'app2'], 'postgres': ['pg'], 'redis': ['redis']},
+            'ansible_facts': {'distribution': 'Ubuntu', 'distribution_version': '24.04',
+                              'all_ipv4_addresses': ['10.0.0.2']},
+            'private_ip': '10.0.0.2', 'peer_ip': '10.0.0.3',
+            'app_private_ips': ['10.0.0.2', '10.0.0.3'],
+            'postgres_private_ip': '10.0.0.4', 'redis_private_ip': '10.0.0.5',
+            'application_firewall_ready': True, 'load_balancer_private_ips': ['10.0.0.6'],
+            'client_origin': 'https://prod.bhidne-ho.lfactorial.com',
+            'deployment_public_key': 'ssh-ed25519 ' + 'a' * 68,
+        }
+        self.run_guard(name, baseline, True)
+        for key, value in [('load_balancer_private_ips', []),
+                           ('load_balancer_private_ips', ['8.8.8.8']),
+                           ('application_firewall_ready', False)]:
+            with self.subTest(key=key, value=value):
+                self.run_guard(name, baseline | {key: value}, False)
+
     def test_secret_validation_rejects_duplicates_and_line_breaks(self):
         values = {'postgres_password': 'a' * 64, 'redis_password': 'b' * 64}
         name = 'Require independent URL-safe secrets'

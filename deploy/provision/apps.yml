@@ -19,9 +19,11 @@
           - private_ip in app_private_ips
           - peer_ip in app_private_ips
           - application_firewall_ready | default(false) | bool
+          - load_balancer_private_ips | default([]) | length > 0
+          - load_balancer_private_ips | map('private_ipv4') | reject('equalto', true) | list | length == 0
           - postgres_private_ip | private_ipv4
           - redis_private_ip | private_ipv4
-          - client_origin is match('^https://[a-zA-Z0-9.-]+(:[0-9]+)?$')
+          - client_origin == 'https://prod.bhidne-ho.lfactorial.com'
           - deployment_public_key is match('^ssh-ed25519 [A-Za-z0-9+/]+={0,3}( [^\r\n]+)?$')
         fail_msg: Supply actual VPC addresses, HTTPS frontend origin, dedicated deployment public key and firewall readiness.
 
@@ -71,7 +73,7 @@
         owner: root
         group: root
         mode: '0600'
-        content: "{{ {'repository': 'ghcr.io/l-factorial/bhidne-ho-backend-prod', 'private_ip': private_ip, 'peer_ip': peer_ip} | to_nice_json }}\n"
+        content: "{{ {'repository': 'ghcr.io/l-factorial/bhidne-ho-backend-prod', 'private_ip': private_ip, 'peer_ip': peer_ip, 'frontend': true} | to_nice_json }}\n"
 
     - name: Write runtime environment without exposing secrets
       ansible.builtin.template:
@@ -106,3 +108,51 @@
         port: 6379
         connect_timeout: 5
         timeout: 15
+
+    - name: Install native Nginx without starting an unconfigured listener
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+        policy_rc_d: 101
+
+    - name: Create root-owned static release directory
+      ansible.builtin.file:
+        path: /srv/bhidne-prod/frontend
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Remove Ubuntu default site
+      ansible.builtin.file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      notify: Reload production Nginx
+
+    - name: Configure frontend and API virtual hosts
+      ansible.builtin.template:
+        src: nginx-production.conf.j2
+        dest: /etc/nginx/conf.d/bhidne-production.conf
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Reload production Nginx
+
+    - name: Validate complete Nginx configuration
+      ansible.builtin.command: nginx -t
+      changed_when: false
+
+    - name: Enable Nginx on boot
+      ansible.builtin.systemd_service:
+        name: nginx
+        enabled: true
+        state: started
+
+    - name: Apply Nginx changes
+      ansible.builtin.meta: flush_handlers
+
+  handlers:
+    - name: Reload production Nginx
+      ansible.builtin.systemd_service:
+        name: nginx
+        state: reloaded
