@@ -4,6 +4,8 @@ The transport supplies the authenticated actor, never an actor from request JSON
 PostgreSQL commit precedes the optional wakeup. A wakeup failure cannot turn a
 durably queued request into an execution failure. Callers retain the original ID.
 """
+
+from .telemetry import observe, submitted, event
 import asyncio
 import math
 from uuid import UUID
@@ -33,6 +35,7 @@ class HostedCommandIngress:
         self.inbox, self.pool, self.wakeup = inbox, inbox.pool, wakeup
         self.wakeup_timeout = wakeup_timeout
 
+    @observe('ingress.hosted')
     async def submit(self, actor, target, body):
         user_uuid(actor)
         target = LaneTarget.model_validate(target)
@@ -95,15 +98,18 @@ class HostedCommandIngress:
                             TableLaneExecutor.check_capability(saved.checkpoint['data'], request.command)
                     entry = await self.inbox.enqueue_in_transaction(connection, lane_id, actor,
                         request.model_dump(mode='json'))
+        submitted(target, entry, prior is not None)
         if self.wakeup is not None and entry.status == 'pending':
             try:
                 await asyncio.wait_for(self.wakeup(target.room_id, entry.lane_id), timeout=self.wakeup_timeout)
             except Exception:
+                event('ingress_wakeup_failed')
                 # Delivery diagnostics belong to the transport. The committed
                 # inbox and fallback scanner remain authoritative for progress.
                 pass
         return command_status(entry)
 
+    @observe('receipt.hosted')
     async def status(self, actor, lane_id, command_id):
         """Only the actor's own receipt, including after room departure/rematch.
 

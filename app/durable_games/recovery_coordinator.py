@@ -4,6 +4,8 @@ The lease coordinator must already be started and maintain leases independently.
 A successful result is an inventory requiring reconciliation, not permission to
 serve. Failures never mark commands complete or erase timers, receipts, or state.
 """
+
+from .telemetry import observe
 import asyncio
 from dataclasses import dataclass, field
 import math
@@ -49,6 +51,7 @@ class RoomRecoveryCoordinator:
         self.attempt_timeout, self.retry_base, self.retry_max = attempt_timeout, retry_base, retry_max
         self._active = set()
 
+    @observe('recovery.prepare')
     async def prepare(self, room_id, *, expected_epoch, host):
         """Acquire and load, retrying only bounded transient failures.
 

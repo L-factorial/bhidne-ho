@@ -1,0 +1,48 @@
+// Example for Alloy on the SAME HOST as one application process.
+// Set RUNTIME_INSTANCE to a stable hostname, RUNTIME_LOG_PATH to the service's
+// rotated JSON log file, and the Grafana Cloud endpoints/credentials below.
+// Containers: use an internal gateway:9108 address; never publish it publicly.
+prometheus.scrape "runtime" {
+  targets = [{
+    "__address__" = "127.0.0.1:9108",
+    "job" = "bhidne-runtime",
+    "instance" = sys.env("RUNTIME_INSTANCE"),
+    "environment" = "staging",
+  }]
+  scrape_interval = "15s"
+  forward_to = [prometheus.remote_write.cloud.receiver]
+}
+
+prometheus.remote_write "cloud" {
+  endpoint {
+    url = sys.env("GRAFANA_METRICS_URL")
+    basic_auth {
+      username = sys.env("GRAFANA_METRICS_USER")
+      password = sys.env("GRAFANA_METRICS_TOKEN")
+    }
+  }
+}
+
+local.file_match "runtime" {
+  path_targets = [{
+    "__path__" = sys.env("RUNTIME_LOG_PATH"),
+    "service" = "bhidne-runtime",
+    "instance" = sys.env("RUNTIME_INSTANCE"),
+    "environment" = "staging",
+  }]
+}
+
+loki.source.file "runtime" {
+  targets = local.file_match.runtime.targets
+  forward_to = [loki.write.cloud.receiver]
+}
+
+loki.write "cloud" {
+  endpoint {
+    url = sys.env("GRAFANA_LOGS_URL")
+    basic_auth {
+      username = sys.env("GRAFANA_LOGS_USER")
+      password = sys.env("GRAFANA_LOGS_TOKEN")
+    }
+  }
+}

@@ -5,6 +5,8 @@ fenced by a room lease, then serialized by its table row (not an exclusive room
 lock). The future inbox executor must call save_in_transaction in the SAME
 transaction as inbox completion and outbox writes. No delivery belongs here.
 """
+
+from .telemetry import observe
 from dataclasses import dataclass
 from hashlib import sha256
 from uuid import UUID, uuid4
@@ -79,6 +81,7 @@ class PostgresCheckpointStore:
     async def _fence(self, connection, fence, room_id):
         await validate_room_fence(connection, fence, room_id)
 
+    @observe('checkpoint.write_transaction_step')
     async def save_in_transaction(self, connection, checkpoint, *, expected_revision,
                                   fence, receipt=None, receipt_limit=10000):
         """Caller MUST own an open transaction; rolls back as a unit on any error."""
@@ -273,6 +276,7 @@ class PostgresCheckpointStore:
                 await connection.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
                 return await self._load(connection, UUID(str(table_id)))
 
+    @observe('checkpoint.load_locked')
     async def load_for_update(self, connection, table_id):
         """Load under the table lock inside a room-fenced command transaction."""
         if connection.info.transaction_status != TransactionStatus.INTRANS:
@@ -284,6 +288,7 @@ class PostgresCheckpointStore:
             raise DurableGameNotFound(str(table_id))
         return await self._load(connection, table_id)
 
+    @observe('checkpoint.load_snapshot')
     async def load_in_snapshot(self, connection, table_id):
         """Read within the caller's repeatable-read room inventory transaction.
 

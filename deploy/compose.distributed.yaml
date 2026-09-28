@@ -11,6 +11,9 @@ x-gateway: &gateway
     BHIDNE_DISTRIBUTED_SIGNAL_SECRET: ${DISTRIBUTED_SIGNAL_SECRET:?set a shared 64-character hexadecimal test secret}
     BHIDNE_DISTRIBUTED_ORIGINS: ${DISTRIBUTED_CLIENT_ORIGIN:?set the exact integration client origin}
     BHIDNE_DISTRIBUTED_ADDRESS: http://gateway_a:8080
+    # Internal container network only: never publish this port through the balancer.
+    BHIDNE_DISTRIBUTED_METRICS_PORT: '9108'
+    BHIDNE_DISTRIBUTED_METRICS_ADDRESS: 0.0.0.0
   depends_on:
     postgres:
       condition: service_healthy

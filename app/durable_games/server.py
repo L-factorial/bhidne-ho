@@ -4,6 +4,8 @@ The supplied pool/Redis client must already be configured; construction does no 
 Resources are borrowed unless ownership is explicitly transferred. One assembly is
 one process boot and cannot be restarted after shutdown or uncertain startup.
 """
+
+from .telemetry import observe
 import asyncio
 
 from fastapi import HTTPException
@@ -45,6 +47,7 @@ class DistributedServer:
         finally:
             self._requests.discard(task)
 
+    @observe('server.start', log_success=True)
     async def start(self):
         async with self._lock:
             if self.state != 'new':
@@ -61,6 +64,7 @@ class DistributedServer:
                 await _join_cleanup(asyncio.create_task(self._cleanup(), name='server-start-cleanup'))
                 raise
 
+    @observe('server.stop', log_success=True)
     async def stop(self):
         async with self._lock:
             if self.state == 'closed':

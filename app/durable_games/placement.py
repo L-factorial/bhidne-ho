@@ -1,4 +1,6 @@
 """Explicit demand-driven owner selection; no fleet scanner or network endpoint."""
+
+from .telemetry import observe
 import asyncio
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -33,6 +35,7 @@ class RoomOwnerCoordinator:
         self._active = set()
         self._cooldowns = OrderedDict()
 
+    @observe('placement.ensure')
     async def ensure_owner(self, room_id):
         if not isinstance(room_id, str) or not room_id.strip():
             raise ValueError('Room identity must be nonempty.')

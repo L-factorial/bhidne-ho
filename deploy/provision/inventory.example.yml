@@ -1,0 +1,37 @@
+---
+all:
+  vars:
+    ansible_user: root
+    ansible_ssh_private_key_file: ~/.ssh/bhidne-ho-production-servers
+    ansible_python_interpreter: /usr/bin/python3
+    # Replace with actual private VPC addresses; public IPs are SSH targets only.
+    app_private_ips: [10.104.0.7, 10.104.0.2]
+    # Set true only after verifying host or cloud firewall restrictions to app hosts.
+    private_firewall_ready: false
+    # Private app 8080: load balancer + app peers only; SSH: trusted admin/CI sources.
+    application_firewall_ready: false
+    postgres_private_ip: 10.104.0.9
+    redis_private_ip: 10.104.0.8
+    client_origin: https://prod.bhidne-ho.lfactorial.com
+    deployment_public_key: REPLACE_DEDICATED_GITHUB_DEPLOY_PUBLIC_KEY
+  children:
+    postgres:
+      hosts:
+        postgres_prod:
+          ansible_host: 159.223.94.162
+          private_ip: 10.104.0.9
+    redis:
+      hosts:
+        redis_prod:
+          ansible_host: 157.245.50.145
+          private_ip: 10.104.0.8
+    apps:
+      hosts:
+        app1_prod:
+          ansible_host: 168.144.105.49
+          private_ip: 10.104.0.7
+          peer_ip: 10.104.0.2
+        app2_prod:
+          ansible_host: 165.245.180.205
+          private_ip: 10.104.0.2
+          peer_ip: 10.104.0.7

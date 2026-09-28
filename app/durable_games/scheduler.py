@@ -13,6 +13,7 @@ from psycopg import OperationalError, InterfaceError
 from psycopg.errors import DeadlockDetected, SerializationFailure
 
 from .store import StaleGameOwner
+from .telemetry import event
 
 
 @dataclass
@@ -73,6 +74,7 @@ class GameLaneScheduler:
             work.fence, work.dirty = fence, True
             return True
         if len(self._work) >= self.max_lanes:
+            event('scheduler_full')
             return False
         self._work[lane_id] = _Work(fence)
         self._idle.clear()
@@ -128,6 +130,7 @@ class GameLaneScheduler:
                 work.failures += 1
                 retry = transient and work.failures <= self.max_retries
                 failure = LaneFailure(lane_id, type(error).__name__, retry, transient)
+                event('lane_attempt_failed', lane_id=lane_id, error_type=type(error).__name__, retrying=retry)
                 self.failures.append(failure)
                 if self.on_failure is not None:
                     self.on_failure(failure, fence)

@@ -5,6 +5,7 @@ This boundary excludes legacy writers from this app, not from other processes.
 Mixed-version access to the same database is not a supported deployment.
 """
 from contextlib import asynccontextmanager
+from .telemetry import TelemetryMiddleware
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -75,4 +76,5 @@ def create_integration_app(server):
     app.add_middleware(NativeProtocolOnly, shared_routes=shared_routes)
     app.add_middleware(CORSMiddleware, allow_origins=list(server.allowed_origins),
                        allow_methods=['GET', 'POST', 'PATCH', 'DELETE'], allow_headers=['Authorization', 'Content-Type'])
+    app.add_middleware(TelemetryMiddleware)
     return app

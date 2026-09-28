@@ -1,0 +1,10 @@
+# Managed by deploy/provision. Local administrative access uses OS identity.
+local all postgres peer
+local all all peer
+host all all 127.0.0.1/32 scram-sha-256
+host all all ::1/128 scram-sha-256
+{% for address in app_private_ips %}
+host bhidne_distributed_prod bhidne_prod {{ address }}/32 scram-sha-256
+{% endfor %}
+host all all 0.0.0.0/0 reject
+host all all ::0/0 reject

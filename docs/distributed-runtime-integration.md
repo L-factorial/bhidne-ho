@@ -14,6 +14,8 @@ with a new disposable dataset, not a rolling migration of a legacy deployment.
 - `BHIDNE_DISTRIBUTED_ADDRESS`: unique gateway address
 - `BHIDNE_DISTRIBUTED_ORIGINS`: comma-separated exact client origins
 - Optional `BHIDNE_DISTRIBUTED_NAMESPACE`, identical across the participating gateways
+- Optional `BHIDNE_DISTRIBUTED_METRICS_PORT=9108` for a private metrics listener;
+  see [telemetry setup](distributed-runtime-telemetry.md) for collection and privacy settings
 
 Initialize once with `python -m app.durable_games.bootstrap initialize`. Initialization
 refuses any existing public tables and holds the migration advisory lock. Gateway
@@ -36,7 +38,12 @@ docker compose -f deploy/compose.distributed.yaml --profile initialize run --rm 
 docker compose -f deploy/compose.distributed.yaml up -d gateway_a gateway_b balancer
 ```
 
-The listener is localhost port 18081. No upstream affinity is needed: a WebSocket stays
+The public integration listener is localhost port 18081. Metrics use a separate
+internal-only port 9108 in compose, never published by nginx. The distributed
+Dockerfile disables uvicorn access logs; do the same for manual launches
+(`--no-access-log`) to avoid logging authentication callback query values.
+
+No upstream affinity is needed: a WebSocket stays
 on the server holding its TCP connection, while HTTP requests/reconnects can reach
 either gateway. nginx supports Upgrade and disables buffering and automatic request
 retries. Clients retry with the original durable ID. This example does not terminate

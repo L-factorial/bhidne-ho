@@ -5,6 +5,8 @@ secrets across uncertain responses. Ownership uses DB wall-clock time and row
 locks; heartbeat is eligibility/routing information, never permission to steal a
 live room lease. Activation is a trusted recovery coordinator's explicit action.
 """
+
+from .telemetry import observe
 from dataclasses import dataclass, field
 from datetime import datetime
 import json
@@ -104,6 +106,7 @@ class PostgresRoomOwnershipStore:
         _duration(heartbeat_ttl, 300)
         self.pool, self.heartbeat_ttl = pool, heartbeat_ttl
 
+    @observe('ownership.register')
     async def register(self, registration, internal_address, *, capabilities=None):
         """Retry the same boot identity/secret/configuration; never replace a boot."""
         _identity(registration.instance_id)
@@ -139,6 +142,7 @@ class PostgresRoomOwnershipStore:
             raise StaleInstance('Server heartbeat is stale or server is draining.')
         return row
 
+    @observe('ownership.heartbeat')
     async def heartbeat(self, registration):
         async with self.pool.connection() as connection:
             row = await (await connection.execute('''UPDATE server_instances SET heartbeat_at=clock_timestamp()
@@ -167,6 +171,7 @@ class PostgresRoomOwnershipStore:
         now = (await (await connection.execute('SELECT clock_timestamp()')).fetchone())[0]
         return row, now
 
+    @observe('ownership.acquire', log_success=True)
     async def acquire(self, room_id, registration, *, expected_epoch, token, lease_seconds=30):
         """Acquire a free/expired room into recovering; retry with the SAME inputs.
 
@@ -229,6 +234,7 @@ class PostgresRoomOwnershipStore:
             raise StaleGameOwner('Room lease is expired, released, or fenced.')
         return row
 
+    @observe('ownership.renew')
     async def renew(self, registration, fence, *, lease_seconds=30):
         _duration(lease_seconds)
         async with self.pool.connection() as connection:
@@ -249,6 +255,7 @@ class PostgresRoomOwnershipStore:
     async def drain(self, registration, fence):
         return await self._transition(registration, fence, 'draining', {'recovering', 'serving'})
 
+    @observe('ownership.quarantine', log_success=True)
     async def quarantine(self, registration, fence):
         """Retry the exact transition even after a committed quarantine expires.
 
@@ -275,6 +282,7 @@ class PostgresRoomOwnershipStore:
                     raise StaleGameOwner('Room expired before quarantine.')
                 return RoomLease(fence, updated[0], 'quarantined')
 
+    @observe('ownership.retry_quarantined', log_success=True)
     async def retry_quarantined(self, room_id, *, expected_epoch):
         """Trusted repair control only: clear quarantine without editing game data.
 
@@ -312,6 +320,7 @@ class PostgresRoomOwnershipStore:
                     raise StaleGameOwner('Room expired before runtime transition.')
                 return RoomLease(fence, updated[0], status)
 
+    @observe('ownership.release', log_success=True)
     async def release(self, registration, fence, *, preserve_quarantine=False):
         async with self.pool.connection() as connection:
             async with connection.transaction():

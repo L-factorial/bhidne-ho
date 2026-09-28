@@ -3,6 +3,8 @@
 The local scan is a correctness mechanism for this runtime. Optional Redis health
 policy changes inbox scan cadence without changing ownership or timer cadence.
 """
+
+from .telemetry import observe, event
 import asyncio
 from collections import deque
 from dataclasses import dataclass, field
@@ -127,6 +129,7 @@ class RoomExecutionRuntime:
         draining = self._drain_fences is not None and self._drain_fences.get(fence.room_id) == fence
         known = (room is not None and room.fence == fence) or draining
         if room is not None and room.fence == fence:
+            event('room_retired', room_id=fence.room_id, epoch=fence.epoch, error_type=error_type)
             del self._rooms[fence.room_id]
             self.leases.abandon_fence(fence)
             self.failures.append(RuntimeFailure(fence.room_id, source, error_type, False))
@@ -170,6 +173,7 @@ class RoomExecutionRuntime:
             raise StaleGameOwner('Execution runtime is not running.')
         result = await self.recovery.prepare(room_id, expected_epoch=expected_epoch,
             host=_DetachedHost(self.round_summary_seconds))
+        event('room_recovery_finished', room_id=room_id, result=result.status)
         if result.fence is not None and result.status in ('invalid', 'unsupported', 'budget_exceeded', 'failed'):
             # Recovery already abandoned local admission. Never quarantine an
             # acquisition conflict that could refer to an already serving room.
@@ -191,6 +195,7 @@ class RoomExecutionRuntime:
             self._lose_room(fence, 'activation', type(error).__name__,
                 quarantine=isinstance(error, Exception) and not isinstance(error, _TRANSIENT))
             raise
+        event('room_activated', room_id=fence.room_id, epoch=fence.epoch)
         self._wake.set()  # Immediate fresh scan, including ingress since preparation.
         return lease
 
@@ -287,6 +292,7 @@ class RoomExecutionRuntime:
                 await self._attempt(fence, worker.execute, identity, fence)
                 room.cursors[kind] = identity
 
+    @observe('maintenance.sweep')
     async def sweep_once(self):
         """Bounded rotating scans; one failure cannot prevent other rooms progressing."""
         async with self._sweeping:
@@ -355,6 +361,7 @@ class RoomExecutionRuntime:
         finally:
             await self.leases.stop()
 
+    @observe('runtime.drain')
     async def drain_and_stop(self):
         """Withdraw routing, cancel/join workers, then release exact saved fences.
 

@@ -5,6 +5,8 @@ Authorization and projection share one read-only PostgreSQL snapshot. Departure
 committed before that snapshot denies access; a concurrent departure may finish
 after it. No timers, settlements, ownership, or durable state advance on a read.
 """
+
+from .telemetry import observe
 from copy import deepcopy
 from uuid import UUID
 from psycopg.types.json import Jsonb
@@ -60,6 +62,7 @@ class PostgresHostedQueries:
                 await require_member(connection, room_id, actor)
                 return await eligibility(connection, room_id, actor, recipients)
 
+    @observe('read.catalog')
     async def catalog(self, actor, *, after_room_id='', limit=50):
         user = user_uuid(actor)
         if type(limit) is not int or not 1 <= limit <= 100:
@@ -76,6 +79,7 @@ class PostgresHostedQueries:
                 created_at=r[4].isoformat(), open_table_count=r[5], is_member=r[6]) for r in rows[:limit]],
                 next_room_id=rows[limit - 1][0] if len(rows)>limit else None)
 
+    @observe('read.members')
     async def members(self, room_id, actor, *, after_user_id=None, limit=100):
         if type(limit) is not int or not 1 <= limit <= 1000:
             raise ValueError('Invalid membership page limit.')
@@ -89,6 +93,7 @@ class PostgresHostedQueries:
                 return dict(items=[f'user-{r[0]}' for r in rows[:limit]],
                     next_user_id=f'user-{rows[limit - 1][0]}' if len(rows)>limit else None)
 
+    @observe('read.room_invitations')
     async def room_invitations(self, actor, *, after_id='', limit=50):
         user_uuid(actor)
         if type(limit) is not int or not 1 <= limit <= 100:
@@ -100,6 +105,7 @@ class PostgresHostedQueries:
             return dict(items=[dict(id=r[0],room_id=r[1],room_name=r[2],inviter_id=r[3],recipient_id=actor,status='pending') for r in rows[:limit]],
                 next_id=rows[limit - 1][0] if len(rows)>limit else None)
 
+    @observe('read.invitations')
     async def invitations(self, actor, *, after_table_id=None, limit=50):
         """Bounded indexed recipient lookup; cursor advances over candidate tables.
 
@@ -132,6 +138,7 @@ class PostgresHostedQueries:
                                 and state['data']['host']['durable_game_id'] is None and seated < capacity))
                 return dict(items=items, next_table_id=str(rows[limit - 1][0]) if len(rows) > limit else None)
 
+    @observe('read.room')
     async def room(self, room_id, actor, *, table_id=None):
         """Return bounded room previews and optionally one explicitly selected table.
 

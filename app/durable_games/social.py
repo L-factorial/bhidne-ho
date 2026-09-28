@@ -4,6 +4,8 @@ Any worker may claim a platform lane. PostgreSQL serialization, not room ownersh
 orders its commands. Trusted notification producers compose enqueue with their own
 business transaction; ordinary actors cannot submit notification creation.
 """
+
+from .telemetry import observe, submitted, event
 import asyncio
 from hashlib import sha256
 from uuid import UUID, uuid5, NAMESPACE_URL
@@ -67,6 +69,7 @@ class SocialIngress:
     def __init__(self, inbox, *, wakeup=None):
         self.inbox, self.pool, self.wakeup = inbox, inbox.pool, wakeup
 
+    @observe('read.social_stream')
     async def open_stream(self, actor, target):
         """Authorized bootstrap, including an empty recipient stream at connect."""
         target = LaneTarget.model_validate(target)
@@ -75,6 +78,7 @@ class SocialIngress:
                 await authorize_social(connection,target,actor)
                 return await self.inbox.ensure_lane_in_transaction(connection,target)
 
+    @observe('ingress.social')
     async def submit(self, actor, target, body):
         user_uuid(actor)
         target = LaneTarget.model_validate(target)
@@ -107,14 +111,17 @@ class SocialIngress:
                     if not friendship:
                         await authorize_social(connection, target, actor)
                     entry = await self.inbox.enqueue_in_transaction(connection, lane, actor, request.model_dump(mode='json'))
+        submitted(target, entry, previous is not None)
         if self.wakeup and entry.status == 'pending':
             try:
                 async with asyncio.timeout(1):
                     await self.wakeup(lane)
             except Exception:
+                event('ingress_wakeup_failed')
                 pass
         return command_status(entry)
 
+    @observe('receipt.social')
     async def status(self, actor, lane, command_id):
         user = user_uuid(actor)
         async with self.pool.connection() as connection:
@@ -149,6 +156,7 @@ class SocialLaneExecutor:
     def __init__(self, inbox):
         self.inbox = inbox
 
+    @observe('execute.social')
     async def execute_one(self, lane_id):
         async with self.inbox.claim(lane_id) as claim:
             if claim is None:

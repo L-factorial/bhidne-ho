@@ -1,0 +1,286 @@
+---
+- name: Validate dedicated production service hosts
+  hosts: postgres:redis
+  become: true
+  gather_facts: true
+  any_errors_fatal: true
+  tags: [preflight]
+  tasks:
+    - name: Require separate Ubuntu 24.04 hosts and explicit private networking
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.distribution == 'Ubuntu'
+          - ansible_facts.distribution_version == '24.04'
+          - groups['postgres'] | length == 1
+          - groups['redis'] | length == 1
+          - groups['postgres'] | intersect(groups['redis']) | length == 0
+          - hostvars[groups['postgres'][0]].ansible_host != hostvars[groups['redis'][0]].ansible_host
+          - private_ip | private_ipv4
+          - private_ip in ansible_facts.all_ipv4_addresses
+          - app_private_ips | length == 2
+          - app_private_ips | unique | length == 2
+          - app_private_ips[0] | private_ipv4
+          - app_private_ips[1] | private_ipv4
+          - private_ip not in app_private_ips
+          - private_firewall_ready | default(false) | bool
+        fail_msg: Verify Ubuntu version, separate hosts, actual VPC addresses, and host or cloud firewall rules first.
+
+    - name: Require independent URL-safe secrets
+      ansible.builtin.assert:
+        that:
+          - postgres_password is match('^[a-f0-9]{64}\Z')
+          - redis_password is match('^[a-f0-9]{64}\Z')
+          - postgres_password != redis_password
+      no_log: true
+
+    - name: Inspect provisioning ownership marker
+      ansible.builtin.stat:
+        path: /etc/bhidne-provision-v1
+      register: ownership
+
+    - name: Read existing ownership marker
+      ansible.builtin.slurp:
+        src: /etc/bhidne-provision-v1
+      register: ownership_content
+      when: ownership.stat.exists
+
+    - name: Reject wrong-role markers
+      ansible.builtin.assert:
+        that:
+          - (ownership_content.content | b64decode | trim) == ('postgres-17' if inventory_hostname in groups['postgres'] else 'redis-7')
+      when: ownership.stat.exists
+
+    - name: Inspect existing service packages
+      ansible.builtin.package_facts:
+        manager: apt
+
+    - name: Inspect existing configuration and data directories
+      ansible.builtin.stat:
+        path: '{{ item }}'
+      loop: [/etc/postgresql, /var/lib/postgresql, /etc/redis, /var/lib/redis]
+      register: service_directories
+
+    - name: Inspect database listeners before first installation
+      ansible.builtin.command:
+        argv: [ss, -H, -ltn, 'sport = :5432 or sport = :6379']
+      register: unmanaged_listeners
+      changed_when: false
+      when: not ownership.stat.exists
+
+    - name: Refuse to adopt unmanaged database installations
+      ansible.builtin.assert:
+        that:
+          - unmanaged_listeners.stdout | trim | length == 0
+          - ansible_facts.packages.keys() | select('match', '^postgresql-[0-9]+$|^redis-server$') | list | length == 0
+          - service_directories.results | selectattr('stat.exists') | list | length == 0
+        fail_msg: Existing unmanaged services or data found. Stop and review manually; this playbook never adopts or migrates them.
+      when: not ownership.stat.exists
+
+    - name: Inspect PostgreSQL clusters on a managed host
+      ansible.builtin.command: pg_lsclusters --no-header
+      register: existing_clusters
+      changed_when: false
+      when:
+        - inventory_hostname in groups['postgres']
+        - "'postgresql-17' in ansible_facts.packages"
+
+    - name: Require exactly the managed PostgreSQL 17 main cluster
+      ansible.builtin.assert:
+        that:
+          - existing_clusters.stdout_lines | length == 1
+          - existing_clusters.stdout is match('^17\s+main\s+5432\s+')
+      when: existing_clusters is not skipped
+
+- name: Provision native PostgreSQL 17
+  hosts: postgres
+  become: true
+  gather_facts: false
+  any_errors_fatal: true
+  tasks:
+    - name: Record provisioning ownership before installation for interrupted-run recovery
+      ansible.builtin.copy:
+        dest: /etc/bhidne-provision-v1
+        content: "postgres-17\n"
+        owner: root
+        group: root
+        mode: '0600'
+
+    - name: Install repository prerequisites
+      ansible.builtin.apt:
+        name: [ca-certificates, python3-psycopg2, acl]
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Create repository key directory
+      ansible.builtin.file:
+        path: /usr/share/postgresql-common/pgdg
+        state: directory
+        mode: '0755'
+
+    - name: Install official PostgreSQL repository key
+      ansible.builtin.get_url:
+        url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+        dest: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+        mode: '0644'
+
+    - name: Configure signed PostgreSQL repository
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/bhidne-pgdg.sources
+        mode: '0644'
+        content: |
+          Types: deb
+          URIs: https://apt.postgresql.org/pub/repos/apt
+          Suites: noble-pgdg
+          Components: main
+          Signed-By: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+      register: pg_repository
+
+    - name: Install PostgreSQL 17 if missing without upgrading existing packages
+      ansible.builtin.apt:
+        name: [postgresql-17, postgresql-client-17]
+        state: present
+        update_cache: '{{ pg_repository.changed }}'
+        policy_rc_d: 101
+
+    - name: Configure private PostgreSQL listener
+      ansible.builtin.template:
+        src: postgresql.conf.j2
+        dest: /etc/postgresql/17/main/conf.d/bhidne.conf
+        owner: postgres
+        group: postgres
+        mode: '0644'
+      notify: Restart PostgreSQL
+
+    - name: Restrict PostgreSQL authentication to application hosts
+      ansible.builtin.template:
+        src: pg_hba.conf.j2
+        dest: /etc/postgresql/17/main/pg_hba.conf
+        owner: postgres
+        group: postgres
+        mode: '0640'
+      notify: Restart PostgreSQL
+
+    - name: Apply pending PostgreSQL configuration
+      ansible.builtin.meta: flush_handlers
+
+    - name: Ensure PostgreSQL starts on boot and is running
+      ansible.builtin.systemd_service:
+        name: postgresql@17-main
+        enabled: true
+        state: started
+
+    - name: Create restricted application database owner
+      become_user: postgres
+      community.postgresql.postgresql_user:
+        name: bhidne_prod
+        password: '{{ postgres_password }}'
+        role_attr_flags: LOGIN,NOSUPERUSER,NOCREATEDB,NOCREATEROLE,NOREPLICATION
+        login_unix_socket: /var/run/postgresql
+      environment:
+        PGOPTIONS: '-c password_encryption=scram-sha-256'
+      no_log: true
+
+    - name: Create application database without initializing application schema
+      become_user: postgres
+      community.postgresql.postgresql_db:
+        name: bhidne_distributed_prod
+        owner: bhidne_prod
+        encoding: UTF8
+        template: template0
+        login_unix_socket: /var/run/postgresql
+
+    - name: Verify application credentials with a read-only query
+      community.postgresql.postgresql_query:
+        login_host: 127.0.0.1
+        login_user: bhidne_prod
+        login_password: '{{ postgres_password }}'
+        login_db: bhidne_distributed_prod
+        query: SELECT 1
+      changed_when: false
+      no_log: true
+
+  handlers:
+    - name: Restart PostgreSQL
+      ansible.builtin.systemd_service:
+        name: postgresql@17-main
+        state: restarted
+
+- name: Provision native ephemeral Redis 7
+  hosts: redis
+  become: true
+  gather_facts: false
+  any_errors_fatal: true
+  tasks:
+    - name: Record provisioning ownership before installation for interrupted-run recovery
+      ansible.builtin.copy:
+        dest: /etc/bhidne-provision-v1
+        content: "redis-7\n"
+        owner: root
+        group: root
+        mode: '0600'
+
+    - name: Install Ubuntu Redis if missing without upgrading existing packages
+      ansible.builtin.apt:
+        name: redis-server
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+        policy_rc_d: 101
+
+    - name: Verify Redis major version
+      ansible.builtin.command: redis-server --version
+      register: redis_version
+      changed_when: false
+      failed_when: "'v=7.' not in redis_version.stdout"
+
+    - name: Configure kernel memory overcommit for Redis
+      ansible.builtin.copy:
+        dest: /etc/sysctl.d/60-bhidne-redis.conf
+        content: "vm.overcommit_memory = 1\n"
+        mode: '0644'
+
+    - name: Read active kernel memory overcommit value
+      ansible.builtin.command: sysctl -n vm.overcommit_memory
+      register: overcommit
+      changed_when: false
+
+    - name: Apply kernel memory overcommit if needed
+      ansible.builtin.command: sysctl -w vm.overcommit_memory=1
+      when: overcommit.stdout != '1'
+      changed_when: true
+
+    - name: Configure private authenticated ephemeral Redis
+      ansible.builtin.template:
+        src: redis.conf.j2
+        dest: /etc/redis/redis.conf
+        owner: redis
+        group: redis
+        mode: '0640'
+      no_log: true
+      diff: false
+      notify: Restart Redis
+
+    - name: Apply pending Redis configuration
+      ansible.builtin.meta: flush_handlers
+
+    - name: Ensure Redis starts on boot and is running
+      ansible.builtin.systemd_service:
+        name: redis-server
+        enabled: true
+        state: started
+
+    - name: Verify authenticated Redis operation
+      ansible.builtin.command: redis-cli -h 127.0.0.1 ping
+      environment:
+        REDISCLI_AUTH: '{{ redis_password }}'
+      register: redis_ping
+      changed_when: false
+      failed_when: redis_ping.stdout != 'PONG'
+      no_log: true
+
+  handlers:
+    - name: Restart Redis
+      ansible.builtin.systemd_service:
+        name: redis-server
+        state: restarted

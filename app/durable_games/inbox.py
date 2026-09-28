@@ -21,6 +21,7 @@ from .checkpoint_store import PostgresCheckpointStore
 from .checkpoints import Record, Identity, Nonnegative, canonical_json
 from .recovery import ReceiptOutcome
 from .store import DurableGameConflict, DurableGameNotFound, StaleGameOwner
+from .telemetry import command_attempt, observe
 
 
 class LaneTarget(Record):
@@ -90,12 +91,14 @@ class LaneClaim:
     _store: object
     _active: bool = True
     _completed: bool = False
+    _telemetry_outcome: str = "unknown"
 
     async def complete(self, outcome: dict):
         if not self._active or self._completed:
             raise DurableGameConflict('This claim is inactive or already completed.')
         await self._store._complete(self, outcome)
         self._completed = True
+        self._telemetry_outcome = outcome["status"]
 
 
 def _transaction(connection):
@@ -249,6 +252,7 @@ class PostgresInboxStore:
         async with self.pool.connection() as connection:
             return await self._lookup(connection, UUID(str(lane_id)), actor_id, command_id)
 
+    @observe('inbox.scan')
     async def pending_lanes(self, *, room_id=None, limit=100, kind=None, after_lane_id=None):
         if type(limit) is not int or not 1 <= limit <= 1000:
             raise ValueError('Polling batch limit must be between 1 and 1000.')
@@ -276,32 +280,34 @@ class PostgresInboxStore:
         """
         lane_id = UUID(str(lane_id))
         claimed = None
-        async with self.pool.connection() as connection:
-            async with connection.transaction():
-                target, _, _ = await self._lane(connection, lane_id)
-                if target.room_id:
-                    if fence is None:
-                        raise StaleGameOwner('Room lanes require the serving owner fence.')
-                    await self.checkpoints._fence(connection, fence, target.room_id)
-                locked = await self._lane(connection, lane_id, lock=True)
-                if locked is None or locked[1] == locked[2]:
-                    yield None
-                    return
-                _, enqueued, processed = locked
-                row = await (await connection.execute('''SELECT sequence,actor_id,command_id,request_version,command,
-                    match_id,expected_revision,payload,request_fingerprint,original_request,status,outcome
-                    FROM command_inbox WHERE lane_id=%s AND sequence=%s FOR UPDATE''', (lane_id, processed + 1))).fetchone()
-                if row is None or row[10] != 'pending':
-                    raise DurableGameConflict('Lane head is missing or already terminal; refusing to skip it.')
-                claimed = LaneClaim(connection, target, self._entry(lane_id, row), self)
-                try:
-                    yield claimed
-                    if not claimed._completed:
-                        raise DurableGameConflict('Claim exited without atomic completion.')
+        with command_attempt() as observed:
+            async with self.pool.connection() as connection:
+                async with connection.transaction():
+                    target, _, _ = await self._lane(connection, lane_id)
                     if target.room_id:
+                        if fence is None:
+                            raise StaleGameOwner('Room lanes require the serving owner fence.')
                         await self.checkpoints._fence(connection, fence, target.room_id)
-                finally:
-                    claimed._active = False
+                    locked = await self._lane(connection, lane_id, lock=True)
+                    if locked is None or locked[1] == locked[2]:
+                        yield None
+                        return
+                    _, enqueued, processed = locked
+                    row = await (await connection.execute('''SELECT sequence,actor_id,command_id,request_version,command,
+                        match_id,expected_revision,payload,request_fingerprint,original_request,status,outcome
+                        FROM command_inbox WHERE lane_id=%s AND sequence=%s FOR UPDATE''', (lane_id, processed + 1))).fetchone()
+                    if row is None or row[10] != 'pending':
+                        raise DurableGameConflict('Lane head is missing or already terminal; refusing to skip it.')
+                    claimed = LaneClaim(connection, target, self._entry(lane_id, row), self)
+                    observed.append(claimed)
+                    try:
+                        yield claimed
+                        if not claimed._completed:
+                            raise DurableGameConflict('Claim exited without atomic completion.')
+                        if target.room_id:
+                            await self.checkpoints._fence(connection, fence, target.room_id)
+                    finally:
+                        claimed._active = False
 
     async def _complete(self, claim, outcome):
         connection, entry = claim.connection, claim.entry

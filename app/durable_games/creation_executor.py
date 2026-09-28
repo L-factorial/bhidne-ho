@@ -4,6 +4,8 @@ IDs derive from the lane/actor/request identity, never process randomness. An
 explicit old table/revision makes replacement reviewable and safe to retry.
 Creation, replacement, invitations, receipts and outgoing events commit together.
 """
+
+from .telemetry import observe
 from typing import Annotated, Literal
 from uuid import NAMESPACE_URL, UUID, uuid5
 
@@ -54,6 +56,7 @@ class RoomCreationExecutor:
             raise ValueError('Event batch limit must be a positive integer.')
         self.inbox, self.checkpoints, self.max_events = inbox, inbox.checkpoints, max_events
 
+    @observe('execute.room')
     async def execute_one(self, lane_id, fence):
         async with self.inbox.claim(lane_id, fence=fence) as claim:
             if claim is None:

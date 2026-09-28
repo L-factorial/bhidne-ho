@@ -6,8 +6,10 @@ Every push to `main` starts two GitHub Actions workflows, with no path filters:
 - **Deploy backend**: run the Python tests, upload backend source over SSH, build the Docker backend target on the existing Droplet, and wait for a healthy container at `api-bhidne-ho.lfactorial.com`.
 
 The backend job targets the GitHub Actions environment named `test`. Environment-
-scoped database and authentication secrets belong there. Production does not yet
-have a workflow or GitHub environment.
+scoped database and authentication secrets belong there. The separate production
+branch workflow is described in
+[production deployment](production-deployment.md); its `production` environment
+and infrastructure must be configured before live deployment.
 
 Both also support manual dispatch from `main`. Deployment concurrency is serialized per target; GitHub may replace an older queued run with a newer pending push. A running deployment is not canceled.
 

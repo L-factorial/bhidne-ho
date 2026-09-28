@@ -16,6 +16,8 @@ from app.auth.postgres import PostgresAuthService
 from app.database import MIGRATIONS
 from .application import create_integration_app
 from .server import build_server
+from .telemetry import configure_logging
+from .telemetry_runtime import RuntimeTelemetry
 
 MIGRATION_LOCK = 0x424849444E45484F
 MARKER = 'distributed-integration-v1'
@@ -95,6 +97,10 @@ def create_app(settings=None):
     server = build_server(pool, redis, internal_address=settings.address, signal_secret=settings.secret,
                           auth=PostgresAuthService(pool), allowed_origins=settings.origins,
                           namespace=settings.namespace, owns_pool=True, owns_redis=True)
+    configure_logging()
+    port = os.environ.get("BHIDNE_DISTRIBUTED_METRICS_PORT")
+    telemetry = RuntimeTelemetry(server, port=int(port),
+        address=os.environ.get("BHIDNE_DISTRIBUTED_METRICS_ADDRESS", "127.0.0.1")) if port else None
     app = create_integration_app(server)
     lifespan = app.router.lifespan_context
 
@@ -108,7 +114,13 @@ def create_app(settings=None):
             await pool.close()
             raise
         async with lifespan(application):
-            yield
+            try:
+                if telemetry is not None:
+                    telemetry.start()
+                yield
+            finally:
+                if telemetry is not None:
+                    await telemetry.stop()
     app.router.lifespan_context = configured
     return app
 

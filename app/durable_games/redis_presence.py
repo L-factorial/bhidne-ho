@@ -4,6 +4,8 @@ Each registration has its own immutable ID. Index writes are advisory and may be
 partial during failure; empty observations are never evidence of disconnection.
 Redis TIME drives expiry. No worker starts on import or construction.
 """
+from .telemetry import event
+
 import asyncio
 from dataclasses import asdict, dataclass, field
 import hashlib
@@ -207,8 +209,10 @@ class ConnectionPresenceRegistry:
                             continue
                         try:
                             if not await self.store.refresh(entry.presence):
+                                event('presence_refresh_failed')
                                 self.refresh_failures += 1
                         except Exception:
+                            event('presence_refresh_failed')
                             self.refresh_failures += 1
             await asyncio.gather(*(worker() for _ in range(self.workers)))
 

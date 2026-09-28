@@ -1,0 +1,18 @@
+# Managed by deploy/provision. Dedicated ephemeral distributed-runtime Redis.
+bind 127.0.0.1 {{ private_ip }}
+protected-mode yes
+port 6379
+daemonize no
+supervised systemd
+pidfile /run/redis/redis-server.pid
+loglevel notice
+logfile /var/log/redis/redis-server.log
+dir /var/lib/redis
+requirepass {{ redis_password }}
+# Durable game state lives in PostgreSQL. Never use this instance as a durable queue.
+save ""
+appendonly no
+maxmemory 1gb
+maxmemory-policy noeviction
+timeout 0
+tcp-keepalive 60

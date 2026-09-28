@@ -13,3 +13,8 @@
 .codex
 .agents
 client/assets/branding/00_bhidne_ho_complete_brand_sheet.png
+
+# Local provisioning credentials and controller dependencies never enter build context.
+deploy/provision/*.local.yml
+deploy/provision/.venv
+deploy/provision/collections

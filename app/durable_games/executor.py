@@ -4,6 +4,8 @@ Every attempt loads committed state under its table lock. A failed/unknown commi
 therefore discards the entire speculative host; the next attempt consults the
 inbox again. Only acknowledgments leave this module, never hidden engine state.
 """
+
+from .telemetry import observe
 from dataclasses import dataclass
 from random import SystemRandom
 from uuid import UUID, uuid4
@@ -58,6 +60,7 @@ class GameLaneExecutor:
         self.round_summary_seconds = round_summary_seconds
         self.max_events = max_events
 
+    @observe('execute.game')
     async def execute_one(self, lane_id, fence):
         result = None
         async with self.inbox.claim(lane_id, fence=fence) as claim:
@@ -66,6 +69,7 @@ class GameLaneExecutor:
             if claim.target.kind != 'game':
                 raise DurableGameConflict('This executor handles game lanes only.')
             stored = await self.checkpoints.load_for_update(claim.connection, claim.target.table_id)
+            claim._telemetry_game_type = stored.checkpoint['data']['game_type']
             entry = claim.entry
             request = ReliableActionCommand.model_validate(entry.request.model_dump())
             prior = await (await claim.connection.execute('''SELECT request_fingerprint,status,

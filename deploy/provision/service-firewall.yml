@@ -1,0 +1,83 @@
+---
+- name: Restrict native database hosts before installing services
+  hosts: postgres:redis
+  become: true
+  gather_facts: true
+  any_errors_fatal: true
+  tasks:
+    - name: Validate dedicated host and application source addresses
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.distribution == 'Ubuntu'
+          - ansible_facts.distribution_version == '24.04'
+          - private_ip | private_ipv4
+          - private_ip in ansible_facts.all_ipv4_addresses
+          - app_private_ips | length == 2
+          - app_private_ips | unique | length == 2
+          - app_private_ips[0] | private_ipv4
+          - app_private_ips[1] | private_ipv4
+          - private_ip not in app_private_ips
+          - ansible_port | default(22) | int == 22
+
+    - name: Ensure UFW is installed
+      ansible.builtin.apt:
+        name: ufw
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Inspect firewall ownership
+      ansible.builtin.stat:
+        path: /etc/bhidne-service-firewall-v1
+      register: firewall_owner
+
+    - name: Read existing firewall rules
+      ansible.builtin.command: ufw show added
+      register: existing_rules
+      changed_when: false
+      check_mode: false
+
+    - name: Refuse to adopt unrelated firewall rules
+      ansible.builtin.assert:
+        that:
+          - existing_rules.stdout_lines | select('match', '^ufw ') | list | length == 0
+        fail_msg: Existing unmanaged UFW rules require review; no rules were changed.
+      when: not firewall_owner.stat.exists
+
+    - name: Record firewall ownership for interrupted-run recovery
+      ansible.builtin.copy:
+        dest: /etc/bhidne-service-firewall-v1
+        content: "Managed by deploy/provision/service-firewall.yml\n"
+        owner: root
+        group: root
+        mode: '0600'
+
+    - name: Allow SSH before enabling the firewall
+      community.general.ufw:
+        rule: allow
+        port: '22'
+        proto: tcp
+
+    - name: Allow only application hosts to reach the private database listener
+      community.general.ufw:
+        rule: allow
+        proto: tcp
+        from_ip: '{{ item }}'
+        to_ip: '{{ private_ip }}'
+        to_port: "{{ '5432' if inventory_hostname in groups['postgres'] else '6379' }}"
+      loop: '{{ app_private_ips }}'
+
+    - name: Deny other sources on the database service port
+      community.general.ufw:
+        rule: deny
+        proto: tcp
+        port: "{{ '5432' if inventory_hostname in groups['postgres'] else '6379' }}"
+
+    - name: Default incoming traffic to deny
+      community.general.ufw:
+        direction: incoming
+        policy: deny
+
+    - name: Enable firewall after the SSH and application rules exist
+      community.general.ufw:
+        state: enabled

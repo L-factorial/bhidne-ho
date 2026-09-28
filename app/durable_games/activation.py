@@ -1,4 +1,6 @@
 """Explicit validated activation boundary. No live startup, routing, or scheduler wiring."""
+
+from .telemetry import observe
 import inspect
 
 from .ownership import RoomLease
@@ -27,6 +29,7 @@ class PostgresRoomActivationStore:
             offer_expiry=True, callbreak_review=True, match_settlement=True, flush_settlement=True)
         self.round_summary_seconds = round_summary_seconds
 
+    @observe('recovery.activate_transaction')
     async def activate(self, registration, fence):
         """Revalidate and transition atomically; prepared inventories are advisory.
 
@@ -111,6 +114,7 @@ class RoomActivationCoordinator:
             return False
         return True
 
+    @observe('recovery.activate')
     async def activate(self, preparation):
         if (not isinstance(preparation, RecoveryPreparation) or preparation.status != 'prepared'
                 or preparation.fence is None or preparation.inventory is None

@@ -1,0 +1,108 @@
+---
+- name: Configure dedicated production application hosts
+  hosts: apps
+  become: true
+  gather_facts: true
+  any_errors_fatal: true
+  pre_tasks:
+    - name: Validate application hosts and explicit network configuration
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.distribution == 'Ubuntu'
+          - ansible_facts.distribution_version == '24.04'
+          - groups['apps'] | length == 2
+          - groups['apps'] | intersect(groups['postgres'] + groups['redis']) | length == 0
+          - private_ip | private_ipv4
+          - peer_ip | private_ipv4
+          - private_ip != peer_ip
+          - private_ip in ansible_facts.all_ipv4_addresses
+          - private_ip in app_private_ips
+          - peer_ip in app_private_ips
+          - application_firewall_ready | default(false) | bool
+          - postgres_private_ip | private_ipv4
+          - redis_private_ip | private_ipv4
+          - client_origin is match('^https://[a-zA-Z0-9.-]+(:[0-9]+)?$')
+          - deployment_public_key is match('^ssh-ed25519 [A-Za-z0-9+/]+={0,3}( [^\r\n]+)?$')
+        fail_msg: Supply actual VPC addresses, HTTPS frontend origin, dedicated deployment public key and firewall readiness.
+
+    - name: Validate runtime secrets
+      ansible.builtin.assert:
+        that:
+          - postgres_password is match('^[a-f0-9]{64}\Z')
+          - redis_password is match('^[a-f0-9]{64}\Z')
+          - signal_secret is match('^[a-f0-9]{64}\Z')
+          - "[postgres_password, redis_password, signal_secret] | unique | length == 3"
+      no_log: true
+
+  tasks:
+    - name: Install Docker from Ubuntu if missing
+      ansible.builtin.apt:
+        name: [docker.io, python3]
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Start Docker on boot
+      ansible.builtin.systemd_service:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Create protected configuration directories
+      ansible.builtin.file:
+        path: '{{ item }}'
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+      loop: [/etc/bhidne-prod, /root/.ssh]
+
+    - name: Install root-owned constrained release receiver
+      ansible.builtin.copy:
+        src: ../production/release.py
+        dest: /usr/local/sbin/bhidne-prod-release
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Configure fixed release repository and private application addresses
+      ansible.builtin.copy:
+        dest: /etc/bhidne-prod/release.json
+        owner: root
+        group: root
+        mode: '0600'
+        content: "{{ {'repository': 'ghcr.io/l-factorial/bhidne-ho-backend-prod', 'private_ip': private_ip, 'peer_ip': peer_ip} | to_nice_json }}\n"
+
+    - name: Write runtime environment without exposing secrets
+      ansible.builtin.template:
+        src: runtime.env.j2
+        dest: /etc/bhidne-prod/runtime.env
+        owner: root
+        group: root
+        mode: '0600'
+      no_log: true
+      diff: false
+
+    - name: Restrict GitHub deployment key to the release receiver
+      ansible.builtin.lineinfile:
+        path: /root/.ssh/authorized_keys
+        create: true
+        owner: root
+        group: root
+        mode: '0600'
+        regexp: '^restrict,command="/usr/local/sbin/bhidne-prod-release" '
+        line: 'restrict,command="/usr/local/sbin/bhidne-prod-release" {{ deployment_public_key }}'
+
+    - name: Check PostgreSQL port from the application VM
+      ansible.builtin.wait_for:
+        host: '{{ postgres_private_ip }}'
+        port: 5432
+        connect_timeout: 5
+        timeout: 15
+
+    - name: Check Redis port from the application VM
+      ansible.builtin.wait_for:
+        host: '{{ redis_private_ip }}'
+        port: 6379
+        connect_timeout: 5
+        timeout: 15

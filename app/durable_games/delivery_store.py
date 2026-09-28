@@ -4,6 +4,7 @@ Publication is not delivery acknowledgement. Reads include published/unpublished
 rows alike. Authorizations and event pages share one read-only SQL snapshot.
 """
 from dataclasses import dataclass
+from .telemetry import observe
 from uuid import UUID, uuid4
 
 from .checkpoint_store import user_uuid
@@ -64,6 +65,7 @@ class PostgresDeliveryStore:
     def __init__(self, pool):
         self.pool = pool
 
+    @observe('outbox_store.claim')
     async def claim(self, *, limit=8, lease_seconds=10):
         bound(limit)
         bound(lease_seconds, 120)
@@ -96,6 +98,7 @@ class PostgresDeliveryStore:
                 (lease_seconds, claim.event_id, claim.token))).fetchone()
         return row is not None
 
+    @observe('outbox_store.finish')
     async def finish(self, claim, *, published, retry_seconds=1):
         if type(published) is not bool:
             raise ValueError('Publication status must be boolean.')
@@ -199,6 +202,7 @@ class PostgresDeliveryStore:
                 return None
         return payload
 
+    @observe('outbox_store.page')
     async def page(self, actor, lane_id, *, after=0, limit=100):
         sequence(after)
         bound(limit)
@@ -247,6 +251,7 @@ class PostgresDeliveryStore:
                     (user_uuid(actor), client_id, lane_id))).fetchone()
                 return row[0] if row else 0
 
+    @observe('outbox_store.acknowledge')
     async def acknowledge(self, actor, client_id, lane_id, scanned_sequence):
         """Gateway must first prove this cursor was offered on that client stream."""
         client_identity(client_id)

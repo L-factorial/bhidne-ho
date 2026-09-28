@@ -3,6 +3,8 @@
 No socket/application startup wiring. Signals carry IDs only. Each gateway stream
 has its own send progress; only authenticated client acknowledgements persist.
 """
+
+from .telemetry import observe, event
 import asyncio
 from dataclasses import dataclass, field
 import math
@@ -92,6 +94,7 @@ class OutboxPublisher:
                 # records only this advisory attempt; every gateway safety-polls.
                 published = all(results)
         except Exception:
+            event('outbox_publication_failed')
             self.failures += 1
         finally:
             # Cancellation leaves the claim to expire. Late completions cannot
@@ -102,8 +105,10 @@ class OutboxPublisher:
                         await self.store.finish(claim, published=published,
                             retry_seconds=min(60, 2 ** min(claim.attempts - 1, 6)))
                 except Exception:
+                    event('outbox_finish_failed')
                     self.failures += 1
 
+    @observe('outbox.sweep')
     async def sweep_once(self):
         async with self._sweeping:
             if self._closed:
@@ -188,6 +193,7 @@ class GatewayDelivery:
             self._dirty.update(self._streams)
             self._wake.set()
 
+    @observe('delivery.subscribe')
     async def subscribe(self, actor, client_id, lane_id, send, *, on_close=None, paused=False):
         client_identity(client_id)
         lane_id = UUID(str(lane_id))
@@ -252,6 +258,7 @@ class GatewayDelivery:
                 return
             window = self.max_unacknowledged - (stream.sent - stream.acknowledged)
             if window <= 0:
+                event('delivery_backpressure', log=False)
                 return
             try:
                 async with asyncio.timeout(self.timeout):
@@ -261,12 +268,14 @@ class GatewayDelivery:
                         return
                     await stream.send(dict(type='DELIVERY_PAGE', lane_id=str(page.lane_id), after_sequence=stream.sent,
                         events=list(page.events), scanned_sequence=page.scanned_sequence, has_more=page.has_more))
+                    event('delivery_page_sent', log=False)
                     stream.sent = page.scanned_sequence
                     if page.has_more:
                         self._dirty.add(handle)
                         self._wake.set()
             except Exception:
                 self.failures += 1
+                event('delivery_page_failed', lane_id=stream.lane_id)
                 self.unsubscribe(handle)  # No retry behind a possibly wedged socket send.
                 if stream.on_close is not None:
                     try:
@@ -275,6 +284,7 @@ class GatewayDelivery:
                     except Exception:
                         pass
 
+    @observe('delivery.ack')
     async def acknowledge(self, handle, scanned_sequence):
         sequence(scanned_sequence)
         stream = self._streams.get(handle)
@@ -290,6 +300,7 @@ class GatewayDelivery:
             self._wake.set()
             return cursor
 
+    @observe('delivery.sweep')
     async def sweep_once(self, *, safety=True):
         async with self._sweeping:
             if self._closed:

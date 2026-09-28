@@ -4,6 +4,8 @@ Room ownership fences execution; lane serialization protects ordering/rate limit
 Read authorization shares the query snapshot. Deletion closes normal access; no
 purge or application endpoint is installed here.
 """
+
+from .telemetry import observe, submitted, event
 import asyncio
 from uuid import UUID, uuid5, NAMESPACE_URL
 
@@ -76,6 +78,7 @@ class ChatIngress:
         self.inbox, self.pool, self.wakeup = inbox, inbox.pool, wakeup
         self.checkpoints = PostgresCheckpointStore(self.pool)
 
+    @observe('ingress.chat')
     async def submit(self, actor, target, body):
         user_uuid(actor)
         target = LaneTarget.model_validate(target)
@@ -95,14 +98,17 @@ class ChatIngress:
                 else:
                     await authorize_chat(connection, target, actor, write=True, checkpoints=self.checkpoints)
                     entry = await self.inbox.enqueue_in_transaction(connection, lane, actor, request.model_dump(mode='json'))
+        submitted(target, entry, previous is not None)
         if self.wakeup is not None and entry.status == 'pending':
             try:
                 async with asyncio.timeout(1):
                     await self.wakeup(target.room_id, lane)
             except Exception:
+                event('ingress_wakeup_failed')
                 pass
         return command_status(entry)
 
+    @observe('receipt.chat')
     async def status(self, actor, lane_id, command_id):
         user_uuid(actor)
         async with self.pool.connection() as connection:
@@ -119,6 +125,7 @@ class ChatLaneExecutor:
     def __init__(self, inbox):
         self.inbox, self.checkpoints = inbox, PostgresCheckpointStore(inbox.pool)
 
+    @observe('execute.chat')
     async def execute_one(self, lane_id, fence):
         async with self.inbox.claim(lane_id, fence=fence) as claim:
             if claim is None:
@@ -178,6 +185,7 @@ class ChatHistory:
     def __init__(self, pool):
         self.pool, self.checkpoints = pool, PostgresCheckpointStore(pool)
 
+    @observe('read.chat')
     async def page(self, actor, lane_id, *, after=0, limit=100):
         sequence(after)
         bound(limit)

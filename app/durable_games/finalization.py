@@ -1,4 +1,6 @@
 """Explicit match/round settlement workers. No startup task or payment transfers."""
+
+from .telemetry import observe
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from callbreak import Phase
@@ -111,6 +113,7 @@ class MatchFinalizationWorker:
         self.checkpoints = PostgresCheckpointStore(pool)
         self.ledger = PostgresLedgerStore(pool)
 
+    @observe('finalization.execute', log_success=True)
     async def execute(self, job_id, fence):
         async with self.pool.connection() as connection:
             async with connection.transaction():

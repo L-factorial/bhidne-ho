@@ -1,4 +1,6 @@
 """Explicit bounded durable placement discovery; never installed in live startup."""
+
+from .telemetry import observe
 import asyncio
 from collections import deque
 from dataclasses import dataclass
@@ -107,6 +109,7 @@ class RoomPlacementDiscovery:
         except Exception:
             return DiscoveryResult(result, 'failed')
 
+    @observe('discovery.sweep')
     async def sweep_once(self):
         async with self._sweeping:
             if not self._available():

@@ -1,4 +1,6 @@
 """Atomic idempotent room creation before any room owner exists."""
+
+from .telemetry import observe, event
 from typing import Annotated, Literal
 from uuid import NAMESPACE_URL, uuid5
 from pydantic import Field
@@ -20,6 +22,7 @@ class PostgresRoomCreation:
     def __init__(self, pool):
         self.pool = pool
 
+    @observe('room.create')
     async def create(self, actor, body):
         body = CreateRoom.model_validate_json(canonical_json(body))
         identifier = user_uuid(actor)
@@ -52,4 +55,6 @@ class PostgresRoomCreation:
                             VALUES (%s,%s,%s,%s,'pending')''', (invitation, room_id, actor, recipient))
                 # Creation outcome stays resolvable after privacy changes/deletion;
                 # a retry never reopens a room or restores departed memberships.
-                return dict(command_id=body.command_id, status='accepted', room_id=room_id)
+        event('room_creation_committed', room_id=room_id, command_id=body.command_id,
+              result='duplicate' if prior else 'created')
+        return dict(command_id=body.command_id, status='accepted', room_id=room_id)

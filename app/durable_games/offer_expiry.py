@@ -1,4 +1,6 @@
 """Explicit fenced offer deadline dispatch/execution. No polling or startup task."""
+
+from .telemetry import observe
 from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
@@ -63,6 +65,7 @@ class OfferExpiryDispatcher:
     def __init__(self, inbox):
         self.inbox = inbox
 
+    @observe('timer.dispatch')
     async def dispatch_one(self, lane_id, fence):
         async with self.inbox.pool.connection() as connection:
             async with connection.transaction():

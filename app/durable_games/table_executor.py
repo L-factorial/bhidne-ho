@@ -5,6 +5,8 @@ families or unsupported recovery structures stay pending for a compatible execut
 known invalid requests receive a durable no-effect rejection. Gameplay receipts
 remain separate from the lane's table-command outcomes.
 """
+
+from .telemetry import observe
 from uuid import UUID
 
 from pydantic import ValidationError
@@ -48,6 +50,7 @@ class TableLaneExecutor:
         self.inbox, self.checkpoints, self.max_events = inbox, inbox.checkpoints, max_events
         self.round_summary_seconds = round_summary_seconds
 
+    @observe('execute.table')
     async def execute_one(self, lane_id, fence):
         async with self.inbox.claim(lane_id, fence=fence) as claim:
             if claim is None:

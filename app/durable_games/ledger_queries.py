@@ -1,4 +1,6 @@
 """Coherent ledger projection with no read-triggered finalization or local host."""
+
+from .telemetry import observe
 from contextlib import asynccontextmanager
 
 from app.ledger.service import LedgerService
@@ -34,6 +36,7 @@ class PostgresLedgerQueries:
             raise ValueError('Ledger read bound must be positive.')
         self.pool, self.max_records = pool, max_records
 
+    @observe('read.ledger')
     async def snapshot(self, room_id, actor):
         async with self.pool.connection() as connection:
             async with connection.transaction():

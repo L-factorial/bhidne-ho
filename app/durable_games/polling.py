@@ -2,6 +2,8 @@
 import math
 import random
 
+from .telemetry import event
+
 
 class RedisPollingPolicy:
     def __init__(self, *, healthy_interval=5.0, failed_interval=.35, jitter=.1):
@@ -21,6 +23,8 @@ class RedisPollingPolicy:
         if type(available) is not bool:
             raise ValueError('Transport health must be boolean.')
         changed, self.available = self.available != available, available
+        if changed:
+            event('redis_available' if available else 'redis_unavailable')
         if changed and self._changed:
             self._changed()
 

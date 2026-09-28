@@ -1,37 +1,16 @@
 # Distributed runtime implementation plan
 
-Status: implementation in progress on `bhidne-ho-scalability`; schema increments 1a–1c
-and reconstruction/persistence increments 2a–2c complete. Inbox and game-lane
-execution increments 3a–3b, ownership primitives 4a, lease coordination 4b1,
-room recovery inventory 4b2, bounded recovery preparation 4b3a, and lobby table
-execution 4b3b1 and durable lobby creation 4b3b2 are complete.
-Table/controller executors, offer-expiry dispatch, and all three game settlement
-workers and validators (4b3b) are complete as explicit capabilities. Transactional
-activation and concrete execution/maintenance scheduling are complete within 4b3c.
-Explicit owner wakeup routing and bounded quarantine/repair-retry policy are complete.
-Coordinated drain/routing withdrawal and safe release are complete as explicit
-capabilities. Bounded demand-driven owner selection/reacquisition is complete.
-Explicit durable placement discovery/dispatch adapters and the endpoint capability
-audit are complete. The audited C1 controller/lifecycle and C2 query/ingress backend slices are now
-implemented as explicit components, including migration 21. Increment 5's explicit
-Redis signalling, adaptive polling, shared presence and advisory owner cache are
-complete. Increment 6a adds explicit outbox publication, authorized hosted-lane
-catch-up and gateway delivery adapters. Increment 6b1 adds durable room/table/game
-chat execution, history and authorized replay. Increment 6b2 completes explicit
-conversation/recipient execution, social history and delivery permissions. Live
-bindings, client integration and live cutover remain pending. Increment 7a adds an
-explicit client pending/status lifecycle; 7b adds explicit stream discovery and
-delivery reconciliation. Increment 7c1 composes explicit session ownership, bounded
-subscriptions and reconnect recovery. Increment 7c2a adds the account/device-scoped
-pending-command journal and session restoration. Increment 7c2b adds explicit web/native
-storage bindings and account ownership. Increment 7c2c1 adds explicit command HTTP
-and multiplexed delivery WebSocket adapters. Increment 7c2c2 adds explicit authorized
-reads, bootstrap/discovery, history transport and command mapping primitives. Mounted
-integration remains gated. Increment 7c2d1 assembles explicit authenticated root,
-selected-view loading and reconnect lifetimes. Increment 7c2d2 adds explicit screen
-controllers, game-specific leave and durable initial room creation; live bindings
-and platform smoke validation remain pending. C3a composes the explicit server
-lifecycle and authenticated socket presence; production assembly remains unmounted.
+Current status: implementation increments **1–8 are complete for the isolated
+integration path**; production activation and feature-parity validation remain gated.
+The user has now explicitly brought application observability into scope. Operational
+increment **O1** adds distributed-runtime metrics and structured logs. See the current
+handoff and the O1 record for verification and deployment limits; historical increment
+records below retain their original scope and decisions.
+
+The user has additionally authorized repository-backed native PostgreSQL/Redis
+provisioning for the new production hosts on `bhidne-ho-scalability-prod`. P1 below
+records this operational increment. P2 adds the production push workflow and app-host
+provisioning; live activation remains pending replacement-host access and validation.
 
 This document records the planning decisions agreed with the user. Read it before
 each implementation increment, update its checklist and handoff notes afterward,
@@ -453,7 +432,8 @@ missed notification, timer recovery, settlement retry, and private-hand isolatio
   ordinary owner recovery within 45 seconds; neither is currently demonstrated.
 - Validate surviving-instance capacity after one application server fails.
 - Autoscaling thresholds, placement tuning, and automatic room rebalancing.
-- Metrics, dashboards, tracing, alerts, and operational runbooks.
+- Application instrumentation is now covered by O1 at the user's request. Collector
+  deployment, dashboards, alert destinations, tracing and operational runbooks remain.
 - Database HA/replica deployment, promotion/fencing policy, and replication durability.
 - Backups, point-in-time restoration, and regional disaster-recovery drills.
 - Retention/archival tuning and production rollout readiness.
@@ -482,6 +462,32 @@ readiness work. This includes native-device journal/lock checks, real provider c
 smoke, container execution and a reviewed existing-data migration/legacy credential
 exclusion procedure. The isolated initializer intentionally refuses existing datasets.
 No further routine increment approval is needed; production activation remains gated.
+
+### O1 — application metrics and structured logs
+
+User authorization: “for all the flows and processing in the game, go ahead and
+add metrics and logs properly.” This brings application observability forward from
+the deferred operational task set without authorizing infrastructure deployment.
+
+- [x] Add Prometheus metrics and structured JSON logging across HTTP/WS, shared
+  platform routes, hosted/chat/social ingress, all command lanes, all three games,
+  table/room controls, checkpoint I/O, scheduling, timers, finalization, recovery,
+  ownership, Redis/presence and durable outgoing delivery.
+- [x] Observe business outcomes after transaction exit and final fencing; keep
+  database step/attempt timing distinct from committed acceptance.
+- [x] Bound labels, omit sensitive contents, preserve exceptions/cancellation,
+  rate-limit repeated failure logs and isolate telemetry emitter failures.
+- [x] Add a separate opt-in metrics listener and read-only bounded backlog/pool
+  sampling with freshness/failure gauges; keep metrics off public routes.
+- [x] Add an Alloy collection template and metric semantics/dashboard/alert guidance
+  in `docs/distributed-runtime-telemetry.md`; no deployed Grafana resources.
+
+Verification is recorded in the O1 completion record below. No schema changes,
+production runtime switch, cloud provisioning or client telemetry were introduced.
+Exact next step: deploy the isolated staging release with the private metrics
+listener, configure Alloy ingestion credentials/log source and host/PostgreSQL/Redis
+exporters, create scoped dashboards/alerts and test notification delivery. Then run
+real-device functional/parity and failure tests before capacity validation or cutover.
 
 ### Release gates outside the completed isolated implementation
 
@@ -3802,3 +3808,266 @@ After each increment record:
   hardware, real provider exchange, container execution and existing-data production
   cutover are explicitly not claimed. Implementation is complete in the isolated path;
   release validation and operations remain the next task set.
+
+### O1 completion record — distributed application telemetry
+
+Implemented `telemetry.py` with a process-local Prometheus registry, fixed-label
+operation counters/histograms, post-commit command outcomes, gameplay outcomes by
+engine, submission/dedupe counters, HTTP route-template metrics, WebSocket gauges,
+and structured allowlisted JSON logs. Instrumentation is attached to shared runtime
+boundaries so table controls, game actions, chat/social commands, invitations, pokes,
+settlements, timers and recovery all pass through observed paths. Executors retain
+their existing transaction and cancellation semantics.
+
+`telemetry_runtime.py` supplies an opt-in private listener, local/pool gauges and
+30-second read-only pending inbox/outbox sampling. Queries have a 1.5-second statement
+limit within a two-second overall timeout. Last-success and current-sample-health
+metrics distinguish stale values from a fresh empty queue. Sampling stops before
+application pool cleanup; scrapes issue no SQL. The executable integration bootstrap
+configures the logger and optional listener; compose enables an internal-only metrics
+port. Distributed nginx/uvicorn default access logs are disabled to avoid OAuth query
+leakage. Legacy runtime activation remains unchanged.
+
+Verification:
+
+- 158 SQL/runtime regression tests passed with PGlite: inbox and all engine/table/room
+  execution, finalization, recovery, server/application, delivery and poke coverage.
+- A separate 135-test flow batch passed: chat/social, shared platform/browser auth,
+  reads/transport, settlements, placement/activation and Redis/presence/polling.
+- 52 focused tests passed, including emitter failure isolation, unknown commit,
+  post-commit accounting, rollback/final-fence failure, privacy, scrape listener
+  cleanup and stale sampling. Five final targeted checks passed after distinguishing
+  HTTP cancellation from server errors. These batches overlap; do not sum them as
+  a unique suite count. There are 13 dedicated telemetry test cases in the final tree.
+- Five independent-process PostgreSQL/Redis/nginx tests passed with metrics enabled:
+  pause/resume/kill takeover, Redis loss, capacity enforcement/dataset isolation,
+  HTTP/WS proxy delivery, PostgreSQL stop/restart, and private metrics/JSON log checks.
+- Python compilation and `git diff --check` passed. Two existing Starlette
+  deprecation warnings remain in the in-process test suites.
+
+Design limits: metrics/logs are best-effort observations, never an accounting ledger;
+crashes after SQL commit can lose the corresponding observation. Pool/lock/commit
+wall time is measured, not client end-to-end latency. Pending outbox age is advisory
+publication lag, not proof of missed delivery. Database backlog samples are global:
+aggregate replicas with max and gate on freshness, not sum. One application process
+per registry/listener is supported. IDs are log fields only; payloads, private cards,
+chat text, tokens and exception messages are omitted. Repeated failure logs are
+rate-limited; local stderr still requires a properly managed collector/rotation sink.
+
+No cloud resources were provisioned, no application data migrated, no Grafana account
+or alert contact configured, and no native client instrumentation added. The supplied
+Alloy configuration is a deployment template; live Grafana ingestion and Alloy binary
+validation remain staging checks. Host/Redis/PostgreSQL exporters, dashboards, alert
+notification tests, tracing and capacity/HA/readiness work remain in the operational
+rollout. The next concrete step is the staging collection/alert setup described in
+`docs/distributed-runtime-telemetry.md`, followed by real-device parity/failure testing.
+
+
+### P1 record — repeatable native production service provisioning
+
+- Added `deploy/provision/run.sh` with separate `preflight` and `apply` modes, an
+  Ansible playbook, inventory/secret examples, templates and operator instructions.
+  It targets dedicated Ubuntu 24.04 hosts: PostgreSQL 17 from signed PGDG packages
+  and Ubuntu Redis 7, managed by systemd independently of application Git pushes.
+- Installs missing packages using `state: present`, without deliberate upgrades.
+  Reconciles managed configuration and restarts only on configuration changes.
+  PostgreSQL role/database creation is idempotent; no data deletion, schema
+  initialization, conversion or migration is performed. Password changes reconcile
+  from operator-supplied secrets and require coordinated application rotation.
+- Validates actual host-bound RFC1918 addresses, two distinct application IPs,
+  separate service hosts, explicit cloud firewall readiness and independent secrets.
+  Rejects unmanaged packages/config/data/listeners and unexpected PostgreSQL clusters.
+  An ownership marker supports resuming interrupted installations, not automatic
+  adoption of existing databases. Secrets/local inventory are gitignored and
+  secret-bearing tasks suppress output; SSH host-key verification stays enabled.
+- PostgreSQL binds privately with SCRAM and per-app host access. Redis binds
+  privately with authentication, 1 GiB maxmemory/noeviction, and no persistence for
+  its reconstructible runtime role. The playbook configures kernel overcommit and
+  verifies local PostgreSQL application login/query plus authenticated Redis PING.
+- Verification: Ansible 2.20.9/community.postgresql 3.14.3 syntax check passed;
+  four local unittest cases passed, including 15 actual Ansible assertion scenarios
+  for fresh/unmanaged hosts, cluster version/port/multiplicity and network/firewall
+  guards, plus RFC1918 boundary/invalid input checks. Shell syntax and whitespace
+  checks passed. No service installation/restart or second-run idempotence was
+  exercised on Ubuntu; Docker/Ubuntu execution is unavailable in this workspace.
+- No remote host was accessed or changed. Private IPs and SSH access details remain
+  missing. Firewall rules are an operator prerequisite, not provisioned by this
+  playbook. Connections are private-network password authenticated; database TLS,
+  backups/WAL restore validation, HA, production runtime activation, load balancing,
+  DNS and branch-based application deployment remain separate work.
+- Exact next step: obtain the four VPC addresses and administrative SSH details,
+  confirm service-port firewall restrictions, populate/encrypt the ignored local
+  configuration, and run preflight. Validate initial apply and unchanged rerun on
+  disposable Ubuntu hosts before production apply. Then implement the separately
+  planned production application release workflow and remaining readiness gates.
+
+
+### P2 handoff — production push workflow and replacement-host setup
+
+- User authorized secure push deployment from `bhidne-ho-scalability-prod` and
+  native PostgreSQL/Redis setup on separate VMs. Added a dedicated Actions workflow
+  testing the backend with PGlite and actual PostgreSQL/Redis/nginx processes, then
+  publishing one GHCR image and deploying its immutable digest sequentially.
+  Actions are commit-pinned, workflow deployments serialized and process-test skips
+  fail the release gate. Existing `main` testing deployment remains unchanged.
+- Added a root-owned forced SSH receiver accepting only check/deploy plus a digest
+  for a fixed GHCR repository. It checks schema/marker and Redis before stopping an
+  app, requires a healthy peer for replacement, detects image/environment changes,
+  preserves the previous container and restores it on candidate readiness failure.
+  It runs UID 10001 containers with private app ports, loopback-only metrics,
+  read-only rootfs, dropped capabilities, memory/PID limits and rotated logs.
+- Added `deploy/provision/apps.yml` to install missing Docker, configure root-only
+  runtime credentials and install the restricted deployment key/receiver. Registry
+  pulls use the deployment job's short-lived packages-read token sent over SSH stdin;
+  root-private temporary Docker credentials are removed when the receiver exits.
+  Native service provisioning remains separate from pushes. Local provisioning
+  inputs/controller dependencies are excluded from Docker build context.
+- Added `docs/production-deployment.md` covering credentials, empty-dataset-only
+  initialization, load balancer/DNS, first release, partial-fleet failure, schema
+  limits and the current native integration entrypoint/marker. No legacy-dataset
+  conversion, automatic migration, database rollback or zero-downtime claim.
+- GitHub change actually completed: created repository environment `production`
+  with custom branch policy permitting only `bhidne-ho-scalability-prod`. Verified
+  via API using existing Git credentials without exposing them. Set and verified
+  production-environment app-host variables for the replacement addresses. Created
+  a dedicated local ED25519 key at `~/.ssh/bhidne-ho-github-production`. Automatic
+  approval review rejected uploading this exact private key as the environment
+  secret without specific user authorization. An explicit approval question is
+  pending; do not retry or bypass that rejection unless approved. No secrets were
+  written and no workflow was pushed. Initial VM checks described below were read-only; see the subsequent service
+  provisioning handoff for live changes. Application deployment has not run.
+- User then destroyed all originally pictured droplets and recreated replacements
+  using a shared SSH login key. User confirmed four replacements: app1
+  `168.144.105.49`, app2 `165.245.180.205`, PostgreSQL `159.223.94.162`, Redis
+  `157.245.50.145`. Inventory records these public addresses; all VPC addresses have since been
+  verified as described below. Do not reuse the destroyed-host IPs. The workflow
+  reads `BHIDNE_PROD_APP1_HOST`/`BHIDNE_PROD_APP2_HOST` from the production environment.
+  Recreated hosts need newly verified SSH host fingerprints even with the same
+  login key. User confirmed all four use `bhidne-ho-production-servers.pub`;
+  inventory now selects the matching local private key. User provided app1's
+  console fingerprint `SHA256:9gAdsvvGL9eDyLZHWQcCUlY1AhY8/fFpo//EYrrEF5M`;
+  it exactly matches the fetched ED25519 host key. The verified known-hosts line is
+  stored at `/private/tmp/bhidne-prod-app1-verified-known-hosts`. User loaded the
+  passphrase-protected shared key into their SSH agent; strict SSH as root now works.
+  Its .pub fingerprint is `SHA256:FYArzeG7cNDUJsc8eGNCl9bbMWhNZMUfzgrW2loX4Vw`.
+  Read-only app1 inspection confirms Ubuntu 24.04.4, no Docker, and VPC address
+  `10.104.0.7` on eth1, independently confirmed by DigitalOcean metadata. The
+  `10.15.0.6` address on eth0 is not the VPC address to use. Local UFW is inactive;
+  cloud firewall configuration is not yet verified. Inventory records app1's VPC
+  address. App2's supplied fingerprint
+  `SHA256:zXnyMvVkfCTZlmTTxFKY69Gss9EzcGb4Qtl0OaHf7HQ` also exactly matches its
+  fetched ED25519 host key. Verified root SSH inspection confirms Ubuntu 24.04.4,
+  no Docker, inactive UFW, and VPC address `10.104.0.2` on eth1, confirmed by
+  DigitalOcean metadata. Inventory records both app VPC addresses. The combined
+  verified app known-hosts file is `/private/tmp/bhidne-prod-apps-verified-known-hosts`.
+  Redis's supplied fingerprint
+  `SHA256:dFvQRZ62qayXvxhMQe6BdcqTTeUcCKsbqmuQOUQpM1Q` matches its fetched
+  ED25519 key, stored at `/private/tmp/bhidne-prod-redis-verified-known-hosts`.
+  Verified root SSH inspection confirms Ubuntu 24.04.4, no installed redis-server
+  package, inactive UFW, and VPC address `10.104.0.8` on eth1 confirmed by metadata.
+  Inventory records that Redis address. These initial checks did not change VMs.
+  PostgreSQL verification and subsequent live changes are recorded below.
+- Verification so far: 27 mocked release-receiver tests pass; five provisioning
+  tests pass, including 20 actual local Ansible assertion scenarios. Both playbooks
+  pass Ansible syntax checks; workflow YAML and its shell steps parse, and whitespace
+  checks pass. Broad backend run: 1577 passed, 1 failure and 15 setup errors in
+  sandboxed live-service fixtures. All 16 affected cases passed outside the sandbox
+  against disposable local services in 206.55 seconds. No application fixes were
+  needed for those failures. Two existing Starlette deprecation warnings remain.
+  Docker installation and real image rollout remain unverified; no Docker runtime
+  is available locally. Native-service apply and rerun results are recorded below.
+- Subsequent service progress and the current next step are recorded below.
+
+
+### P2 service provisioning handoff — verified replacement hosts
+
+- PostgreSQL console fingerprint `SHA256:3wM2Zs3FnrJcpSNqAqjXOALJDwPfv7nZrnFMPm1si2E`
+  exactly matches its scanned ED25519 key. Strict root SSH works using the shared
+  administrator key. Ubuntu 24.04.4 and VPC IP `10.104.0.9` were verified on eth1
+  and through DigitalOcean metadata. No existing PostgreSQL installation, data,
+  configuration or service listener was found. All four verified host keys are
+  held in `/private/tmp/bhidne-prod-all-verified-known-hosts`.
+- Added and applied `deploy/provision/service-firewall.yml` to the two database
+  hosts. UFW permits SSH22 and allows the appropriate database port only from
+  app VPC IPs `10.104.0.7` and `10.104.0.2` to the service VPC address. Other service
+  sources and unsolicited inbound traffic are denied. Existing unrelated rules
+  are refused rather than reset. Initial apply: both hosts ok=12, changed=5,
+  failed=0. Cloud firewall state is unchanged. App-host firewall setup is pending.
+- Created mode0600 gitignored `inventory.local.yml`, encrypted `secrets.local.yml`
+  and `.vault-password.local.yml` under `deploy/provision/`. The independent
+  database and signalling secrets were never printed or sent to GitHub. Preserve
+  these local files; do not regenerate credentials on reruns.
+- Both fresh database VMs passed all service preflight assertions. Native service
+  installation completed: PostgreSQL 17.11 (PGDG) and Ubuntu Redis 7.0.15, enabled
+  at boot and active. Initial service apply: PostgreSQL ok=21 changed=12 failed=0;
+  Redis ok=18 changed=6 failed=0. PostgreSQL application credentials passed SELECT 1
+  and Redis authenticated PING passed. The dedicated database remains empty of
+  application schema; runtime bootstrap has not run.
+- Both app hosts reached private PostgreSQL5432 and Redis6379; unauthenticated Redis
+  PING was rejected. Cross-database-host service access and public service ports
+  were inaccessible. Listener inspection confirmed only loopback and the expected
+  VPC addresses. UFW status confirmed source-specific rules and default inbound
+  deny; fresh strict SSH connections succeeded.
+- Unchanged live service rerun: PostgreSQL ok=22 changed=0 failed=0; Redis ok=16
+  changed=0 failed=0. No restart handlers ran and authenticated checks passed again.
+  Collection deprecation warnings concern Ansible APIs scheduled for removal in
+  2.24; the controller is constrained to 2.20. This initial live validation used
+  the user-authorized replacement VMs after confirming they contained no services
+  or data. Backups/restore, HA and capacity validation remain pending.
+- Exact next step: obtain load-balancer details (frontend origin supplied below),
+  configure app-port firewall restrictions, then provision the application hosts.
+  The exact GitHub deployment-key upload approval remains unanswered; no private
+  key upload or application rollout may be inferred from supplied fingerprints.
+
+### P2 frontend domain handoff
+
+- User selected GitHub Pages hosting at `https://prod.bhidne-ho.lfactorial.com`
+  with backend `https://api.prod.bhidne-ho.lfactorial.com`. Updated example and
+  ignored local production inventories with the frontend HTTPS origin. No remote
+  app configuration or DNS changes were made.
+- Inspected the existing main-only Expo Pages workflow. GitHub's documented
+  one-site-per-repository limit means a separate production Pages repository is
+  needed to keep the existing main site. Asked whether to use the suggested
+  `L-factorial/bhidne-ho-prod-site` or replace the existing site; answer pending.
+  Existing frontend workflow and CNAME are unchanged. Documented production build
+  variables, the proposed hosting arrangement and DNS destinations.
+- Verification: parsed both inventory YAML files and confirmed the exact origin;
+  whitespace validation passed. No runtime code changed.
+- Exact next step: resolve Pages destination choice and backend load-balancer
+  details, then implement production frontend publishing and app provisioning.
+  The earlier exact deployment-key upload approval remains outstanding.
+
+### P2 frontend selector removal
+
+- At the user's request, removed the login backend selector and all supporting
+  client changes, selection persistence, translations, and selector-specific tests.
+  Restored the six affected tracked client files to their pre-selector contents.
+  Existing distributed client code and its explicit integration-build selection
+  remain intact. Reverted the additional CORS origin introduced for the selector.
+- Earlier deployment/provisioning work and unrelated telemetry changes are
+  preserved. No live server, GitHub, DNS or credentials were changed.
+- Verification: TypeScript check and refreshed local web export passed. No
+  tracked client diff or selector code references remain; whitespace checks pass.
+- Exact next step: resolve the frontend hosting/build arrangement separately from
+  the production backend's outstanding load-balancer/TLS and key-upload approval.
+
+### P2 Cloudflare Pages frontend preparation
+
+- User selected a separate Cloudflare Pages frontend for this production branch.
+  Added `client/scripts/build-cloudflare.mjs` and `npm run build:cloudflare` to
+  type-check/export with the production API/web URLs and distributed runtime.
+  Rejects other Cloudflare branches; removes exported CNAME only. Existing main
+  Pages workflow, source CNAME and distributed client implementation are preserved.
+- Added `docs/cloudflare-pages.md` with exact Git integration, build, branch and
+  custom-domain/DNS settings. No Cloudflare credentials are available in this
+  session; the cloud project, account connection and DNS are not configured.
+- Verification: TypeScript and production export passed; wrong-branch rejection,
+  production API URL in bundle, source CNAME preservation and exported CNAME
+  removal verified. Mocked browser smoke passed login, durable room creation,
+  disk journal, reload and room selection with no legacy room traffic. No game
+  projection fixtures were supplied; this is not live backend/game verification.
+  Whitespace checks passed.
+- Exact next step: publish the frontend preparation files to this branch, connect
+  the repository through Cloudflare Pages, configure its custom domain, then
+  validate against the deployed backend. Backend load balancer/TLS, application
+  rollout and the separate GitHub deployment-key approval remain outstanding.

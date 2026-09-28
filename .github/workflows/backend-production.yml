@@ -1,0 +1,130 @@
+name: Deploy production backend
+on:
+  push:
+    branches: [bhidne-ho-scalability-prod]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: bhidne-production-backend
+  cancel-in-progress: false
+jobs:
+  test-and-publish:
+    if: github.ref == 'refs/heads/bhidne-ho-scalability-prod'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.publish.outputs.digest }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14'
+      - name: Install test dependencies
+        run: |
+          set -euo pipefail
+          pip install '.[dev,redis]'
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl --fail --silent --show-error https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+          echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/bhidne-pgdg.list >/dev/null
+          sudo apt-get update
+          sudo apt-get install -y postgresql-17 redis-server nginx
+          # Process fixtures use this short socket path on macOS and Linux.
+          sudo install -d -m 1777 /private/tmp
+          npm install --prefix "$RUNNER_TEMP/pglite" @electric-sql/pglite@0.5.8
+      - name: Test backend including real distributed processes
+        env:
+          POSTGRES_TEST_BIN: /usr/lib/postgresql/17/bin
+          REDIS_TEST_SERVER: /usr/bin/redis-server
+          NGINX_TEST_BIN: /usr/sbin/nginx
+        run: |
+          set -euo pipefail
+          export PGLITE_MODULE="$RUNNER_TEMP/pglite/node_modules/@electric-sql/pglite"
+          test -x "$POSTGRES_TEST_BIN/initdb"
+          test -x "$REDIS_TEST_SERVER"
+          test -x "$NGINX_TEST_BIN"
+          python -m pytest --ignore=tests/test_distributed_processes.py -q
+          python -m pytest tests/test_distributed_processes.py --junitxml=process-results.xml -q
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          root = ET.parse('process-results.xml').getroot()
+          suites = list(root.iter('testsuite'))
+          assert sum(int(s.get('tests', 0)) for s in suites) >= 5
+          assert sum(int(s.get('skipped', 0)) for s in suites) == 0
+          PY
+      - name: Build and publish one image for both hosts
+        id: publish
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY_USER: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          image=ghcr.io/l-factorial/bhidne-ho-backend-prod
+          printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
+          trap 'docker logout ghcr.io >/dev/null 2>&1' EXIT
+          docker build --pull -f deploy/Dockerfile.distributed \
+            --label "org.opencontainers.image.source=https://github.com/L-factorial/bhidne-ho" \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            -t "$image:$GITHUB_SHA" .
+          docker push "$image:$GITHUB_SHA"
+          reference=$(docker image inspect --format '{{index .RepoDigests 0}}' "$image:$GITHUB_SHA")
+          digest="${reference#"$image@"}"
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+  deploy:
+    needs: test-and-publish
+    permissions:
+      contents: read
+      packages: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: https://api.prod.bhidne-ho.lfactorial.com
+    steps:
+      - name: Check both hosts and deploy sequentially
+        env:
+          DEPLOY_KEY: ${{ secrets.BHIDNE_PROD_DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.BHIDNE_PROD_KNOWN_HOSTS }}
+          DIGEST: ${{ needs.test-and-publish.outputs.digest }}
+          APP1_HOST: ${{ vars.BHIDNE_PROD_APP1_HOST }}
+          APP2_HOST: ${{ vars.BHIDNE_PROD_APP2_HOST }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY_USER: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          test -n "$DEPLOY_KEY"
+          test -n "$KNOWN_HOSTS"
+          python - <<'PYVALIDATE'
+          import ipaddress, os
+          hosts = [str(ipaddress.IPv4Address(os.environ[name])) for name in ('APP1_HOST', 'APP2_HOST')]
+          assert hosts[0] != hosts[1], 'Supply two distinct application hosts.'
+          PYVALIDATE
+          umask 077
+          ssh_dir=$(mktemp -d "$RUNNER_TEMP/bhidne-prod-ssh.XXXXXX")
+          trap 'rm -rf "$ssh_dir"' EXIT
+          printf '%s\n' "$DEPLOY_KEY" > "$ssh_dir/key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$ssh_dir/known_hosts"
+          ssh_options=(-i "$ssh_dir/key" -o IdentitiesOnly=yes -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$ssh_dir/known_hosts" \
+            -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=4)
+          release_request() {
+            python -c 'import json, os; print(json.dumps({"username": os.environ["REGISTRY_USER"], "token": os.environ["REGISTRY_TOKEN"]}))' | \
+              ssh "${ssh_options[@]}" "root@$1" "$2 $DIGEST"
+          }
+          for host in "$APP1_HOST" "$APP2_HOST"; do
+            echo "Checking application host $host"
+            release_request "$host" check
+          done
+          for host in "$APP1_HOST" "$APP2_HOST"; do
+            echo "Deploying application host $host"
+            release_request "$host" deploy
+          done
+          curl --fail --silent --show-error --max-time 15 --retry 3 \
+            https://api.prod.bhidne-ho.lfactorial.com/health

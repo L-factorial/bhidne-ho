@@ -1,4 +1,6 @@
 """Authorized view and stream bootstrap facade for the opt-in transport."""
+
+from .telemetry import observe
 from .chat import ChatHistory, authorize_chat
 from .checkpoint_store import user_uuid
 from .inbox import LaneTarget, PostgresInboxStore
@@ -17,6 +19,7 @@ class DistributedReads:
         self.ledger = PostgresLedgerQueries(pool)
         self.inbox = PostgresInboxStore(pool)
 
+    @observe('read.snapshot')
     async def open(self, actor, target):
         """Explicit POST: create an empty authorized lane, not game state/work."""
         target = LaneTarget.model_validate(target)
@@ -43,5 +46,6 @@ class DistributedReads:
                 lane = await self.inbox.ensure_lane_in_transaction(connection, target)
                 return dict(lane_id=str(lane), target=target.model_dump(mode='json', exclude_none=True))
 
+    @observe('read.recipient')
     async def recipient(self, actor):
         return await self.open(actor, LaneTarget(kind='recipient', recipient_id=user_uuid(actor)))

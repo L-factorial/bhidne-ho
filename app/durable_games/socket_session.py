@@ -1,4 +1,6 @@
 """Bounded socket authentication freshness, independent of Redis and client pings."""
+
+from .telemetry import observe
 import asyncio
 import math
 import time
@@ -19,6 +21,7 @@ class SocketSession:
         self._task = None
         self._stopped = False
 
+    @observe('auth.socket_check')
     async def check(self):
         async with self._lock:
             if self._stopped or self.close_code is not None:

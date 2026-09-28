@@ -10,4 +10,4 @@ COPY flush/ flush/
 RUN pip install --no-cache-dir '.[redis]' && useradd --uid 10001 --create-home bhidne
 USER bhidne
 EXPOSE 8080
-CMD ["uvicorn", "app.durable_games.bootstrap:create_app", "--factory", "--host", "0.0.0.0", "--port", "8080", "--workers", "1"]
+CMD ["uvicorn", "app.durable_games.bootstrap:create_app", "--factory", "--host", "0.0.0.0", "--port", "8080", "--workers", "1", "--no-access-log"]

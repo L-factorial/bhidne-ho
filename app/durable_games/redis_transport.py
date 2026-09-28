@@ -4,6 +4,8 @@ Explicit lifecycle only. PostgreSQL receivers recheck lanes, epochs and admissio
 One channel per process incarnation, bounded dispatch, and subscription round-trip
 probes keep notification failure independent of durable execution correctness.
 """
+
+from .telemetry import observe, event
 import asyncio
 import hashlib
 import hmac
@@ -160,6 +162,7 @@ class RedisSignalTransport:
             self._task = asyncio.create_task(self._listen(), name='redis-signal-listener')
             self._task.add_done_callback(lambda task: self._health(False))
 
+    @observe('redis.publish')
     async def _publish(self, instance_id, message):
         if not self.healthy:
             return False
@@ -170,6 +173,7 @@ class RedisSignalTransport:
             # or receiver acknowledgement. Zero leaves durable polling to recover.
             return subscribers > 0
         except Exception:
+            event('redis_connection_failed')
             self.connection_failures += 1
             self._health(False)
             self._restart.set()
@@ -206,6 +210,7 @@ class RedisSignalTransport:
                         await self.delivery_receiver.receive(DeliveryWakeup(self.instance_id, UUID(body['lane_id']),
                             UUID(body['event_id']), body['sequence']))
             except Exception:
+                event('redis_dispatch_failed')
                 self.dispatch_failures += 1
             finally:
                 self.queue.task_done()
@@ -274,6 +279,7 @@ class RedisSignalTransport:
                 except asyncio.CancelledError:
                     raise
                 except Exception:
+                    event('redis_connection_failed')
                     self.connection_failures += 1
                 finally:
                     was_healthy = self._healthy

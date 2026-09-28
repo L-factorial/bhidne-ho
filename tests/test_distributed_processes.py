@@ -218,3 +218,35 @@ async def test_database_outage_never_acknowledges_unpersisted_work_and_same_id_r
         retry=await client.post(cluster.urls[0]+'/distributed/commands',headers=headers,json=original)
         assert retry.status_code==200 and retry.json()==result
         assert await cluster.rows('SELECT count(*) FROM room_tables WHERE room_id=%s',(room_id,))==[(1,)]
+
+
+async def test_metrics_are_private_and_report_commits_and_json_logs(cluster):
+    import json
+    from prometheus_client.parser import text_string_to_metric_families
+    async with httpx.AsyncClient(timeout=12) as client:
+        _, headers = await signup(client, cluster.urls[0], 'metrics-user')
+        room_id = await room(client, cluster, headers)
+        created, envelope = await submit(client, cluster.urls[1], headers,
+            dict(kind='room', room_id=room_id), 'create-table', dict(game_type='marriage', capacity=2))
+        assert created['status'] == 'accepted'
+        for url in cluster.urls:
+            assert (await client.get(url + '/metrics')).status_code == 409
+        found = 0
+        for url in cluster.metrics_urls:
+            response = await client.get(url)
+            assert response.status_code == 200
+            families = list(text_string_to_metric_families(response.text))
+            samples = [s for f in families for s in f.samples]
+            found += sum(s.value for s in samples if s.name == 'bhidne_command_outcomes_total'
+                         and s.labels == {'lane_kind': 'room', 'result': 'accepted'})
+            assert any(s.name == 'bhidne_runtime_state' and s.labels == {'state': 'database_sample_ok'}
+                       and s.value == 1 for s in samples)
+            assert room_id not in response.text
+        assert found == 1
+        rows = []
+        for path in cluster.directory.glob('gateway-*.log'):
+            rows.extend(json.loads(line) for line in path.read_text().splitlines() if line.startswith('{'))
+        committed = [r for r in rows if r.get('event') == 'command_committed']
+        assert len(committed) == 1 and committed[0]['room_id'] == room_id
+        assert committed[0]['result'] == 'accepted'
+        assert all('payload' not in row and 'token' not in row for row in rows)

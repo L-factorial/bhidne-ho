@@ -50,6 +50,7 @@ class Cluster:
         self.directory, self.pg = Path(directory), Path(pg)
         self.redis = LocalRedis(directory, redis)
         self.processes, self.logs, self.urls = [], [], []
+        self.metrics_urls = []
         self.db_process = None
         self.pool = None
         self.dburl = f'host={directory} port=5432 dbname=bhidne_distributed_test'
@@ -102,13 +103,16 @@ class Cluster:
 
     async def gateway(self):
         index=len(self.processes); number=port();url=f'http://127.0.0.1:{number}'
+        metrics_port=port()
+        self.metrics_urls.append(f'http://127.0.0.1:{metrics_port}/metrics')
         env=os.environ.copy()
         env.update(BHIDNE_DISTRIBUTED_ISOLATED='1',BHIDNE_DISTRIBUTED_DATABASE_URL=self.dburl,
             BHIDNE_DISTRIBUTED_REDIS_URL=self.redis.url,BHIDNE_DISTRIBUTED_SIGNAL_SECRET=(b'x'*32).hex(),
-            BHIDNE_DISTRIBUTED_ADDRESS=url,BHIDNE_DISTRIBUTED_ORIGINS='http://localhost')
+            BHIDNE_DISTRIBUTED_ADDRESS=url,BHIDNE_DISTRIBUTED_ORIGINS='http://localhost',
+            BHIDNE_DISTRIBUTED_METRICS_PORT=str(metrics_port),BHIDNE_DISTRIBUTED_METRICS_ADDRESS='127.0.0.1')
         logfile=open(self.directory/f'gateway-{index}.log','wb');self.logs.append(logfile)
         process=GatewayProcess([sys.executable,'-m','uvicorn','app.durable_games.bootstrap:create_app',
-            '--factory','--host','127.0.0.1','--port',str(number),'--log-level','warning'],env=env,stdout=logfile,stderr=logfile)
+            '--factory','--host','127.0.0.1','--port',str(number),'--log-level','warning','--no-access-log'],env=env,stdout=logfile,stderr=logfile)
         self.processes.append(process);self.urls.append(url)
         async with httpx.AsyncClient(timeout=1) as client:
             async def ready():

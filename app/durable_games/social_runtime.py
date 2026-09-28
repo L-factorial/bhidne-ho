@@ -1,4 +1,6 @@
 """Explicit bounded platform-lane executor; no room ownership or live startup hook."""
+
+from .telemetry import observe
 import asyncio
 from collections import deque
 import math
@@ -28,6 +30,7 @@ class SocialRuntime:
         # Coalesced local hint, never an authority or an unbounded task queue.
         self._wake.set()
 
+    @observe('social.sweep')
     async def sweep_once(self):
         async with self._sweeping:
             if self._closed:
