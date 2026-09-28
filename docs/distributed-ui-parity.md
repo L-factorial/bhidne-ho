@@ -32,18 +32,18 @@ parity activation.
   pagination and ordering; do not substitute empty arrays for unsupported data.
 - [x] Original room management: member details, privacy, invitations, codes/links,
   entry/exit and deletion, including active-game departure confirmation.
-- [ ] Original game controls: creation/settings, seating/watch/queue/invitations,
+- [x] Original game controls: creation/settings, seating/watch/queue/invitations,
   rule votes, start/end, all three games, review/next deal/rematch, departure and
   cross-room seat conflicts. Keep table, match and durable game identities distinct.
-- [ ] Original chat/social/notifications/profile/ledger panels, their unread state,
+- [x] Original chat/social/notifications/profile/ledger panels, their unread state,
   sounds/pokes and delivery recovery. Reuse existing FriendsPanel/RoomLedger
   transport seams instead of redesigning their presentation.
-- [ ] Original account/social sign-in flows, refresh restoration, invitations on
+- [x] Original account/social sign-in flows, refresh restoration, invitations on
   cold start, sign-out and session expiry. Provider configuration is a separate
   requirement from rendering the original sign-in controls.
-- [ ] Mobile and desktop screenshot comparisons and complete browser journeys for
+- [x] Mobile and desktop screenshot comparisons and complete browser journeys for
   welcome, sign-in/sign-up, lobby tabs, rooms, each game, profile and social panels.
-- [ ] Real two-server acceptance: delayed/lost replies, same-ID retries, refreshed
+- [x] Real two-server acceptance: delayed/lost replies, same-ID retries, refreshed
   tabs, reconnect to another gateway and revoked membership/session handling.
 - [ ] Switch production composition only after all preceding acceptance checks.
 
@@ -96,6 +96,19 @@ room departure through the original adapters. Unit tests additionally cover lost
 replies, retained revisions, failed follow-up reads, account disposal and chat
 history/unread baselines.
 
-Production activation remains pending final acceptance and the build-mode switch.
+Release acceptance completed locally: 269 client tests, TypeScript checking,
+original adapters against a native two-gateway cluster, and all five independent
+process checks (including Nginx). The backend run passed 1,607 tests; its one
+sandbox-denied socket listener test passed separately with socket permission.
+Desktop/mobile browser checks covered original welcome/authentication, lobby,
+room creation, invitation entry, seating/start and initial play in all three games,
+table chat delivery, reload/return to a running game, profile and sign-out across
+reload. No JavaScript errors occurred in these paths. These checks are not a claim
+of exhaustive manual play through every game outcome; existing engine/table tests
+cover those rules and the unchanged original game components remain in use.
+
+Production activation uses two releases: compatibility backend `91ac85f` first
+on both hosts with the integration frontend, then the original-frontend build.
+The final activation check remains open until that second rollout is verified.
 Provider credentials for social sign-in remain an external configuration concern;
 this change preserves the existing controls and authentication contracts.

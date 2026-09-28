@@ -29,8 +29,11 @@ The existing main-only `.github/workflows/pages.yml` publishes the frontend at
 `https://bhidne-ho.lfactorial.com` with
 `EXPO_PUBLIC_API_URL=https://api-bhidne-ho.lfactorial.com`.
 The production backend target remains `https://api.prod.bhidne-ho.lfactorial.com`.
-Frontend runtime selection is build-time: `EXPO_PUBLIC_RUNTIME_MODE=distributed-integration`
-selects the existing distributed client; other builds use the previous client.
+Frontend runtime selection is build-time. `npm run build:production` selects
+`EXPO_PUBLIC_RUNTIME_MODE=distributed-original`: the original main-branch screen
+layout and game experience connected to the distributed backend. The separate
+`distributed-integration` screen remains an explicit development option. Builds
+without either distributed mode retain the legacy backend contracts.
 
 The scalability frontend deployment is configured to use native Nginx on both app VMs at
 `https://prod.bhidne-ho.lfactorial.com`, matching the provisioning `client_origin`.
@@ -51,7 +54,10 @@ before removing anything still referenced by a current release or open browser.
 
 This release procedure does not ensure old frontend/new backend compatibility:
 rolling releases must retain API compatibility across the deployed versions.
-The distributed client still has its own login/lobby implementation.
+For the original-frontend cutover, first deploy compatibility release `91ac85f`
+to both hosts while retaining the integration frontend. Only then deploy the
+`distributed-original` build, so every load-balancer target supports its new API
+routes before browsers receive the new frontend.
 
 ## Managed load balancer setup
 
@@ -254,7 +260,8 @@ The runtime is still the reviewed `app.durable_games.bootstrap` entrypoint. This
 host deployment explicitly sets `BHIDNE_DISTRIBUTED_ISOLATED=1` for a new dedicated
 `bhidne_distributed_prod` database and a production Redis namespace; it preserves
 its `distributed-integration-v1` marker and native protocol. The health runtime
-name and compatible frontend mode remain `distributed-integration`. This is not a
+name remains `distributed-integration`; the original frontend's compatible build
+mode is `distributed-original`. This is not a
 conversion of legacy users/games and does not establish outstanding native-device,
 provider, HA or capacity release claims. Pair it with the compatible client and
 validate those release requirements before public cutover.

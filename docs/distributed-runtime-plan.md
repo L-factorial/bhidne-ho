@@ -4309,3 +4309,21 @@ rollout. The next concrete step is the staging collection/alert setup described 
   Final Call Break browser check and production-mode build remain next.
 - Public table reactions preserve original spectator visibility; private pokes
   remain recipient-only. Three focused durable poke/reaction tests passed.
+
+
+### P3 original frontend activation — rollout in progress
+
+- Completed desktop/mobile Call Break shuffle, cut and distribution browser checks,
+  plus original table-chat delivery between browsers, authenticated room reload and
+  return to the active game, profile loading and sign-out persistence. No browser
+  JavaScript errors. Browser gameplay covers initial actions, not exhaustive rounds.
+- Production-mode export/typecheck passed; static export is approximately 8.8 MB.
+  Main/GitHub Pages configuration remains unchanged.
+- Compatibility release `91ac85f` is pushed; GitHub Actions run `36385373177`
+  is executing required backend/native process tests before deploying both hosts.
+  It retains the integration frontend so browsers cannot reach new UI routes on
+  an old backend during a rolling cutover.
+- The original-frontend build flag and deployment documentation are prepared
+  locally. Exact next step: verify compatibility release on both app hosts, then
+  push activation, monitor CI/rolling deployment, and verify both hosts and public
+  original welcome/sign-in screens. Do not report activation before verification.
