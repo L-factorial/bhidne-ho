@@ -1,3 +1,4 @@
+import { playerError } from '../multiplayer/playerError.ts';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { gameControlFinish, gamePanelFinish, fonts, radii, typography, useTheme } from '../theme';
@@ -76,7 +77,7 @@ export function RoomCard({ room, member, busy, activeTables, onPress, owner, onR
       <Text style={{color:c.text}}>{owner ? 'This deletes the room for everyone. End active tables first.' : 'This removes your room membership. Private rooms require a new invitation to rejoin.'}</Text>
       {!!error && <Text accessibilityRole="alert" style={{color:c.danger}}>{error}</Text>}
       <Pressable accessibilityRole="button" disabled={removing} onPress={() => setConfirming(false)} style={{minHeight:44,justifyContent:'center'}}><Text style={{color:c.text}}>{ui("common.cancel")}</Text></Pressable>
-      <Pressable accessibilityRole="button" disabled={removing} onPress={async () => {setRemoving(true);setError('');try {await onRemove?.();setRemoved(true);setConfirming(false);} catch(e) {setError((e as Error).message);} finally {setRemoving(false);}}} style={{minHeight:44,justifyContent:'center'}}><Text style={{color:c.danger}}>{removing ? 'Working…' : owner ? ui("rooms.delete_room") : ui("rooms.leave_room")}</Text></Pressable>
+      <Pressable accessibilityRole="button" disabled={removing} onPress={async () => {setRemoving(true);setError('');try {await onRemove?.();setRemoved(true);setConfirming(false);} catch(e) {setError(playerError(e));} finally {setRemoving(false);}}} style={{minHeight:44,justifyContent:'center'}}><Text style={{color:c.danger}}>{removing ? 'Working…' : owner ? ui("rooms.delete_room") : ui("rooms.leave_room")}</Text></Pressable>
     </RoomSheet>
     <RoomSheet visible={sharing} title={room.name} closeLabel={ui("common.close_room_sharing")} onClose={() => setSharing(false)} presentation="dialog">
       <Text style={{ color: c.textMuted, fontFamily: fonts.body }}>Share the room code or link. Private rooms also require an invitation from the owner.</Text>

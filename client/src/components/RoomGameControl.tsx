@@ -1,6 +1,8 @@
+import { playerError } from '../multiplayer/playerError.ts';
+import { committedSnapshot } from '../multiplayer/committedSnapshot';
 import type { OriginalDistributedRuntime } from '../multiplayer/OriginalDistributedRuntime';
 import type { SelectedTable } from '../multiplayer/DistributedControls';
-import { DistributedGameCommandClient } from '../multiplayer/DistributedGameCommandClient';
+import { DistributedGameCommandClient, GameConfirmationPending } from '../multiplayer/DistributedGameCommandClient';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, ThemeContext, useTheme, useThemedStyles, type ThemeColors } from '../theme';
@@ -15,7 +17,7 @@ import type { TableEntry } from '../multiplayer/tableNavigation';
 import { RuleProposal } from './RuleProposal';
 import { TableControls } from './TableControls';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { AppState, Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useGameNotification } from '../notifications/useGameNotification';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LiveGameTable, RoomSnapshot as Snapshot } from '../screens/LiveGameTable';
@@ -52,8 +54,8 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
   const [open, setOpen] = useState(false);
   useEffect(()=>{
     if(!runtime||!snapshot?.table_id)return;
-    void runtime.root.select({room:roomId,table:snapshot.table_id,chat:['room_chat','table_chat']}).catch(()=>{});
-  },[runtime,roomId,snapshot?.table_id,snapshot?.durable_game_id]);
+    void runtime.root.select({room:roomId,table:snapshot.status==='ended'?null:snapshot.table_id,chat:snapshot.status==='ended'?['room_chat']:['room_chat','table_chat']}).catch(()=>{});
+  },[runtime,roomId,snapshot?.table_id,snapshot?.durable_game_id,snapshot?.status==='ended']);
   const [seatConflict, setSeatConflict] = useState<GameRequestDetail | null>(null);
   const visibleTables = snapshot?.tables?.filter(table => table.status !== 'ended' && table.phase !== 'ENDED') || [];
   useEffect(() => { onOpenChange?.(open); }, [open, onOpenChange]);
@@ -136,36 +138,53 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
     }
   }
 
+  const refreshClient = useRef(commandClient);
   useEffect(() => {
     alive.current = true;
-    setSynced(false);
+    if(!runtime || refreshClient.current!==commandClient)setSynced(false);
+    refreshClient.current=commandClient;
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
     async function refresh() {
       const version = generation.current;
+      let noticeTimer: ReturnType<typeof setTimeout> | undefined;
       try {
         if (!pending.current) {
           const hadPending = commandClient.pending;
-          if (hadPending) setActionNotice(ui("feedback.confirming_your_action"));
+          if (hadPending) {
+            const showNotice = () => {
+              if (!controller.signal.aborted && generation.current === version)
+                setActionNotice(ui("feedback.confirming_your_action"));
+            };
+            if (runtime) noticeTimer = setTimeout(showNotice, 500);
+            else showNotice();
+          }
           const result = await commandClient.refresh(controller.signal);
           if (controller.signal.aborted || generation.current !== version) return;
           const data = result.snapshot;
           if (hadPending) {
-            setError(result.error); setBusy(false); setActionNotice('');
+            setError(result.error ? playerError(result.error) : ''); setBusy(false); setActionNotice('');
           }
           if (!controller.signal.aborted && generation.current === version) {
-            setSnapshot(data); setRefreshError(''); setSynced(true);
+            setSnapshot(current=>committedSnapshot(current,data)); setRefreshError(''); setSynced(true);
           }
         }
       } catch (error) {
         if (!controller.signal.aborted && generation.current === version) {
-          const message = error instanceof Error ? error.message : ui("feedback.cannot_load_game");
+          if (error instanceof GameConfirmationPending) {
+            setRefreshError('');
+            return; // Still pending, not a failed connection or rejected move.
+          }
+          const message = commandClient.pending ? ui("feedback.please_wait_confirmation") : playerError(error, ui("feedback.cannot_load_game"));
           setSynced(false);
           if (commandClient.pending) setActionNotice(ui("common.connection_interrupted_your_action_will_be_checked_automatically"));
           setRefreshError(message);
         }
       }
-      finally { if (!controller.signal.aborted) timer = setTimeout(refresh, 1000); }
+      finally {
+        clearTimeout(noticeTimer);
+        if (!controller.signal.aborted) timer = setTimeout(refresh, runtime && !commandClient.pending ? 30000 : 1000);
+      }
     }
     if (sessionActive) refresh();
     return () => {
@@ -173,6 +192,27 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
       requests.current.forEach(request => request.abort());
     };
   }, [commandClient, sessionActive, actionTick]);
+  useEffect(() => {
+    if (!runtime || !sessionActive) return;
+    return runtime.root.observeSnapshot(view => {
+      if (view.room_id !== roomId) return;
+      if (!view.snapshot) { setActionTick(value=>value+1); return; }
+      const next = view.snapshot as unknown as Snapshot;
+      if (selectedMatch.current && next.match_id !== selectedMatch.current) return;
+      setSnapshot(current=>committedSnapshot(current,next));
+      if(commandClient instanceof DistributedGameCommandClient)commandClient.observe(next);
+      setSynced(true); setRefreshError('');
+    });
+  }, [runtime, roomId, sessionActive, commandClient]);
+
+  useEffect(() => {
+    if(!runtime)return;
+    const wake=()=>{setActionTick(value=>value+1);void runtime.root.reconnect().catch(()=>{});};
+    const sub=AppState.addEventListener('change',state=>{if(state==='active')wake();});
+    if(Platform.OS==='web')globalThis.addEventListener('online',wake);
+    return()=>{sub.remove();if(Platform.OS==='web')globalThis.removeEventListener('online',wake);};
+  },[runtime]);
+
   async function returnToGame() {
     if (busy || pending.current) return;
     pending.current = true; const version = ++generation.current; setBusy(true); setError('');
@@ -182,7 +222,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
         setSnapshot(data); setLive(data.status !== 'empty'); setOpen(true);
       }
     } catch (error) {
-      if (alive.current) setError(error instanceof Error ? error.message : ui("feedback.could_not_restore_game"));
+      if (alive.current) setError(playerError(error, ui("feedback.could_not_restore_game")));
     } finally { pending.current = false; if (alive.current) setBusy(false); }
   }
   async function act(join: boolean) {
@@ -201,7 +241,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
         if (error instanceof GameRequestError && error.detail?.code === 'PLAYER_ALREADY_AT_TABLE') {
           setSeatConflict(error.detail); setOpen(false);
         }
-        setError(error instanceof Error ? error.message : ui("feedback.cannot_update_game"));
+        setError(playerError(error, ui("feedback.cannot_update_game")));
       }
     }
     finally { pending.current = false; if (alive.current) setBusy(false); }
@@ -227,7 +267,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
       setSeatConflict(null);
       setError(ui("rooms.previous_table_left_you_can_now_take_a_seat_here"));
     } catch (error) {
-      setError(error instanceof Error ? error.message : ui("feedback.could_not_leave_the_previous_table"));
+      setError(playerError(error, ui("feedback.could_not_leave_the_previous_table")));
     } finally { pending.current = false; setBusy(false); }
   }
   const mobileGame = mobile;
@@ -240,7 +280,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
     if (!canSend.current || !snapshot?.game || !snapshot.match_id || pending.current) return;
     if (!commandClient.submit(snapshot, command, payload)) return;
     canSend.current = false; generation.current++;
-    setBusy(true); setError(''); setActionNotice(ui("feedback.sending_your_action"));
+    setBusy(true); setError(''); setActionNotice(runtime ? '' : ui("feedback.sending_your_action"));
     setActionTick(value => value + 1);
   }
   async function lobbyAction(suffix: string, payload: object = {}) {
@@ -252,7 +292,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
         selectedMatch.current = data.match_id; setSnapshot(data);
         if (suffix === '/leave' || suffix === '/table/leave-seat' || suffix === '/table/abandon') { setOpen(false); setLive(false); }
       }
-    } catch (error) { if (alive.current && generation.current === version) setError(error instanceof Error ? error.message : ui("feedback.could_not_update_game")); }
+    } catch (error) { if (alive.current && generation.current === version) setError(playerError(error, ui("feedback.could_not_update_game"))); }
     finally { pending.current = false; if (alive.current) setBusy(false); }
   }
   const endControl = canEnd
@@ -279,7 +319,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
       try {
         const players = await request<InvitePlayer[]>(`/players/search?q=${encodeURIComponent(inviteQuery.trim())}`, { user_id: userId, token }, undefined, controller.signal);
         setInviteResults(await eligiblePlayers(players, controller.signal)); setInviteError('');
-      } catch (error) { if (!controller.signal.aborted) setInviteError(error instanceof Error ? error.message : ui("feedback.could_not_search_recent_players")); }
+      } catch (error) { if (!controller.signal.aborted) setInviteError(playerError(error, ui("feedback.could_not_search_recent_players"))); }
     }, 250);
     return () => { clearTimeout(timer); controller.abort(); };
   }, [inviteQuery, live, open, roomId, token, userId]);
@@ -290,7 +330,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
       const players = await request<InvitePlayer[]>(`/players/directory?q=${encodeURIComponent(inviteQuery.trim())}`, { user_id: userId, token });
       setInviteResults(await eligiblePlayers(players));
       if (!players.length) setInviteError(ui("feedback.no_player_found_with_that_exact_name_username_or_user_id"));
-    } catch (error) { setInviteError(error instanceof Error ? error.message : ui("feedback.could_not_search_the_player_directory")); }
+    } catch (error) { setInviteError(playerError(error, ui("feedback.could_not_search_the_player_directory"))); }
     finally { setSearchingPlayers(false); }
   }
   async function enterTable(matchId: string, action: TableEntry) {
@@ -304,7 +344,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
       setSnapshot(data); setLive(true); setOpen(true);
     } catch (failure) {
       if (!alive.current || generation.current !== version) return;
-      setError(failure instanceof Error ? failure.message : ui("feedback.could_not_enter_this_table"));
+      setError(playerError(failure, ui("feedback.could_not_enter_this_table")));
       if (failure instanceof GameRequestError && failure.detail?.code === 'PLAYER_ALREADY_AT_TABLE') setSeatConflict(failure.detail);
     } finally {
       pending.current = false;

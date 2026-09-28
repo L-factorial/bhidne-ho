@@ -30,7 +30,7 @@ export class DistributedReadClient {
     if (!result.ok) {
       let message:string|undefined;
       try {const body=await result.json();if(typeof body.detail==='string')message=body.detail;}catch {}
-      throw new DistributedRequestError(result.status,message);
+      throw new DistributedRequestError(result.status,message ?? `Distributed read failed (${result.status}).`);
     }
     return await result.json();
     } finally {clearTimeout(timer);signal.removeEventListener('abort',cancel);}

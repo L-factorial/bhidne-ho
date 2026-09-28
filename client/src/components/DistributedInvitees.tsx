@@ -1,3 +1,4 @@
+import { playerError } from '../multiplayer/playerError.ts';
 import {useEffect,useState} from 'react';
 import {Pressable,Text,View} from 'react-native';
 import {request} from '../multiplayer/api';
@@ -7,7 +8,7 @@ export function DistributedInvitees({session,selected,change}:{session:Session;s
   const {colors}=useTheme();
   const [friends,setFriends]=useState<{user_id:string;display_name:string;username?:string}[]>([]),[error,setError]=useState('');
   useEffect(()=>{const abort=new AbortController();void request<{friends:typeof friends}>('/friends',session,undefined,abort.signal)
-    .then(value=>{if(!abort.signal.aborted)setFriends(value.friends);}).catch(e=>{if(!abort.signal.aborted)setError(String(e));});return()=>abort.abort();},[session]);
+    .then(value=>{if(!abort.signal.aborted)setFriends(value.friends);}).catch(e=>{if(!abort.signal.aborted)setError(playerError(e));});return()=>abort.abort();},[session]);
   return <View>{friends.map(friend=>{
     const checked=selected.includes(friend.user_id);
     return <Pressable key={friend.user_id} accessibilityRole="checkbox" accessibilityState={{checked}}

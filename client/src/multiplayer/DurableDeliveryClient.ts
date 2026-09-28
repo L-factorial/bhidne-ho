@@ -58,6 +58,7 @@ export type DeliveryView<T> = {
   acknowledge(scannedSequence: number, signal: AbortSignal): Promise<void>;
   // Optional expiring presentation only; never apply game state or payments here.
   transient?(events: DeliveryEvent[]): void;
+  committed?(events: DeliveryEvent[]): void;
 };
 
 // One instance per authenticated device/lane/subscription incarnation. Different
@@ -111,7 +112,9 @@ export class DurableDeliveryClient<T> {
           const state = await this.view.load(signal);
           this.check(signal); this.view.install(state); this.check(signal);
         }
-        this.check(signal); this.cursor = page.scanned_sequence;
+        this.check(signal);
+        this.view.committed?.(page.events.filter(e=>e.sequence>this.cursor!));
+        this.cursor = page.scanned_sequence;
         if (transient.length) try { this.view.transient?.(transient); } catch { /* Presentation cannot alter durable ACK progress. */ }
       }
       this.check(signal);

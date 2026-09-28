@@ -646,6 +646,27 @@ MIGRATIONS = (
         CREATE INDEX command_inbox_poke_rate_idx ON command_inbox(lane_id,actor_id,completed_at DESC)
             WHERE command='send-poke' AND status='accepted';
     """),
+    (26, """
+    ALTER TABLE command_lanes DROP CONSTRAINT command_lanes_kind_check;
+    ALTER TABLE command_lanes ADD CONSTRAINT command_lanes_kind_check CHECK (kind IN
+        ('room','table','game','room_chat','table_chat','game_chat','conversation','recipient','lobby'));
+    ALTER TABLE command_lanes DROP CONSTRAINT command_lanes_target_check;
+    ALTER TABLE command_lanes ADD CONSTRAINT command_lanes_target_check CHECK (
+        (kind IN ('room','room_chat') AND room_id IS NOT NULL AND table_id IS NULL AND game_id IS NULL
+            AND user_low IS NULL AND user_high IS NULL AND recipient_id IS NULL)
+        OR (kind IN ('table','table_chat') AND room_id IS NOT NULL AND table_id IS NOT NULL AND game_id IS NULL
+            AND user_low IS NULL AND user_high IS NULL AND recipient_id IS NULL)
+        OR (kind IN ('game','game_chat') AND room_id IS NOT NULL AND table_id IS NOT NULL AND game_id IS NOT NULL
+            AND user_low IS NULL AND user_high IS NULL AND recipient_id IS NULL)
+        OR (kind='conversation' AND room_id IS NULL AND table_id IS NULL AND game_id IS NULL
+            AND user_low IS NOT NULL AND user_high IS NOT NULL AND user_low<user_high AND recipient_id IS NULL)
+        OR (kind='recipient' AND room_id IS NULL AND table_id IS NULL AND game_id IS NULL
+            AND user_low IS NULL AND user_high IS NULL AND recipient_id IS NOT NULL)
+        OR (kind='lobby' AND room_id IS NULL AND table_id IS NULL AND game_id IS NULL
+            AND user_low IS NULL AND user_high IS NULL AND recipient_id IS NULL)
+    );
+    CREATE UNIQUE INDEX command_lanes_lobby_key ON command_lanes(kind) WHERE kind='lobby';
+    """),
 )
 
 

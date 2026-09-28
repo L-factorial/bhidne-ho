@@ -1,3 +1,4 @@
+import { CoalescedRead } from './CoalescedRead.ts';
 import { DistributedScreenController } from './DistributedScreenController.ts';
 import { OwnedSession } from './JournalOwner.ts';
 import type { AcquireJournal, JournalOwner } from './JournalOwner.ts';
@@ -11,12 +12,12 @@ import type { SelectedTable } from './DistributedControls.ts';
 import { gameControl, tableControl, roomControl } from './DistributedControls.ts';
 
 export type Selection = { room: string; table: string | null; chat?: ('room_chat'|'table_chat'|'game_chat')[] };
-type Projection = { room_id: string; snapshot: (SelectedTable & { durable_game_id: string | null }) | null };
-export type RootView = { kind: 'snapshot'; value: Projection } | { kind: 'chat'|'social'; value: unknown };
+export type Projection = { room_id: string; snapshot: (SelectedTable & { durable_game_id: string | null; status?: string }) | null };
+export type RootView = {kind:'lobby';value:null} | { kind: 'snapshot'; value: Projection } | { kind: 'chat'|'social'; value: unknown };
 type SocketFactory = (url: string, token: string, device: string, disconnected: () => void) => DistributedSocketTransport;
 export type RootCallbacks = {
   install(lane: string, value: RootView): void; remove(lane: string): void;
-  error(lane: string | null, error: unknown): void;
+  error(lane: string | null, error: unknown, source?: 'command' | 'delivery'): void;
   transient?(payload: unknown): void;
 };
 const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v));
@@ -30,7 +31,18 @@ export class DistributedRootRuntime {
   private selection: Selection | null = null;
   private targets = new Map<string, CommandTarget>();
   private projection: Projection | null = null;
-  private snapshotTail: Promise<void> = Promise.resolve();
+  private activityObservers = new Set<() => void>();
+  observeActivity(listener: () => void) {
+    this.activityObservers.add(listener);
+    return () => {this.activityObservers.delete(listener);};
+  }
+  private observers = new Set<(view: Projection) => void>();
+  observeSnapshot(listener: (view: Projection) => void) {
+    this.observers.add(listener);
+    if (this.projection) listener(copy(this.projection));
+    return () => { this.observers.delete(listener); };
+  }
+  private snapshotRead: CoalescedRead<Projection> | null = null;
   private generation = 0;
   private closed = false;
   private retry?: ReturnType<typeof setTimeout>;
@@ -61,14 +73,15 @@ export class DistributedRootRuntime {
         if (['room','table'].includes(this.targets.get(lane)?.kind ?? '')) this.projection = null;
         callbacks.remove(lane);
       },
-      error: (lane, error) => {
+      error: (lane, error, source) => {
         if (error instanceof DistributedRequestError && error.status === 401) {
           this.close(); this.owner.close();
         }
-        callbacks.error(lane, error);
+        callbacks.error(lane, error, source);
+        if(error instanceof DistributedRequestError && [403,404].includes(error.status))for(const listener of this.activityObservers)listener();
       },
       transient: events => { if(!this.closed) for(const event of events) callbacks.transient?.(event.payload); },
-    }, { ...(options.refreshMs === undefined ? {} : {refreshMs:options.refreshMs}) }, owner.journal);
+    }, {refreshMs:options.refreshMs ?? 30000}, owner.journal);
   }
   private async discover(signal: AbortSignal) {
     const selected = copy(this.selection), generation = this.generation;
@@ -79,16 +92,18 @@ export class DistributedRootRuntime {
     const open = async (target: CommandTarget) => {
       const stream = await this.reads.open(target,signal); targets.set(stream.lane_id,target);
     };
+    await open({kind:'lobby'});
     if (selected) {
       const projection = await this.reads.room<Projection>(selected.room,selected.table,signal);
       this.validateProjection(projection, selected);
       await open({kind:'room',room_id:selected.room});
       const table = projection.snapshot;
-      if (table) {
+      if (table && table.status!=='ended') {
         await open({kind:'table',room_id:selected.room,table_id:table.table_id});
         if (table.durable_game_id) await open({kind:'game',room_id:selected.room,table_id:table.table_id,game_id:table.durable_game_id});
       }
       for (const kind of selected.chat ?? []) {
+        if(kind!=='room_chat' && table?.status==='ended')continue;
         const target: CommandTarget = {kind,room_id:selected.room};
         if (kind !== 'room_chat') {
           if (!table) throw Error('Chat needs a selected table.');
@@ -124,24 +139,15 @@ export class DistributedRootRuntime {
   private async load(lane: string, signal: AbortSignal): Promise<RootView> {
     const target = this.targets.get(lane);
     if (!target) throw Error('Undiscovered stream.');
+    if (target.kind === 'lobby') return {kind:'lobby',value:null};
     if (['room','table','game'].includes(target.kind)) {
       const selected = copy(this.selection);
       if (!selected) throw Error('No selected hosted view.');
-      // Serialize primary snapshot reads across hosted lanes sharing one screen.
-      // A delayed older lane must not overwrite a later match/round projection.
-      const prior = this.snapshotTail;
-      let release!: () => void;
-      this.snapshotTail = new Promise<void>(resolve => { release = resolve; });
-      try {
-        await prior;
-        if (signal.aborted) throw Error('Obsolete snapshot load.');
-        const controller = new AbortController(), abort = () => controller.abort();
-        signal.addEventListener('abort',abort,{once:true});
-        try {
-          const value = await boundedDelivery(controller,10000,() => this.reads.room<Projection>(selected.room,selected.table,controller.signal));
-          this.validateProjection(value, selected); return {kind:'snapshot',value};
-        } finally { signal.removeEventListener('abort',abort); }
-      } finally { release(); }
+      if (!this.snapshotRead) this.snapshotRead = new CoalescedRead(async signal => {
+        const value = await this.reads.room<Projection>(selected.room,selected.table,signal);
+        this.validateProjection(value,selected); return value;
+      });
+      return {kind:'snapshot',value:await this.snapshotRead.load(signal)};
     }
     const kind = target.kind.endsWith('_chat') ? 'chat':'social';
     return {kind,value:await this.reads.history(kind,lane,signal)};
@@ -156,11 +162,14 @@ export class DistributedRootRuntime {
       if (old && next && (next.table_revision < old.table_revision
           || (next.durable_game_id === old.durable_game_id && next.game && old.game && next.game.revision < old.game.revision))) return;
       this.projection = copy(view.value);
+      for (const listener of this.observers) listener(copy(view.value));
     }
     this.callbacks.install(lane,copy(view));
+    if(view.kind==='lobby'||view.kind==='social')for(const listener of this.activityObservers)listener();
   }
   async select(selection: Selection | null) {
     if (selection && (!selection.room || (selection.chat?.length ?? 0) > 3)) throw Error('Invalid selection.');
+    if(this.socket && JSON.stringify(selection)===JSON.stringify(this.selection))return;
     this.selection = copy(selection); this.projection = null;
     await this.reconnect();
   }
@@ -168,10 +177,11 @@ export class DistributedRootRuntime {
     if (this.closed) throw Error('Root session closed.');
     clearTimeout(this.retry);
     const generation = ++this.generation;
-    this.session.disconnect(); this.socket?.close(); this.socket = null; this.targets.clear(); this.projection = null;
+    this.session.disconnect(); this.socket?.close(); this.socket = null; this.targets.clear(); this.projection = null; this.snapshotRead = null;
     const failed = () => {
       if (this.closed || generation !== this.generation) return;
       this.generation++; this.session.disconnect(); this.socket?.close(); this.socket = null;
+      this.callbacks.error(null,new Error('Delivery connection interrupted.'),'delivery');
       this.retry = setTimeout(() => { void this.reconnect().catch(e=>this.callbacks.error(null,e)); },Math.min(1000*2**this.attempts++,8000));
     };
     try {
@@ -202,7 +212,7 @@ export class DistributedRootRuntime {
   close() {
     if (this.closed) return;
     this.closed = true; this.generation++;clearTimeout(this.retry);
-    this.session.close(); this.socket?.close(); this.socket = null;this.targets.clear();this.projection = null;
+    this.session.close(); this.socket?.close(); this.socket = null;this.targets.clear();this.projection = null;this.observers.clear();this.activityObservers.clear();
   }
 }
 

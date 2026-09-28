@@ -1,3 +1,4 @@
+import { playerError } from '../multiplayer/playerError.ts';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useEffect, useRef, useState } from 'react';
@@ -32,7 +33,7 @@ export function InvitationPreview({ invitation, session, join, dismiss, ready = 
         setTarget(room); setGameType(invitedGame?.game_type);
         if (invitation.matchId && !await joinRef.current(room, invitedGame?.game_type, invitation.matchId))
           throw new Error(ui("feedback.could_not_enter_the_game_s_room_try_again"));
-      } catch (error) { if (!controller.signal.aborted) setError(error instanceof Error ? error.message : ui("feedback.could_not_open_invitation")); }
+      } catch (error) { if (!controller.signal.aborted) setError(playerError(error, ui("feedback.could_not_open_invitation"))); }
       finally { if (!controller.signal.aborted) setBusy(false); }
     }
     void load(); return () => controller.abort();

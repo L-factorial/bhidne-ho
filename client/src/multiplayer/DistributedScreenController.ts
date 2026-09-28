@@ -1,3 +1,4 @@
+import { playerError } from './playerError.ts';
 import type { DurableCommandClient, DurableReceipt, Json, CommandTarget } from './DurableCommandClient.ts';
 import { gameControl, tableControl, roomControl, chatControl, readNotifications, friendshipControl, settlementControl } from './DistributedControls.ts';
 import type { SelectedTable } from './DistributedControls.ts';
@@ -43,7 +44,7 @@ export class DistributedScreenController {
     const receipt = this.command.latest;
     return {status:this.command.pending?'pending':receipt?.status??'idle',busy:this.command.pending||this.active!==null,
       commandId:this.command.request?.body.command_id??null,receipt,
-      error:receipt?.status==='rejected' && 'outcome' in receipt ? receipt.outcome?.detail || 'Action rejected.':this.error};
+      error:receipt?.status==='rejected' && 'outcome' in receipt ? playerError(receipt.outcome?.detail || 'Action rejected.'):this.error};
   }
   private update() {
     if (this.disposed) return;
@@ -61,14 +62,14 @@ export class DistributedScreenController {
       if (!begin()) return false;
       this.armed=this.command.request!.body.command_id;
       await this.recover();return true;
-    } catch (e) { this.error=e instanceof Error?e.message:'Action unavailable.';this.update();return false; }
+    } catch (e) { this.error=playerError(e, 'Action unavailable.');this.update();return false; }
   }
   async recover(): Promise<void> {
     if (this.disposed || this.active) return;
     this.armed=this.command.request?.body.command_id??null;
     const abort=new AbortController();this.active=abort;this.error='';this.update();
     try { await this.command.reconcile(abort.signal); }
-    catch (e) { if (!abort.signal.aborted) this.error=e instanceof Error?e.message:'Waiting for confirmation.'; }
+    catch (e) { if (!abort.signal.aborted) this.error=playerError(e, this.command.pending ? playerError('Waiting for confirmation.') : undefined); }
     finally { this.active=null;this.update(); }
   }
   game(view: SelectedTable, command: string, payload: Payload = {}) { return this.submit(()=>gameControl(this.command,view,command,payload)); }

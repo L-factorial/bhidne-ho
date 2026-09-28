@@ -1,3 +1,4 @@
+import { playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { showTableHeaderShare } from '../multiplayer/tableHeaderSharing';
@@ -135,7 +136,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     </ScrollView>{socialOverlay}
   </View>;
   if (!ended && (snapshot.round_review || game.finished) && !reveal) return <View style={styles.page}>{header}<RoundSummary
-    snapshot={snapshot} busy={busy} error={error || snapshot.error || ''} onContinue={onNextDeal} onBack={onBack} onNewGame={onNewGame}
+    snapshot={snapshot} busy={busy} error={error || (snapshot.error ? playerError(snapshot.error) : '')} onContinue={onNextDeal} onBack={onBack} onNewGame={onNewGame}
     hideNavigation controls={game.finished ? startCue : snapshot.round_review?.can_continue ? <View testID="callbreak-center-next-deal" style={{ minHeight: 160, alignItems: 'center', justifyContent: 'center' }}>
       <Pressable accessibilityRole="button" accessibilityLabel={ui("callbreak.start_next_deal")} disabled={busy} onPress={onNextDeal} style={styles.button}><ActionCue active={!busy} style={styles.buttonText}>{ui("callbreak.start_next_deal")}</ActionCue></Pressable>
     </View> : <Text style={styles.meta}>{ui("common.waiting_for_the_creator_to_start_the_next_deal")}</Text>} />{socialOverlay}</View>;
@@ -164,7 +165,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     }]}><View style={{ width }}>
     <Text style={styles.meta}>{ui("callbreak.live_deal_summary", { "label": ui("callbreak.deal") + " ", "deal": deal.deal_number, "completed": deal.tricks_completed, "total": deal.tricks_required })}</Text>
     {!ended && game.phase !== 'PLAYING' && game.phase !== 'BIDDING' && !reveal && <Text style={styles.meta}>{guidance.title.replace(/^Your turn[: ·]+/i, '')}</Text>}
-    {!!(error || snapshot.error) && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error || snapshot.error || '', 'feedback')}</Text>}
+    {!!(error || snapshot.error) && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error || (snapshot.error ? playerError(snapshot.error) : ''), 'feedback')}</Text>}
     <CardTable showScores={game.phase === 'BIDDING' || game.phase === 'PLAYING'} compact={mobile && cards.open && screenHeight < 760} centerControl={ended ? endedNotice : preparation} width={width} players={players} dealerId={String(deal.dealer)} viewerId={snapshot.your_player_id ? String(snapshot.your_player_id) : ''}
       collectionKey={reveal ? trickKey : undefined} collecting={reveal && collectingTrick === trickKey}
       winnerPlayerId={reveal ? String(completedTrick?.winner) : undefined} activePlayerId={!ended && !reveal && game.turn.player_id ? String(game.turn.player_id) : ''} plays={(trick?.plays || []).map(play => ({ playerId: String(play.player_id), card: face(play.card) }))} />

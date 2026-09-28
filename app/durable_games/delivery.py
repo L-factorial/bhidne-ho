@@ -69,6 +69,8 @@ class OutboxPublisher:
                     audiences = [('user', f'user-{u}') for u in (claim.user_low,claim.user_high)]
                 elif claim.kind == 'recipient':
                     audiences = [('user', f'user-{claim.recipient_id}')]
+                elif claim.kind == 'lobby':
+                    audiences = [('room', '__public_lobby__')]
                 elif claim.room_id is not None:
                     audiences = [('room', claim.room_id)]
                 else:

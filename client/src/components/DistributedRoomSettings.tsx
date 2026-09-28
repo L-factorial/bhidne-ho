@@ -1,3 +1,4 @@
+import { playerError } from '../multiplayer/playerError.ts';
 import {useEffect,useState} from 'react';
 import {Pressable,Text,View} from 'react-native';
 import {request} from '../multiplayer/api';
@@ -9,7 +10,7 @@ export function DistributedRoomSettings({root,room,session}:{root:DistributedRoo
   const {colors}=useTheme();
   const {controller,state}=useDistributedController(root,'room-settings');
   const [friends,setFriends]=useState<{user_id:string;display_name:string}[]>([]),[error,setError]=useState(''),[confirm,setConfirm]=useState(false);
-  useEffect(()=>{const abort=new AbortController();void request<{friends:typeof friends}>('/friends',session,undefined,abort.signal).then(value=>{if(!abort.signal.aborted)setFriends(value.friends);}).catch(e=>{if(!abort.signal.aborted)setError(String(e));});return()=>abort.abort();},[session]);
+  useEffect(()=>{const abort=new AbortController();void request<{friends:typeof friends}>('/friends',session,undefined,abort.signal).then(value=>{if(!abort.signal.aborted)setFriends(value.friends);}).catch(e=>{if(!abort.signal.aborted)setError(playerError(e));});return()=>abort.abort();},[session]);
   const button=(label:string,run:()=>void)=><Pressable accessibilityRole="button" disabled={!controller||state.busy} onPress={run} style={{padding:12}}><Text style={{color:colors.accent}}>{label}</Text></Pressable>;
   return <View style={{gap:8}}>
     <Text style={{color:colors.text}}>Room settings</Text>

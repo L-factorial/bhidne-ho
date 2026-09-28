@@ -1,3 +1,4 @@
+import { playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { Ionicons } from '@expo/vector-icons';
@@ -142,7 +143,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
     });
     void channel.request('TABLE_CHAT_HISTORY', snapshot.match_id, {}, controller.signal).then(result => {
       if (!controller.signal.aborted) { addMessages(result.messages || [], !historyLoaded.current); historyLoaded.current = true; }
-    }).catch(failure => { if (!controller.signal.aborted) setError(failure.message); });
+    }).catch(failure => { if (!controller.signal.aborted) setError(playerError(failure)); });
     return () => { controller.abort(); unsubscribe(); };
   }, [channel, canRead, connected, snapshot.match_id]);
   useEffect(() => {
@@ -179,7 +180,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
     pokePending.current = true; setSendingPoke(true);
     setError('');
     try { await channel.request('TABLE_POKE_SEND', snapshot.match_id, {recipient_player_id:id,reaction,...(reaction === 'punchline' ? {text} : {})}, lifetime.current.signal); if (!lifetime.current.signal.aborted) { setPokeSent(true); setTargetPlayer(null); setPokeMode(false); setPunchline(''); } }
-    catch (failure) { if (!lifetime.current.signal.aborted) setError((failure as Error).message); }
+    catch (failure) { if (!lifetime.current.signal.aborted) setError(playerError(failure)); }
     finally { pokePending.current = false; if (!lifetime.current.signal.aborted) setSendingPoke(false); }
   }
   async function send() {
@@ -189,7 +190,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
     try {
       const result = await channel.request('TABLE_CHAT_SEND', snapshot.match_id, {text:submitted}, lifetime.current.signal);
       if (!lifetime.current.signal.aborted) { if (result.message) addMessages([result.message]); setDraft(current => current === submitted ? '' : current); }
-    } catch (failure) { if (!lifetime.current.signal.aborted) setError((failure as Error).message); }
+    } catch (failure) { if (!lifetime.current.signal.aborted) setError(playerError(failure)); }
     finally { sendingRef.current = false; if (!lifetime.current.signal.aborted) setSending(false); }
   }
   const iconStyle = { minWidth:44, minHeight:44, alignItems:'center' as const, justifyContent:'center' as const };

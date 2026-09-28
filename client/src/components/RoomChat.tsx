@@ -1,3 +1,4 @@
+import { playerError } from '../multiplayer/playerError.ts';
 import { ui } from '../i18n/copy.ts';
 import { Ionicons } from '@expo/vector-icons';
 import { ChatMessage } from './ChatMessage';
@@ -64,7 +65,7 @@ export function useRoomChat({ roomId, session, connected, hideWhenBlocked = fals
           const paused = failure instanceof ApiError && failure.status === 403 && failure.message.startsWith('Chat is paused');
           setBlocked(paused);
           if (paused) { setOpen(false); setMessages([]); setUnread(0); previousIds.current = null; }
-          setLoadError(failure instanceof Error ? failure.message : ui("feedback.could_not_load_chat"));
+          setLoadError(playerError(failure, ui("feedback.could_not_load_chat")));
         }
       } finally {
         if (!controller.signal.aborted) timer = setTimeout(refresh, 1000);
@@ -82,7 +83,7 @@ export function useRoomChat({ roomId, session, connected, hideWhenBlocked = fals
       await request<Message>(path, session, { text: draft }, signal);
       if (!signal?.aborted) { setDraft(current => current === sentDraft ? '' : current); followLatest.current = true; }
     } catch (failure) {
-      if (!signal?.aborted) setError(failure instanceof Error ? failure.message : ui("feedback.could_not_send_message"));
+      if (!signal?.aborted) setError(playerError(failure, ui("feedback.could_not_send_message")));
     } finally { sending.current = false; setBusy(false); }
   }
   if (blocked && hideWhenBlocked) return { view: null, navigation: null };

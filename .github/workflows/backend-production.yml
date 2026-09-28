@@ -123,13 +123,17 @@ jobs:
             python -c 'import json, os; print(json.dumps({"username": os.environ["REGISTRY_USER"], "token": os.environ["REGISTRY_TOKEN"]}))' | \
               ssh "${ssh_options[@]}" "root@$1" "$2 $DIGEST"
           }
+          release_request "$APP1_HOST" migrate
           for host in "$APP1_HOST" "$APP2_HOST"; do
             echo "Checking application host $host"
             release_request "$host" check
           done
           for host in "$APP1_HOST" "$APP2_HOST"; do
             echo "Deploying application host $host"
-            release_request "$host" deploy
+            release_request "$host" backend
+          done
+          for host in "$APP1_HOST" "$APP2_HOST"; do
+            release_request "$host" frontend
           done
           # The managed LB requires five successful probes ten seconds apart.
           curl --fail --silent --show-error --max-time 15 --retry 12 --retry-delay 5 --retry-max-time 90 \

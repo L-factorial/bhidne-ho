@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DurableCommandClient } from '../src/multiplayer/DurableCommandClient.ts';
-import { DistributedGameCommandClient } from '../src/multiplayer/DistributedGameCommandClient.ts';
+import { DistributedGameCommandClient, GameConfirmationPending } from '../src/multiplayer/DistributedGameCommandClient.ts';
 const view={room_id:'room',table_id:'table',match_id:'match',table_revision:9,durable_game_id:'game',game:{revision:3}};
 const signal=()=>new AbortController().signal;
 function receipt(request,status='accepted') {
@@ -25,11 +25,11 @@ test('original game controls retain the old round/ID/revision across ambiguous r
  assert.equal(submits,2);assert.equal(client.pending,false);
 });
 test('pending admission is not UI success; background acceptance is consumed once',async()=>{
- let request,submits=0;
- const command=new DurableCommandClient({submit:async r=>{request=r;submits++;return receipt(r,'pending');},status:async()=>receipt(request)});
+ let request,submits=0,accepted=false;
+ const command=new DurableCommandClient({submit:async r=>{request=r;submits++;return receipt(r,'pending');},status:async()=>receipt(request,accepted?'accepted':'pending')});
  const client=new DistributedGameCommandClient(command,async()=>view,s=>s);
- client.submit(view,'PLAY_CARD');await assert.rejects(client.refresh(signal()),/confirm/);
- assert.equal(client.pending,true);await command.reconcile();
+ client.submit(view,'PLAY_CARD');await assert.rejects(client.refresh(signal()),GameConfirmationPending);
+ assert.equal(client.pending,true);accepted=true;await command.reconcile();
  assert.equal(client.pending,true);await client.refresh(signal());
  assert.equal(client.pending,false);assert.equal(submits,1);
 });
@@ -45,4 +45,45 @@ test('rejection preserves the original message and permits the next intention af
  const client=new DistributedGameCommandClient(command,async()=>view,s=>s);
  client.submit(view,'PLAY_CARD');assert.equal((await client.refresh(signal())).error,'Not your turn.');
  assert.equal(client.submit(view,'PLAY_CARD'),true);
+});
+
+test('delivered outcome confirms promptly without status polling or resubmission',async()=>{
+ let request,submits=0,statuses=0;
+ const command=new DurableCommandClient({submit:async r=>{request=r;submits++;setTimeout(()=>command.acceptCommitted('lane',receipt(r).outcome),50);return receipt(r,'pending');},status:async()=>{statuses++;return receipt(request);}});
+ const client=new DistributedGameCommandClient(command,async()=>view,s=>s);
+ client.submit(view,'BET');const start=Date.now();
+ assert.equal((await client.refresh(signal())).error,'');
+ assert.ok(Date.now()-start<900);assert.equal(submits,1);assert.equal(statuses,0);assert.equal(client.pending,false);
+});
+test('screen waits for background reconciliation and cancellation retains original intent',async()=>{
+ let finish,request;
+ const command=new DurableCommandClient({submit:r=>{request=r;return new Promise(resolve=>finish=resolve);},status:async()=>receipt(request)});
+ const client=new DistributedGameCommandClient(command,async()=>view,s=>s);
+ client.submit(view,'BET');const background=command.reconcile();await new Promise(r=>setImmediate(r));
+ const controller=new AbortController();const refresh=client.refresh(controller.signal);controller.abort();
+ await assert.rejects(refresh,/aborted/);assert.equal(client.pending,true);
+ finish(receipt(request));await background;await client.refresh(signal());assert.equal(client.pending,false);
+});
+test('screen consumes background acceptance without competing reconciliation',async()=>{
+ let finish,request,submits=0;
+ const command=new DurableCommandClient({submit:r=>{request=r;submits++;return new Promise(resolve=>finish=resolve);},status:async()=>assert.fail()});
+ const client=new DistributedGameCommandClient(command,async()=>view,s=>s);
+ client.submit(view,'BET');const background=command.reconcile();await new Promise(r=>setImmediate(r));
+ const refreshing=client.refresh(signal());finish(receipt(request));await background;
+ assert.equal((await refreshing).error,'');assert.equal(submits,1);assert.equal(client.pending,false);
+});
+test('delivered outcome arriving before admission is retained without trusting an unknown inbox sequence',async()=>{
+ let release,request;
+ const command=new DurableCommandClient({submit:r=>{request=r;return new Promise(resolve=>release=resolve);},status:async()=>assert.fail()});
+ command.begin({kind:'game'},{command:'BET',payload:{}});
+ const pending=command.reconcile();await new Promise(r=>setImmediate(r));
+ command.acceptCommitted('lane',receipt(request).outcome);
+ assert.equal(command.latest,null);release(receipt(request,'pending'));
+ assert.equal((await pending).status,'accepted');assert.equal(command.pending,false);
+});
+test('a delivered committed snapshot satisfies confirmation without a duplicate read',async()=>{
+ const command=new DurableCommandClient({submit:async r=>receipt(r),status:async()=>assert.fail()});
+ const client=new DistributedGameCommandClient(command,async()=>assert.fail('duplicate snapshot read'),s=>s);
+ client.submit(view,'BET');client.observe({...view,game:{revision:4}});
+ assert.equal((await client.refresh(signal())).snapshot.game.revision,4);
 });

@@ -25,7 +25,10 @@ class DistributedReads:
         target = LaneTarget.model_validate(target)
         async with self.pool.connection() as connection:
             async with connection.transaction():
-                if target.kind in ('conversation', 'recipient'):
+                if target.kind == 'lobby':
+                    if not await (await connection.execute('SELECT 1 FROM users WHERE id=%s', (user_uuid(actor),))).fetchone():
+                        raise QueryAccessDenied('Authentication required.')
+                elif target.kind in ('conversation', 'recipient'):
                     await authorize_social(connection, target, actor)
                 else:
                     await require_member(connection, target.room_id, actor)

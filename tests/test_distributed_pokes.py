@@ -47,16 +47,18 @@ async def test_poke_receipt_failure_rolls_back_event(database,monkeypatch):
     finally:await host.close()
 
 
-async def test_table_reactions_are_durable_public_visuals_and_do_not_edit_game(database):
+@pytest.mark.parametrize("kind", ["flush", "marriage", "callbreak"])
+async def test_table_reactions_are_durable_public_visuals_and_do_not_edit_game(database, kind):
     pool,store,fence,users=database
-    host,game=await host_game(users,'marriage')
+    host,game=await host_game(users,kind)
     try:
         await store.save(capture_checkpoint(game,table_revision=0),expected_revision=None,fence=fence)
         before=await store.load(game.table.table_id)
         inbox=PostgresInboxStore(pool)
         lane=await inbox.ensure_lane(LaneTarget(kind='table',room_id='room',table_id=UUID(game.table.table_id)))
         body=dict(command_id=uuid4().hex,command='send-reaction',payload={'reaction':'clap','recipient_player_id':2},match_id=game.match_id,expected_revision=0)
-        await inbox.enqueue(lane,users[0],body)
+        from app.durable_games.ingress import HostedCommandIngress
+        await HostedCommandIngress(inbox).submit(users[0],dict(kind='table',room_id='room',table_id=UUID(game.table.table_id)),body)
         assert (await TableLaneExecutor(inbox).execute_one(lane,fence)).outcome['status']=='accepted'
         events=await sql(pool,"SELECT audience_user_id,payload FROM notification_outbox WHERE event_type='TABLE_REACTION'")
         assert len(events) == 1 and events[0][0] is None

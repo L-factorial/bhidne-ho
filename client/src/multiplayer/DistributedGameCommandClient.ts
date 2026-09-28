@@ -1,7 +1,16 @@
 import type { GameSnapshot } from './GameCommandClient.ts';
-import type { DurableCommandClient, Json } from './DurableCommandClient.ts';
+import type { DurableCommandClient, DurableReceipt, Json } from './DurableCommandClient.ts';
 import { gameControl } from './DistributedControls.ts';
 import type { SelectedTable } from './DistributedControls.ts';
+
+export class GameConfirmationPending extends Error {}
+function pause(signal: AbortSignal) {
+  return new Promise<void>((resolve,reject)=>{
+    const abort=()=>{clearTimeout(timer);signal.removeEventListener('abort',abort);reject(Error('Game refresh aborted.'));};
+    const timer=setTimeout(()=>{signal.removeEventListener('abort',abort);resolve();},100);
+    signal.addEventListener('abort',abort,{once:true});if(signal.aborted)abort();
+  });
+}
 
 // Same submit/refresh interface consumed by the original game controls. The root
 // owns the supplied journal slot; disposing a screen cannot discard an action.
@@ -11,6 +20,8 @@ export class DistributedGameCommandClient<T extends GameSnapshot> {
   private selected: (snapshot: T) => SelectedTable;
   private unobserved: string | null;
   private generation = 0;
+  private observed: T | null = null;
+  observe(snapshot:T) { this.observed=snapshot; }
   constructor(commands: DurableCommandClient, read: (signal: AbortSignal) => Promise<T>,
     selected: (snapshot: T) => SelectedTable) {
     this.commands = commands; this.read = read; this.selected = selected;
@@ -31,12 +42,28 @@ export class DistributedGameCommandClient<T extends GameSnapshot> {
     const generation = this.generation, commandId = this.unobserved;
     // Resolve the captured original command even if the current screen has moved
     // to another table/round. Never resend it against the newly selected game.
-    const receipt = commandId || this.commands.pending ? await this.commands.reconcile(signal) : null;
+    let receipt: DurableReceipt | null = null;
+    if (commandId || this.commands.pending) {
+      const deadline = Date.now() + 2000;
+      let nextCheck=0;
+      do {
+        // Background recovery owns the same slot. Wait for it rather than
+        // starting competing reconciliation or surfacing its normal activity.
+        receipt = this.commands.latest;
+        if (!this.commands.reconciling && (!receipt || (receipt.status==='pending' && Date.now()>=nextCheck))) {
+          receipt = await this.commands.reconcile(signal);nextCheck=Date.now()+1000;
+        }
+        if (receipt && receipt.status !== 'pending') break;
+        await pause(signal);
+      } while (Date.now() < deadline);
+    }
     if (signal.aborted) throw Error('Game refresh aborted.');
     if ((commandId || this.commands.pending) && (!receipt || receipt.status === 'pending')) {
-      throw Error('Waiting for the server to confirm your action.');
+      throw new GameConfirmationPending('Waiting for the server to confirm your action.');
     }
-    const snapshot = await this.read(signal);
+    const revision=receipt && 'outcome' in receipt ? receipt.outcome?.revision : null;
+    const snapshot = receipt?.status==='accepted' && revision!=null && this.observed?.match_id===this.commands.request?.body.match_id
+      && (this.observed?.game?.revision ?? -1)>=revision ? this.observed! : await this.read(signal);
     if (signal.aborted) throw Error('Game refresh aborted.');
     if (generation !== this.generation) throw Error('Game changed during refresh.');
     // Keep the result unobserved until a fresh projection succeeds. A failed read

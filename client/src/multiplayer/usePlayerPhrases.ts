@@ -1,3 +1,4 @@
+import { playerError } from './playerError.ts';
 import { useEffect, useRef, useState } from 'react';
 import { request } from './api';
 import type { PlayerPhrase } from './pokes';
@@ -21,7 +22,7 @@ export function usePlayerPhrases(identity: Session | null, connected: boolean) {
         const list = await request<PlayerPhrase[]>(base, { user_id: userId, token }, undefined, controller.signal);
         if (!controller.signal.aborted && version === generation.current) { setPhrases(list); setError(''); }
       } catch (error) {
-        if (!controller.signal.aborted) setError(error instanceof Error ? error.message : 'Could not load punchlines.');
+        if (!controller.signal.aborted) setError(playerError(error, 'Could not load punchlines.'));
       } finally { if (!controller.signal.aborted) timer = setTimeout(refresh, 2000); }
     }
     if (connected && token) void refresh();

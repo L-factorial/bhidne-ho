@@ -150,6 +150,8 @@ async def execute(claim, inbox, fence, *, max_events=512):
         WHERE id=%s AND NOT EXISTS (SELECT 1 FROM deleted_rooms WHERE id=%s)''', (room_id, room_id))).fetchone()
     if room is None:
         detail = 'Room is no longer available.'
+    from .lobby_events import audience, changed
+    before = await audience(connection, room_id) if detail is None else set()
     if detail is None:
         command = request.command
         if command in ('delete-room', 'room-visibility', 'invite-room') and room[1] != actor_id:
@@ -207,6 +209,7 @@ async def execute(claim, inbox, fence, *, max_events=512):
         if context is not None:
             outcome['context'] = context
     else:
+        await changed(connection, inbox, room_id, before=before, public_before=room[2]=='public')
         events.append(OutgoingEvent(dict(type='ROOM_STATE_CHANGED', room_id=room_id, command=request.command)))
     if actor_id is not None:
         events.append(OutgoingEvent(dict(type='ROOM_COMMAND_ACK', **outcome), actor))

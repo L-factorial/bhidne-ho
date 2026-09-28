@@ -20,6 +20,9 @@ async def test_original_ui_adapters_against_native_cluster(cluster):
         output, _ = await asyncio.wait_for(process.communicate(), 600)
         assert process.returncode == 0, output.decode()[-8000:]
         assert output.count(b'PASS') == 7, output.decode()
+        for line in output.decode().splitlines():
+            if line.startswith('TIMING'):
+                print(line)
     finally:
         if process.returncode is None:
             process.kill()

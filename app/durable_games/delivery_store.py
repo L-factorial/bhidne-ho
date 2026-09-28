@@ -122,6 +122,10 @@ class PostgresDeliveryStore:
         if row is None:
             raise QueryAccessDenied('Delivery lane is unavailable.')
         target = LaneTarget(**dict(zip(('kind','room_id','table_id','game_id','user_low','user_high','recipient_id'), row[:7])))
+        if target.kind == 'lobby':
+            if not await (await connection.execute('SELECT 1 FROM users WHERE id=%s', (user,))).fetchone():
+                raise QueryAccessDenied('Authentication required.')
+            return target, row[7], True, None, None
         if target.kind in ('conversation', 'recipient'):
             from .social import authorize_social
             try:
@@ -182,6 +186,8 @@ class PostgresDeliveryStore:
             return dict(type=kind, **outcome.model_dump(mode='json', exclude_none=True))
         if not member:
             return None
+        if target.kind == 'lobby':
+            return {'type':'LOBBY_CHANGED'} if kind == 'LOBBY_CHANGED' else None
         if target.kind in ('conversation', 'recipient'):
             return payload
         if audience is not None and kind not in ('TABLE_INVITATION_CREATED',):
@@ -237,7 +243,7 @@ class PostgresDeliveryStore:
             async with connection.transaction():
                 await connection.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
                 target, _, allowed, _, _ = await self._access(connection, lane_id, actor)
-                return target.room_id if allowed else None
+                return ('__public_lobby__' if target.kind == 'lobby' else target.room_id) if allowed else None
 
     async def cursor(self, actor, client_id, lane_id):
         client_identity(client_id)

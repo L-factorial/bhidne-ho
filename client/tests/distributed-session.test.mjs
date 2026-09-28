@@ -6,14 +6,14 @@ const wait = async predicate => { for (let i=0; i<100; i++) { if (predicate()) r
 const page = (a,n) => ({type:'DELIVERY_PAGE',lane_id:'a',after_sequence:a,scanned_sequence:n,has_more:false,
   events:[{event_id:`e${n}`,lane_id:'a',sequence:n,event_type:'UPDATE',event_version:1,payload:{}}]});
 function fixture(overrides={}, limits={}) {
-  const views=[], removed=[], errors=[], opened=[], acks=[]; let lanes=['a'];
+  const views=[], removed=[], errors=[], opened=[], acks=[], sources=[]; let lanes=['a'];
   const transport={commands:{submit:async()=>{throw Error('offline');},status:async()=>{throw Error('offline');}},
     discover:async()=>({items:lanes.map(lane_id=>({lane_id})),next_lane_id:null}),
     open:async(lane,id,onPage,onClose)=>{ const h={lane,id,onPage,onClose,closed:false}; opened.push(h);
       return {cursor:0,acknowledge:async n=>acks.push(n),close:()=>{h.closed=true;}}; },
     load:async lane=>({lane}),...overrides};
-  const session=new DistributedSession('device',transport,{install:(lane,v)=>views.push([lane,v]),remove:lane=>removed.push(lane),error:(lane,e)=>errors.push([lane,e])},{refreshMs:300000,...limits});
-  return {session,views,removed,errors,opened,acks,setLanes:v=>{lanes=v;}};
+  const session=new DistributedSession('device',transport,{install:(lane,v)=>views.push([lane,v]),remove:lane=>removed.push(lane),error:(lane,e,source)=>{errors.push([lane,e]);sources.push(source);}},{refreshMs:300000,...limits});
+  return {session,views,removed,errors,opened,acks,sources,setLanes:v=>{lanes=v;}};
 }
 test('device ID survives reconnect/reload storage; separate scopes remain independent',()=>{
  const map=new Map(),store={getItem:k=>map.get(k)??null,setItem:(k,v)=>map.set(k,v)};
@@ -88,4 +88,27 @@ test('failed stream discovery does not strand previously pending command receipt
  let sends=0;const f=fixture({discover:async()=>{throw Error('catalog unavailable');},commands:{submit:async r=>{sends++;return {lane_id:'lane',sequence:1,command_id:r.body.command_id,status:'pending',outcome:null,status_reference:{lane_id:'lane',command_id:r.body.command_id}};},status:async()=>{throw Error('offline');}}});
  t.after(()=>f.session.close());f.session.command('move').begin({kind:'room',room_id:'r'},{command:'leave-room',payload:{}});
  await f.session.connect();assert.equal(sends,1);assert.equal(f.session.command('move').pending,true);
+});
+
+test('intentional disconnect during command recovery does not report a connection failure',async()=>{
+ let started=false;
+ const f=fixture({commands:{submit:(_request,signal)=>new Promise((_resolve,reject)=>{
+   started=true;signal.addEventListener('abort',()=>reject(Error('fetch is aborted')),{once:true});
+ }),status:async()=>assert.fail()}});
+ f.session.command('game').begin({kind:'game'},{command:'BET',payload:{}});
+ try {
+   const connecting=f.session.connect();await wait(()=>started);f.session.disconnect();await connecting;
+   assert.deepEqual(f.errors,[]);assert.equal(f.session.command('game').pending,true);
+ } finally {f.session.close();}
+});
+
+test('failed command recovery is separate from delivery health',async()=>{
+ const f=fixture();
+ try {
+   f.session.command('poke').begin({kind:'table'},{command:'send-reaction',payload:{}});
+   await f.session.connect();await wait(()=>f.views.length===1);
+   assert.deepEqual(f.sources,['command']);assert.equal(f.opened[0].closed,false);
+   assert.equal(f.session.command('poke').pending,true);
+   f.opened[0].onClose();assert.deepEqual(f.sources,['command','delivery']);
+ } finally {f.session.close();}
 });

@@ -1,3 +1,4 @@
+import { playerError } from '../multiplayer/playerError.ts';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useEffect, useState } from 'react';
@@ -38,7 +39,7 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom }: { session
         actor, created_at: Date.now(), read: false }));
       if (!signal?.aborted) { setItems([...requests, ...value]); setTableInvitations(invitations); setRoomInvitations(rooms); setError(''); }
     } catch (failure) {
-      if (!signal?.aborted) setError(failure instanceof Error ? failure.message : ui("feedback.could_not_load_notifications"));
+      if (!signal?.aborted) setError(playerError(failure, ui("feedback.could_not_load_notifications")));
     }
   }
   useEffect(() => {
@@ -53,7 +54,7 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom }: { session
     try {
       await request('/notifications/read', session, {});
       setItems(current => current.map(item => ({ ...item, read: true })));
-    } catch (failure) { setError(failure instanceof Error ? failure.message : ui("feedback.could_not_update_notifications")); }
+    } catch (failure) { setError(playerError(failure, ui("feedback.could_not_update_notifications"))); }
   }
   async function answerRequest(player: Player, accept: boolean) {
     try {
@@ -61,21 +62,21 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom }: { session
       await request(accept ? `/friends/requests/${id}/accept` : `/friends/${id}`, session,
         accept ? {} : undefined, undefined, accept ? undefined : 'DELETE');
       setItems(current => current.filter(item => item.kind !== 'friend_request' || item.actor.user_id !== player.user_id));
-    } catch (failure) { setError(failure instanceof Error ? failure.message : ui("feedback.could_not_update_the_request")); }
+    } catch (failure) { setError(playerError(failure, ui("feedback.could_not_update_the_request"))); }
   }
   async function answerTable(invitation: TableInvitation, accept: boolean) {
     try {
       await request(`/test-games/invitations/${encodeURIComponent(invitation.id)}/${accept ? 'accept' : 'decline'}`, session, {});
       setTableInvitations(current => current.filter(item => item.id !== invitation.id));
       if (accept) { setOpen(false); onOpenTable?.(invitation); }
-    } catch (failure) { setError(failure instanceof Error ? failure.message : ui("feedback.could_not_update_the_table_invitation")); }
+    } catch (failure) { setError(playerError(failure, ui("feedback.could_not_update_the_table_invitation"))); }
   }
   async function answerRoom(invitation: RoomInvitation, accept: boolean) {
     try {
       await request(`/room-invitations/${encodeURIComponent(invitation.id)}/${accept ? 'accept' : 'decline'}`, session, {});
       setRoomInvitations(current => current.filter(item => item.id !== invitation.id));
       if (accept) { setOpen(false); onOpenRoom?.(invitation); }
-    } catch (failure) { setError(failure instanceof Error ? failure.message : ui("feedback.could_not_update_the_room_invitation")); }
+    } catch (failure) { setError(playerError(failure, ui("feedback.could_not_update_the_room_invitation"))); }
   }
   const unread = items.filter(item => !item.read).length + tableInvitations.length + roomInvitations.length;
   return <>

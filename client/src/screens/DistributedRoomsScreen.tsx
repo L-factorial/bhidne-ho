@@ -1,3 +1,4 @@
+import { playerError } from '../multiplayer/playerError.ts';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { apiUrl, request } from '../multiplayer/api';
@@ -57,7 +58,7 @@ export function DistributedRoomsScreen() {
   const pokeController = useRef<DistributedScreenController|null>(null);
   const controller = useRef<DistributedScreenController|null>(null), chat = useRef<DistributedScreenController|null>(null);
   const selectionRef = useRef(selected); selectionRef.current=selected;
-  const fail = (e: unknown) => setError(e instanceof Error?e.message:'Request failed.');
+  const fail = (e: unknown) => setError(playerError(e, 'Request failed.'));
 
   useEffect(()=>{
     if (!account) return;
@@ -132,7 +133,7 @@ export function DistributedRoomsScreen() {
   async function login(signup: boolean) {
     setAuthBusy(true);setError('');
     try {const session=await request<Session>(signup?'/auth/signup':'/auth/signin',null,{username,password});saveSession(apiUrl,{session,room:null,game:null});setPassword('');setAccount(session);}
-    catch(e){fail(e);}finally{setAuthBusy(false);}
+    catch(e){setError(playerError(e && typeof e === 'object' && 'status' in e && e.status === 401 ? Error('Invalid username or password') : e));}finally{setAuthBusy(false);}
   }
   async function logout() {
     setAuthBusy(true);

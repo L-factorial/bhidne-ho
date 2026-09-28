@@ -260,3 +260,30 @@ def test_frontend_stage_retains_assets_and_rejects_conflicts(monkeypatch, tmp_pa
         release.stage_frontend('image', other)
     assert (root / 'shared/_expo/app.hash.js').read_bytes() == b'javascript'
     assert (root / 'current/index.html').read_bytes() == b'<html>test</html>'
+
+
+def test_migration_phase_runs_explicit_cli_without_replacing_application(monkeypatch):
+    command, _ = boundaries(monkeypatch, [])
+    release.release(CONFIG, 'migrate', DIGEST)
+    calls=[c.args for c in command.call_args_list]
+    assert any(args[-3:]==('-m','app.durable_games.bootstrap','migrate') for args in calls)
+    assert not any('stop' in args for args in calls)
+
+
+def test_backend_phase_does_not_activate_frontend(monkeypatch,tmp_path):
+    boundaries(monkeypatch,[OLD,None])
+    monkeypatch.setattr(release,'FRONTEND',tmp_path)
+    monkeypatch.setattr(release,'stage_frontend',Mock(return_value=tmp_path/'new'))
+    switch=Mock();monkeypatch.setattr(release,'switch_frontend',switch)
+    release.release(CONFIG | {'frontend':True},'backend',DIGEST)
+    switch.assert_not_called()
+
+
+def test_frontend_phase_refuses_an_old_backend(monkeypatch,tmp_path):
+    boundaries(monkeypatch,[OLD])
+    monkeypatch.setattr(release,'FRONTEND',tmp_path)
+    monkeypatch.setattr(release,'stage_frontend',Mock(return_value=tmp_path/'new'))
+    switch=Mock();monkeypatch.setattr(release,'switch_frontend',switch)
+    with pytest.raises(RuntimeError,match='only after'):
+        release.release(CONFIG | {'frontend':True},'frontend',DIGEST)
+    switch.assert_not_called()

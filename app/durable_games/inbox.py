@@ -25,7 +25,7 @@ from .telemetry import command_attempt, observe
 
 
 class LaneTarget(Record):
-    kind: Literal['room', 'table', 'game', 'room_chat', 'table_chat', 'game_chat', 'conversation', 'recipient']
+    kind: Literal['room', 'table', 'game', 'room_chat', 'table_chat', 'game_chat', 'conversation', 'recipient', 'lobby']
     room_id: Identity | None = None
     table_id: UUID | None = None
     game_id: UUID | None = None
@@ -38,7 +38,7 @@ class LaneTarget(Record):
         required = {'room': {'room_id'}, 'room_chat': {'room_id'},
                     'table_chat': {'room_id', 'table_id'}, 'game_chat': {'room_id', 'table_id', 'game_id'},
                     'table': {'room_id', 'table_id'}, 'game': {'room_id', 'table_id', 'game_id'},
-                    'conversation': {'user_low', 'user_high'}, 'recipient': {'recipient_id'}}[self.kind]
+                    'conversation': {'user_low', 'user_high'}, 'recipient': {'recipient_id'}, 'lobby': set()}[self.kind]
         supplied = {k for k, v in self.model_dump().items() if k != 'kind' and v is not None}
         if required != supplied or (self.kind == 'conversation' and self.user_low >= self.user_high):
             raise ValueError('Lane target fields must match its kind; conversation users must be sorted.')

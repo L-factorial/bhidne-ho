@@ -1,3 +1,4 @@
+import { playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { legacyRoomActions } from '../multiplayer/legacyRoomActions';
@@ -146,7 +147,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
       const created = await shared.roomActions.create(session, { name: name.trim(), visibility, invitees: roomInvitees.map(player => player.user_id) });
       if (!mounted.current) return;
       setName(''); setVisibility("private"); setRoomInviteQuery(''); setRoomInviteResults([]); setRoomInvitees([]); enterRoom(created);
-    } catch (error) { if (mounted.current) setError(error instanceof Error ? error.message : ui("feedback.could_not_create_room")); }
+    } catch (error) { if (mounted.current) setError(playerError(error, ui("feedback.could_not_create_room"))); }
     finally { roomOperationPending.current = false; if (mounted.current) setBusy(false); }
   }
   useEffect(() => {
@@ -156,7 +157,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
       try {
         const players = await request<InvitePlayer[]>(`/players/search?q=${encodeURIComponent(roomInviteQuery.trim())}`, session, undefined, controller.signal);
         if (!controller.signal.aborted) { setRoomInviteResults(players); setRoomInviteError(''); }
-      } catch (failure) { if (!controller.signal.aborted) setRoomInviteError(failure instanceof Error ? failure.message : ui("feedback.could_not_search_recent_players")); }
+      } catch (failure) { if (!controller.signal.aborted) setRoomInviteError(playerError(failure, ui("feedback.could_not_search_recent_players"))); }
     }, 250);
     return () => { clearTimeout(timer); controller.abort(); };
   }, [form, roomInviteQuery, roomToolsOpen, session?.token]);
@@ -167,7 +168,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
       const players = await request<InvitePlayer[]>(`/players/directory?q=${encodeURIComponent(roomInviteQuery.trim())}`, session);
       setRoomInviteResults(players);
       if (!players.length) setRoomInviteError(ui("feedback.no_player_found_with_that_exact_name_username_or_user_id"));
-    } catch (failure) { setRoomInviteError(failure instanceof Error ? failure.message : ui("feedback.could_not_search_the_player_directory")); }
+    } catch (failure) { setRoomInviteError(playerError(failure, ui("feedback.could_not_search_the_player_directory"))); }
     finally { setRoomInviteSearching(false); }
   }
   const current = rooms.find(item => item.room_id === room?.room_id) || room;

@@ -27,7 +27,7 @@ test('pending blocks repeated clicks; background acceptance navigates once',asyn
 });
 test('durable rejection shows detail and does not navigate',async()=>{
  const f=setup({submit:async r=>receipt(r.body,'rejected'),status:async()=>assert.fail()});await f.screen.game(view(),'PLAY_CARD');
- assert.equal(f.screen.state.status,'rejected');assert.equal(f.screen.state.error,'Not your turn');assert.equal(f.navigation.length,0);assert.equal(f.screen.state.busy,false);f.screen.dispose();
+ assert.equal(f.screen.state.status,'rejected');assert.equal(f.screen.state.error,'Please wait for your turn.');assert.equal(f.navigation.length,0);assert.equal(f.screen.state.busy,false);f.screen.dispose();
 });
 test('lost response keeps the leave intention even when the screen changes game state',async()=>{
  let saved;const f=setup({submit:async r=>{if(!saved){saved=r;throw Error('offline');}assert.deepEqual(r,saved);return receipt(r.body);},status:async()=>assert.fail()});
@@ -64,5 +64,5 @@ test('legacy lobby aliases select table versus engine lanes explicitly',async()=
  const b=setup({submit:async r=>receipt(r.body),status:async()=>assert.fail()});await b.screen.lobby(view(),'/next-deal',{deal_number:2});assert.equal(b.c.request.body.command,'NEXT_DEAL');assert.equal(b.c.request.body.expected_revision,8);b.screen.dispose();
 });
 test('invalid room fields are rejected before journaling an unresolved request',async()=>{
- const f=setup({submit:async()=>assert.fail(),status:async()=>assert.fail()});assert.equal(await f.screen.createRoom('  ','private'),false);assert.equal(f.c.request,null);assert.match(f.screen.state.error,/Invalid/);f.screen.dispose();
+ const f=setup({submit:async()=>assert.fail(),status:async()=>assert.fail()});assert.equal(await f.screen.createRoom('  ','private'),false);assert.equal(f.c.request,null);assert.equal(f.screen.state.error,'Enter a room name.');f.screen.dispose();
 });

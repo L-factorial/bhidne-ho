@@ -41,9 +41,9 @@ asyncio.run(check())
 
 
 def parse_request(command):
-    match = re.fullmatch(r'(check|deploy) (sha256:[0-9a-f]{64})', command)
+    match = re.fullmatch(r'(check|deploy|migrate|backend|frontend) (sha256:[0-9a-f]{64})', command)
     if not match:
-        raise ValueError('Only check/deploy with a sha256 digest is allowed.')
+        raise ValueError('Only approved release phases with a sha256 digest are allowed.')
     return match.groups()
 
 
@@ -216,6 +216,9 @@ def release(config, operation, digest):
     validate_config(config)
     image = config['repository'] + '@' + digest
     command('docker', 'pull', image)
+    if operation == 'migrate':
+        command('docker', 'run', '--rm', *sandbox(), image, 'python', '-m', 'app.durable_games.bootstrap', 'migrate')
+        return
     # A schema mismatch or dependency outage must fail before stopping the old app.
     command('docker', 'run', '--rm', *sandbox(), image, 'python', '-c', CHECK)
     frontend = stage_frontend(image, digest) if config.get('frontend') else None
@@ -223,6 +226,18 @@ def release(config, operation, digest):
     if operation == 'check':
         print('Image and dependency/schema checks passed.')
         return
+    if operation == 'frontend':
+        running = inspect_container(CONTAINER)
+        if not running or running['Config']['Image'] != image or not health(config['private_ip']):
+            raise RuntimeError('Activate frontend only after this backend is healthy at the requested image.')
+        if frontend:
+            try:
+                switch_frontend(frontend); verify_frontend(frontend)
+            except BaseException:
+                switch_frontend(old_frontend); raise
+        return
+    if operation == 'backend':
+        frontend = None  # Both backends must be upgraded before either frontend.
     revision = environment_revision()
     old = inspect_container(CONTAINER)
     if old and (old['Config'].get('Labels') or {}).get('com.bhidne.managed') != 'production':

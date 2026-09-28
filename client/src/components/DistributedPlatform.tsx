@@ -1,3 +1,4 @@
+import { playerError } from '../multiplayer/playerError.ts';
 import {useEffect,useMemo,useState} from 'react';
 import {Pressable,Text,View} from 'react-native';
 import {FriendsPanel,type FriendsTransport,type Message} from './FriendsPanel';
@@ -60,7 +61,7 @@ export function DistributedPlatform({root,session}:{root:DistributedRootRuntime;
         const recipient=await root.reads.recipient(abort.signal);
         const [items,rooms,tables]=await Promise.all([root.reads.history('social',recipient.lane_id,abort.signal),root.reads.roomInvitations(null,abort.signal),root.reads.tableInvitations(null,abort.signal)]);
         if(!abort.signal.aborted){setNotifications(items.map(row=>({id:row.id,kind:String(row.kind),read:row.read===true})));setInvitations(rooms.items);setInviteCursor(rooms.next_id);setTableInvitations(tables.items);setTableCursor(tables.next_table_id);setError('');}
-      }catch(e){if(!abort.signal.aborted)setError(e instanceof Error?e.message:'Could not load notifications.');}
+      }catch(e){if(!abort.signal.aborted)setError(playerError(e, 'Could not load notifications.'));}
       finally{if(!abort.signal.aborted)timer=setTimeout(load,5000);}
     }
     void load();return()=>{abort.abort();clearTimeout(timer);};
@@ -79,12 +80,12 @@ export function DistributedPlatform({root,session}:{root:DistributedRootRuntime;
     {invitations.map(row=><View key={row.id}><Text style={{color:colors.text}}>{row.room_name}</Text>
       {button('Accept invitation',()=>void controller?.room(row.room_id,'answer-room-invitation',{invitation_id:row.id,accept:true}))}
       {button('Decline invitation',()=>void controller?.room(row.room_id,'answer-room-invitation',{invitation_id:row.id,accept:false}))}</View>)}
-    {inviteCursor&&button('More invitations',()=>{const abort=new AbortController();void root.reads.roomInvitations(inviteCursor,abort.signal).then(page=>{setInvitations(old=>[...old,...page.items.filter(item=>!old.some(r=>r.id===item.id))]);setInviteCursor(page.next_id);}).catch(e=>setError(String(e)));})}
+    {inviteCursor&&button('More invitations',()=>{const abort=new AbortController();void root.reads.roomInvitations(inviteCursor,abort.signal).then(page=>{setInvitations(old=>[...old,...page.items.filter(item=>!old.some(r=>r.id===item.id))]);setInviteCursor(page.next_id);}).catch(e=>setError(playerError(e)));})}
     <Text style={{color:colors.text}}>Table invitations</Text>
     {tableInvitations.map(row=><View key={row.id}><Text style={{color:colors.text}}>{row.room_name} · {row.table_name}</Text>
       {button('Accept table invitation',()=>void controller?.table({...row,durable_game_id:null},'answer-table-invitation',{invitation_id:row.id,accept:true}))}
       {button('Decline table invitation',()=>void controller?.table({...row,durable_game_id:null},'answer-table-invitation',{invitation_id:row.id,accept:false}))}</View>)}
-    {tableCursor&&button('More table invitations',()=>{const abort=new AbortController();void root.reads.tableInvitations(tableCursor,abort.signal).then(page=>{setTableInvitations(old=>[...old,...page.items.filter(item=>!old.some(r=>r.id===item.id))]);setTableCursor(page.next_table_id);}).catch(e=>setError(String(e)));})}
+    {tableCursor&&button('More table invitations',()=>{const abort=new AbortController();void root.reads.tableInvitations(tableCursor,abort.signal).then(page=>{setTableInvitations(old=>[...old,...page.items.filter(item=>!old.some(r=>r.id===item.id))]);setTableCursor(page.next_table_id);}).catch(e=>setError(playerError(e)));})}
     {!!(error||state.error)&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{state.error||error}</Text>}
   </View>;
 }

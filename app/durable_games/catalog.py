@@ -53,6 +53,9 @@ class PostgresRoomCreation:
                         invitation = uuid5(NAMESPACE_URL, canonical_json(['room-create-invite-v1', room_id, recipient])).hex
                         await connection.execute('''INSERT INTO room_invitations(id,room_id,inviter_id,recipient_id,status)
                             VALUES (%s,%s,%s,%s,'pending')''', (invitation, room_id, actor, recipient))
+                    from .lobby_events import changed
+                    from .inbox import PostgresInboxStore
+                    await changed(connection, PostgresInboxStore(self.pool), room_id)
                 # Creation outcome stays resolvable after privacy changes/deletion;
                 # a retry never reopens a room or restores departed memberships.
         event('room_creation_committed', room_id=room_id, command_id=body.command_id,

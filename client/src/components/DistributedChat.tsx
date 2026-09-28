@@ -1,3 +1,4 @@
+import { playerError } from '../multiplayer/playerError.ts';
 import {useEffect,useState} from 'react';
 import {Pressable,Text,TextInput,View} from 'react-native';
 import type {DistributedRootRuntime} from '../multiplayer/DistributedRoot';
@@ -22,7 +23,7 @@ export function DistributedChat({root,view}:{root:DistributedRootRuntime;view:Se
         const stream=await root.reads.open(JSON.parse(identity),abort.signal);
         const rows=await root.reads.history('chat',stream.lane_id,abort.signal);
         if(!abort.signal.aborted){setItems(rows.map(r=>({id:r.id,text:String(r.text),sender_id:String(r.sender_id)})));setError('');}
-      }catch(e){if(!abort.signal.aborted){setItems([]);setError(e instanceof Error?e.message:'Chat unavailable.');}}
+      }catch(e){if(!abort.signal.aborted){setItems([]);setError(playerError(e, 'Chat unavailable.'));}}
       finally{if(!abort.signal.aborted)timer=setTimeout(load,5000);}
     }
     void load();return()=>{abort.abort();clearTimeout(timer);};

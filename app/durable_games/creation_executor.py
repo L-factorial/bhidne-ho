@@ -190,6 +190,8 @@ class RoomCreationExecutor:
                 await self.inbox.ensure_lane_in_transaction(claim.connection, LaneTarget(
                     kind='table', room_id=claim.target.room_id, table_id=table_id))
                 outcome.update(table_id=table_id.hex, match_id=match_id.hex, revision=0)
+                from .lobby_events import changed
+                await changed(claim.connection, self.inbox, game.room_id, extra=[i['recipient_id'] for i in invitations])
                 events.append(OutgoingEvent({'type': 'TABLE_CREATED', 'table_id': table_id.hex,
                     'match_id': match_id.hex, 'game_type': payload.game_type, 'name': game.name, 'table_revision': 0}))
                 events.extend(OutgoingEvent(dict(type='TABLE_INVITATION_CREATED', invitation_id=i['id'],

@@ -1,3 +1,4 @@
+import { playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useState } from 'react';
@@ -15,17 +16,17 @@ export function RoomPrivacySettings({ room, session }: { room: Room; session: Se
   async function change(value: 'private' | 'public') {
     setBusy(true); setMessage('');
     try { await request('/rooms/' + room.room_id, session, {visibility: value}, undefined, 'PATCH'); setVisibility(value); }
-    catch (e) { setMessage((e as Error).message); } finally { setBusy(false); }
+    catch (e) { setMessage(playerError(e)); } finally { setBusy(false); }
   }
   async function search() {
     setBusy(true); setMessage('');
     try { const result = await request<typeof players>('/players/directory?q=' + encodeURIComponent(query.trim()), session); setPlayers(result.filter(p => p.user_id !== session.user_id && !room.members.includes(p.user_id))); if (!result.length) setMessage(ui("feedback.no_players_found_use_an_exact_username_or_user_id")); }
-    catch (e) { setMessage((e as Error).message); } finally { setBusy(false); }
+    catch (e) { setMessage(playerError(e)); } finally { setBusy(false); }
   }
   async function invite(id: string) {
     setBusy(true); setMessage('');
     try { await request('/rooms/' + room.room_id + '/invitations', session, {invitees: [id]}); setPlayers(list => list.filter(p => p.user_id !== id)); setMessage(ui("rooms.invitation_sent_they_become_a_member_when_they_join")); }
-    catch (e) { setMessage((e as Error).message); } finally { setBusy(false); }
+    catch (e) { setMessage(playerError(e)); } finally { setBusy(false); }
   }
   return <View style={{gap: 12}}>
     <Text style={{color:c.text, fontFamily:fonts.medium}}>{ui("rooms.room_privacy")}</Text>

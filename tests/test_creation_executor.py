@@ -55,7 +55,7 @@ async def test_creates_recoverable_lobby_and_lane_with_stable_receipt(creation, 
     assert prior.duplicate and prior.outcome == outcome
     assert (await inbox.lookup(lane, users[0], body['command_id'])).outcome == outcome
     assert await executor.execute_one(lane, fence) is None
-    rows = (await pool.execute('SELECT event_type,audience_user_id FROM notification_outbox ORDER BY sequence')).rows
+    rows = (await pool.execute('SELECT event_type,audience_user_id FROM notification_outbox WHERE lane_id=%s ORDER BY sequence', (lane,))).rows
     assert rows == [('TABLE_CREATED', None), ('TABLE_CREATION_ACK', UUID(users[0][5:]))]
 
 
@@ -150,7 +150,8 @@ async def test_unknown_commit_returns_original_ids_without_second_allocation(cre
     assert result.outcome['table_id'] == creation_ids(lane, users[0], body['command_id'])[0].hex
     assert await executor.execute_one(lane, fence) is None
     assert (await pool.execute('SELECT open_table_count FROM rooms')).rows == [(1,)]
-    assert (await pool.execute('SELECT count(*) FROM notification_outbox')).rows == [(2,)]
+    assert (await pool.execute('SELECT count(*) FROM notification_outbox WHERE lane_id=%s', (lane,))).rows == [(2,)]
+    assert (await pool.execute("SELECT count(*) FROM notification_outbox WHERE event_type='LOBBY_CHANGED'")).rows == [(len(users),)]
 
 
 async def test_unsupported_options_and_old_owner_do_not_consume_head(creation):

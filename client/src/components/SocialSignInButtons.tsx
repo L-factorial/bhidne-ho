@@ -1,3 +1,4 @@
+import { playerError } from '../multiplayer/playerError.ts';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useEffect, useRef, useState } from 'react';
@@ -32,7 +33,7 @@ export function SocialSignInButtons({ onSession, disabled = false, onBusyChange 
       const session = await startSocialLogin(provider);
       if (session && mounted.current) onSession(session);
     } catch (failure) {
-      if (mounted.current) setError(failure instanceof Error ? failure.message : ui("feedback.could_not_sign_in_please_try_again"));
+      if (mounted.current) setError(playerError(failure, ui("feedback.could_not_sign_in_please_try_again")));
     } finally {
       pending.current = false; onBusyChange?.(false);
       if (mounted.current) setBusy(null);

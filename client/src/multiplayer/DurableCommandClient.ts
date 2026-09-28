@@ -95,6 +95,19 @@ export function validateCommandCheckpoint(value: unknown): CommandCheckpoint {
 export class DurableCommandClient {
   private envelope: CommandEnvelope | null = null;
   private result: DurableReceipt | null = null;
+  private delivered: {lane:string;outcome:CommandOutcome} | null = null;
+  acceptCommitted(lane:string, outcome:CommandOutcome) {
+    if(this.closed || !this.envelope || outcome.command_id!==this.envelope.body.command_id) return;
+    if(this.envelope.target.kind==='catalog')return;
+    this.checkStorage();
+    const previous=this.result as CommandReceipt|null;
+    const value={lane_id:lane,sequence:previous?.sequence??1,command_id:outcome.command_id,
+      status:outcome.status,outcome,status_reference:{lane_id:lane,command_id:outcome.command_id}};
+    const checked=receipt(value,outcome.command_id,previous);
+    if(previous && previous.status!=='pending')return;
+    this.delivered={lane,outcome:checked.outcome!};
+    if(previous){this.persist(this.envelope,checked);this.result=checked;this.notify();}
+  }
   private active = false;
   private closed = false;
   private controller: AbortController | null = null;
@@ -147,7 +160,7 @@ export class DurableCommandClient {
     const envelope = copy({ target, body: { ...body, command_id } });
     this.persist(envelope, null);
     this.envelope = envelope;
-    this.result = null;
+    this.result = null; this.delivered = null;
     this.notify();
     return true;
   }
@@ -180,7 +193,11 @@ export class DurableCommandClient {
       });
       const value = await Promise.race([work, canceled]);
       if (controller.signal.aborted || this.closed) throw new Error('Command reconciliation aborted.');
-      const result = resultFor(this.envelope!, value, this.result);
+      let result = resultFor(this.envelope!, value, this.result);
+      if(this.result && this.result.status!=='pending')result=this.result;
+      else if(this.delivered && 'lane_id' in result && result.lane_id===this.delivered.lane) {
+        result=resultFor(this.envelope!,{...result,status:this.delivered.outcome.status,outcome:this.delivered.outcome},result);
+      }
       this.persist(this.envelope!, result);
       this.result = result;
       this.notify();
@@ -200,7 +217,7 @@ export class DurableCommandClient {
     this.closed = true;
     this.controller?.abort();
     this.envelope = null;
-    this.result = null;
+    this.result = null; this.delivered = null;
     this.notify(); this.listeners.clear();
   }
 }

@@ -1,3 +1,4 @@
+import { playerError } from '../multiplayer/playerError.ts';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { RoomSheet } from './RoomSheet';
@@ -31,7 +32,7 @@ export function PokeComposer({ recipient, recipientName, phrases, connected, onC
     try {
       if (save) { await onSave(text.trim()); if (alive.current) setNotice(ui("social.saved_to_your_phrases")); }
       else { await onSend(text.trim()); if (alive.current) onClose(); }
-    } catch (error) { if (alive.current) setError(error instanceof Error ? error.message : ui("feedback.could_not_send_your_poke")); }
+    } catch (error) { if (alive.current) setError(playerError(error, ui("feedback.could_not_send_your_poke"))); }
     finally { pending.current = false; if (alive.current) setBusy(false); }
   }
   return <RoomSheet visible title={recipient === null ? ui("social.poke_the_table") : ui("social.poke_player_2", { "player": target })} onClose={onClose} closeLabel={ui("common.close_poke_composer")}

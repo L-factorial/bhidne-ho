@@ -4399,3 +4399,178 @@ rollout. The next concrete step is the staging collection/alert setup described 
   owner takeover, database outage, deduplication and Nginx delivery.
 - Exact next step: deploy through production CI, verify both host revisions/health,
   and inspect post-deployment wakeup diagnostics.
+
+### Original UI action feedback correction — local only (2026-09-28)
+
+- User reports improved backend latency but flashing pending/aborted-fetch errors
+  and poke HTTP 409 during Flush. Explicit instruction: do not push these changes.
+- Game adapter now reconciles the original journalled command at 100 ms intervals
+  for a two-second fast-confirmation window, waiting for concurrent background
+  recovery instead of competing with it. Unresolved confirmation is a distinct
+  pending state, not a refresh/connection error. Original IDs, revisions, rejection
+  details and retry-only-read behavior after acceptance remain intact.
+- Distributed game controls delay the progress notice 500 ms to avoid flashing on
+  fast moves; genuinely slow actions retain confirmation feedback and remain
+  disabled until a committed projection is observed. Layout and legacy behavior
+  are unchanged. Opponent-view periodic refresh remains one second.
+- Intentional session disconnect during background command recovery no longer
+  reports its aborted request as a connection failure. Regression reproduces this
+  path; the exact production aborted-fetch instance has not been traced, and real
+  network/timeout failures are still reported rather than globally suppressed.
+- Active-game ingress capability gate now permits send-reaction alongside
+  send-poke. Previously the reaction executor accepted it, but ingress rejected
+  before enqueueing. Regression now goes through ingress in Flush, Marriage and
+  Call Break, checking durable public audience, dedupe and unchanged game state.
+- Verification: 273 client tests passed; TypeScript passed; five PostgreSQL/WASM
+  poke/reaction checks passed; native two-gateway original-UI acceptance passed
+  (17.05 s), including actual Flush deal/cut using the game adapter and active
+  reactions through the social adapter in all three games. Diff whitespace clean.
+- No commit, push or deployment performed. No production player data modified.
+  No new browser-rendering or production latency claim: these are adapter/native
+  integration checks. Exact next step: review local diff; push/deploy only after
+  the user authorizes it, then verify real two-player Flush responsiveness and
+  trace any remaining aborted-fetch error with request timing/context.
+
+### Production trace and misleading reconnect state — local only (2026-09-28)
+
+- Read-only inspection of both app logs and PostgreSQL command metadata confirmed
+  recent creation/start/Flush actions commit promptly: create-table 123 ms,
+  join-seat 247 ms, lock 221 ms, start 261 ms, Flush deal/cut/bets 191–296 ms,
+  chat 50–78 ms. Earlier end was 582 ms and enter-room 1,700 ms. These are stored
+  inbox creation-to-completion durations, not browser click-to-render timings.
+  No leave-room command exists in the inspected inbox (40 total rows), so the
+  reported leave attempt cannot be claimed to have reached or committed there.
+- Logs contain repeated ingress TableStateRejected failures consistent with the
+  already identified active-reaction gate. read.snapshot is misleading telemetry
+  naming: it labels stream opening, including expected denied optional chat
+  subscriptions. These entries alone do not prove failed game snapshot reads.
+- Found separate UI state bug: every background command recovery failure invokes
+  the same callback as delivery failure, setting the whole screen to reconnecting.
+  A healthy unchanged game need not emit another snapshot to clear that status.
+  The pending poke also occupies the shared table-control intention slot; its
+  preserved unresolved intent can block a different table-control action.
+- Local fix propagates command versus delivery error source through session/root;
+  command failures remain visible and journalled but do not falsely mark delivery
+  disconnected. Authentication expiry still closes the account runtime. Regression
+  proves failed command recovery retains its intent and healthy subscription,
+  while actual subscription closure is still reported as delivery failure.
+- TypeScript and all 274 client tests passed; diff whitespace clean. No production
+  writes, commits, pushes or deployments. Existing local fixes remain undeployed,
+  as requested. Next: review changes and obtain user authorization before any push;
+  then verify browser interaction timing and the exact leave/exit flow after rollout.
+
+### Event-driven original UI and lobby coverage — implemented locally (2026-09-28)
+
+- Explicit user authorization to implement the planned improvements, with NO push
+  or deployment. All earlier local feedback fixes are preserved. Main/legacy UI
+  keeps its existing behavior; original layouts and engine rules are unchanged.
+- Original game screens now observe the root's committed, player-specific
+  WebSocket-driven snapshots. Normal one-second snapshot polling is replaced by
+  a 30-second recovery refresh; unresolved actions retain bounded recovery checks.
+  Foreground/online transitions request recovery immediately. Ending a table drops
+  its obsolete game/chat selection while retaining room delivery.
+- Hosted lanes share a 20 ms batching window for snapshot reads. Invalidations
+  arriving during an in-flight read force a subsequent read, not reuse of an
+  earlier snapshot. Late HTTP recovery cannot overwrite higher committed revisions.
+  Identical selections do not recreate a socket. Initial/reconnect reads remain.
+- Durable delivered ACKs can complete matching command journals, preserving actor
+  scope, command IDs, lane/sequence validation and persistence-before-observation.
+  ACKs arriving before admission are buffered until the inbox sequence is known.
+  Late pending HTTP receipts cannot downgrade committed outcomes. Game confirmation
+  uses an already delivered snapshot when its match/revision meets the outcome;
+  status reads at one-second intervals are fallback during the bounded wait, not
+  the healthy-path update source. Existing rejection/ambiguity handling remains.
+- Lobby rooms/memberships now refresh on delivery activity, initial load, foreground
+  and online, with coalescing and a 30-second fallback. Root discovery/recovery is
+  also 30 seconds. Delivery heartbeats/server-side outbox catch-up remain unchanged.
+- Additive migration 26 introduces an authenticated public `lobby` delivery lane.
+  Its only payload is LOBBY_CHANGED, with no room/player IDs or private metadata.
+  Public room creation/deletion/visibility and table-count changes invalidate this
+  stream. Private changes notify affected users on their existing recipient lanes.
+  Creator/member/invitation audiences are captured before departure/deletion, so
+  removal of room access cannot erase the user's personal invalidation. Creation,
+  invitations/answers, membership, visibility, table creation/closure and invitation
+  reconciliation participate. Existing friendship recipient delivery refreshes
+  lobby classification. These invalidations share the mutation's DB transaction;
+  no synchronous WebSocket send or all-user database fanout occurs in a command.
+- Snapshot errors from closed table subscriptions are avoided by keeping only the
+  room scope for ended tables. Connection interruption is reported explicitly;
+  command errors remain separate from delivery health.
+- Explicit `bootstrap migrate` validates the distributed marker and supported
+  contiguous history, then applies pending migrations under the migration lock.
+  Startup/check remain read-only. CI phases now migrate, check both hosts, upgrade
+  both backends sequentially, then activate frontends. Release receiver phases are
+  constrained to configured repository digests and tested.
+- BEFORE PUSH: install the updated receiver on both hosts using the dedicated
+  `deploy/provision/release-receiver.yml` playbook. It only updates the receiver.
+  See `deploy/production/event-driven-rollout.md` for the exact command, rollout
+  sequence, and migration limitation: a pre-26 image cannot restart against schema
+  26, so recovery after migration requires a compatible forward-fix image. Nothing
+  in this task installed that receiver or migrated production.
+- Verification: 279 client tests and TypeScript passed; production web export
+  checked separately below. Backend regression group 74 passed; earlier room,
+  catalog, social and delivery group had 61 passed and one environment-related skip
+  with four obsolete event-count expectations subsequently corrected and passing
+  in the 74-test group. Lobby/upgrade + release group 42 passed; final release suite
+  39 passed; invitation/replacement suite 6 passed. Bootstrap tests also passed.
+- Native: all six multi-process checks passed (88.57 s), including outage/owner
+  takeover/dedupe/delivery. Original UI acceptance passed with real WebSockets,
+  public lobby creation/deletion for a nonmember, Flush delivery to both players,
+  reactions in all three games, and end/departure. Recorded local move-to-both-root
+  snapshot times: deal 1,427 ms, cut 538 ms; these are not production/browser SLA
+  claims and include fallback where necessary.
+- Browser: disposable local native cluster, desktop/mobile Chromium, original
+  Flush deal/cut/two bets passed with no page errors; idle observation had zero
+  game-snapshot HTTP reads over three seconds. This checks the happy path, not an
+  exhaustive full game/capacity test. Temporary browser services were shut down.
+- YAML parsed, dedicated receiver Ansible syntax checked, diff whitespace clean.
+  No production data writes, git commits, pushes or deployments performed.
+- Next: user reviews local changes, installs the receiver with their administrative
+  access and decides when to push. After their rollout, verify both revisions and
+  real two-player browser latency, lobby/privacy/departure/reconnect flows. Capacity,
+  full-round gameplay and native-device release validation remain separate scopes.
+- Final production-mode Expo web export passed at
+  `/private/tmp/bhidne-event-production-web`; temporary cluster shutdown completed.
+
+### Player-facing failure messages — implemented locally (2026-09-28)
+
+- User authorized consistent, understandable feedback across the UI; explicitly
+  no push/deployment. Added `playerError.ts` as a presentation-only boundary for
+  game/room controls, chat/pokes, friends, invitations, notifications, ledger,
+  profile/privacy, authentication and the alternative distributed screens.
+- Unknown server/transport text is replaced by contextual, developer-owned copy.
+  Known game-rule explanations and structured seat/turn conflicts remain useful;
+  unmapped details fall back safely instead of exposing internal diagnostics.
+  New shared feedback has English/Nepali copy. Reviewed existing rule sentences
+  retain their existing English wording; this is not full domain-error localization.
+- Uncertain command outcomes explicitly ask the player to wait for confirmation,
+  rather than implying rejection or encouraging a duplicate submission. HTTP
+  status, raw error details, receipts, journals and recovery contracts remain
+  available to the underlying logic. Read errors no longer claim an unresolved
+  write. Sign-in credential failures are distinct from expired sessions.
+- Lifetime-signal cancellation guards remain in place. An abort reaching the UI
+  may represent a genuine timeout and gets connection guidance rather than being
+  silently hidden. Delivery recovery clears its connection warning without clearing
+  unrelated action feedback. Reconnection copy no longer promises a saved seat
+  before refreshed state has established it. Layout and game rules unchanged.
+- Verification: 286 client tests passed, including infrastructure-message filtering,
+  status/auth/uncertainty distinctions, rule/context preservation, timeout feedback,
+  locale/idempotent formatting and read failure semantics. TypeScript passed;
+  production-mode web export passed at `/private/tmp/bhidne-feedback-web`;
+  `git diff --check` clean. No new live browser fault-injection or production tests
+  were performed for this presentation increment.
+- Next: review alongside the existing event-driven changes and follow
+  `deploy/production/event-driven-rollout.md` before the user's own push. After
+  rollout, verify actual two-player reconnect, leave, rejected move and chat
+  recovery feedback. Nothing committed, pushed, installed or deployed here.
+
+### Authorized publication (2026-09-28)
+
+- User now explicitly authorized commit and push, with automatic GitHub deployment,
+  and requested stopping after push instead of monitoring the deployment.
+- Installed the tested constrained release receiver on both app hosts with
+  `deploy/provision/release-receiver.yml`: both succeeded, one file changed each,
+  no service restart. The workflow's new rollout phases are now supported.
+- Previously recorded client/backend validation applies; final whitespace check
+  passed. User will check the deployment after publication. Migration 26's
+  forward-fix rollback limitation remains as documented in the rollout guide.

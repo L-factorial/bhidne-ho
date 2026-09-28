@@ -75,6 +75,30 @@ async def initialize(settings):
                 await connection.execute('INSERT INTO runtime_dataset VALUES (true,%s)', (MARKER,))
 
 
+async def migrate_pool(pool):
+    """Explicit additive upgrade of an already marked distributed dataset."""
+    async with pool.connection() as connection:
+        async with connection.transaction():
+            await connection.execute('SELECT pg_advisory_xact_lock(%s)', (MIGRATION_LOCK,))
+            marker = await (await connection.execute("SELECT to_regclass('public.runtime_dataset')")).fetchone()
+            if not marker or marker[0] is None:
+                raise ValueError('Only an existing distributed dataset can be migrated.')
+            mode = await (await connection.execute('SELECT mode FROM runtime_dataset WHERE singleton')).fetchone()
+            rows = await (await connection.execute('SELECT version FROM schema_migrations ORDER BY version')).fetchall()
+            applied = [row[0] for row in rows]
+            expected = [v for v, _ in MIGRATIONS]
+            if mode != (MARKER,) or len(applied)<25 or applied != expected[:len(applied)]:
+                raise ValueError('Dataset mode or migration history is unsupported.')
+            for version, sql in MIGRATIONS[len(applied):]:
+                await connection.execute(sql)
+                await connection.execute('INSERT INTO schema_migrations(version) VALUES (%s)', (version,))
+
+
+async def migrate(settings):
+    async with AsyncConnectionPool(settings.database, open=False) as pool:
+        await migrate_pool(pool)
+
+
 async def verify_dataset(pool):
     async with pool.connection() as connection:
         async with connection.transaction():
@@ -128,6 +152,7 @@ def create_app(settings=None):
 if __name__ == '__main__':
     import asyncio
     import sys
-    if sys.argv[1:] != ['initialize']:
-        raise SystemExit('Usage: python -m app.durable_games.bootstrap initialize')
-    asyncio.run(initialize(Settings.environment()))
+    operations={'initialize':initialize,'migrate':migrate}
+    if len(sys.argv)!=2 or sys.argv[1] not in operations:
+        raise SystemExit('Usage: python -m app.durable_games.bootstrap initialize|migrate')
+    asyncio.run(operations[sys.argv[1]](Settings.environment()))

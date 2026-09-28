@@ -1,0 +1,23 @@
+---
+- name: Update only the constrained release receiver before the next CI rollout
+  hosts: apps
+  become: true
+  gather_facts: false
+  any_errors_fatal: true
+  tasks:
+    - name: Require the existing production receiver configuration
+      ansible.builtin.stat:
+        path: /etc/bhidne-prod/release.json
+      register: release_configuration
+    - name: Refuse unprovisioned hosts
+      ansible.builtin.assert:
+        that:
+          - release_configuration.stat.exists
+          - groups['apps'] | length == 2
+    - name: Install root-owned constrained release receiver
+      ansible.builtin.copy:
+        src: ../production/release.py
+        dest: /usr/local/sbin/bhidne-prod-release
+        owner: root
+        group: root
+        mode: '0755'

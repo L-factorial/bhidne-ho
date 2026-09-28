@@ -1,3 +1,4 @@
+import { playerError } from './src/multiplayer/playerError.ts';
 import './src/auth/installStorage';
 import { ui, uiLabel } from './src/i18n/copy';
 import { readInvitation, type Invitation } from './src/multiplayer/invitations';
@@ -44,7 +45,7 @@ function AppContent() {
         setAuthVersion(value => value + 1); setInRooms(true); setAuthError('');
       } catch (failure) {
         if (active) {
-          setAuthError(failure instanceof Error ? failure.message : 'Could not complete sign-in. Please try again.');
+          setAuthError(playerError(failure, 'Could not complete sign-in. Please try again.'));
           if (Platform.OS === 'web') {
             const current = new URL(globalThis.location.href); current.searchParams.delete('social_attempt');
             current.searchParams.delete('social_code');

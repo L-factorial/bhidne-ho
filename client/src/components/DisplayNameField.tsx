@@ -1,3 +1,4 @@
+import { playerError } from '../multiplayer/playerError.ts';
 import { FormInput } from './FormInput';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
@@ -17,7 +18,7 @@ export function DisplayNameField({ session, onSaved }: { session: Session; onSav
     setLoaded(false); setMessage('');
     request<{ display_name: string }>('/me/profile', session, undefined, controller.signal)
       .then(profile => { if (!controller.signal.aborted) { setName(profile.display_name); setLoaded(true); } })
-      .catch(error => { if (!controller.signal.aborted) setMessage(error.message); });
+      .catch(error => { if (!controller.signal.aborted) setMessage(playerError(error)); });
     return () => controller.abort();
   }, [session.user_id, session.token]);
   async function save() {
@@ -28,7 +29,7 @@ export function DisplayNameField({ session, onSaved }: { session: Session; onSav
       const profile = await request<{ display_name: string }>('/me/profile', session, { display_name: name }, signal, 'PATCH');
       if (!signal.aborted) { setName(profile.display_name); setMessage('Display name saved.'); onSaved?.(profile.display_name); }
     } catch (error) {
-      if (!signal.aborted) setMessage(error instanceof Error ? error.message : 'Could not save your name.');
+      if (!signal.aborted) setMessage(playerError(error, 'Could not save your name.'));
     } finally { pending.current = false; if (!signal.aborted) setBusy(false); }
   }
   return <View style={{ backgroundColor: colors.surface, padding: 20, borderRadius: 16, gap: 12 }}>

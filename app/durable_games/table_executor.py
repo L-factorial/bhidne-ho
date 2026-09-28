@@ -152,6 +152,8 @@ class TableLaneExecutor:
                             break
             events = []
             invitations = data['invitations']
+            invitation_before = canonical_json(invitations)
+            invitation_recipients = [i['recipient_id'] for i in invitations]
             already_ended = game.ended
             if detail is None:
                 if closing:
@@ -238,6 +240,9 @@ class TableLaneExecutor:
                 outcome['detail'] = detail
                 if context is not None:
                     outcome['context'] = context
+            if detail is None and ((game.ended and not already_ended) or canonical_json(invitations)!=invitation_before):
+                from .lobby_events import changed
+                await changed(claim.connection, self.inbox, game.room_id, extra=invitation_recipients)
             if actor_id is not None:
                 events.append(OutgoingEvent({'type': 'TABLE_COMMAND_ACK', **outcome}, claim.entry.actor_id))
             await append_lane_events(claim, events, max_events=self.max_events)
@@ -248,7 +253,7 @@ class TableLaneExecutor:
     @classmethod
     def check_capability(cls, data, command):
         """Shared state-dependent capability gate for execution and activation."""
-        if command == 'send-poke':
+        if command in ('send-poke', 'send-reaction'):
             return False, False, False, False, False
         closing = command in ('end', 'abandon')
         rematching = command == 'next-match'

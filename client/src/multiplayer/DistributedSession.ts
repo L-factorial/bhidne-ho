@@ -42,7 +42,7 @@ export class DistributedSession<T> {
   private clientId: string;
   private install: (lane: string, value: T) => void;
   private remove: (lane: string) => void;
-  private report: (lane: string | null, error: unknown) => void;
+  private report: (lane: string | null, error: unknown, source?: 'command' | 'delivery') => void;
   private transient?: (events: DeliveryEvent[]) => void;
   private entries = new Map<string, Entry<T>>();
   private commands = new Map<string, DurableCommandClient>();
@@ -56,7 +56,7 @@ export class DistributedSession<T> {
 
   constructor(clientId: string, transport: SessionTransport<T>, callbacks: {
     install(lane: string, value: T): void; remove(lane: string): void;
-    error(lane: string | null, error: unknown): void;
+    error(lane: string | null, error: unknown, source?: 'command' | 'delivery'): void;
     transient?(events: DeliveryEvent[]): void;
   }, limits: Partial<DistributedSession<T>['limits']> = {}, journal?: CommandJournal) {
     this.limits = { streams: 128, pages: 8, pageBytes: 262144, workers: 4, timeoutMs: 10000, refreshMs: 5000, ...limits };
@@ -72,8 +72,8 @@ export class DistributedSession<T> {
     // Restore all slots, including intentions from screens not currently mounted.
     for (const slot of journal?.slots ?? []) this.command(slot);
   }
-  private error(lane: string | null, error: unknown) {
-    try { this.report(lane, error); } catch { /* Error reporting cannot strand cleanup. */ }
+  private error(lane: string | null, error: unknown, source: 'command' | 'delivery' = 'delivery') {
+    try { this.report(lane, error, source); } catch { /* Error reporting cannot strand cleanup. */ }
   }
   command(slot: string): DurableCommandClient {
     this.journal?.check();
@@ -105,7 +105,7 @@ export class DistributedSession<T> {
       // Sequential bounded command recovery; slots remain owned even offscreen.
       for (const c of this.commands.values()) {
         if (connection.signal.aborted) break;
-        if (c.pending && !c.reconciling) try { await c.reconcile(connection.signal); } catch (e) { this.error(null, e); }
+        if (c.pending && !c.reconciling) try { await c.reconcile(connection.signal); } catch (e) { if (!connection.signal.aborted) this.error(null, e, 'command'); }
       }
     } catch (e) { if (!connection.signal.aborted) this.error(null, e); }
     finally {
@@ -181,6 +181,12 @@ export class DistributedSession<T> {
         install: value => { if (this.current(e)) this.install(e.lane, value); },
         acknowledge: (n, signal) => subscription.acknowledge(n, signal),
         transient: events => { if(this.current(e)) this.transient?.(events); },
+        committed: events => {
+          if(!this.current(e))return;
+          for(const event of events)if(['ACTION_ACK','TABLE_COMMAND_ACK','ROOM_COMMAND_ACK','TABLE_CREATION_ACK','CHAT_COMMAND_ACK','SOCIAL_COMMAND_ACK'].includes(event.event_type)) {
+            for(const command of this.commands.values())command.acceptCommitted(e.lane,event.payload as import('./DurableCommandClient.ts').CommandOutcome);
+          }
+        },
       }, this.limits.timeoutMs);
       await e.delivery.recover(subscription.cursor);
     } else if (e.queue.length) await e.delivery.receive(e.queue.shift());

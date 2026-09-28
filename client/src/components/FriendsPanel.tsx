@@ -1,3 +1,4 @@
+import { playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
@@ -54,7 +55,7 @@ export function FriendsPanel({ session, transport }: { session: Session; transpo
     const controller = new AbortController(); let timer: ReturnType<typeof setTimeout>;
     async function poll() {
       try { await refresh(controller.signal); if (!controller.signal.aborted) setError(''); }
-      catch (failure) { if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : ui("feedback.could_not_load_friends")); }
+      catch (failure) { if (!controller.signal.aborted) setError(playerError(failure, ui("feedback.could_not_load_friends"))); }
       finally { if (!controller.signal.aborted) timer = setTimeout(poll, 3000); }
     }
     void poll(); return () => { controller.abort(); clearTimeout(timer); };
@@ -66,7 +67,7 @@ export function FriendsPanel({ session, transport }: { session: Session; transpo
       try {
         const value = await (transport ? transport.history(selected!.user_id, controller.signal) : request<Message[]>(`/friends/${encodeURIComponent(selected!.user_id)}/messages`, session, undefined, controller.signal));
         if (!controller.signal.aborted) { setMessages(value); setError(''); }
-      } catch (failure) { if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : ui("feedback.could_not_load_messages")); }
+      } catch (failure) { if (!controller.signal.aborted) setError(playerError(failure, ui("feedback.could_not_load_messages"))); }
       finally { if (!controller.signal.aborted) timer = setTimeout(poll, 1500); }
     }
     void poll(); return () => { controller.abort(); clearTimeout(timer); };
@@ -76,7 +77,7 @@ export function FriendsPanel({ session, transport }: { session: Session; transpo
     if (query.trim().length < 2 || busy) return;
     setBusy(true); setError('');
     try { setResults(await request<Player[]>(`/players/search?q=${encodeURIComponent(query.trim())}`, session)); }
-    catch (failure) { setError(failure instanceof Error ? failure.message : ui("feedback.could_not_search_players")); }
+    catch (failure) { setError(playerError(failure, ui("feedback.could_not_search_players"))); }
     finally { setBusy(false); }
   }
   async function mutate(other: string, action: 'request-friend'|'accept-friend'|'remove-friend') {
@@ -85,7 +86,7 @@ export function FriendsPanel({ session, transport }: { session: Session; transpo
     if (busy) return;
     setBusy(true); setError('');
     try { if (transport) await transport.mutate(other, action); else await request(path, session, method ? undefined : {}, undefined, method); await refresh(); }
-    catch (failure) { setError(failure instanceof Error ? failure.message : ui("feedback.could_not_update_friendship")); }
+    catch (failure) { setError(playerError(failure, ui("feedback.could_not_update_friendship"))); }
     finally { setBusy(false); }
   }
   async function send() {
@@ -96,7 +97,7 @@ export function FriendsPanel({ session, transport }: { session: Session; transpo
       const message = transport ? (await transport.send(recipientId, submitted), null) : await request<Message>(`/friends/${encodeURIComponent(recipientId)}/messages`, session, { text: submitted });
       if (message && selectedId.current === recipientId) setMessages(current => current.some(item => item.id === message.id) ? current : [...current, message]);
       setDrafts(current => current[recipientId] === submitted ? { ...current, [recipientId]: '' } : current);
-    } catch (failure) { if (selectedId.current === recipientId) setSendError(failure instanceof Error ? failure.message : ui("feedback.could_not_send_message")); }
+    } catch (failure) { if (selectedId.current === recipientId) setSendError(playerError(failure, ui("feedback.could_not_send_message"))); }
     finally { sending.current = false; setBusy(false); }
   }
   const related = new Set([...snapshot.friends, ...snapshot.incoming, ...snapshot.outgoing].map(player => player.user_id));

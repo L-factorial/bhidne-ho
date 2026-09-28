@@ -1,3 +1,4 @@
+import { playerError } from '../multiplayer/playerError.ts';
 import { gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { FormInput } from './FormInput';
 import { useRef, useState } from 'react';
@@ -19,7 +20,7 @@ export function PlayerPhrases({ phrases, userId, connected, loadError, onSave, o
     if (pending.current || !connected || (!id && !text.trim())) return;
     pending.current = true; setBusy(true); setError('');
     try { if (id) { await onRemove(id); if (editing === id) { setEditing(null); setText(''); } } else { if (editing) await onUpdate(editing, text.trim()); else await onSave(text.trim()); setText(''); setEditing(null); } }
-    catch (error) { setError(error instanceof Error ? error.message : 'Could not update punchlines.'); }
+    catch (error) { setError(playerError(error, 'Could not update punchlines.')); }
     finally { pending.current = false; setBusy(false); }
   }
   return <View style={styles.panel}>
