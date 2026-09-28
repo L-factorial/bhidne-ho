@@ -31,6 +31,7 @@ jobs:
       - name: Install test dependencies
         run: |
           set -euo pipefail
+          npm ci --prefix client
           pip install '.[dev,redis]'
           sudo install -d /usr/share/postgresql-common/pgdg
           sudo curl --fail --silent --show-error https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
@@ -51,7 +52,8 @@ jobs:
           test -x "$POSTGRES_TEST_BIN/initdb"
           test -x "$REDIS_TEST_SERVER"
           test -x "$NGINX_TEST_BIN"
-          python -m pytest --ignore=tests/test_distributed_processes.py -q
+          python -m pytest tests/test_distributed_original_ui.py -q
+          python -m pytest --ignore=tests/test_distributed_processes.py --ignore=tests/test_distributed_original_ui.py -q
           python -m pytest tests/test_distributed_processes.py --junitxml=process-results.xml -q
           python - <<'PY'
           import xml.etree.ElementTree as ET

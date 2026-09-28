@@ -7,7 +7,7 @@ const env = {
   ...process.env,
   EXPO_PUBLIC_API_URL: 'https://api.prod.bhidne-ho.lfactorial.com',
   EXPO_PUBLIC_WEB_URL: 'https://prod.bhidne-ho.lfactorial.com',
-  EXPO_PUBLIC_RUNTIME_MODE: 'distributed-original',
+  EXPO_PUBLIC_RUNTIME_MODE: 'distributed-integration',
 };
 for (const args of [['run', 'typecheck'], ['run', 'build:web', '--', '--clear']]) {
   const result = spawnSync('npm', args, { cwd, env, stdio: 'inherit' });

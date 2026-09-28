@@ -4327,3 +4327,12 @@ rollout. The next concrete step is the staging collection/alert setup described 
   locally. Exact next step: verify compatibility release on both app hosts, then
   push activation, monitor CI/rolling deployment, and verify both hosts and public
   original welcome/sign-in screens. Do not report activation before verification.
+
+
+- Compatibility run `36385373177` stopped before publishing/deploying: 1,618
+  backend tests passed, but original-UI acceptance could not import `i18next`
+  because CI had not installed client dependencies outside the Docker build.
+  Added lockfile-based `npm ci --prefix client` and moved original-UI acceptance
+  ahead of the long backend suite. It had passed locally with dependencies present.
+  Production mode remains integration for this corrected compatibility release;
+  activation will be committed again only after both hosts receive it.
