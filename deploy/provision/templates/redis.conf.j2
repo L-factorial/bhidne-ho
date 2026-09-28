@@ -16,3 +16,6 @@ maxmemory 1gb
 maxmemory-policy noeviction
 timeout 0
 tcp-keepalive 60
+
+# Optional monitoring ACL survives service reprovisioning (Redis 7 glob include).
+include /etc/redis/bhidne-monitoring-*.conf

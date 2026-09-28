@@ -1,3 +1,4 @@
 *.local.yml
 .venv/
 collections/
+.monitoring-secret-*

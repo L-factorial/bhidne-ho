@@ -1,0 +1,113 @@
+// Managed by monitoring.yml. Credentials are separate protected files.
+logging {
+  level = "warn"
+}
+prometheus.remote_write "cloud" {
+  external_labels = {environment = "production", instance = "{{ inventory_hostname }}"}
+  endpoint {
+    url = "https://prometheus-prod-37-prod-ap-southeast-1.grafana.net/api/prom/push"
+    basic_auth {
+      username = "3619996"
+      password_file = "/etc/alloy/metrics-token"
+    }
+  }
+}
+loki.write "cloud" {
+  endpoint {
+    url = "https://logs-prod-020.grafana.net/loki/api/v1/push"
+    basic_auth {
+      username = "1805666"
+      password_file = "/etc/alloy/logs-token"
+    }
+  }
+}
+prometheus.exporter.unix "host" {
+  set_collectors = ["cpu", "diskstats", "filesystem", "loadavg", "meminfo", "netdev", "stat", "time", "uname", "vmstat"]
+  filesystem {
+    mount_points_exclude = "^/(dev|proc|sys|run|var/lib/docker)($|/)"
+    fs_types_exclude = "^(tmpfs|overlay|proc|sysfs|devtmpfs|squashfs)$"
+  }
+  netdev {
+    device_exclude = "^(veth.*|docker.*|br-.*)$"
+  }
+}
+prometheus.scrape "host" {
+  targets = prometheus.exporter.unix.host.targets
+  job_name = "bhidne-host"
+  scrape_interval = "60s"
+  forward_to = [prometheus.relabel.instance.receiver]
+}
+// Exporters otherwise supply an in-memory target address as instance.
+prometheus.relabel "instance" {
+  rule {
+    target_label = "instance"
+    replacement = "{{ inventory_hostname }}"
+  }
+  forward_to = [prometheus.remote_write.cloud.receiver]
+}
+prometheus.scrape "alloy" {
+  targets = [{"__address__" = "127.0.0.1:12345"}]
+  job_name = "bhidne-alloy"
+  scrape_interval = "60s"
+  forward_to = [prometheus.relabel.alloy.receiver]
+}
+prometheus.relabel "alloy" {
+  rule {
+    source_labels = ["__name__"]
+    regex = "up|process_resident_memory_bytes|process_cpu_seconds_total|prometheus_remote_storage_.*|loki_write_.*"
+    action = "keep"
+  }
+  forward_to = [prometheus.relabel.instance.receiver]
+}
+{% if inventory_hostname in groups['apps'] %}
+prometheus.scrape "runtime" {
+  targets = [{"__address__" = "127.0.0.1:9108"}]
+  job_name = "bhidne-runtime"
+  scrape_interval = "30s"
+  forward_to = [prometheus.relabel.instance.receiver]
+}
+{% elif inventory_hostname in groups['postgres'] %}
+prometheus.exporter.postgres "database" {
+  data_source_names = ["postgresql:///bhidne_distributed_prod?host=/var/run/postgresql&user=alloy&sslmode=disable"]
+  disable_settings_metrics = true
+}
+prometheus.scrape "postgres" {
+  targets = prometheus.exporter.postgres.database.targets
+  job_name = "bhidne-postgres"
+  scrape_interval = "60s"
+  forward_to = [prometheus.relabel.instance.receiver]
+}
+{% elif inventory_hostname in groups['redis'] %}
+local.file "redis_password" {
+  filename = "/etc/alloy/redis-password"
+  is_secret = true
+}
+prometheus.exporter.redis "cache" {
+  redis_addr = "redis://127.0.0.1:6379"
+  redis_user = "bhidne_monitor"
+  redis_password = local.file.redis_password.content
+  config_command = "-"
+  set_client_name = false
+  export_key_values = false
+  redis_metrics_only = true
+  connection_timeout = "3s"
+}
+prometheus.scrape "redis" {
+  targets = prometheus.exporter.redis.cache.targets
+  job_name = "bhidne-redis"
+  scrape_interval = "60s"
+  forward_to = [prometheus.relabel.instance.receiver]
+}
+{% endif %}
+local.file_match "logs" {
+  path_targets = [{
+    "__path__" = "/var/log/bhidne-monitoring/events.jsonl",
+    "job" = "bhidne-{{ monitoring_role }}",
+    "instance" = "{{ inventory_hostname }}",
+    "environment" = "production",
+  }]
+}
+loki.source.file "logs" {
+  targets = local.file_match.logs.targets
+  forward_to = [loki.write.cloud.receiver]
+}

@@ -138,9 +138,19 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
     }
   }
 
-  const refreshClient = useRef(commandClient);
+  // Foreground create/join/navigation requests belong to the screen session,
+  // not a background refresh. WebSocket invalidations may restart refreshes
+  // while a durable table command is still returning its committed snapshot.
   useEffect(() => {
     alive.current = true;
+    return () => {
+      alive.current = false; generation.current++;
+      requests.current.forEach(request => request.abort());
+    };
+  }, [commandClient, sessionActive]);
+
+  const refreshClient = useRef(commandClient);
+  useEffect(() => {
     if(!runtime || refreshClient.current!==commandClient)setSynced(false);
     refreshClient.current=commandClient;
     const controller = new AbortController();
@@ -188,8 +198,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
     }
     if (sessionActive) refresh();
     return () => {
-      alive.current = false; generation.current++; controller.abort(); clearTimeout(timer);
-      requests.current.forEach(request => request.abort());
+      controller.abort(); clearTimeout(timer);
     };
   }, [commandClient, sessionActive, actionTick]);
   useEffect(() => {

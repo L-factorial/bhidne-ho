@@ -4574,3 +4574,99 @@ rollout. The next concrete step is the staging collection/alert setup described 
 - Previously recorded client/backend validation applies; final whitespace check
   passed. User will check the deployment after publication. Migration 26's
   forward-fix rollback limitation remains as documented in the rollout guide.
+
+### Table creation navigation race — fixed locally (2026-09-28)
+
+- User reported successful table creation without entry into its game page.
+  Reproduced the deployed UI failure in a disposable distributed browser setup;
+  the create form remained open instead of showing the live-game overlay.
+- Root snapshot invalidations increment `actionTick`. The refresh effect's cleanup
+  previously also invalidated the foreground operation generation and aborted
+  every screen request. A committed creation could therefore lose its response
+  and navigation when delivery restarted the background refresh.
+- Separated screen/session lifetime cleanup from refresh-loop cleanup. Refresh
+  restarts cancel only their own read/timer. Unmount, session and command-client
+  changes still invalidate foreground callbacks and abort their requests.
+- Added `client/tests/browser/distributed-table-creation.cjs`, restricted to a local
+  disposable runtime. It delays create responses while WebSocket delivery remains
+  active, asserts immediate game-page entry, exactly one creation request, and no
+  browser errors. Flush/Marriage at 390px and Call Break at 1280px passed. The
+  deployed-code browser reproduction failed before this fix; the fixed build passed.
+- Verification: all 286 client tests and TypeScript passed; local web export passed;
+  whitespace check clean. No production gameplay data intentionally created;
+  initial browser setup exposed a cached production URL and failed CORS before
+  signup, then local bundle URLs were corrected and external requests blocked.
+- Next: review and publish this focused fix, then verify create-table navigation
+  in production. Nothing committed, pushed or deployed in this increment.
+
+### Grafana Cloud monitoring — prepared locally (2026-09-28)
+
+- User chose Cloud Free and authorized repository-managed monitoring for the four
+  production hosts. Added `deploy/provision/monitoring.yml`, role-specific Alloy
+  template, hidden credential prompt, wrapper, filtered log bridge and importable
+  starter dashboard under `deploy/monitoring/`.
+- Uses the provided metrics/Loki endpoints and nonsecret tenant IDs. No token from
+  chat was copied into files, commands or Git. Next credential entry is through
+  `python3 deploy/monitoring/configure-secrets.py`; protected local YAML is ignored.
+- Native Alloy package pin 1.20.0-1 verified available in the official signed APT
+  repository. All three rendered configs validated with the checksum-verified
+  official macOS Alloy 1.20.1 validator; deployment validates again with the exact
+  installed Linux version before activating configuration.
+- Scrapes existing private runtime metrics (30s), selected host/DB/cache and Alloy
+  metrics (60s). PostgreSQL uses local peer `alloy`/pg_monitor; Redis gets a separate
+  restricted account applied live, with optional include preserved in service
+  provisioning. No public monitoring listener, app deployment or DB restart.
+- Root-owned bounded timer sanitizes fixed-source logs into files readable by Alloy;
+  no Docker socket privileges granted to Alloy. Application payload/SQL/exception
+  text is excluded. DB/cache logs initially report severity only. Log boundary
+  losses and possible crash duplicates are explicit limitations in the README;
+  logs are diagnostic, never authoritative receipts. No historical log backfill.
+- Verification: provisioning tests 5 passed, 5 existing environment-dependent tests
+  skipped, 17 subtests passed; four new tests cover privacy, persisted offsets,
+  incomplete lines, truncation and oversized input. Ansible syntax, shell syntax,
+  dashboard JSON and diff whitespace passed. No live exporter/ACL, systemd,
+  ingestion or Grafana dashboard rendering validation yet.
+- Nothing installed/restarted on production, committed or pushed. Next: user enters
+  ingestion token locally, run monitoring playbook against verified inventory,
+  verify all 12 scrape targets plus pg_up/redis_up and Redis scrape errors, confirm
+  Cloud receipt of fresh app logs, measure collector resources/ingestion volume,
+  then import dashboard. Investigate any restricted-ACL exporter incompatibility
+  without granting application key access or CONFIG. Existing local table-entry
+  navigation fix is preserved and remains unpublished.
+
+### Grafana Cloud monitoring — installed and verified (2026-09-28)
+
+- User completed the hidden credential prompt and authorized proceeding. Verified
+  local credential file mode 0600; used existing encrypted service secrets with
+  the ignored local Vault password file. No secrets printed or committed.
+- Installed pinned Alloy 1.20.0-1 and filtered log collection on app1, app2,
+  PostgreSQL and Redis, with strict verified SSH host checking. No application,
+  PostgreSQL or Redis service restart, application release, commit or push.
+- Live validation caught the PostgreSQL exporter rejecting keyword-form DSNs.
+  A URL with both localhost and a socket query also selected TCP authentication.
+  Corrected the template to `postgresql:///bhidne_distributed_prod?host=/var/run/postgresql&user=alloy&sslmode=disable`.
+  Confirmed peer access independently and exporter `pg_up=1`, scrape error=0.
+  Only Alloy was restarted while resolving this; database authentication unchanged.
+- Added mandatory DB/cache exporter health assertions beyond Alloy readiness;
+  PostgreSQL check passed with zero changes. Redis installation passed including
+  restricted ACL and exporter assertions (`redis_up=1`, scrape error=0). Redis
+  CONFIG collection explicitly disabled with the exporter's `-` sentinel.
+- Final read-only verification: all four Alloy services/timers active and ready;
+  all four have positive remote-write sent-sample and Loki sent-entry counters,
+  zero failed/retried metrics, zero pending samples, and zero dropped/retried log
+  entries. One harmless synthetic monitoring log per host tested the log pipeline.
+  These counters establish successful uploads, not a separately authenticated
+  Grafana query/UI rendering check. No query/admin token was requested or used.
+- Observed Alloy resident memory approximately 226–240 MiB per host. Runtime series
+  counts 1327/1022 on the two apps; selected host series counts 223/223/239/215.
+  These are sample observations, not a capacity/free-tier guarantee. Public API
+  `/health` returned healthy distributed runtime during installation.
+- Added reusable secret-free `deploy/monitoring/verify.py` and documented local
+  Vault invocation. Ansible syntax and final whitespace checks passed; the earlier
+  log-privacy/cursor tests remain passing. Exact installed Linux Alloy validated
+  the deployed configurations. New mandatory exporter assertion exercised live.
+- Next: import `deploy/monitoring/dashboard.json` in Grafana and select existing
+  Cloud Prometheus/Loki data sources, check usage/cardinality under real activity,
+  then implement the separately planned bounded load test. Severity-only DB/cache
+  logs and best-effort rotation/startup coverage remain documented limitations.
+  Dashboard UI rendering/alert routing are not yet verified or configured.

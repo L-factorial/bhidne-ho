@@ -1,0 +1,237 @@
+---
+- name: Install private Grafana Cloud collectors
+  hosts: apps:postgres:redis
+  become: true
+  gather_facts: true
+  serial: 1
+  any_errors_fatal: true
+  vars:
+    monitoring_role: "{{ 'apps' if inventory_hostname in groups['apps'] else ('postgres' if inventory_hostname in groups['postgres'] else 'redis') }}"
+  pre_tasks:
+    - name: Check supported operating system
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.distribution == 'Ubuntu'
+          - ansible_facts.distribution_version == '24.04'
+          - ansible_facts.architecture == 'x86_64'
+    - name: Require private ingestion credentials
+      ansible.builtin.assert:
+        that:
+          - grafana_metrics_token | default('') | length > 20
+          - grafana_logs_token | default('') | length > 20
+          - redis_monitor_password | default('') is match('^[a-f0-9]{64}$')
+      no_log: true
+  tasks:
+    - name: Install package repository prerequisites
+      ansible.builtin.apt:
+        name: [ca-certificates, python3]
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+    - name: Create keyring directory
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+    - name: Fetch Grafana signing key over HTTPS
+      ansible.builtin.get_url:
+        url: https://apt.grafana.com/gpg-full.key
+        dest: /etc/apt/keyrings/grafana.asc
+        mode: '0644'
+    - name: Configure signed Grafana repository
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/grafana.list
+        content: "deb [signed-by=/etc/apt/keyrings/grafana.asc] https://apt.grafana.com stable main\n"
+        mode: '0644'
+      register: grafana_repository
+    - name: Install Alloy without auto-starting its default config
+      ansible.builtin.apt:
+        name: alloy=1.20.0-1
+        state: present
+        update_cache: '{{ grafana_repository.changed }}'
+        policy_rc_d: 101
+    - name: Configure protected credential files
+      ansible.builtin.copy:
+        dest: '/etc/alloy/{{ item.name }}'
+        content: '{{ item.value }}'
+        owner: root
+        group: alloy
+        mode: '0640'
+      loop:
+        - {name: metrics-token, value: '{{ grafana_metrics_token }}'}
+        - {name: logs-token, value: '{{ grafana_logs_token }}'}
+      no_log: true
+      notify: Restart Alloy
+    - name: Configure PostgreSQL monitoring role using local administrator
+      ansible.builtin.command:
+        argv: [runuser, -u, postgres, --, psql, -X, -v, ON_ERROR_STOP=1, -d, postgres]
+        stdin: |
+          SELECT 'CREATE ROLE alloy LOGIN' WHERE NOT EXISTS
+            (SELECT FROM pg_roles WHERE rolname = 'alloy') \gexec
+          ALTER ROLE alloy NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
+          GRANT pg_monitor TO alloy;
+          GRANT CONNECT ON DATABASE bhidne_distributed_prod TO alloy;
+          ALTER ROLE alloy SET statement_timeout = '5s';
+      when: monitoring_role == 'postgres'
+      changed_when: false
+    - name: Store separate Redis monitoring password
+      ansible.builtin.copy:
+        dest: /etc/alloy/redis-password
+        content: '{{ redis_monitor_password }}'
+        owner: root
+        group: alloy
+        mode: '0640'
+      no_log: true
+      when: monitoring_role == 'redis'
+      notify: Restart Alloy
+    - name: Persist restricted Redis monitoring account without restarting cache
+      ansible.builtin.copy:
+        dest: /etc/redis/bhidne-monitoring-user.conf
+        owner: root
+        group: redis
+        mode: '0640'
+        content: "user bhidne_monitor on #{{ redis_monitor_password | hash('sha256') }} -@all +ping +info +slowlog|len +latency|latest +latency|histogram"
+      no_log: true
+      when: monitoring_role == 'redis'
+    - name: Include persistent monitoring account on cache restart
+      ansible.builtin.lineinfile:
+        path: /etc/redis/redis.conf
+        line: 'include /etc/redis/bhidne-monitoring-*.conf'
+      when: monitoring_role == 'redis'
+    - name: Apply monitoring ACL to running Redis without changing application account
+      ansible.builtin.command:
+        argv: [redis-cli, -h, '127.0.0.1', ACL, SETUSER, bhidne_monitor, reset, 'on', '#{{ redis_monitor_password | hash("sha256") }}', '-@all', '+ping', '+info', '+slowlog|len', '+latency|latest', '+latency|histogram']
+      environment:
+        REDISCLI_AUTH: '{{ redis_password }}'
+      register: monitoring_acl
+      failed_when: monitoring_acl.rc != 0 or monitoring_acl.stdout | trim != 'OK'
+      changed_when: false
+      no_log: true
+      when: monitoring_role == 'redis'
+    - name: Create log bridge directories
+      ansible.builtin.file:
+        path: '{{ item.path }}'
+        state: directory
+        owner: root
+        group: alloy
+        mode: '{{ item.mode }}'
+      loop:
+        - {path: /var/lib/bhidne-monitoring, mode: '0700'}
+        - {path: /var/log/bhidne-monitoring, mode: '0750'}
+    - name: Install allowlisted log bridge
+      ansible.builtin.copy:
+        src: ../monitoring/log-bridge.py
+        dest: /usr/local/sbin/bhidne-monitoring-logs
+        owner: root
+        group: root
+        mode: '0755'
+    - name: Install bounded log collection service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/bhidne-monitoring-logs.service
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Copy sanitized Bhidne diagnostics for Alloy
+          [Service]
+          Type=oneshot
+          User=root
+          Group=alloy
+          UMask=0027
+          ExecStart=/usr/local/sbin/bhidne-monitoring-logs {{ monitoring_role }}
+          TimeoutStartSec=20
+          Nice=10
+          CPUQuota=10%
+          MemoryMax=128M
+          ProtectSystem=strict
+          ReadWritePaths=/var/lib/bhidne-monitoring /var/log/bhidne-monitoring
+          ProtectHome=true
+          PrivateTmp=true
+          NoNewPrivileges=true
+    - name: Install log collection timer
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/bhidne-monitoring-logs.timer
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Collect sanitized Bhidne diagnostics every ten seconds
+          [Timer]
+          OnBootSec=15s
+          OnUnitInactiveSec=10s
+          AccuracySec=1s
+          [Install]
+          WantedBy=timers.target
+    - name: Create Alloy override directory
+      ansible.builtin.file:
+        path: /etc/systemd/system/alloy.service.d
+        state: directory
+        mode: '0755'
+    - name: Keep Alloy UI private and resource use bounded
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/alloy.service.d/bhidne.conf
+        mode: '0644'
+        content: |
+          [Service]
+          ExecStart=
+          ExecStart=/usr/bin/alloy run --server.http.listen-addr=127.0.0.1:12345 --storage.path=/var/lib/alloy /etc/alloy/config.alloy
+          MemoryHigh=384M
+          MemoryMax=512M
+          CPUQuota=25%
+          Nice=10
+          Restart=on-failure
+          RestartSec=10s
+      notify: Restart Alloy
+    - name: Validate and install role-specific Alloy configuration
+      ansible.builtin.template:
+        src: monitoring.alloy.j2
+        dest: /etc/alloy/config.alloy
+        owner: root
+        group: alloy
+        mode: '0640'
+        validate: /usr/bin/alloy validate %s
+      notify: Restart Alloy
+    - name: Start collection timer
+      ansible.builtin.systemd_service:
+        name: bhidne-monitoring-logs.timer
+        enabled: true
+        state: started
+        daemon_reload: true
+    - name: Initialize bridge offsets without backfilling historical logs
+      ansible.builtin.systemd_service:
+        name: bhidne-monitoring-logs.service
+        state: started
+    - name: Apply pending Alloy configuration changes
+      ansible.builtin.meta: flush_handlers
+    - name: Start Alloy on boot
+      ansible.builtin.systemd_service:
+        name: alloy
+        state: started
+        enabled: true
+    - name: Verify collector readiness on localhost
+      ansible.builtin.uri:
+        url: http://127.0.0.1:12345/-/ready
+        status_code: 200
+      register: alloy_ready
+      retries: 6
+      delay: 5
+      until: alloy_ready.status == 200
+    - name: Verify database or cache exporter health, not just Alloy readiness
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:12345/api/v0/component/{{ 'prometheus.exporter.postgres.database' if monitoring_role == 'postgres' else 'prometheus.exporter.redis.cache' }}/metrics"
+        return_content: true
+        status_code: 200
+      register: exporter_probe
+      no_log: true
+      when: monitoring_role != 'apps'
+    - name: Require a successful database or cache scrape
+      ansible.builtin.assert:
+        that:
+          - exporter_probe.content is search('(?m)^' + ('pg' if monitoring_role == 'postgres' else 'redis') + '_up(?:\{[^\n]*\})? 1(?:\.0)?$')
+          - exporter_probe.content is not search('(?m)^(?:pg|redis)_exporter_last_scrape_error(?:\{[^\n]*\})? 1(?:\.0)?$')
+        fail_msg: Exporter cannot collect service metrics; inspect its restricted monitoring account and local connection.
+      when: monitoring_role != 'apps'
+  handlers:
+    - name: Restart Alloy
+      ansible.builtin.systemd_service:
+        name: alloy
+        state: restarted
+        daemon_reload: true

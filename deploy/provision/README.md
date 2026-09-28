@@ -146,3 +146,9 @@ The current rollout's generated credentials are encrypted in ignored
 root, or `.vault-password.local.yml` when using `run.sh` (which changes directory).
 Neither file is sent in the Docker build context. Keep a secure backup of both;
 possession of both files allows decryption.
+
+## Grafana Cloud monitoring
+
+See [the monitoring runbook](../monitoring/README.md) for the independent
+`monitoring.yml` playbook, hidden credential setup, dashboard import and verification.
+It adds monitoring without redeploying or restarting application/database services.
