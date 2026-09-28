@@ -18,8 +18,9 @@ and cross-database-host access are blocked. An unchanged provisioning rerun made
 zero changes. Database credentials remain in encrypted local inputs.
 Docker and Nginx are provisioned and active on both app VMs; configuration checks
 passed. DNS, HTTPS certificates and the app cloud firewall are configured. The
-dedicated GitHub production secrets are saved. The initial application image and
-empty-dataset initialization remain pending. Local uncommitted files are not deployed:
+dedicated GitHub production secrets are saved. The dedicated empty dataset was
+initialized and verified using the tested image; both app hosts now serve release
+`e665af214e58cc3bcc07c63e1545c66f82ab12bc`. Local uncommitted files are not deployed:
 only code committed and pushed to this branch reaches GitHub Actions.
 
 ## Production frontend and domains
@@ -80,7 +81,7 @@ address `10.104.0.3`, recorded in the local Nginx allowlist.
    frontend and single-droplet API DNS stay as they are.
 
 Load balancer attachment, app firewall readiness and API DNS/TLS are configured;
-the live application release remains pending. Do not claim deployment complete based only on a local
+the initial application release is live on both hosts. Do not claim deployment complete based only on a local
 build, Nginx installation, or configuration syntax check.
 
 ## Production subdomain DNS delegation and managed certificate
@@ -277,3 +278,21 @@ On the host, administrators can use `docker ps`, protected `docker inspect`, and
 `docker logs bhidne-prod-app` to investigate; never paste raw inspection output
 because it contains environment secrets. The receiver intentionally suppresses
 subprocess error output to keep CI logs free of credentials.
+
+## Initial production release verification
+
+- GitHub run: https://github.com/L-factorial/bhidne-ho/actions/runs/36378657438
+- Image: `sha256:801f6d6b292b5fd49b1dc08c60ac0a312f667b30f7be62559be1be6df67c35d2`.
+- CI: 1606 backend tests and five distributed-process tests passed.
+- Database initialization confirmed zero public tables before creation, then
+  verified the runtime marker and migration versions. Subsequent pushes do not
+  initialize or migrate the database automatically.
+- Both hosts report healthy and serve the same image. Public frontend and API
+  return200 over validated HTTPS. Browser sign-in page renders without uncaught
+  JavaScript errors; unauthenticated API access returns401 with the correct CORS
+  origin, and secure WebSocket upgrade succeeds. Live authenticated gameplay and
+  failover under real user traffic have not been verified.
+- Reapplying apps.yml made zero changes on both hosts. An unchanged image rerun
+  completed successfully. Initial public verification ran before the managed LB
+  reached its five-success threshold; future workflows allow a90-second retry
+  window. The retry-only follow-up and documentation do not require a new image.

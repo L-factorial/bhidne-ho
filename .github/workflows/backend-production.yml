@@ -126,7 +126,8 @@ jobs:
             echo "Deploying application host $host"
             release_request "$host" deploy
           done
-          curl --fail --silent --show-error --max-time 15 --retry 3 \
+          # The managed LB requires five successful probes ten seconds apart.
+          curl --fail --silent --show-error --max-time 15 --retry 12 --retry-delay 5 --retry-max-time 90 \
             https://api.prod.bhidne-ho.lfactorial.com/health
-          curl --fail --silent --show-error --max-time 15 --retry 3 \
+          curl --fail --silent --show-error --max-time 15 --retry 12 --retry-delay 5 --retry-max-time 90 \
             https://prod.bhidne-ho.lfactorial.com/ -o /dev/null

@@ -4181,3 +4181,26 @@ rollout. The next concrete step is the staging collection/alert setup described 
   initialization occurred. Next: publish the production branch's prepared changes,
   build the tested image in CI, initialize the empty production schema once from
   that immutable image and rerun deployment; verify public login and runtime.
+
+### P2 first production release completed
+
+- Published prepared app-host frontend changes as e665af2. GitHub run36378657438
+  passed1606 backend tests in1298.32s and five real process tests in206.66s, then
+  built/published image sha256:801f6d6b292b5fd49b1dc08c60ac0a312f667b30f7be62559be1be6df67c35d2.
+- Initial preflight refused the uninitialized dataset. Admin initialization from
+  that exact image confirmed zero public tables, created the dedicated schema
+  and verified migration versions/marker. No legacy dataset was touched.
+- Both app hosts deployed successfully. Public verification initially failed
+  while the managed LB accumulated five successful health checks. The unchanged
+  deployment rerun passed; the complete workflow is now successful. Extended
+  future public verification retries to90 seconds; YAML and shell syntax pass.
+- Verified both host Nginx health endpoints, public HTTPS frontend/API, browser
+  sign-in rendering without uncaught errors,401 authentication boundary and CORS,
+  and secure WebSocket upgrade. No production test account was created; live
+  authenticated gameplay remains unverified. App provisioning rerun: zero changes
+  and zero failures on both hosts.
+- Retry-window/docs-only follow-up uses [skip ci] to retain the already-tested
+  running image without another redundant rebuild. Ordinary future branch pushes
+  continue to test, build and deploy automatically.
+- Next operational work: authenticated gameplay acceptance, off-server database
+  backup/restore, monitoring and capacity/recovery verification before wider use.
