@@ -1,7 +1,42 @@
 import pytest
+from time import monotonic
+from unittest.mock import AsyncMock
+from psycopg import OperationalError
+from psycopg_pool import PoolTimeout
 from app.database import MIGRATIONS
 from app.durable_games.bootstrap import Settings, verify_dataset, MARKER
 from test_checkpoint_store import database
+
+
+@pytest.mark.parametrize('recovered', [True, False])
+async def test_gateway_checkout_filters_dead_connections_before_serving_requests(monkeypatch, recovered):
+    from app.durable_games.bootstrap import create_app
+
+    monkeypatch.delenv('BHIDNE_DISTRIBUTED_METRICS_PORT', raising=False)
+    server = create_app(settings()).state.distributed_server
+    pool = server.pool
+    dead = AsyncMock(autocommit=True)
+    dead.execute.side_effect = OperationalError('connection terminated by database restart')
+    healthy = AsyncMock(autocommit=True)
+    # Keep Psycopg's actual checkout/check/retry loop and the production pool
+    # configuration; only replace the network-backed connection queue/return.
+    checkout = AsyncMock(side_effect=[dead, healthy] if recovered else [dead, PoolTimeout()])
+    returned = AsyncMock()
+    monkeypatch.setattr(pool, '_getconn_unchecked', checkout)
+    monkeypatch.setattr(pool, '_putconn', returned)
+    try:
+        if recovered:
+            connection = await pool._getconn_with_check_loop(monotonic() + 5)
+            assert connection is healthy
+            healthy.execute.assert_awaited_once_with('')
+        else:
+            with pytest.raises(PoolTimeout):
+                await pool._getconn_with_check_loop(monotonic() + 5)
+        dead.execute.assert_awaited_once_with('')
+        returned.assert_awaited_once_with(dead, from_getconn=True)
+    finally:
+        await server.redis.aclose()
+        await pool.close()
 
 
 def settings(**changes):

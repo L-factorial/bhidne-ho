@@ -4934,3 +4934,27 @@ Verification and limitations:
 - Exact next step: commit and push this test correction and handoff note, then
   check that the production workflow completes testing, publishing and deployment.
   This correction has not been committed, pushed or deployed by the agent.
+
+## U5 — Gateway connection recovery after PostgreSQL restart (2026-09-29)
+
+- Investigated the supplied process-test failure: a same-ID command recovered on
+  gateway two, but retrying its accepted receipt on gateway one returned 500.
+  The production pool did not check connections at checkout, allowing idle sockets
+  killed by the database restart to reach a later request on either gateway.
+- Enabled `AsyncConnectionPool.check_connection` on the runtime pool. Psycopg
+  checks and replaces stale connections before serving them to application code.
+  No command transaction replay, receipt changes, or relaxed process assertions.
+- Added two regressions using the production app's pool and Psycopg's real
+  checkout loop, with simulated dead/healthy network connections. Recovery returns
+  only a checked connection; unavailable recovery raises a pool timeout. Both
+  regressions fail when the new checkout check is disabled in-process.
+- Verification: 27 bootstrap/server tests passed, including SQL-backed checks
+  with PGlite; two existing dependency deprecation warnings remain. The exact
+  real-process outage test could not run here: this Windows environment has no
+  installed WSL, native PostgreSQL/Redis process-test setup, or Docker runtime.
+- Limits: checkout adds a database health-check round trip. It cannot prevent a
+  failure after checkout or resolve an uncertain commit; existing same-ID retry
+  and durable receipt handling remain required for those cases.
+- Exact next step: review and publish this change, then rerun the production CI
+  suite including all six independent-process tests before deployment. Nothing
+  has been committed, pushed, or deployed by the agent in this increment.

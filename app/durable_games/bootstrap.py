@@ -115,7 +115,10 @@ async def verify_dataset(pool):
 def create_app(settings=None):
     from redis.asyncio import Redis
     settings = settings or Settings.environment()
+    # A database restart can leave idle sockets stale on otherwise healthy gateways.
+    # Validate before checkout; never retry an uncertain command transaction here.
     pool = AsyncConnectionPool(settings.database, min_size=2, max_size=16, open=False,
+                               check=AsyncConnectionPool.check_connection,
                                kwargs={'connect_timeout': 5})
     redis = Redis.from_url(settings.redis, protocol=2, socket_connect_timeout=.5, socket_timeout=.5)
     server = build_server(pool, redis, internal_address=settings.address, signal_secret=settings.secret,
