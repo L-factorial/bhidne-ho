@@ -1,4 +1,4 @@
-import { ui } from '../i18n/copy.ts';
+import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
@@ -75,7 +75,7 @@ export function MarriageMaalPanel({ hand, shown, unlocked, maal, enabled, visibl
         </View>
       </>}
       {!checking&&!choice&&<Text style={text}>{ui("marriage.your_hand_no_longer_qualifies_go_back_to_your_cards")}</Text>}
-      {!!error&&<Text accessibilityRole="alert" style={{color:c.danger}}>{error}</Text>}
+      {!!error&&<Text accessibilityRole="alert" style={{color:c.danger}}>{uiLabel(error, 'feedback')}</Text>}
       {button(busy?'Showing…':ui("marriage.confirm_show"),()=>{if(command&&choice&&canShow){submitted.current=true;submit(command,command==='SHOW_DUBLEES'?{pairs:choice.groups}:{melds:choice.groups});}},!canShow||checking,true)}
       {!!choice&&!canShow&&!busy&&<Text style={{...text,color:c.textMuted}}>{ui("marriage.you_can_show_after_drawing_on_your_turn")}</Text>}
     </>}

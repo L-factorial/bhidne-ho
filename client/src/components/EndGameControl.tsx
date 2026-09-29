@@ -9,7 +9,7 @@ export function EndGameControl({ busy, onEnd, compact = false, table = false }: 
   useUiLanguage();
   const { colors } = useTheme();
   const label = table ? ui("rooms.end_table") : ui("rooms.end_game");
-  const confirmation = table ? 'End this table for everyone? The current round will stop and no further rounds can start. Completed results remain available in the room ledger. The room stays open.' : 'End this game for everyone? Play will stop without declaring a winner. Completed results remain available in the room ledger. The room stays open.';
+  const confirmation = table ? ui("common.confirm_end_table_help") : ui("common.confirm_end_game_help");
   const [confirming, setConfirming] = useState(false);
   const button = (label: string, onPress: () => void) => <Pressable accessibilityRole="button"
     accessibilityLabel={label} disabled={busy} accessibilityState={{ disabled: busy }} onPress={onPress}

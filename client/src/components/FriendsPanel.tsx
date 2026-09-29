@@ -108,7 +108,7 @@ export function FriendsPanel({ session, transport }: { session: Session; transpo
 
   return <View style={styles.panel}>
     <View style={styles.row}><Text accessibilityRole="header" style={styles.title}>{ui("common.friends")}</Text></View>
-    <Text style={styles.detail}>Find a player by username or display name, manage requests, and message your connections.</Text>
+    <Text style={styles.detail}>{ui("social.friends_help")}</Text>
     <View style={styles.searchRow}>
       <FormInput accessibilityLabel={ui("social.find_players")} value={query} onChangeText={setQuery} maxLength={50}
         autoCapitalize="none" placeholder={ui("social.username_or_display_name")} placeholderTextColor={colors.textMuted}
@@ -136,7 +136,7 @@ export function FriendsPanel({ session, transport }: { session: Session; transpo
       footer={<FormFooter>
         {!!(sendError || error) && <Text accessibilityRole="alert" style={styles.error}>{sendError || error}</Text>}
         <ChatComposer value={draft} onChange={value => setDrafts(current => ({ ...current, [selected.user_id]: value }))}
-          onSend={() => void send()} disabled={busy} placeholder={ui("social.write_a_private_message")} label={`Message ${label(selected)}`} sendLabel="Send privately" />
+          onSend={() => void send()} disabled={busy} placeholder={ui("social.write_a_private_message")} label={ui("social.message_player", {player: label(selected)})} sendLabel={ui("common.send_privately")} />
       </FormFooter>}>
       <ScrollView style={{ flex: 1, minHeight: 0 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
         {!messages.length && <Text style={styles.detail}>{ui("common.no_messages_yet")}</Text>}

@@ -1,5 +1,9 @@
 // Editable English callbreak copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "bid_rules_help": "Bid 1–{{max}}. Make your bid to score that many points, plus 0.1 per extra trick. Miss it and lose your bid. Highest total wins.",
+  "turn_help": "Each player confirms their bid and taps a card to play. No turn time limit.",
+  "rules_help": "Five deals. Spades are trump. Follow suit and beat the leading card when possible. When void, play a winning spade if you can; otherwise discard. The trick winner leads next.",
+  "bids_swipe_help": "Swipe or use the arrows to see every player’s bid.",
   "shuffle": "Shuffle",
   "shuffle_deck": "Shuffle deck",
   "shuffle_the_deck": "shuffle the deck",

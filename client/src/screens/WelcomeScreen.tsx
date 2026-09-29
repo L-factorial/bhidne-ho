@@ -1,3 +1,5 @@
+import { useUiLanguage } from '../i18n/useUiLanguage';
+import { ui } from '../i18n/copy.ts';
 import { gameHeadingFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { ThemeAction } from '../components/ThemeAction';
 import { useState } from 'react';
@@ -14,6 +16,7 @@ import { LanguageToggle } from '../components/LanguageToggle';
 import { useTranslation } from 'react-i18next';
 
 export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
+  useUiLanguage();
   const { colors } = useTheme();
   const { t } = useTranslation();
   const styles = useThemedStyles(createStyles);
@@ -35,7 +38,7 @@ export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
         <View style={[styles.layout, wide && styles.wideLayout]}>
           <View style={[styles.brandSide, wide && styles.wideBrand]}>
             <View style={{ flexDirection: 'row', gap: 8 }}><LanguageToggle /><ThemeAction /></View>
-            {wide ? <Image source={branding.splash} accessibilityLabel="Bhidne Ho — friends playing cards in Nepal. More than a game, it’s our time." resizeMode="contain" style={{ width: '100%', aspectRatio: 507 / 953, maxHeight: 760, marginTop: 16, borderRadius: 20 }} /> : <>
+            {wide ? <Image source={branding.splash} accessibilityLabel={ui("common.brand_art")} resizeMode="contain" style={{ width: '100%', aspectRatio: 507 / 953, maxHeight: 760, marginTop: 16, borderRadius: 20 }} /> : <>
               <BrandBanner />
               <View style={styles.mobileIntro}>
                 <Text accessibilityRole="header" style={styles.mobileHeading}>{t('welcome.heading')}</Text>

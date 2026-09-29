@@ -1,3 +1,5 @@
+import { useUiLanguage } from '../i18n/useUiLanguage';
+import { ui, uiLabel } from '../i18n/copy.ts';
 import { playerError } from '../multiplayer/playerError.ts';
 import {useEffect,useMemo,useState} from 'react';
 import {Pressable,Text,View} from 'react-native';
@@ -18,6 +20,7 @@ function pair(actor:string,other:string):CommandTarget {
   return {kind:'conversation',user_low:users[0],user_high:users[1]};
 }
 export function DistributedLedger({root,room,session}:{root:DistributedRootRuntime;room:string;session:Session}) {
+  useUiLanguage();
   const {controller,state}=useDistributedController(root,'settlements');
   const reads=useMemo(()=>{
     const abort=new AbortController();
@@ -30,8 +33,9 @@ export function DistributedLedger({root,room,session}:{root:DistributedRootRunti
   return <><RoomLedger key={room} roomId={room} session={session} transport={transport}/>
     {state.status==='pending'&&<Retry retry={()=>void controller?.recover()}/>}</>;
 }
-function Retry({retry}:{retry:()=>void}) {return <Pressable accessibilityRole="button" onPress={retry} style={{padding:12}}><Text>Check pending action</Text></Pressable>;}
+function Retry({retry}:{retry:()=>void}) {return <Pressable accessibilityRole="button" onPress={retry} style={{padding:12}}><Text>{ui("common.pending_action")}</Text></Pressable>;}
 export function DistributedPlatform({root,session}:{root:DistributedRootRuntime;session:Session}) {
+  useUiLanguage();
   const {colors}=useTheme();
   const personal=usePlayerPhrases(session,true);
   const {controller,state,version}=useDistributedController(root,'platform');
@@ -61,7 +65,7 @@ export function DistributedPlatform({root,session}:{root:DistributedRootRuntime;
         const recipient=await root.reads.recipient(abort.signal);
         const [items,rooms,tables]=await Promise.all([root.reads.history('social',recipient.lane_id,abort.signal),root.reads.roomInvitations(null,abort.signal),root.reads.tableInvitations(null,abort.signal)]);
         if(!abort.signal.aborted){setNotifications(items.map(row=>({id:row.id,kind:String(row.kind),read:row.read===true})));setInvitations(rooms.items);setInviteCursor(rooms.next_id);setTableInvitations(tables.items);setTableCursor(tables.next_table_id);setError('');}
-      }catch(e){if(!abort.signal.aborted)setError(playerError(e, 'Could not load notifications.'));}
+      }catch(e){if(!abort.signal.aborted)setError(playerError(e, ui("feedback.could_not_load_notifications")));}
       finally{if(!abort.signal.aborted)timer=setTimeout(load,5000);}
     }
     void load();return()=>{abort.abort();clearTimeout(timer);};
@@ -73,19 +77,19 @@ export function DistributedPlatform({root,session}:{root:DistributedRootRuntime;
       onSave={personal.save} onRemove={personal.remove} onUpdate={personal.update}/>
     <FriendsPanel session={session} transport={transport}/>
     {state.status==='pending'&&<Retry retry={()=>void controller?.recover()}/>}
-    <Text style={{color:colors.text}}>Notifications</Text>
+    <Text style={{color:colors.text}}>{ui("common.notifications")}</Text>
     {notifications.map(row=><View key={row.id}><Text style={{color:colors.text}}>{row.kind.replaceAll('_',' ')}</Text>
-      {!row.read&&button('Mark read',()=>void controller?.read({kind:'recipient',recipient_id:session.user_id.replace(/^user-/,'')},[row.id]))}</View>)}
-    <Text style={{color:colors.text}}>Room invitations</Text>
+      {!row.read&&button(ui("common.mark_read"),()=>void controller?.read({kind:'recipient',recipient_id:session.user_id.replace(/^user-/,'')},[row.id]))}</View>)}
+    <Text style={{color:colors.text}}>{ui("common.room_invitations")}</Text>
     {invitations.map(row=><View key={row.id}><Text style={{color:colors.text}}>{row.room_name}</Text>
-      {button('Accept invitation',()=>void controller?.room(row.room_id,'answer-room-invitation',{invitation_id:row.id,accept:true}))}
-      {button('Decline invitation',()=>void controller?.room(row.room_id,'answer-room-invitation',{invitation_id:row.id,accept:false}))}</View>)}
-    {inviteCursor&&button('More invitations',()=>{const abort=new AbortController();void root.reads.roomInvitations(inviteCursor,abort.signal).then(page=>{setInvitations(old=>[...old,...page.items.filter(item=>!old.some(r=>r.id===item.id))]);setInviteCursor(page.next_id);}).catch(e=>setError(playerError(e)));})}
-    <Text style={{color:colors.text}}>Table invitations</Text>
+      {button(ui("common.accept_invitation"),()=>void controller?.room(row.room_id,'answer-room-invitation',{invitation_id:row.id,accept:true}))}
+      {button(ui("common.decline_invitation"),()=>void controller?.room(row.room_id,'answer-room-invitation',{invitation_id:row.id,accept:false}))}</View>)}
+    {inviteCursor&&button(ui("common.more_invitations"),()=>{const abort=new AbortController();void root.reads.roomInvitations(inviteCursor,abort.signal).then(page=>{setInvitations(old=>[...old,...page.items.filter(item=>!old.some(r=>r.id===item.id))]);setInviteCursor(page.next_id);}).catch(e=>setError(playerError(e)));})}
+    <Text style={{color:colors.text}}>{ui("common.table_invitations")}</Text>
     {tableInvitations.map(row=><View key={row.id}><Text style={{color:colors.text}}>{row.room_name} · {row.table_name}</Text>
-      {button('Accept table invitation',()=>void controller?.table({...row,durable_game_id:null},'answer-table-invitation',{invitation_id:row.id,accept:true}))}
-      {button('Decline table invitation',()=>void controller?.table({...row,durable_game_id:null},'answer-table-invitation',{invitation_id:row.id,accept:false}))}</View>)}
-    {tableCursor&&button('More table invitations',()=>{const abort=new AbortController();void root.reads.tableInvitations(tableCursor,abort.signal).then(page=>{setTableInvitations(old=>[...old,...page.items.filter(item=>!old.some(r=>r.id===item.id))]);setTableCursor(page.next_table_id);}).catch(e=>setError(playerError(e)));})}
-    {!!(error||state.error)&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{state.error||error}</Text>}
+      {button(ui("common.accept_table_invitation"),()=>void controller?.table({...row,durable_game_id:null},'answer-table-invitation',{invitation_id:row.id,accept:true}))}
+      {button(ui("common.decline_table_invitation"),()=>void controller?.table({...row,durable_game_id:null},'answer-table-invitation',{invitation_id:row.id,accept:false}))}</View>)}
+    {tableCursor&&button(ui("common.more_table_invitations"),()=>{const abort=new AbortController();void root.reads.tableInvitations(tableCursor,abort.signal).then(page=>{setTableInvitations(old=>[...old,...page.items.filter(item=>!old.some(r=>r.id===item.id))]);setTableCursor(page.next_table_id);}).catch(e=>setError(playerError(e)));})}
+    {!!(error||state.error)&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(state.error||error, 'feedback')}</Text>}
   </View>;
 }

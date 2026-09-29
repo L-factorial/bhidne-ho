@@ -11,9 +11,9 @@ from .ledger_queries import PostgresLedgerQueries
 
 
 class DistributedReads:
-    def __init__(self, pool):
+    def __init__(self, pool, *, cache=None):
         self.pool = pool
-        self.hosted = PostgresHostedQueries(pool)
+        self.hosted = PostgresHostedQueries(pool, cache=cache)
         self.chat = ChatHistory(pool)
         self.social = SocialHistory(pool)
         self.ledger = PostgresLedgerQueries(pool)

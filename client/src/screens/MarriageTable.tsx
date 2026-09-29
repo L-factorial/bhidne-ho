@@ -179,7 +179,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         </View>}
 
       {confirmFold && !own?.folded && <View style={s.panel}>
-        <Text style={s.text}>Fold this round? You can keep watching. Your final points will still be settled.</Text>
+        <Text style={s.text}>{ui("marriage.fold_help")}</Text>
         <View style={s.row}>{button(ui("marriage.confirm_fold"), () => { onAction('FOLD'); }, busy || !social.connected || !actions?.kinds.includes('fold'))}
           {button(ui("common.keep_playing"), () => setConfirmFold(false), busy)}</View>
       </View>}

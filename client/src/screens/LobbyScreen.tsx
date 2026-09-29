@@ -1,4 +1,4 @@
-import { ui } from '../i18n/copy.ts';
+import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { FormInput, FormScrollView } from '../components/FormInput';
@@ -67,16 +67,16 @@ export function LobbyScreen({ onLeave, onBack, roomCode }: { onLeave: () => void
           <Pressable accessibilityRole="button" onPress={onBack} style={styles.exit}><Text style={styles.lightLink}>{ui("common.all_games_arrow")}</Text></Pressable>
           <Text style={styles.eyebrow}>{ui("common.callbreak_room")}</Text>
           <Text accessibilityRole="header" style={[styles.title, !wide && { fontSize: 43 }]}>{ui("rooms.ready_for_a_round")}</Text>
-          <Text style={styles.subtitle}>A familiar game. A little friendly rivalry. Take a seat.</Text>
+          <Text style={styles.subtitle}>{ui("common.preview_subtitle")}</Text>
         </View>
-        <View style={styles.preview}><Text style={styles.previewText}>Design preview · Sample tables only. Nothing is connected yet.</Text></View>
+        <View style={styles.preview}><Text style={styles.previewText}>{ui("common.preview_samples")}</Text></View>
 
         <View style={[styles.columns, wide && styles.wideColumns]}>
           <View style={[styles.controls, wide && { width: 340 }]}>
             <View style={styles.panel}>
               <Text style={styles.copperIcon}>♠</Text>
               <Text accessibilityRole="header" style={styles.panelTitle}>{ui("common.preview_a_card_table")}</Text>
-              <Text style={styles.description}>Try the local layout. To create a shared game, use Create game in the room header.</Text>
+              <Text style={styles.description}>{ui("common.preview_local_help")}</Text>
               <Text style={styles.label}>{ui("rooms.your_shareable_table_code")}</Text>
               <Text selectable accessibilityLabel={ui("common.shareable_table_code_code", { "code": roomCode })} style={styles.inviteCode}>{roomCode}</Text>
               <Text style={styles.label}>{ui("rooms.seats_at_the_table")}</Text>
@@ -96,8 +96,8 @@ export function LobbyScreen({ onLeave, onBack, roomCode }: { onLeave: () => void
             </View>
             <View style={styles.panel}>
               <Text accessibilityRole="header" style={styles.panelTitle}>{ui("rooms.invite_your_friends")}</Text>
-              <Text style={styles.description}>Share the table code above. Friends enter it on the room list, then choose Join game. It is the same code shown to the room creator.</Text>
-              {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
+              <Text style={styles.description}>{ui("common.preview_share_help")}</Text>
+              {!!error && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
               <Action label={ui("common.go_to_room_list_to_enter_a_code")} secondary onPress={onLeave} />
             </View>
           </View>
@@ -152,19 +152,19 @@ export function LobbyScreen({ onLeave, onBack, roomCode }: { onLeave: () => void
             {seated ? <>
               <Text style={styles.sampleLabel}>{ui("common.waiting_room_preview")}</Text>
               <Text accessibilityRole="header" style={styles.modalTitle}>{seated.name}</Text>
-              <Text style={styles.description}>Your seat is ready. This is how the table will look while friends arrive.</Text>
+              <Text style={styles.description}>{ui("common.preview_seat_help")}</Text>
               <View style={styles.invite}><Text style={styles.label}>{ui("rooms.shared_room_table_code")}</Text><Text selectable style={styles.inviteCode}>{roomCode}</Text></View>
               {Array.from({ length: seated.capacity }, (_, index) => <View key={index} style={styles.waitingSeat}>
                 <Text style={styles.seatNumber}>{index + 1}</Text>
                 <Text style={styles.playerName}>{seated.players[index] || ui("rooms.waiting_for_a_friend")}</Text>
                 {seated.players[index] === 'You' && <Text style={styles.tableStatus}>{ui("common.you")}</Text>}
               </View>)}
-              <Text style={styles.modalNote}>The code joins your shared room. This card table is a local preview; create or join the shared game using the room header.</Text>
+              <Text style={styles.modalNote}>{ui("common.preview_room_help")}</Text>
               <Action label={ui("common.preview_card_table")} onPress={() => { setTablePreview(seated); setSeated(null); }} />
             </> : <>
               <Text style={styles.sampleLabel}>{ui("rooms.call_break")}</Text>
               <Text accessibilityRole="header" style={styles.modalTitle}>{ui("common.a_quick_refresher")}</Text>
-              <Text style={styles.rulesText}>1. Bid how many tricks you think you can win.{'\n\n'}2. Follow the led suit and beat the winning card when possible. Spades are trump.{'\n\n'}3. Meet your bid to score. The highest total after five deals wins.</Text>
+              <Text style={styles.rulesText}>{ui("common.preview_bid_rule")}{'\n\n'}{ui("common.preview_follow_rule")}{'\n\n'}{ui("common.preview_score_rule")}</Text>
             </>}
             <Action label={ui("common.back_to_lobby")} onPress={() => { setSeated(null); setRulesOpen(false); }} />
           </FormScrollView>

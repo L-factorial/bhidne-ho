@@ -2,7 +2,7 @@
 import asyncio
 from time import time
 from prometheus_client import start_http_server
-from .telemetry import REGISTRY, STATE, event, observe
+from .telemetry import REGISTRY, STATE, ACTIVE_GAMES, ACTIVE_PLAYERS, ONLINE_USERS, event, observe
 
 
 class RuntimeTelemetry:
@@ -31,11 +31,36 @@ class RuntimeTelemetry:
                     outbox = await (await connection.execute('''SELECT count(*),
                         coalesce(extract(epoch FROM (clock_timestamp()-min(created_at))),0)
                         FROM notification_outbox WHERE published_at IS NULL''')).fetchone()
+                    activity = await (await connection.execute('''SELECT g.game_type,
+                        count(DISTINCT g.id) AS games,count(DISTINCT p.user_id) AS players
+                        FROM games g JOIN room_tables t ON t.table_id=g.table_id
+                        LEFT JOIN active_game_players p ON p.game_id=g.id
+                        WHERE g.status='active' AND t.status='playing'
+                        AND NOT EXISTS(SELECT 1 FROM deleted_rooms d WHERE d.id=g.room_id)
+                        GROUP BY GROUPING SETS ((g.game_type),())''')).fetchall()
+        values = {kind or 'all': (int(games), int(players)) for kind, games, players in activity}
+        for kind in ('callbreak', 'marriage', 'flush', 'all'):
+            games, players = values.get(kind, (0, 0))
+            ACTIVE_GAMES.labels(kind).set(games)
+            ACTIVE_PLAYERS.labels(kind).set(players)
         for kind, values in (('commands', row), ('outbox', outbox)):
             STATE.labels(kind + '_pending').set(int(values[0]))
             STATE.labels(kind + '_oldest_seconds').set(max(0, float(values[1])))
         STATE.labels('database_sample_timestamp_seconds').set(time())
         STATE.labels('database_sample_ok').set(1)
+
+    async def sample_presence(self):
+        try:
+            count = await self.server.presence.store.online_users()
+            ONLINE_USERS.set(count)
+            STATE.labels('presence_sample_ok').set(1)
+            STATE.labels('presence_sample_timestamp_seconds').set(time())
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            # An unavailable observation is unknown, never a false zero.
+            ONLINE_USERS.set(float('nan'))
+            STATE.labels('presence_sample_ok').set(0)
 
     def sample_local(self):
         server = self.server
@@ -67,7 +92,11 @@ class RuntimeTelemetry:
                 raise
             except Exception as error:
                 STATE.labels('database_sample_ok').set(0)
+                for kind in ('callbreak', 'marriage', 'flush', 'all'):
+                    ACTIVE_GAMES.labels(kind).set(float('nan'))
+                    ACTIVE_PLAYERS.labels(kind).set(float('nan'))
                 event('telemetry_sample_failed', error_type=type(error).__name__)
+            await self.sample_presence()
             await asyncio.sleep(self.interval)
 
     async def stop(self):

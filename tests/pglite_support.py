@@ -82,6 +82,8 @@ class PGlitePool:
             elif isinstance(value, datetime): value = value.isoformat()
             elif isinstance(value, Jsonb): value = value.obj
             elif isinstance(value, bytes): value = {'__bytes': list(value)}
+            elif isinstance(value, (list, tuple)):
+                value = [str(item) if isinstance(item, UUID) else item for item in value]
             values.append(value)
         for index in range(len(values)):
             sql = sql.replace('%s', f'${index + 1}', 1)

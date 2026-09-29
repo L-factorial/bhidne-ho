@@ -1,3 +1,4 @@
+import { isActiveTable } from '../multiplayer/tableNavigation';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { gameTabFinish, fonts, useTheme } from '../theme';
@@ -11,7 +12,7 @@ import { TableCard } from './TableCard';
 
 export type ActiveTable = TableSummary & { room_id: string; room_name: string };
 const filters = [['all', 'All'], ['flush', 'Flush'], ['marriage', 'Marriage'], ['callbreak', 'Call Break']] as const;
-export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateRoom }: { onCreateRoom: () => void; onBrowseRooms: () => void; session: Session; busy: boolean; enter: (table: ActiveTable, action: TableEntry) => void }) {
+export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateRoom, activity }: { activity?: { observeActivity: (listener: () => void) => () => void }; onCreateRoom: () => void; onBrowseRooms: () => void; session: Session; busy: boolean; enter: (table: ActiveTable, action: TableEntry) => void }) {
   useUiLanguage();
   const { colors: c } = useTheme();
   const [tables, setTables] = useState<ActiveTable[]>([]);
@@ -20,17 +21,18 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateRoom 
   const [error, setError] = useState(false), [refresh, setRefresh] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
-    let pending = false;
+    let pending = false, dirty = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
     let cancelDelay: (() => void) | undefined;
     async function load() {
-      if (pending || controller.signal.aborted || AppState.currentState === 'background') return;
+      if (controller.signal.aborted || AppState.currentState === 'background') return;
+      if (pending) { dirty = true; return; }
       pending = true; setRefreshing(true);
       try {
         for (let attempt = 0; attempt < 3; attempt++) {
           try {
             const data = await request<ActiveTable[]>('/active-tables', session, undefined, controller.signal);
-            if (!controller.signal.aborted) { setTables(data.filter(t => t.status !== 'ended' && t.phase !== 'ENDED')); setLoaded(true); setError(false); }
+            if (!controller.signal.aborted) { setTables(data.filter(isActiveTable)); setLoaded(true); setError(false); }
             return;
           } catch {
             if (controller.signal.aborted) return;
@@ -39,13 +41,17 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateRoom 
             if (controller.signal.aborted) return;
           }
         }
-      } finally { pending = false; if (!controller.signal.aborted) setRefreshing(false); }
+      } finally {
+        pending = false;
+        if (!controller.signal.aborted) { setRefreshing(false); if (dirty) { dirty = false; void load(); } }
+      }
     }
     void load();
+    const unsubscribe = activity?.observeActivity(() => void load());
     const timer = setInterval(() => void load(), 15000);
     const subscription = AppState.addEventListener('change', state => { if (state === 'active') void load(); });
-    return () => { controller.abort(); clearInterval(timer); clearTimeout(retryTimer); cancelDelay?.(); subscription.remove(); };
-  }, [session.token, refresh]);
+    return () => { controller.abort(); unsubscribe?.(); clearInterval(timer); clearTimeout(retryTimer); cancelDelay?.(); subscription.remove(); };
+  }, [session.token, refresh, activity]);
   const priority = (table: ActiveTable) => table.current_user?.is_seated ? 0 : table.phase === 'OPEN' && table.current_user?.can_join ? 1 : 2;
   const visible = tables.filter(table => filter === 'all' || table.game_type === filter).sort((a, b) => priority(a) - priority(b) || a.name.localeCompare(b.name) || a.match_id.localeCompare(b.match_id));
   const retry = <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.retry_active_games")} onPress={() => setRefresh(v => v + 1)} style={{ minHeight: 44, paddingHorizontal: 16, borderRadius: 10, backgroundColor: c.primary, justifyContent: 'center' }}><Text style={{ color: c.onPrimary, fontFamily: fonts.medium }}>{ui("common.retry")}</Text></Pressable>;
@@ -68,7 +74,7 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateRoom 
     {loaded && !error && !visible.length && <View testID="active-games-empty" style={{ alignItems: 'center', gap: 12, padding: 28, backgroundColor: c.surface, borderRadius: 18, borderWidth: 1, borderColor: c.borderSubtle }}>
       <Ionicons name="people-outline" size={32} color={c.accent} />
       <Text style={{ color: c.text, fontFamily: fonts.medium, fontSize: 18, textAlign: 'center' }}>{filter === 'all' ? ui("rooms.no_active_tables_yet") : ui("rooms.no_game_tables_yet", { "game": uiLabel(filters.find(([key]) => key === filter)?.[1] || '', 'rooms') })}</Text>
-      <Text style={{ color: c.textMuted, textAlign: 'center', lineHeight: 21 }}>Open a room and create a table, or join your friends when they start playing.</Text>
+      <Text style={{ color: c.textMuted, textAlign: 'center', lineHeight: 21 }}>{ui("rooms.empty_games_help")}</Text>
       <Pressable accessibilityRole="button" onPress={onCreateRoom} style={{minHeight:44,paddingHorizontal:16,borderRadius:10,backgroundColor:c.primary,justifyContent:'center'}}><Text style={{color:c.onPrimary,fontFamily:fonts.medium}}>{ui("rooms.create_room")}</Text></Pressable>
       <Pressable accessibilityRole="button" onPress={() => filter === 'all' ? onBrowseRooms() : setFilter('all')} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: c.accent, fontFamily: fonts.medium }}>{filter === 'all' ? ui("rooms.browse_rooms") : ui("rooms.view_all_games")}</Text></Pressable>
     </View>}

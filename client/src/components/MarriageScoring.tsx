@@ -43,27 +43,27 @@ export function MarriageScoring({ snapshot, busy, error, onSave, introduction }:
   }
   return <View testID="marriage-scoring-rules" style={{ flex: 1, minHeight: 0 }}><FormScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 12 }}>{introduction}
     <Text style={s.heading}>{ui("marriage.scoring_rules")}</Text>
-    <Text style={s.text}>{editable ? 'House bonus is the default. Choose a preset or edit any value, then propose the change for player approval.' : 'The creator selects these rules before the round. They are locked during play.'}</Text>
+    <Text style={s.text}>{editable ? ui("marriage.preset_help") : ui("marriage.locked_rules_help")}</Text>
     {editable && <View style={s.row}>{Object.entries(snapshot.marriage_scoring_presets || {}).map(([key, rules]) =>
       <View key={uiLabel(key, 'marriage')}>{button(key === 'house' ? ui("marriage.house_bonus_default") : ui("marriage.simple_points"), () => setDraft({...rules,alter:rules.alter || [0,0,0],initial_tunnela_declaration:rules.initial_tunnela_declaration ?? false}), JSON.stringify(draft) === JSON.stringify(rules))}</View>)}</View>}
     <Text style={s.text}>{ui("marriage.totals_for_1_2_3_copies_or_combinations")}</Text>
     {tables.map(key => <View key={uiLabel(key, 'marriage')} style={s.row}><Text style={[s.text, s.label]}>{uiLabel(labels[key], 'marriage')}</Text>
-      {draft[key].map((value, i) => <View key={i}>{input(`${uiLabel(labels[key], 'marriage')} ${i + 1} total`, value, n => setDraft({ ...draft, [key]: draft[key].map((v, j) => i === j ? n : v) }))}</View>)}
+      {draft[key].map((value, i) => <View key={i}>{input(ui("common.scoring_total", {label: uiLabel(labels[key], "marriage"), number: i + 1}), value, n => setDraft({ ...draft, [key]: draft[key].map((v, j) => i === j ? n : v) }))}</View>)}
     </View>)}
-    <Text style={s.text}>Alter is the same rank and colour as Tiplu, in the other suit. Its default totals are 1 / 2 / 3; set all three to 0 to disable Alter points. Wildcard use is unchanged.</Text>
+    <Text style={s.text}>{ui("marriage.alter_help")}</Text>
     {amounts.map(key => <View key={uiLabel(key, 'marriage')} style={s.row}><Text style={[s.text, s.label]}>{uiLabel(labels[key], 'marriage')}</Text>
       {input(uiLabel(labels[key], 'marriage'), draft[key], n => setDraft({ ...draft, [key]: n }))}</View>)}
     {button(ui("marriage.initial_tunnela_declaration_count", { "count": uiLabel(draft.initial_tunnela_declaration?'On':'Off') }),()=>setDraft({...draft,initial_tunnela_declaration:!draft.initial_tunnela_declaration,tunnela_scope:!draft.initial_tunnela_declaration && draft.tunnela_scope === 'hand' ? 'shown' : draft.tunnela_scope}),!!draft.initial_tunnela_declaration,!editable)}
-    <Text style={s.text}>{draft.initial_tunnela_declaration?'Before the first draw, every player must show dealt Tunnelas or declare none. Only those initial declarations earn the Tunnela bonus.':ui("marriage.tunnela_bonus_applies_to")}</Text>
+    <Text style={s.text}>{draft.initial_tunnela_declaration?ui("marriage.initial_declaration_help"):ui("marriage.tunnela_bonus_applies_to")}</Text>
     <View style={s.row}>{(draft.initial_tunnela_declaration ? ["off",'shown'] as const : ["off", 'shown', 'hand'] as const).map(scope => <View key={scope}>{editable
       ? button(scope === 'off' ? ui("marriage.none") : scope === 'shown' ? draft.initial_tunnela_declaration?ui("marriage.initially_declared_tunnelas"):ui("marriage.shown_tunnelas") : ui("marriage.all_final_tunnelas"), () => setDraft({ ...draft, tunnela_scope: scope }), draft.tunnela_scope === scope)
       : draft.tunnela_scope === scope && <Text style={s.text}>{scope === 'off' ? ui("marriage.none") : scope === 'shown' ? draft.initial_tunnela_declaration?ui("marriage.initially_declared_tunnelas"):ui("marriage.shown_tunnelas") : ui("marriage.all_final_tunnelas")}</Text>}</View>)}</View>
     {editable ? button(draft.maal_requires_seen ? ui("marriage.maal_points_seen_players_only") : ui("marriage.maal_points_all_players"), () => setDraft({ ...draft, maal_requires_seen: !draft.maal_requires_seen }))
       : <Text style={s.text}>{ui("marriage.maal_points_points", { "points": draft.maal_requires_seen ? uiLabel('seen players only', 'marriage') : uiLabel('all players', 'marriage') })}</Text>}
-    <Text style={s.text}>The highest scoring combination is used. Marriage replaces its individual Maal points. The Tunnela bonus is additional and follows the declaration setting above. Eligibility also applies to Man and Tunnela points.</Text>
+    <Text style={s.text}>{ui("marriage.scoring_help")}</Text>
     </FormScrollView><FormFooter>
     {editable && <>{button(ui("marriage.propose_scoring_rules"), () => onSave(draft), false, !valid || !changed)}
-      <Text style={s.text}>{!valid ? ui("feedback.enter_whole_numbers_from_0_to_1000") : changed ? ui("rooms.unsaved_changes") : 'Rule changes apply only after every seated player accepts.'}</Text></>}
+      <Text style={s.text}>{!valid ? ui("feedback.enter_whole_numbers_from_0_to_1000") : changed ? ui("rooms.unsaved_changes") : ui("rooms.rules_approval_help")}</Text></>}
     {!!error && <Text accessibilityRole="alert" style={s.text}>{uiLabel(error, 'feedback')}</Text>}
     </FormFooter></View>;
 }
@@ -88,17 +88,17 @@ export function MarriagePoints({ snapshot }: { snapshot: RoomSnapshot }) {
   const name = (id: string) => snapshot.players?.find(p => String(p.player_id) === id)?.display_name || ui("common.player_number", { "number": id });
   const signed = (n: number) => n > 0 ? `+${n}` : String(n);
   return <View testID="marriage-points" style={s.section}>
-    {!scores ? <Text style={s.text}>{snapshot.status === 'ended' ? 'The game was ended without a winner. No final points were calculated.'
-      : snapshot.status === 'finished' ? ui("common.this_round_has_no_scoring_breakdown_available") : 'Points appear here when the round finishes, using the saved scoring rules.'}</Text> : <>
+    {!scores ? <Text style={s.text}>{snapshot.status === 'ended' ? ui("marriage.ended_points_help")
+      : snapshot.status === 'finished' ? ui("common.this_round_has_no_scoring_breakdown_available") : ui("marriage.pending_points_help")}</Text> : <>
       <MarriageRoundResults snapshot={snapshot} />
       <Text accessibilityRole="header" style={s.heading}>{ui("marriage.how_the_points_were_calculated")}</Text>
       <Text style={s.text}>{ui("marriage.maal_points_summary", { "points": scores.total_maal })}</Text>
-      <Text style={s.text}>Maal net = players x own Maal - total Maal. Net points = Maal net + winner payment. All net points sum to zero.</Text>
+      <Text style={s.text}>{ui("marriage.net_help")}</Text>
       <Text style={s.text}>{ui("marriage.maal_loser_payment", { "seen": scores.rules.seen_payment, "unseen": scores.rules.unseen_payment, "bonus": snapshot.marriage?.public.won_by_fold ? 0 : scores.rules.dublee_win_bonus })}</Text>
       {scores.players.map(p => <View key={p.player_id} style={s.player}>
         <View style={s.row}><PlayerAvatar uri={snapshot.players?.find(player => String(player.player_id) === p.player_id)?.avatar_url} />
           <Text style={s.heading}>{name(p.player_id)}: {signed(p.net_points)} {ui("marriage.points")}</Text></View>
-        <Text style={s.text}>{p.has_seen_maal ? ui("marriage.maal_seen") : ui("marriage.maal_not_seen")}{p.eligible ? '' : ' / not eligible for Maal points'}</Text>
+        <Text style={s.text}>{p.has_seen_maal ? ui("marriage.maal_seen") : ui("marriage.maal_not_seen")}{p.eligible ? '' : ui("common.not_eligible_maal")}</Text>
         {!p.items.length && <Text style={s.text}>{p.eligible ? ui("marriage.no_scoring_cards") : ui("marriage.maal_points_are_not_counted_because_maal_was_not_seen")}</Text>}
         {p.items.map((item, i) => <View key={i} style={{ gap: 6 }}>
           <Text style={s.text}>{ui("marriage.item_count_points_points", { "item": uiLabel(item.label, "marriage"), "count": item.count, "points": item.points })}</Text>
@@ -110,7 +110,7 @@ export function MarriagePoints({ snapshot }: { snapshot: RoomSnapshot }) {
         <Text style={s.text}>{ui("marriage.winner_payment_points", { "points": signed(p.winner_payment) })}</Text>
         <Text style={s.text}>{ui("marriage.net_maal_payment_total", { "maal": signed(p.maal_net), "payment": signed(p.winner_payment), "total": signed(p.net_points) })}</Text>
       </View>)}
-      {snapshot.marriage?.public.won_by_fold ? <Text style={s.text}>Won by fold · all other players withdrew. No winning declaration was required.</Text> : <>
+      {snapshot.marriage?.public.won_by_fold ? <Text style={s.text}>{ui("marriage.fold_win_help")}</Text> : <>
       <Text accessibilityRole="header" style={s.heading}>{ui("marriage.winning_declaration")}</Text>
       <MarriageMeldCards groups={snapshot.marriage?.public.normal_finish?.melds || [
         ...(snapshot.marriage?.public.players.find(p => p.player_id === scores.winner)?.shown_melds || []),

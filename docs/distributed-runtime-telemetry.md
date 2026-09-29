@@ -143,3 +143,33 @@ Outbox unpublished age measures advisory publication backlog, not proof of clien
 non-delivery: gateways reconcile even when Redis is unavailable. Durable inbox
 rejections include normal invalid/stale player commands and should not all page an
 operator. Existing capacity/latency targets remain unverified.
+
+## Cluster activity (September 2026)
+
+The private listener now emits `bhidne_active_games{game_type}` and
+`bhidne_active_players{game_type}` with bounded labels `callbreak`, `marriage`,
+`flush`, and `all`. An active game has an active durable game and a playing table
+in a nondeleted room. Active players are distinct users in its active-player
+reservations; spectators, queued users and waiting/completed tables are excluded.
+These measure game participation, separately from socket connectivity.
+
+`bhidne_online_users` counts distinct authenticated users with unexpired Redis
+socket presence, including connections across servers, rooms, tabs and devices.
+Removing one socket leaves the user online while another survives. Unclean
+shutdown/uncertain removal expires within the presence TTL (normally 30 seconds).
+Redis loss is reported as unknown (`NaN`), not zero; connections rebuild presence
+on recovery. Startup/rebuild observations converge after socket refresh.
+
+Every application replica samples the **same cluster totals**, normally every
+30 seconds. Use `max by (game_type) (bhidne_active_games{game_type!="all"})` for a
+breakdown and `max(bhidne_active_games{game_type="all"})` for the total, similarly
+for players; use `max(bhidne_online_users)` for online users. Never sum replicas
+or add the `all` series to the game-type breakdown. Slightly different scrape times
+can retain an older maximum until the next sample. Existing database sample
+health/timestamp and new `presence_sample_ok` / `presence_sample_timestamp_seconds`
+runtime-state gauges indicate collection freshness. A failed database sample sets
+activity gauges to `NaN`. No user, room or table IDs are metric labels.
+
+The repository Grafana dashboard includes these queries; importing the updated
+JSON is separate from code deployment. Cache results are observable through
+`bhidne_read_cache_total{result}` (memory hit, Redis hit, miss, Redis error, oversize).

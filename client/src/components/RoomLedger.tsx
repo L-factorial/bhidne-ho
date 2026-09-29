@@ -1,5 +1,5 @@
 import { playerError } from '../multiplayer/playerError.ts';
-import { ui } from '../i18n/copy.ts';
+import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -68,7 +68,7 @@ export function RoomLedger({ roomId, session, embedded = false, transport }: { r
       aria-expanded={open} accessibilityState={{ expanded: open }} onPress={() => setOpen(value => !value)} style={styles.sectionToggle}>
       <Text style={styles.name}>{t('ledger.section')}</Text><Text style={styles.name}>{open ? '−' : '+'}</Text>
     </Pressable>}
-    {(embedded || open) && <><View style={styles.tabs}>{([["ledger", 'ledger.ledger'], ['personal', 'ledger.personal']] as const).map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: tab === value }} onPress={() => setTab(value)} style={[styles.tab, tab === value && styles.selected]}><Text style={styles.name}>{t(label)}</Text></Pressable>)}</View>{!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
+    {(embedded || open) && <><View style={styles.tabs}>{([["ledger", 'ledger.ledger'], ['personal', 'ledger.personal']] as const).map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: tab === value }} onPress={() => setTab(value)} style={[styles.tab, tab === value && styles.selected]}><Text style={styles.name}>{t(label)}</Text></Pressable>)}</View>{!!error && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
     <Text style={styles.muted}>{ui("ledger.game_results_and_records_only_payments_happen_outside_bhidne_ho")}</Text>
     <Pressable accessibilityRole="button" accessibilityState={{ expanded: showCodes }} onPress={() => setShowCodes(value => !value)} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={styles.link}>{showCodes ? ui("ledger.hide_room_table_codes") : ui("ledger.show_room_table_codes")}</Text></Pressable>
     {showCodes && <Text selectable style={styles.code}>{t('ledger.roomCode', { code: roomId })}</Text>}

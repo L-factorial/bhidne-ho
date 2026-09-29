@@ -41,7 +41,7 @@ export function MarriageTunnelaPanel({hand,visible,busy,connected,submit}: {
     })}
     {button(busy?'Showing…':ui("marriage.show_selected_tunnelas"),()=>send(groups.filter(g=>selected.includes(g.card_ids[0]))),!enabled||!selected.length,true)}
     {button(ui("marriage.declare_no_tunnela"),()=>send([]),!enabled)}
-    <Text style={{color:c.textMuted}}>Only shown Tunnelas qualify for the initial declaration bonus. This does not unlock Maal.</Text>
+    <Text style={{color:c.textMuted}}>{ui("marriage.tunnela_help")}</Text>
   </View>;
   const label=!visible?ui("marriage.reveal_cards_to_check_tunnela"):groups.length?ui("marriage.tunnela_detected_choose_to_show"):ui("marriage.no_tunnela_declare_none");
   return <View testID="marriage-tunnela-detector" style={{borderWidth:1,borderColor:enabled?c.accent:c.border,borderRadius:12,overflow:'hidden'}}>

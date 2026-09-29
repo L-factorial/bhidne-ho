@@ -1,4 +1,4 @@
-import { ui } from '../i18n/copy.ts';
+import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { gameControlFinish, gameHeadingFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { RoundResultsTable } from './RoundResultsTable';
@@ -30,8 +30,8 @@ export function RoundSummary({ snapshot, busy, error, onContinue, onBack, onNewG
           ] };
       })} />
     {controls}
-    {!!error && <Text accessibilityRole="alert" style={styles.note}>{error}</Text>}
-    {controls === undefined && (final && snapshot.table?.requires_replacement ? <Text style={styles.note}>Keep your seat for the next match, or choose Leave Seat above. The host can prepare the next match when every seat is filled.</Text> : (final || snapshot.round_review?.can_continue) ? <Pressable accessibilityRole="button" disabled={busy} onPress={final ? onNewGame : onContinue}
+    {!!error && <Text accessibilityRole="alert" style={styles.note}>{uiLabel(error, 'feedback')}</Text>}
+    {controls === undefined && (final && snapshot.table?.requires_replacement ? <Text style={styles.note}>{ui("rooms.next_match_help")}</Text> : (final || snapshot.round_review?.can_continue) ? <Pressable accessibilityRole="button" disabled={busy} onPress={final ? onNewGame : onContinue}
       style={[styles.button, busy && { opacity: 0.5 }]}><ActionCue active={!busy} style={styles.name}>{final ? ui("rooms.start_a_new_game") : ui("callbreak.start_next_deal")}</ActionCue></Pressable>
       : <Text style={styles.note}>{ui("common.waiting_for_the_creator_to_start_the_next_deal")}</Text>)}
     {!hideNavigation && <Pressable accessibilityRole="button" onPress={onBack} style={styles.back}><Text style={styles.note}>{ui("common.back_to_room")}</Text></Pressable>}

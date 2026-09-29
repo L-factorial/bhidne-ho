@@ -28,7 +28,7 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = fa
         <View style={styles.statsTable}>
           <View style={styles.statsRow}>
             <Text style={styles.cell}>{ui("callbreak.deal")}</Text>
-            {(snapshot.players || []).map(player => <Text key={player.player_id} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} accessibilityLabel={`${player.display_name || ui("common.player_number", { "number": player.player_id })}${player.player_id === snapshot.your_player_id ? ", you" : ""}`} style={[styles.playerCell, styles.columnHeading]}>
+            {(snapshot.players || []).map(player => <Text key={player.player_id} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} accessibilityLabel={`${player.display_name || ui("common.player_number", { "number": player.player_id })}${player.player_id === snapshot.your_player_id ? `, ${ui("common.you")}` : ""}`} style={[styles.playerCell, styles.columnHeading]}>
               {player.player_id === snapshot.your_player_id ? ui("common.you") : player.display_name || ui("common.player_number", { "number": player.player_id })}
             </Text>)}
           </View>
@@ -46,7 +46,7 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = fa
                 const points = score?.deal_scores_tenths[i];
                 const missed = points != null && points < 0;
                 return <View key={player.player_id} style={styles.playerCell}
-                  accessibilityLabel={`${player.display_name || ui("common.player_number", { "number": player.player_id })}, deal ${i + 1}${active ? ', active' : ''}, bid ${bid ?? 'pending'}, won ${won ?? 0}${points != null ? `, ${missed ? 'missed bid, ' : ''}score ${points / 10}` : ''}`}>
+                  accessibilityLabel={ui("common.game_stats_accessible", {player: player.display_name || ui("common.player_number", {number: player.player_id}), deal: i + 1, active: active ? ui("rooms.active") : "", bid: bid ?? ui("common.rule_pending"), won: won ?? 0, score: points != null ? ui("common.game_stats_score", {missed: missed ? ui("common.missed_bid") : "", score: points / 10}) : ""})}>
                   <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.statValue, active && styles.activeBid]}>{ui("callbreak.bid_count", { "count": bid ?? '—' })}</Text>
                   <Text numberOfLines={1} adjustsFontSizeToFit style={styles.statValue}>{ui("common.won_count", { "count": won ?? '—' })}</Text>
                   <View style={[styles.result, missed && styles.missed]}><Text numberOfLines={1} adjustsFontSizeToFit style={[styles.statValue, missed && styles.negative]}>{points == null ? '—' : `${points > 0 ? '+' : ''}${(points / 10).toFixed(1)}`}</Text></View>
@@ -69,9 +69,9 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = fa
         </View>
       </> : <>
         <Text style={[styles.title, menu && { fontSize: 16 }]}>{ui("callbreak.rules_title")}</Text>
-        <Text style={styles.text}>Five deals. Spades are trump. Follow suit and beat the leading card when possible. When void, play a winning spade if you can; otherwise discard. The trick winner leads next.</Text>
-        <Text style={styles.text}>Bid 1–{snapshot.rules?.bid_max || Math.floor(52 / (snapshot.capacity || 4))}. Make your bid to score that many points, plus 0.1 per extra trick. Miss it and lose your bid. Highest total wins.</Text>
-        <Text style={styles.text}>{editable ? ui("rooms.creator_settings_save_before_starting") : 'Only the creator can edit settings before the game starts.'}</Text>
+        <Text style={styles.text}>{ui("callbreak.rules_help")}</Text>
+        <Text style={styles.text}>{ui("callbreak.bid_rules_help", {max: snapshot.rules?.bid_max || Math.floor(52 / (snapshot.capacity || 4))})}</Text>
+        <Text style={styles.text}>{editable ? ui("rooms.creator_settings_save_before_starting") : ui("rooms.creator_rules_help")}</Text>
         {settings && <>
           {(['weak_hand_enabled', 'no_spades_enabled'] as const).map(key => <View key={key} style={styles.row}>
             <Switch accessibilityLabel={key === 'weak_hand_enabled' ? ui("callbreak.allow_weak_hand_redeal") : ui("callbreak.allow_no_spades_redeal")} disabled={!editable || busy} value={settings[key]} onValueChange={value => setDraft({ ...settings, [key]: value })} />
@@ -84,7 +84,7 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = fa
               onChangeText={text => { if (/^\d*$/.test(text)) setDraft({ ...settings, payments: settings.payments.map((v, index) => index === i ? Math.min(1000000, Number(text)) : v) }); }} style={styles.input} />
           </View>) : settings.payments.slice(0, (snapshot.capacity || 4) - 1).map((amount, i) =>
             <Text key={i} style={styles.text}>{ui("common.player_place_1st_amount_units", { "player": ['2nd', '3rd', '4th', '5th'][i], "amount": amount })}</Text>)}
-          <Text style={styles.text}>Zero means no bet. Amounts record your agreement; no money is transferred. Tied placements require agreement between players.</Text>
+          <Text style={styles.text}>{ui("ledger.bets_help")}</Text>
 
         </>}
       </>}

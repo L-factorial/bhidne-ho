@@ -149,8 +149,8 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   </View> : null;
   const rulesContent = <>
       <Text style={s.title}>{settings.locked ? ui("rooms.rules_locked_for_this_game") : ui("rooms.rules_before_starting")}</Text>
-      <Text style={s.text}>Every player pays the boot each hand (0 disables it). Betting is unbounded. Contributions and winnings are recorded as points for settlement after play.</Text>
-      <Text style={s.text}>You can see your cards on your turn without prior bets. Side-show requires the configured number of completed personal bets (blind or seen), excluding boot. Bet the minimum or double your current blind or seen minimum to raise. Blind bets set the seen minimum using the multiplier; seen bets set the blind minimum by dividing and rounding up. Show always requires exactly two active players. A side-show request costs one seen bet, even if declined; only the two participants can see the compared cards.</Text>
+      <Text style={s.text}>{ui("flush.boot_help")}</Text>
+      <Text style={s.text}>{ui("flush.betting_help")}</Text>
       {stale && dirty && !settings.locked && <Text accessibilityRole="alert" style={s.error}>{ui("common.saved_rules_changed_reload_before_editing_or_starting")}</Text>}
       {(Object.keys(labels) as (keyof FlushRules)[]).map(key => {
         const value = shownRules[key]; const label = uiLabel(labels[key], 'flush');
@@ -162,21 +162,21 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
         </View>;
       })}
 
-      <Text style={s.text}>{settings.locked ? ui("rooms.new_rules_can_be_chosen_for_the_next_game") : dirty ? ui("common.propose_these_changes_for_approval_before_starting") : 'Edits need every seated player’s approval. One rejection keeps the current rules.'}</Text>
+      <Text style={s.text}>{settings.locked ? ui("rooms.new_rules_can_be_chosen_for_the_next_game") : dirty ? ui("common.propose_these_changes_for_approval_before_starting") : ui("rooms.rules_rejection_help")}</Text>
       {(settings.locked || !snapshot.is_creator) && !!(localError || error) && <Text accessibilityRole="alert" style={s.error}>{uiLabel(localError || error, 'feedback')}</Text>}
   </>;
   const available = (kind: string) => snapshot.status === 'playing' && !!mine?.actions.kinds.includes(kind);
   const help = myTurn && available("bet") ? [
-    !mine?.actions.show.allowed && mine?.actions.show.reason ? ui("common.show_status", { "status": mine.actions.show.reason }) : null,
-    settings.rules.allow_side_show && !mine?.actions.side_show.allowed && mine?.actions.side_show.reason ? ui("flush.side_show_status", { "status": mine.actions.side_show.reason }) : null,
+    !mine?.actions.show.allowed && mine?.actions.show.reason ? ui("common.show_status", { "status": uiLabel(mine.actions.show.reason) }) : null,
+    settings.rules.allow_side_show && !mine?.actions.side_show.allowed && mine?.actions.side_show.reason ? ui("flush.side_show_status", { "status": uiLabel(mine.actions.side_show.reason) }) : null,
   ].filter(Boolean) : [];
   const turnText = ended ? ui("rooms.table_ended") : pub?.settlement ? ui("flush.round_complete") : decision ? myTurn
     ? pub?.pending_side_show ? ui("flush.accept_or_decline_player_s_side_show", { "player": name(pub.pending_side_show.requester_id) })
       : pub?.pending_show ? ui("flush.reveal_or_fold")
       : preparing ? `${pub?.status === 'awaiting_deal' ? ui("callbreak.deal_cards") : ui("callbreak.cut_or_skip")}`
       : `${visibility} · ${[['bet', 'Bet'], ['show', 'Show'], ['side_show', 'Side-show'], ['fold', 'Fold']].filter(([kind]) => available(kind)).map(([, label]) => uiLabel(label, 'flush')).join(' / ') || ui("common.choose_an_action")}`
-    : `${ownPlayer?.status === 'active' && !preparing ? `${visibility} · ` : ownPlayer?.status === 'folded' ? 'Folded · ' : ''}Waiting for ${name(decision.actor)}`
-    : `${snapshot.players?.length || 0}/${snapshot.capacity} players seated`;
+    : `${ownPlayer?.status === 'active' && !preparing ? `${visibility} · ` : ownPlayer?.status === 'folded' ? `${ui("flush.folded")} · ` : ''}${ui("common.waiting_for_player", {player: name(decision.actor)})}`
+    : ui("rooms.seated_capacity_seated", {seated: snapshot.players?.length || 0, capacity: snapshot.capacity});
   return <View style={[s.page, mobile && { padding: 8, gap: 4 }]} testID="flush-table">
     <GameTableHeader showShare={showTableHeaderShare(snapshot)} tableName={snapshot.table_name} title={ui("rooms.flush")} compact path={snapshot.path} game="flush" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack} mobileTestIds drawerMetadata={<GameMenuMetadata snapshot={snapshot} />}>
       {closeMenu => <FlushMenu snapshot={snapshot} close={closeMenu} rules={() => setRulesOpen(true)} history={() => setBetsOpen(true)}
@@ -264,8 +264,8 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
             own: p.player_id === String(snapshot.your_player_id), winner: pub.settlement!.winner_ids.includes(p.player_id),
             values: [{ text: String(payout) }, { text: net === undefined ? '—' : `${net > 0 ? '+' : ''}${net}`, amount: net }] };
         })} />
-        {pub.settlement.shown_hands.map(p => <View key={p.player_id}><Text style={s.text}>{ui("flush.player_s_shown_hand", { "player": name(p.player_id) })}</Text><FlushCards autoReveal key={`${pub.round_number}:${p.player_id}`} label={`${name(p.player_id)} card`} cards={p.cards.map(c => `${({11:'J',12:'Q',13:'K',14:'A'} as Record<number,string>)[c.rank] || c.rank}${c.suit}`)} /></View>)}
-        <Text style={s.text}>Players may join or leave now. The creator must lock the table before the next deal.</Text>
+        {pub.settlement.shown_hands.map(p => <View key={p.player_id}><Text style={s.text}>{ui("flush.player_s_shown_hand", { "player": name(p.player_id) })}</Text><FlushCards autoReveal key={`${pub.round_number}:${p.player_id}`} label={ui("common.player_card", {player: name(p.player_id)})} cards={p.cards.map(c => `${({11:'J',12:'Q',13:'K',14:'A'} as Record<number,string>)[c.rank] || c.rank}${c.suit}`)} /></View>)}
+        <Text style={s.text}>{ui("rooms.next_deal_help")}</Text>
         </View>}
           {!!error && <Text accessibilityRole="alert" style={s.error}>{uiLabel(error, 'feedback')}</Text>}
         </ScrollView>

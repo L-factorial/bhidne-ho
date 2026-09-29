@@ -1,5 +1,5 @@
 import { playerError } from '../multiplayer/playerError.ts';
-import { ui } from '../i18n/copy.ts';
+import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
@@ -45,6 +45,6 @@ export function SocialSignInButtons({ onSession, disabled = false, onBusyChange 
     {(['google', 'apple', 'facebook'] as const).filter(provider => providers.includes(provider)).map(provider =>
       <SignInButton key={provider} method={labels[provider]} disabled={disabled || busy !== null}
         label={busy === provider ? ui("common.signing_in_with_provider", { "provider": labels[provider] }) : undefined} onPress={() => void signIn(provider)} />)}
-    {!!error && <Text accessibilityRole="alert" style={{ color: colors.danger }}>{error}</Text>}
+    {!!error && <Text accessibilityRole="alert" style={{ color: colors.danger }}>{uiLabel(error, 'feedback')}</Text>}
   </View>;
 }

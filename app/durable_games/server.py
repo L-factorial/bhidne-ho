@@ -121,6 +121,7 @@ def build_server(pool, redis, *, internal_address, signal_secret, auth, allowed_
     from .placement import RoomOwnerCoordinator
     from .polling import RedisPollingPolicy
     from .read_transport import DistributedReads
+    from .read_cache import ReadCache
     from .redis_presence import ConnectionPresenceRegistry, RedisPresenceStore
     from .redis_transport import RedisSignalTransport
     from .room_runtime import RoomExecutionRuntime
@@ -150,7 +151,8 @@ def build_server(pool, redis, *, internal_address, signal_secret, auth, allowed_
         presence=presence, gateway=gateway, publisher=publisher, social=social,
         polling=polling, pool=pool, redis=redis, owns_pool=owns_pool, owns_redis=owns_redis)
     server.allowed_origins = frozenset(allowed_origins)
-    server.platform = SharedPlatform(pool, auth, guest_login_enabled=guest_login_enabled)
+    read_cache = ReadCache(redis, namespace=namespace)
+    server.platform = SharedPlatform(pool, auth, guest_login_enabled=guest_login_enabled, cache=read_cache)
     signals.on_health = server.observe_health
     router = RoomCommandRouter(runtime.inbox, runtime.ownership,
                                local_receiver=receiver, send_remote=signals.send_wakeup)
@@ -162,6 +164,6 @@ def build_server(pool, redis, *, internal_address, signal_secret, auth, allowed_
     server.router = create_router(auth=auth, hosted=HostedCommandIngress(runtime.inbox, wakeup=wake_room_lane),
         chat=ChatIngress(runtime.inbox, wakeup=wake_room_lane),
         social=SocialIngress(runtime.inbox, wakeup=social.wake), gateway=gateway,
-        allowed_origins=server.allowed_origins, reads=DistributedReads(pool), catalog=PostgresRoomCreation(pool),
+        allowed_origins=server.allowed_origins, reads=DistributedReads(pool, cache=read_cache), catalog=PostgresRoomCreation(pool),
         presence=presence, presence_room=store.presence_room, admission=server.admission)
     return server

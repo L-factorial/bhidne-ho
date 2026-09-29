@@ -1,3 +1,5 @@
+import { useUiLanguage } from '../i18n/useUiLanguage';
+import { ui, uiLabel } from '../i18n/copy.ts';
 import { playerError } from '../multiplayer/playerError.ts';
 import {useEffect,useState} from 'react';
 import {Pressable,Text,View} from 'react-native';
@@ -7,18 +9,19 @@ import type {DistributedRootRuntime} from '../multiplayer/DistributedRoot';
 import {useDistributedController} from '../multiplayer/useDistributedController';
 import {useTheme} from '../theme';
 export function DistributedRoomSettings({root,room,session}:{root:DistributedRootRuntime;room:string;session:Session}) {
+  useUiLanguage();
   const {colors}=useTheme();
   const {controller,state}=useDistributedController(root,'room-settings');
   const [friends,setFriends]=useState<{user_id:string;display_name:string}[]>([]),[error,setError]=useState(''),[confirm,setConfirm]=useState(false);
   useEffect(()=>{const abort=new AbortController();void request<{friends:typeof friends}>('/friends',session,undefined,abort.signal).then(value=>{if(!abort.signal.aborted)setFriends(value.friends);}).catch(e=>{if(!abort.signal.aborted)setError(playerError(e));});return()=>abort.abort();},[session]);
   const button=(label:string,run:()=>void)=><Pressable accessibilityRole="button" disabled={!controller||state.busy} onPress={run} style={{padding:12}}><Text style={{color:colors.accent}}>{label}</Text></Pressable>;
   return <View style={{gap:8}}>
-    <Text style={{color:colors.text}}>Room settings</Text>
-    {button('Make room public',()=>void controller?.room(room,'room-visibility',{visibility:'public'}))}
-    {button('Make room private',()=>void controller?.room(room,'room-visibility',{visibility:'private'}))}
-    {friends.map(friend=><View key={friend.user_id}>{button('Invite '+friend.display_name,()=>void controller?.room(room,'invite-room',{recipients:[friend.user_id]}))}</View>)}
-    {confirm?button('Confirm delete room',()=>void controller?.room(room,'delete-room')):button('Delete room',()=>setConfirm(true))}
-    {state.status==='pending'&&button('Check pending action',()=>void controller?.recover())}
-    {!!(error||state.error)&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{state.error||error}</Text>}
+    <Text style={{color:colors.text}}>{ui("common.room_settings")}</Text>
+    {button(ui("common.make_public"),()=>void controller?.room(room,'room-visibility',{visibility:'public'}))}
+    {button(ui("common.make_private"),()=>void controller?.room(room,'room-visibility',{visibility:'private'}))}
+    {friends.map(friend=><View key={friend.user_id}>{button(ui("rooms.invite_player", {player: friend.display_name}),()=>void controller?.room(room,'invite-room',{recipients:[friend.user_id]}))}</View>)}
+    {confirm?button(ui("common.confirm_delete_room"),()=>void controller?.room(room,'delete-room')):button(ui("rooms.delete_room"),()=>setConfirm(true))}
+    {state.status==='pending'&&button(ui("common.pending_action"),()=>void controller?.recover())}
+    {!!(error||state.error)&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(state.error||error, 'feedback')}</Text>}
   </View>;
 }

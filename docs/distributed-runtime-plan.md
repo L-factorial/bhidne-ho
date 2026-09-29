@@ -4784,3 +4784,134 @@ rollout. The next concrete step is the staging collection/alert setup described 
 - Next: review/deploy migration 27 and this application together, inspect live
   query plans/statistics and run the target load profile. No production writes,
   commit, push or deployment performed.
+
+### U2 — lobby/room polish, localization, read caching and activity metrics (2026-09-29)
+
+The user explicitly authorized implementing the collected UI, caching, filtering
+and observability requests on `bhidne-ho-scalability-prod`, extending the earlier
+runtime-only scope. This increment is local and reviewable; no commit, push,
+production mutation or deployment was performed.
+
+Completed:
+
+- Lobby content tabs now use the room's text/underline treatment. Recent becomes
+  Create or Join, containing the create/join actions. The welcome is compact,
+  without the extra promotional text. Bottom navigation uses room-style outline
+  icons, labels and accent selection. The room header is smaller and omits its
+  code; invitation/share controls retain it.
+- Header brand follows English/Nepali selection (Bhidne Ho ? / भिड्ने हो ?).
+  Sharing/privacy guidance, game descriptions, Call Break/Flush/Marriage rules,
+  scoring/explanation panels and additional profile/social copy use matched locale
+  catalogs. User text, names, IDs, numbers and authoritative game state stay intact.
+  Switching language no longer rebuilds the game transport/command client.
+- Background room/game/chat/reconnect warnings wait 1.5 seconds before appearing.
+  Failed background room/game reads retry sooner; successful refreshes clear their
+  own warning without erasing action errors. Action failures and uncertain command
+  outcomes retain their existing feedback/recovery behavior. Removed a duplicate
+  lobby error presentation. Live activity events refresh the active-games list.
+- Active tabs filter terminal table/game statuses and phases on server and client;
+  completed results remain available through explicit selected game/history views.
+  Database authorization continues to exclude inaccessible/deleted/private rooms.
+- Added bounded process-memory and Redis caches for authorized room/table snapshots
+  and relationships, activity/membership projections and invitation previews.
+  Dependency versions cover table/game/checkpoint/receipt, membership, positions
+  and profiles. New committed versions invalidate old keys across servers, so
+  delivery-triggered refreshes populate current data and old fills cannot overwrite
+  newer versions. Redis failure/corruption falls back to reconstruction.
+- Added cluster active-games/active-players gauges by game type plus totals, and
+  distinct online-user presence across servers/tabs/devices. Unknown Redis/database
+  samples are not reported as false zeroes. Dashboard queries use max across
+  replica observations, never sum. See `distributed-runtime-telemetry.md` and
+  `distributed-runtime-read-cache.md` for definitions and limits.
+
+Verification:
+
+- 290 client tests and TypeScript checking passed; production-mode distributed
+  web export passed with explicitly local API URLs in `/private/tmp/bhidne-review-web`.
+- 74 targeted backend tests passed, with PostgreSQL/WASM and disposable real Redis.
+  Coverage includes cross-server cache hits, changed table/profile versions,
+  membership/public-access revocation, detached values, expiry/bounds/cancellation,
+  Redis errors, completed-game filtering, cluster counts and socket deduplication.
+- Browser checks passed at 390px and 1280px against disposable PostgreSQL/Redis and
+  two actual gateways: compact layout, action placement, navigation styling,
+  English-to-Nepali switch, preserved room name and translated invitation/privacy
+  guidance. Injecting one 503 into the room list recovered without a warning flash.
+- Existing delayed-response creation regressions passed for Flush and Marriage at
+  390px and Call Break at 1280px: game view opens with one creation request.
+  Browser checks caught an incorrectly inserted notice hook in a child component;
+  it was corrected and the final build/typecheck/browser checks passed.
+- Dashboard JSON and whitespace checks passed. Two existing dependency deprecation
+  warnings remain in backend tests. No production capacity or native-device claim.
+
+Design limits and next step:
+
+- A lightweight authoritative SQL access/inventory/version read deliberately
+  precedes cached payload lookup. PostgreSQL is the fallback for expensive state
+  reconstruction, not for permission decisions. Directory, ledger, chat history
+  and lobby-page reads retain existing bounded SQL. This is not full database-free
+  operation, a new cache authority, or a replacement for durable writes.
+- Cache defaults: 256 local entries / 16 MiB serialized local budget, 512 KiB per
+  payload, 30-second local/Redis expiry, 150 ms Redis operation timeout. Redis now
+  holds private actor-specific projections within the existing private deployment.
+- Online users reflect observed authenticated sockets, with TTL grace after crashes
+  and convergence during rebuild/rolling deployment. Global-user Lua maintenance
+  targets the existing standalone Redis, not cross-slot Redis Cluster.
+- Next: review this local diff. When publication is requested, release both gateways
+  and the client, import the updated Grafana dashboard, and verify activity counts,
+  cache hit rates/memory, mobile layout and language switching under actual traffic.
+  No schema migration or production infrastructure change is required here.
+
+## U3 — Remaining static copy and shared player caches (2026-09-29)
+
+User authorization: proceed with the remaining localization and user/profile/
+directory caching gaps identified after U2. This extends the user-requested UI and
+cache work; no deployment, commit, or production configuration change is included.
+
+Completed:
+
+- Finished the identified static copy in profile/phrase management, invitation and
+  room controls, preview screens, game help, rule-change review, confirmations,
+  feedback and accessibility labels. Added explicit presentation mappings for rule
+  keys and enum values; configuration, identifiers, names, chat, saved phrases,
+  card values and game state remain unchanged. State-held feedback translates at
+  render time. Poke confirmations retain their recipient separately from wording.
+- Added the missing language toggle to the game table's newer drawer menu. Language
+  changes rerender labels without recreating game command clients or table state.
+- Added bounded process-memory/Redis payload caches for profile and appearance
+  reads, public/batch players, exact directory and substring searches, and friendship
+  lists. Platform and room projections share one cache budget per gateway.
+- Keys use committed user/profile/account/relationship versions from the same
+  repeatable-read snapshot as the miss loader. Updates, deletions and additions
+  make old keys unreachable across gateways immediately; the next read fills the
+  new version. This avoids missed-invalidation races and works during Redis failure.
+  Search pages use deterministic ordering, including a user-ID tie breaker, so
+  candidate-version selection and payload loading agree at the twenty-result limit.
+- Added real SQL tests for cross-gateway Redis hits, profile/appearance changes,
+  username bookkeeping, directory renames/new accounts/deletions, actor isolation,
+  detached batch results and friendship request/accept/remove. Extended the SQL
+  test bridge to serialize UUID arrays used by the production batch-player query.
+- Added a source-level regression check for untranslated JSX prose and literal
+  accessibility labels, plus rule-label/interpolation checks. Extended browser
+  coverage for profile copy and language changes inside each game's table menu.
+
+Verification and limitations:
+
+- 89 targeted backend tests passed; two existing Starlette/AnyIO deprecation
+  warnings remain. 292 client tests passed, including catalog key/placeholder parity
+  and preservation of dynamic values. TypeScript and the web export passed.
+- Local mobile/desktop lobby and room browser checks passed, including translated
+  profile phrases, preserved room names and recovery from a temporary failed read.
+- Game-menu browser checks passed for Flush and Marriage at 390px and Call Break
+  at 1280px: delayed creation responses and language changes preserve the table
+  name and send only one creation command. The check exposed the missing drawer
+  language toggle; it was added and the final build and all three checks passed.
+- Authoritative SQL version/access reads deliberately remain on cache hits. Directory
+  hits still query a bounded candidate page; this does not cache a search index or
+  claim database-free operation. Authentication, authorization, ledger, chat history
+  and lobby-page reads keep their authoritative SQL paths. Invalidations are lazy
+  version changes, not a synchronous write-through broadcast to all processes.
+- No new schema, production deployment or capacity/latency guarantee. See
+  `docs/distributed-runtime-read-cache.md` for the exact cache coverage and bounds.
+- Exact next step: review the local diff; when release is requested, deploy both
+  gateway code and the client and verify cache-hit metrics, language switching and
+  cross-gateway profile updates in the deployment environment.

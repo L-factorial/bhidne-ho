@@ -37,7 +37,7 @@ export function PlayerSeat({ name, mine = false, active = false, connected = tru
   const size = compact ? 28 : 44;
   return <Pressable ref={node => { registerSeat?.(node); if (playerId !== undefined) social?.registerSeat(playerId, node); }} collapsable={false} testID={testID} accessibilityRole={press ? 'button' : undefined}
     onTouchStart={event => { if (target) event.stopPropagation(); }} onPointerDown={event => { if (target) event.stopPropagation(); }}
-    onPress={press} disabled={!press} accessibilityLabel={`${target ? ui("social.poke") : ''}${name}${mine ? ', You' : ''}${active ? ', current turn' : ''}${dealer ? ', dealer' : ''}${status ? `, ${status}` : ''}${!connected ? ', disconnected' : ''}`}
+    onPress={press} disabled={!press} accessibilityLabel={`${target ? ui("social.poke") : ''}${name}${mine ? `, ${ui("common.you")}` : ''}${active ? `, ${ui("common.current_turn")}` : ''}${dealer ? `, ${ui("common.dealer")}` : ''}${status ? `, ${status}` : ''}${!connected ? `, ${ui("rooms.offline")}` : ''}`}
     style={{ width: '100%', alignItems: 'center', gap: 2, minHeight:44 }}>
     <PlayerSocialEffect playerId={playerId} />
     {target && <Text pointerEvents="none" style={{position:'absolute',right:0,top:0,fontSize:14}}>👋</Text>}

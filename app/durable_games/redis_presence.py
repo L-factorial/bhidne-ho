@@ -15,8 +15,9 @@ import re
 from uuid import uuid4
 
 
-# Each script accesses one index, so user/room indices also work on separate slots.
-# Bounded pruning keeps both script work and retained members bounded.
+# User refresh/removal atomically maintains a global distinct-user index on the
+# deployed standalone Redis. Room indices remain independent. Bounded pruning
+# limits script work; scores exclude expired records even before pruning.
 _REFRESH = '''
 local t = redis.call('TIME')
 local now = t[1] * 1000 + math.floor(t[2] / 1000)
@@ -26,12 +27,33 @@ if not redis.call('ZSCORE', KEYS[1], ARGV[1]) and
     redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[3]) then return 0 end
 redis.call('ZADD', KEYS[1], now + tonumber(ARGV[2]), ARGV[1])
 redis.call('PEXPIRE', KEYS[1], ARGV[2])
+if #KEYS == 2 then
+    local expired_users = redis.call('ZRANGEBYSCORE', KEYS[2], '-inf', now, 'LIMIT', 0, 128)
+    if #expired_users > 0 then redis.call('ZREM', KEYS[2], unpack(expired_users)) end
+    redis.call('ZADD', KEYS[2], now + tonumber(ARGV[2]), ARGV[4])
+    redis.call('PEXPIRE', KEYS[2], ARGV[2])
+end
 return 1
 '''
 _READ = '''
 local t = redis.call('TIME')
 local now = t[1] * 1000 + math.floor(t[2] / 1000)
 return redis.call('ZRANGEBYSCORE', KEYS[1], '(' .. now, '+inf', 'LIMIT', 0, ARGV[1])
+'''
+
+_REMOVE_USER = '''
+redis.call('ZREM', KEYS[1], ARGV[1])
+local t = redis.call('TIME')
+local now = t[1] * 1000 + math.floor(t[2] / 1000)
+if redis.call('ZCOUNT', KEYS[1], '(' .. now, '+inf') == 0 then
+    redis.call('ZREM', KEYS[2], ARGV[2])
+end
+return 1
+'''
+_COUNT_USERS = '''
+local t = redis.call('TIME')
+local now = t[1] * 1000 + math.floor(t[2] / 1000)
+return redis.call('ZCOUNT', KEYS[1], '(' .. now, '+inf')
 '''
 
 
@@ -92,18 +114,32 @@ class RedisPresenceStore:
             keys.append(self.key('room', presence.room_id))
         return keys
 
+    @property
+    def online_key(self):
+        return f'{self.namespace}:presence:online-users'
+
+    async def online_users(self):
+        async with asyncio.timeout(self.timeout):
+            return int(await self.client.eval(_COUNT_USERS, 1, self.online_key))
+
     async def refresh(self, presence):
         async with asyncio.timeout(self.timeout):
             results = []
             for key in self.keys(presence):
-                results.append(await self.client.eval(_REFRESH, 1, key, presence.encoded(),
-                    math.ceil(self.ttl * 1000), self.max_index))
+                user_key = self.key('user', presence.user_id)
+                keys = [key, self.online_key] if key == user_key else [key]
+                results.append(await self.client.eval(_REFRESH, len(keys), *keys, presence.encoded(),
+                    math.ceil(self.ttl * 1000), self.max_index, user_key))
             return all(value == 1 for value in results)
 
     async def remove(self, presence):
         async with asyncio.timeout(self.timeout):
             for key in self.keys(presence):
-                await self.client.zrem(key, presence.encoded())
+                user_key = self.key('user', presence.user_id)
+                if key == user_key:
+                    await self.client.eval(_REMOVE_USER, 2, key, self.online_key, presence.encoded(), user_key)
+                else:
+                    await self.client.zrem(key, presence.encoded())
 
     async def observe(self, kind, value):
         key = self.key(kind, value)

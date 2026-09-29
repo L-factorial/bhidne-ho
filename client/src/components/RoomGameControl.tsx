@@ -1,3 +1,5 @@
+import { usePersistentNotice } from '../multiplayer/usePersistentNotice';
+import { isActiveTable } from '../multiplayer/tableNavigation';
 import { playerError } from '../multiplayer/playerError.ts';
 import { committedSnapshot } from '../multiplayer/committedSnapshot';
 import type { OriginalDistributedRuntime } from '../multiplayer/OriginalDistributedRuntime';
@@ -43,7 +45,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
   userId: string; pokes: RoomPoke[]; personal: ReturnType<typeof usePlayerPhrases>;
   roomId: string; apiUrl: string; token: string; connected: boolean; sessionActive?: boolean; members: string[]; roomMembers?: string[]; connectionMessage?: string;
 }) {
-  const uiLanguage = useUiLanguage();
+  useUiLanguage();
   const { colors } = useTheme();
   const { theme: gameTheme } = useTableTheme();
   const styles = useThemedStyles(createStyles);
@@ -57,7 +59,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
     void runtime.root.select({room:roomId,table:snapshot.status==='ended'?null:snapshot.table_id,chat:snapshot.status==='ended'?['room_chat']:['room_chat','table_chat']}).catch(()=>{});
   },[runtime,roomId,snapshot?.table_id,snapshot?.durable_game_id,snapshot?.status==='ended']);
   const [seatConflict, setSeatConflict] = useState<GameRequestDetail | null>(null);
-  const visibleTables = snapshot?.tables?.filter(table => table.status !== 'ended' && table.phase !== 'ENDED') || [];
+  const visibleTables = snapshot?.tables?.filter(isActiveTable) || [];
   useEffect(() => { onOpenChange?.(open); }, [open, onOpenChange]);
   useEffect(() => () => onOpenChange?.(false), [onOpenChange]);
   const [live, setLive] = useState(false);
@@ -81,14 +83,14 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
     const send=(suffix='',body?:object,signal?:AbortSignal)=>request<Snapshot>(`/test-games/${encodeURIComponent(roomId)}${suffix}`,{user_id:userId,token},body,signal);
     return {request:send,snapshot:(signal:AbortSignal)=>send(selectedMatch.current?`?match_id=${encodeURIComponent(selectedMatch.current)}`:'',undefined,signal),
       action:(body:object,signal:AbortSignal)=>send('/action',body,signal)};
-  },[base,token,roomId,userId,runtime,uiLanguage]);
+  },[base,token,roomId,userId,runtime]);
   useEffect(() => {
     if (requestedMatchId) { selectedMatch.current = requestedMatchId; setActionTick(v => v + 1); }
   }, [requestedMatchId]);
   const commandClient = useMemo(() => runtime
     ? new DistributedGameCommandClient(runtime.root.session.command('original-game-actions'),transport.snapshot,
       snapshot=>({...snapshot,room_id:roomId}) as unknown as SelectedTable)
-    : new GameCommandClient(transport), [transport,runtime,roomId,uiLanguage]);
+    : new GameCommandClient(transport), [transport,runtime,roomId]);
   const [actionTick, setActionTick] = useState(0);
   const [actionNotice, setActionNotice] = useState('');
   const [synced, setSynced] = useState(false);
@@ -97,12 +99,13 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
   const busy = pendingAction || !sessionActive || !synced;
   const [actionError, setError] = useState('');
   const [refreshError, setRefreshError] = useState('');
-  const error = actionError || refreshError;
+  const showRefreshError = usePersistentNotice(!!refreshError);
+  const error = actionError || (showRefreshError ? refreshError : '');
   useEffect(() => {
     if (seatConflict?.room_id === roomId && snapshot?.tables && !snapshot.tables.some(table =>
       table.match_id === seatConflict.match_id && table.status !== 'ended' && table.phase !== 'ENDED')) {
       setSeatConflict(null);
-      setError('The previous table has ended. You can now take a seat here.');
+      setError(ui("common.previous_table_ended"));
     }
   }, [snapshot?.tables, seatConflict, roomId]);
   const generation = useRef(0), pending = useRef(false);
@@ -158,6 +161,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
     async function refresh() {
       const version = generation.current;
       let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+      let refreshFailed = false;
       try {
         if (!pending.current) {
           const hadPending = commandClient.pending;
@@ -186,14 +190,14 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
             return; // Still pending, not a failed connection or rejected move.
           }
           const message = commandClient.pending ? ui("feedback.please_wait_confirmation") : playerError(error, ui("feedback.cannot_load_game"));
-          setSynced(false);
+          refreshFailed = true; setSynced(false);
           if (commandClient.pending) setActionNotice(ui("common.connection_interrupted_your_action_will_be_checked_automatically"));
           setRefreshError(message);
         }
       }
       finally {
         clearTimeout(noticeTimer);
-        if (!controller.signal.aborted) timer = setTimeout(refresh, runtime && !commandClient.pending ? 30000 : 1000);
+        if (!controller.signal.aborted) timer = setTimeout(refresh, runtime && !commandClient.pending && !refreshFailed ? 30000 : 1000);
       }
     }
     if (sessionActive) refresh();
@@ -263,11 +267,11 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
         const previous = await request<Snapshot>(`/test-games/${encodeURIComponent(seatConflict.room_id)}?match_id=${encodeURIComponent(seatConflict.match_id)}`,
           { user_id: userId, token });
         if (previous.match_id !== seatConflict.match_id || previous.status !== 'ended') {
-          setError('The previous table is still reserved. Its creator must end it before you can take another seat.');
+          setError(ui("common.previous_table_reserved"));
           return;
         }
         setSeatConflict(null);
-        setError('The previous table has ended. You can now take a seat here.');
+        setError(ui("common.previous_table_ended"));
         return;
       }
       const command = seatConflict.departure_command === 'abandon' ? 'table/abandon' : 'leave';
@@ -396,10 +400,10 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
     <Modal transparent visible={!!seatConflict} animationType="fade" onRequestClose={() => setSeatConflict(null)}>
       <View style={styles.overlay}><View accessibilityViewIsModal style={styles.modal}><View style={styles.body}>
         <Text accessibilityRole="header" style={styles.title}>{seatConflict?.departure_command === 'end' ? ui("rooms.previous_table_is_reserved") : seatConflict?.departure_command === 'abandon' ? ui("rooms.abandon_active_game") : ui("rooms.leave_previous_table_2")}</Text>
-        <Text style={styles.text}>You can visit this room, but each account can occupy only one table at a time.</Text>
+        <Text style={styles.text}>{ui("rooms.one_table_help")}</Text>
         <Text style={styles.text}>{actionError}</Text>
-        {seatConflict?.departure_command === 'end' && <Text style={styles.text}>Ask the creator to end the previous table. You do not need to leave it after it ends.</Text>}
-        {seatConflict?.departure_command === 'abandon' && <Text style={styles.error}>Abandoning stops the active match for everyone at that table.</Text>}
+        {seatConflict?.departure_command === 'end' && <Text style={styles.text}>{ui("rooms.end_previous_help")}</Text>}
+        {seatConflict?.departure_command === 'abandon' && <Text style={styles.error}>{ui("rooms.abandon_effect")}</Text>}
         <Pressable accessibilityRole="button" disabled={pendingAction} onPress={() => void leavePreviousTable()} style={[styles.button, { backgroundColor: colors.dangerSurface, borderWidth: 1, borderColor: colors.danger }]}>
           <Text style={[styles.buttonText, { color: colors.danger }]}>{seatConflict?.departure_command === 'end' ? ui("rooms.check_table_status") : seatConflict?.departure_command === 'abandon' ? ui("rooms.abandon_previous_game") : ui("rooms.leave_previous_table")}</Text>
         </Pressable>
@@ -443,7 +447,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
         <FormScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
           <Text accessibilityRole="header" style={styles.title}>{ui("rooms.create_table")}</Text>
           {createContent}
-          <Text style={styles.text}>{gameType === 'flush' ? '2–10 players · lock the seated roster when ready.' : ui("rooms.seats")}</Text>
+          <Text style={styles.text}>{gameType === 'flush' ? ui("common.flush_roster_help") : ui("rooms.seats")}</Text>
           <View style={[styles.choices, { flexWrap: 'wrap' }]}>{(gameType === 'flush' ? [] : gameType === 'marriage' ? [2, 3, 4, 5] : [4, 5]).map(size => <Pressable key={size} accessibilityRole="button" accessibilityState={{ selected: capacity === size }}
             onPress={() => setCapacity(size)} style={[styles.choice, { minHeight: 48 }, size === capacity && { borderColor: colors.accent }]}><Text style={styles.text}>{ui("rooms.count_players", { "count": size })}</Text></Pressable>)}</View>
             <Text style={styles.text}>{ui("rooms.table_name_required")}</Text><FormInput accessibilityLabel={ui("rooms.table_name")} accessibilityHint={ui("rooms.required_to_create_a_table")} aria-required value={tableName} onChangeText={setTableName} maxLength={60} placeholder={ui("common.game_table", { "game": selectedGameName })} placeholderTextColor={colors.textMuted} style={[styles.choice, { color: colors.text }]} />
@@ -462,7 +466,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
               <Text style={styles.note}>{player.username ? `@${player.username} · ` : ''}{player.user_id}{player.eligible === false ? ` · ${player.reason}` : ''}</Text>
             </Pressable>)}</View>}
             {!!inviteError && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(inviteError, 'feedback')}</Text>}
-          <Text style={styles.note}>Review advanced rules at the table before starting. Rule changes still require player approval.</Text>
+          <Text style={styles.note}>{ui("rooms.advanced_rules_help")}</Text>
         </FormScrollView>
         <FormFooter>
           {!!error && <Text accessibilityRole="alert" style={styles.modalError}>{uiLabel(error, 'feedback')}</Text>}

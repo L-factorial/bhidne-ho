@@ -34,7 +34,7 @@ export function ShareLink({ roomId, matchId, compact = false, menu = false, disa
       </Svg>
       {!compact && <Text style={{ color: menu ? (disabled ? colors.textMuted : colors.text) : colors.accent, fontFamily: menu ? fonts.medium : fonts.body, fontSize: 14 }}>{label || (menu ? ui("common.copy_invite_link") : t('common.copyLink'))}</Text>}
     </Pressable>
-    {showLink && !disabled && <Text selectable accessibilityLabel={`${kind} invitation link`} style={{ color: colors.textMuted, fontSize: 11 }}>{url}</Text>}
+    {showLink && !disabled && <Text selectable accessibilityLabel={ui(kind === 'game' ? 'common.game_invite_link' : 'common.room_invite_link')} style={{ color: colors.textMuted, fontSize: 11 }}>{url}</Text>}
     {(disabled || !!notice) && <Text numberOfLines={menu ? 1 : undefined} accessibilityLiveRegion="polite" style={{ color: colors.textMuted, fontFamily: fonts.body, fontSize: 11 }}>{disabled ? ui("common.sharing_unavailable_table_ended") : notice}</Text>}
   </View>;
 }
@@ -106,6 +106,6 @@ function TableShareContent({ roomId, matchId, visible, onClose }: TableShareProp
   return <RoomSheet visible={visible} title={ui("rooms.share_table")} closeLabel={ui("common.close_table_sharing")} onClose={onClose}>
     <TableShareActions roomId={roomId} matchId={matchId} />
     <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.share_table_invitation")} onPress={() => void share()} style={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10 }}><Ionicons name="share-outline" size={20} color={c.accent} /><Text style={{ color: c.accent, fontFamily: fonts.medium }}>{ui("common.share_2")}</Text></Pressable>
-    {!!error && <Text accessibilityLiveRegion="polite" style={{ color: c.textMuted }}>{error}</Text>}
+    {!!error && <Text accessibilityLiveRegion="polite" style={{ color: c.textMuted }}>{uiLabel(error, 'feedback')}</Text>}
   </RoomSheet>;
 }

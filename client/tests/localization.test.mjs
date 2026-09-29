@@ -51,3 +51,16 @@ test('Nepali display labels do not change game decisions or transport identifier
     assert.equal(i18n.t('fallback_test', { ns: 'ui' }), 'English fallback');
   } finally { await i18n.changeLanguage('en'); }
 });
+
+test('room help and game rules switch language while interpolated values remain unchanged', async () => {
+  const keys = ['common.brand_name', 'rooms.create_or_join', 'rooms.sharing_help',
+    'callbreak.rules_help', 'flush.betting_help', 'marriage.winning_rules_help'];
+  try {
+    await i18n.changeLanguage('en');
+    const english = keys.map(key => ui(key));
+    await i18n.changeLanguage('ne');
+    keys.forEach((key, i) => { assert.notEqual(ui(key), english[i]); assert.match(ui(key), /[\u0900-\u097f]/); });
+    assert.match(ui('common.welcome_player', { player: 'Ready to play?' }), /Ready to play\?/);
+    assert.match(ui('callbreak.bid_rules_help', { max: 13 }), /13/);
+  } finally { await i18n.changeLanguage('en'); }
+});

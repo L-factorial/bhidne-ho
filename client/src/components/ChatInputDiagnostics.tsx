@@ -1,8 +1,11 @@
+import { useUiLanguage } from '../i18n/useUiLanguage';
+import { ui, uiLabel } from '../i18n/copy.ts';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, Text, View } from 'react-native';
 
 // Explicit, local-only troubleshooting. Never read values, messages, URLs, or identities.
 export function ChatInputDiagnostics() {
+  useUiLanguage();
   const enabled = Platform.OS === 'web' && typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('chatDebug') === '1';
   return enabled ? <Recorder /> : null;
@@ -59,14 +62,14 @@ function Recorder() {
     };
   }, []);
   return <View testID="chat-input-diagnostics" style={{ padding: 6, backgroundColor: '#f0f4fa', borderRadius: 8 }}>
-    <Text style={{ color: '#152238', fontSize: 12 }}>Chat diagnostics: tap the message field, then copy this report. No message text is recorded.</Text>
-    <Pressable accessibilityRole="button" accessibilityLabel="Copy chat diagnostics" onPress={async () => {
+    <Text style={{ color: '#152238', fontSize: 12 }}>{ui("common.chat_diagnostics")}</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel={ui("common.copy_chat_diagnostics")} onPress={async () => {
       const snapshot = JSON.stringify({ version: 1, events: entries.current }, null, 2);
       setReport(snapshot);
       try { await navigator.clipboard.writeText(snapshot); setStatus('Copied'); }
-      catch { setStatus('Copy unavailable; select the report below'); }
+      catch { setStatus(ui("common.copy_diagnostics_failed")); }
     }} style={{ minHeight: 44, justifyContent: 'center' }}>
-      <Text style={{ color: '#152238' }}>{status}</Text>
+      <Text style={{ color: '#152238' }}>{uiLabel(status)}</Text>
     </Pressable>
     <Text testID="chat-input-diagnostics-report" selectable numberOfLines={2} style={{ color: '#152238', fontSize: 10 }}>{report}</Text>
   </View>;

@@ -44,8 +44,13 @@ assert.ok(['localhost', '127.0.0.1'].includes(new URL(site).hostname));
       await page.getByRole('button', { name: 'Create this table', exact: true }).click();
       await page.getByTestId('live-game-overlay').waitFor({ timeout: 12000 });
       assert.equal(creations, 1, 'Opening the table must not resubmit creation');
+      await page.getByRole('button', { name: 'Table menu', exact: true }).click();
+      await page.getByRole('button', { name: /Switch language to/ }).click();
+      await page.getByRole('button', { name: game === 'Marriage' ? 'नियम र सेटिङहरू' : 'नियमहरू', exact: true }).waitFor({ timeout: 10000 });
+      assert.ok(await page.getByText('Open immediately', { exact: true }).count(), 'Table name must survive a language switch');
+      assert.equal(creations, 1, 'Changing language must not recreate the table');
       assert.deepEqual(errors, []);
-      console.log(`PASS ${game} ${width}px: delayed create response opens game without resubmission`);
+      console.log(`PASS ${game} ${width}px: delayed creation and language switch preserve the table`);
       await context.close();
     }
   } finally { await browser.close(); }

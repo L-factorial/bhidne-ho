@@ -5,11 +5,11 @@ from app.multiplayer.player_profiles import PostgresPlayerProfileService
 from app.players.service import PlayerSocialService, PlayerNotFound
 from app.players.store import PostgresPlayerStore
 from .checkpoint_store import user_uuid
+from .platform_cache import CachedProfiles, CachedPlayers
 
 
 class PlatformPlayers(PlayerSocialService):
-    # Gateway-local caches cannot serve authoritative profiles after another
-    # gateway updates them. Directory/search/public reads always consult SQL.
+    # Bypass the legacy unversioned dictionary; the store checks committed versions.
     async def public_player(self, target_id):
         try:
             user_uuid(target_id)
@@ -22,14 +22,14 @@ class PlatformPlayers(PlayerSocialService):
 
 
 class SharedPlatform:
-    def __init__(self, pool, auth, *, guest_login_enabled=False):
+    def __init__(self, pool, auth, *, guest_login_enabled=False, cache=None):
         if type(guest_login_enabled) is not bool:
             raise ValueError('Guest login selection must be boolean.')
         self.auth = auth
-        self.profiles = PostgresPlayerProfileService(pool)
+        self.profiles = CachedProfiles(pool, cache) if cache else PostgresPlayerProfileService(pool)
         from app.multiplayer.player_phrases import PostgresPlayerPhraseService
         self.phrases = PostgresPlayerPhraseService(pool)
-        self.players = PlatformPlayers(PostgresPlayerStore(pool))
+        self.players = PlatformPlayers(CachedPlayers(pool, cache) if cache else PostgresPlayerStore(pool))
         self.guest_login_enabled = guest_login_enabled
         from app.social_auth.browser import BrowserSocialAuth
         from app.social_auth.browser_store import PostgresBrowserAttempts

@@ -56,7 +56,7 @@ export function DealStatusPanel({ players, viewerId, activePlayerId, cardsPlayed
           <Text style={styles.turn}>{player.id === activePlayerId ? paused ? ui("callbreak.next_turn") : ui("common.current_turn") : ui("rooms.waiting")}</Text>
         </View>)}
       </ScrollView>
-      <Text style={styles.hint}>Swipe or use the arrows to see every player’s bid.</Text>
+      <Text style={styles.hint}>{ui("callbreak.bids_swipe_help")}</Text>
     </>}
   </View>;
 }

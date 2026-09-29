@@ -157,7 +157,7 @@ class PostgresPlayerStore:
                 LEFT JOIN account_credentials a ON a.user_id = u.id
                 WHERE u.id <> %s
                 ORDER BY CASE WHEN lower(a.username) = lower(%s) THEN 0 ELSE 1 END,
-                         p.display_name, a.username LIMIT 20
+                         p.display_name, a.username, u.id LIMIT 20
             """, (query, query, internal_id(user_id), query))
             return [self.player(row) for row in await result.fetchall()]
 
@@ -169,7 +169,7 @@ class PostgresPlayerStore:
                 LEFT JOIN account_credentials a ON a.user_id = u.id
                 WHERE u.id <> %s AND (p.display_name ILIKE %s OR a.username ILIKE %s)
                 ORDER BY CASE WHEN lower(a.username) = lower(%s) THEN 0 ELSE 1 END,
-                         p.display_name, a.username LIMIT 20
+                         p.display_name, a.username, u.id LIMIT 20
             """, (internal_id(user_id), f"%{query}%", f"%{query}%", query))
             return [self.player(row) for row in await result.fetchall()]
 

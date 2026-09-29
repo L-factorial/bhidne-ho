@@ -52,7 +52,7 @@ export function CardTable({ players, viewerId, activePlayerId, width, plays, pen
             const player = ordered[index];
             const columns = ordered.length > 4 ? 3 : 2;
             const x = 72 + (playIndex % columns - (columns - 1) / 2) * 46, y = 28 + Math.floor(playIndex / columns) * 58;
-            return <View key={play.playerId} accessibilityLabel={`${player?.id === viewerId ? ui("common.you") : player?.name} played ${play.card}${playIndex === 0 ? ', led this trick' : ''}`}
+            return <View key={play.playerId} accessibilityLabel={ui("common.card_played", {player: player?.id === viewerId ? ui("common.you") : player?.name, card: play.card, lead: playIndex === 0 ? ui("common.led_trick") : ""})}
               style={{ position: 'absolute', left: x - 20, top: y - 28 }}>
               <Animated.View testID={play.playerId === winnerPlayerId ? 'winning-card' : 'trick-card'} style={[styles.playedCard,
                 play.playerId === winnerPlayerId && { borderWidth: 3, borderColor: colors.cardSelectedBorder, backgroundColor: colors.cardSelected },

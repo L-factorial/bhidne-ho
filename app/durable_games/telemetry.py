@@ -36,6 +36,13 @@ HTTP_TIME = Histogram('bhidne_http_seconds', 'HTTP request wall time.', ['route'
 SOCKETS = Gauge('bhidne_websocket_connections', 'Currently accepted sockets.', registry=REGISTRY)
 STATE = Gauge('bhidne_runtime_state', 'Process runtime gauges; state label is a fixed field name.',
               ['state'], registry=REGISTRY)
+CACHE = Counter('bhidne_read_cache_total', 'Versioned projection cache lookups and writes.',
+                ['result'], registry=REGISTRY)
+ACTIVE_GAMES = Gauge('bhidne_active_games', 'Cluster active games; all is the total. Replicas must not be summed.',
+                     ['game_type'], registry=REGISTRY)
+ACTIVE_PLAYERS = Gauge('bhidne_active_players', 'Cluster distinct active game participants; all is the total.',
+                       ['game_type'], registry=REGISTRY)
+ONLINE_USERS = Gauge('bhidne_online_users', 'Cluster distinct users with unexpired socket presence.', registry=REGISTRY)
 KINDS = frozenset(('room', 'table', 'game', 'room_chat', 'table_chat', 'game_chat', 'conversation', 'recipient'))
 FIELDS = frozenset(('lane_id', 'room_id', 'table_id', 'game_id', 'command_id', 'sequence',
                     'job_id', 'epoch', 'error_type', 'result', 'operation', 'lane_kind', 'retrying', 'game_type'))

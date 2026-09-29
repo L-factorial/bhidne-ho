@@ -46,10 +46,11 @@ class _ProjectionHost(TestGameService):
 
 
 class PostgresHostedQueries:
-    def __init__(self, pool, *, max_tables=5, round_summary_seconds=8):
+    def __init__(self, pool, *, max_tables=5, round_summary_seconds=8, cache=None):
         if type(max_tables) is not int or max_tables < 1 or round_summary_seconds < 0:
             raise ValueError('Invalid query limits.')
         self.pool, self.checkpoints = pool, PostgresCheckpointStore(pool)
+        self.cache = cache
         self.max_tables, self.round_summary_seconds = max_tables, round_summary_seconds
 
     async def invitation_eligibility(self, room_id, actor, recipients):
@@ -258,6 +259,36 @@ class PostgresHostedQueries:
                     if row is None:
                         raise DurableGameNotFound('Table not found in this room.')
                     table_ids.append(selected_id)
+                cache_key = None
+                if self.cache is not None:
+                    # MVCC row versions cover every checkpoint/receipt, membership,
+                    # profile and lifecycle change, including writes on other servers.
+                    # No TTL or notification-delivery assumption grants access.
+                    cache_tables = [str(identifier) for identifier in table_ids]
+                    versions = await (await connection.execute("""SELECT
+                        ARRAY(SELECT concat_ws(':',t.table_id,t.xmin::text,r.xmin::text,g.xmin::text)
+                            FROM room_tables t JOIN table_recovery_state r USING(table_id)
+                            LEFT JOIN games g ON g.id=(r.state->'data'->'host'->>'durable_game_id')::uuid
+                            WHERE t.table_id=ANY(%s::uuid[]) ORDER BY t.table_id) AS table_versions,
+                        ARRAY(SELECT concat_ws(':',m.user_id,m.xmin::text) FROM room_memberships m
+                            WHERE m.room_id=%s ORDER BY m.user_id) AS member_versions,
+                        ARRAY(SELECT concat_ws(':',p.user_id,p.seat,p.queue_position,p.xmin::text)
+                            FROM table_positions p WHERE p.table_id=ANY(%s::uuid[]) ORDER BY p.table_id,p.user_id) AS position_versions,
+                        ARRAY(SELECT concat_ws(':',u.id,u.xmin::text,p.xmin::text,a.xmin::text)
+                            FROM users u LEFT JOIN user_profiles p ON p.user_id=u.id
+                            LEFT JOIN account_credentials a ON a.user_id=u.id WHERE u.id IN (
+                                SELECT m.user_id FROM room_memberships m WHERE m.room_id=%s
+                                UNION SELECT p.user_id FROM table_positions p WHERE p.table_id=ANY(%s::uuid[])
+                                UNION SELECT replace(jsonb_array_elements_text(r.state->'data'->'host'->'users'),'user-','')::uuid
+                                    FROM table_recovery_state r WHERE r.table_id=ANY(%s::uuid[])
+                            ) ORDER BY u.id) AS profile_versions
+                        """, (cache_tables, room_id, cache_tables, room_id, cache_tables, cache_tables))).fetchone()
+                    cache_key = self.cache.key('room', [room_id, actor, str(selected_id),
+                        select_default, public_preview, invitation_preview, self.round_summary_seconds],
+                        [room, versions])
+                    cached = await self.cache.get(cache_key)
+                    if cached is not None:
+                        return cached
                 host = _ProjectionHost(None, None, round_summary_seconds=self.round_summary_seconds)
                 revisions, users = {}, {actor}
                 for identifier in table_ids:
@@ -274,9 +305,12 @@ class PostgresHostedQueries:
                     LEFT JOIN account_credentials a ON a.user_id=u.id WHERE u.id=ANY(%s::uuid[])''',
                     ([str(user_uuid(u)) for u in sorted(users)],))).fetchall()
                 host.profiles = _Profiles({f'user-{user}': name for user, name in names})
-                result = dict(room_id=room_id, tables=host.table_previews(room_id, actor),
+                result = dict(room_id=room_id, tables=[p for p in host.table_previews(room_id, actor)
+                    if p['status'] not in ('ended', 'finished') and p['phase'] not in ('ENDED', 'COMPLETED')],
                     active_game=host.membership(room_id, actor), snapshot=None, name=room[0],
                     creator_id=f'user-{room[1]}', visibility=room[2], created_at=room[3].isoformat())
+                if result['active_game'] and not result['active_game']['active']:
+                    result['active_game'] = None
                 if invitation_preview:
                     members = await (await connection.execute('''SELECT user_id FROM room_memberships
                         WHERE room_id=%s ORDER BY user_id LIMIT 1001''', (room_id,))).fetchall()
@@ -302,6 +336,8 @@ class PostgresHostedQueries:
                         durable_game_id=str(game.durable_game_id) if game.durable_game_id else None)
                 # Detached objects are discarded; no close() hook with reservation
                 # release or other mutation is appropriate for this read-only host.
+                if cache_key is not None:
+                    await self.cache.put(cache_key, result)
                 return deepcopy(result)
 
     async def game_view(self, room_id, actor, *, match_id=None):

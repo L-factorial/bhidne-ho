@@ -47,20 +47,20 @@ export function MarriageFinishTool({ hand, shown, maal, route, topDiscard, canTa
           <ScrollView contentContainerStyle={{ gap: 14 }}>
             <Text accessibilityLiveRegion="polite" style={heading}>{status}</Text>
             {pairPlan && <>
-              <Text style={text}>Your seven shown pairs are locked. The eighth pair must use two remaining cards with the same natural face. Maal and Man cannot substitute.</Text>
+              <Text style={text}>{ui("marriage.eighth_pair_help")}</Text>
               {!!pairPlan.pairs.length && <><Text style={heading}>{ui("marriage.ready_pairs")}</Text><MarriageMeldCards groups={pairPlan.pairs} />
-                <Text style={muted}>The server chooses the finishing pair shown in the confirmation preview.</Text></>}
+                <Text style={muted}>{ui("marriage.finishing_pair_help")}</Text></>}
               {!!pairPlan.waiting.length && <><Text style={heading}>{ui("marriage.cards_waiting_for_a_partner")}</Text>
                 {pairPlan.waiting.map(({ card, possibleCopies }) => <View key={card.card_id} style={{ gap: 4 }}>
                   {renderCards([card])}<Text style={possibleCopies ? text : muted}>{possibleCopies
                     ? ui("marriage.need_another_card", { "card": marriageFace(card) }) : ui("marriage.card_cannot_form_a_new_pair_the_other_two_copies_are_already_locked", { "card": marriageFace(card) })}</Text>
                 </View>)}
-                <Text style={muted}>Matching copies may be held by others or already discarded. This is not a prediction of available draws.</Text></>}
+                <Text style={muted}>{ui("marriage.draw_availability_help")}</Text></>}
               {pairPlan.discardHelps && <Text style={{ color: c.success }}>{ui("marriage.visible_discard_pair", { "card": marriageFace(topDiscard!), "hint": canTakeDiscard ? ui("marriage.you_can_take_it_using_the_draw_control") : ui("marriage.wait_until_the_server_allows_this_draw") })}</Text>}
               {!!pairPlan.man.length && <><Text style={muted}>{ui("marriage.man_cannot_form_a_natural_dublee")}</Text>{renderCards(pairPlan.man)}</>}
             </>}
             {normal && <>
-              <Text style={text}>Your shown sequences/Tunnelas stay locked. Group the remaining {normal.target} cards into valid sequences, sets or Tunnelas, keeping one final discard after drawing.</Text>
+              <Text style={text}>{ui("common.finish_groups_help", {count: normal.target})}</Text>
               <Text style={muted}>{ui("marriage.wildcards_hint", { "rank": marriageFace(maal.tiplu).slice(0, -1), "jhiplu": marriageFace(maal.jhiplu), "poplu": marriageFace(maal.poplu) })}</Text>
               {!!normal.groups.length && <><Text style={heading}>{ui("marriage.suggested_completed_groups")}</Text><MarriageMeldCards groups={normal.groups} /></>}
               {!!normal.unused.length && <><Text style={heading}>{normal.ready ? ui("marriage.suggested_final_discard") : ui("marriage.cards_outside_these_groups")}</Text>{renderCards(normal.unused)}</>}
@@ -68,13 +68,13 @@ export function MarriageFinishTool({ hand, shown, maal, route, topDiscard, canTa
                 {gaps.map((gap, index) => <View key={index} style={{ gap: 4 }}>{renderCards(gap.held)}
                   <Text style={text}>{ui("common.need_cards", { "cards": [gap.needed.map(marriageFace).join(', '), gap.wildHelps ? 'a wildcard' : ''].filter(Boolean).join(' or ') })}</Text>
                 </View>)}
-                <Text style={muted}>These are alternative groups; the same card cannot be used twice. Useful cards may not be available to draw.</Text></>}
+                <Text style={muted}>{ui("marriage.alternative_groups_help")}</Text></>}
               {!!withDiscard && (withDiscard.covered > normal.covered || withDiscard.ready) && <Text style={{ color: c.success }}>{ui("marriage.visible_discard_finish", { "card": marriageFace(topDiscard!), "result": withDiscard.ready ? ui("marriage.completes_a_winning_hand") : ui("marriage.improves_coverage_to_covered_target_cards", { "covered": withDiscard.covered, "target": withDiscard.target }), "hint": canTakeDiscard ? ui("marriage.you_can_take_it_using_the_draw_control") : ui("marriage.wait_until_the_server_allows_this_draw") })}</Text>}
-              <Text style={muted}>This is one arrangement covering the most cards now, not a prediction of the fastest win. Groups can be rearranged as you draw. The server may choose another valid arrangement when finishing.</Text>
-              {hand.some(card => !shown.some(g => g.card_ids.includes(card.card_id)) && isMarriageWild(card, maal)) && <Text style={muted}>Wildcards in your remaining hand are included in these suggestions.</Text>}
+              <Text style={muted}>{ui("marriage.arrangement_help")}</Text>
+              {hand.some(card => !shown.some(g => g.card_ids.includes(card.card_id)) && isMarriageWild(card, maal)) && <Text style={muted}>{ui("marriage.wildcards_help")}</Text>}
             </>}
             {(ready || canFinish) && <>{button(ui("marriage.review_finish"), () => { setOpen(false); onReview(); }, busy || !canFinish)}
-              {!canFinish && <Text style={muted}>Finish becomes available when the server permits it after drawing on your turn.</Text>}</>}
+              {!canFinish && <Text style={muted}>{ui("marriage.finish_available_help")}</Text>}</>}
             <Text style={heading}>{ui("marriage.locked_qualification_cards")}</Text><MarriageMeldCards groups={shown} />
           </ScrollView>
         </View>

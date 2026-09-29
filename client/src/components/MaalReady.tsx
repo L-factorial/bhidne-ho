@@ -42,7 +42,7 @@ export function MaalReady({ hand, busy, onReview }: {
           <Text accessibilityRole="header" style={{ color: c.accent, fontFamily: fonts.medium, fontSize: 20 }}>{ui("marriage.choose_your_route_to_maal")}</Text>
           {button(ui("common.keep_playing"), () => setOpen(false))}
           <ScrollView contentContainerStyle={{ gap: 14 }}>
-            <Text style={{ color: c.text }}>Only you can see these options. Review a combination, then show it after drawing on your turn.</Text>
+            <Text style={{ color: c.text }}>{ui("marriage.maal_private_help")}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {!!normal.length && button(ui("common.3_sequences_tunnelas_options", { "options": normal.length }), () => { setRoute('normal'); setPage(0); }, false, activeRoute === 'normal')}
               {!!dublee.length && button(ui("common.7_dublees_options", { "options": dublee.length }), () => { setRoute("dublee"); setPage(0); }, false, activeRoute === 'dublee')}
@@ -54,7 +54,7 @@ export function MaalReady({ hand, busy, onReview }: {
               {button(ui("marriage.next_combination"), () => setPage(index + 1), index === options.length - 1)}
             </View>
             {button(ui("marriage.review_this_combination"), () => { setOpen(false); onReview(choice.groups); }, busy, true)}
-            <Text style={{ color: c.textMuted }}>Identical copies from different decks count as the same combination. You can still arrange cards manually.</Text>
+            <Text style={{ color: c.textMuted }}>{ui("marriage.same_combination_help")}</Text>
           </ScrollView>
         </View>
       </View>

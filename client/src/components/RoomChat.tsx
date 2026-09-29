@@ -1,3 +1,4 @@
+import { usePersistentNotice } from '../multiplayer/usePersistentNotice';
 import { playerError } from '../multiplayer/playerError.ts';
 import { ui } from '../i18n/copy.ts';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,6 +39,9 @@ export function useRoomChat({ roomId, session, connected, hideWhenBlocked = fals
   const [draft, setDraft] = useState('');
   const [error, setError] = useState('');
   const [loadError, setLoadError] = useState('');
+  const showLoadError = usePersistentNotice(!!loadError);
+  const reconnecting = usePersistentNotice(!connected && !!roomId);
+  const visibleError = error || (showLoadError ? loadError : '');
   const [busy, setBusy] = useState(false);
   const sending = useRef(false);
   const lifetime = useRef<AbortController | null>(null);
@@ -101,8 +105,8 @@ export function useRoomChat({ roomId, session, connected, hideWhenBlocked = fals
           {!messages.length && <View style={{ paddingVertical: 32, gap: 8, alignItems: 'center' }}><Ionicons name="chatbubbles-outline" size={30} color={colors.textMuted} /><Text style={styles.heading}>{ui("social.no_messages_yet")}</Text><Text style={styles.note}>{ui("social.say_something_to_get_the_table_going")}</Text></View>}
           {messages.map(message => <ChatMessage tableStyle key={message.id} message={message} own={message.sender_id === session.user_id} />)}
         </ScrollView>
-        {!connected && <Text style={styles.note}>{t('chat.reconnecting')}</Text>}
-        {!!(error || loadError) && <Text accessibilityRole="alert" style={styles.error}>{error || loadError}</Text>}
+        {reconnecting && <Text style={styles.note}>{t('chat.reconnecting')}</Text>}
+        {!!visibleError && <Text accessibilityRole="alert" style={styles.error}>{visibleError}</Text>}
         <ChatComposer value={draft} onChange={setDraft} onSend={() => void send()} disabled={busy || !connected} label={t('chat.title')} placeholder={t('chat.placeholder')} />
       </View>
     </RoomSheet>}

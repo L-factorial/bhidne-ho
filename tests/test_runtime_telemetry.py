@@ -247,3 +247,39 @@ async def test_transport_cancellation_is_not_an_http_server_error():
     with pytest.raises(asyncio.CancelledError):
         await t.TelemetryMiddleware(cancelled)({'type': 'http', 'method': 'GET'}, None, None)
     assert sample('bhidne_http_requests_total', **labels) == before + 1
+
+
+@pytest.mark.parametrize('kind', ['callbreak', 'marriage', 'flush'])
+async def test_cluster_activity_counts_games_and_distinct_players_and_clears(database, kind):
+    from test_checkpoint_store import host_game
+    from app.durable_games.checkpoints import capture_checkpoint
+    pool, store, fence, users = database
+    host, game = await host_game(users, kind)
+    try:
+        await store.save(capture_checkpoint(game, table_revision=0), expected_revision=None, fence=fence)
+        collector = RuntimeTelemetry(SimpleNamespace(pool=pool), port=0)
+        await collector.sample_database()
+        assert sample('bhidne_active_games', game_type=kind) == 1
+        assert sample('bhidne_active_games', game_type='all') == 1
+        assert sample('bhidne_active_players', game_type=kind) == len(game.users)
+        assert sample('bhidne_active_players', game_type='all') == len(game.users)
+        # Another sampler observes the same global value, never increments it.
+        await RuntimeTelemetry(SimpleNamespace(pool=pool), port=0).sample_database()
+        assert sample('bhidne_active_games', game_type=kind) == 1
+        await pool.execute("UPDATE games SET status='completed',completed_at=now()")
+        await collector.sample_database()
+        assert sample('bhidne_active_games', game_type=kind) == 0
+        assert sample('bhidne_active_players', game_type='all') == 0
+    finally:
+        await host.close()
+
+
+async def test_failed_presence_sample_is_unknown_not_zero():
+    import math
+    class Store:
+        async def online_users(self):
+            raise OSError('offline')
+    collector = RuntimeTelemetry(SimpleNamespace(presence=SimpleNamespace(store=Store())), port=0)
+    await collector.sample_presence()
+    assert math.isnan(sample('bhidne_online_users'))
+    assert sample('bhidne_runtime_state', state='presence_sample_ok') == 0

@@ -34,7 +34,7 @@ function PokeBubble({ poke, reduceMotion }: { poke: RoomPoke; reduceMotion: bool
   return <Animated.View testID="poke-popup" accessibilityLiveRegion="polite" accessibilityRole="alert"
     style={[styles.bubble, privatePoke && styles.privateBubble, reduceMotion && { backgroundColor: privatePoke ? colors.success : colors.accent, boxShadow: 'none' }, { opacity }]}>
     {!reduceMotion && <Animated.View style={[StyleSheet.absoluteFill, styles.glow, privatePoke && styles.privateGlow, { opacity: glow }]} />}
-    <Text style={styles.label}>{privatePoke ? '✦ JUST FOR YOU' : '✦ TABLE TALK'} · {poke.sender_name || ui("common.player_number", { "number": poke.sender_player_id })}</Text>
+    <Text style={styles.label}>{privatePoke ? ui("common.private_poke_heading") : ui("common.table_talk_heading")} · {poke.sender_name || ui("common.player_number", { "number": poke.sender_player_id })}</Text>
     <Text style={styles.text}>{poke.text}</Text>
   </Animated.View>;
 }

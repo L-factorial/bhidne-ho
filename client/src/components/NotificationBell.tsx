@@ -1,5 +1,5 @@
 import { playerError } from '../multiplayer/playerError.ts';
-import { ui } from '../i18n/copy.ts';
+import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -123,7 +123,7 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom }: { session
               </View>}
             </View>)}
           </ScrollView>
-          {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
+          {!!error && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
         </Pressable>
       </Pressable>
     </Modal>

@@ -1,3 +1,4 @@
+import { usePersistentNotice } from './usePersistentNotice';
 import { playerError } from './playerError.ts';
 import { OriginalDistributedRuntime, originalDistributedOwner } from './OriginalDistributedRuntime';
 import { acquireJournal } from './journalPlatform';
@@ -35,6 +36,9 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
   const [rooms, setRooms] = useState<Room[]>([]);
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
   const [error, setError] = useState('');
+  const [deliveryInterrupted, setDeliveryInterrupted] = useState(false);
+  const [refreshInterrupted, setRefreshInterrupted] = useState(false);
+  const connectionNotice = usePersistentNotice(deliveryInterrupted || refreshInterrupted);
   const [expired, setExpired] = useState(false);
   const [abandonRequired, setAbandonRequired] = useState(false);
   const [leaveGameRequired, setLeaveGameRequired] = useState<string | null>(null);
@@ -47,7 +51,7 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
     const active=session;
     void owner.select(active.user_id,journal=>new OriginalDistributedRuntime(journal,apiUrl+'/distributed',active,{
       install: (_lane,view)=>{if(live&&view.kind==='snapshot'){setStatus('connected');
-        setError(current => [ui('feedback.connection_interrupted_retrying'), ui('feedback.connection_lost')].includes(current) ? '' : current);
+        setDeliveryInterrupted(false);
       }},
       remove: ()=>{},
       transient: event=>{if(live){socialChannel.receive(event);const current=readSession(apiUrl)?.room;
@@ -56,14 +60,18 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
         if(!live)return;
         if(error instanceof DistributedRequestError&&error.status===401){saveSession(apiUrl,null);setExpired(true);}
         // A command HTTP error does not mean the delivery socket lost the seat.
-        if(source!=='command')setStatus('reconnecting');
-        setError(source === 'command' ? playerError(error) : error instanceof DistributedRequestError && error.status === 401 ? playerError(error) : ui('feedback.connection_interrupted_retrying'));
+        if(source!=='command') { setStatus('reconnecting'); setDeliveryInterrupted(true); }
+        if (source === 'command' || error instanceof DistributedRequestError && error.status === 401) setError(playerError(error));
       },
     })).then(value=>{
       if(!live||!value)return;
       value.connectRequests(sharedRequest);value.api!.attachSocial(socialChannel);
       value.api!.recover(message=>{if(live)setError(playerError(message));});setRuntime(value);
-      void value.root.reconnect().catch(error=>{if(live)setError(playerError(error));});
+      void value.root.reconnect().catch(error=>{
+        if (!live) return;
+        if (error instanceof DistributedRequestError && error.status === 401) setError(playerError(error));
+        else setDeliveryInterrupted(true);
+      });
       async function recover(){
         if(!live)return;
         try {
@@ -102,7 +110,7 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
   const loginPending = useRef(false);
   function acceptSocialSession(value: Session) {
     if (session) return;
-    setSession(value); setExpired(false); setError('');
+    setSession(value); setExpired(false); setError(''); setDeliveryInterrupted(false); setRefreshInterrupted(false);
   }
   function socialLoginBusy(value: boolean) { loginPending.current = value; setLoggingIn(value); }
   async function loginAccount(username: string, password: string, signup: boolean, displayName = '') {
@@ -129,7 +137,7 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
     if (!session || expired || (distributed && !runtime)) return;
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
-    let running=false, dirty=false;
+    let running=false, dirty=false, failures=0;
     const wake = () => {
       if(controller.signal.aborted)return;
       clearTimeout(timer);
@@ -158,17 +166,17 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
             }
           }
         } catch { /* Room navigation remains available if activity cannot be loaded. */ }
-        if (!controller.signal.aborted) { setRooms(result); setError(''); }
+        if (!controller.signal.aborted) { setRooms(result); setRefreshInterrupted(false); failures=0; }
       } catch (error) {
         if (!controller.signal.aborted) {
           if ((error instanceof ApiError || error instanceof DistributedRequestError) && error.status === 401) {
             saveSession(apiUrl, null); setExpired(true); setError(playerError(error)); return;
           }
-          setError(ui("feedback.connection_interrupted_retrying"));
+          failures++; setRefreshInterrupted(true);
         }
       } finally {
         running=false;
-        if (!controller.signal.aborted) timer = setTimeout(refresh, dirty ? 50 : runtime ? 30000 : 2000);
+        if (!controller.signal.aborted) timer = setTimeout(refresh, dirty ? 50 : failures ? Math.min(1000 * 2 ** Math.min(failures - 1, 3), 5000) : runtime ? 30000 : 2000);
         dirty=false;
       }
     }
@@ -287,7 +295,7 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
     }
   }
   return { runtime, startupError, roomActions, socialChannel, loginAccount, acceptSocialSession, socialLoginBusy, loggingIn, session, room, rooms, memberships, game, setGame, joinRoom, enterRoom, exitRoom, leaveRoom, deleteRoom, signOut, leaveGameRequired, leaveGameAndRoom, abandonRequired,
-    cancelLeave: () => { setLeaveGameRequired(null); setError(''); }, status, expired, error, pokes,
+    cancelLeave: () => { setLeaveGameRequired(null); setError(''); }, status, expired, error, connectionNotice, pokes,
     retry: () => {
       setError(''); setStartupError('');
       if (runtime) void runtime.root.reconnect().catch(error => setError(playerError(error)));

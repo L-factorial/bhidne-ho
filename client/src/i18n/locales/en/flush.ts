@@ -1,5 +1,7 @@
 // Editable English flush copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "boot_help": "Every player pays the boot each hand (0 disables it). Betting is unbounded. Contributions and winnings are recorded as points for settlement after play.",
+  "betting_help": "You can see your cards on your turn without prior bets. Side-show requires the configured number of completed personal bets (blind or seen), excluding boot. Bet the minimum or double your current blind or seen minimum to raise. Blind bets set the seen minimum using the multiplier; seen bets set the blind minimum by dividing and rounding up. Show always requires exactly two active players. A side-show request costs one seen bet, even if declined; only the two participants can see the compared cards.",
   "blind": "Blind",
   "seen": "Seen",
   "blind_see_cards_when_eligible": "Blind · See cards when eligible",

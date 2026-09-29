@@ -35,7 +35,7 @@ export function RoomPrivacySettings({ room, session }: { room: Room; session: Se
         <Text style={{color:c.text}}>{value === 'private' ? ui("rooms.private") : ui("rooms.public")}</Text>
       </Pressable>)}
     </View>
-    <Text style={{color:c.textMuted}}>{visibility === 'private' ? 'Only invited people and existing members can enter. Links do not grant access.' : ui("rooms.everyone_can_discover_and_join_this_room")}</Text>
+    <Text style={{color:c.textMuted}}>{visibility === 'private' ? ui("rooms.private_access_help") : ui("rooms.everyone_can_discover_and_join_this_room")}</Text>
     <Text style={{color:c.text,fontFamily:fonts.medium}}>{ui("rooms.invite_people")}</Text>
     <TextInput accessibilityLabel={ui("rooms.find_player_to_invite")} placeholder={ui("rooms.username_or_user_id")} placeholderTextColor={c.textMuted} value={query} onChangeText={setQuery} autoCapitalize="none" style={{color:c.text,borderWidth:1,borderColor:c.border,padding:12,borderRadius:10}} />
     <Pressable accessibilityRole="button" disabled={busy || !query.trim()} onPress={() => void search()} style={{minHeight:44,justifyContent:'center'}}><Text style={{color:c.accent}}>{ui("rooms.search_players")}</Text></Pressable>

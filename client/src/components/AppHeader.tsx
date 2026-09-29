@@ -1,3 +1,4 @@
+import { ui } from '../i18n/copy.ts';
 import { fonts, useTheme } from '../theme';
 import { ThemeAction } from './ThemeAction';
 import { createContext, useContext, useState, type ReactNode } from 'react';
@@ -22,7 +23,7 @@ export function AppHeader({ title, actions, inlineActions, hideProfile = false, 
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
         <BrandIcon size={compact ? headerLogoSize.compact : headerLogoSize.regular} />
-        {!title && <Text numberOfLines={1} style={{ flexShrink: 1, color: colors.text, fontFamily: lobby ? fonts.editorial : fonts.medium, fontSize: lobby ? (compact ? 24 : 28) : compact ? 16 : 18 }}>Bhidne Ho</Text>}
+        {!title && <Text numberOfLines={1} style={{ flexShrink: 1, color: colors.text, fontFamily: lobby ? fonts.editorial : fonts.medium, fontSize: lobby ? (compact ? 24 : 28) : compact ? 16 : 18 }}>{ui('common.brand_name')}</Text>}
         {!!title && <Text accessibilityRole="header" style={{ flexShrink: 1, color: colors.text, fontFamily: fonts.medium, fontSize: 18 }}>{title}</Text>}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>

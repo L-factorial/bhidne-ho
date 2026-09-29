@@ -125,7 +125,7 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
           const faceUp = isRevealed(card), legal = legalCards.includes(card), enabled = !revealing && faceUp && canPlay && legal;
           const red = /[HD]$/.test(card), club = suitOf(card) === 'C';
           return <Pressable key={card} accessibilityRole="button" accessibilityLabel={revealing ? ui("common.reveal_next_card_from_position_position", { "position": index + 1 }) : ui("common.select_card", { "card": card })}
-            accessibilityHint={revealing ? (faceUp ? `${card} is revealed. Reveal the next card in dealt order.` : 'Reveal the next card in dealt order without playing it') : undefined}
+            accessibilityHint={revealing ? (faceUp ? ui("common.reveal_card_hint", {card}) : ui("common.reveal_next_hint")) : undefined}
             accessibilityState={{ disabled: !revealing && !enabled, selected: selectedCard === card }} aria-pressed={selectedCard === card} disabled={!revealing && !enabled} onPress={() => { if (revealing) revealNext(); else if (enabled) selectCard(card); }}
             onHoverIn={() => { if (enabled) setHovered(card); }} onHoverOut={() => setHovered(null)}
             style={({ pressed }) => [styles.card, !faceUp && styles.cardBack, enabled && styles.legal, selectedCard === card && styles.chosen, {

@@ -1,4 +1,4 @@
-import { ui } from '../i18n/copy.ts';
+import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
@@ -57,9 +57,9 @@ export function MarriageWinPanel({ hand, shown, initialTunnelas = [], maal, rout
       {choice.discard_card_id ? <Text style={text}>{ui("marriage.final_discard_card", { "card": physicalLabel(choice.discard_card_id) })}</Text> : <><Text style={text}>{ui("marriage.remaining_in_your_hand_count_cards", { "count": remaining.length })}</Text><MarriageMeldCards groups={[{ meld_type: 'set', card_ids: remaining.map(c => c.card_id) }]} hideLabels /></>}
     </>}
     {!checking && !choice && <Text style={text}>{ui("marriage.your_hand_no_longer_qualifies_go_back_to_your_cards")}</Text>}
-    <Text style={{ ...text, color: c.textMuted }}>Showing Marriage reveals your winning cards to everyone at the table.</Text>
+    <Text style={{ ...text, color: c.textMuted }}>{ui("marriage.show_help")}</Text>
     {!!choice && !allowed && !checking && <Text style={{ ...text, color: c.textMuted }}>{ui("marriage.you_can_show_marriage_when_finishing_is_allowed_on_your_turn")}</Text>}
-    {!!error && <Text accessibilityRole="alert" style={{ color: c.danger }}>{error}</Text>}
+    {!!error && <Text accessibilityRole="alert" style={{ color: c.danger }}>{uiLabel(error, 'feedback')}</Text>}
     {button(busy ? 'Showing…' : ui("marriage.show_marriage"), () => { if (allowed && choice) submit('FINISH', choice.winning_pair ? { winning_pair: choice.winning_pair } : { melds: choice.melds, discard_card_id: choice.discard_card_id }); }, !allowed, true)}
   </View>;
 }

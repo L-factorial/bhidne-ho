@@ -41,7 +41,7 @@ export function GameMenu({ snapshot, close, rules, history, poke, canPoke, back,
     {row(ui("common.players_waiting_queue"), () => setPlayersOpen(value => !value), false, playersOpen, undefined, 'people-outline')}
     {playersOpen && <View style={{ gap: 8, padding: 12, backgroundColor: colors.surfaceRaised, borderRadius: 16 }} testID={`${snapshot.game_type}-menu-players`}>
       {snapshot.players?.map(player => <Text key={player.player_id} style={{ color: colors.text, fontFamily: fonts.body }}>
-        {player.display_name}{String(player.player_id) === String(snapshot.your_player_id) ? ' · You' : ''}
+        {player.display_name}{String(player.player_id) === String(snapshot.your_player_id) ? ` · ${ui("common.you")}` : ''}
       </Text>)}
       <Text style={{ color: colors.textMuted }}>{ui("common.count_waiting", { "count": snapshot.table?.queue.length || 0 })}</Text>
       {snapshot.table?.current_user.is_queued && <Text style={{ color: colors.textMuted }}>{ui("rooms.your_waitlist_position_position", { "position": snapshot.table.current_user.queue_position })}</Text>}

@@ -1,5 +1,6 @@
 // Editable Nepali ledger copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "bets_help": "शून्यले बाजी छैन जनाउँछ। रकमले तपाईंहरूको सहमति राख्छ; पैसा पठाइँदैन। बराबरी स्थान भए खेलाडीबीच सहमति चाहिन्छ।",
   "ledger": "हिसाब",
   "ledger_settlements": "हिसाब र हिसाब मिलान",
   "balances": "बाँकी हिसाब",

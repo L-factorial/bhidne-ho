@@ -1,5 +1,5 @@
 import { playerError } from '../multiplayer/playerError.ts';
-import { ui } from '../i18n/copy.ts';
+import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { gameControlFinish, gamePanelFinish, fonts, radii, typography, useTheme } from '../theme';
 import { useState } from 'react';
@@ -28,7 +28,7 @@ export function RoomCard({ room, member, busy, activeTables, onPress, owner, onR
       <View style={{ flex: 1, minWidth: 0, gap: 4, paddingTop: 3 }}>
         <Text numberOfLines={2} style={{ color: c.text, fontFamily: fonts.medium, fontSize: typography.cardTitle, lineHeight: 23 }}>{room.name}</Text>
         <Text style={{ color: c.textMuted, fontFamily: fonts.body, fontSize: 12, lineHeight: 18 }}>
-          {room.visibility === 'public' ? ui("rooms.public") : ui("rooms.private")} · {room.members.length} {room.members.length === 1 ? 'member' : ui("rooms.members")} · {tables} {tables === 1 ? 'table' : ui("rooms.tables")}
+          {room.visibility === 'public' ? ui("rooms.public") : ui("rooms.private")} · {room.members.length} {room.members.length === 1 ? ui("common.member") : ui("rooms.members")} · {tables} {tables === 1 ? ui("common.table") : ui("rooms.tables")}
         </Text>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 6,
@@ -66,21 +66,21 @@ export function RoomCard({ room, member, busy, activeTables, onPress, owner, onR
             <Text style={{ color: c.success, fontFamily: fonts.medium, fontSize: 13 }}>{member ? ui("rooms.enter") : ui("rooms.join")}</Text>
             <Ionicons name="arrow-forward" size={16} color={c.success} />
           </Pressable>
-          {member && onRemove && <Pressable accessibilityRole="button" accessibilityLabel={`${owner ? ui("common.delete") : 'Leave'} ${room.name}`} disabled={busy} onPress={() => setConfirming(true)}
+          {member && onRemove && <Pressable accessibilityRole="button" accessibilityLabel={`${owner ? ui("common.delete") : ui("common.leave")} ${room.name}`} disabled={busy} onPress={() => setConfirming(true)}
             style={{width:44,minHeight:44,alignItems:'center',justifyContent:'center',borderRadius:10,backgroundColor:c.surface}}>
             <Ionicons name={owner ? 'trash-outline' : 'exit-outline'} size={19} color={c.danger} />
           </Pressable>}
         </View>
       </LinearGradient>
     </ImageBackground>
-    <RoomSheet visible={confirming} title={`${owner ? ui("common.delete") : 'Leave'} ${room.name}?`} onClose={() => { if (!removing) setConfirming(false); }} presentation="dialog">
-      <Text style={{color:c.text}}>{owner ? 'This deletes the room for everyone. End active tables first.' : 'This removes your room membership. Private rooms require a new invitation to rejoin.'}</Text>
-      {!!error && <Text accessibilityRole="alert" style={{color:c.danger}}>{error}</Text>}
+    <RoomSheet visible={confirming} title={`${owner ? ui("common.delete") : ui("common.leave")} ${room.name}?`} onClose={() => { if (!removing) setConfirming(false); }} presentation="dialog">
+      <Text style={{color:c.text}}>{owner ? ui("rooms.delete_effect_help") : ui("rooms.leave_effect_help")}</Text>
+      {!!error && <Text accessibilityRole="alert" style={{color:c.danger}}>{uiLabel(error, 'feedback')}</Text>}
       <Pressable accessibilityRole="button" disabled={removing} onPress={() => setConfirming(false)} style={{minHeight:44,justifyContent:'center'}}><Text style={{color:c.text}}>{ui("common.cancel")}</Text></Pressable>
-      <Pressable accessibilityRole="button" disabled={removing} onPress={async () => {setRemoving(true);setError('');try {await onRemove?.();setRemoved(true);setConfirming(false);} catch(e) {setError(playerError(e));} finally {setRemoving(false);}}} style={{minHeight:44,justifyContent:'center'}}><Text style={{color:c.danger}}>{removing ? 'Working…' : owner ? ui("rooms.delete_room") : ui("rooms.leave_room")}</Text></Pressable>
+      <Pressable accessibilityRole="button" disabled={removing} onPress={async () => {setRemoving(true);setError('');try {await onRemove?.();setRemoved(true);setConfirming(false);} catch(e) {setError(playerError(e));} finally {setRemoving(false);}}} style={{minHeight:44,justifyContent:'center'}}><Text style={{color:c.danger}}>{removing ? ui("common.working_label") : owner ? ui("rooms.delete_room") : ui("rooms.leave_room")}</Text></Pressable>
     </RoomSheet>
     <RoomSheet visible={sharing} title={room.name} closeLabel={ui("common.close_room_sharing")} onClose={() => setSharing(false)} presentation="dialog">
-      <Text style={{ color: c.textMuted, fontFamily: fonts.body }}>Share the room code or link. Private rooms also require an invitation from the owner.</Text>
+      <Text style={{ color: c.textMuted, fontFamily: fonts.body }}>{ui("rooms.sharing_code_help")}</Text>
       <RoomShareActions roomId={room.room_id} />
     </RoomSheet>
   </View>;

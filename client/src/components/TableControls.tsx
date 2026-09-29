@@ -58,7 +58,7 @@ export function TableControls({ table, members, userId, busy, act, start, format
       </View>
     </View>}
     {abandon && me.can_abandon_match && <View>
-      <Text style={{ color: colors.text }}>Abandon this active match? It will stop for everyone. No penalty is currently applied.</Text>
+      <Text style={{ color: colors.text }}>{ui("rooms.abandon_help")}</Text>
       {button(ui("rooms.confirm_abandon_match"), () => { setAbandon(false); void act('abandon'); }, false, false, false, true)}
       {button(ui("common.keep_playing"), () => setAbandon(false))}
     </View>}

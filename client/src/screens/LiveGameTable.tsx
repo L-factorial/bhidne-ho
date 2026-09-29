@@ -88,7 +88,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   const [expandedLastTrick, setExpandedLastTrick] = useState<string | null>(null);
   const [handView, setHandView] = useState<HandView>("fan");
   const [pokeTarget, setPokeTarget] = useState<number | null | undefined>(undefined);
-  const [pokeNotice, setPokeNotice] = useState<{ text: string; at: number } | null>(null);
+  const [pokeNotice, setPokeNotice] = useState<{ player: string | null; at: number } | null>(null);
   useEffect(() => {
     if (!pokeNotice) return;
     const timer = setTimeout(() => setPokeNotice(null), 2500);
@@ -122,7 +122,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   const socialOverlay = !ended && pokeTarget !== undefined && <PokeComposer recipient={pokeTarget} recipientName={snapshot.players?.find(p => p.player_id === pokeTarget)?.display_name} phrases={social.phrases} connected={social.connected}
     onClose={() => setPokeTarget(undefined)} onSave={social.save} onSend={async text => {
       await social.send(pokeTarget, text);
-      setPokeNotice({ text: pokeTarget === null ? 'Sent to the table ✦' : `Poke sent to ${playerName(pokeTarget)} ✦`, at: Date.now() });
+      setPokeNotice({ player: pokeTarget === null ? null : playerName(pokeTarget), at: Date.now() });
     }} />;
   const startCue = ended ? endedNotice : <TableStartCue snapshot={snapshot} busy={busy} onStart={onStart} onTableAction={onTableAction} onNewGame={onNewGame} />;
   if (ended && (!game || !deal)) return <View style={styles.page}>{header}<View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>{endedNotice}</View></View>;
@@ -130,8 +130,8 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     {header}
     <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 12, gap: 12 }}>
       <PreGameTable snapshot={snapshot}>{startCue}</PreGameTable>
-      <Text style={styles.meta}>{snapshot.ready ? 'Everyone is here. The first dealer will be chosen at random.' : ui("rooms.waiting_for_everyone_to_take_a_seat")}</Text>
-      <Text style={styles.meta}>Each player confirms their bid and taps a card to play. No turn time limit.</Text>
+      <Text style={styles.meta}>{snapshot.ready ? ui("common.dealer_selection_help") : ui("rooms.waiting_for_everyone_to_take_a_seat")}</Text>
+      <Text style={styles.meta}>{ui("callbreak.turn_help")}</Text>
       {!!error && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
     </ScrollView>{socialOverlay}
   </View>;
@@ -172,7 +172,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     <View testID="central-turn-notice">
       {!ended && reveal && <Text accessibilityLiveRegion="polite" style={styles.status}>{ui("callbreak.player_wins_trick_number", { "player": playerName(completedTrick!.winner!), "number": completedTrick!.trick_number })}</Text>}
     </View>
-    {!!pokeNotice && <Text accessibilityLiveRegion="polite" style={styles.meta}>{pokeNotice.text}</Text>}
+    {!!pokeNotice && <Text accessibilityLiveRegion="polite" style={styles.meta}>{pokeNotice.player === null ? ui("social.sent_to_the_table") : ui("social.poke_sent_to_player", {player: pokeNotice.player})} ✦</Text>}
 
   </View></ScrollView>
 
@@ -185,7 +185,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
       {expandedLastTrick === trickKey && <View testID="last-trick-cards" style={styles.lastCards}>
         {last.plays.map((play, index) => <View key={play.player_id} style={styles.lastPlayer}>
           <Text numberOfLines={1} style={styles.meta}>{playerName(play.player_id)}</Text>
-          <View testID={play.player_id === last.winner ? 'last-trick-winner' : undefined} accessibilityLabel={`${playerName(play.player_id)} played ${face(play.card)}${play.player_id === last.winner ? ', winner' : ''}`}
+          <View testID={play.player_id === last.winner ? 'last-trick-winner' : undefined} accessibilityLabel={ui("common.card_played", {player: playerName(play.player_id), card: face(play.card), lead: play.player_id === last.winner ? `, ${ui("marriage.winner")}` : ""})}
             style={[styles.lastCard, play.player_id === last.winner && styles.lastWinner]}>
             <Text style={[styles.lastFace, /[HD]$/.test(play.card) && { color: colors.cardRed }, play.card.endsWith('C') && { color: colors.cardClub }]}>{face(play.card)}</Text>
           </View>
@@ -196,9 +196,9 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     {handAvailable && <MobileGameHand docked desktopDrawer mobile={mobile} game="callbreak" keepMounted cardCount={mine?.hand.length || 0}
       open={cards.open} onToggle={cards.toggle} myTurn={isTurn}
       attention={isTurn || !!mine?.can_accept_hand || !!mine?.can_claim_redeal}
-      attentionText={mine?.can_accept_hand || mine?.can_claim_redeal ? 'Review your cards · Accept or request redeal' : isTurn ? game.phase === 'BIDDING' ? 'Make your call' : 'Play a card' : `Your cards · ${mine?.hand.length || 0}`}>
+      attentionText={mine?.can_accept_hand || mine?.can_claim_redeal ? ui("callbreak.review_your_cards_accept_or_request_redeal") : isTurn ? game.phase === 'BIDDING' ? ui("callbreak.make_your_call") : ui("callbreak.play_a_card") : ui("common.your_cards_count", {count: mine?.hand.length || 0})}>
     <View testID="callbreak-hand-dock" style={[styles.handDock, mobile && { backgroundColor: 'transparent', borderTopWidth: 0, paddingHorizontal: 4 }]}>
-    {game.phase === 'PLAYING' && !deal.tricks.some(trick => trick.complete || trick.plays.length) && !game.current_trick?.plays.length && <Text accessibilityLiveRegion="polite" style={styles.status}>{ui("callbreak.bidding_complete_message", { "message": isTurn ? 'You lead first.' : `${playerName(game.turn.player_id!)} leads first.` })}</Text>}
+    {game.phase === 'PLAYING' && !deal.tricks.some(trick => trick.complete || trick.plays.length) && !game.current_trick?.plays.length && <Text accessibilityLiveRegion="polite" style={styles.status}>{ui("callbreak.bidding_complete_message", { "message": isTurn ? ui("callbreak.you_lead_first") : ui("common.leads_first", {player: playerName(game.turn.player_id!)}) })}</Text>}
     {game.phase === 'BIDDING' && <LiveBidPrompt key={`${snapshot.match_id}-${deal.deal_number}-${deal.attempt}`} snapshot={snapshot} revealed={revealedDeal === handDealKey} busy={busy} onAction={cards.act} />}
 
     {(mine?.can_accept_hand || mine?.can_claim_redeal) && <View style={styles.actions}>{mine?.can_accept_hand && revealedDeal === handDealKey && action(ui("callbreak.accept_hand"), 'ACCEPT_HAND')}{mine?.can_claim_redeal && action(ui("callbreak.request_redeal"), 'CLAIM_REDEAL')}</View>}

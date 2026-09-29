@@ -186,3 +186,21 @@ async def test_cached_owner_refusal_revalidates_postgres_after_takeover(client, 
         assert await router.wake(result.entry.lane_id) == 'signalled'
     finally:
         await new.stop()
+
+
+async def test_online_users_are_distinct_across_servers_disconnect_and_expiry(client):
+    store = RedisPresenceStore(client, ttl=.2)
+    first = ConnectionPresence('one', 'first', 'alice', 'room')
+    second = ConnectionPresence('two', 'second', 'alice', 'other-room')
+    third = ConnectionPresence('two', 'third', 'bob')
+    await store.refresh(first)
+    await store.refresh(second)
+    await store.refresh(third)
+    assert await store.online_users() == 2
+    await store.remove(first)
+    await store.remove(first)  # Late/repeated disconnect cannot remove the other socket.
+    assert await store.online_users() == 2
+    await store.remove(second)
+    assert await store.online_users() == 1
+    await asyncio.sleep(.23)
+    assert await store.online_users() == 0

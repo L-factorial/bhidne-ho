@@ -62,7 +62,7 @@ export function CallBreakTableScreen({ capacity, names, tableName, onBack }: {
           style={[styles.action, !played && !selected && { opacity: 0.5 }]}>
           <Text style={styles.actionText}>{played ? ui("common.reset_table_preview") : selected ? ui("common.place_card_on_the_table", { "card": selected }) : ui("common.select_a_card_to_place")}</Text>
         </Pressable>
-        <Text style={styles.notice}>Layout preview with sample cards and seats. Card placement is local; turns and game rules aren’t connected yet.</Text>
+        <Text style={styles.notice}>{ui("common.preview_layout")}</Text>
       </View>
     </ScrollView>
   </LinearGradient>;

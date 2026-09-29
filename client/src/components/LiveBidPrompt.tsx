@@ -22,13 +22,13 @@ export function LiveBidPrompt({ snapshot, busy, onAction, revealed }: {
       {isTurn ? (revealed ? ui("callbreak.make_your_call") : ui("common.reveal_your_hand")) : ui("callbreak.bidding")}
     </Text>
     <Text accessibilityLiveRegion="polite" style={styles.text}>{isTurn
-      ? (revealed ? ui("callbreak.how_many_tricks_will_you_win") : 'Flip all cards or reveal them one at a time before choosing your bid.')
-      : `${ownBid != null ? ui("callbreak.your_bid_count", { "count": ownBid }) : ''}Waiting for ${bidder} to bid.`}</Text>
+      ? (revealed ? ui("callbreak.how_many_tricks_will_you_win") : ui("common.reveal_bid_help"))
+      : `${ownBid != null ? ui("callbreak.your_bid_count", { "count": ownBid }) : ''} ${ui("common.waiting_bid", {player: bidder})}`}</Text>
     {isTurn && revealed && <View style={styles.controls}>
       <Pressable accessibilityRole="button" accessibilityLabel={ui("callbreak.decrease_bid")} disabled={busy || amount <= 1} onPress={() => setAmount(value => Math.max(1, value - 1))} style={styles.button}><Text style={styles.label}>−</Text></Pressable>
       <Text accessibilityLabel={ui("callbreak.selected_bid_count", { "count": amount })} style={styles.amount}>{amount}</Text>
       <Pressable accessibilityRole="button" accessibilityLabel={ui("callbreak.increase_bid")} disabled={busy || amount >= maximum} onPress={() => setAmount(value => Math.min(maximum, value + 1))} style={styles.button}><Text style={styles.label}>+</Text></Pressable>
-      <Pressable accessibilityRole="button" disabled={busy} onPress={() => onAction('PLACE_BID', { amount })} style={({ pressed }) => [styles.button, gameButtonStyle(colors, 'primary', pressed)]}><ActionCue active={!busy} style={[styles.label, { color: colors.onPrimary }]}>{busy ? 'Submitting…' : ui("callbreak.confirm_bid")}</ActionCue></Pressable>
+      <Pressable accessibilityRole="button" disabled={busy} onPress={() => onAction('PLACE_BID', { amount })} style={({ pressed }) => [styles.button, gameButtonStyle(colors, 'primary', pressed)]}><ActionCue active={!busy} style={[styles.label, { color: colors.onPrimary }]}>{busy ? ui("common.submitting") : ui("callbreak.confirm_bid")}</ActionCue></Pressable>
       <Text style={styles.text}>{ui("common.your_bid_is_submitted_only_when_you_confirm")}</Text>
     </View>}
   </View>;

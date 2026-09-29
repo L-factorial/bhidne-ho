@@ -7,6 +7,10 @@ export type TableSummary = {
   seated_players?: { seat_id: number; display_name: string }[];
   current_user?: TableView['current_user'];
 };
+export function isActiveTable(table: Pick<TableSummary, 'status' | 'phase'>): boolean {
+  return !['ended', 'finished', 'completed', 'closed', 'abandoned'].includes(table.status)
+    && table.phase !== 'ENDED' && table.phase !== 'COMPLETED';
+}
 export type TableEntry = 'watch' | 'seat' | 'queue';
 export function tableEntry(table: TableSummary): { label: string; action: TableEntry } {
   const me = table.current_user;

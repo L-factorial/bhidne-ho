@@ -1,4 +1,4 @@
-import { ui } from '../i18n/copy.ts';
+import { ui, uiLabel } from '../i18n/copy.ts';
 import { uiCatalogs, type UiKey } from '../i18n/catalogs.ts';
 
 // Presentation only: never change the error/receipt used for recovery, auth or
@@ -76,7 +76,7 @@ export function playerError(error: unknown, fallback?: string): string {
   // An uncertain write is not a rejection. Never suggest sending it again.
   if (/outcome unresolved|still pending|waiting for .*confirm|waiting for confirmation|confirmation pending/i.test(message))
     return ui('feedback.please_wait_confirmation');
-  if (ruleMessages.has(message)) return message;
+  if (ruleMessages.has(message)) return uiLabel(message);
   if (/^Chat is paused/.test(message)) return ui('feedback.chat_paused');
   if (item?.status === 403) return ui('feedback.access_unavailable');
   if (item?.status === 404 || item?.status === 410) return ui('feedback.item_unavailable');

@@ -1,5 +1,6 @@
 // Editable English ledger copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "bets_help": "Zero means no bet. Amounts record your agreement; no money is transferred. Tied placements require agreement between players.",
   "ledger": "Ledger",
   "ledger_settlements": "Ledger & settlements",
   "balances": "Balances",

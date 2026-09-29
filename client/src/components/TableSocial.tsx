@@ -1,3 +1,4 @@
+import { usePersistentNotice } from '../multiplayer/usePersistentNotice';
 import { playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -44,6 +45,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
   children: ReactNode; snapshot: RoomSnapshot; channel?: TableSocialChannel; connected: boolean; userId: string; pokes: RoomPoke[]; phrases?: PlayerPhrase[];
 }) {
   const uiLanguage = useUiLanguage();
+  const reconnecting = usePersistentNotice(!connected);
   const { colors: c } = useTheme();
   const { height: viewportHeight, width } = useWindowDimensions();
   const root = useRef<View>(null), anchorNode = useRef<View | null>(null);
@@ -257,10 +259,10 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
             {messages.map(message => <ChatMessage tableStyle key={message.id} message={message} own={message.sender_id === userId} />)}
           </ScrollView>
           {!!error && <Text accessibilityRole="alert" style={{color:c.danger}}>{uiLabel(error, 'feedback')}</Text>}
-          {!connected && <Text style={{color:c.textMuted}}>{ui("feedback.reconnecting")}</Text>}
+          {reconnecting && <Text style={{color:c.textMuted}}>{ui("feedback.reconnecting")}</Text>}
           {seated ? <View testID="table-chat-composer" style={{flexShrink:0}}>
             <ChatComposer value={draft} onChange={setDraft} onSend={() => void send()} disabled={!enabled || sending}
-              label={ui("social.table_message")} sendLabel="Send table message" placeholder={t('chat.placeholder')} />
+              label={ui("social.table_message")} sendLabel={ui("common.send_table_message")} placeholder={t('chat.placeholder')} />
             <ChatInputDiagnostics />
           </View> : <Text style={{color:c.textMuted}}>{ui("social.waiting_players_can_read_take_a_seat_to_chat")}</Text>}
         </View>

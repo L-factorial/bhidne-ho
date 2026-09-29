@@ -31,7 +31,7 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
   useEffect(() => { if (!showShare) setSharing(false); }, [showShare]);
   const { theme } = useTableTheme();
   const openThemes = () => { setOpen(false); setThemesOpen(true); };
-  const themeMenuEntry = <Pressable accessibilityRole="button" accessibilityLabel={`Table theme, ${theme.name}`} onPress={openThemes}
+  const themeMenuEntry = <Pressable accessibilityRole="button" accessibilityLabel={ui("common.table_theme_name", {name: uiLabel(theme.name)})} onPress={openThemes}
     style={({ pressed }) => ({ minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 8, borderRadius: radii.medium, backgroundColor: pressed ? colors.surfaceRaised : 'transparent' })}>
     <Ionicons name="color-palette-outline" size={20} color={colors.textMuted} />
     <View style={{ flex: 1, gap: 2 }}><Text style={{ color: colors.text, fontFamily: fonts.medium }}>{ui("common.table_theme")}</Text>
@@ -90,6 +90,7 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
           </View>
           {drawerMetadata}
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 8, marginHorizontal: -8, paddingBottom: 8 }}>
+            <View style={{ alignItems: 'flex-start', paddingVertical: 8 }}><LanguageToggle /></View>
             {themeMenuEntry}
             {typeof children === 'function' ? children(() => setOpen(false)) : children}
           </ScrollView>

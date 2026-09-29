@@ -1,3 +1,5 @@
+import { useUiLanguage } from '../i18n/useUiLanguage';
+import { ui, uiLabel } from '../i18n/copy.ts';
 import { playerError } from '../multiplayer/playerError.ts';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
@@ -35,6 +37,7 @@ const payload = (value: object = {}) => value as {[key:string]:Json};
 // Mounted only by the explicit integration build. No legacy room socket, command
 // client or process-local read route is constructed by this screen.
 export function DistributedRoomsScreen() {
+  useUiLanguage();
   const {colors} = useTheme();
   const [account,setAccount] = useState<Session|null>(()=>readSession(apiUrl)?.session??null);
   const [username,setUsername] = useState(''), [password,setPassword] = useState('');
@@ -133,7 +136,7 @@ export function DistributedRoomsScreen() {
   async function login(signup: boolean) {
     setAuthBusy(true);setError('');
     try {const session=await request<Session>(signup?'/auth/signup':'/auth/signin',null,{username,password});saveSession(apiUrl,{session,room:null,game:null});setPassword('');setAccount(session);}
-    catch(e){setError(playerError(e && typeof e === 'object' && 'status' in e && e.status === 401 ? Error('Invalid username or password') : e));}finally{setAuthBusy(false);}
+    catch(e){setError(playerError(e && typeof e === 'object' && 'status' in e && e.status === 401 ? Error(ui("common.invalid_credentials")) : e));}finally{setAuthBusy(false);}
   }
   async function logout() {
     setAuthBusy(true);
@@ -141,10 +144,10 @@ export function DistributedRoomsScreen() {
     catch(e){fail(e);}finally{setAuthBusy(false);}
   }
   if (!account) return <ScrollView contentContainerStyle={{padding:24,gap:12}}>
-    <Text accessibilityRole="header" style={{color:colors.text,fontSize:24}}>Sign in</Text>
-    {input('Username',username,setUsername)}{input('Password',password,setPassword,true)}
-    {button('Sign in',()=>void login(false),authBusy)}{button('Create account',()=>void login(true),authBusy)}
-    {!!error&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{error}</Text>}
+    <Text accessibilityRole="header" style={{color:colors.text,fontSize:24}}>{ui("common.sign_in")}</Text>
+    {input(ui("common.username"),username,setUsername)}{input(ui("common.password"),password,setPassword,true)}
+    {button(ui("common.sign_in"),()=>void login(false),authBusy)}{button(ui("common.create_account"),()=>void login(true),authBusy)}
+    {!!error&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(error, 'feedback')}</Text>}
   </ScrollView>;
 
   const snapshot=projection?.snapshot;
@@ -154,7 +157,7 @@ export function DistributedRoomsScreen() {
   const start=(data:object={play_mode:'manual'})=>{void table('start',data);};
   const back=()=>setSelected(selected?{room:selected.room,table:null}:null);
   const sendPoke=async(recipient_player_id:number|null,text:string)=>{
-    if(!snapshot||!selected)throw Error('Select a table first.');
+    if(!snapshot||!selected)throw Error(ui("common.select_table_first"));
     await requireAccepted(pokeController.current,()=>pokeController.current?.table({...snapshot,room_id:selected.room},'send-poke',{text,recipient_player_id}));
   };
   const social={connected:!!runtime,phrases:personal.phrases,save:personal.save,send:sendPoke};
@@ -163,15 +166,15 @@ export function DistributedRoomsScreen() {
       act={async(command,data)=>{await table(command,data);}} start={async()=>{await table('start',snapshot.game_type==='flush'?{rules_revision:snapshot.flush_settings?.rules_revision}:{play_mode:'manual'});}}/>
     {snapshot.rule_proposal&&<RuleProposal proposal={snapshot.rule_proposal} busy={busy} userId={account.user_id}
       vote={accept=>void table('rule-vote',{proposal_id:snapshot.rule_proposal!.id,accept})}/>}
-    {snapshot.table.current_user.can_join&&button('Take seat',()=>void table('join-seat'),busy)}
+    {snapshot.table.current_user.can_join&&button(ui("rooms.take_seat"),()=>void table('join-seat'),busy)}
   </>;
-  const endControl=button('End table',()=>void table('end'),busy);
+  const endControl=button(ui("rooms.end_table"),()=>void table('end'),busy);
   if(snapshot&&selected?.table) {
     const common={snapshot,busy,error:action.error||error,onBack:back,onNewGame:back,endControl,tableControl:controls,
       onAction:(command:string,data?:object)=>{void game(command,data);}};
     return <View style={{flex:1}}>
-      {action.status==='pending'&&button('Check pending action',()=>void controller.current?.recover())}
-      {button(chatOpen?'Close chat':'Chat',()=>setChatOpen(v=>!v))}
+      {action.status==='pending'&&button(ui("common.pending_action"),()=>void controller.current?.recover())}
+      {button(chatOpen?ui("common.close_chat"):ui("social.chat"),()=>setChatOpen(v=>!v))}
       {chatOpen&&runtime&&<DistributedChat root={runtime} view={{...snapshot,room_id:selected.room}}/>}
       {snapshot.game_type==='flush'?<FlushTable {...common} social={{...social,send:text=>sendPoke(null,text)}} connectionReady={!!runtime}
         onSave={data=>void table('flush-settings',data)} onStart={rules_revision=>start({rules_revision})} onLock={()=>void table('lock')}/>
@@ -183,35 +186,35 @@ export function DistributedRoomsScreen() {
     </View>;
   }
   return <ScrollView contentContainerStyle={{padding:20,gap:12,backgroundColor:colors.background}}>
-    <Text accessibilityRole="header" style={{color:colors.text,fontSize:24}}>{projection?.name||'Rooms'}</Text>
-    {!!(error||action.error)&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{action.error||error}</Text>}
-    {action.status==='pending'&&button('Check pending action',()=>void controller.current?.recover())}
-    {button('Sign out',()=>void logout(),authBusy)}
-    {button(platformOpen?'Close profile and friends':'Profile and friends',()=>setPlatformOpen(v=>!v))}
+    <Text accessibilityRole="header" style={{color:colors.text,fontSize:24}}>{projection?.name||ui("rooms.your_rooms")}</Text>
+    {!!(error||action.error)&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(action.error||error, 'feedback')}</Text>}
+    {action.status==='pending'&&button(ui("common.pending_action"),()=>void controller.current?.recover())}
+    {button(ui("common.sign_out_label"),()=>void logout(),authBusy)}
+    {button(platformOpen?ui("common.close_profile_friends"):ui("common.profile_friends"),()=>setPlatformOpen(v=>!v))}
     {platformOpen&&runtime&&<DistributedPlatform root={runtime} session={account}/>}
-    {button(inviteOpen?'Close invitation choices':'Invite players',()=>setInviteOpen(v=>!v))}
+    {button(inviteOpen?ui("common.close_invitation_choices"):'Invite players',()=>setInviteOpen(v=>!v))}
     {inviteOpen&&<DistributedInvitees session={account} selected={invitees} change={setInvitees}/>}
     {selected?<>
       {button('All rooms',()=>setSelected(null))}
-      {projection?.creator_id===account.user_id&&button(settingsOpen?'Close room settings':'Room settings',()=>setSettingsOpen(v=>!v))}
+      {projection?.creator_id===account.user_id&&button(settingsOpen?ui("common.close_room_settings"):ui("common.room_settings"),()=>setSettingsOpen(v=>!v))}
       {settingsOpen&&runtime&&projection?.creator_id===account.user_id&&<DistributedRoomSettings key={selected.room} root={runtime} room={selected.room} session={account}/>}
-      {button(ledgerOpen?'Close ledger':'Ledger',()=>setLedgerOpen(v=>!v))}
+      {button(ledgerOpen?ui("common.close_ledger"):ui("ledger.ledger"),()=>setLedgerOpen(v=>!v))}
       {ledgerOpen&&runtime&&<DistributedLedger key={selected.room} root={runtime} room={selected.room} session={account}/>}
       {(projection?.tables??[]).map(t=><View key={t.table_id}>{button(t.name+' · '+t.game_type,()=>setSelected({room:selected.room,table:t.table_id}))}</View>)}
-      {input('Table name',name,setName)}
+      {input(ui("rooms.table_name"),name,setName)}
       <View style={{flexDirection:'row',gap:8}}>{(['callbreak','marriage','flush'] as const).map(k=><View key={k}>{button(k+(kind===k?' ✓':''),()=>setKind(k))}</View>)}</View>
       {input('Players',capacity,setCapacity)}
-      {button('Create table',()=>void controller.current?.room(selected.room,'create-table',{game_type:kind,capacity:Number(capacity),name:name||'Table',invitees}),busy)}
-      {button('Leave room',()=>void controller.current?.room(selected.room,'leave-room').then(ok=>{if(ok&&controller.current?.state.status==='accepted')setSelected(null);}),busy)}
-      <Text style={{color:colors.text}}>Room chat</Text>
+      {button(ui("rooms.create_table"),()=>void controller.current?.room(selected.room,'create-table',{game_type:kind,capacity:Number(capacity),name:name||'Table',invitees}),busy)}
+      {button(ui("rooms.leave_room"),()=>void controller.current?.room(selected.room,'leave-room').then(ok=>{if(ok&&controller.current?.state.status==='accepted')setSelected(null);}),busy)}
+      <Text style={{color:colors.text}}>{ui("rooms.room_chat")}</Text>
       {Object.entries(messages).flatMap(([lane,items])=>items.map((item,index)=>{const row=item as {text?:string;sender_id?:string};return <Text key={lane+index} style={{color:colors.text}}>{row.sender_id}: {row.text}</Text>;}))}
-      {input('Message',text,setText)}
+      {input(ui("social.message"),text,setText)}
       {button('Send message',()=>void chat.current?.chat({kind:'room_chat',room_id:selected.room},text),!text.trim()||chatAction.busy||!runtime)}
-      {!!chatAction.error&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{chatAction.error}</Text>}
+      {!!chatAction.error&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(chatAction.error, 'feedback')}</Text>}
     </>:<>
-      {input('Room name',name,setName)}
+      {input(ui("rooms.room_name"),name,setName)}
       {button(visibility==='public'?'Public room':'Private room',()=>setVisibility(v=>v==='public'?'private':'public'))}
-      {button('Create room',()=>void controller.current?.createRoom(name,visibility,invitees),busy||!name.trim())}
+      {button(ui("rooms.create_room"),()=>void controller.current?.createRoom(name,visibility,invitees),busy||!name.trim())}
       {rooms.map(r=><View key={r.room_id}>{button(r.name+(r.is_member?'':' · Join'),()=>{
         if(r.is_member)setSelected({room:r.room_id,table:null});
         else void controller.current?.room(r.room_id,'enter-room').then(ok=>{if(ok&&controller.current?.state.status==='accepted')setSelected({room:r.room_id,table:null});});

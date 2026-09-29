@@ -1,3 +1,5 @@
+import { useUiLanguage } from '../i18n/useUiLanguage';
+import { ui } from '../i18n/copy.ts';
 import { gameControlFinish, gameHeadingFinish, fonts, useThemedStyles, type ThemeColors } from '../theme';
 import { FormScrollView } from '../components/FormInput';
 import { KeyboardFrame } from '../components/KeyboardFrame';
@@ -16,6 +18,7 @@ import { FriendsPanel } from '../components/FriendsPanel';
 export function ProfileScreen({ session, personal, onBack, onSignOut }: {
   session: Session; personal: ReturnType<typeof usePlayerPhrases>; onBack: () => void; onSignOut?: () => void;
 }) {
+  useUiLanguage();
   const styles = useThemedStyles(createStyles);
   const userId = session.user_id;
   const insets = useSafeAreaInsets();
@@ -26,29 +29,29 @@ export function ProfileScreen({ session, personal, onBack, onSignOut }: {
     setIdentity(null); setIdentityError('');
     void request<{ user_id: string; display_name: string; username?: string | null }>('/auth/me', session, undefined, controller.signal)
       .then(value => { if (!controller.signal.aborted) setIdentity(value); })
-      .catch(() => { if (!controller.signal.aborted) setIdentityError('Could not load your profile name. Reopen Profile to retry.'); });
+      .catch(() => { if (!controller.signal.aborted) setIdentityError(ui("feedback.profile_load_help")); });
     return () => controller.abort();
   }, [userId, session.token]);
   return <KeyboardFrame><FormScrollView testID="profile-screen" accessibilityViewIsModal style={styles.page} keyboardShouldPersistTaps="handled"
     contentContainerStyle={{ padding: 20, paddingTop: Math.max(insets.top, 24), paddingBottom: Math.max(insets.bottom, 24) }}>
     <View style={styles.content}>
-      <AppHeader title="Your profile" hideProfile actions={<Pressable accessibilityRole="button" accessibilityLabel="Back from profile" onPress={onBack} style={styles.back}><Text style={styles.link}>Back</Text></Pressable>} />
+      <AppHeader title={ui("common.your_profile_title")} hideProfile actions={<Pressable accessibilityRole="button" accessibilityLabel={ui("common.back_from_profile")} onPress={onBack} style={styles.back}><Text style={styles.link}>{ui("common.back_label")}</Text></Pressable>} />
       <View testID="profile-identity" style={{ gap: 6, paddingVertical: 12 }}>
-        <Text accessibilityRole="header" style={styles.title}>{identity?.display_name || identity?.username || (identityError ? 'Your account' : 'Loading profile…')}</Text>
+        <Text accessibilityRole="header" style={styles.title}>{identity?.display_name || identity?.username || (identityError ? ui("common.account_label") : ui("common.loading_profile"))}</Text>
         {!!identity?.username && <Text style={styles.description}>@{identity.username}</Text>}
-        <Text selectable accessibilityLabel={`Profile ID: ${userId}`} style={styles.description}>Profile ID: {userId}</Text>
+        <Text selectable accessibilityLabel={ui("common.profile_id", {id: userId})} style={styles.description}>{ui("common.profile_id", {id: userId})}</Text>
         {!!identityError && <Text accessibilityRole="alert" style={styles.description}>{identityError}</Text>}
       </View>
       <DisplayNameField session={session} onSaved={display_name => setIdentity(current => current ? { ...current, display_name } : { user_id: userId, display_name })} />
       <View style={{ gap: 8 }}>
-        <Text accessibilityRole="header" style={styles.description}>Preferences</Text>
-        <View style={styles.header}><Text style={styles.description}>Language</Text><LanguageToggle /></View>
+        <Text accessibilityRole="header" style={styles.description}>{ui("common.preferences_label")}</Text>
+        <View style={styles.header}><Text style={styles.description}>{ui("common.language_label")}</Text><LanguageToggle /></View>
       </View>
       <FriendsPanel session={session} />
       <PlayerPhrases key={userId} userId={userId} phrases={personal.phrases} connected={true}
         loadError={personal.error} onSave={personal.save} onRemove={personal.remove} onUpdate={personal.update} />
-      <Text style={styles.description}>Tap a saved phrase to edit it. During any game, open Poke the table to choose a saved phrase or add a new one without leaving the table.</Text>
-      {onSignOut && <Pressable accessibilityRole="button" onPress={onSignOut} style={styles.signOut}><Text style={styles.signOutText}>Sign out</Text></Pressable>}
+      <Text style={styles.description}>{ui("social.phrase_edit_help")}</Text>
+      {onSignOut && <Pressable accessibilityRole="button" onPress={onSignOut} style={styles.signOut}><Text style={styles.signOutText}>{ui("common.sign_out_label")}</Text></Pressable>}
     </View>
   </FormScrollView></KeyboardFrame>;
 }

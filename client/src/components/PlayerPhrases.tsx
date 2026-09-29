@@ -1,3 +1,5 @@
+import { useUiLanguage } from '../i18n/useUiLanguage';
+import { ui, uiLabel } from '../i18n/copy.ts';
 import { playerError } from '../multiplayer/playerError.ts';
 import { gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { FormInput } from './FormInput';
@@ -10,6 +12,7 @@ export function PlayerPhrases({ phrases, userId, connected, loadError, onSave, o
   onUpdate: (id: string, text: string) => Promise<void>;
   onSave: (text: string) => Promise<void>; onRemove: (id: string) => Promise<void>;
 }) {
+  useUiLanguage();
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const [open, setOpen] = useState(true), [text, setText] = useState(''), [error, setError] = useState('');
@@ -25,29 +28,29 @@ export function PlayerPhrases({ phrases, userId, connected, loadError, onSave, o
   }
   return <View style={styles.panel}>
     <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen(!open)} style={styles.toggle}>
-      <Text style={styles.title}>My goofy phrases · {phrases.length}</Text><Text style={styles.title}>{open ? '−' : '+'}</Text>
+      <Text style={styles.title}>{ui("social.my_goofy_phrases_count", {count: phrases.length})}</Text><Text style={styles.title}>{open ? '−' : '+'}</Text>
     </Pressable>
     {open && <View style={styles.body}>
-      <Text style={styles.note}>Your keywords and inside jokes. Save up to {PLAYER_PHRASE_LIMIT} phrases, each up to {POKE_TEXT_LIMIT} characters, and use them from Poke the table during any game.</Text>
+      <Text style={styles.note}>{ui("common.phrases_help", {limit: PLAYER_PHRASE_LIMIT, characters: POKE_TEXT_LIMIT})}</Text>
       <View style={styles.phrases}>{phrases.map(phrase => <View key={phrase.id} style={styles.chip}>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Edit phrase ${phrase.text}`} disabled={busy || !connected}
+        <Pressable accessibilityRole="button" accessibilityLabel={ui("social.edit_phrase_text", {text: phrase.text})} disabled={busy || !connected}
           onPress={() => { setEditing(phrase.id); setText(phrase.text); setError(''); }} style={{ minHeight: 44, justifyContent: 'center', flexShrink: 1 }}>
           <Text style={styles.phrase}>{phrase.text}</Text>
         </Pressable>
-        {phrase.created_by === userId && <Pressable accessibilityRole="button" accessibilityLabel={`Remove punchline ${phrase.text}`}
+        {phrase.created_by === userId && <Pressable accessibilityRole="button" accessibilityLabel={ui("social.remove_phrase_text", {text: phrase.text})}
           disabled={busy || !connected} onPress={() => void change(phrase.id)} style={styles.remove}><Text style={styles.removeText}>×</Text></Pressable>}
       </View>)}</View>
-      {editing && <View style={styles.toggle}><Text style={styles.note}>Editing phrase</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="Cancel editing" disabled={busy} onPress={() => { setEditing(null); setText(''); setError(''); }} style={styles.remove}><Text style={styles.note}>Cancel</Text></Pressable></View>}
+      {editing && <View style={styles.toggle}><Text style={styles.note}>{ui("social.editing_phrase")}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={ui("common.cancel_editing")} disabled={busy} onPress={() => { setEditing(null); setText(''); setError(''); }} style={styles.remove}><Text style={styles.note}>{ui("common.cancel_label")}</Text></Pressable></View>}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-      <FormInput accessibilityLabel={`New personal phrase, ${POKE_TEXT_LIMIT} characters maximum`} value={text} onChangeText={value => setText(limitPokeText(value))}
-        maxLength={60} editable={!busy && connected && (!!editing || phrases.length < PLAYER_PHRASE_LIMIT)} placeholder="A keyword or punchline…" placeholderTextColor={colors.textMuted} style={[styles.input, { flex: 1, minWidth: 0 }]}
+      <FormInput accessibilityLabel={ui("social.new_phrase_limit", {limit: POKE_TEXT_LIMIT})} value={text} onChangeText={value => setText(limitPokeText(value))}
+        maxLength={60} editable={!busy && connected && (!!editing || phrases.length < PLAYER_PHRASE_LIMIT)} placeholder={ui("social.phrase_placeholder")} placeholderTextColor={colors.textMuted} style={[styles.input, { flex: 1, minWidth: 0 }]}
         returnKeyType="done" onSubmitEditing={() => void change()} />
 
-        <Pressable accessibilityRole="button" accessibilityLabel="Save personal phrase" disabled={busy || !connected || !text.trim() || (!editing && phrases.length >= PLAYER_PHRASE_LIMIT)}
-          onPress={() => void change()} style={[styles.add, (busy || !connected || !text.trim() || (!editing && phrases.length >= PLAYER_PHRASE_LIMIT)) && { opacity: 0.45 }]}><Text style={styles.addText}>{busy ? 'Saving…' : editing ? 'Update' : 'Save'}</Text></Pressable></View>
-      <Text style={styles.note}>{pokeTextLength(text)}/{POKE_TEXT_LIMIT} · {phrases.length}/{PLAYER_PHRASE_LIMIT} saved</Text>
-      {!!(error || loadError) && <Text accessibilityRole="alert" style={styles.error}>{error || loadError}</Text>}
+        <Pressable accessibilityRole="button" accessibilityLabel={ui("social.save_personal_phrase")} disabled={busy || !connected || !text.trim() || (!editing && phrases.length >= PLAYER_PHRASE_LIMIT)}
+          onPress={() => void change()} style={[styles.add, (busy || !connected || !text.trim() || (!editing && phrases.length >= PLAYER_PHRASE_LIMIT)) && { opacity: 0.45 }]}><Text style={styles.addText}>{busy ? ui("common.saving") : editing ? ui("common.update_label") : ui("common.save")}</Text></Pressable></View>
+      <Text style={styles.note}>{ui("social.phrase_counts", {length: pokeTextLength(text), limit: POKE_TEXT_LIMIT, count: phrases.length, maximum: PLAYER_PHRASE_LIMIT})}</Text>
+      {!!(error || loadError) && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error || loadError, 'feedback')}</Text>}
     </View>}
   </View>;
 }

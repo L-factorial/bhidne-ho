@@ -42,14 +42,14 @@ export function GameRoomsScreen({ selected, onSelect, onBack, onLeave }: {
           <View style={styles.emptyRoom}>
             <Text style={styles.emptySymbol}>{game.symbol}</Text>
             <Text accessibilityRole="header" style={styles.emptyTitle}>{ui("common.the_table_is_taking_shape")}</Text>
-            <Text style={styles.emptyText}>You’re in the {uiLabel(game.name, "rooms")} room preview. Tables and gameplay are coming next.</Text>
+            <Text style={styles.emptyText}>{ui("common.preview_room", {game: uiLabel(game.name, "rooms")})}</Text>
             <Pressable accessibilityRole="button" onPress={onBack} style={styles.button}><Text style={styles.buttonText}>{ui("rooms.choose_another_game")}</Text></Pressable>
           </View>
         </> : <>
           <View style={styles.hero}>
             <Text style={styles.eyebrow}>{ui("rooms.pick_your_game")}</Text>
             <Text accessibilityRole="header" style={[styles.title, !wide && { fontSize: 44 }]}>{ui("rooms.what_are_we_playing")}</Text>
-            <Text style={styles.subtitle}>Your friends. Your favorite game. Enter a room to get started.</Text>
+            <Text style={styles.subtitle}>{ui("common.preview_friends")}</Text>
           </View>
           <View style={[styles.grid, wide && styles.wideGrid]}>
             {games.map(item => <View key={item.id} style={[styles.card, wide && { flex: 1 }]}>
@@ -69,7 +69,7 @@ export function GameRoomsScreen({ selected, onSelect, onBack, onLeave }: {
             </View>)}
           </View>
         </>}
-        <Text style={styles.preview}>Design preview · No live accounts, tables, or games.</Text>
+        <Text style={styles.preview}>{ui("common.preview_no_live")}</Text>
         <Text style={styles.footer}>{ui("common.good_cards_better_company")}</Text>
       </View>
     </ScrollView>

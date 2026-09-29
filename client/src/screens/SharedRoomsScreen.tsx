@@ -1,3 +1,5 @@
+import { isActiveTable } from '../multiplayer/tableNavigation';
+import { usePersistentNotice } from '../multiplayer/usePersistentNotice';
 import { playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -15,7 +17,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { RoomToolbar } from '../components/RoomToolbar';
 import { RoomSheet } from '../components/RoomSheet';
 import { LobbyNavigation } from '../components/LobbyNavigation';
-import { useRecentRooms } from '../multiplayer/useRecentRooms';
 import { RoomCard } from '../components/RoomCard';
 import { useRoomChat } from '../components/RoomChat';
 import { InvitationPreview } from '../components/InvitationPreview';
@@ -51,7 +52,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const insets = useSafeAreaInsets();
   const wide = useWindowDimensions().width >= 900;
   const [roomToolsOpen, setRoomToolsOpen] = useState(false);
-  const [lobbyTab, setLobbyTab] = useState<'rooms' | 'players' | 'recent' | 'games' | 'friendRooms'>("games");
+  const [lobbyTab, setLobbyTab] = useState<'rooms' | 'players' | 'createJoin' | 'games' | 'friendRooms'>("games");
   const [lobbyProfileOpen, setLobbyProfileOpen] = useState(false);
   const [greetingIdentity, setGreetingIdentity] = useState<InvitePlayer | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -71,6 +72,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const usernameInput = useRef<TextInput>(null), passwordInput = useRef<TextInput>(null);
   const shared = useRoomSession(roomActions);
   const { session, rooms, room, game, setGame, expired } = shared;
+  const reconnecting = usePersistentNotice(!!room && !expired && shared.status !== 'connected');
   useEffect(() => {
     if (!session || expired) { setGreetingIdentity(null); return; }
     if (room || lobbyProfileOpen) return;
@@ -83,7 +85,6 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const greetingName = greetingIdentity?.user_id === session?.user_id
     ? greetingIdentity?.display_name?.trim() || greetingIdentity?.username?.trim() : '';
 
-  const recentIds = useRecentRooms(session?.user_id, room?.room_id);
   const [gameOpen, setGameOpen] = useState(false);
   const chat = useRoomChat({ roomId: room?.room_id || '', session: session || { token: '', user_id: '' }, connected: !!room && !!session && !expired && !gameOpen && shared.status === 'connected',
     launcherVisible: false, expanded: roomPanel === 'chat', onExpandedChange: open => setRoomPanel(current => open ? 'chat' : current === 'chat' ? null : current), bottomOffset: 56,
@@ -179,8 +180,6 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const publicRooms = rooms.filter(item => item.visibility === 'public');
   const [publicRoomsOpen, setPublicRoomsOpen] = useState(false);
 
-  const recentRooms = recentIds.map(id => rooms.find(item => item.room_id === id)).filter((item): item is Room => !!item);
-
   const roomCard = (item: Room) => <View key={item.room_id} style={wide ? { width: '48.8%' } : { width: '100%' }}>
     <RoomCard room={item} member={enterRooms.includes(item)} busy={busy}
       owner={item.creator_id === session?.user_id}
@@ -192,7 +191,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
           await shared.roomActions.leave(session, item.room_id);
         }
       }}
-      activeTables={shared.memberships.find(m => m.room_id === item.room_id)?.tables.filter(t => t.status !== 'ended').length}
+      activeTables={shared.memberships.find(m => m.room_id === item.room_id)?.tables.filter(isActiveTable).length}
       onPress={() => { setLinkedMatch(undefined); if (enterRooms.includes(item)) enterRoom(item); else joinRoom(item); }} />
   </View>;
   const previewMembers = (current?.member_previews || []).filter(member => member.display_name?.trim()).slice(0, 4);
@@ -221,7 +220,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
         enterRoom({ room_id: invited.room_id, name: invited.table_name, members: [] }, invited.game_type);
       }} onOpenRoom={invited => enterRoom({ room_id: invited.room_id, name: invited.room_name, members: [] })} /> : null} />
       {session && !roomToolsOpen && !!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error || shared.error, 'feedback')}</Text>}
-      {room && !expired && shared.status !== 'connected'  && <Text accessibilityLiveRegion="polite" style={styles.subtitle}>{ui("feedback.reconnecting_to_your_room")}</Text>}
+      {!expired && (reconnecting || shared.connectionNotice) && <Text accessibilityLiveRegion="polite" style={styles.subtitle}>{ui(room ? "feedback.reconnecting_to_your_room" : "feedback.connection_interrupted_retrying")}</Text>}
       {invitation && session ? <InvitationPreview key={`${invitation.roomId}:${invitation.matchId}`} invitation={invitation} session={session} ready={process.env.EXPO_PUBLIC_RUNTIME_MODE !== 'distributed-original' || !!shared.runtime}
         startupError={shared.startupError} retrySession={shared.retry}
         dismiss={clearInvitation} join={async (target, gameType, matchId) => {
@@ -229,10 +228,10 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
           if (joined) { setLinkedEntry(undefined); setLinkedMatch(matchId); clearInvitation(); }
           return joined;
         }} /> : room ? <>
-        <View testID="room-hero" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderSubtle, borderRadius: 24, padding: 16, gap: 18, marginTop: 12 }}>
+        <View testID="room-hero" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderSubtle, borderRadius: 16, padding: 12, gap: 6, marginTop: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <View style={{ flex: 1, minWidth: 0 }}><Text accessibilityRole="header" style={{ fontFamily: fonts.editorial, fontSize: 30, color: colors.text }}>{current?.name || room.name}</Text>
-              <Text style={{ fontFamily: fonts.body, color: colors.textMuted, fontSize: 13 }}>{ui("rooms.members_members_online_online", { "members": roomMembers.length, "online": current?.presence_status && current.presence_status !== 'observed' ? '—' : current?.connected_members?.length || 0 })}</Text><CopyRoomCode roomId={room.room_id} inline menu />
+            <View style={{ flex: 1, minWidth: 0 }}><Text accessibilityRole="header" style={{ fontFamily: fonts.editorial, fontSize: 24, color: colors.text }}>{current?.name || room.name}</Text>
+              <Text style={{ fontFamily: fonts.body, color: colors.textMuted, fontSize: 13 }}>{ui("rooms.members_members_online_online", { "members": roomMembers.length, "online": current?.presence_status && current.presence_status !== 'observed' ? '—' : current?.connected_members?.length || 0 })}</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 }}>
             <Pressable accessibilityRole="button" accessibilityLabel={ui("common.back_to_lobby")} onPress={() => { setLinkedMatch(undefined); shared.exitRoom(); }} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="arrow-back" size={24} color={colors.accent} /></Pressable>
@@ -262,9 +261,9 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
                 <Text style={[styles.tabText, selectedGame === value && styles.selectedTabText]}>{value === 'callbreak' ? ui("rooms.call_break") : value === 'flush' ? ui("rooms.flush") : ui("rooms.marriage")}</Text>
               </Pressable>)}
             </View>
-              {selectedGame === 'callbreak' ? <Text style={styles.description}>Four or five players. Five deals. Make your call.</Text>
-                : selectedGame === 'marriage' ? <Text style={styles.description}>Two to five players. Build your melds, unlock Maal, and finish with eight Dublees.</Text>
-                : <Text style={styles.description}>Two to ten players. Bet blind or seen, pack, and show when two players remain.</Text>}
+              {selectedGame === 'callbreak' ? <Text style={styles.description}>{ui("rooms.callbreak_description")}</Text>
+                : selectedGame === 'marriage' ? <Text style={styles.description}>{ui("rooms.marriage_description")}</Text>
+                : <Text style={styles.description}>{ui("rooms.flush_description")}</Text>}
               </>} />}
           </View>
         </View>
@@ -276,8 +275,8 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
               </Pressable>
             {inviteOpen && <View style={styles.panel}>{current?.creator_id === session.user_id && <RoomPrivacySettings key={room.room_id} room={current!} session={session} />}
               <View>
-                <Text style={styles.description}>Share the room link or code. Private rooms also require an invitation from the owner.</Text>
-                <View style={styles.codeBox}><Text style={styles.codeLabel}>{ui("rooms.room_code")}</Text><Text selectable accessibilityLabel={`Room code ${roomInvitationCode(room.room_id)}`} style={styles.code}>{roomInvitationCode(room.room_id)}</Text></View>
+                <Text style={styles.description}>{ui("rooms.sharing_help")}</Text>
+                <View style={styles.codeBox}><Text style={styles.codeLabel}>{ui("rooms.room_code")}</Text><Text selectable accessibilityLabel={ui("common.room_code_accessible", {code: roomInvitationCode(room.room_id)})} style={styles.code}>{roomInvitationCode(room.room_id)}</Text></View>
                 <View style={styles.gameTabs}><ShareLink roomId={room.room_id} /><CopyRoomCode roomId={room.room_id} /></View>
               </View>
             </View>}
@@ -308,11 +307,11 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
           </>}
           {roomPanel === 'more' && <>
             <RoomShareActions roomId={room.room_id} menu />
-            <Pressable accessibilityRole="button" accessibilityLabel={ui("ledger.ledger_settlements")} onPress={() => setRoomPanel("ledger")} style={{ paddingVertical: 16 }}><View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}><Ionicons name="document-text-outline" size={24} color={colors.accent} /><View style={{ flex: 1, gap: 5 }}><Text style={styles.sectionTitle}>{ui("ledger.ledger_settlements")}</Text><Text style={styles.description}>View game history, balances and settlements for this room.</Text></View><Ionicons name="chevron-forward" size={18} color={colors.textMuted} /></View></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={ui("ledger.ledger_settlements")} onPress={() => setRoomPanel("ledger")} style={{ paddingVertical: 16 }}><View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}><Ionicons name="document-text-outline" size={24} color={colors.accent} /><View style={{ flex: 1, gap: 5 }}><Text style={styles.sectionTitle}>{ui("ledger.ledger_settlements")}</Text><Text style={styles.description}>{ui("rooms.ledger_help")}</Text></View><Ionicons name="chevron-forward" size={18} color={colors.textMuted} /></View></Pressable>
             {current?.creator_id === session?.user_id && <View style={styles.panel}>
               <RoomPrivacySettings key={room.room_id} room={current!} session={session} />
               <Text style={styles.sectionTitle}>{ui("rooms.room_owner_controls")}</Text>
-              <Text style={styles.description}>You can delete this room after every active table has ended.</Text>
+              <Text style={styles.description}>{ui("rooms.delete_help")}</Text>
               {deleteConfirming ? <>
                 <Text accessibilityRole="alert" style={styles.description}>{ui("rooms.are_you_sure_this_cannot_be_undone")}</Text>
                 <View style={styles.gameTabs}>
@@ -323,11 +322,11 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
             </View>}
             {current?.creator_id !== session?.user_id && <View style={styles.panel}>
               <Text style={styles.sectionTitle}>{ui("rooms.room_membership")}</Text>
-              <Text style={styles.description}>Leave this room to remove it from your rooms. You can join it again later if you still have access.</Text>
+              <Text style={styles.description}>{ui("rooms.leave_help")}</Text>
               <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.leave_room_membership")} onPress={() => void leaveMembership()} style={styles.dangerButton}><Text style={styles.dangerText}>{ui("rooms.leave_room")}</Text></Pressable>
             </View>}
       {shared.leaveGameRequired && <View>
-        <Text style={styles.subtitle}>{shared.abandonRequired ? 'Abandon the active match and leave the room? The match will stop for everyone.' : 'You are seated in a game. Leave the game and room? The game’s departure rules still apply.'}</Text>
+        <Text style={styles.subtitle}>{shared.abandonRequired ? ui("common.abandon_room_help") : ui("common.leave_seated_room_help")}</Text>
         <Pressable accessibilityRole="button" disabled={busy} onPress={async () => {
           setBusy(true); try { await shared.leaveGameAndRoom(); } finally { setBusy(false); }
         }}><Text style={styles.subtitle}>{shared.abandonRequired ? ui("rooms.abandon_match_and_leave_room") : ui("rooms.leave_game_and_room")}</Text></Pressable>
@@ -340,14 +339,8 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
       </> : <>
         {session && !expired && lobbyTab !== 'players' && <View style={styles.hero}>
           <Text accessibilityRole="header" style={[styles.title, !wide && styles.mobileTitle]}>{greetingName ? ui("common.welcome_player", { "player": greetingName }) : ui("common.welcome")}</Text>
-          <Text style={styles.readyPrompt}>{ui("rooms.ready_to_play")}</Text>
-          <Text style={styles.subtitle}>{ui("common.open_a_room_or_bring_your_players_together")}</Text>
-          <View style={styles.quickActions}>
-            <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_room")} onPress={() => { setLobbyTab('rooms'); setForm("create"); setRoomToolsOpen(true); }} style={styles.primaryAction}><Text style={styles.primaryActionText}>{ui("rooms.create_room_2")}</Text></Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.join_with_code")} onPress={() => { setLobbyTab('rooms'); setForm("join"); setRoomToolsOpen(true); }} style={styles.secondaryAction}><Text style={styles.secondaryActionText}>{ui("rooms.join_with_code")}</Text></Pressable>
-          </View>
           <View accessibilityRole="tablist" style={styles.lobbyTabs}>
-            {([["games", ui("rooms.active_games")], ['rooms', ui("rooms.your_rooms")], ['friendRooms', ui("rooms.friends_rooms")], ["recent", ui("rooms.recent")]] as const).map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: lobbyTab === value }} onPress={() => setLobbyTab(value)} style={[styles.lobbyTab, lobbyTab === value && styles.activeLobbyTab]}><Text style={[styles.lobbyTabText, lobbyTab === value && styles.activeLobbyTabText]}>{label}</Text></Pressable>)}
+            {([["games", ui("rooms.active_games")], ['rooms', ui("rooms.your_rooms")], ['friendRooms', ui("rooms.friends_rooms")], ["createJoin", ui("rooms.create_or_join")]] as const).map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: lobbyTab === value }} onPress={() => setLobbyTab(value)} style={styles.lobbyTab}><Text style={[styles.lobbyTabText, lobbyTab === value && styles.activeLobbyTabText]}>{label}</Text>{lobbyTab === value && <View style={styles.activeLobbyTab} />}</Pressable>)}
           </View>
         </View>}
         {!session && <View style={styles.panel}>
@@ -362,8 +355,8 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
           </View>
           <>
             <Text style={styles.subtitle}>{authMode === 'signup'
-              ? 'Create an account so your identity and profile can follow you across sign-ins.'
-              : 'Sign in with your Bhidne Ho username and password.'}</Text>
+              ? ui("common.signup_description")
+              : ui("common.signin_description")}</Text>
             {authMode === 'signup' && <>
               <Text style={styles.description}>{ui("common.profile_name_required")}</Text>
               <FormInput accessibilityLabel={ui("common.profile_name")} aria-required placeholder={ui("common.name_nickname")} placeholderTextColor={colors.textMuted}
@@ -379,11 +372,17 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
               returnKeyType="go" onSubmitEditing={() => {
                 if (!missingProfileName && username.trim().length >= 3 && password.length >= 8) void shared.loginAccount(username, password, authMode === 'signup', profileName);
               }} />
-            <Text style={styles.description}>Usernames use 3–32 letters, numbers, underscores, or hyphens. Passwords require at least 8 characters.</Text>
+            <Text style={styles.description}>{ui("common.account_requirements")}</Text>
 
           </>
         </View>}
-        {lobbyTab === 'rooms' && <View style={[styles.columns, !session && { marginTop: 24 }]}>
+        {(lobbyTab === 'rooms' || lobbyTab === 'createJoin') && <View style={[styles.columns, !session && { marginTop: 24 }]}>
+          {session && !expired && lobbyTab === 'createJoin' && <>
+          <View style={styles.quickActions}>
+            <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_room")} onPress={() => { setForm("create"); setRoomToolsOpen(true); }} style={styles.primaryAction}><Text style={styles.primaryActionText}>{ui("rooms.create_room_2")}</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.join_with_code")} onPress={() => { setForm("join"); setRoomToolsOpen(true); }} style={styles.secondaryAction}><Text style={styles.secondaryActionText}>{ui("rooms.join_with_code")}</Text></Pressable>
+          </View>
+          </>}
           {roomToolsOpen && <RoomSheet visible presentation="dialog" title={form === 'create' ? ui("rooms.create_room") : ui("rooms.join_with_code")} closeLabel={ui("common.close_room_form")} onClose={() => setRoomToolsOpen(false)}>
             {form === 'create' ? <>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -401,7 +400,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
                     <Text style={[styles.tabText, visibility === value && styles.selectedTabText]}>{label}</Text>
                   </Pressable>)}
               </View>
-              <Text style={styles.description}>{visibility === 'private' ? 'Only invited people and members can enter. Links and codes do not grant access.' : ui("rooms.every_signed_in_player_can_see_and_enter_it")}</Text>
+              <Text style={styles.description}>{visibility === 'private' ? ui("common.private_room_access_help") : ui("rooms.every_signed_in_player_can_see_and_enter_it")}</Text>
               <Text style={styles.sectionTitle}>{ui("rooms.invite_people_optional")}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><FormInput accessibilityLabel={ui("rooms.find_people_to_invite_to_room")} value={roomInviteQuery} onChangeText={setRoomInviteQuery} maxLength={64} placeholder={ui("rooms.name_username_or_user_id")} placeholderTextColor={colors.textMuted} autoCapitalize="none" autoCorrect={false} returnKeyType="search" onSubmitEditing={() => void searchRoomDirectory()} style={[styles.input, { flex: 1, minWidth: 0 }]} />
               <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.search_directory")} disabled={roomInviteSearching || roomInviteQuery.trim().length < 2} onPress={() => void searchRoomDirectory()} style={[styles.button, (roomInviteSearching || roomInviteQuery.trim().length < 2) && styles.disabled]}><Text style={styles.buttonText}>{roomInviteSearching ? '…' : ui("common.search")}</Text></Pressable></View>
@@ -417,8 +416,8 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
             {form === 'join' && !!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error || shared.error, 'feedback')}</Text>}
             {busy && <Text accessibilityLiveRegion="polite" style={styles.description}>{ui("rooms.entering_room")}</Text>}
           </RoomSheet>}
-          {session && !expired && <>
-            {shared.memberships.filter(m => m.active_game?.player_is_participant && m.active_game.status !== 'ended').map(m => {
+          {session && !expired && lobbyTab === 'rooms' && <>
+            {shared.memberships.filter(m => m.active_game?.player_is_participant && isActiveTable(m.active_game)).map(m => {
               const target = rooms.find(r => r.room_id === m.room_id), active = m.active_game!;
               if (!target) return null;
               return <Pressable key={m.room_id} accessibilityRole="button" accessibilityLabel={ui("rooms.return_to_table_tablename", { "tableName": target.name })} onPress={() => { setLinkedMatch(active.game_id); enterRoom(target, active.game_type); }} style={styles.resumeCard}>
@@ -448,18 +447,8 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
         {session && !expired && lobbyTab === 'players' && <View style={styles.playersArea}>
           <FriendsPanel session={session} />
         </View>}
-        {session && !expired && lobbyTab === 'games' && !!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error || shared.error, 'feedback')}</Text>}
-        {session && !expired && lobbyTab === 'games' && <ActiveGames onCreateRoom={() => { setLobbyTab('rooms'); setForm("create"); setRoomToolsOpen(true); }} onBrowseRooms={() => setLobbyTab('friendRooms')} session={session} busy={busy} enter={(table, action) => void enterActiveTable(table, action)} />}
-        {session && !expired && lobbyTab === 'recent' && <View style={styles.columns}>
-          <Text accessibilityRole="header" style={styles.sectionTitle}>{ui("rooms.recently_visited")}</Text>
-          <Text style={styles.description}>{ui("rooms.your_recent_rooms_on_this_device")}</Text>
-          <View style={styles.roomGrid}>{recentRooms.map(roomCard)}</View>
-          {!recentRooms.length && <View style={styles.panel}>
-            <Ionicons name="time-outline" size={30} color={colors.accent} />
-            <Text style={styles.description}>Rooms you visit will appear here. Explore your rooms to get started.</Text>
-            <Pressable accessibilityRole="button" onPress={() => setLobbyTab('rooms')} style={styles.textButton}><Text style={styles.enterText}>{ui("common.browse_rooms_arrow")}</Text></Pressable>
-          </View>}
-        </View>}
+        {session && !expired && lobbyTab === 'games' && <ActiveGames activity={shared.runtime?.root} onCreateRoom={() => { setLobbyTab('createJoin'); setForm("create"); setRoomToolsOpen(true); }} onBrowseRooms={() => setLobbyTab('friendRooms')} session={session} busy={busy} enter={(table, action) => void enterActiveTable(table, action)} />}
+
       </>}
     </View>
   </FormScrollView>
@@ -484,10 +473,10 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   roomActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   header: { ...gameSeparatorFinish(colors), flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16, borderBottomWidth: 1, borderColor: colors.tableTrim, paddingBottom: 18 },
   brand: { fontFamily: fonts.body, fontSize: 26, color: colors.accent }, textButton: { minHeight: 44, justifyContent: 'center' }, lightText: { fontFamily: fonts.medium, fontSize: 12, color: colors.accent },
-  hero: { paddingTop: 24, paddingBottom: 20, gap: 8 }, eyebrow: { fontFamily: fonts.medium, fontSize: 9, letterSpacing: 2, color: colors.accent }, title: { ...gameHeadingFinish(colors), fontFamily: fonts.editorial, fontSize: 44, lineHeight: 48, color: colors.text }, mobileTitle: { fontSize: 43, lineHeight: 46 }, subtitle: { fontFamily: fonts.body, fontSize: 13, lineHeight: 23, color: colors.textMuted },
+  hero: { paddingTop: 12, paddingBottom: 12, gap: 8 }, eyebrow: { fontFamily: fonts.medium, fontSize: 9, letterSpacing: 2, color: colors.accent }, title: { ...gameHeadingFinish(colors), fontFamily: fonts.editorial, fontSize: 28, lineHeight: 34, color: colors.text }, mobileTitle: { fontSize: 26, lineHeight: 32 }, subtitle: { fontFamily: fonts.body, fontSize: 13, lineHeight: 23, color: colors.textMuted },
   readyPrompt: { fontFamily: fonts.medium, fontSize: 18, lineHeight: 25, color: colors.textMuted },
   quickActions: { flexDirection: 'row', gap: 10, marginTop: 8 }, primaryAction: { ...gameControlFinish(colors), flex: 1, minHeight: 54, borderRadius: 14, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 }, primaryActionText: { fontFamily: fonts.medium, fontSize: 13, color: colors.onPrimary }, secondaryAction: { ...gameControlFinish(colors), flex: 1, minHeight: 54, borderRadius: 14, borderWidth: 1, borderColor: colors.tableTrim, backgroundColor: colors.tableHeader, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 }, secondaryActionText: { fontFamily: fonts.medium, fontSize: 13, color: colors.text },
-  lobbyTabs: { backgroundColor: colors.tableHeader, borderRadius: 14, gap: 6, flexDirection: 'row', borderBottomWidth: 1, borderColor: colors.borderSubtle, marginTop: 14 }, lobbyTab: { ...gameControlFinish(colors), flex: 1, alignItems: 'center', minHeight: 48, paddingHorizontal: 6, justifyContent: 'center', borderBottomWidth: 0 }, activeLobbyTab: { ...gameTabFinish(colors, true) }, lobbyTabText: { textAlign: 'center', fontFamily: fonts.medium, fontSize: 13, color: colors.textMuted }, activeLobbyTabText: { color: colors.onCoin }, playersArea: { marginTop: 4, gap: 14 },
+  lobbyTabs: { backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, flexDirection: 'row', borderBottomWidth: 1, borderColor: colors.borderSubtle, marginTop: 8 }, lobbyTab: { flex: 1, alignItems: 'center', minHeight: 64, paddingHorizontal: 6, justifyContent: 'center' }, activeLobbyTab: { position: 'absolute', bottom: 0, width: '70%', height: 3, borderRadius: 3, backgroundColor: colors.primary }, lobbyTabText: { textAlign: 'center', fontFamily: fonts.medium, fontSize: 14, color: colors.textMuted }, activeLobbyTabText: { color: colors.accent }, playersArea: { marginTop: 4, gap: 14 },
   sectionToggle: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, sectionTitle: { fontFamily: fonts.medium, fontSize: 16, color: colors.text },
   resumeCard: { ...gamePanelFinish(colors), flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, backgroundColor: colors.surfaceSelected, borderRadius: 14 },
   resumeTitle: { fontFamily: fonts.medium, fontSize: 16, color: colors.text },
