@@ -6,3 +6,6 @@ __pycache__/
 .env
 build/
 dist/
+
+# Dedicated load-test credentials, journals and reports
+.loadtest/

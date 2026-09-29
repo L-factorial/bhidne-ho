@@ -223,6 +223,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
       {session && !roomToolsOpen && !!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error || shared.error, 'feedback')}</Text>}
       {room && !expired && shared.status !== 'connected'  && <Text accessibilityLiveRegion="polite" style={styles.subtitle}>{ui("feedback.reconnecting_to_your_room")}</Text>}
       {invitation && session ? <InvitationPreview key={`${invitation.roomId}:${invitation.matchId}`} invitation={invitation} session={session} ready={process.env.EXPO_PUBLIC_RUNTIME_MODE !== 'distributed-original' || !!shared.runtime}
+        startupError={shared.startupError} retrySession={shared.retry}
         dismiss={clearInvitation} join={async (target, gameType, matchId) => {
           const joined = await shared.joinRoom(target, gameType);
           if (joined) { setLinkedEntry(undefined); setLinkedMatch(matchId); clearInvitation(); }

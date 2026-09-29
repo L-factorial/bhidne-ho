@@ -1,5 +1,9 @@
 // Editable English feedback copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "session_start_failed": "Could not open your session. Please retry.",
+  "session_open_elsewhere": "This account is already open in another tab or window. Close it, then retry here.",
+  "session_storage_required": "This browser needs site storage and Web Locks to open a session. Allow site storage or try another browser.",
+
   "please_wait_confirmation": "Still confirming your action. Please wait before trying again.",
   "connection_lost": "Connection interrupted. Check your internet connection.",
   "session_sign_in": "Your session has expired. Please sign in again.",

@@ -96,3 +96,19 @@ test('journal identity separates deployments and rejects ambiguous server URLs',
  assert.throws(()=>distributedIdentity('https://one.example/?token=secret','user-a'));
  assert.throws(()=>distributedIdentity('https://one.example','x'.repeat(128)));
 });
+
+test('same session controller retries a refused tab after owner closes and restores pending work', async () => {
+ const env=environment(),first=await acquireJournal('alice',signal(),env),command=begin(first);
+ const request=command.request;
+ const controller=new OwnedSession((account,abort)=>acquireJournal(account,abort,env));
+ let opened=0;
+ const create=owner=>{opened++;return {owner,close(){}};};
+ try {
+   await assert.rejects(controller.select('alice',create),/active journal/);
+   assert.equal(opened,0);
+   command.close();first.close();await turn();
+   const recovered=await controller.select('alice',create);
+   assert.equal(opened,1);
+   assert.deepEqual(recovered.owner.journal.bind('table').load().request,request);
+ } finally {controller.close();command.close();first.close();}
+});

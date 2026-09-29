@@ -667,6 +667,18 @@ MIGRATIONS = (
     );
     CREATE UNIQUE INDEX command_lanes_lobby_key ON command_lanes(kind) WHERE kind='lobby';
     """),
+    (27, """
+        -- Match the live directory's case-insensitive exact lookup.
+        CREATE INDEX user_profiles_display_name_lower_idx ON user_profiles(lower(display_name));
+        CREATE INDEX account_credentials_username_lower_idx ON account_credentials(lower(username));
+        CREATE INDEX friendships_high_low_idx ON friendships(user_high,user_low);
+        CREATE INDEX room_invitations_pending_recipient_page_idx
+            ON room_invitations(recipient_id,id) WHERE status='pending';
+        CREATE INDEX room_invitations_pending_room_recipient_idx
+            ON room_invitations(room_id,recipient_id) WHERE status='pending';
+        CREATE INDEX settlement_batches_room_time_idx ON settlement_batches(room_id,created_at DESC);
+        CREATE INDEX settlement_transfers_batch_idx ON settlement_transfers(batch_id,transfer_id);
+    """),
 )
 
 

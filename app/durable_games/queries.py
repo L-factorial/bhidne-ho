@@ -103,13 +103,25 @@ class PostgresHostedQueries:
                     AND (r.visibility='public' OR r.creator_id=%s OR EXISTS
                         (SELECT 1 FROM room_memberships m WHERE m.room_id=r.id AND m.user_id=%s))
                     ORDER BY r.id LIMIT %s''', (user, user, user, after_room_id, user, user, limit + 1))).fetchall()
+                # One bounded member fetch for the whole page. LATERAL preserves
+                # each room's 1001-row overflow sentinel without fetching its full history.
+                page = rows[:limit]
+                member_rows = await (await connection.execute('''SELECT selected.room_id,m.user_id,
+                    COALESCE(NULLIF(p.display_name,''),a.username),a.username
+                    FROM unnest(%s::text[]) AS selected(room_id)
+                    CROSS JOIN LATERAL (
+                        SELECT user_id FROM room_memberships WHERE room_id=selected.room_id
+                        ORDER BY user_id LIMIT 1001
+                    ) m
+                    LEFT JOIN user_profiles p ON p.user_id=m.user_id
+                    LEFT JOIN account_credentials a ON a.user_id=m.user_id
+                    ORDER BY selected.room_id,m.user_id''', ([r[0] for r in page],))).fetchall() if page else []
+                members_by_room = {}
+                for room_id, *member in member_rows:
+                    members_by_room.setdefault(room_id, []).append(member)
                 items = []
-                for room, name, creator, visibility, created, tables, joined, friend in rows[:limit]:
-                    members = await (await connection.execute('''SELECT m.user_id,
-                        COALESCE(NULLIF(p.display_name,''),a.username),a.username
-                        FROM room_memberships m LEFT JOIN user_profiles p ON p.user_id=m.user_id
-                        LEFT JOIN account_credentials a ON a.user_id=m.user_id
-                        WHERE m.room_id=%s ORDER BY m.user_id LIMIT 1001''', (room,))).fetchall()
+                for room, name, creator, visibility, created, tables, joined, friend in page:
+                    members = members_by_room.get(room, [])
                     # Never silently turn a truncated member list into a false
                     # count or false membership decision in an existing card.
                     if len(members) > 1000:

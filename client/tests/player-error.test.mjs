@@ -61,3 +61,12 @@ test('read failures do not claim an unconfirmed player action', async () => {
     return true;
   });
 });
+
+test('session startup failures explain recovery without exposing journal terminology', () => {
+  const busy = playerError(Error('This account already has an active journal owner.'));
+  assert.match(busy, /another tab or window/);
+  assert.match(busy, /Close it, then retry/);
+  assert.doesNotMatch(busy, /journal/);
+  assert.equal(playerError(busy), busy);
+  assert.match(playerError(Error('Persistent storage and Web Locks are required.')), /Allow site storage/);
+});

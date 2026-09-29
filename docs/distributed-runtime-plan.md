@@ -4670,3 +4670,117 @@ rollout. The next concrete step is the staging collection/alert setup described 
   then implement the separately planned bounded load test. Severity-only DB/cache
   logs and best-effort rotation/startup coverage remain documented limitations.
   Dashboard UI rendering/alert routing are not yet verified or configured.
+
+### L1 — randomized distributed load driver (2026-09-28)
+
+- User explicitly brought capacity-test scripting into scope: one-hour loops,
+  a 20,000-account credential pool, randomized social/room/table behavior, fast
+  gameplay with rare delays, and validation after every completed game.
+- Added `scripts/loadtest/run.mts`, state-aware action/result helpers, a runbook,
+  policy/validator tests and opt-in native acceptance tests. Reuses the original
+  UI's distributed HTTP, durable command identity and WebSocket adapters; no
+  runtime behavior, deployment configuration or engine rules changed.
+- Default profile: 3,600 seconds including a 300-second ramp, 1,000 concurrent
+  accounts in exclusive four-player groups, 180-second completion drain, shuffled
+  account rotation, 50–500 ms think time, and 0.5% delayed moves at 2–5 seconds.
+  `--users 20000` selects 20,000 concurrent accounts separately from pool size.
+  Actual unique users and observed next-command timing are reported rather than
+  assumed. The profile does not guarantee visiting all 20,000 users in an hour.
+- Separate offline credential generation and eight-worker signup/signin
+  provisioning precede the measured run. Generated 20,000 unique username/password
+  records at `.loadtest/accounts.jsonl` (0600, Git-ignored); these have not been
+  provisioned on a live server. An explicit target URL is mandatory.
+- Scenarios cover friend requests/acceptance/removal, direct/room/table chat,
+  notifications, public/private rooms and invitations, entry/departure/reentry,
+  visibility, table invitations/answers/seats, optional seat rejoin and reaction,
+  lock/start, gameplay and cleanup. All three game types are selected randomly.
+  Call Break plays five deals; Flush finishes one round; Marriage draws/discards
+  and eventually folds. This is not exhaustive feature coverage or a Marriage
+  meld/normal-win solver; the runbook lists excluded flows explicitly.
+- Terminal checks compare all participant public views. Call Break recomputes
+  bid scores, trick/card accounting and winners; Flush checks conservation;
+  Marriage checks zero-sum results. Ledger checks wait for finalization, require
+  the table's unique result and compare net amounts/placement payments. Tied
+  Call Break placement correctly has no payment entry; the API cannot prove the
+  internal no-payment finalization job ran. This is public-API validation, not an
+  independent complete engine audit.
+- Native development checks caught client-driver assumptions: table invitation
+  acceptance is separate from joining; Flush's completed round does not set its
+  continuing table's game.finished; completed Marriage/Call Break tables
+  reject direct end, so cleanup creates and ends an unstarted successor. Private
+  room reentry needs a new invitation; NEXT_DEAL requires the completed deal number.
+- Reports include bounded latency distributions, approximate percentile bounds,
+  HTTP statuses, command/route coverage, delayed and over-one-second dispatches,
+  resource identities and failure stages. Failed account groups are quarantined
+  for that run; their command journals are saved with protected permissions.
+  Ambiguous commands are never replaced with new IDs to conceal failures.
+- Verification: eleven deterministic policy/validator tests and TypeScript checking
+  passed. Three concurrent Flush cohorts (12 exclusive accounts) completed and
+  validated with deliberate late commands in 41.31 seconds. Full-game native
+  acceptance passed in 339.97 seconds: independent Flush, Marriage and five-deal
+  Call Break groups completed, validated results/ledger and cleaned up. Native
+  tests used disposable PostgreSQL, Redis and two real gateway processes. The
+  payment validator also has a regression for JavaScript zero versus negative
+  zero, found after a completed Call Break match with default zero payments.
+  Final whitespace check passed. No hour-long or production-capacity claim yet.
+- Next: choose the target and concurrency,
+  provision the dedicated accounts, run a short target smoke and the one-hour
+  profile, correlate its reports with Grafana and generator resource usage.
+  No production writes, commit, push or deployment performed for this increment.
+
+### Invitation session recovery follow-up (2026-09-28)
+
+- Investigated reported private-room permission denial and invitation stuck at
+  "Opening invitation" after session startup failed. Screenshots do not establish
+  the production root cause or whether an account-specific invite was sent.
+  Private-room preview correctly requires ownership, membership, or a pending
+  invitation; a shared link alone grants no access.
+- Confirmed a client recovery gap: failed journal ownership acquisition left
+  invitation loading indefinitely and the existing retry could not recreate a
+  missing distributed runtime. Expose startup errors inside the invitation,
+  stop the loading message on failure, and retry session acquisition explicitly.
+  Localized lock-contention and missing-browser-capability messages explain
+  recovery. Exclusive ownership and persisted command recovery remain intact.
+- Verification: TypeScript checking and 24 targeted journal-owner/player-error
+  tests passed, including retry with the same controller after another owner
+  closes and restoration of the original pending command. Whitespace check
+  passed. No real Safari UI or production reproduction performed.
+- Next: verify on two browser tabs and on the affected phone, then deploy the
+  reviewed client change. If a successfully sent invitation still gets 403,
+  correlate recipient account and invitation status with server logs.
+  This change is local only; no deployment or production writes performed.
+
+### Query/index coverage increment (2026-09-28)
+
+- Added migration 27 with seven non-unique indexes: lower(display_name),
+  lower(username), reverse friendship pair, pending invitation recipient/page
+  and room/recipient, settlement room/time and transfer batch/order. No tables,
+  columns, constraints or record formats change; no extension is required.
+- Corrected the audit's search assumption: the live directory uses find_exact,
+  not the unused PostgreSQL substring search method. Split exact matching into
+  two indexed candidate queries with UNION deduplication, preserving case
+  handling, self-exclusion, username priority and the 20-result limit. No new
+  trigram indexes or change to search semantics.
+- Lobby pages now fetch members with one bounded lateral query instead of one
+  request per room, retaining visibility, ordering, empty rooms and each room's
+  1001-row overflow sentinel. Nonempty pages use two data queries.
+- Settlement lists batch children into two queries, reducing the list to three
+  data queries while retaining batches without children and transfer ordering.
+  Existing API bounds/authorization remain unchanged.
+- Verification: 44 targeted tests passed using PostgreSQL/WASM where applicable,
+  covering lobby, ledger, player service, bootstrap and migration paths. A
+  populated pre-27 dataset with 20,000 accounts retained directory results after
+  upgrade; EXPLAIN (ANALYZE, BUFFERS) on the actual search SQL selected both new
+  expression indexes. Added query-count, grouping, self-exclusion, duplicate
+  search match, empty-batch and membership-overflow regressions. The SQL test
+  bridge's response limit was raised to accommodate bounded member pages.
+  Whitespace check passed.
+- Limits: this is not a 20,000-concurrent-user test, nor a production latency
+  benchmark. Other index choices need representative execution-plan/usage
+  measurement. Index writes add maintenance/storage cost. The migration runner
+  uses regular transactional CREATE INDEX, which can block writes until commit.
+  Updated production rollout notes for a maintenance window, ANALYZE and strict
+  schema-27 startup compatibility; previous images cannot simply be restarted.
+- Next: review/deploy migration 27 and this application together, inspect live
+  query plans/statistics and run the target load profile. No production writes,
+  commit, push or deployment performed.

@@ -45,7 +45,8 @@ class PGlitePool:
             pytest.skip('Set PGLITE_MODULE to run PostgreSQL/WASM store integration tests.')
         self = cls()
         self.process = await asyncio.create_subprocess_exec('node', str(Path(__file__).with_name('pglite_bridge.cjs')),
-            stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+            stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            limit=32 * 1024 * 1024)  # Bounded lobby pages can exceed asyncio's default 64 KiB.
         self.lock = asyncio.Lock()
         self.depth = 0
         return self

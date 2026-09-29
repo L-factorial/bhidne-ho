@@ -7,7 +7,7 @@ from app.database import Database, MIGRATIONS
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('last_applied', [11, 12, 13, 14, 15, 16, 17, 18, 19])
+@pytest.mark.parametrize('last_applied', [11, 12, 13, 14, 15, 16, 17, 18, 19, 26])
 async def test_room_upgrade_runs_after_previously_applied_bootstrap_and_only_once(last_applied):
     class Pool:
         def __init__(self):

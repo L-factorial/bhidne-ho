@@ -8,8 +8,8 @@ import type { Invitation } from '../multiplayer/invitations';
 import type { Room, Session } from '../multiplayer/session';
 import { useTheme } from '../theme';
 
-export function InvitationPreview({ invitation, session, join, dismiss, ready = true }: {
-  invitation: Invitation; session: Session; ready?: boolean;
+export function InvitationPreview({ invitation, session, join, dismiss, ready = true, startupError = '', retrySession }: {
+  invitation: Invitation; session: Session; ready?: boolean; startupError?: string; retrySession?: () => void;
   join: (room: Room, gameType?: string, matchId?: string) => Promise<boolean>; dismiss: () => void;
 }) {
   useUiLanguage();
@@ -42,7 +42,8 @@ export function InvitationPreview({ invitation, session, join, dismiss, ready = 
     <Text accessibilityRole="header" style={{ color: colors.text, fontSize: 22 }}>{invitation.matchId ? ui("social.game_invitation") : ui("rooms.room_invitation")}</Text>
     {target && <Text style={{ color: colors.text }}>{target.name} · {target.members.length} {ui("rooms.room_members")}</Text>}
     <Text style={{ color: colors.text }}>{invitation.matchId ? 'Entering the room. You can choose whether to take a game seat.' : 'Preview this room, then choose Join room when you’re ready. Joining the room does not take a game seat.'}</Text>
-    {busy && <Text style={{ color: colors.text }}>{ui("rooms.opening_invitation")}</Text>}
+    {busy && !startupError && <Text style={{ color: colors.text }}>{ui("rooms.opening_invitation")}</Text>}
+    {!!startupError && <><Text accessibilityRole="alert" style={{ color: colors.danger }}>{startupError}</Text><Pressable accessibilityRole="button" onPress={retrySession}><Text style={{ color: colors.accent }}>{ui("rooms.retry_invitation")}</Text></Pressable></>}
     {!!error && <><Text accessibilityRole="alert" style={{ color: colors.danger }}>{error}</Text><Pressable accessibilityRole="button" onPress={() => setAttempt(a => a + 1)}><Text style={{ color: colors.accent }}>{ui("rooms.retry_invitation")}</Text></Pressable></>}
     {!invitation.matchId && target && <Pressable accessibilityRole="button" disabled={busy} onPress={async () => {
       setBusy(true); const entered = await join(target, gameType); if (!entered) { setError(ui("feedback.could_not_join_room_try_again")); setBusy(false); }

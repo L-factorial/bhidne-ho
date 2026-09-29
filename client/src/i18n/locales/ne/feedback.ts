@@ -1,5 +1,9 @@
 // Editable Nepali feedback copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "session_start_failed": "तपाईंको सत्र खोल्न सकिएन। फेरि प्रयास गर्नुहोस्।",
+  "session_open_elsewhere": "यो खाता अर्को ट्याब वा विन्डोमा खुला छ। त्यसलाई बन्द गरेर यहाँ फेरि प्रयास गर्नुहोस्।",
+  "session_storage_required": "सत्र खोल्न यो ब्राउजरलाई साइट भण्डारण र Web Locks चाहिन्छ। साइट भण्डारण अनुमति दिनुहोस् वा अर्को ब्राउजर प्रयोग गर्नुहोस्।",
+
   "please_wait_confirmation": "तपाईंको कार्य पुष्टि हुँदैछ। फेरि प्रयास गर्नुअघि पर्खनुहोस्।",
   "connection_lost": "जडान टुट्यो। आफ्नो इन्टरनेट जडान जाँच गर्नुहोस्।",
   "session_sign_in": "तपाईंको सत्र सकिएको छ। फेरि साइन इन गर्नुहोस्।",

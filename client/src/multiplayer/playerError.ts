@@ -14,6 +14,8 @@ for (const [group, entries] of Object.entries(uiCatalogs.en)) {
   }
 }
 const messages: Record<string, UiKey> = {
+  'This account already has an active journal owner.': 'feedback.session_open_elsewhere',
+  'Persistent storage and Web Locks are required.': 'feedback.session_storage_required',
   'Not your turn': 'feedback.not_your_turn',
   'Invalid room creation fields.': 'feedback.enter_a_room_name',
   'Wait for your turn.': 'feedback.not_your_turn',

@@ -19,6 +19,8 @@ type Membership = { room_id: string; tables: { status: string }[]; active_game: 
 export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActions) {
   const distributed = process.env.EXPO_PUBLIC_RUNTIME_MODE === 'distributed-original';
   const [owner] = useState(() => originalDistributedOwner(acquireJournal));
+  const [startupError, setStartupError] = useState('');
+  const [startupAttempt, setStartupAttempt] = useState(0);
   const [runtime, setRuntime] = useState<OriginalDistributedRuntime | null>(null);
   const roomActions = runtime?.roomActions ?? suppliedRoomActions;
   const [socialChannel] = useState(() => new TableSocialChannel());
@@ -39,6 +41,7 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
   const connection = useRef<RoomConnection | null>(null);
 
   useEffect(() => {
+    setStartupError('');
     if (!distributed || !session || expired) { owner.close(); setRuntime(null); return; }
     let live=true, timer: ReturnType<typeof setTimeout>;
     const active=session;
@@ -88,9 +91,12 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
         }
       }
       void recover();
-    }).catch(error=>{if(live)setError(playerError(error, 'Could not open distributed session.'));});
+    }).catch(error=>{if(live) {
+      const message = playerError(error, ui('feedback.session_start_failed'));
+      setStartupError(message); setError(message);
+    }});
     return()=>{live=false;clearTimeout(timer);owner.close();setRuntime(null);};
-  },[session?.user_id,session?.token,expired,distributed,owner]);
+  },[session?.user_id,session?.token,expired,distributed,owner,startupAttempt]);
 
   const [loggingIn, setLoggingIn] = useState(false);
   const loginPending = useRef(false);
@@ -280,7 +286,12 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
       try { await request('/auth/signout', active, {}); } catch { /* Local sign-out still succeeds offline. */ }
     }
   }
-  return { runtime, roomActions, socialChannel, loginAccount, acceptSocialSession, socialLoginBusy, loggingIn, session, room, rooms, memberships, game, setGame, joinRoom, enterRoom, exitRoom, leaveRoom, deleteRoom, signOut, leaveGameRequired, leaveGameAndRoom, abandonRequired,
+  return { runtime, startupError, roomActions, socialChannel, loginAccount, acceptSocialSession, socialLoginBusy, loggingIn, session, room, rooms, memberships, game, setGame, joinRoom, enterRoom, exitRoom, leaveRoom, deleteRoom, signOut, leaveGameRequired, leaveGameAndRoom, abandonRequired,
     cancelLeave: () => { setLeaveGameRequired(null); setError(''); }, status, expired, error, pokes,
-    retry: () => { if(runtime)void runtime.root.reconnect();else connection.current?.retryNow(); } };
+    retry: () => {
+      setError(''); setStartupError('');
+      if (runtime) void runtime.root.reconnect().catch(error => setError(playerError(error)));
+      else if (distributed) setStartupAttempt(attempt => attempt + 1);
+      else connection.current?.retryNow();
+    } };
 }

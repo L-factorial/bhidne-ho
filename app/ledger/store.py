@@ -159,13 +159,25 @@ class PostgresLedgerStore:
             batches = await (await connection.execute(
                 "SELECT batch_id,table_id,scope,game_id,status,created_by,created_at,idempotency_key FROM settlement_batches "
                 "WHERE room_id=%s ORDER BY created_at DESC", (room_id,))).fetchall()
+            if not batches:
+                return []
+            batch_ids = [str(row[0]) for row in batches]
+            transfer_rows = await (await connection.execute(
+                "SELECT batch_id,transfer_id,payer_id,payee_id,amount,status,marked_paid_at,resolved_at "
+                "FROM settlement_transfers WHERE batch_id=ANY(%s::uuid[]) ORDER BY batch_id,transfer_id",
+                (batch_ids,))).fetchall()
+            game_rows = await (await connection.execute(
+                "SELECT batch_id,game_id FROM settlement_games WHERE batch_id=ANY(%s::uuid[])",
+                (batch_ids,))).fetchall()
+            transfers_by_batch, games_by_batch = {}, {}
+            for batch_id, *transfer in transfer_rows:
+                transfers_by_batch.setdefault(batch_id, []).append(transfer)
+            for batch_id, game_id in game_rows:
+                games_by_batch.setdefault(batch_id, []).append((game_id,))
             result = []
             for row in batches:
-                transfers = await (await connection.execute(
-                    "SELECT transfer_id,payer_id,payee_id,amount,status,marked_paid_at,resolved_at "
-                    "FROM settlement_transfers WHERE batch_id=%s ORDER BY transfer_id", (row[0],))).fetchall()
-                games = await (await connection.execute(
-                    "SELECT game_id FROM settlement_games WHERE batch_id=%s", (row[0],))).fetchall()
+                transfers = transfers_by_batch.get(row[0], [])
+                games = games_by_batch.get(row[0], [])
                 result.append({"batch_id": str(row[0]), "room_id": room_id,
                     "table_id": _application_object_id(row[1]), "scope": row[2],
                     "game_id": _application_object_id(row[3]) if row[3] else None, "status": row[4],

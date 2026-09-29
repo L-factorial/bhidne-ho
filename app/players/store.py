@@ -146,13 +146,19 @@ class PostgresPlayerStore:
     async def find_exact(self, user_id, query):
         async with self.pool.connection() as connection:
             result = await connection.execute("""
-                SELECT u.id, p.display_name, a.username FROM users u
+                WITH matches AS (
+                    SELECT user_id FROM user_profiles WHERE lower(display_name)=lower(%s)
+                    UNION
+                    SELECT user_id FROM account_credentials WHERE lower(username)=lower(%s)
+                )
+                SELECT u.id, p.display_name, a.username FROM matches m
+                JOIN users u ON u.id=m.user_id
                 JOIN user_profiles p ON p.user_id = u.id
                 LEFT JOIN account_credentials a ON a.user_id = u.id
-                WHERE u.id <> %s AND (lower(p.display_name) = lower(%s) OR lower(a.username) = lower(%s))
+                WHERE u.id <> %s
                 ORDER BY CASE WHEN lower(a.username) = lower(%s) THEN 0 ELSE 1 END,
                          p.display_name, a.username LIMIT 20
-            """, (internal_id(user_id), query, query, query))
+            """, (query, query, internal_id(user_id), query))
             return [self.player(row) for row in await result.fetchall()]
 
     async def search(self, user_id, query):
