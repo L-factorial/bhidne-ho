@@ -72,8 +72,11 @@ async def test_explicit_upgrade_preserves_old_dataset_and_is_idempotent():
         await pool.execute("INSERT INTO rooms(id,creator_id,name,visibility) VALUES('existing',%s,'Existing','private')",(user,))
         # PGlite's prepared-statement bridge needs script mode for migration DDL.
         execute=pool.execute
+        migration_scripts={script for _,script in MIGRATIONS}
         async def migration_execute(statement,args=(),**kwargs):
-            return await execute(statement,args,script=statement==dict(MIGRATIONS)[26],**kwargs)
+            if statement in migration_scripts:
+                kwargs['script']=True
+            return await execute(statement,args,**kwargs)
         pool.execute=migration_execute
         await migrate_pool(pool);await migrate_pool(pool);await verify_dataset(pool)
         assert await sql(pool,'SELECT name FROM rooms')==[('Existing',)]

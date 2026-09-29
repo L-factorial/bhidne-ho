@@ -4915,3 +4915,22 @@ Verification and limitations:
 - Exact next step: review the local diff; when release is requested, deploy both
   gateway code and the client and verify cache-hit metrics, language switching and
   cross-gateway profile updates in the deployment environment.
+
+## U4 — CI migration-test adapter correction (2026-09-29)
+
+- Investigated failed production workflow 36634513096 for commit 05e38f9. The
+  supplied CI log reports 1 failed / 1650 passed: the additive-upgrade test only
+  enabled PGlite script mode for migration 26. Migration 27 contains multiple
+  CREATE INDEX commands, which the prepared-statement path rejects.
+- Reproduced the exact failure using CI's PGlite 0.5.8. Updated the test-local
+  adapter to recognize every registered migration script, while retaining normal
+  parameterized execution for ordinary queries. Production migration SQL and
+  runtime behavior are unchanged; upgrade preservation/idempotency checks remain.
+- Verification: all 7 lobby-event and query-indexing tests passed with PGlite 0.5.8.
+  The original-UI native acceptance test passed during diagnosis. A broader
+  diagnostic run was intentionally stopped after 807 passes once the supplied log
+  identified the failure; this is not a new full-suite pass claim. The prior
+  targeted U3 checks did not include this migration test.
+- Exact next step: commit and push this test correction and handoff note, then
+  check that the production workflow completes testing, publishing and deployment.
+  This correction has not been committed, pushed or deployed by the agent.
