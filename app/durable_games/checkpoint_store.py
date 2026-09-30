@@ -15,7 +15,7 @@ from psycopg.errors import UniqueViolation
 from psycopg.pq import TransactionStatus
 from psycopg.types.json import Jsonb
 
-from .checkpoints import CheckpointError, canonical_json, decode_checkpoint
+from .checkpoints import CheckpointError, canonical_json, decode_checkpoint, canonical_engine_checkpoint
 from .recovery import ReceiptSnapshot, RecoveryReceipt
 from .store import DurableGameConflict, DurableGameNotFound
 from .ownership import RoomWriteFence, validate_room_fence
@@ -114,6 +114,18 @@ class PostgresCheckpointStore:
             raise DurableGameConflict('Table identity cannot change.')
         previous = await self._load(connection, table_id, missing_ok=True)
         old = decode_checkpoint(previous.checkpoint).record.data if previous else None
+        if (old and old.engine and data.engine and old.host.durable_game_id == data.host.durable_game_id
+                and old.engine != data.engine):
+            prior_engine = old.engine.model_dump(mode='json')
+            if canonical_engine_checkpoint(data.game_type, prior_engine) == canonical_engine_checkpoint(
+                    data.game_type, data.engine.model_dump(mode='json')):
+                # Preserve the exact committed engine bytes for a no-engine-change
+                # save. Old snapshots/journal entries retain their original digest;
+                # a future engine revision will use the new canonical set order.
+                content = {**checkpoint['data'], 'engine': prior_engine}
+                checkpoint = {**checkpoint, 'data': content, 'digest': digest(content)}
+                decoded = decode_checkpoint(checkpoint)
+                data = decoded.record.data
         # Resolve unknown commits before revision validation. Never replace receipts.
         if receipt and previous and old.match_id == data.match_id:
             for prior in previous.receipt_snapshot['receipts']:

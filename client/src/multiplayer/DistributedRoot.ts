@@ -19,6 +19,7 @@ export type RootCallbacks = {
   install(lane: string, value: RootView): void; remove(lane: string): void;
   error(lane: string | null, error: unknown, source?: 'command' | 'delivery'): void;
   transient?(payload: unknown): void;
+  health?(ready: boolean): void;
 };
 const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 
@@ -81,6 +82,7 @@ export class DistributedRootRuntime {
         if(error instanceof DistributedRequestError && [403,404].includes(error.status))for(const listener of this.activityObservers)listener();
       },
       transient: events => { if(!this.closed) for(const event of events) callbacks.transient?.(event.payload); },
+      health: ready => { if (!this.closed) callbacks.health?.(ready); },
     }, {refreshMs:options.refreshMs ?? 30000}, owner.journal);
   }
   private async discover(signal: AbortSignal) {

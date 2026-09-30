@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 
 from app.models.chat import ChatInput
@@ -42,10 +44,24 @@ async def player(player_id: str, request: Request, response: Response,
     except PlayerNotFound as error: raise translate(error) from None
 
 
-@router.get("/friends", response_model=FriendshipSnapshot)
-async def friends(request: Request, response: Response, user: UserIdentity = Depends(current_user)):
+@router.get("/friends", response_model=FriendshipSnapshot, response_model_exclude_unset=True)
+async def friends(request: Request, response: Response, user: UserIdentity = Depends(current_user),
+                  include_presence: bool = False):
     response.headers["Cache-Control"] = "no-store"
-    return await request.app.state.players.snapshot(user.user_id)
+    snapshot = await request.app.state.players.snapshot(user.user_id)
+    if not include_presence:
+        return snapshot
+    # Fresh observations only; never cache ephemeral presence in friendship data.
+    online = []
+    server = getattr(request.app.state, 'distributed_server', None)
+    if server is not None:
+        ids = [friend['user_id'] for friend in snapshot['friends']]
+        for start in range(0, len(ids), 16):
+            batch = ids[start:start + 16]
+            observations = await asyncio.gather(*(server.presence.store.observe('user', uid) for uid in batch))
+            online.extend(uid for uid, observation in zip(batch, observations)
+                          if observation.status == 'observed' and observation.connections)
+    return {**snapshot, 'online_friend_ids': online}
 
 
 @router.post("/friends/requests/{target_id}", response_model=PlayerSummary, status_code=201)

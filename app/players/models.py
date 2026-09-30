@@ -8,6 +8,7 @@ class PlayerSummary(BaseModel):
 
 
 class FriendshipSnapshot(BaseModel):
+    online_friend_ids: list[str] | None = None
     friends: list[PlayerSummary]
     incoming: list[PlayerSummary]
     outgoing: list[PlayerSummary]

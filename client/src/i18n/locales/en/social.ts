@@ -1,5 +1,11 @@
-// Editable English social copy. Keep keys and {{placeholders}} in sync with the other locale.
+// Editable social copy. Keep keys and placeholders in sync with the other locale.
 export default {
+  "lobby_chat": "Chat",
+  "online_chat_help": "Chat privately with your online friends.",
+  "online_friends": "Online friends",
+  "no_online_friends": "No friends are online right now.",
+  "friend_unavailable": "Your friend is offline or their connection is unavailable. Your draft is saved.",
+
   "edit_phrase_text": "Edit phrase {{text}}",
   "remove_phrase_text": "Remove punchline {{text}}",
   "new_phrase_limit": "New personal phrase, {{limit}} characters maximum",

@@ -6,14 +6,14 @@ const wait = async predicate => { for (let i=0; i<100; i++) { if (predicate()) r
 const page = (a,n) => ({type:'DELIVERY_PAGE',lane_id:'a',after_sequence:a,scanned_sequence:n,has_more:false,
   events:[{event_id:`e${n}`,lane_id:'a',sequence:n,event_type:'UPDATE',event_version:1,payload:{}}]});
 function fixture(overrides={}, limits={}) {
-  const views=[], removed=[], errors=[], opened=[], acks=[], sources=[]; let lanes=['a'];
+  const views=[], removed=[], errors=[], opened=[], acks=[], sources=[], health=[]; let lanes=['a'];
   const transport={commands:{submit:async()=>{throw Error('offline');},status:async()=>{throw Error('offline');}},
     discover:async()=>({items:lanes.map(lane_id=>({lane_id})),next_lane_id:null}),
     open:async(lane,id,onPage,onClose)=>{ const h={lane,id,onPage,onClose,closed:false}; opened.push(h);
       return {cursor:0,acknowledge:async n=>acks.push(n),close:()=>{h.closed=true;}}; },
     load:async lane=>({lane}),...overrides};
-  const session=new DistributedSession('device',transport,{install:(lane,v)=>views.push([lane,v]),remove:lane=>removed.push(lane),error:(lane,e,source)=>{errors.push([lane,e]);sources.push(source);}},{refreshMs:300000,...limits});
-  return {session,views,removed,errors,opened,acks,sources,setLanes:v=>{lanes=v;}};
+  const session=new DistributedSession('device',transport,{health:ready=>health.push(ready),install:(lane,v)=>views.push([lane,v]),remove:lane=>removed.push(lane),error:(lane,e,source)=>{errors.push([lane,e]);sources.push(source);}},{refreshMs:300000,...limits});
+  return {session,views,removed,errors,opened,acks,sources,health,setLanes:v=>{lanes=v;}};
 }
 test('device ID survives reconnect/reload storage; separate scopes remain independent',()=>{
  const map=new Map(),store={getItem:k=>map.get(k)??null,setItem:(k,v)=>map.set(k,v)};
@@ -111,4 +111,36 @@ test('failed command recovery is separate from delivery health',async()=>{
    assert.equal(f.session.command('poke').pending,true);
    f.opened[0].onClose();assert.deepEqual(f.sources,['command','delivery']);
  } finally {f.session.close();}
+});
+
+test('successful discovery clears interruption without replacing healthy subscriptions',async t=>{
+ let fail=false;
+ const f=fixture({discover:async()=>{if(fail)throw Error('temporary failure');return {items:[{lane_id:'a'}],next_lane_id:null};}});
+ t.after(()=>f.session.close());await f.session.connect();await wait(()=>f.health.at(-1)===true);
+ fail=true;await assert.rejects(f.session.refresh());assert.deepEqual(f.health,[true,false]);
+ fail=false;await f.session.refresh();assert.deepEqual(f.health,[true,false,true]);
+ assert.equal(f.opened.length,1);assert.equal(f.opened[0].closed,false);assert.equal(f.views.length,1);
+});
+
+test('health waits for every authorized stream and ignores obsolete recovery',async t=>{
+ const pending={};const f=fixture({load:lane=>new Promise(resolve=>pending[lane]=resolve)});
+ f.setLanes(['a','b']);t.after(()=>f.session.close());await f.session.connect();await wait(()=>pending.b);
+ pending.a({});await wait(()=>f.views.length===1);assert.deepEqual(f.health,[]);
+ f.session.disconnect();pending.b({});await new Promise(r=>setImmediate(r));assert.deepEqual(f.health,[]);
+});
+
+test('failed stream automatically recovers while retaining other subscriptions',async t=>{
+ const f=fixture({}, {refreshMs:20});f.setLanes(['a','b']);t.after(()=>f.session.close());
+ await f.session.connect();await wait(()=>f.health.at(-1)===true);
+ const unaffected=f.opened.find(s=>s.lane==='b');f.opened.find(s=>s.lane==='a').onClose();
+ assert.equal(f.health.at(-1),false);await wait(()=>f.health.at(-1)===true);
+ assert.equal(unaffected.closed,false);assert.equal(f.opened.filter(s=>s.lane==='b').length,1);
+ assert.equal(f.opened.filter(s=>s.lane==='a').length,2);
+});
+
+test('initial connection becomes healthy only after all stream snapshots are installed',async t=>{
+ const pending={};const f=fixture({load:lane=>new Promise(resolve=>pending[lane]=resolve)});
+ f.setLanes(['a','b']);t.after(()=>f.session.close());await f.session.connect();await wait(()=>pending.b);
+ pending.a({});await wait(()=>f.views.length===1);assert.deepEqual(f.health,[]);
+ pending.b({});await wait(()=>f.health.at(-1)===true);assert.equal(f.views.length,2);
 });

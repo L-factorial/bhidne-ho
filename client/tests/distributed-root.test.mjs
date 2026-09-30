@@ -80,3 +80,16 @@ test('chat transport failures remain visible rather than silently discarding a s
  await f.root.select({room:'r',table:'t',chat:['room_chat']});assert.ok(f.errors.some(e=>e.status===503));
  assert.equal(f.installed.length,0);
 });
+
+test('reselecting the same table retains subscriptions and pending moves',async t=>{
+ const f=setup();t.after(()=>{f.root.close();f.owner.close();});
+ const selection={room:'r',table:'t',chat:['room_chat','table_chat']};
+ await f.root.select(selection);await wait(()=>f.installed.length===7);
+ f.root.game('move','PLAY_CARD',{card:'AH'});const command=f.root.session.command('move');
+ const original=command.request, socket=f.sockets[0];
+ await f.root.select({...selection});
+ assert.equal(f.sockets.length,1);assert.equal(socket.closed,false);
+ assert.ok(socket.opens.every(s=>!s.closed && !s.signal.aborted));
+ assert.equal(f.root.session.command('move'),command);assert.deepEqual(command.request,original);
+ assert.equal(f.sent.length,0);
+});

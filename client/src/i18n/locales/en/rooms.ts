@@ -190,6 +190,7 @@ export default {
   "table_ended": "Table ended",
   "online": "Online",
   "offline": "Offline",
+  "connection_unknown": "Connection unknown",
   "waiting_for_players": "Waiting for players",
   "waiting_for_the_host": "Waiting for the host",
   "waiting_for_eligible_players": "Waiting for eligible players.",

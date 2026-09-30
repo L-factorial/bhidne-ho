@@ -24,7 +24,7 @@ from marriage.scoring_rules import ScoringRules
 
 from .checkpoints import (
     CheckpointError, Identity, Nonnegative, Positive, Record, canonical_json,
-    capture_checkpoint, decode_checkpoint, restore_table_state,
+    capture_checkpoint, decode_checkpoint, restore_table_state, checkpoint_content,
 )
 from .hosted import HostedEngineDefinition
 
@@ -137,7 +137,7 @@ def rebuild_hosted_game(host, checkpoint: dict, *, receipt_snapshot: dict) -> Re
         # This catches metadata/position disagreements that otherwise silently
         # change seat meaning when HostedGame and its TableState are recombined.
         rebuilt = capture_checkpoint(game, table_revision=data.table_revision, invitations=data.invitations)
-        if rebuilt != decoded.record.model_dump(mode='json'):
+        if checkpoint_content(rebuilt) != checkpoint_content(decoded.record.model_dump(mode='json')):
             raise CheckpointError('Rebuilt host does not reproduce the checkpoint exactly.')
         return RebuiltHost(game, data.table_revision, deepcopy(data.invitations))
     except CheckpointError:

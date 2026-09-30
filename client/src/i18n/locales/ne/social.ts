@@ -1,5 +1,11 @@
-// Editable Nepali social copy. Keep keys and {{placeholders}} in sync with the other locale.
+// Editable social copy. Keep keys and placeholders in sync with the other locale.
 export default {
+  "lobby_chat": "च्याट",
+  "online_chat_help": "अनलाइन साथीहरूसँग निजी कुराकानी गर्नुहोस्।",
+  "online_friends": "अनलाइन साथीहरू",
+  "no_online_friends": "अहिले कुनै साथी अनलाइन छैनन्।",
+  "friend_unavailable": "साथी अफलाइन छन् वा जडानको अवस्था थाहा छैन। तपाईंको मस्यौदा सुरक्षित छ।",
+
   "edit_phrase_text": "वाक्यांश सम्पादन गर्ने: {{text}}",
   "remove_phrase_text": "रमाइलो वाक्यांश हटाउने: {{text}}",
   "new_phrase_limit": "नयाँ व्यक्तिगत वाक्यांश, बढीमा {{limit}} वर्ण",

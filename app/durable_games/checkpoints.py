@@ -204,6 +204,32 @@ class DecodedCheckpoint:
     engine_state: MatchState | MarriageGameState | FlushGameState | None
 
 
+def _normalize_engine_sets(kind, state):
+    """Canonicalize only domain sets, preserving ordered cards/events and duplicates.
+
+    Old checkpoints contain process-dependent frozenset order. Never normalize
+    their stored envelope before digest validation or mutate their journal payload.
+    """
+    if kind != 'marriage':
+        return state
+    return {**state, 'players': [
+        {**player, 'committed_card_ids': sorted(player['committed_card_ids'])}
+        for player in state['players']
+    ]}
+
+
+def canonical_engine_checkpoint(kind, engine):
+    """Semantic comparison form for an already validated engine envelope."""
+    return None if engine is None else {**engine, 'state': _normalize_engine_sets(kind, engine['state'])}
+
+
+def checkpoint_content(value):
+    """Compare validated envelopes independently of legacy set ordering/digests."""
+    data = value['data']
+    return {**value, 'digest': None, 'data': {**data,
+        'engine': canonical_engine_checkpoint(data['game_type'], data['engine'])}}
+
+
 def _decode_engine(data):
     # Stored rule sets must reconstruct independently of today's defaults.
     for rule_type, value in ((FlushRulesConfig, data.host.flush_rules), (ScoringRules, data.host.marriage_scoring)):
@@ -240,7 +266,8 @@ def _decode_engine(data):
             validate_flush(state)
         else:
             audit_match(state)
-    if adapter.dump_python(state, mode='json') != checkpoint.state or state.revision != checkpoint.revision:
+    if (_normalize_engine_sets(data.game_type, adapter.dump_python(state, mode='json')) !=
+            _normalize_engine_sets(data.game_type, checkpoint.state) or state.revision != checkpoint.revision):
         raise CheckpointError('Engine state did not decode losslessly at its recorded revision.')
     if data.game_type == 'callbreak':
         if len(data.host.users) != state.config.player_count or checkpoint.owner_player_id is not None:
@@ -317,7 +344,7 @@ def capture_checkpoint(game, *, table_revision: int, invitations=()) -> dict:
     state = game.state if game.game_type == 'callbreak' else target.adapter.checkpoint().get_state() if target else None
     if state is not None:
         engine = {'engine_version': 1, 'state_schema_version': 1, 'revision': state.revision,
-                  'state': _STATES[game.game_type].dump_python(state, mode='json'),
+                  'state': _normalize_engine_sets(game.game_type, _STATES[game.game_type].dump_python(state, mode='json')),
                   'history_types': [type(e).__name__ for e in state.history] if game.game_type == 'marriage' else [],
                   'owner_player_id': target.adapter.owner_player_id if target else None}
     host = {name: getattr(game, name) for name in HostDetails.model_fields}

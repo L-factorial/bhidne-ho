@@ -1,4 +1,5 @@
 import { usePersistentNotice } from '../multiplayer/usePersistentNotice';
+import { playerPresence } from '../multiplayer/playerPresence';
 import { isActiveTable } from '../multiplayer/tableNavigation';
 import { playerError } from '../multiplayer/playerError.ts';
 import { committedSnapshot } from '../multiplayer/committedSnapshot';
@@ -36,8 +37,9 @@ import { request } from '../multiplayer/api';
 
 type InvitePlayer = { user_id: string; display_name: string; username?: string | null; eligible?: boolean; reason?: string | null };
 
-export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, requestedMatchId, requestedEntry, roomId, apiUrl, token, connected, sessionActive = true, members, roomMembers = members, connectionMessage, userId, pokes, personal, createContent, creationEnabled = true, gameType = 'callbreak' }: {
+export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, requestedMatchId, requestedEntry, roomId, apiUrl, token, connected, sessionActive = true, members, presenceKnown = true, roomMembers = members, connectionMessage, userId, pokes, personal, createContent, creationEnabled = true, gameType = 'callbreak' }: {
   runtime?: OriginalDistributedRuntime | null;
+  presenceKnown?: boolean;
   socialChannel?: TableSocialChannel; chat?: ReactNode; onOpenChange?: (open: boolean) => void;
   requestedMatchId?: string; requestedEntry?: TableEntry;
   gameType?: 'callbreak' | 'marriage' | 'flush';
@@ -114,7 +116,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
   const canSend = useRef(false);
   canSend.current = sessionActive && synced && !commandClient.pending;
   const visibleSnapshot = snapshot ? { ...snapshot, players: snapshot.players?.map(player => ({
-    ...player, connected: members.includes(player.user_id) && (player.player_id !== snapshot.your_player_id || connected),
+    ...player, connected: playerPresence(player.user_id, members, presenceKnown),
   })) } : null;
   const openedInvitation = useRef<string | null>(null);
   useEffect(() => {

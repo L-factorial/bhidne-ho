@@ -56,6 +56,7 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
         {!tableName && !!path && !compact && <Text numberOfLines={1} style={{ fontFamily: fonts.body, fontSize: 11, color: colors.textMuted }}>{path}</Text>}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+      <LanguageToggle />
       <Pressable testID={`${game}-theme-button`} accessibilityRole="button" accessibilityLabel={ui("common.choose_table_theme")} accessibilityHint={ui("common.current_theme_theme", { "theme": uiLabel(theme.name) })} accessibilityState={{ expanded: themesOpen }} onPress={openThemes}
         style={({ pressed }) => ({ flexDirection: 'row', flexShrink: 0, gap: 6, minWidth: 44, minHeight: 44, paddingHorizontal: mobile ? 8 : 12, alignItems: 'center', justifyContent: 'center', backgroundColor: pressed ? colors.surfaceRaised : 'transparent', borderRadius: radii.medium })}>
         <Ionicons name="color-palette-outline" size={22} color={colors.text} />

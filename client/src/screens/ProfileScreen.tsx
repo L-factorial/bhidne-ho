@@ -5,7 +5,6 @@ import { FormScrollView } from '../components/FormInput';
 import { KeyboardFrame } from '../components/KeyboardFrame';
 import { useEffect, useState } from 'react';
 import { request } from '../multiplayer/api';
-import { LanguageToggle } from '../components/LanguageToggle';
 import { AppHeader } from '../components/AppHeader';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -35,7 +34,7 @@ export function ProfileScreen({ session, personal, onBack, onSignOut }: {
   return <KeyboardFrame><FormScrollView testID="profile-screen" accessibilityViewIsModal style={styles.page} keyboardShouldPersistTaps="handled"
     contentContainerStyle={{ padding: 20, paddingTop: Math.max(insets.top, 24), paddingBottom: Math.max(insets.bottom, 24) }}>
     <View style={styles.content}>
-      <AppHeader title={ui("common.your_profile_title")} hideProfile actions={<Pressable accessibilityRole="button" accessibilityLabel={ui("common.back_from_profile")} onPress={onBack} style={styles.back}><Text style={styles.link}>{ui("common.back_label")}</Text></Pressable>} />
+      <AppHeader title={ui("common.your_profile_title")} hideProfile inlineActions={<Pressable accessibilityRole="button" accessibilityLabel={ui("common.back_from_profile")} onPress={onBack} style={styles.back}><Text style={styles.link}>{ui("common.back_label")}</Text></Pressable>} />
       <View testID="profile-identity" style={{ gap: 6, paddingVertical: 12 }}>
         <Text accessibilityRole="header" style={styles.title}>{identity?.display_name || identity?.username || (identityError ? ui("common.account_label") : ui("common.loading_profile"))}</Text>
         {!!identity?.username && <Text style={styles.description}>@{identity.username}</Text>}
@@ -43,10 +42,6 @@ export function ProfileScreen({ session, personal, onBack, onSignOut }: {
         {!!identityError && <Text accessibilityRole="alert" style={styles.description}>{identityError}</Text>}
       </View>
       <DisplayNameField session={session} onSaved={display_name => setIdentity(current => current ? { ...current, display_name } : { user_id: userId, display_name })} />
-      <View style={{ gap: 8 }}>
-        <Text accessibilityRole="header" style={styles.description}>{ui("common.preferences_label")}</Text>
-        <View style={styles.header}><Text style={styles.description}>{ui("common.language_label")}</Text><LanguageToggle /></View>
-      </View>
       <FriendsPanel session={session} />
       <PlayerPhrases key={userId} userId={userId} phrases={personal.phrases} connected={true}
         loadError={personal.error} onSave={personal.save} onRemove={personal.remove} onUpdate={personal.update} />
@@ -57,7 +52,6 @@ export function ProfileScreen({ session, personal, onBack, onSignOut }: {
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.background }, content: { width: '100%', maxWidth: 680, alignSelf: 'center', gap: 16 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
   title: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 36, color: colors.text },
   back: { ...gameControlFinish(colors), minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center' },
   link: { fontFamily: fonts.medium, color: colors.accent, fontSize: 14 },

@@ -50,9 +50,8 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
     let live=true, timer: ReturnType<typeof setTimeout>;
     const active=session;
     void owner.select(active.user_id,journal=>new OriginalDistributedRuntime(journal,apiUrl+'/distributed',active,{
-      install: (_lane,view)=>{if(live&&view.kind==='snapshot'){setStatus('connected');
-        setDeliveryInterrupted(false);
-      }},
+      install: ()=>{},
+      health: ready=>{if(live){setStatus(ready?'connected':'reconnecting');setDeliveryInterrupted(!ready);}},
       remove: ()=>{},
       transient: event=>{if(live){socialChannel.receive(event);const current=readSession(apiUrl)?.room;
         if(current){const poke=readPoke(event,current.room_id,active.user_id);if(poke)setPokes(old=>appendPoke(old,poke));}}},
@@ -295,7 +294,7 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
     }
   }
   return { runtime, startupError, roomActions, socialChannel, loginAccount, acceptSocialSession, socialLoginBusy, loggingIn, session, room, rooms, memberships, game, setGame, joinRoom, enterRoom, exitRoom, leaveRoom, deleteRoom, signOut, leaveGameRequired, leaveGameAndRoom, abandonRequired,
-    cancelLeave: () => { setLeaveGameRequired(null); setError(''); }, status, expired, error, connectionNotice, pokes,
+    cancelLeave: () => { setLeaveGameRequired(null); setError(''); }, status, expired, error, connectionNotice, pokes, presenceFresh: !refreshInterrupted,
     retry: () => {
       setError(''); setStartupError('');
       if (runtime) void runtime.root.reconnect().catch(error => setError(playerError(error)));

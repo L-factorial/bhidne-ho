@@ -13,7 +13,7 @@ import { request } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 
 type Player = { user_id: string; display_name: string; username?: string | null };
-type Snapshot = { friends: Player[]; incoming: Player[]; outgoing: Player[] };
+type Snapshot = { online_friend_ids?: string[] | null; friends: Player[]; incoming: Player[]; outgoing: Player[] };
 export type Message = { id: string; sender_id: string; recipient_id: string; text: string; sent_at: number };
 const empty: Snapshot = { friends: [], incoming: [], outgoing: [] };
 const label = (player: Player) => player.display_name || player.username || ui("common.player");
@@ -24,7 +24,7 @@ export type FriendsTransport = {
   send(other: string, text: string): Promise<void>; busy: boolean; error: string;
   sent?: {id:string;recipient:string;text:string};
 };
-export function FriendsPanel({ session, transport }: { session: Session; transport?: FriendsTransport }) {
+export function FriendsPanel({ session, transport, onlineOnly = false }: { session: Session; transport?: FriendsTransport; onlineOnly?: boolean }) {
   useUiLanguage();
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
@@ -45,21 +45,22 @@ export function FriendsPanel({ session, transport }: { session: Session; transpo
   },[transport?.sent?.id]);
 
   async function refresh(signal?: AbortSignal) {
-    const value = await request<Snapshot>('/friends', session, undefined, signal);
+    const value = await request<Snapshot>(onlineOnly ? '/friends?include_presence=true' : '/friends', session, undefined, signal);
     if (!signal?.aborted) {
       setSnapshot(value);
-      if (selected && !value.friends.some(friend => friend.user_id === selected.user_id)) setSelected(null);
+      setSelected(current => current && !value.friends.some(friend => friend.user_id === current.user_id) ? null : current);
     }
+    return value;
   }
   useEffect(() => {
     const controller = new AbortController(); let timer: ReturnType<typeof setTimeout>;
     async function poll() {
       try { await refresh(controller.signal); if (!controller.signal.aborted) setError(''); }
-      catch (failure) { if (!controller.signal.aborted) setError(playerError(failure, ui("feedback.could_not_load_friends"))); }
+      catch (failure) { if (!controller.signal.aborted) { setSnapshot(current => ({...current, online_friend_ids: []})); setError(playerError(failure, ui("feedback.could_not_load_friends"))); } }
       finally { if (!controller.signal.aborted) timer = setTimeout(poll, 3000); }
     }
     void poll(); return () => { controller.abort(); clearTimeout(timer); };
-  }, [session.token]);
+  }, [session.token, onlineOnly]);
   useEffect(() => {
     if (!selected) { setMessages([]); return; }
     const controller = new AbortController(); let timer: ReturnType<typeof setTimeout>;
@@ -94,12 +95,20 @@ export function FriendsPanel({ session, transport }: { session: Session; transpo
     const recipientId = selected.user_id, submitted = draft;
     sending.current = true; setBusy(true); setSendError('');
     try {
+      if (onlineOnly) {
+        const latest = await refresh();
+        if (!latest.online_friend_ids?.includes(recipientId) || !latest.friends.some(friend => friend.user_id === recipientId)) {
+          setSendError(ui('social.friend_unavailable')); return;
+        }
+      }
       const message = transport ? (await transport.send(recipientId, submitted), null) : await request<Message>(`/friends/${encodeURIComponent(recipientId)}/messages`, session, { text: submitted });
       if (message && selectedId.current === recipientId) setMessages(current => current.some(item => item.id === message.id) ? current : [...current, message]);
       setDrafts(current => current[recipientId] === submitted ? { ...current, [recipientId]: '' } : current);
     } catch (failure) { if (selectedId.current === recipientId) setSendError(playerError(failure, ui("feedback.could_not_send_message"))); }
     finally { sending.current = false; setBusy(false); }
   }
+  const available = !onlineOnly || !!selected && !!snapshot.online_friend_ids?.includes(selected.user_id);
+  const visibleFriends = onlineOnly ? snapshot.friends.filter(player => snapshot.online_friend_ids?.includes(player.user_id)) : snapshot.friends;
   const related = new Set([...snapshot.friends, ...snapshot.incoming, ...snapshot.outgoing].map(player => player.user_id));
   const row = (player: Player, action: ReactNode) => <View key={player.user_id} style={styles.row}>
     <View style={{ flex: 1 }}><Text style={styles.name}>{label(player)}</Text>
@@ -107,8 +116,9 @@ export function FriendsPanel({ session, transport }: { session: Session; transpo
   </View>;
 
   return <View style={styles.panel}>
-    <View style={styles.row}><Text accessibilityRole="header" style={styles.title}>{ui("common.friends")}</Text></View>
-    <Text style={styles.detail}>{ui("social.friends_help")}</Text>
+    <View style={styles.row}><Text accessibilityRole="header" style={styles.title}>{onlineOnly ? ui("social.lobby_chat") : ui("common.friends")}</Text></View>
+    <Text style={styles.detail}>{onlineOnly ? ui("social.online_chat_help") : ui("social.friends_help")}</Text>
+    {!onlineOnly && <>
     <View style={styles.searchRow}>
       <FormInput accessibilityLabel={ui("social.find_players")} value={query} onChangeText={setQuery} maxLength={50}
         autoCapitalize="none" placeholder={ui("social.username_or_display_name")} placeholderTextColor={colors.textMuted}
@@ -125,18 +135,20 @@ export function FriendsPanel({ session, transport }: { session: Session; transpo
     </View>))}</>}
     {!!snapshot.outgoing.length && <><Text style={styles.heading}>{ui("social.requests_sent")}</Text>{snapshot.outgoing.map(player => row(player,
       <Pressable accessibilityRole="button" onPress={() => void mutate(player.user_id, 'remove-friend')} style={styles.linkButton}><Text style={styles.link}>{ui("common.cancel")}</Text></Pressable>))}</>}
-    <Text style={styles.heading}>{ui("social.your_friends")}</Text>
-    {!snapshot.friends.length && <Text style={styles.detail}>{ui("social.no_friends_yet")}</Text>}
-    {snapshot.friends.map(player => row(player, <View style={styles.actions}>
+    </>}
+    <Text style={styles.heading}>{onlineOnly ? ui("social.online_friends") : ui("social.your_friends")}</Text>
+    {!visibleFriends.length && <Text style={styles.detail}>{onlineOnly ? ui("social.no_online_friends") : ui("social.no_friends_yet")}</Text>}
+    {visibleFriends.map(player => row(player, <View style={styles.actions}>
       <Pressable accessibilityRole="button" onPress={() => { setMessages([]); setError(''); setSendError(''); setSelected(player); }} style={styles.smallButton}><Text style={styles.buttonText}>{ui("social.message")}</Text></Pressable>
-      <Pressable accessibilityRole="button" onPress={() => void mutate(player.user_id, 'remove-friend')} style={styles.linkButton}><Text style={styles.link}>{ui("common.remove")}</Text></Pressable>
+      {!onlineOnly && <Pressable accessibilityRole="button" onPress={() => void mutate(player.user_id, 'remove-friend')} style={styles.linkButton}><Text style={styles.link}>{ui("common.remove")}</Text></Pressable>}
     </View>))}
 
     {selected && <RoomSheet visible title={ui("social.chat_with_player", { "player": label(selected) })} closeLabel={ui("common.close_private_chat")} onClose={() => setSelected(null)} scrollable={false}
       footer={<FormFooter>
         {!!(sendError || error) && <Text accessibilityRole="alert" style={styles.error}>{sendError || error}</Text>}
+        {!available && <Text style={styles.detail}>{ui("social.friend_unavailable")}</Text>}
         <ChatComposer value={draft} onChange={value => setDrafts(current => ({ ...current, [selected.user_id]: value }))}
-          onSend={() => void send()} disabled={busy} placeholder={ui("social.write_a_private_message")} label={ui("social.message_player", {player: label(selected)})} sendLabel={ui("common.send_privately")} />
+          onSend={() => void send()} disabled={busy || !available} placeholder={ui("social.write_a_private_message")} label={ui("social.message_player", {player: label(selected)})} sendLabel={ui("common.send_privately")} />
       </FormFooter>}>
       <ScrollView style={{ flex: 1, minHeight: 0 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
         {!messages.length && <Text style={styles.detail}>{ui("common.no_messages_yet")}</Text>}

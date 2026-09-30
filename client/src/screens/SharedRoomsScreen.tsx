@@ -52,8 +52,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const insets = useSafeAreaInsets();
   const wide = useWindowDimensions().width >= 900;
   const [roomToolsOpen, setRoomToolsOpen] = useState(false);
-  const [lobbyTab, setLobbyTab] = useState<'rooms' | 'players' | 'createJoin' | 'games' | 'friendRooms'>("games");
-  const [lobbyProfileOpen, setLobbyProfileOpen] = useState(false);
+  const [lobbyTab, setLobbyTab] = useState<'rooms' | 'players' | 'createJoin' | 'games' | 'friendRooms' | 'chat'>("games");
   const [greetingIdentity, setGreetingIdentity] = useState<InvitePlayer | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [memberProfiles, setMemberProfiles] = useState<Record<string, InvitePlayer>>({});
@@ -66,6 +65,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const [linkedEntry, setLinkedEntry] = useState<{ matchId: string; action: TableEntry }>();
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [username, setUsername] = useState('');
+  const [lobbyProfileOpen, setLobbyProfileOpen] = useState(false);
   const [profileName, setProfileName] = useState('');
   const missingProfileName = authMode === 'signup' && !profileName.trim();
   const [password, setPassword] = useState('');
@@ -75,13 +75,13 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const reconnecting = usePersistentNotice(!!room && !expired && shared.status !== 'connected');
   useEffect(() => {
     if (!session || expired) { setGreetingIdentity(null); return; }
-    if (room || lobbyProfileOpen) return;
+    if (room) return;
     const controller = new AbortController();
     void request<InvitePlayer>('/auth/me', session, undefined, controller.signal)
       .then(identity => { if (!controller.signal.aborted) setGreetingIdentity(identity); })
       .catch(() => { /* Keep the lobby usable if the optional greeting cannot load. */ });
     return () => controller.abort();
-  }, [session?.user_id, session?.token, expired, room?.room_id, lobbyProfileOpen]);
+  }, [session?.user_id, session?.token, expired, room?.room_id]);
   const greetingName = greetingIdentity?.user_id === session?.user_id
     ? greetingIdentity?.display_name?.trim() || greetingIdentity?.username?.trim() : '';
 
@@ -250,7 +250,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
         <View style={[styles.columns, { flex: 1 }]}>
           <View style={styles.mainColumn}>
             {session && <RoomGameControl runtime={shared.runtime} socialChannel={shared.socialChannel} onOpenChange={setGameOpen} requestedMatchId={linkedMatch} requestedEntry={linkedEntry && linkedEntry.matchId === linkedMatch ? linkedEntry.action : undefined} personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={current?.connected_members || []} roomMembers={roomMembers} connectionMessage={expired ? shared.error : undefined}
-              sessionActive={!expired} gameType={selectedGame} createContent={<>
+              presenceKnown={shared.presenceFresh && (current?.presence_status ? current.presence_status === 'observed' : !shared.runtime && !!current?.connected_members)} sessionActive={!expired} gameType={selectedGame} createContent={<>
             <Text style={styles.eyebrowDark}>{ui("rooms.choose_a_game")}</Text>
             <View style={styles.gameTabs}>
               {(['callbreak', 'flush', 'marriage'] as const).map(value => <Pressable key={value} accessibilityRole="button"
@@ -337,7 +337,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
           {roomPanel === 'ledger' && <RoomLedger roomId={room.room_id} session={session} embedded />}
         </RoomSheet>}
       </> : <>
-        {session && !expired && lobbyTab !== 'players' && <View style={styles.hero}>
+        {session && !expired && lobbyTab !== 'players' && lobbyTab !== 'chat' && <View style={styles.hero}>
           <Text accessibilityRole="header" style={[styles.title, !wide && styles.mobileTitle]}>{greetingName ? ui("common.welcome_player", { "player": greetingName }) : ui("common.welcome")}</Text>
           <View accessibilityRole="tablist" style={styles.lobbyTabs}>
             {([["games", ui("rooms.active_games")], ['rooms', ui("rooms.your_rooms")], ['friendRooms', ui("rooms.friends_rooms")], ["createJoin", ui("rooms.create_or_join")]] as const).map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: lobbyTab === value }} onPress={() => setLobbyTab(value)} style={styles.lobbyTab}><Text style={[styles.lobbyTabText, lobbyTab === value && styles.activeLobbyTabText]}>{label}</Text>{lobbyTab === value && <View style={styles.activeLobbyTab} />}</Pressable>)}
@@ -444,6 +444,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
           <View style={styles.roomGrid}>{publicRooms.map(roomCard)}</View>
           {!publicRooms.length && <Text style={styles.description}>{ui("rooms.no_public_rooms_yet")}</Text>}
         </RoomSheet>
+        {session && !expired && lobbyTab === 'chat' && <FriendsPanel key={session.user_id + '-chat'} session={session} onlineOnly />}
         {session && !expired && lobbyTab === 'players' && <View style={styles.playersArea}>
           <FriendsPanel session={session} />
         </View>}
@@ -452,11 +453,12 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
       </>}
     </View>
   </FormScrollView>
-  {session && !expired && !room && !invitation && <LobbyNavigation selected={lobbyTab === 'players' ? 'friends' : lobbyTab === 'games' ? 'games' : 'home'}
-    onSelect={tab => { if (tab === 'profile') setLobbyProfileOpen(true); else setLobbyTab(tab === 'home' ? 'rooms' : tab === 'friends' ? 'players' : "games"); }} />}
   {session && lobbyProfileOpen && <Modal visible animationType="slide" onRequestClose={() => setLobbyProfileOpen(false)}>
     <ProfileScreen session={session} personal={personal} onBack={() => setLobbyProfileOpen(false)} onSignOut={() => { setLobbyProfileOpen(false); signOut(); }} />
   </Modal>}
+  {session && !expired && !room && !invitation && <LobbyNavigation selected={lobbyTab === 'chat' ? 'chat' : lobbyTab === 'players' ? 'friends' : lobbyTab === 'games' ? 'games' : 'home'}
+    onSelect={tab => { setLobbyTab(tab === 'chat' ? 'chat' : tab === 'home' ? 'rooms' : tab === 'friends' ? 'players' : 'games'); }} />}
+
   {!session && <FormFooter>
             {!!shared.error && <Text accessibilityRole="alert" style={styles.error}>{shared.error}</Text>}
             <Pressable accessibilityRole="button" disabled={missingProfileName || username.trim().length < 3 || password.length < 8 || shared.loggingIn}

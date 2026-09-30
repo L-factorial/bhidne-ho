@@ -6,7 +6,7 @@ import { PlayerSeat } from './PlayerSeat';
 import { TableSeatLayout } from './TableSeatLayout';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
-export type TablePlayer = { id: string; name: string; bid: number; tricks: number; cardsRemaining: number; connected?: boolean; avatarUrl?: string };
+export type TablePlayer = { id: string; name: string; bid: number; tricks: number; cardsRemaining: number; connected?: boolean | null; avatarUrl?: string };
 type Props = {
   centerControl?: ReactNode; compact?: boolean; showScores?: boolean;
   players: TablePlayer[]; viewerId: string; activePlayerId: string; width: number;

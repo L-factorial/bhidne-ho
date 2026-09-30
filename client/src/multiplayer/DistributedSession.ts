@@ -18,7 +18,7 @@ export type SessionTransport<T> = {
   load(lane: string, signal: AbortSignal): Promise<T>;
 };
 type Entry<T> = {
-  lane: string; controller: AbortController; queue: unknown[]; running: boolean;
+  lane: string; controller: AbortController; queue: unknown[]; running: boolean; ready: boolean;
   subscription?: Subscription; delivery?: DurableDeliveryClient<T>;
 };
 const positive = (v: number, max: number) => Number.isSafeInteger(v) && v > 0 && v <= max;
@@ -48,8 +48,12 @@ export class DistributedSession<T> {
   private commands = new Map<string, DurableCommandClient>();
   private connection: AbortController | null = null;
   private refreshing: AbortController | null = null;
+  private ticking: AbortController | null = null;
   private timer?: ReturnType<typeof setTimeout>;
   private closed = false;
+  private discovered = false;
+  private healthy = false;
+  private health?: (ready: boolean) => void;
   private jobs: Entry<T>[] = [];
   private workers = 0;
   private limits: { streams: number; pages: number; pageBytes: number; workers: number; timeoutMs: number; refreshMs: number };
@@ -58,6 +62,7 @@ export class DistributedSession<T> {
     install(lane: string, value: T): void; remove(lane: string): void;
     error(lane: string | null, error: unknown, source?: 'command' | 'delivery'): void;
     transient?(events: DeliveryEvent[]): void;
+    health?(ready: boolean): void;
   }, limits: Partial<DistributedSession<T>['limits']> = {}, journal?: CommandJournal) {
     this.limits = { streams: 128, pages: 8, pageBytes: 262144, workers: 4, timeoutMs: 10000, refreshMs: 5000, ...limits };
     const l = this.limits;
@@ -67,6 +72,7 @@ export class DistributedSession<T> {
     this.clientId = clientId; this.transport = transport;
     this.install = callbacks.install; this.remove = callbacks.remove; this.report = callbacks.error;
     this.transient = callbacks.transient;
+    this.health = callbacks.health;
     journal?.assertDevice(clientId);
     this.journal = journal;
     // Restore all slots, including intentions from screens not currently mounted.
@@ -99,6 +105,8 @@ export class DistributedSession<T> {
     await this.tick(connection);
   }
   private async tick(connection: AbortController) {
+    if (this.connection !== connection || connection.signal.aborted || this.ticking === connection) return;
+    this.ticking = connection;
     try {
       try { await this.refresh(); } catch (e) { if (!connection.signal.aborted) this.error(null, e); }
       // Receipt recovery must continue even if discovery or membership is unavailable.
@@ -109,8 +117,10 @@ export class DistributedSession<T> {
       }
     } catch (e) { if (!connection.signal.aborted) this.error(null, e); }
     finally {
+      if (this.ticking === connection) this.ticking = null;
       if (this.connection === connection && !connection.signal.aborted) {
-        this.timer = setTimeout(() => { void this.tick(connection); }, this.limits.refreshMs);
+        clearTimeout(this.timer);
+        this.timer = setTimeout(() => { void this.tick(connection); }, this.healthy ? this.limits.refreshMs : Math.min(1000, this.limits.refreshMs));
       }
     }
   }
@@ -126,10 +136,23 @@ export class DistributedSession<T> {
       const allowed = new Set(lanes);
       for (const entry of this.entries.values()) if (!allowed.has(entry.lane)) this.drop(entry);
       for (const lane of lanes) if (!this.entries.has(lane)) {
-        const entry: Entry<T> = { lane, controller: new AbortController(), queue: [], running: false };
+        const entry: Entry<T> = { lane, controller: new AbortController(), queue: [], running: false, ready: false };
         this.entries.set(lane, entry); this.schedule(entry);
       }
+      this.discovered = true; this.updateHealth();
+    } catch (error) {
+      if (this.connection === connection && !connection.signal.aborted) {
+        this.discovered = false; this.updateHealth();
+      }
+      throw error;
     } finally { if (this.refreshing === connection) this.refreshing = null; }
+  }
+  private updateHealth() {
+    const ready = !!this.connection && !this.connection.signal.aborted && this.discovered
+      && [...this.entries.values()].every(entry => entry.ready);
+    if (ready === this.healthy) return;
+    this.healthy = ready;
+    this.health?.(ready);
   }
   private current(e: Entry<T>) { return this.entries.get(e.lane) === e; }
   private drop(e: Entry<T>) {
@@ -139,7 +162,16 @@ export class DistributedSession<T> {
     try { e.subscription?.close(); } catch (error) { this.error(e.lane, error); }
     try { this.remove(e.lane); } catch (error) { this.error(e.lane, error); }
   }
-  private fail(e: Entry<T>, error: unknown) { if (this.current(e)) { this.drop(e); this.error(e.lane, error); } }
+  private fail(e: Entry<T>, error: unknown) {
+    if (this.current(e)) {
+      this.discovered = false; this.drop(e); this.updateHealth(); this.error(e.lane, error);
+      // Recover failed lanes promptly, without replacing healthy subscriptions.
+      clearTimeout(this.timer);
+      const connection = this.connection;
+      if (connection && !connection.signal.aborted && this.ticking !== connection)
+        this.timer = setTimeout(() => { void this.tick(connection); }, Math.min(1000, this.limits.refreshMs));
+    }
+  }
   private enqueue(e: Entry<T>, value: unknown) {
     if (!this.current(e)) return;
     try {
@@ -189,11 +221,13 @@ export class DistributedSession<T> {
         },
       }, this.limits.timeoutMs);
       await e.delivery.recover(subscription.cursor);
+      if (this.current(e) && !e.controller.signal.aborted) { e.ready = true; this.updateHealth(); }
     } else if (e.queue.length) await e.delivery.receive(e.queue.shift());
   }
   disconnect() {
     clearTimeout(this.timer); this.connection?.abort(); this.connection = null;
     for (const e of this.entries.values()) this.drop(e);
+    this.discovered = false; this.updateHealth();
   }
   close() {
     this.closed = true; this.disconnect();

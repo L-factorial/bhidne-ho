@@ -47,7 +47,7 @@ export type RoomSnapshot = {
   round_review?: { deal_number: number; can_continue: boolean };
   table_id?:string;table_revision?:number;durable_game_id?:string|null;
   status: 'empty' | 'waiting' | 'playing' | 'finished' | 'ended'; match_id?: string; capacity?: number;
-  players?: { player_id: number; user_id: string; display_name?: string; avatar_url?: string; connected?: boolean }[]; your_player_id?: number | null; can_join?: boolean;
+  players?: { player_id: number; user_id: string; display_name?: string; avatar_url?: string; connected?: boolean | null }[]; your_player_id?: number | null; can_join?: boolean;
   play_mode?: PlayMode; remaining_ms?: number | null; error?: string | null;
   game?: { revision: number; phase: string; finished: boolean; winners: number[]; turn: { player_id: number | null };
     current_trick: Trick | null; scores_tenths: number[] };

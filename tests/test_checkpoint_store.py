@@ -124,6 +124,48 @@ async def test_database_roundtrip_retries_rejections_and_detached_rebuild(databa
         await host.close()
 
 
+async def test_legacy_marriage_set_order_survives_table_save_and_next_move(database):
+    import json
+    from test_marriage_checkpoint_processes import qualified_checkpoint
+    pool, store, fence, users = database
+    original = await qualified_checkpoint()
+    # Simulate a pre-fix writer, preserving its signed, noncanonical set order.
+    original = json.loads(json.dumps(original).replace('"u0"', json.dumps(users[0])).replace('"u1"', json.dumps(users[1])))
+    data = original['data']
+    data['table_revision'] = 0
+    data['host']['durable_game_id'] = str(UUID(data['match_id']))
+    data['engine']['state']['players'][0]['committed_card_ids'].reverse()
+    resign(original)
+    await store.save(original, expected_revision=None, fence=fence)
+    before = (await pool.execute('SELECT state,state_digest FROM game_snapshots')).rows
+    host = GameHost(RoomService(), Delivery())
+    try:
+        loaded = await store.load(data['table_id'])
+        game = rebuild_hosted_game(host, loaded.checkpoint, receipt_snapshot=loaded.receipt_snapshot).game
+        game.name = 'Updated table name'
+        candidate = capture_checkpoint(game, table_revision=1)
+        saved = await store.save(candidate, expected_revision=0, fence=fence)
+        assert saved.checkpoint['data']['name'] == game.name
+        assert saved.checkpoint['data']['engine'] == data['engine']
+        assert (await pool.execute('SELECT state,state_digest FROM game_snapshots')).rows == before
+        assert (await pool.execute('SELECT count(*) FROM game_events')).rows == [(0,)]
+        # A subsequent real move advances once and writes canonical state.
+        engine = game.marriage_target.adapter.checkpoint()
+        card = engine.get_allowed_actions('1').discardable_card_ids[0]
+        request = GameAction(match_id=game.match_id, command_id=uuid4().hex,
+            expected_revision=engine.get_state().revision, command='DISCARD_CARD', payload={'card_id': card})
+        engine.discard_card('1', card)
+        receipt = dict(actor_id=users[0], request=request.model_dump(mode='json'),
+            fingerprint=request_fingerprint(request), outcome=dict(command_id=request.command_id,
+                status='accepted', revision=engine.get_state().revision))
+        next_checkpoint = capture_checkpoint(game, table_revision=2)
+        await store.save(next_checkpoint, expected_revision=1, fence=fence, receipt=receipt)
+        assert (await store.load(data['table_id'])).checkpoint == next_checkpoint
+        assert (await pool.execute('SELECT count(*) FROM game_events')).rows == [(1,)]
+    finally:
+        await host.close()
+
+
 async def test_waiting_positions_membership_and_conflicting_reservation_rollback(database):
     pool, store, fence, users = database
     host, game = await host_game(users, started=False)

@@ -4958,3 +4958,122 @@ Verification and limitations:
 - Exact next step: review and publish this change, then rerun the production CI
   suite including all six independent-process tests before deployment. Nothing
   has been committed, pushed, or deployed by the agent in this increment.
+
+## U6 — Marriage checkpoint compatibility across processes (2026-09-30)
+
+- User authorized the checkpoint fix after production app2 reported repeated
+  `CheckpointError` failures loading a Marriage table. A local experiment reproduced
+  the lossless-decode error across Python hash seeds: `committed_card_ids` is a
+  frozenset, but its JSON array was compared as ordered data. This reproduces a
+  matching cause; the exact production checkpoint has not been inspected.
+- New checkpoint captures sort only Marriage committed-card IDs. Decoder and
+  host-rebuild comparisons treat only this field as unordered, after verifying the
+  original checkpoint digest. Ordered hands, deck/discard, melds and event history
+  retain exact comparisons. Duplicate IDs are not silently deduplicated.
+- Existing signed checkpoints remain readable without migration. Table-only saves
+  retain the committed engine representation and historical snapshot digest when
+  the only difference is set order. Actual engine advancement writes canonical
+  state through the existing receipt/revision/journal transaction.
+- Added subprocess tests for normal and duplee qualification, writer seed 1 and
+  reader seeds 1–4, canonical and legacy envelopes, and full detached host rebuild.
+  Added negative cases for duplicate/missing/foreign IDs, revisions and digest
+  tampering. SQL coverage verifies an old checkpoint survives a table-only update
+  without changing its engine snapshot, followed by one persisted discard.
+- Verification: checkpoint/store/recovery suite 59 passed; final cross-process,
+  distributed-read, chat, settlement and rematch suite 52 passed (overlapping
+  checkpoint tests). Whitespace checks passed. SQL checks used local PGlite, not
+  production PostgreSQL. No production mutation or live recovery claim.
+- Scope: this fixes the reproduced checkpoint ordering defect. The separately
+  identified frontend reconnect-status recovery and unknown-presence presentation
+  issues remain unmodified.
+- Exact next step: review and push when requested, let CI complete, deploy the
+  backend to both app servers and verify the affected table and both qualification
+  routes. No database rewrite, manual digest repair or schema migration is needed.
+  This increment has not been committed, pushed or deployed by the agent.
+
+### U7 - Client recovery and table presence (implemented locally)
+
+- Plan: repair recovery reporting, distinguish unknown presence from offline,
+  and verify table selection preserves subscriptions and pending intentions.
+- Delivery health now requires successful discovery and initial recovery of all
+  authorized streams. A successful discovery clears a previous discovery failure
+  even when no subscriptions changed. Snapshot arrival alone no longer clears a
+  still-failed stream. Failed streams retry promptly while healthy streams stay
+  attached; timer ownership prevents overlapping scheduled recovery ticks.
+- Game seats now distinguish observed offline from unavailable/stale presence.
+  Unknown observations display a localized connection-unknown label. A local
+  delivery warning no longer independently marks the viewing player offline.
+- Back-to-room already hides the game without leaving the table or closing the
+  root. Added a root regression proving same-table selection retains subscriptions
+  and pending commands. This is runtime coverage, not an end-to-end browser test.
+- Move guards remain unchanged: pending work, unsynchronized game state, or lost
+  delivery readiness still block moves. Recovery restores readiness; this change
+  does not permit moves against stale state to conceal a connection problem.
+- The table-entry and red snapshot-load failures remain covered by U6's reproduced
+  checkpoint correction; no new server retry or authorization bypass was added.
+- Verification: 298 client tests passed, TypeScript checking passed, Expo web
+  export passed, git diff --check passed. Added regressions for recovery with an
+  unchanged catalog, all-stream readiness, obsolete recovery, failed-stream retry,
+  same-table selection and unknown presence. No live production or iPhone check.
+- Exact next step: review/push when requested, pass deployment CI, deploy U6 to
+  both app servers and this client build, then verify Marriage through room/back,
+  reconnection, discard and both qualification routes on the affected devices.
+  Actual intermittent transport outages may still require production logs; these
+  changes do not establish that every reported outage had the same cause.
+- No commit, push or deployment performed by the agent.
+
+### U8 - Lobby online-friend chat
+
+- User requested Chat in place of the bottom Profile entry. Added a selected Chat
+  tab with an online-friend list, existing private conversation history/composer,
+  English/Nepali labels and an empty state. Header profile remains available.
+- Reused existing private message transport, including distributed durable sends.
+  An opt-in /friends?include_presence=true read observes accepted friends through
+  cluster Redis presence, with 16 concurrent observations per batch. Ordinary
+  /friends response shape remains unchanged; friendship cache is not mutated.
+- Chat lists only positively observed online friends. Polls every three seconds
+  and rechecks presence/friendship before submitting. An unavailable friend
+  disables composition and retains the current draft. This is lobby UI admission,
+  not a new durable-message execution rule: an already submitted message remains
+  valid if its recipient disconnects. Existing Friends messaging is unchanged.
+- Presence uses global connected status, not a requirement that the recipient
+  also has the lobby visible. Legacy runtimes without cluster presence show no
+  online recipients rather than inventing presence.
+- Verification: 298 client tests, TypeScript check, web export; 5 backend tests
+  covering accepted-friend-only observations, unknown/offline filtering, absent
+  presence and existing friendship/messaging compatibility. No live UI/device
+  verification or deployment performed. Next: deploy client and backend together
+  and check two online friend accounts plus offline/reconnect transitions.
+
+### U9 - Profile header control alignment
+
+- Moved the profile Back control into AppHeader's existing inline action slot,
+  immediately beside Theme, instead of the separate lower action row. Existing
+  back behavior and minimum 44px touch target remain unchanged.
+- Verification: TypeScript check. No backend change or deployment.
+
+### U10 - Shared language icon and picker
+
+- Replaced one-tap language toggling with the requested compact `? A` control,
+  44px square with the header accent color, border and rounded button finish.
+- Added an anchored English / ?????? popup with a selected checkmark, explicit
+  radio accessibility state, outside-tap dismissal and Escape handling. Popup
+  positioning respects viewport edges and safe areas.
+- AppHeader now exposes language alongside theme/profile on authenticated lobby
+  and room pages as well as sign-in/signup. GameTableHeader exposes the same
+  control beside theme; existing welcome, profile and menu instances share it.
+- Existing LanguageProvider continues saving the choice; English remains default.
+  No server game commands or backend behavior changed.
+- Verification: 298 client tests passed; TypeScript and Expo web export passed.
+  Local Chrome browser checks at 320/390/1100px passed selection, selected-state
+  attributes, reload persistence, Escape dismissal and popup bounds. The browser
+  fixture exercises the entry screen; live room/game and real-device checks remain.
+  Reusable check: client/tests/browser/language-menu.cjs after a web export.
+- No deployment. Next: review and deploy with the pending client changes.
+
+### U11 - Remove redundant profile language preference
+
+- Removed the profile body's language row and now-empty Preferences section,
+  plus their unused import/style. Shared header and game-menu pickers remain.
+- Verification: TypeScript passed. No deployment. Next: review/deploy the pending
+  client changes together.

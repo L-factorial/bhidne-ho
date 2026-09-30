@@ -1,6 +1,6 @@
 export const resources = {
   en: { translation: {
-    language: { english: 'English', nepali: 'नेपाली', switchTo: 'Switch language to {{language}}' },
+    language: { choose: 'Choose language', close: 'Close language menu', english: 'English', nepali: 'नेपाली', switchTo: 'Switch language to {{language}}' },
     common: { profile: 'Profile', backToLobby: 'Back to lobby', tableMenu: 'Table menu', copyLink: 'Copy link',
       copyGameLink: 'Copy game link', copyRoomLink: 'Copy room link', copied: 'Link copied. Paste it into any messaging app.',
       copyFallback: 'Select and copy the link below.', loading: 'Loading Bhidne Ho' },
@@ -18,7 +18,7 @@ export const resources = {
       toPay: 'To pay', toReceive: 'To receive', resolved: 'Resolved', markPaid: 'Mark paid', confirmReceived: 'Confirm received' },
   } },
   ne: { translation: {
-    language: { english: 'English', nepali: 'नेपाली', switchTo: 'भाषा {{language}} मा बदल्नुहोस्' },
+    language: { choose: 'भाषा छान्नुहोस्', close: 'भाषा मेनु बन्द गर्नुहोस्', english: 'English', nepali: 'नेपाली', switchTo: 'भाषा {{language}} मा बदल्नुहोस्' },
     common: { profile: 'प्रोफाइल', backToLobby: 'लबीमा फर्कनुहोस्', tableMenu: 'टेबल मेनु', copyLink: 'लिङ्क कपी गर्नुहोस्',
       copyGameLink: 'खेलको लिङ्क कपी गर्नुहोस्', copyRoomLink: 'कोठाको लिङ्क कपी गर्नुहोस्', copied: 'लिङ्क कपी भयो। कुनै पनि मेसेजिङ एपमा पेस्ट गर्नुहोस्।',
       copyFallback: 'तलको लिङ्क छानेर कपी गर्नुहोस्।', loading: 'भिड्ने हो लोड हुँदैछ' },

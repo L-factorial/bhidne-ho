@@ -190,6 +190,7 @@ export default {
   "table_ended": "टेबल सकियो",
   "online": "अनलाइन",
   "offline": "अफलाइन",
+  "connection_unknown": "जडानको अवस्था अज्ञात",
   "waiting_for_players": "खेलाडीहरूलाई पर्खँदै",
   "waiting_for_the_host": "आयोजकलाई पर्खँदै",
   "waiting_for_eligible_players": "खेल्न मिल्ने खेलाडीहरूलाई पर्खँदै।",
