@@ -560,3 +560,15 @@ Reviewed during planning on 2026-09-30; recheck before submission.
   (`tests/test_creation_executor.py` and `tests/test_table_lane_executor.py`,
   PostgreSQL/WASM). `git diff --check` passed. The full CI suite was not rerun
   locally; user will commit/push and track the next CI run.
+
+### Frontend CI follow-up — session restoration fixture (2026-09-30)
+
+- Fixed the sole failing frontend test by representing browser tabs/reloads with
+  separate session module instances. The former fixture shared an in-memory cache
+  while swapping storage, which does not model separate browser tabs.
+- All 308 frontend tests pass. Tests verify sanitized persisted/restored room data,
+  server/tab isolation, leaving-room identity retention and tab-local logout.
+  No production application, database or migration changes were needed.
+- `npm run build:production` also passed locally, including TypeScript and
+  the production-configured Expo web export. `git diff --check` passed. The full
+  Docker image/remote CI build was not rerun here.

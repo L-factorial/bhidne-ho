@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { RoomConnection } from '../src/multiplayer/RoomConnection.ts';
-import { readSession, saveSession } from '../src/multiplayer/session.ts';
 
 function fixture(t) {
   t.mock.timers.enable({ apis: ['setTimeout'] });
@@ -67,27 +66,43 @@ test('leaving during connection setup cancels every reconnect timer', t => {
   assert.equal(sockets.length, 1);
 });
 
-test('session restore is per browser tab and server, leaving preserves identity, signing out clears it', t => {
+test('session restore is per browser tab and server, leaving preserves identity, signing out clears it', async t => {
   const tabA = new Map(), tabB = new Map();
   let tab = tabA;
+  const previousStorage = Object.getOwnPropertyDescriptor(globalThis, 'sessionStorage');
   Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value: {
     getItem: key => tab.get(key) ?? null, setItem: (key, value) => tab.set(key, value), removeItem: key => tab.delete(key),
   } });
-  t.after(() => { saveSession('server-a', null); delete globalThis.sessionStorage; });
+  t.after(() => {
+    if (previousStorage) Object.defineProperty(globalThis, 'sessionStorage', previousStorage);
+    else delete globalThis.sessionStorage;
+  });
+  // Each tab/reload has a separate module instance and in-memory session cache.
+  const firstTab = await import('../src/multiplayer/session.ts?reconnection-tab-a');
+  const secondTab = await import('../src/multiplayer/session.ts?reconnection-tab-b');
   const saved = { session: { user_id: 'alice', token: 'credential' },
     room: { room_id: 'room', name: 'Friends', members: ['alice'] }, game: 'callbreak' };
-  saveSession('server-a', saved);
-  assert.equal(readSession('server-a').session.token, 'credential');
-  assert.deepEqual(readSession('server-a').room.members, []);
-  assert.equal(readSession('server-b'), null);
+  firstTab.saveSession('server-a', saved);
+  assert.equal(firstTab.readSession('server-a').session.token, 'credential');
+  const persisted = JSON.parse(tabA.get('bhidne.session.v1:server-a'));
+  assert.deepEqual(persisted.room, { room_id: 'room', name: 'Friends', members: [] });
+  const reloadedTab = await import('../src/multiplayer/session.ts?reconnection-tab-a-reload');
+  assert.deepEqual(reloadedTab.readSession('server-a'), { ...saved, room: persisted.room });
+  assert.equal(reloadedTab.readSession('server-b'), null);
   tab = tabB;
-  assert.equal(readSession('server-a'), null);
+  assert.equal(secondTab.readSession('server-a'), null);
+  const other = { session: { user_id: 'bob', token: 'other-credential' }, room: null, game: null };
+  secondTab.saveSession('server-a', other);
   tab = tabA;
-  saveSession('server-a', { ...saved, room: null });
-  assert.equal(readSession('server-a').room, null);
-  assert.equal(readSession('server-a').session.user_id, 'alice');
-  saveSession('server-a', null);
-  assert.equal(readSession('server-a'), null);
+  assert.equal(reloadedTab.readSession('server-a').session.user_id, 'alice');
+  reloadedTab.saveSession('server-a', { ...saved, room: null });
+  assert.equal(reloadedTab.readSession('server-a').room, null);
+  assert.equal(reloadedTab.readSession('server-a').session.user_id, 'alice');
+  reloadedTab.saveSession('server-a', null);
+  assert.equal(reloadedTab.readSession('server-a'), null);
+  assert.equal(tabA.has('bhidne.session.v1:server-a'), false);
+  tab = tabB;
+  assert.deepEqual(secondTab.readSession('server-a'), other);
 });
 
 

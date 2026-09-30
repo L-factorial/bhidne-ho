@@ -5386,3 +5386,21 @@ Verification and limitations:
   (`tests/test_creation_executor.py` and `tests/test_table_lane_executor.py`,
   PostgreSQL/WASM). `git diff --check` passed. The full CI suite was not rerun
   locally; user will commit/push and track the next CI run.
+
+### Frontend CI follow-up — separate tab/session instances (2026-09-30)
+
+- Reproduced the supplied Docker frontend failure locally: 307/308 tests passed;
+  the failing case was session restoration in `client/tests/reconnection.test.mjs`.
+- The test swapped browser storage while sharing one module's session memory and
+  expected a warm in-memory read to behave like a reload. Updated it to use separate
+  module instances for each tab and reload, matching actual browser isolation.
+- Checks now verify sanitized persisted/restored room data, server isolation,
+  independent Alice/Bob tab identities, identity retention when leaving a room,
+  and logout clearing only the current tab. Production session behavior is unchanged.
+- Verification: all 308 frontend tests pass with the Docker stage's Node test
+  command. No commit/push or remote build monitoring performed. User will commit/push
+  this correction; next feature remains bounded reporting/moderation, with mobile
+  notifications deferred until near store testing.
+- `npm run build:production` also passed locally, including TypeScript and
+  the production-configured Expo web export. `git diff --check` passed. The full
+  Docker image/remote CI build was not rerun here.
