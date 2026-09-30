@@ -20,6 +20,7 @@
           <div class="tabs"><button id="signin-mode" type="button" class="selected" aria-pressed="true">Sign in</button><button id="signup-mode" type="button" aria-pressed="false">Sign up</button></div>
           <form id="auth-form">
             <label for="username">Username</label><input id="username" autocomplete="username" required minlength="3" maxlength="32" pattern="[A-Za-z0-9_-]+" placeholder="e.g. player_one">
+            <div id="signup-email" hidden><label for="email">Email</label><input id="email" type="email" autocomplete="email" maxlength="254"></div>
             <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required minlength="8" maxlength="128" placeholder="At least 8 characters">
             <button id="auth-submit" class="primary full">Sign in</button>
           </form>

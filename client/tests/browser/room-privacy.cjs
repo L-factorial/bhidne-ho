@@ -6,7 +6,7 @@ async function api(path,user,body){const r=await fetch(site+path,{method:body?'P
 (async()=>{
 const browser=await chromium.launch({channel:'chrome',headless:true});
 try{
- const stamp=Date.now(), owner=await api('/auth/signup',null,{username:'privacy_'+stamp,password:'Privacy-test-123'}), other=await api('/auth/signup',null,{username:'visitor_'+stamp,password:'Privacy-test-123'});
+ const stamp=Date.now(), owner=await api('/auth/signup',null,{ email: 'browser@example.test',username:'privacy_'+stamp,password:'Privacy-test-123'}), other=await api('/auth/signup',null,{ email: 'browser@example.test',username:'visitor_'+stamp,password:'Privacy-test-123'});
  async function pageFor(user){const ctx=await browser.newContext({viewport:{width:390,height:844},hasTouch:true});await ctx.addInitScript(({site,user})=>sessionStorage.setItem('bhidne.session.v1:'+site,JSON.stringify({session:user,room:null,game:null})),{site,user});const p=await ctx.newPage();p.setDefaultTimeout(10000);await p.goto(site);return p;}
  const page=await pageFor(owner), button=name=>page.getByRole('button',{name,exact:true});
  await button('Create room').first().click();

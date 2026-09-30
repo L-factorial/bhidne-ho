@@ -1,4 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from app.auth.email import normalize_recovery_email
 
 
 class GuestCredentials(BaseModel):
@@ -38,3 +39,10 @@ class GuestInput(BaseModel):
 
 class SignUpInput(AccountInput, GuestInput):
     """Named app registration; legacy clients may omit the profile field."""
+
+    email: str = Field(min_length=3, max_length=254)
+
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        return normalize_recovery_email(value)

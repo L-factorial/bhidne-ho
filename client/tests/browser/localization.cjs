@@ -17,7 +17,7 @@ async function api(path, user, body) {
     assert.equal(await page.evaluate(() => localStorage.getItem('bhidne.language')), 'ne');
     await page.reload();
     await page.getByRole('button', { name: /English/ }).waitFor();
-    const user = await api('/auth/signup', null, { username: `locale_${Date.now()}`, password: 'Locale-test-123', display_name: 'Fold' });
+    const user = await api('/auth/signup', null, { email: 'browser@example.test', username: `locale_${Date.now()}`, password: 'Locale-test-123', display_name: 'Fold' });
     await page.evaluate(({ user, site }) => sessionStorage.setItem(`bhidne.session.v1:${site}`, JSON.stringify({ session: user, room: null, game: null })), { user, site });
     await page.reload();
     await page.getByRole('button', { name: 'कोठा बनाउने', exact: true }).first().click();
@@ -30,7 +30,7 @@ async function api(path, user, body) {
     await page.screenshot({ path: '../build/nepali-room.png', fullPage: true });
     const guests = [];
     for (let index = 0; index < 3; index++) {
-      guests.push(await api('/auth/signup', null, { username: `locale_guest_${Date.now()}_${index}`, password: 'Locale-test-123', display_name: `Guest ${index}` }));
+      guests.push(await api('/auth/signup', null, { email: 'browser@example.test', username: `locale_guest_${Date.now()}_${index}`, password: 'Locale-test-123', display_name: `Guest ${index}` }));
     }
     await api(`/rooms/${room.room_id}/invitations`, user, { invitees: guests.map(g => g.user_id) });
     for (const guest of guests) await api(`/rooms/${room.room_id}/enter`, guest, {});

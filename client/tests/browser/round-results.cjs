@@ -24,7 +24,7 @@ function ids(value) {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {
     for (const kind of ['callbreak', 'marriage']) {
-      const user = await api('/auth/signup', null, { username: `result_${kind}_${Date.now()}`, display_name: 'Prajwal', password: 'Results-test-123' });
+      const user = await api('/auth/signup', null, { email: 'browser@example.test', username: `result_${kind}_${Date.now()}`, display_name: 'Prajwal', password: 'Results-test-123' });
       const room = await api('/rooms', user, { name: 'Results test' });
       const root = `/test-games/${room.room_id}`;
       const base = await api(root, user, { game_type: kind, player_count: kind === 'marriage' ? 2 : 4 });

@@ -25,6 +25,8 @@ class SharedPlatform:
     def __init__(self, pool, auth, *, guest_login_enabled=False, cache=None):
         if type(guest_login_enabled) is not bool:
             raise ValueError('Guest login selection must be boolean.')
+        from app.auth.recovery_delivery import RecoveryRuntime
+        self.recovery = RecoveryRuntime.from_environment(pool, auth)
         self.auth = auth
         self.profiles = CachedProfiles(pool, cache) if cache else PostgresPlayerProfileService(pool)
         from app.multiplayer.player_phrases import PostgresPlayerPhraseService
@@ -38,9 +40,11 @@ class SharedPlatform:
             PostgresSocialIdentityStore(pool, auth, self.profiles))
 
     def install(self, app, admission):
+        from app.auth import recovery_http
         from app.transport import http, player_profiles, room_pokes
         from app.players import http as players
         from app.social_auth import browser_http
+        app.state.recovery = self.recovery
         app.state.auth = app.state.guests = self.auth
         app.state.player_profiles = self.profiles
         app.state.player_phrases = self.phrases
@@ -50,6 +54,7 @@ class SharedPlatform:
         router = APIRouter()
         # Exact method/path contracts, not an entire legacy router or prefix.
         reviewed = (
+            (recovery_http.router, recovery_http.CONTRACTS),
             (http.router, {('POST', '/auth/guest'), ('POST', '/auth/signup'),
                            ('POST', '/auth/signin'), ('POST', '/auth/signout'), ('GET', '/auth/me')}),
             (player_profiles.router, {('GET', '/me/profile'), ('PATCH', '/me/profile'),

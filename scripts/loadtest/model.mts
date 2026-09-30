@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-export type Account = {username:string; password:string};
+export type Account = {username:string; password:string; email?:string};
 export function accounts(text:string):Account[] {
   const rows=text.trim().split('\n').map((line,index)=>{try{return JSON.parse(line);}catch{throw Error(`Invalid account JSON on line ${index+1}`);}});
   assert(rows.length>=4,'At least four JSONL accounts required');

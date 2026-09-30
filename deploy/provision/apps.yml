@@ -75,6 +75,19 @@
         mode: '0600'
         content: "{{ {'repository': 'ghcr.io/l-factorial/bhidne-ho-backend-prod', 'private_ip': private_ip, 'peer_ip': peer_ip, 'frontend': true} | to_nice_json }}\n"
 
+    - name: Check for existing runtime settings to preserve recovery configuration
+      ansible.builtin.stat:
+        path: /etc/bhidne-prod/runtime.env
+      register: existing_runtime_file
+      no_log: true
+
+    - name: Read existing runtime privately before rendering
+      ansible.builtin.slurp:
+        src: /etc/bhidne-prod/runtime.env
+      when: existing_runtime_file.stat.exists
+      register: existing_runtime
+      no_log: true
+
     - name: Write runtime environment without exposing secrets
       ansible.builtin.template:
         src: runtime.env.j2

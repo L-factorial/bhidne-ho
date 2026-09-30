@@ -1,3 +1,5 @@
+import { readRecoveryLink, type RecoveryLink } from './src/auth/recoveryLink';
+import { RecoveryScreen } from './src/screens/RecoveryScreen';
 import { playerError } from './src/multiplayer/playerError.ts';
 import './src/auth/installStorage';
 import { ui, uiLabel } from './src/i18n/copy';
@@ -29,6 +31,7 @@ function AppContent() {
   const { colors } = useTheme();
   const [invitation, setInvitation] = useState<Invitation | null>(() => Platform.OS === 'web' ? readInvitation(globalThis.location.href) : null);
   const [inRooms, setInRooms] = useState(() => !!readSession(apiUrl) || !!invitation);
+  const [recovery, setRecovery] = useState<RecoveryLink | null>(() => Platform.OS === 'web' ? readRecoveryLink(globalThis.location.href) : null);
   const [authVersion, setAuthVersion] = useState(0);
   const [authError, setAuthError] = useState('');
   const [finishingSignIn, setFinishingSignIn] = useState(() => Platform.OS === 'web' && isSocialReturn(globalThis.location.href));
@@ -59,10 +62,20 @@ function AppContent() {
     return () => { active = false; };
   }, []);
   useEffect(() => {
-    const open = (url: string | null) => { const value = url && readInvitation(url); if (value) { setInvitation(value); setInRooms(true); } };
-    if (Platform.OS !== 'web') void Linking.getInitialURL().then(open).catch(() => {});
+    const open = (url: string | null) => {
+      const recoveryLink = url && readRecoveryLink(url);
+      if (recoveryLink) {
+        setRecovery(recoveryLink);
+        if (Platform.OS === 'web') { const clean = new URL(globalThis.location.href); clean.hash = ''; globalThis.history.replaceState(null, '', clean.href); }
+        return;
+      }
+      const value = url && readInvitation(url); if (value) { setInvitation(value); setInRooms(true); } };
+    if (Platform.OS === 'web') open(globalThis.location.href);
+    else void Linking.getInitialURL().then(open).catch(() => {});
     const subscription = Linking.addEventListener('url', event => open(event.url));
-    return () => subscription.remove();
+    const onHashChange = () => open(globalThis.location.href);
+    if (Platform.OS === 'web') globalThis.addEventListener('hashchange', onHashChange);
+    return () => { subscription.remove(); if (Platform.OS === 'web') globalThis.removeEventListener('hashchange', onHashChange); };
   }, []);
   function dismissInvitation() {
     setInvitation(null);
@@ -76,7 +89,10 @@ function AppContent() {
     <SafeAreaProvider>
       <StatusBar style="light" />
       {!!authError && <Text accessibilityRole="alert" style={{ padding: 16, color: colors.danger }}>{uiLabel(authError, 'feedback')}</Text>}
-      {finishingSignIn ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.text }}>{ui('common.completing_sign_in')}</Text></View>
+      {recovery ? <RecoveryScreen key={recovery.token} link={recovery} onDone={reset => {
+        if (reset) { saveSession(apiUrl, null); setAuthVersion(value => value + 1); }
+        setRecovery(null); setInRooms(true);
+      }} /> : finishingSignIn ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.text }}>{ui('common.completing_sign_in')}</Text></View>
         : process.env.EXPO_PUBLIC_RUNTIME_MODE === 'distributed-integration' ? <DistributedRoomsScreen key={authVersion} />
         : inRooms || invitation ? <SharedRoomsScreen key={authVersion} invitation={invitation} dismissInvitation={dismissInvitation} onExit={() => { dismissInvitation(); setInRooms(false); }} />
         : <WelcomeScreen onEnterLobby={() => setInRooms(true)} />}

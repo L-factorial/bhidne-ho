@@ -2,3 +2,4 @@
 .venv/
 collections/
 .monitoring-secret-*
+.recovery-secret-*

@@ -10,7 +10,7 @@ async function api(path,user,body){
  const browser=await chromium.launch({channel:'chrome',headless:true});
  try {
   const stamp=Date.now(), users=[];
-  for(let i=0;i<3;i++)users.push(await api('/auth/signup',null,{username:'tabs_'+stamp+'_'+i,password:'Lobby-test-123'}));
+  for(let i=0;i<3;i++)users.push(await api('/auth/signup',null,{ email: 'browser@example.test',username:'tabs_'+stamp+'_'+i,password:'Lobby-test-123'}));
   const [viewer,friend,stranger]=users;
   await api('/friends/requests/'+friend.user_id,viewer,{});
   await api('/friends/requests/'+viewer.user_id+'/accept',friend,{});

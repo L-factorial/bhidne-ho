@@ -1,3 +1,4 @@
+import { RecoveryEmailSettings } from './RecoveryScreen';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { ui } from '../i18n/copy.ts';
 import { gameControlFinish, gameHeadingFinish, fonts, useThemedStyles, type ThemeColors } from '../theme';
@@ -42,6 +43,7 @@ export function ProfileScreen({ session, personal, onBack, onSignOut }: {
         {!!identityError && <Text accessibilityRole="alert" style={styles.description}>{identityError}</Text>}
       </View>
       <DisplayNameField session={session} onSaved={display_name => setIdentity(current => current ? { ...current, display_name } : { user_id: userId, display_name })} />
+      <RecoveryEmailSettings session={session} />
       <FriendsPanel session={session} />
       <PlayerPhrases key={userId} userId={userId} phrases={personal.phrases} connected={true}
         loadError={personal.error} onSave={personal.save} onRemove={personal.remove} onUpdate={personal.update} />

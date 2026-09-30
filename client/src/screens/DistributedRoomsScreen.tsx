@@ -1,4 +1,9 @@
+import { AccountPage, accountStyles } from '../components/AccountPage';
+import { AppHeader } from '../components/AppHeader';
+import { FormInput } from '../components/FormInput';
+import { ForgotPassword, RecoveryEmailSettings } from './RecoveryScreen';
 import { useUiLanguage } from '../i18n/useUiLanguage';
+import { validSignupEmail } from '../auth/email';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { playerError } from '../multiplayer/playerError.ts';
 import { useEffect, useRef, useState } from 'react';
@@ -39,8 +44,11 @@ const payload = (value: object = {}) => value as {[key:string]:Json};
 export function DistributedRoomsScreen() {
   useUiLanguage();
   const {colors} = useTheme();
+  const authStyles = accountStyles(colors);
   const [account,setAccount] = useState<Session|null>(()=>readSession(apiUrl)?.session??null);
   const [username,setUsername] = useState(''), [password,setPassword] = useState('');
+  const [email,setEmail] = useState('');
+  const [signupMode,setSignupMode] = useState(false), [confirmPassword,setConfirmPassword] = useState('');
   const [authBusy,setAuthBusy] = useState(false), [error,setError] = useState('');
   const [runtime,setRuntime] = useState<DistributedRootRuntime|null>(null);
   const [action,setAction] = useState(idle), [chatAction,setChatAction] = useState(idle);
@@ -134,8 +142,9 @@ export function DistributedRoomsScreen() {
   const input=(label:string,value:string,change:(s:string)=>void,secure=false)=><TextInput accessibilityLabel={label} placeholder={label} placeholderTextColor={colors.textMuted}
     value={value} onChangeText={change} secureTextEntry={secure} autoCapitalize="none" style={{color:colors.text,borderColor:colors.textMuted,borderWidth:1,padding:12,borderRadius:8}}/>;
   async function login(signup: boolean) {
+    if (authBusy || (signup && (!confirmPassword || password !== confirmPassword || !validSignupEmail(email)))) return;
     setAuthBusy(true);setError('');
-    try {const session=await request<Session>(signup?'/auth/signup':'/auth/signin',null,{username,password});saveSession(apiUrl,{session,room:null,game:null});setPassword('');setAccount(session);}
+    try {const session=await request<Session>(signup?'/auth/signup':'/auth/signin',null,{username,password,...(signup?{email:email.trim()}:{})});saveSession(apiUrl,{session,room:null,game:null});setPassword('');setConfirmPassword('');setEmail('');setAccount(session);}
     catch(e){setError(playerError(e && typeof e === 'object' && 'status' in e && e.status === 401 ? Error(ui("common.invalid_credentials")) : e));}finally{setAuthBusy(false);}
   }
   async function logout() {
@@ -143,12 +152,28 @@ export function DistributedRoomsScreen() {
     try{await request('/auth/signout',account,{});saveSession(apiUrl,null);setSelected(null);setAccount(null);}
     catch(e){fail(e);}finally{setAuthBusy(false);}
   }
-  if (!account) return <ScrollView contentContainerStyle={{padding:24,gap:12}}>
-    <Text accessibilityRole="header" style={{color:colors.text,fontSize:24}}>{ui("common.sign_in")}</Text>
-    {input(ui("common.username"),username,setUsername)}{input(ui("common.password"),password,setPassword,true)}
-    {button(ui("common.sign_in"),()=>void login(false),authBusy)}{button(ui("common.create_account"),()=>void login(true),authBusy)}
+  if (!account) return <AccountPage footer={<>
+    {!signupMode && <ForgotPassword />}
+    <Pressable accessibilityRole="button" disabled={authBusy || (signupMode && (!confirmPassword || password !== confirmPassword || !validSignupEmail(email)))}
+      onPress={() => void login(signupMode)} style={[authStyles.button,{backgroundColor:colors.primary},authBusy && {opacity:.5}]}>
+      <Text style={[authStyles.buttonText,{color:colors.onPrimary}]}>{ui(signupMode ? 'common.create_account' : 'common.sign_in')}</Text>
+    </Pressable>
+  </>}>
+    <Text accessibilityRole="header" style={authStyles.title}>{ui(signupMode ? 'common.create_your_account' : 'common.welcome_back')}</Text>
+    {button(ui(signupMode ? 'common.sign_in' : 'common.sign_up'),()=>{setSignupMode(!signupMode);setConfirmPassword('');setError('');},authBusy)}
+    <FormInput accessibilityLabel={ui('common.username')} placeholder={ui('common.username')} value={username} onChangeText={setUsername} autoCapitalize="none" autoCorrect={false} editable={!authBusy} style={authStyles.input} />
+    {signupMode && <>
+      <FormInput accessibilityLabel={ui('common.email')} aria-required placeholder={ui('common.email')} value={email}
+        onChangeText={setEmail} maxLength={254} keyboardType="email-address" textContentType="emailAddress"
+        editable={!authBusy} autoCapitalize="none" autoCorrect={false} style={authStyles.input} />
+      <Text style={authStyles.description}>{ui('common.signup_email_help')}</Text>
+      {!!email && !validSignupEmail(email) && <Text accessibilityRole="alert" style={{color:colors.danger}}>{ui('common.enter_valid_email')}</Text>}
+    </>}
+    <FormInput accessibilityLabel={ui('common.password')} placeholder={ui('common.password')} value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} maxLength={128} editable={!authBusy} style={authStyles.input} />
+    {signupMode && <FormInput accessibilityLabel={ui('common.confirm_password')} placeholder={ui('common.confirm_password')} value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} maxLength={128} editable={!authBusy} style={authStyles.input} />}
+    {signupMode && !!confirmPassword && password !== confirmPassword && <Text accessibilityRole="alert" style={{color:colors.danger}}>{ui('common.passwords_do_not_match')}</Text>}
     {!!error&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(error, 'feedback')}</Text>}
-  </ScrollView>;
+  </AccountPage>;
 
   const snapshot=projection?.snapshot;
   const busy=action.busy||!runtime;
@@ -185,7 +210,9 @@ export function DistributedRoomsScreen() {
       <PokeOverlay pokes={pokes} matchId={snapshot.match_id}/>
     </View>;
   }
-  return <ScrollView contentContainerStyle={{padding:20,gap:12,backgroundColor:colors.background}}>
+  return <ScrollView style={{backgroundColor:colors.background}} contentContainerStyle={{padding:20,gap:12}}>
+    <AppHeader hideProfile />
+    <RecoveryEmailSettings session={account} />
     <Text accessibilityRole="header" style={{color:colors.text,fontSize:24}}>{projection?.name||ui("rooms.your_rooms")}</Text>
     {!!(error||action.error)&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(action.error||error, 'feedback')}</Text>}
     {action.status==='pending'&&button(ui("common.pending_action"),()=>void controller.current?.recover())}

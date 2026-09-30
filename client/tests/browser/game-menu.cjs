@@ -17,7 +17,7 @@ async function stableCue(locator) {
   try {
     for (const kind of ['marriage', 'callbreak']) {
       if (process.env.TEST_GAME && process.env.TEST_GAME !== kind) continue;
-      const users = await Promise.all(Array.from({ length: 4 }, (_, i) => api('/auth/signup', null, { username: `${kind}_${Date.now()}_${i}`, password: 'Game-menu-test-123' })));
+      const users = await Promise.all(Array.from({ length: 4 }, (_, i) => api('/auth/signup', null, { email: 'browser@example.test', username: `${kind}_${Date.now()}_${i}`, password: 'Game-menu-test-123' })));
       const room = await api('/rooms', users[0], { name: `${kind} mobile ${Date.now()}` });
       for (const user of users) await api(`/rooms/${room.room_id}/enter`, user, {});
       const root = `/test-games/${room.room_id}`, game = await api(root, users[0], { game_type: kind, player_count: users.length });

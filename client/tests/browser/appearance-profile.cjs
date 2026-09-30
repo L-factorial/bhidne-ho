@@ -4,7 +4,7 @@ const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8098';
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {
-    const response = await fetch(site + '/auth/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: `fixed_${Date.now()}`, display_name: 'Fixed design', password: 'Fixed-design-123' }) });
+    const response = await fetch(site + '/auth/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'browser@example.test', username: `fixed_${Date.now()}`, display_name: 'Fixed design', password: 'Fixed-design-123' }) });
     assert.ok(response.ok); const user = await response.json();
     const saved = await fetch(site + '/me/profile/appearance', { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.token}` }, body: JSON.stringify({ theme: 'himalayan', mode: 'dark' }) });
     assert.ok(saved.ok);

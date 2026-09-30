@@ -8,7 +8,7 @@ async function api(path, user, body) {
 (async()=>{
  const browser=await chromium.launch({channel:'chrome',headless:true});
  try {
-  const users=[];for(let i=0;i<5;i++)users.push(await api('/auth/signup',null,{username:`active_${Date.now()}_${i}`,display_name:`Player ${i}`,password:'Active-games-test-123'}));
+  const users=[];for(let i=0;i<5;i++)users.push(await api('/auth/signup',null,{ email: 'browser@example.test',username:`active_${Date.now()}_${i}`,display_name:`Player ${i}`,password:'Active-games-test-123'}));
   const room=await api('/rooms',users[0],{name:'Festival friends'}), root=`/test-games/${room.room_id}`;
   for(const u of users.slice(1))await api(`/rooms/${room.room_id}/enter`,u,{});
   const flush=await api(root,users[0],{name:'Full Flush',game_type:'flush',player_count:2});

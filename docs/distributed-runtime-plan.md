@@ -5077,3 +5077,172 @@ Verification and limitations:
   plus their unused import/style. Shared header and game-menu pickers remain.
 - Verification: TypeScript passed. No deployment. Next: review/deploy the pending
   client changes together.
+
+### A1 — App-store readiness plan and account recovery foundation (2026-09-30)
+
+- User explicitly expanded scope to the app-store readiness TODO and implementation.
+  The new baseline is [app-store-readiness-plan.md](app-store-readiness-plan.md),
+  covering auth, notifications, deletion, privacy/support, chat safety and device
+  testing. Existing distributed-runtime consistency guarantees remain in force.
+- Added migration 28 and an internal PostgreSQL recovery service: password-proven
+  recovery email enrollment, single-use purpose-bound hashed verification/reset
+  tokens, per-account shared issuance limits, atomic reset/session revocation and
+  bounded expired-token cleanup. Public recovery routes remain unmounted until
+  delivery and public abuse controls are complete.
+- Password sign-in now locks the credential row through proof verification and
+  session creation, serialized with reset to prevent surviving old-password logins.
+- Verification: 53 focused SQL/auth/platform/migration/socket tests passed, plus
+  3 real PostgreSQL independent-connection race tests. `git diff --check` passed.
+  Disposable database only; no email, device checks, commit, push or deployment.
+- Limits: recovery is not yet user-facing; delivery, public endpoints, Settings,
+  provider/device acceptance and all later readiness increments remain open.
+- Exact next step: A2 email delivery configuration, generic rate-limited recovery
+  routes and verification/reset/Settings UI, following the new checklist.
+
+### A2 signup confirmation follow-up — 2026-09-30
+
+- Added signup-only masked password confirmation in original and explicit integration
+  clients, matching-password guards on submission, keyboard focus progression and
+  English/Nepali mismatch feedback. API payload remains unchanged.
+- Updated existing signup browser fixtures. TypeScript, Expo web export and 4
+  localization tests passed; diff whitespace check passed. Browser fixtures and
+  native keyboard checks were not run. No commit, push or deployment.
+- Exact next step remains A2 email delivery, recovery API and Settings/screens per
+  docs/app-store-readiness-plan.md.
+
+### A2 mandatory signup email — 2026-09-30
+
+- User approved required email for new password-account signup while keeping email
+  optional for existing accounts. Added client/API validation, English/Nepali copy,
+  email keyboard/autofill, private unverified-email persistence and updated callers.
+- Migration 29 adds nullable `account_credentials.unverified_email` without erasing
+  or backfilling existing data. Signup writes it atomically with credentials/session.
+  Recovery still trusts only verified contacts; confirming mailbox proof clears the
+  unverified signup value. No email is exposed in player/profile/session responses.
+- Verification: 89 focused backend tests, 5 client email/localization tests and
+  11 load-driver tests passed; TypeScript, web export and Chrome mobile signup/profile
+  acceptance passed. Migration checks preserve legacy login, sessions, profile data
+  and verified contacts. `git diff --check` passed.
+- Public verification delivery and existing-account Settings enrollment remain open;
+  no mail, production DB access, commit, push or deployment. Release migrations 28/29,
+  both gateways and client together; older signup clients omitting email receive 422.
+- Exact next step: A2 email provider/sender configuration, durable verification delivery,
+  public verification/reset routes and optional recovery-email Settings enrollment.
+- Additional keyboard-form run passed signup focus/viewport checks, then hit an
+  unrelated stale chat assertion expecting raw `Message test failure`, which the
+  existing error presentation intentionally suppresses. Full keyboard suite is not
+  claimed passing; no unrelated chat change was made. Local test server stopped.
+
+### A2 keyboard test repair — 2026-09-30
+
+- User explicitly authorized correcting the minor test mismatch within this
+  increment. Chat/room error assertions now require friendly messages and absence
+  of raw server text; draft retention remains checked. Refreshed stale Create or
+  Join, expanded-invitations and Marriage Rules and config navigation steps.
+- No product code or database changes. Generated local game fixtures and ran the
+  complete keyboard-forms browser script against a disposable in-memory server:
+  all signup/profile/chat/room/table checks and all three game-rule/poke scenarios
+  passed. This supersedes the earlier reported keyboard-test failure.
+- Syntax/whitespace checks passed. Native-device tests remain separate; no commit,
+  push or deployment. Next: A2 email delivery, public recovery routes and Settings.
+
+
+### A2 email delivery and public recovery — 2026-09-30
+
+- Implemented additive migration 30, encrypted transactional email/reset queues,
+  shared account/IP/recipient limits, bounded SMTP retries and independent worker
+  leases. Recovery routes are explicitly reviewed in the distributed shared-route
+  allowlist; worker startup/shutdown follows server/database ownership.
+- Signup verification, generic reset requests/completion, email verification and
+  authenticated status/enrollment/removal are connected to localized client forms.
+  Profile recovery settings remain optional for existing accounts. Reset deletes
+  every session and proof; no auto-login. Existing PostgreSQL data is preserved.
+- Independent PostgreSQL tests confirm workers do not double-claim and SMTP does
+  not hold database locks; removal invalidates in-flight proofs. Recovery/database,
+  deployment/console, TypeScript, web export and localization/link checks passed.
+  The full mobile-width browser recovery flow also passed against disposable
+  PostgreSQL with captured mail; test resources stopped. See app-store-readiness-plan.md
+  for exact coverage and remaining live checks.
+- Disabled by default until SMTP, sender, public frontend origin and shared Fernet
+  keys are configured. docs/account-recovery.md records key rotation, retries,
+  cleanup, trusted-proxy requirements and duplicate/in-flight delivery semantics.
+  No production database reset, commit, push, deployment or real email sent.
+- Exact next step: staging provider/sender configuration and real mailbox acceptance,
+  then A2 SecureStore/native-link/social-login device checks. A3 deletion follows.
+
+### A2 staging activation preparation — 2026-09-30
+
+- Prepared `docs/recovery-staging-acceptance.md` after authorization to proceed.
+  Verified that staging uses the `test` environment/main workflows, whereas the
+  current branch targets the separate production release.
+- Provider/sender details and private credentials are still needed for real delivery.
+  No deployment, secret mutation, external mail or database modification occurred.
+- Exact next step: configure the selected provider and private staging settings,
+  release the reviewed recovery changes to staging and run real mailbox acceptance.
+
+### A2 production target clarified
+
+- User selected the deployment target of the current branch. Confirmed
+  `bhidne-ho-scalability-prod` maps to the production environment and
+  `https://prod.bhidne-ho.lfactorial.com`; this supersedes the staging target
+  for the ongoing activation work.
+- Resend domain verification is user-confirmed; key named `bhidne-ho-prod` created.
+- Added a hidden-input helper to prepare owner-only, Git-ignored local production
+  settings, retaining existing queue encryption keys on reruns. Two tests passed
+  and Git ignore rules verified. No live secret read, host mutation or email sent.
+- Exact next step: user enters the Resend key locally, then wire the private settings
+  into production runtime configuration, verify SMTP connectivity on both hosts,
+  and complete the controlled recovery rollout and real-mail acceptance.
+
+### A2 production email configuration and delivery probe
+
+- User confirmed this branch's production environment is also the testing target;
+  no separate staging environment is being created. The planned database reset
+  is deferred to an explicit later step; no database was reset or modified here.
+- Validated the locally entered Resend configuration without exposing values.
+  Both application hosts passed SMTP STARTTLS and authentication on port 2587.
+- Installed recovery-only settings in both root-owned runtime.env files using an
+  atomic, owner-only merge that preserves unrelated settings. No containers restarted.
+  Added provisioning preservation so later apps.yml runs retain these settings.
+- Five focused setup/deployment tests passed, including key preservation, file
+  permissions, idempotent runtime merging and injection rejection. A standalone
+  Jinja rendering check could not run because this venv lacks jinja2; the full
+  Ansible playbook was not run against hosts.
+- At the user's provided address, sent one delivery-test email from the first app
+  host. Resend accepted it; inbox receipt remains user confirmation. No live recovery
+  tokens or account passwords were generated for that transport test.
+- Live /auth/recovery/capabilities returned HTTP 409. The working-tree recovery
+  code has not been committed/pushed/deployed; installing settings alone does not
+  activate it in running containers.
+- Exact next step: confirm inbox receipt, complete the recovery application release
+  through this branch's normal pipeline, then test signup/verification/reset using
+  the user's chosen mailbox. SecureStore/device/social-login acceptance remains open.
+
+### A2 forgot username by verified email
+
+- Implemented the user-requested Forgot username entry point in both clients and
+  reviewed POST /auth/recovery/username/request in the shared route allowlist.
+- Generic accepted responses queue encrypted requests without account lookups.
+  Background delivery resolves all currently verified usernames for a mailbox,
+  reuses recipient/IP budgets, leases and retries, and never changes credentials.
+- Migration 31 extends the existing delivery table without resetting data. Existing
+  account/session/challenge/outbox rows are covered by an upgrade-preservation test.
+- Verification: 58 backend checks, the expanded real-PostgreSQL browser flow plus
+  worker concurrency test, TypeScript, Expo export and localization/link checks
+  passed. No production mutation or external email for this increment.
+- Exact next step: normal branch release with migration 31 and both gateways before
+  publishing the updated client; old workers do not process username reminder jobs.
+  Then complete real-mail acceptance on this branch's existing production/test target.
+
+### A2 account-page consistency
+
+- Applied the original login form styling and shared branded header to recovery
+  pages, their success states and the distributed integration sign-in interface.
+  English/Nepali and theme controls are available throughout these account flows.
+- TypeScript, Expo web export and the disposable PostgreSQL browser recovery flow
+  passed. Browser coverage exercises language/theme switching and verifies entered
+  recovery values survive those changes. Native device acceptance remains open.
+- This increment changes client layout only; no schema or production changes.
+- Exact next step: release the accumulated recovery implementation with migration
+  31 and both gateways before the client, then complete real-mail acceptance on
+  the existing production/test target. Do not reset the database for this release.

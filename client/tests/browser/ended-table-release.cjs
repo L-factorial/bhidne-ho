@@ -12,7 +12,7 @@ async function api(path, user, body) {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {
     const users = [];
-    for (let i = 0; i < 3; i++) users.push(await api('/auth/signup', null, {
+    for (let i = 0; i < 3; i++) users.push(await api('/auth/signup', null, { email: 'browser@example.test',
       username: `ended_${Date.now()}_${i}`, password: 'Local-test-password', display_name: `Player ${i}` }));
     const room = await api('/rooms', users[0], { name: 'Release test' });
     for (const user of users) await api(`/rooms/${room.room_id}/enter`, user, {});

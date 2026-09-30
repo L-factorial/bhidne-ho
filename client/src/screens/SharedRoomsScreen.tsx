@@ -1,3 +1,5 @@
+import { accountStyles } from '../components/AccountPage';
+import { ForgotPassword } from './RecoveryScreen';
 import { isActiveTable } from '../multiplayer/tableNavigation';
 import { usePersistentNotice } from '../multiplayer/usePersistentNotice';
 import { playerError } from '../multiplayer/playerError.ts';
@@ -39,6 +41,7 @@ import { apiUrl, request } from '../multiplayer/api';
 import type { Room } from '../multiplayer/session';
 import { useRoomSession } from '../multiplayer/useRoomSession';
 import { SocialSignInButtons } from '../components/SocialSignInButtons';
+import { validSignupEmail } from '../auth/email';
 
 type InvitePlayer = { user_id: string; display_name: string; username?: string | null };
 
@@ -65,12 +68,19 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const [linkedEntry, setLinkedEntry] = useState<{ matchId: string; action: TableEntry }>();
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [lobbyProfileOpen, setLobbyProfileOpen] = useState(false);
   const [profileName, setProfileName] = useState('');
   const missingProfileName = authMode === 'signup' && !profileName.trim();
   const [password, setPassword] = useState('');
-  const usernameInput = useRef<TextInput>(null), passwordInput = useRef<TextInput>(null);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const passwordMismatch = authMode === 'signup' && password !== confirmPassword;
+  const usernameInput = useRef<TextInput>(null), emailInput = useRef<TextInput>(null), passwordInput = useRef<TextInput>(null), confirmPasswordInput = useRef<TextInput>(null);
   const shared = useRoomSession(roomActions);
+  const authDisabled = missingProfileName || username.trim().length < 3 || password.length < 8 || passwordMismatch || shared.loggingIn || (authMode === 'signup' && !validSignupEmail(email));
+  function submitAccount() {
+    if (!authDisabled) void shared.loginAccount(username, password, authMode === 'signup', profileName, email);
+  }
   const { session, rooms, room, game, setGame, expired } = shared;
   const reconnecting = usePersistentNotice(!!room && !expired && shared.status !== 'connected');
   useEffect(() => {
@@ -349,7 +359,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
           <View style={styles.gameTabs}>
             {([['signin', ui("common.sign_in")], ['signup', ui("common.sign_up")]] as const).map(([value, label]) =>
               <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: authMode === value }}
-                onPress={() => { setAuthMode(value); setError(''); }} style={[styles.gameTab, authMode === value && styles.selectedTab]}>
+                onPress={() => { setAuthMode(value); setConfirmPassword(''); setError(''); }} style={[styles.gameTab, authMode === value && styles.selectedTab]}>
                 <Text style={[styles.tabText, authMode === value && styles.selectedTabText]}>{label}</Text>
               </Pressable>)}
           </View>
@@ -363,15 +373,33 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
                 value={profileName} onChangeText={value => setProfileName(Array.from(value).slice(0, 25).join(''))}
                 returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => usernameInput.current?.focus()} editable={!shared.loggingIn} autoCapitalize="words" textContentType="name" style={styles.input} />
             </>}
-            <FormInput ref={usernameInput} returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => passwordInput.current?.focus()} accessibilityLabel={ui("common.username")} placeholder={ui("common.username")} placeholderTextColor={colors.textMuted}
+            <FormInput ref={usernameInput} returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => (authMode === 'signup' ? emailInput : passwordInput).current?.focus()} accessibilityLabel={ui("common.username")} placeholder={ui("common.username")} placeholderTextColor={colors.textMuted}
               value={username} onChangeText={setUsername} maxLength={32} editable={!shared.loggingIn}
               autoCapitalize="none" autoCorrect={false} textContentType="username" style={styles.input} />
+            {authMode === 'signup' && <>
+              <FormInput ref={emailInput} accessibilityLabel={ui('common.email')} aria-required
+                placeholder={ui('common.email')} value={email} onChangeText={setEmail} maxLength={254}
+                editable={!shared.loggingIn} keyboardType="email-address" textContentType="emailAddress"
+                autoCapitalize="none" autoCorrect={false} style={styles.input}
+                returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => passwordInput.current?.focus()} />
+              <Text style={styles.description}>{ui('common.signup_email_help')}</Text>
+              {!!email && !validSignupEmail(email) && <Text accessibilityRole="alert" style={styles.error}>{ui('common.enter_valid_email')}</Text>}
+            </>}
             <FormInput ref={passwordInput} accessibilityLabel={ui("common.password")} placeholder={ui("common.password")} placeholderTextColor={colors.textMuted}
               value={password} onChangeText={setPassword} maxLength={128} editable={!shared.loggingIn}
               secureTextEntry textContentType={authMode === 'signup' ? 'newPassword' : 'password'} style={styles.input}
-              returnKeyType="go" onSubmitEditing={() => {
-                if (!missingProfileName && username.trim().length >= 3 && password.length >= 8) void shared.loginAccount(username, password, authMode === 'signup', profileName);
+              returnKeyType={authMode === 'signup' ? 'next' : 'go'} submitBehavior="submit" onSubmitEditing={() => {
+                if (authMode === 'signup') confirmPasswordInput.current?.focus();
+                else submitAccount();
               }} />
+            {authMode === 'signup' && <>
+              <FormInput ref={confirmPasswordInput} accessibilityLabel={ui("common.confirm_password")} aria-required
+                placeholder={ui("common.confirm_password")} placeholderTextColor={colors.textMuted}
+                value={confirmPassword} onChangeText={setConfirmPassword} maxLength={128} editable={!shared.loggingIn}
+                secureTextEntry textContentType="newPassword" autoCapitalize="none" autoCorrect={false}
+                style={styles.input} returnKeyType="go" onSubmitEditing={submitAccount} />
+              {!!confirmPassword && passwordMismatch && <Text accessibilityRole="alert" style={styles.error}>{ui("common.passwords_do_not_match")}</Text>}
+            </>}
             <Text style={styles.description}>{ui("common.account_requirements")}</Text>
 
           </>
@@ -460,10 +488,11 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
     onSelect={tab => { setLobbyTab(tab === 'chat' ? 'chat' : tab === 'home' ? 'rooms' : tab === 'friends' ? 'players' : 'games'); }} />}
 
   {!session && <FormFooter>
+            {authMode !== 'signup' && <ForgotPassword />}
             {!!shared.error && <Text accessibilityRole="alert" style={styles.error}>{shared.error}</Text>}
-            <Pressable accessibilityRole="button" disabled={missingProfileName || username.trim().length < 3 || password.length < 8 || shared.loggingIn}
-              onPress={() => void shared.loginAccount(username, password, authMode === 'signup', profileName)}
-              style={[styles.button, { backgroundColor: colors.primary }, (missingProfileName || username.trim().length < 3 || password.length < 8 || shared.loggingIn) && styles.disabled]}>
+            <Pressable accessibilityRole="button" disabled={authDisabled} accessibilityState={{ disabled: authDisabled }}
+              onPress={submitAccount}
+              style={[styles.button, { backgroundColor: colors.primary }, authDisabled && styles.disabled]}>
               <Text style={[styles.buttonText, { color: colors.onPrimary }]}>{shared.loggingIn ? ui("common.please_wait") : authMode === 'signup' ? ui("common.create_account") : ui("common.sign_in")}</Text>
             </Pressable></FormFooter>}{room && !expired && !invitation && !gameOpen && chat.view}</KeyboardFrame></HeaderProfileContext.Provider>;
 }
@@ -484,12 +513,12 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   resumeTitle: { fontFamily: fonts.medium, fontSize: 16, color: colors.text },
   roomGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
   columns: { gap: 14 }, wideColumns: { flexDirection: 'row', alignItems: 'flex-start' }, sideColumn: { gap: 18 }, fixedSide: { width: 330 }, mainColumn: { flex: 1, minWidth: 0 },
-  panel: { ...gamePanelFinish(colors), backgroundColor: colors.surface, borderRadius: 16, padding: 24, gap: 8 }, heading: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 27, color: colors.text }, description: { fontFamily: fonts.body, fontSize: 12, lineHeight: 21, color: colors.textMuted },
+  panel: accountStyles(colors).panel, heading: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 27, color: colors.text }, description: { fontFamily: fonts.body, fontSize: 12, lineHeight: 21, color: colors.textMuted },
   gameTabs: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 }, gameTab: { ...gameControlFinish(colors), minHeight: 44, paddingHorizontal: 12, paddingVertical: 8, gap: 6, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: colors.surface }, selectedTab: { ...gameTabFinish(colors, true) }, tabText: { fontFamily: fonts.medium, fontSize: 12, color: colors.textMuted }, selectedTabText: { color: colors.onCoin }, eyebrowDark: { fontFamily: fonts.medium, fontSize: 9, letterSpacing: 2, color: colors.accent }, gameTitle: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 30, color: colors.text },
   codeBox: { ...gamePanelFinish(colors), backgroundColor: colors.surface, borderRadius: 10, padding: 16, marginVertical: 10, gap: 8 }, codeLabel: { fontFamily: fonts.medium, color: colors.accent, fontSize: 9, letterSpacing: 2 }, code: { fontFamily: fonts.medium, fontSize: 22, letterSpacing: 1, color: colors.text },
   member: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, minHeight: 52 }, avatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.surfaceRaised, alignItems: 'center', justifyContent: 'center' }, avatarText: { fontFamily: fonts.medium, fontSize: 11, color: colors.accent }, online: { fontFamily: fonts.body, fontSize: 10, color: colors.textMuted, marginLeft: 'auto' },
-  input: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: 8, minHeight: 48, padding: 14, fontFamily: fonts.body, color: colors.text, marginVertical: 10 },
-  button: { ...gameControlFinish(colors), backgroundColor: colors.tableHeader, borderWidth: 1, borderColor: colors.tableTrim, minHeight: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', padding: 12 }, buttonText: { fontFamily: fonts.medium, color: colors.text, fontSize: 12 }, disabled: { opacity: 0.5 },
+  input: accountStyles(colors).input,
+  button: accountStyles(colors).button, buttonText: accountStyles(colors).buttonText, disabled: { opacity: 0.5 },
   dangerButton: { ...gameControlFinish(colors), minHeight: 48, borderRadius: 8, borderWidth: 1, borderColor: colors.danger, alignItems: 'center', justifyContent: 'center', padding: 12 }, dangerText: { fontFamily: fonts.medium, color: colors.danger, fontSize: 12 },
   availableRooms: { maxHeight: 420 }, roomRow: { ...gameSeparatorFinish(colors), flexDirection: 'row', gap: 12, alignItems: 'center', borderBottomWidth: 1, borderColor: colors.tableTrim, paddingVertical: 18 }, directoryName: { fontFamily: fonts.medium, fontSize: 14, color: colors.text, flexShrink: 1 }, enterButton: { ...gameControlFinish(colors), minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 }, enterText: { fontFamily: fonts.medium, fontSize: 12, color: colors.accent },
   roomRowActions: { alignItems: 'stretch', gap: 4, minWidth: 86 }, rowDangerButton: { ...gameControlFinish(colors), minHeight: 40, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 8 },

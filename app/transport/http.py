@@ -55,7 +55,7 @@ async def current_user(
 async def sign_up(body: SignUpInput, request: Request, response: Response):
     response.headers["Cache-Control"] = "no-store"
     try:
-        credentials = await request.app.state.auth.sign_up(body.username, body.password)
+        credentials = await request.app.state.auth.sign_up(body.username, body.password, email=body.email)
         await request.app.state.players.ensure_user(credentials.user_id)
         if hasattr(request.app.state.players.store, "usernames"):
             request.app.state.players.store.usernames[credentials.user_id] = credentials.username

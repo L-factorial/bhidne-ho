@@ -6,7 +6,7 @@ from app.main import create_app
 
 
 def account(client, username, name):
-    credentials = client.post('/auth/signup', json={
+    credentials = client.post('/auth/signup', json={'email': 'signup@example.test',
         'username': username, 'password': 'testing-password-123',
     }).json()
     headers = {'Authorization': f"Bearer {credentials['token']}"}

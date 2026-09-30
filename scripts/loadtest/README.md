@@ -36,6 +36,10 @@ node --experimental-strip-types scripts/loadtest/run.mts \
 Provisioning uses eight workers and signs in first so it can resume after an
 interruption. An existing account with a different password is an error. It uses
 normal signup/signin endpoints; it does not bypass authentication or write SQL.
+
+Signup requires email. JSONL entries may supply `email`; otherwise enrollment uses
+`<username>@loadtest.example.test`, a synthetic test address. This does not verify
+a mailbox or test email delivery/recovery. Existing account sign-in needs no email.
 Running sends real writes and creates real ledger records on the selected target.
 The default URL is deliberately unspecified. No live target has been load tested
 by adding these scripts.

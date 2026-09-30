@@ -6,6 +6,7 @@ from typing import Protocol
 from uuid import uuid4
 
 from app.auth.models import AccountCredentials, GuestCredentials
+from app.auth.email import normalize_recovery_email
 from app.models.user import UserIdentity
 
 
@@ -56,6 +57,7 @@ class InMemoryAuthService(GuestAuthService):
     def __init__(self) -> None:
         super().__init__()
         self._accounts: dict[str, tuple[UserIdentity, bytes, bytes]] = {}
+        self._unverified_emails: dict[str, str] = {}
 
     @staticmethod
     def _hash(password: str, salt: bytes) -> bytes:
@@ -66,7 +68,9 @@ class InMemoryAuthService(GuestAuthService):
         self._identities[token] = identity
         return AccountCredentials(username=username, user_id=identity.user_id, token=token)
 
-    async def sign_up(self, username: str, password: str) -> AccountCredentials:
+    async def sign_up(self, username: str, password: str, *, email: str | None = None) -> AccountCredentials:
+        if email is not None:
+            email = normalize_recovery_email(email)
         salt = secrets.token_bytes(16)
         hashed = await asyncio.to_thread(self._hash, password, salt)
         # Check after hashing: concurrent signups cannot overwrite an account.
@@ -74,6 +78,8 @@ class InMemoryAuthService(GuestAuthService):
             raise UsernameTakenError("Username is already taken")
         identity = UserIdentity(user_id=f"user-{uuid4()}")
         self._accounts[username] = (identity, salt, hashed)
+        if email is not None:
+            self._unverified_emails[identity.user_id] = email
         return self._session(username, identity)
 
     async def sign_in(self, username: str, password: str) -> AccountCredentials:

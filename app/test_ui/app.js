@@ -172,6 +172,9 @@ function setMode(value) {
   $('signin-mode').setAttribute('aria-pressed', String(!value));
   $('auth-submit').textContent = value ? 'Create account' : 'Sign in';
   $('password').autocomplete = value ? 'new-password' : 'current-password';
+  $('signup-email').hidden = !value;
+  $('email').required = value;
+  $('email').disabled = !value;
   feedback();
 }
 $('signup-mode').onclick = () => setMode(true);
@@ -189,7 +192,8 @@ async function authenticate(path, body) {
 }
 $('auth-form').onsubmit = event => {
   event.preventDefault();
-  authenticate(signingUp ? '/auth/signup' : '/auth/signin', {username: $('username').value, password: $('password').value});
+  authenticate(signingUp ? '/auth/signup' : '/auth/signin', {username: $('username').value, password: $('password').value,
+    ...(signingUp ? {email: $('email').value.trim()} : {})});
 };
 $('signout').onclick = () => { signOut(); feedback(); };
 $('refresh').onclick = refreshRooms;

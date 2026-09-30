@@ -16,16 +16,26 @@ async function api(path, user, body) {
     await page.getByRole('button', { name: 'Sign up', exact: true }).click();
     await page.getByLabel('Username', { exact: true }).fill(username);
     await page.getByLabel('Password', { exact: true }).fill(password);
+    await page.getByLabel('Confirm password', { exact: true }).fill(password);
     const create = page.getByRole('button', { name: 'Create account', exact: true });
     assert.equal(await create.isDisabled(), true);
     await page.getByLabel('Profile name', { exact: true }).fill('   ');
     assert.equal(await create.isDisabled(), true);
     await page.getByLabel('Profile name', { exact: true }).fill('Sita Rai');
+    assert.equal(await create.isDisabled(), true, 'email is required for signup');
+    await page.getByLabel('Email', { exact: true }).fill('invalid-email');
+    await page.getByText('Enter a valid email address.', { exact: true }).waitFor();
+    assert.equal(await create.isDisabled(), true);
+    await page.getByLabel('Email', { exact: true }).fill('profile@example.test');
+    await page.getByLabel('Confirm password', { exact: true }).fill('does-not-match');
+    assert.equal(await create.isDisabled(), true);
+    await page.getByLabel('Confirm password', { exact: true }).fill(password);
+    assert.equal(await create.isDisabled(), false);
     const registered = page.waitForResponse(response => response.url().endsWith('/auth/signup') && response.status() === 201);
     await create.click();
     const user = await (await registered).json();
     await page.getByRole('button', { name: 'Open profile', exact: true }).waitFor();
-    const friend = await api('/auth/signup', null, { username: `friend_${Date.now()}`, password, display_name: 'Ekraj Friend' });
+    const friend = await api('/auth/signup', null, { email: 'browser@example.test', username: `friend_${Date.now()}`, password, display_name: 'Ekraj Friend' });
     await api(`/friends/requests/${friend.user_id}`, user, {});
     await api(`/friends/requests/${user.user_id}/accept`, friend, {});
     async function verify(name) {
@@ -47,6 +57,6 @@ async function api(path, user, body) {
     await page.waitForTimeout(350); // Finish the Profile modal slide before visual capture.
     await page.screenshot({ path: '/tmp/profile-identity-mobile.png', fullPage: true });
     assert.deepEqual(errors, []);
-    console.log('PASS: required signup name, profile identity, name update, and unchanged identity/friends after refresh');
+    console.log('PASS: required signup name/email, matching passwords, profile identity, name update, and unchanged identity/friends after refresh');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

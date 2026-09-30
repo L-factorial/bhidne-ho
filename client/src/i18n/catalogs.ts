@@ -1,3 +1,5 @@
+import enrecovery from './locales/en/recovery.ts';
+import nerecovery from './locales/ne/recovery.ts';
 import encommon from './locales/en/common.ts';
 import necommon from './locales/ne/common.ts';
 import enrooms from './locales/en/rooms.ts';
@@ -16,7 +18,7 @@ import enfeedback from './locales/en/feedback.ts';
 import nefeedback from './locales/ne/feedback.ts';
 
 export const uiCatalogs = {
-  en: { common: encommon, rooms: enrooms, callbreak: encallbreak, flush: enflush, marriage: enmarriage, ledger: enledger, social: ensocial, feedback: enfeedback },
-  ne: { common: necommon, rooms: nerooms, callbreak: necallbreak, flush: neflush, marriage: nemarriage, ledger: neledger, social: nesocial, feedback: nefeedback },
+  en: { recovery: enrecovery, common: encommon, rooms: enrooms, callbreak: encallbreak, flush: enflush, marriage: enmarriage, ledger: enledger, social: ensocial, feedback: enfeedback },
+  ne: { recovery: nerecovery, common: necommon, rooms: nerooms, callbreak: necallbreak, flush: neflush, marriage: nemarriage, ledger: neledger, social: nesocial, feedback: nefeedback },
 };
 export type UiKey = { [G in keyof typeof uiCatalogs.en]: `${G}.${keyof typeof uiCatalogs.en[G] & string}` }[keyof typeof uiCatalogs.en];

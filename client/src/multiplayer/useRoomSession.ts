@@ -5,6 +5,7 @@ import { acquireJournal } from './journalPlatform';
 import { DistributedRequestError } from './DistributedHttpTransport';
 import { RoomActionRejected } from './DistributedRoomActions';
 import { ui } from '../i18n/copy.ts';
+import { validSignupEmail } from '../auth/email';
 import { legacyRoomActions } from './legacyRoomActions';
 import type { RoomActions } from './RoomActions';
 import { TableSocialChannel } from './TableSocialChannel';
@@ -112,13 +113,14 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
     setSession(value); setExpired(false); setError(''); setDeliveryInterrupted(false); setRefreshInterrupted(false);
   }
   function socialLoginBusy(value: boolean) { loginPending.current = value; setLoggingIn(value); }
-  async function loginAccount(username: string, password: string, signup: boolean, displayName = '') {
+  async function loginAccount(username: string, password: string, signup: boolean, displayName = '', email = '') {
     if (loginPending.current || session) return false;
     if (signup && (!displayName.trim() || Array.from(displayName.trim()).length > 25)) { setError('Enter a profile name (1–25 characters).'); return false; }
+    if (signup && !validSignupEmail(email)) { setError(ui('common.enter_valid_email')); return false; }
     loginPending.current = true; setLoggingIn(true); setError('');
     try {
       const value = await request<Session>(signup ? '/auth/signup' : '/auth/signin', null, {
-        username: username.trim(), password, ...(signup ? { display_name: displayName.trim() } : {}),
+        username: username.trim(), password, ...(signup ? { display_name: displayName.trim(), email: email.trim() } : {}),
       });
       setSession(value); setExpired(false);
       return true;

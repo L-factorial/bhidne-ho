@@ -64,10 +64,15 @@ def create_app(*, runtime_mode="legacy", distributed_server=None) -> FastAPI:
             )
         app.state.game_runtime_mode = game_runtime_mode
         app.state.guest_login_enabled = os.environ.get("BHIDNE_HO_GUEST_LOGIN_ENABLED") == "1"
+        from app.auth.recovery_delivery import RecoveryConfig, RecoveryRuntime
+        recovery_config = RecoveryConfig.from_environment()
+        if recovery_config and not database_url:
+            raise ValueError('Email recovery requires PostgreSQL.')
         database = Database(database_url) if database_url else None
         if database:
             await database.open()
         guests = PostgresAuthService(database.pool) if database else InMemoryAuthService()
+        app.state.recovery = RecoveryRuntime(database.pool if database else None, guests, recovery_config)
         rooms = RoomService(PostgresRoomCatalog(database.pool) if database else None)
         connections = ConnectionManager(rooms)
         app.state.guests = guests
@@ -116,8 +121,10 @@ def create_app(*, runtime_mode="legacy", distributed_server=None) -> FastAPI:
         app.state.participation = GameParticipation(app.state.test_games)
         app.state.room_chat = RoomChatService(rooms, app.state.player_profiles, app.state.participation)
         try:
+            await app.state.recovery.start()
             yield
         finally:
+            await app.state.recovery.stop()
             await app.state.test_games.close()
             registry.clear()
             if database:
@@ -125,6 +132,8 @@ def create_app(*, runtime_mode="legacy", distributed_server=None) -> FastAPI:
         # Uvicorn closes active sockets before lifespan teardown.
 
     app = FastAPI(title="Bhidne Ho", lifespan=lifespan)
+    from app.auth.recovery_http import RecoveryNoStore
+    app.add_middleware(RecoveryNoStore)
     # Hosted static frontend origins are explicitly configured; local Expo remains supported.
     origins = [f"http://{host}:{port}" for host in ("localhost", "127.0.0.1") for port in (8081, 8083)]
     cors_origins = os.environ.get("BHIDNE_HO_CORS_ORIGINS") or os.environ.get("BHIDNE_CORS_ORIGINS", "")
@@ -135,6 +144,8 @@ def create_app(*, runtime_mode="legacy", distributed_server=None) -> FastAPI:
         allow_methods=["GET", "POST", "DELETE", "PATCH"],
         allow_headers=["Authorization", "Content-Type"],
     )
+    from app.auth.recovery_http import router as recovery_router
+    app.include_router(recovery_router)
     app.include_router(http.router)
     app.include_router(browser_social_router)
     app.include_router(social_auth_router)

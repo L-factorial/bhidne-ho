@@ -1,0 +1,103 @@
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8197';
+const mailbox = process.env.RECOVERY_TEST_MAILBOX;
+async function mail(purpose, raw = false) {
+  for (let attempt=0; attempt<100; attempt++) {
+    const messages = fs.existsSync(mailbox) ? fs.readFileSync(mailbox,'utf8').split('\n').filter(Boolean).map(line=>JSON.parse(line)) : [];
+    const message = messages.find(value=>value.purpose===purpose);
+    if (message) return raw ? message : `${site}/#recovery=${purpose}&token=${message.token}`;
+    await new Promise(resolve=>setTimeout(resolve,100));
+  }
+  throw Error('Local recovery mail was not captured');
+}
+async function checkAccountHeader(page, nepaliTitle) {
+  await page.getByRole('button',{name:'Choose language',exact:true}).last().click();
+  await page.getByRole('radio',{name:'नेपाली',exact:true}).click();
+  if (nepaliTitle) await page.getByRole('heading',{name:nepaliTitle,exact:true}).waitFor();
+  await page.getByRole('button',{name:'भाषा छान्नुहोस्',exact:true}).last().click();
+  await page.getByRole('radio',{name:'English',exact:true}).click();
+  await page.getByRole('button',{name:'Choose theme',exact:true}).last().click();
+  await page.getByTestId('table-theme-heritage').click();
+  assert.equal(await page.evaluate(()=>document.documentElement.dataset.themeFamily),'heritage');
+  await page.getByTestId('table-theme-classic').click();
+  await page.getByRole('button',{name:'Close themes',exact:true}).last().click();
+}
+(async()=>{
+  assert.ok(mailbox,'Use the disposable recovery browser test launcher');
+  const browser=await chromium.launch({channel:'chrome',headless:true});
+  try {
+    const page=await browser.newPage({viewport:{width:390,height:700}});
+    const errors=[];page.on('pageerror',e=>errors.push(e.message));
+    const username=`recovery_${Date.now()}`;
+    await page.goto(site);
+    await page.getByRole('button',{name:'Sign in or create account',exact:true}).click();
+    await checkAccountHeader(page);
+    await page.getByRole('button',{name:'Sign up',exact:true}).click();
+    await checkAccountHeader(page);
+    for(const [label,value] of [['Username',username],['Password','Original-pass-123'],['Confirm password','Original-pass-123'],['Email','browser@example.test'],['Profile name','Recovery Player']]) await page.getByLabel(label,{exact:true}).fill(value);
+    const signed=page.waitForResponse(r=>r.url().endsWith('/auth/signup')&&r.status()===201);
+    await page.getByRole('button',{name:'Create account',exact:true}).click();
+    const user=await(await signed).json();
+    await page.getByRole('button',{name:'Open profile',exact:true}).click();
+    await page.getByText('Awaiting verification: browser@example.test',{exact:true}).waitFor();
+    const link=await mail('verify_email');
+    const verify=await browser.newPage({viewport:{width:390,height:700}});
+    verify.on('pageerror',e=>errors.push(e.message));
+    await verify.goto(link);
+    await verify.getByRole('button',{name:'Verify email',exact:true}).waitFor();
+    await checkAccountHeader(verify,'इमेल प्रमाणित गर्नुहोस्');
+    assert.equal(new URL(verify.url()).hash,'','sensitive fragment is removed');
+    const headers={Authorization:`Bearer ${user.token}`};
+    assert.equal((await(await fetch(site+'/auth/recovery/email',{headers})).json()).verified_email,null,'opening the link does not consume it');
+    await verify.getByRole('button',{name:'Verify email',exact:true}).click();
+    await verify.getByText('Email verified. You can now use it to recover your account.',{exact:true}).waitFor();
+    await checkAccountHeader(verify,'इमेल प्रमाणित गर्नुहोस्');
+    await verify.getByRole('button',{name:'Back',exact:true}).click();
+    await verify.getByRole('button',{name:'Forgot username?',exact:true}).click();
+    const sendUsername=verify.getByRole('button',{name:'Send username',exact:true});
+    assert.equal(await sendUsername.isDisabled(),true);
+    await verify.getByLabel('Email',{exact:true}).fill('invalid');
+    assert.equal(await sendUsername.isDisabled(),true);
+    await verify.getByLabel('Email',{exact:true}).fill('browser@example.test');
+    await checkAccountHeader(verify,'प्रयोगकर्ता नाम बिर्सनुभयो?');
+    assert.equal(await verify.getByLabel('Email',{exact:true}).inputValue(),'browser@example.test');
+    await sendUsername.click();
+    await verify.getByText('If this email is linked to a verified account, we will send your username. Check your spam folder too.',{exact:true}).waitFor();
+    assert.deepEqual((await mail('username_reminder', true)).usernames,[username]);
+    await verify.getByRole('button',{name:'Back',exact:true}).click();
+    await verify.getByRole('button',{name:'Forgot password?',exact:true}).click();
+    await verify.getByLabel('Username',{exact:true}).last().fill(username);
+    await checkAccountHeader(verify,'खाता पुनःप्राप्ति');
+    assert.equal(await verify.getByLabel('Username',{exact:true}).last().inputValue(),username);
+    await verify.getByRole('button',{name:'Send reset link',exact:true}).click();
+    await verify.getByText('If that username has a verified recovery email, a reset link will arrive shortly. Check your spam folder too.',{exact:true}).waitFor();
+    await verify.goto(await mail('reset_password'));
+    await verify.getByLabel('New password',{exact:true}).fill('Replacement-pass-123');
+    await verify.getByLabel('Confirm password',{exact:true}).fill('mismatch');
+    assert.equal(await verify.getByRole('button',{name:'Reset password',exact:true}).isDisabled(),true);
+    await verify.getByLabel('Confirm password',{exact:true}).fill('Replacement-pass-123');
+    await checkAccountHeader(verify,'पासवर्ड बदल्नुहोस्');
+    assert.equal(await verify.getByLabel('Confirm password',{exact:true}).inputValue(),'Replacement-pass-123');
+    await verify.getByRole('button',{name:'Reset password',exact:true}).click();
+    await verify.getByText('Password changed. Sign in again with your new password.',{exact:true}).waitFor();
+    await checkAccountHeader(verify,'पासवर्ड बदल्नुहोस्');
+    assert.equal((await fetch(site+'/auth/me',{headers})).status,401);
+    await verify.getByRole('button',{name:'Continue to sign in',exact:true}).click();
+    await verify.getByLabel('Username',{exact:true}).fill(username);
+    await verify.getByLabel('Password',{exact:true}).fill('Replacement-pass-123');
+    await verify.getByLabel('Password',{exact:true}).press('Enter');
+    await verify.getByRole('button',{name:'Open profile',exact:true}).click();
+    const settings=verify.getByTestId('recovery-email-settings');
+    await settings.getByText('Verified: browser@example.test',{exact:true}).waitFor();
+    await settings.getByLabel('Current password',{exact:true}).fill('Replacement-pass-123');
+    await settings.getByRole('button',{name:'Remove recovery email',exact:true}).click();
+    await settings.getByRole('button',{name:'Confirm removal',exact:true}).click();
+    await settings.getByText('Recovery email removed.',{exact:true}).waitFor();
+    await settings.getByText('No verified recovery email.',{exact:true}).waitFor();
+    await verify.screenshot({path:'/tmp/account-recovery-mobile.png',fullPage:true});
+    assert.deepEqual(errors,[]);
+    console.log('PASS: signup mail, safe link opening, verification, forgot username by email, forgot password, confirmation, reset revocation, fresh login, Settings removal');
+  } finally {await browser.close();}
+})().catch(error=>{console.error(error);process.exitCode=1;});

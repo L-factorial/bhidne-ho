@@ -13,7 +13,7 @@ async function api(path, user, body) {
  try {
   const stamp = Date.now();
   const users = [];
-  for (let i=0; i<3; i++) users.push(await api('/auth/signup', null, {username:`flush_${stamp}_${i}`,password:'Flush-layout-test-123'}));
+  for (let i=0; i<3; i++) users.push(await api('/auth/signup', null, { email: 'browser@example.test',username:`flush_${stamp}_${i}`,password:'Flush-layout-test-123'}));
   const room = await api('/rooms', users[0], {name:'Flush layout'});
   for (const user of users) await api(`/rooms/${room.room_id}/enter`,user,{});
   const root = `/test-games/${room.room_id}`;

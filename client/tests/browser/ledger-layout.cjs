@@ -8,7 +8,7 @@ async function api(path,user,body) {
 (async()=>{
  const browser=await chromium.launch({channel:'chrome',headless:true});
  try {
-  const user=await api('/auth/signup',null,{username:`ledger_${Date.now()}`,display_name:'Prajwal',password:'Ledger-view-123'});
+  const user=await api('/auth/signup',null,{ email: 'browser@example.test',username:`ledger_${Date.now()}`,display_name:'Prajwal',password:'Ledger-view-123'});
   const room=await api('/rooms',user,{name:'Friday cards'});
   const path=`/rooms/${room.room_id}/ledger`;
   assert.deepEqual((await api(path,user)).player_profiles,{});

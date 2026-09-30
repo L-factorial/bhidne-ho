@@ -68,9 +68,39 @@ role no longer needs schema-changing privileges.
 
 ## Next security increments
 
-Add sign-out and all-session revocation endpoints, periodic expired-session cleanup,
-login rate limiting, password reset/email verification, and account conversion for
-guests. Provider account linking must require fresh proof for both identities.
+New password-account signup requires `email` along with `username` and `password`.
+The original client also requires profile name and matching password confirmation.
+The API rejects missing, blank and malformed email. Sign-in remains username/password
+only, including for existing accounts without email; social/guest login is unchanged.
+
+Migration 29 adds nullable `account_credentials.unverified_email` without backfilling
+or deleting existing data. Signup saves the normalized address in the same transaction
+as credentials/profile/session creation. It is private account metadata, not a profile
+field, and does not establish mailbox ownership. Only the existing verification
+protocol writes `account_recovery_contacts`; successful verification clears the
+unverified signup address. Matching emails do not merge accounts.
+
+The internal `sign_up(..., email=None)` default is retained for trusted legacy-data
+fixtures/imports. The HTTP signup model always requires and supplies a valid email.
+When deployment enables email recovery, signup atomically queues a verification
+email. Public verification/reset screens and Profile → Recovery email settings are
+implemented. Recovery stays disabled without configured SMTP/encryption settings;
+the in-memory runtime cannot enable delivery and retains signup email until restart.
+
+Deployment must apply migrations 28/29/30 and release both gateways plus the updated
+client together. Older clients that omit email can still sign in but receive 422 on
+new signup. Do not reset PostgreSQL or remove its storage volume for these migrations.
+
+Single-session sign-out is implemented at `POST /auth/signout`. Add an all-session
+revocation endpoint, periodic expired-session cleanup, shared login rate limiting,
+and account conversion for guests. Provider account linking must require fresh
+proof for both identities.
+
+The internal PostgreSQL recovery service and migration 28 now implement verified
+recovery email enrollment and atomic password reset with all-session revocation.
+Public routes now use encrypted durable mail delivery, shared ingress limits and
+localized client screens. See [Account recovery](account-recovery.md) for deployment,
+privacy, delivery semantics and outstanding live-provider/device acceptance.
 
 See [Social sign-in](social-auth.md) for provider setup and the client contract.
 

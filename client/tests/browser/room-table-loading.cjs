@@ -7,7 +7,7 @@ const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8098';
   try {
     for (const width of [390, 1280]) {
       const response = await fetch(site + '/auth/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: `load_${width}_${Date.now()}`, password: 'Loading-test-123', display_name: 'Loading test' }) });
+        body: JSON.stringify({ email: 'browser@example.test', username: `load_${width}_${Date.now()}`, password: 'Loading-test-123', display_name: 'Loading test' }) });
       assert.ok(response.ok);
       const session = await response.json();
       const context = await browser.newContext({ viewport: { width, height: 844 } });

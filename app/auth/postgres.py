@@ -8,6 +8,7 @@ from uuid import uuid4
 from psycopg.errors import UniqueViolation
 
 from app.auth.models import AccountCredentials, GuestCredentials
+from app.auth.email import normalize_recovery_email
 from app.auth.service import AuthenticationError, InMemoryAuthService, UsernameTakenError
 from app.models.user import UserIdentity
 
@@ -19,6 +20,7 @@ class PostgresAuthService:
 
     def __init__(self, pool) -> None:
         self.pool = pool
+        self.recovery = None
 
     @staticmethod
     def _token_hash(token: str) -> bytes:
@@ -59,7 +61,11 @@ class PostgresAuthService:
             raise AuthenticationError("Invalid session token")
         return UserIdentity(user_id=f"user-{row[0]}")
 
-    async def sign_up(self, username: str, password: str) -> AccountCredentials:
+    async def sign_up(self, username: str, password: str, *, email: str | None = None) -> AccountCredentials:
+        # None supports trusted legacy-account fixtures/imports. Public signup
+        # requires email in SignUpInput and always supplies it explicitly.
+        if email is not None:
+            email = normalize_recovery_email(email)
         user_id, salt = uuid4(), secrets.token_bytes(16)
         password_hash = await asyncio.to_thread(self._password_hash, password, salt)
         try:
@@ -71,22 +77,30 @@ class PostgresAuthService:
                         (user_id, username, salt, password_hash),
                     )
                     await connection.execute("INSERT INTO user_profiles (user_id) VALUES (%s)", (user_id,))
+                    if email is not None:
+                        await connection.execute('UPDATE account_credentials SET unverified_email=%s WHERE user_id=%s',
+                                                 (email, user_id))
+                        if self.recovery is not None:
+                            await self.recovery._issue(connection, user_id, 'verify_email', email)
                     return await self._session(connection, user_id, username)
         except UniqueViolation:
             raise UsernameTakenError("Username is already taken") from None
 
     async def sign_in(self, username: str, password: str) -> AccountCredentials:
         async with self.pool.connection() as connection:
-            result = await connection.execute(
-                "SELECT user_id, password_salt, password_hash FROM account_credentials WHERE username = %s",
-                (username,),
-            )
-            row = await result.fetchone()
-            salt = bytes(row[1]) if row else bytes(16)
-            candidate = await asyncio.to_thread(self._password_hash, password, salt)
-            if row is None or not hmac.compare_digest(bytes(row[2]), candidate):
-                raise AuthenticationError("Invalid username or password")
-            return await self._session(connection, row[0], username)
+            # Serialize proof and session creation with password reset. A login
+            # verified against the old hash must not create a post-reset session.
+            async with connection.transaction():
+                result = await connection.execute(
+                    "SELECT user_id, password_salt, password_hash FROM account_credentials WHERE username = %s FOR UPDATE",
+                    (username,),
+                )
+                row = await result.fetchone()
+                salt = bytes(row[1]) if row else bytes(16)
+                candidate = await asyncio.to_thread(self._password_hash, password, salt)
+                if row is None or not hmac.compare_digest(bytes(row[2]), candidate):
+                    raise AuthenticationError("Invalid username or password")
+                return await self._session(connection, row[0], username)
 
     async def revoke(self, token: str) -> None:
         async with self.pool.connection() as connection:

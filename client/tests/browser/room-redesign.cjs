@@ -10,8 +10,8 @@ async function api(path, user, body, method) {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {
     const stamp = Date.now(), errors = [];
-    const owner = await api('/auth/signup', null, { username: `lobby_${stamp}`, display_name: 'Prajwal', password: 'Lobby-test-123' });
-    const friend = await api('/auth/signup', null, { username: `sita_${stamp}`, display_name: 'Sita Rai', password: 'Lobby-test-123' });
+    const owner = await api('/auth/signup', null, { email: 'browser@example.test', username: `lobby_${stamp}`, display_name: 'Prajwal', password: 'Lobby-test-123' });
+    const friend = await api('/auth/signup', null, { email: 'browser@example.test', username: `sita_${stamp}`, display_name: 'Sita Rai', password: 'Lobby-test-123' });
     await api('/me/profile/appearance', owner, { theme: 'heritage', mode: 'light' }, 'PATCH');
     const rooms = [];
     for (const name of ['Friday with friends', 'Chiya and cards', 'Family game night']) {

@@ -17,7 +17,7 @@ Production application selection remains unchanged.
 
 | Method/path | Contract |
 | --- | --- |
-| POST `/auth/signup`, `/auth/signin`, `/auth/signout`; GET `/auth/me` | Existing account/session behavior using the supplied authenticator. PostgreSQL authentication issues and revokes the same tokens consumed by native routes. |
+| POST `/auth/signup`, `/auth/signin`, `/auth/signout`; GET `/auth/me` | Signup requires a valid email, saved as unverified; existing account sign-in still needs only username/password. PostgreSQL authentication issues and revokes the same tokens consumed by native routes. |
 | POST `/auth/guest` | Explicit `build_server(..., guest_login_enabled=True)` only; disabled by default, independent of the legacy app's environment setting. |
 | GET/PATCH `/me/profile`, `/me/profile/appearance` | Existing validated, authenticated own-profile reads and absolute-value updates. No client-supplied actor authority. |
 | GET `/players/search`, `/players/directory`, `/players/{player_id}` | PostgreSQL-backed public player reads. Search is bounded to 20 results; reads bypass gateway-local profile caches to observe other gateways' updates. Malformed player IDs return 404. |

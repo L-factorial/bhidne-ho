@@ -6,6 +6,7 @@ application starts cannot race schema installation.
 """
 
 from psycopg_pool import AsyncConnectionPool
+from app.auth.recovery_schema import RECOVERY_SCHEMA, RECOVERY_DELIVERY_SCHEMA, USERNAME_RECOVERY_SCHEMA
 
 from app.distributed_schema import DELIVERY_RECOVERY_SCHEMA, HOSTED_RECEIPT_SCHEMA, INBOX_REQUEST_SCHEMA, INSTANCE_REGISTRATION_SCHEMA, HOSTED_MATCH_ARCHIVE_SCHEMA, FLUSH_ROUND_ARCHIVE_SCHEMA
 from app.distributed_schema import HOSTED_INVITATION_SCHEMA, SCOPED_CHAT_SCHEMA
@@ -679,6 +680,15 @@ MIGRATIONS = (
         CREATE INDEX settlement_batches_room_time_idx ON settlement_batches(room_id,created_at DESC);
         CREATE INDEX settlement_transfers_batch_idx ON settlement_transfers(batch_id,transfer_id);
     """),
+    (28, RECOVERY_SCHEMA),
+    (29, """
+        -- Existing accounts stay valid without an email. New signup requires it
+        -- at the API boundary; only mailbox proof creates a recovery contact.
+        ALTER TABLE account_credentials ADD COLUMN unverified_email text
+            CHECK (unverified_email IS NULL OR length(unverified_email) BETWEEN 3 AND 254);
+    """),
+    (30, RECOVERY_DELIVERY_SCHEMA),
+    (31, USERNAME_RECOVERY_SCHEMA),
 )
 
 

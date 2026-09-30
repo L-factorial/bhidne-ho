@@ -10,7 +10,7 @@ const button=(p,name)=>p.getByRole('button',{name,exact:true});
  const browser=await chromium.launch({channel:'chrome',headless:true});
  try {
   for(const kind of ['marriage','callbreak']) {
-   const users=[];for(let i=0;i<5;i++)users.push(await api('/auth/signup',null,{username:`seats_${kind}_${Date.now()}_${i}`,password:'Seat-layout-test-123'}));
+   const users=[];for(let i=0;i<5;i++)users.push(await api('/auth/signup',null,{ email: 'browser@example.test',username:`seats_${kind}_${Date.now()}_${i}`,password:'Seat-layout-test-123'}));
    const room=await api('/rooms',users[0],{name:'Spatial seats'});for(const user of users)await api(`/rooms/${room.room_id}/enter`,user,{});
    const root=`/test-games/${room.room_id}`,game=await api(root,users[0],{game_type:kind,player_count:5});
    for(const user of users.slice(1))await api(root+'/join',user,{match_id:game.match_id});

@@ -53,10 +53,14 @@ def create_integration_app(server):
     async def lifespan(app):
         try:
             await server.start()
+            if platform is not None:
+                await platform.recovery.start()
             yield
         finally:
             # Includes failures before startup completes. Stop is idempotent and
             # retains owned resources if component shutdown cannot be confirmed.
+            if platform is not None:
+                await platform.recovery.stop()
             await server.stop()
 
     app = FastAPI(title='Bhidne Ho distributed integration', lifespan=lifespan,

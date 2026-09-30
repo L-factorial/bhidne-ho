@@ -8,7 +8,7 @@ async function api(path, user, body) {
 (async () => {
  const browser=await chromium.launch({channel:'chrome',headless:true});const errors=[];
  try {
-  const users=[];for(let i=0;i<4;i++) users.push(await api('/auth/signup',null,{username:`ended_${Date.now()}_${i}`,password:'Ended-table-test-123'}));
+  const users=[];for(let i=0;i<4;i++) users.push(await api('/auth/signup',null,{ email: 'browser@example.test',username:`ended_${Date.now()}_${i}`,password:'Ended-table-test-123'}));
   for(const kind of ['flush','marriage','callbreak']) for(const started of [false,true]) {
    const room=await api('/rooms',users[0],{name:`Ended ${kind}`});
    for(const user of users) await api(`/rooms/${room.room_id}/enter`,user,{});
