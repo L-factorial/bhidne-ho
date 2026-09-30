@@ -1,3 +1,6 @@
+import { DeletionNavigation, deletionLink } from './src/auth/deletion';
+import { DeletionScreen } from './src/screens/DeletionScreen';
+import { SessionNotice } from './src/components/SessionNotice';
 import { readRecoveryLink, type RecoveryLink } from './src/auth/recoveryLink';
 import { RecoveryScreen } from './src/screens/RecoveryScreen';
 import { playerError } from './src/multiplayer/playerError.ts';
@@ -81,21 +84,32 @@ function AppContent() {
     setInvitation(null);
     if (Platform.OS === 'web') { const url = new URL(globalThis.location.href); url.searchParams.delete('room'); url.searchParams.delete('match'); globalThis.history.replaceState(null, '', url.toString()); }
   }
+  const [deletionOpen,setDeletionOpen] = useState(() => Platform.OS === 'web' && globalThis.location.pathname.replace(/\/$/,'') === '/delete-account');
+  const [deletionToken,setDeletionToken] = useState<string|null>(() => Platform.OS === 'web' ? deletionLink(globalThis.location.href) : null);
+  useEffect(()=>{
+    const accept=(url:string)=>{const proof=deletionLink(url);if(proof){setDeletionToken(proof);setDeletionOpen(true);
+      if(Platform.OS==='web'){const clean=new URL(globalThis.location.href);clean.hash='';globalThis.history.replaceState(null,'',clean.href);}}};
+    if(Platform.OS==='web')accept(globalThis.location.href);else void Linking.getInitialURL().then(url=>{if(url)accept(url);});
+    const subscription=Linking.addEventListener('url',event=>accept(event.url));
+    const hash=()=>accept(globalThis.location.href);if(Platform.OS==='web')globalThis.addEventListener('hashchange',hash);
+    return()=>{subscription.remove();if(Platform.OS==='web')globalThis.removeEventListener('hashchange',hash);};
+  },[]);
   const [loaded, error] = useFonts({ Inter_400Regular, Inter_500Medium, CormorantGaramond_700Bold });
   if (!loaded && !error) return <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
     <Image source={branding.icon} accessibilityLabel={t('common.loading')} resizeMode="contain" style={{ width: 160, height: 160, borderRadius: 24 }} />
   </View>;
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider><DeletionNavigation.Provider value={()=>setDeletionOpen(true)}>
       <StatusBar style="light" />
+      <SessionNotice />
       {!!authError && <Text accessibilityRole="alert" style={{ padding: 16, color: colors.danger }}>{uiLabel(authError, 'feedback')}</Text>}
-      {recovery ? <RecoveryScreen key={recovery.token} link={recovery} onDone={reset => {
+      {deletionOpen ? <DeletionScreen key={deletionToken || 'account-deletion'} session={readSession(apiUrl)?.session || null} token={deletionToken} onClose={()=>{setDeletionOpen(false);setDeletionToken(null);setInRooms(true);if(Platform.OS==='web'&&globalThis.location.pathname.startsWith('/delete-account'))globalThis.history.replaceState(null,'','/');}} /> : recovery ? <RecoveryScreen key={recovery.token} link={recovery} onDone={reset => {
         if (reset) { saveSession(apiUrl, null); setAuthVersion(value => value + 1); }
         setRecovery(null); setInRooms(true);
       }} /> : finishingSignIn ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.text }}>{ui('common.completing_sign_in')}</Text></View>
         : process.env.EXPO_PUBLIC_RUNTIME_MODE === 'distributed-integration' ? <DistributedRoomsScreen key={authVersion} />
         : inRooms || invitation ? <SharedRoomsScreen key={authVersion} invitation={invitation} dismissInvitation={dismissInvitation} onExit={() => { dismissInvitation(); setInRooms(false); }} />
         : <WelcomeScreen onEnterLobby={() => setInRooms(true)} />}
-    </SafeAreaProvider>
+    </DeletionNavigation.Provider></SafeAreaProvider>
   );
 }

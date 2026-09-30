@@ -28,8 +28,13 @@ class PostgresSocialIdentityStore:
     def __init__(self, pool, auth, profiles):
         self.pool, self.auth, self.profiles = pool, auth, profiles
 
-    async def login(self, identity):
+    async def login(self, identity, *, expected_generation=None):
         async with self.pool.connection() as connection:
+            if expected_generation is not None:
+                generation = await (await connection.execute('SELECT generation FROM account_identity_generation FOR SHARE')).fetchone()
+                if generation[0] != expected_generation:
+                    from fastapi import HTTPException
+                    raise HTTPException(409, 'Sign-in expired. Please start again.')
             result = await connection.execute(
                 "SELECT user_id FROM external_identities WHERE provider = %s AND provider_subject = %s",
                 (identity.provider, identity.subject),

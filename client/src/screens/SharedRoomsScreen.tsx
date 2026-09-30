@@ -1,3 +1,5 @@
+import { DeleteAccountLink } from './DeletionScreen';
+import { isCurrentSession } from '../multiplayer/session';
 import { accountStyles } from '../components/AccountPage';
 import { ForgotPassword } from './RecoveryScreen';
 import { isActiveTable } from '../multiplayer/tableNavigation';
@@ -117,6 +119,14 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const [busy, setBusy] = useState(false);
   const [deleteConfirming, setDeleteConfirming] = useState(false);
 
+  useEffect(() => {
+    setPassword(''); setConfirmPassword(''); setEmail(''); setProfileName('');
+    setLobbyProfileOpen(false); setMemberProfiles({}); setMemberError('');
+    setRoomInviteQuery(''); setRoomInviteResults([]); setRoomInvitees([]); setRoomInviteError('');
+    setName(''); setCode(''); setSelectedMember(null); setLinkedMatch(undefined); setLinkedEntry(undefined);
+    setGameOpen(false); setError(''); setAuthMode('signin');
+  }, [session?.token]);
+
   const mounted = useRef(true);
   const roomOperationPending = useRef(false);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
@@ -156,7 +166,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
     roomOperationPending.current = true; setBusy(true); setError('');
     try {
       const created = await shared.roomActions.create(session, { name: name.trim(), visibility, invitees: roomInvitees.map(player => player.user_id) });
-      if (!mounted.current) return;
+      if (!mounted.current || !isCurrentSession(apiUrl, session)) return;
       setName(''); setVisibility("private"); setRoomInviteQuery(''); setRoomInviteResults([]); setRoomInvitees([]); enterRoom(created);
     } catch (error) { if (mounted.current) setError(playerError(error, ui("feedback.could_not_create_room"))); }
     finally { roomOperationPending.current = false; if (mounted.current) setBusy(false); }
@@ -177,6 +187,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
     setRoomInviteSearching(true); setRoomInviteError('');
     try {
       const players = await request<InvitePlayer[]>(`/players/directory?q=${encodeURIComponent(roomInviteQuery.trim())}`, session);
+      if (!isCurrentSession(apiUrl, session)) return;
       setRoomInviteResults(players);
       if (!players.length) setRoomInviteError(ui("feedback.no_player_found_with_that_exact_name_username_or_user_id"));
     } catch (failure) { setRoomInviteError(playerError(failure, ui("feedback.could_not_search_the_player_directory"))); }
@@ -488,7 +499,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
     onSelect={tab => { setLobbyTab(tab === 'chat' ? 'chat' : tab === 'home' ? 'rooms' : tab === 'friends' ? 'players' : 'games'); }} />}
 
   {!session && <FormFooter>
-            {authMode !== 'signup' && <ForgotPassword />}
+            {authMode !== 'signup' && <><ForgotPassword /><DeleteAccountLink /></>}
             {!!shared.error && <Text accessibilityRole="alert" style={styles.error}>{shared.error}</Text>}
             <Pressable accessibilityRole="button" disabled={authDisabled} accessibilityState={{ disabled: authDisabled }}
               onPress={submitAccount}

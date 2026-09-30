@@ -55,11 +55,13 @@ def create_integration_app(server):
             await server.start()
             if platform is not None:
                 await platform.recovery.start()
+                await platform.deletion.start()
             yield
         finally:
             # Includes failures before startup completes. Stop is idempotent and
             # retains owned resources if component shutdown cannot be confirmed.
             if platform is not None:
+                await platform.deletion.stop()
                 await platform.recovery.stop()
             await server.stop()
 

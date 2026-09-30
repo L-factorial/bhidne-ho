@@ -25,6 +25,14 @@ class ReadCache:
         self.max_value_bytes, self.timeout = max_value_bytes, timeout
         self._local, self._bytes = OrderedDict(), 0
 
+    def prune_expired(self):
+        """Physically release expired local payloads even when their keys go idle."""
+        now = monotonic()
+        for key, (expires, raw) in list(self._local.items()):
+            if expires <= now:
+                self._local.pop(key, None)
+                self._bytes -= len(raw)
+
     def key(self, family, identity, version):
         raw = json.dumps([family, identity, version], sort_keys=True, default=str, separators=(',', ':'))
         return f'{self.namespace}:reads:v1:{sha256(raw.encode()).hexdigest()}'

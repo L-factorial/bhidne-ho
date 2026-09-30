@@ -96,6 +96,9 @@ class BrowserSocialAuth:
         attempt = dict(id=attempt_id, provider=provider, redirect_uri=redirect_uri,
                        state_hash=digest(state), secret_hash=digest(secret), nonce=nonce,
                        code_verifier=verifier, status='pending', expires_at=time() + 600)
+        deletion = getattr(self,'deletion',None)
+        if deletion and deletion.enabled:
+            attempt['identity_generation'] = await deletion.generation()
         await self.attempts.create(attempt)
         params = dict(client_id=config.client_id, redirect_uri=self.callback_url(provider),
                       response_type='code', scope=config.scope, state=state)
@@ -104,6 +107,8 @@ class BrowserSocialAuth:
         if provider == 'google':
             params.update(code_challenge=base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip('='),
                           code_challenge_method='S256', prompt='select_account')
+        if provider == 'google' and deletion and deletion.enabled:
+            params.update(access_type='offline', prompt='consent select_account')
         if provider == 'apple':
             params['response_mode'] = 'form_post'
         return dict(attempt_id=attempt_id, secret=secret,
@@ -137,6 +142,10 @@ class BrowserSocialAuth:
                     except (ValueError, TypeError, AttributeError):
                         pass
                 result = {'identity': identity.model_dump()}
+                if 'identity_generation' in attempt:
+                    result['identity_generation'] = attempt['identity_generation']
+                if attempt.get('deletion_grant'):
+                    result['deletion_grant'] = attempt['deletion_grant']
             except (httpx.HTTPError, ProviderVerificationError, ValueError, KeyError, TypeError):
                 # Never reflect provider responses, codes, credentials, or private details.
                 result = {'error': 'failed'}
@@ -160,7 +169,14 @@ class BrowserSocialAuth:
         credential = data['access_token' if provider == 'facebook' else 'id_token']
         if not isinstance(credential, str) or not credential:
             raise ProviderVerificationError('Missing provider credential')
-        return await self.verifiers[provider].verify(credential, None if provider == 'facebook' else attempt['nonce'])
+        identity = await self.verifiers[provider].verify(credential, None if provider == 'facebook' else attempt['nonce'])
+        deletion = getattr(self,'deletion',None)
+        if deletion and deletion.enabled:
+            token = data.get('access_token') if provider == 'facebook' else data.get('refresh_token')
+            if isinstance(token,str) and token:
+                attempt['deletion_grant'] = deletion.recovery.encrypt(dict(token=token,
+                    subject=identity.subject,hint='refresh_token' if data.get('refresh_token') else 'access_token')).decode()
+        return identity
 
     async def complete(self, attempt_id, secret, handoff):
         result = await self.attempts.consume(attempt_id, digest(secret), digest(handoff))
@@ -168,4 +184,14 @@ class BrowserSocialAuth:
             raise HTTPException(409, 'Sign-in expired, incomplete, or already used. Please start again.')
         if 'error' in result:
             raise HTTPException(400, 'Sign-in cancelled.' if result['error'] == 'cancelled' else 'Provider sign-in failed. Please try again.')
-        return await self.identities.login(VerifiedIdentity.model_validate(result['identity']))
+        identity = VerifiedIdentity.model_validate(result['identity'])
+        deletion = getattr(self,'deletion',None)
+        if deletion and deletion.enabled:
+            if 'identity_generation' not in result:
+                raise HTTPException(409, 'Sign-in expired. Please start again.')
+            session = await self.identities.login(identity,expected_generation=result['identity_generation'])
+        else:
+            session = await self.identities.login(identity)
+        if deletion and result.get('deletion_grant'):
+            await deletion.save_grant(session.user_id,identity.provider,result['deletion_grant'])
+        return session

@@ -5246,3 +5246,90 @@ Verification and limitations:
 - Exact next step: release the accumulated recovery implementation with migration
   31 and both gateways before the client, then complete real-mail acceptance on
   the existing production/test target. Do not reset the database for this release.
+
+### A2 release-check repair
+
+- The pushed recovery commit `5e65d4a` failed the production workflow before
+  deployment: the original-UI acceptance fixture omitted the newly required
+  signup email and received HTTP 422. Both live hosts remained on the earlier release.
+- Updated the disposable player fixture with example.test email addresses. No
+  application behavior, schema or existing account data changed.
+- The formerly failing original-UI acceptance test and all six independent
+  distributed-process tests passed locally with PostgreSQL and Redis. The remaining
+  backend CI suite passed: 1,726 passed, one opt-in recovery browser test skipped,
+  and two dependency deprecation warnings. No commit, push or deployment performed
+  during this repair.
+- Exact next step: push this fixture correction through the normal branch pipeline,
+  verify both gateways and the frontend release, then complete real-mail acceptance
+  on the existing production/test environment. Do not reset PostgreSQL.
+
+### A2 session persistence and logout reliability
+
+- Latest login/logout now wins over stale saved storage after write failures.
+  Storage issues have English/Nepali notices and save/removal retry. Existing keys
+  and saved-session formats remain compatible; cached private room data is stripped.
+- Logout clears local account state immediately; server revocation failure is
+  explicitly identified as local-only logout. Expiry returns to sign-in. Guards
+  prevent late old-account responses from replacing the current login.
+- Verification: 61 session/journal/runtime unit tests and four localization tests
+  passed; TypeScript and web export passed. Disposable PostgreSQL browser recovery
+  and session checks passed, including account switching and failed-storage retry.
+- No database changes or reset. Native restart/upgrade/keychain checks remain
+  unchecked; see [device acceptance](session-lifecycle.md). No commit, push, build
+  tracking or deployment performed; the user owns those actions.
+- Exact next increment: prepare private native builds and validate session/recovery
+  links on devices, then configure/test Google, Facebook and Apple login. Real-mail
+  release acceptance remains open and is tracked independently by the user.
+
+### A3 deletion inventory and read-only preflight
+
+- User authorized all three deletion increments and deferred native build work.
+  Commit/push/build tracking remain the user's responsibility.
+- Mapped credentials, provider handoffs, recovery queues, social data, seats/rooms,
+  immutable journals/checkpoints, receipts/outbox, settlements and backup/client
+  copies in [account-deletion-design.md](account-deletion-design.md).
+- Added an internal read-only inventory helper for proof type and current dependency
+  counts. Five migrated-database tests passed, covering privacy, account isolation,
+  current seats, ownership, queued commands, shared ledgers, social/guest identities
+  and unchanged sessions. No schema, route, cleanup worker or public UI enabled.
+- Requested missing owner facts: whether settlements represent money; monitored
+  public support email; actual backup retention. These are not invented in the UI.
+- A3 is NOT complete: destructive cleanup, request jobs, provider revocation,
+  Settings/public forms, end-to-end and restore acceptance remain to implement.
+  Exact next step: receive these policy facts, then implement the approved cleanup
+  representation and additive lifecycle/job schema before exposing confirmation.
+
+
+### A3 backend, Settings and public deletion implementation
+
+- User confirmed balances/settlements are game points, the profile's verified email
+  should receive public deletion confirmations, and backups are not configured.
+  Implemented all three code increments; activation remains off by default.
+- Migration 32 preserves existing users/sessions without resetting PostgreSQL.
+  Acceptance requires current proof plus `DELETE`, rejects active participation or
+  pending account work, and atomically disables access/revokes sessions. Workers
+  revoke encrypted provider grants and retry failures without false completion.
+- Cleanup removes account and social/chat data, transforms durable copies and
+  preserves shared game-point values under an unlinked non-login reference. Owned
+  rooms transfer when possible; unfinished transfers involving the account cancel.
+  Current and archived games remain recoverable, including post-cleanup finalization.
+- Public `/delete-account` uses a private verified-mail confirmation and generic
+  lookup response. Profile and public flows share language/theme controls. Browser
+  testing caught and fixed same-tab email-link navigation and local static routing.
+- Verification: 26 deletion/inventory/provider tests, then cross-gateway revocation
+  and guest/social proof checks; 3 real-PostgreSQL worker/HTTP/concurrency tests;
+  78 game/social/chat/recovery/cache/provider regression tests; 47 account/platform/
+  migration/mail regression tests. Earlier 60 inbox/checkpoint/mail/browser-auth
+  tests and a final 25 provider/browser-auth/runtime tests also passed. These runs overlap and are not a unique suite total.
+  TypeScript, web export, 12 localization/session tests and the deletion browser
+  acceptance passed. Tests used disposable databases/fake mail/mock providers.
+- Limits: no real provider or mail acceptance, native/device validation, large-account
+  capacity test or backup restore test is claimed. Cleanup is an atomic scan of
+  reviewed history, with lock/statement timeouts; timeout failures remain pending.
+  Other players' shared content and downloaded copies remain; pseudonymization is
+  not anonymity. Full details: [account-deletion-design.md](account-deletion-design.md).
+- Exact next step: commit/push through the user's terminal, deploy all gateways and
+  frontend with deletion disabled, then perform disposable account/mail/provider
+  acceptance before setting `BHIDNE_HO_ACCOUNT_DELETION_ENABLED=1`. Example setting:
+  [deletion.env.example](../deploy/deletion.env.example). No database reset required.
+  No commit, push, deployment or remote build monitoring was performed here.

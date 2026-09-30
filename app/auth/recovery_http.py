@@ -140,7 +140,7 @@ class RecoveryNoStore:
         self.app = app
 
     async def __call__(self, scope, receive, send):
-        if scope['type'] != 'http' or not scope.get('path', '').startswith('/auth/recovery/'):
+        if scope['type'] != 'http' or not scope.get('path', '').startswith(('/auth/recovery/', '/auth/deletion/')):
             return await self.app(scope, receive, send)
         async def no_cache(message):
             if message['type'] == 'http.response.start':

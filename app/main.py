@@ -96,6 +96,11 @@ def create_app(*, runtime_mode="legacy", distributed_server=None) -> FastAPI:
                         if database else InMemorySocialIdentityStore(guests, app.state.player_profiles))
         app.state.browser_social_auth = BrowserSocialAuth.from_environment(
             PostgresBrowserAttempts(database.pool) if database else MemoryBrowserAttempts(), social_store)
+        from app.account_deletion.runtime import DeletionRuntime
+        # The mutable in-memory game runtime has no cross-process erasure boundary.
+        # Expose the page/API capability, but activate destructive work only in the
+        # distributed assembly with durable checkpoints and room fencing.
+        app.state.deletion = DeletionRuntime(database.pool if database else None,app.state.recovery,app.state.browser_social_auth,enabled=False)
         app.state.social_auth = SocialAuthService(
             configured_verifiers(SocialAuthConfig.from_environment()), social_store,
         )
@@ -146,6 +151,8 @@ def create_app(*, runtime_mode="legacy", distributed_server=None) -> FastAPI:
     )
     from app.auth.recovery_http import router as recovery_router
     app.include_router(recovery_router)
+    from app.account_deletion.http import router as deletion_router
+    app.include_router(deletion_router)
     app.include_router(http.router)
     app.include_router(browser_social_router)
     app.include_router(social_auth_router)
@@ -165,6 +172,9 @@ def create_app(*, runtime_mode="legacy", distributed_server=None) -> FastAPI:
         web = Path(web_dir)
         if not (web / "index.html").is_file():
             raise RuntimeError("BHIDNE_WEB_DIR must contain the exported frontend index.html")
+        @app.get('/delete-account', include_in_schema=False)
+        async def delete_account_page():
+            return FileResponse(web / 'index.html', headers={'Cache-Control':'no-store','Referrer-Policy':'no-referrer'})
         # API and WebSocket routes must precede this catch-all static mount.
         app.mount("/", StaticFiles(directory=web, html=True), name="web")
     else:

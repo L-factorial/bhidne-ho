@@ -1,3 +1,4 @@
+import { setSessionNotice } from '../auth/sessionNotice';
 import { usePersistentNotice } from './usePersistentNotice';
 import { playerError } from './playerError.ts';
 import { OriginalDistributedRuntime, originalDistributedOwner } from './OriginalDistributedRuntime';
@@ -12,7 +13,7 @@ import { TableSocialChannel } from './TableSocialChannel';
 import { useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import { apiUrl, ApiError, request, sharedRequest } from './api';
-import { readSession, saveSession, type Room, type Session } from './session';
+import { readSession, saveSession, signOutSession, isCurrentSession, type Room, type Session } from './session';
 import { RoomConnection, type ConnectionStatus } from './RoomConnection';
 import { appendPoke, readPoke, type RoomPoke } from './pokes';
 
@@ -45,6 +46,19 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
   const [leaveGameRequired, setLeaveGameRequired] = useState<string | null>(null);
   const connection = useRef<RoomConnection | null>(null);
 
+  function clearAccount() {
+    connection.current?.stop(); owner.close(); setRuntime(null);
+    socialChannel.send = () => false; socialChannel.transport = undefined;
+    setSession(null); setRoom(null); setGame(null); setRooms([]); setMemberships([]);
+    setPokes([]); setLeaveGameRequired(null); setAbandonRequired(false);
+    setDeliveryInterrupted(false); setRefreshInterrupted(false); setStatus('disconnected');
+  }
+  function expireAccount(active: Session) {
+    if (!isCurrentSession(apiUrl, active)) return;
+    saveSession(apiUrl, null); clearAccount();
+    setSessionNotice(apiUrl, 'auth', 'session_ended');
+  }
+
   useEffect(() => {
     setStartupError('');
     if (!distributed || !session || expired) { owner.close(); setRuntime(null); return; }
@@ -57,8 +71,8 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
       transient: event=>{if(live){socialChannel.receive(event);const current=readSession(apiUrl)?.room;
         if(current){const poke=readPoke(event,current.room_id,active.user_id);if(poke)setPokes(old=>appendPoke(old,poke));}}},
       error: (_lane,error,source)=>{
-        if(!live)return;
-        if(error instanceof DistributedRequestError&&error.status===401){saveSession(apiUrl,null);setExpired(true);}
+        if(!live || !isCurrentSession(apiUrl, active))return;
+        if(error instanceof DistributedRequestError&&error.status===401){expireAccount(active);return;}
         // A command HTTP error does not mean the delivery socket lost the seat.
         if(source!=='command') { setStatus('reconnecting'); setDeliveryInterrupted(true); }
         if (source === 'command' || error instanceof DistributedRequestError && error.status === 401) setError(playerError(error));
@@ -69,20 +83,20 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
       value.api!.recover(message=>{if(live)setError(playerError(message));});setRuntime(value);
       void value.root.reconnect().catch(error=>{
         if (!live) return;
-        if (error instanceof DistributedRequestError && error.status === 401) setError(playerError(error));
+        if (error instanceof DistributedRequestError && error.status === 401) expireAccount(active);
         else setDeliveryInterrupted(true);
       });
       async function recover(){
-        if(!live)return;
+        if(!live || !isCurrentSession(apiUrl, active))return;
         try {
           const result=await value!.recoverRoomAction();
-          if(!live)return;
+          if(!live || !isCurrentSession(apiUrl, active))return;
           if(result){
             const commandId=value!.roomCommandId!;
             if(result.command==='create-room'||result.command==='enter-room'){
               const controller=new AbortController();
               const target=result.room??await value!.root.reads.preview<Room>(result.roomId,controller.signal);
-              if(!live)return;
+              if(!live || !isCurrentSession(apiUrl, active))return;
               saveSession(apiUrl,{session:active,room:target,game:null});setRoom(target);setGame(null);
             } else {
               // A recovered departure only clears the matching persisted room.
@@ -92,7 +106,7 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
             value!.acknowledgeRoomAction(commandId);
           }
         }catch(error){
-          if(!live)return;
+          if(!live || !isCurrentSession(apiUrl, active))return;
           setError(playerError(error, 'Could not recover room action.'));
           if(error instanceof RoomActionRejected&&value!.roomCommandId)value!.acknowledgeRoomAction(value!.roomCommandId);
           else timer=setTimeout(()=>void recover(),1500);
@@ -108,8 +122,14 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
 
   const [loggingIn, setLoggingIn] = useState(false);
   const loginPending = useRef(false);
+  const loginLifetime = useRef(new AbortController());
+  useEffect(() => {
+    const controller = new AbortController(); loginLifetime.current = controller;
+    return () => controller.abort();
+  }, []);
   function acceptSocialSession(value: Session) {
     if (session) return;
+    saveSession(apiUrl, {session:value,room:null,game:null}); setSessionNotice(apiUrl, 'auth');
     setSession(value); setExpired(false); setError(''); setDeliveryInterrupted(false); setRefreshInterrupted(false);
   }
   function socialLoginBusy(value: boolean) { loginPending.current = value; setLoggingIn(value); }
@@ -117,21 +137,25 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
     if (loginPending.current || session) return false;
     if (signup && (!displayName.trim() || Array.from(displayName.trim()).length > 25)) { setError('Enter a profile name (1–25 characters).'); return false; }
     if (signup && !validSignupEmail(email)) { setError(ui('common.enter_valid_email')); return false; }
+    const lifetime = loginLifetime.current;
     loginPending.current = true; setLoggingIn(true); setError('');
     try {
       const value = await request<Session>(signup ? '/auth/signup' : '/auth/signin', null, {
         username: username.trim(), password, ...(signup ? { display_name: displayName.trim(), email: email.trim() } : {}),
-      });
+      }, lifetime.signal);
+      if (lifetime.signal.aborted) return false;
+      saveSession(apiUrl, {session:value,room:null,game:null}); setSessionNotice(apiUrl, 'auth');
       setSession(value); setExpired(false);
       return true;
     } catch (error) {
+      if (lifetime.signal.aborted) return false;
       setError(error instanceof ApiError && error.status === 401 ? ui("feedback.credentials_incorrect") : playerError(error, `Could not ${signup ? ui("common.create_your_account") : ui("common.sign_in")}. Please try again.`));
       return false;
     } finally { loginPending.current = false; setLoggingIn(false); }
   }
 
   useEffect(() => {
-    if (session && !expired) saveSession(apiUrl, { session, room, game });
+    if (session && !expired && isCurrentSession(apiUrl, session)) saveSession(apiUrl, { session, room, game });
   }, [session, room, game, expired]);
 
   useEffect(() => {
@@ -156,7 +180,7 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
         try {
           const checkedRoom = currentRoom.current;
           const values = await request<Membership[]>('/memberships', session, undefined, controller.signal);
-          if (!controller.signal.aborted) {
+          if (!controller.signal.aborted && isCurrentSession(apiUrl, session)) {
             setMemberships(values);
             // Only a successful authoritative read can revoke navigation. A room
             // entered while this read was in flight belongs to a newer selection.
@@ -167,17 +191,17 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
             }
           }
         } catch { /* Room navigation remains available if activity cannot be loaded. */ }
-        if (!controller.signal.aborted) { setRooms(result); setRefreshInterrupted(false); failures=0; }
+        if (!controller.signal.aborted && isCurrentSession(apiUrl, session)) { setRooms(result); setRefreshInterrupted(false); failures=0; }
       } catch (error) {
-        if (!controller.signal.aborted) {
+        if (!controller.signal.aborted && isCurrentSession(apiUrl, session)) {
           if ((error instanceof ApiError || error instanceof DistributedRequestError) && error.status === 401) {
-            saveSession(apiUrl, null); setExpired(true); setError(playerError(error)); return;
+            expireAccount(session!); return;
           }
           failures++; setRefreshInterrupted(true);
         }
       } finally {
         running=false;
-        if (!controller.signal.aborted) timer = setTimeout(refresh, dirty ? 50 : failures ? Math.min(1000 * 2 ** Math.min(failures - 1, 3), 5000) : runtime ? 30000 : 2000);
+        if (!controller.signal.aborted && isCurrentSession(apiUrl, session)) timer = setTimeout(refresh, dirty ? 50 : failures ? Math.min(1000 * 2 ** Math.min(failures - 1, 3), 5000) : runtime ? 30000 : 2000);
         dirty=false;
       }
     }
@@ -223,9 +247,10 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
   }, [session, room?.room_id, expired, runtime]);
 
   async function joinRoom(target: Room, selectedGame: string | null = null) {
-    if (!session || expired || (distributed && !runtime)) return false;
+    if (!session || expired || !isCurrentSession(apiUrl, session) || (distributed && !runtime)) return false;
     try {
       await roomActions.enter(session, target.room_id);
+      if (!isCurrentSession(apiUrl, session)) return false;
       saveSession(apiUrl,{session,room:target,game:selectedGame});
       if(runtime?.roomCommandId)runtime.acknowledgeRoomAction(runtime.roomCommandId);
       setStatus('connecting'); setRoom(target); setGame(selectedGame); setLeaveGameRequired(null); setError('');
@@ -236,21 +261,23 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
     }
   }
   function enterRoom(target: Room, selectedGame: string | null = null) {
-    if (!session || expired || (distributed && !runtime)) return false;
+    if (!session || expired || !isCurrentSession(apiUrl, session) || (distributed && !runtime)) return false;
     saveSession(apiUrl,{session,room:target,game:selectedGame});
     if(runtime?.roomCommandId)runtime.acknowledgeRoomAction(runtime.roomCommandId);
     setStatus('connecting'); setRoom(target); setGame(selectedGame); setLeaveGameRequired(null); setError('');
     return true;
   }
   function exitRoom() {
+    if (!isCurrentSession(apiUrl, session)) return false;
     connection.current?.stop(); setStatus('disconnected'); setRoom(null); setGame(null); setLeaveGameRequired(null); setError('');
-    if (session && !expired) saveSession(apiUrl, { session, room: null, game: null });
+    if (session && !expired && isCurrentSession(apiUrl, session)) saveSession(apiUrl, { session, room: null, game: null });
   }
   async function leaveRoom() {
     if (room && session && !expired) {
       try {
         await roomActions.leave(session, room.room_id);
       } catch (error) {
+        if (!isCurrentSession(apiUrl, session)) return false;
         if (error instanceof ApiError && error.detail?.requires_leave_game) {
           setLeaveGameRequired(error.detail.match_id || null);
           setAbandonRequired(error.detail.departure_command === 'abandon');
@@ -259,8 +286,9 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
         return false;
       }
     }
+    if (!isCurrentSession(apiUrl, session)) return false;
     connection.current?.stop(); setStatus('disconnected'); setRoom(null); setGame(null); setLeaveGameRequired(null); setError('');
-    if (session && !expired) saveSession(apiUrl, { session, room: null, game: null });
+    if (session && !expired && isCurrentSession(apiUrl, session)) saveSession(apiUrl, { session, room: null, game: null });
     if(runtime?.roomCommandId)runtime.acknowledgeRoomAction(runtime.roomCommandId);
     return true;
   }
@@ -268,6 +296,7 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
     if (!room || !session || expired) return false;
     try {
       await roomActions.remove(session, room.room_id);
+      if (!isCurrentSession(apiUrl, session)) return false;
       connection.current?.stop(); setStatus('disconnected'); setRoom(null); setGame(null); setError('');
       saveSession(apiUrl, { session, room: null, game: null });
       if(runtime?.roomCommandId)runtime.acknowledgeRoomAction(runtime.roomCommandId);
@@ -288,12 +317,10 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
     }
   }
   async function signOut() {
-    connection.current?.stop(); owner.close(); setRuntime(null);
     const active = session;
-    saveSession(apiUrl, null); setSession(null); setRoom(null); setGame(null);
-    if (active) {
-      try { await request('/auth/signout', active, {}); } catch { /* Local sign-out still succeeds offline. */ }
-    }
+    const pending = signOutSession(apiUrl, active, value => sharedRequest('/auth/signout', value, {}));
+    clearAccount(); setError('');
+    await pending;
   }
   return { runtime, startupError, roomActions, socialChannel, loginAccount, acceptSocialSession, socialLoginBusy, loggingIn, session, room, rooms, memberships, game, setGame, joinRoom, enterRoom, exitRoom, leaveRoom, deleteRoom, signOut, leaveGameRequired, leaveGameAndRoom, abandonRequired,
     cancelLeave: () => { setLeaveGameRequired(null); setError(''); }, status, expired, error, connectionNotice, pokes, presenceFresh: !refreshInterrupted,

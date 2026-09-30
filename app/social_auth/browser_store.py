@@ -1,4 +1,4 @@
-"""Short-lived login attempts. Provider tokens and app sessions are never stored here."""
+"""Short-lived login attempts. App sessions are never stored here; deletion grants are encrypted short-lived handoffs."""
 from copy import deepcopy
 from time import time
 

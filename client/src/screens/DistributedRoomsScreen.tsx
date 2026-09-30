@@ -1,3 +1,5 @@
+import { DeleteAccountLink } from './DeletionScreen';
+import { setSessionNotice } from '../auth/sessionNotice';
 import { AccountPage, accountStyles } from '../components/AccountPage';
 import { AppHeader } from '../components/AppHeader';
 import { FormInput } from '../components/FormInput';
@@ -9,12 +11,11 @@ import { playerError } from '../multiplayer/playerError.ts';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { apiUrl, request } from '../multiplayer/api';
-import { readSession, saveSession, type Session } from '../multiplayer/session';
+import { readSession, saveSession, signOutSession, isCurrentSession, type Session } from '../multiplayer/session';
 import { acquireJournal } from '../multiplayer/journalPlatform';
 import { OwnedSession } from '../multiplayer/JournalOwner';
 import { distributedIdentity } from '../multiplayer/distributedIdentity';
 import { DistributedRootRuntime, type RootView } from '../multiplayer/DistributedRoot';
-import { DistributedRequestError } from '../multiplayer/DistributedHttpTransport';
 import type { DistributedScreenController, ScreenActionState } from '../multiplayer/DistributedScreenController';
 import type { SelectedTable } from '../multiplayer/DistributedControls';
 import type { CatalogRoom } from '../multiplayer/DistributedReadClient';
@@ -69,9 +70,17 @@ export function DistributedRoomsScreen() {
   const pokeController = useRef<DistributedScreenController|null>(null);
   const controller = useRef<DistributedScreenController|null>(null), chat = useRef<DistributedScreenController|null>(null);
   const selectionRef = useRef(selected); selectionRef.current=selected;
-  const fail = (e: unknown) => setError(playerError(e, 'Request failed.'));
+  const fail = (e: unknown) => {
+    if (!isCurrentSession(apiUrl, account)) return;
+    if ((e as {status?:number})?.status === 401) {
+      saveSession(apiUrl,null);setSelected(null);setAccount(null);setProjection(null);
+      setSessionNotice(apiUrl,'auth','session_ended');return;
+    }
+    setError(playerError(e, 'Request failed.'));
+  };
 
   useEffect(()=>{
+    setRooms([]);setCursor(null);setText('');setName('');setPlatformOpen(false);setLedgerOpen(false);setChatOpen(false);setSettingsOpen(false);setInviteOpen(false);setInvitees([]);
     if (!account) return;
     let active=true;
     const snapshotLanes=new Set<string>();
@@ -88,7 +97,6 @@ export function DistributedRoomsScreen() {
         setMessages(old=>{const next={...old};delete next[lane];return next;});
       } },
       error(_lane,e) { if (active) {
-        if(e instanceof DistributedRequestError&&e.status===401){saveSession(apiUrl,null);setProjection(null);setSelected(null);setAccount(null);}
         fail(e);
       } },
       transient(value) {
@@ -126,10 +134,10 @@ export function DistributedRoomsScreen() {
           const [view,page]=await Promise.all([runtime!.reads.room<Projection>(selected.room,selected.table,abort.signal),runtime!.reads.members(selected.room,null,abort.signal)]);
           // Selected game projections come only from the root's serialized reads;
           // an independent refresh must not overwrite a newer game revision.
-          if(active) {if(!selected.table)setProjection(view);setMembers(page.items);}
+          if(active && isCurrentSession(apiUrl, account)) {if(!selected.table)setProjection(view);setMembers(page.items);}
         } else {
           const page=await runtime!.reads.catalog(null,abort.signal);
-          if(active){setRooms(page.items);setCursor(page.next_room_id);}
+          if(active && isCurrentSession(apiUrl, account)){setRooms(page.items);setCursor(page.next_room_id);}
         }
       } catch(e) {if(active)fail(e);}
       finally {if(active)timer=setTimeout(load,5000);}
@@ -144,16 +152,17 @@ export function DistributedRoomsScreen() {
   async function login(signup: boolean) {
     if (authBusy || (signup && (!confirmPassword || password !== confirmPassword || !validSignupEmail(email)))) return;
     setAuthBusy(true);setError('');
-    try {const session=await request<Session>(signup?'/auth/signup':'/auth/signin',null,{username,password,...(signup?{email:email.trim()}:{})});saveSession(apiUrl,{session,room:null,game:null});setPassword('');setConfirmPassword('');setEmail('');setAccount(session);}
+    try {const session=await request<Session>(signup?'/auth/signup':'/auth/signin',null,{username,password,...(signup?{email:email.trim()}:{})});saveSession(apiUrl,{session,room:null,game:null});setSessionNotice(apiUrl,'auth');setPassword('');setConfirmPassword('');setEmail('');setAccount(session);}
     catch(e){setError(playerError(e && typeof e === 'object' && 'status' in e && e.status === 401 ? Error(ui("common.invalid_credentials")) : e));}finally{setAuthBusy(false);}
   }
   async function logout() {
-    setAuthBusy(true);
-    try{await request('/auth/signout',account,{});saveSession(apiUrl,null);setSelected(null);setAccount(null);}
-    catch(e){fail(e);}finally{setAuthBusy(false);}
+    const pending = signOutSession(apiUrl, account, value => request('/auth/signout', value, {}));
+    runtime?.close();
+    setSelected(null);setAccount(null);setProjection(null);setMessages({});setMembers([]);setPokes([]);setText('');setError('');
+    await pending;
   }
   if (!account) return <AccountPage footer={<>
-    {!signupMode && <ForgotPassword />}
+    {!signupMode && <><ForgotPassword /><DeleteAccountLink /></>}
     <Pressable accessibilityRole="button" disabled={authBusy || (signupMode && (!confirmPassword || password !== confirmPassword || !validSignupEmail(email)))}
       onPress={() => void login(signupMode)} style={[authStyles.button,{backgroundColor:colors.primary},authBusy && {opacity:.5}]}>
       <Text style={[authStyles.buttonText,{color:colors.onPrimary}]}>{ui(signupMode ? 'common.create_account' : 'common.sign_in')}</Text>
@@ -212,7 +221,7 @@ export function DistributedRoomsScreen() {
   }
   return <ScrollView style={{backgroundColor:colors.background}} contentContainerStyle={{padding:20,gap:12}}>
     <AppHeader hideProfile />
-    <RecoveryEmailSettings session={account} />
+    <RecoveryEmailSettings session={account} /><DeleteAccountLink />
     <Text accessibilityRole="header" style={{color:colors.text,fontSize:24}}>{projection?.name||ui("rooms.your_rooms")}</Text>
     {!!(error||action.error)&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(action.error||error, 'feedback')}</Text>}
     {action.status==='pending'&&button(ui("common.pending_action"),()=>void controller.current?.recover())}

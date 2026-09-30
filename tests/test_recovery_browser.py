@@ -13,7 +13,8 @@ from test_recovery_delivery import config
 
 
 @pytest.mark.skipif(os.getenv('RECOVERY_BROWSER') != '1', reason='Set RECOVERY_BROWSER=1 after exporting client/dist for localhost:8197.')
-async def test_recovery_browser(postgres_pool, monkeypatch, tmp_path):
+@pytest.mark.parametrize('browser_script', ['account-recovery.cjs', 'session-lifecycle.cjs', 'account-deletion.cjs'])
+async def test_recovery_browser(postgres_pool, monkeypatch, tmp_path, browser_script):
     import app.main as main
     class TestDatabase:
         def __init__(self, url): self.pool = postgres_pool
@@ -36,7 +37,12 @@ async def test_recovery_browser(postgres_pool, monkeypatch, tmp_path):
             while not server.started:
                 if task.done(): await task
                 await asyncio.sleep(.05)
-        process=await asyncio.create_subprocess_exec('node','client/tests/browser/account-recovery.cjs',
+        if browser_script == 'account-deletion.cjs':
+            # Only disposable, game-free accounts use this legacy UI fixture.
+            # Production deletion is mounted/enabled by distributed composition.
+            server.config.app.state.deletion.enabled = True
+            await server.config.app.state.deletion.start()
+        process=await asyncio.create_subprocess_exec('node',f'client/tests/browser/{browser_script}',
             env={**os.environ,'TEST_WEB_URL':'http://127.0.0.1:8197','RECOVERY_TEST_MAILBOX':str(mailbox)},
             stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.STDOUT)
         try:
@@ -47,6 +53,8 @@ async def test_recovery_browser(postgres_pool, monkeypatch, tmp_path):
         assert process.returncode==0,output.decode()
         print(output.decode())
     finally:
+        if browser_script == 'account-deletion.cjs' and server.started:
+            await server.config.app.state.deletion.stop()
         server.should_exit=True
         await task
         mailbox.unlink(missing_ok=True)

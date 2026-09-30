@@ -1,0 +1,23 @@
+export default {
+  "title": "Delete account",
+  "confirm": "Confirm account deletion",
+  "send": "Send deletion link",
+  "unavailable": "Account deletion is not enabled yet. No deletion request has been accepted.",
+  "explanation": "Deletion permanently removes your login, profile, recovery email, social links and chat content. Private conversations are removed for both participants. Leave your active games and tables first. This cannot be undone.",
+  "history": "Other players keep shared game-point results under a Deleted player reference. Room ownership transfers to another member when possible. Cleanup may wait for shared games to finish.",
+  "backups": "Database backups are not currently configured. No backup-expiry period is promised.",
+  "emailHelp": "Enter your username and verified recovery email. The address is used privately to send a confirmation link. For a social account, sign in with its provider and open Delete account in your profile.",
+  "passwordHelp": "Enter your current password. Social accounts must sign in again with their provider first; guest accounts do not have a password.",
+  "typeDelete": "Type DELETE to confirm",
+  "sent": "If the username and verified email match, a deletion link will arrive. Opening the link does not delete the account.",
+  "pending": "Deletion requested. Account access has been disabled. Cleanup is pending; keep this page to check its status.",
+  "retrying": "Account access is disabled. Cleanup encountered a problem and will retry. Deletion is not complete yet.",
+  "completed": "Account cleanup completed. Shared game-point history remains under a Deleted player reference.",
+  "keepOpen": "The status could not be saved on this device. Keep this page open to check completion.",
+  "failure": "Could not complete this request. Please try again.",
+  "deletion_invalid_proof": "The password or confirmation link is invalid or expired.",
+  "deletion_leave_games": "Leave or finish your active games and tables, then request deletion again.",
+  "deletion_pending_actions": "An account action is still processing. Wait a moment and try again.",
+  "deletion_reauthenticate": "Sign in again with every linked social provider before requesting deletion.",
+  "deletion_limited": "Too many requests. Please wait and try again."
+};

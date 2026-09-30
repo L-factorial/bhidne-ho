@@ -1,5 +1,11 @@
 // Editable English common copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "storage_read_failed": "Saved sign-in could not be read. Unlock your device and reopen the app, or sign in again.",
+  "storage_save_failed": "You are signed in for now, but this device could not save your login. You may need to sign in again after restarting.",
+  "storage_clear_failed": "The saved login could not be erased. It may remain after restarting. Unlock your device and tap Retry to erase it.",
+  "signed_out_local": "Signed out in this app. Server sign-out could not be confirmed. The previous session may remain valid until it expires or you reset your password.",
+  "session_ended": "Your session has ended. Please sign in again.",
+
   "saving": "Saving…",
   "game_display_name": "Game display name",
   "save_display_name": "Save display name",

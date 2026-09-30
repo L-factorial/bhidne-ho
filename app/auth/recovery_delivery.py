@@ -64,7 +64,12 @@ class RecoveryConfig:
         message = EmailMessage()
         message['From'] = self.sender
         message['To'] = payload['email']
-        if payload['purpose'] == 'username_reminder':
+        if payload['purpose'] == 'delete_account':
+            message['Subject'] = 'Confirm your Bhidne Ho account deletion request'
+            link = self.origin + '/delete-account#delete_account=' + payload['token']
+            message.set_content('Open this link to review and explicitly confirm account deletion:\n\n' + link +
+                '\n\nThe link expires in 15 minutes. Opening it does not delete your account. If you did not request this, ignore this email.')
+        elif payload['purpose'] == 'username_reminder':
             message['Subject'] = 'Your Bhidne Ho username'
             message.set_content('Usernames linked to this verified recovery email:\n\n' +
                 '\n'.join(payload['usernames']) + '\n\nSign in at ' + self.origin +
@@ -155,6 +160,24 @@ class RecoveryRuntime:
                 await c.execute('INSERT INTO recovery_reset_requests(id,envelope) VALUES (%s,%s)',
                     (uuid4(), self.encrypt(dict(purpose='username_reminder', email=email, username=''))))
 
+    async def request_deletion(self, username, email, peer):
+        async with self.pool.connection() as c:
+            async with c.transaction():
+                if not await self.budget(c,'deletion-email',email.lower(),5,3600):
+                    return
+                if not await self.budget(c,'deletion-username',username.lower(),5,3600):
+                    return
+                await c.execute('INSERT INTO recovery_reset_requests(id,envelope) VALUES (%s,%s)',
+                    (uuid4(),self.encrypt(dict(purpose='delete_account',username=username.strip().lower(),email=email))))
+
+    async def enqueue_deletion(self, c, payload):
+        row = await (await c.execute("""SELECT a.user_id,r.email FROM account_credentials a
+            JOIN account_recovery_contacts r ON r.user_id=a.user_id JOIN users u ON u.id=a.user_id
+            WHERE lower(a.username)=%s AND r.email=%s AND NOT u.deletion_pending AND NOT u.erased FOR UPDATE OF a""",
+            (payload['username'],payload['email']))).fetchone()
+        if row:
+            await self.service._issue(c,row[0],'delete_account',row[1])
+
     async def enqueue_username(self, c, email):
         # Select only verified contacts, never signup metadata. One email covers
         # all matching accounts; resolve the current usernames again before send.
@@ -180,7 +203,9 @@ class RecoveryRuntime:
                 except InvalidToken:
                     log.warning('Discarding unreadable recovery request; check encryption key configuration.')
                 else:
-                    if payload.get('purpose') == 'username_reminder':
+                    if payload.get('purpose') == 'delete_account':
+                        await self.enqueue_deletion(c,payload)
+                    elif payload.get('purpose') == 'username_reminder':
                         await self.enqueue_username(c, payload['email'])
                     else:
                         await self.service._request_reset(c, payload['username'])

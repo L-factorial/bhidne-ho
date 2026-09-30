@@ -6,6 +6,7 @@ application starts cannot race schema installation.
 """
 
 from psycopg_pool import AsyncConnectionPool
+from app.account_deletion.schema import DELETION_SCHEMA
 from app.auth.recovery_schema import RECOVERY_SCHEMA, RECOVERY_DELIVERY_SCHEMA, USERNAME_RECOVERY_SCHEMA
 
 from app.distributed_schema import DELIVERY_RECOVERY_SCHEMA, HOSTED_RECEIPT_SCHEMA, INBOX_REQUEST_SCHEMA, INSTANCE_REGISTRATION_SCHEMA, HOSTED_MATCH_ARCHIVE_SCHEMA, FLUSH_ROUND_ARCHIVE_SCHEMA
@@ -689,6 +690,7 @@ MIGRATIONS = (
     """),
     (30, RECOVERY_DELIVERY_SCHEMA),
     (31, USERNAME_RECOVERY_SCHEMA),
+    (32, DELETION_SCHEMA),
 )
 
 

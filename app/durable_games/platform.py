@@ -39,12 +39,17 @@ class SharedPlatform:
         self.browser = BrowserSocialAuth.from_environment(PostgresBrowserAttempts(pool),
             PostgresSocialIdentityStore(pool, auth, self.profiles))
 
+        from app.account_deletion.runtime import DeletionRuntime
+        self.deletion = DeletionRuntime(pool,self.recovery,self.browser,cache=cache,profiles=self.profiles)
+
     def install(self, app, admission):
         from app.auth import recovery_http
+        from app.account_deletion import http as deletion_http
         from app.transport import http, player_profiles, room_pokes
         from app.players import http as players
         from app.social_auth import browser_http
         app.state.recovery = self.recovery
+        app.state.deletion = self.deletion
         app.state.auth = app.state.guests = self.auth
         app.state.player_profiles = self.profiles
         app.state.player_phrases = self.phrases
@@ -55,6 +60,7 @@ class SharedPlatform:
         # Exact method/path contracts, not an entire legacy router or prefix.
         reviewed = (
             (recovery_http.router, recovery_http.CONTRACTS),
+            (deletion_http.router, deletion_http.CONTRACTS),
             (http.router, {('POST', '/auth/guest'), ('POST', '/auth/signup'),
                            ('POST', '/auth/signin'), ('POST', '/auth/signout'), ('GET', '/auth/me')}),
             (player_profiles.router, {('GET', '/me/profile'), ('PATCH', '/me/profile'),
