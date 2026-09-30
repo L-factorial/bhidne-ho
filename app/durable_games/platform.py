@@ -18,7 +18,20 @@ class PlatformPlayers(PlayerSocialService):
         return await self.store.get_player(target_id)
 
     async def search(self, user_id, query):
-        return await self.store.search(user_id, query)
+        return await self._unblocked(user_id, await self.store.search(user_id, query))
+
+    async def directory_search(self, user_id, query):
+        return await self._unblocked(user_id, await super().directory_search(user_id, query))
+
+    async def _unblocked(self, user_id, players):
+        if not players:
+            return players
+        async with self.store.pool.connection() as connection:
+            rows = await (await connection.execute(
+                'SELECT id FROM users WHERE id=ANY(%s::uuid[]) AND NOT social_blocked(%s,id)',
+                ([str(user_uuid(p['user_id'])) for p in players], user_uuid(user_id)))).fetchall()
+        allowed = {f'user-{row[0]}' for row in rows}
+        return [p for p in players if p['user_id'] in allowed]
 
 
 class SharedPlatform:
@@ -27,6 +40,8 @@ class SharedPlatform:
             raise ValueError('Guest login selection must be boolean.')
         from app.auth.recovery_delivery import RecoveryRuntime
         self.recovery = RecoveryRuntime.from_environment(pool, auth)
+        from app.player_blocks.service import BlockService
+        self.blocks = BlockService(pool)
         self.auth = auth
         self.profiles = CachedProfiles(pool, cache) if cache else PostgresPlayerProfileService(pool)
         from app.multiplayer.player_phrases import PostgresPlayerPhraseService
@@ -48,6 +63,8 @@ class SharedPlatform:
         from app.transport import http, player_profiles, room_pokes
         from app.players import http as players
         from app.social_auth import browser_http
+        from app.player_blocks import http as block_http
+        app.state.blocks = self.blocks
         app.state.recovery = self.recovery
         app.state.deletion = self.deletion
         app.state.auth = app.state.guests = self.auth
@@ -59,6 +76,7 @@ class SharedPlatform:
         router = APIRouter()
         # Exact method/path contracts, not an entire legacy router or prefix.
         reviewed = (
+            (block_http.router, block_http.CONTRACTS),
             (recovery_http.router, recovery_http.CONTRACTS),
             (deletion_http.router, deletion_http.CONTRACTS),
             (http.router, {('POST', '/auth/guest'), ('POST', '/auth/signup'),

@@ -67,6 +67,12 @@ async def apply_offer(claim, game, payload, occupied):
     observed_at = await now(claim.connection)
     if command == 'invite-seat':
         seat, recipient = payload.seat_id, payload.recipient
+        from app.player_blocks.service import require_contact
+        from .queries import QueryAccessDenied
+        try:
+            await require_contact(claim.connection,actor,recipient,lane=claim.entry.lane_id,sequence=claim.entry.sequence)
+        except QueryAccessDenied as error:
+            return str(error)
         host = next((u for u in table.seats(game) if u is not None), None)
         if seat not in table.releases or table.queue or actor not in (host, table.releases[seat]):
             return 'The host or leaving player may invite for a released seat after the queue is empty.'
@@ -90,6 +96,9 @@ async def apply_offer(claim, game, payload, occupied):
     if offer.status != 'PENDING' or observed_at >= offer.expires_at:
         return 'This offer is no longer available.'
     if command == 'accept-seat':
+        from app.player_blocks.service import seat_invitation_allowed
+        if not await seat_invitation_allowed(claim.connection,claim.entry.lane_id,game.match_id,offer):
+            return 'This seat offer is no longer available.'
         if (actor in table.seats(game) or table.next_seats[offer.seat_id - 1] is not None
                 or table.releases.get(offer.seat_id) != offer.leaving_player_id):
             return 'This seat is no longer transferable.'

@@ -81,9 +81,10 @@ retained shared content, migration implications, test limits and activation step
 ### A4 — chat safety
 
 - [ ] Report message/player across all chat scopes, with bounded evidence and reasons.
-- [ ] Block/unblock and blocked-player Settings; server checks on sends, history/delivery,
-  requests, invitations, mentions and push, including commands queued before a block.
-- [ ] Define shared-table behavior: block social interaction without hiding game state.
+- [x] Block/unblock and blocked-player Settings; server checks on existing sends,
+  history/delivery, requests and invitations, including commands queued before a block.
+- [ ] Apply block suppression to mentions and push when A5 implements them.
+- [x] Define shared-table behavior: block social interaction without hiding game state.
 - [ ] Account-wide bursts, repeated-message and invitation/report abuse limits across hosts.
 - [ ] English/Nepali/transliterated content checks for messages, names and saved phrases.
 - [ ] Community rules accepted before posting; decide guest posting and age policy.
@@ -92,6 +93,8 @@ retained shared content, migration implications, test limits and activation step
 - [ ] Test bypass attempts, concurrent block/send, unauthorized moderator access and appeals.
 
 ### A5 — notifications
+
+Deferred by the user until near native/store testing; no implementation in A4.
 
 - [ ] Consistent foreground invitation banners/turn cues and durable chat read positions.
 - [ ] Explicit user-ID mentions with membership/visibility validation.
@@ -476,3 +479,84 @@ Reviewed during planning on 2026-09-30; recheck before submission.
   acceptance before setting `BHIDNE_HO_ACCOUNT_DELETION_ENABLED=1`. Example setting:
   [deletion.env.example](../deploy/deletion.env.example). No database reset required.
   No commit, push, deployment or remote build monitoring was performed here.
+
+### A4 first increment — player blocking (2026-09-30)
+
+- Added authenticated block/unblock and a paged list of the caller's own blocks.
+  The actor comes from the session; blocking oneself or an unavailable/deleting
+  identity is rejected. Users cannot clear another player's block.
+- Blocking removes friendship/requests and cancels pending room invitations.
+  Direct messages, friend requests, room/table invitations, manual replacement-seat
+  invitations and targeted pokes/reactions are checked server-side. Either player's
+  active block prevents contact. Unblocking does not recreate friendships or invitations.
+- Room/table/game chat history and outbox replay suppress the blocked pair's social
+  content. Incoming friendship notifications and own stale friendship-change notices
+  are also suppressed. Hidden events still advance the replay cursor; gameplay and
+  command acknowledgements remain available. Directory/search omit blocked pairs;
+  shared game identities and point/settlement records remain visible.
+- Shared games, seats and memberships are preserved. Automatic FIFO seat offers are
+  gameplay and continue to work. Manual seat offers use durable command provenance
+  to reject acceptance after a block, including after unblock. That lookup is bounded
+  to 100 matching commands and fails closed if older provenance cannot be determined.
+  Existing shared seat-offer metadata may remain visible until resolved/expired;
+  acceptance is always rechecked.
+- Added Block controls in friends/search, room chat and table chat, confirmation text,
+  and a blocked-player list in Profile/Settings. English/Nepali and existing theme
+  colors are used. Table history refreshes every three seconds in the supported
+  runtime so a block from another device also removes previously rendered chat.
+- Migration **33** is additive: block records, indexed reverse lookup and shared SQL
+  policy functions. Existing accounts, sessions, games and point data are preserved;
+  no database reset is needed. Inactive block timestamps remain until account erasure
+  to invalidate old queued contact and invitations; A3 erases both directions.
+- Social effect transactions take a shared policy lock; block/unblock takes its
+  exclusive lock before relationship/user changes. A send already executing may
+  finish before blocking commits, but subsequent reads/replay suppress it. Already
+  downloaded content cannot be recalled; current clients reconcile via polling.
+  The singleton policy lock is an intentional initial serialization boundary, not
+  a capacity claim. Gameplay engine commands do not acquire it.
+- Deployment: run migration 33, then deploy **all distributed gateways/workers** and
+  the client together using the existing release process. Mixed old/new workers
+  must not serve traffic while blocking is enabled. The legacy runtime advertises
+  blocking as unavailable because its social writers do not enforce this policy.
+- Notifications (A5) are deferred by user decision until near native/store testing.
+  Mentions and push do not exist yet; their producers and delivery must reuse this
+  policy when added. Reporting, moderation, community rules and broader abuse/content
+  controls remain pending. Next increment: message/player reports with bounded
+  evidence, followed by the protected moderation queue.
+- User will commit/push and monitor deployment manually. No release or production
+  database operation is part of this increment.
+- Verification: PostgreSQL/WASM regression batches passed (45 tests covering
+  blocking, hosted invitations, platform APIs, seat offers and deletion; 51 tests
+  covering blocking, social commands, room commands, pokes and friendship).
+  After the final cutoff change, all 11 blocking cases plus the existing-data
+  migration case passed (12). The final notification history/replay consistency
+  check also passed. The real PostgreSQL concurrent send/block test passed on
+  independent connections. TypeScript, Expo web export and eight localization/
+  table-social tests passed. Chrome at 390×844 passed confirm/cancel, block-list
+  persistence after reload, unblock, owner isolation, Nepali and theme checks
+  against the distributed API and disposable PostgreSQL. This does not replace
+  physical iOS/Android or production deployment acceptance.
+- Reproduce backend checks with `PGLITE_MODULE` and the test paths
+  `tests/test_player_blocks.py`, `tests/test_durable_social.py`,
+  `tests/test_durable_chat.py`, `tests/test_durable_friendship.py`,
+  `tests/test_durable_room_commands.py`, `tests/test_distributed_pokes.py`,
+  `tests/test_hosted_invitations_replacement.py`, `tests/test_distributed_platform.py`,
+  `tests/test_seat_offers.py`, and `tests/test_account_deletion.py`.
+  The opt-in race test is `tests/test_player_blocks_concurrency.py` with
+  `POSTGRES_TEST_BIN`. Browser acceptance is `tests/test_player_blocks_browser.py`
+  with `POSTGRES_TEST_BIN`, `PLAYWRIGHT_MODULE`, and `BLOCK_BROWSER_WEB` pointing to
+  an Expo export built with `EXPO_PUBLIC_RUNTIME_MODE=distributed-original` and
+  `EXPO_PUBLIC_API_URL=http://127.0.0.1:8197`. It starts only local disposable services.
+
+### CI follow-up — admission test expectations (2026-09-30)
+
+- User's full CI run reported 1,755 passing tests and two stale unknown-account
+  expectations. The account-deletion guard rejects nonexistent accounts before
+  commands enter the inbox; these tests still expected executor-stage rejection.
+- Updated creation/table tests to assert early rejection, no sequence/outbox/game
+  changes, and successful processing of the next legitimate command at sequence 1.
+  This follow-up changes tests and documentation only; no runtime or migration change.
+- Verification: both complete affected test files passed locally: **44 passed**
+  (`tests/test_creation_executor.py` and `tests/test_table_lane_executor.py`,
+  PostgreSQL/WASM). `git diff --check` passed. The full CI suite was not rerun
+  locally; user will commit/push and track the next CI run.

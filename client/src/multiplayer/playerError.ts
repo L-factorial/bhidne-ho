@@ -27,6 +27,7 @@ const messages: Record<string, UiKey> = {
   'Username already taken.': 'feedback.name_taken',
   'Action rejected.': 'feedback.action_unavailable',
   'Social action rejected.': 'feedback.action_unavailable',
+  'Contact with this player is unavailable.': 'safety.contact_unavailable',
   'Delivery connection interrupted.': 'feedback.connection_interrupted_retrying',
   'Session is disconnected.': 'feedback.connection_lost',
 };

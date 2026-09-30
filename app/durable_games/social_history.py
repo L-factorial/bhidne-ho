@@ -50,7 +50,7 @@ class SocialHistory:
                 else:
                     rows = await (await connection.execute('''SELECT id,sequence,kind,COALESCE(source_actor_id,actor_id),
                         payload,created_at,read_at FROM friend_notifications
-                        WHERE lane_id=%s AND sequence>%s ORDER BY sequence LIMIT %s''', (lane_id,after,limit+1))).fetchall()
+                        WHERE lane_id=%s AND sequence>%s AND social_notification_allowed(%s,COALESCE(source_actor_id,actor_id),kind,payload,created_at) ORDER BY sequence LIMIT %s''', (lane_id,after,user_uuid(actor),limit+1))).fetchall()
                     items = [dict(id=str(r[0]),sequence=r[1],kind=r[2],actor_id=f'user-{r[3]}' if r[3] else None,
                         payload=r[4],created_at=r[5].isoformat(),read=r[6] is not None) for r in rows[:limit]]
                 return dict(source='sequenced',items=items,next_sequence=rows[limit-1][1] if len(rows)>limit else None)
@@ -100,9 +100,9 @@ class SocialHistory:
                 await connection.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
                 await authorize_social(connection,LaneTarget(kind='recipient',recipient_id=user),actor)
                 where = ' AND (created_at,id)<(%s::timestamptz,%s::uuid)' if boundary else ''
-                params = [user,*(boundary or ()),limit+1]
+                params = [user,user,*(boundary or ()),limit+1]
                 rows = await (await connection.execute('''SELECT id,kind,actor_id,payload,created_at,read_at
-                    FROM friend_notifications WHERE user_id=%s AND lane_id IS NULL''' + where +
+                    FROM friend_notifications WHERE user_id=%s AND social_notification_allowed(%s,actor_id,kind,payload,created_at) AND lane_id IS NULL''' + where +
                     ' ORDER BY created_at DESC,id DESC LIMIT %s',params)).fetchall()
                 selected = rows[:limit]
                 return dict(source='legacy',items=[dict(id=str(r[0]),kind=r[1],actor_id=f'user-{r[2]}' if r[2] else None,

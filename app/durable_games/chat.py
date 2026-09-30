@@ -195,7 +195,7 @@ class ChatHistory:
                 target, _, _ = await self._target(connection, lane_id)
                 await authorize_chat(connection, target, actor, checkpoints=self.checkpoints)
                 rows = await (await connection.execute('''SELECT id,sequence,sender_id,text,sent_at,command_id FROM room_chat_messages
-                    WHERE lane_id=%s AND sequence>%s ORDER BY sequence LIMIT %s''', (lane_id,after,limit+1))).fetchall()
+                    WHERE lane_id=%s AND sequence>%s AND NOT social_blocked(%s,sender_id) ORDER BY sequence LIMIT %s''', (lane_id,after,user_uuid(actor),limit+1))).fetchall()
                 return dict(items=[dict(id=str(r[0]),sequence=r[1],sender_id=f'user-{r[2]}',text=r[3],sent_at=r[4].isoformat(),command_id=r[5] if f'user-{r[2]}' == actor else None)
                     for r in rows[:limit]], next_sequence=rows[limit-1][1] if len(rows)>limit else None)
 

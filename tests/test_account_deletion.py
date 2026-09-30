@@ -250,7 +250,9 @@ async def test_migration_preserves_existing_accounts_and_sessions():
         before=await auth.sign_up('existing_before_deletion','original-password')
         uid=UUID(before.user_id[5:])
         await pool.execute("UPDATE user_profiles SET display_name='Existing Player' WHERE user_id=%s",(uid,))
-        await pool.execute(MIGRATIONS[-1][1],script=True)
+        for version, schema in MIGRATIONS:
+            if version >= 32:
+                await pool.execute(schema,script=True)
         assert (await auth.authenticate(before.token)).user_id==before.user_id
         assert (await auth.sign_in('existing_before_deletion','original-password')).user_id==before.user_id
         assert (await pool.execute('SELECT display_name FROM user_profiles WHERE user_id=%s',(uid,))).rows==[('Existing Player',)]

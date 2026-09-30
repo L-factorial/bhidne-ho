@@ -1,3 +1,4 @@
+import { BlockedPlayers } from '../components/PlayerBlocking';
 import { DeleteAccountLink } from './DeletionScreen';
 import { setSessionNotice } from '../auth/sessionNotice';
 import { AccountPage, accountStyles } from '../components/AccountPage';
@@ -221,7 +222,7 @@ export function DistributedRoomsScreen() {
   }
   return <ScrollView style={{backgroundColor:colors.background}} contentContainerStyle={{padding:20,gap:12}}>
     <AppHeader hideProfile />
-    <RecoveryEmailSettings session={account} /><DeleteAccountLink />
+    <RecoveryEmailSettings session={account} /><BlockedPlayers session={account} /><DeleteAccountLink />
     <Text accessibilityRole="header" style={{color:colors.text,fontSize:24}}>{projection?.name||ui("rooms.your_rooms")}</Text>
     {!!(error||action.error)&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(action.error||error, 'feedback')}</Text>}
     {action.status==='pending'&&button(ui("common.pending_action"),()=>void controller.current?.recover())}

@@ -40,6 +40,9 @@ async def execute(claim, checkpoints):
         recipient = next((u for u,seat in seats.items() if seat == poke.recipient_player_id),None)
         if poke.recipient_player_id is not None and (recipient is None or recipient == actor):
             raise ValueError('Choose another occupied seat.')
+        if recipient:
+            from app.player_blocks.service import require_contact
+            await require_contact(connection,actor,recipient,lane=claim.entry.lane_id,sequence=claim.entry.sequence)
         timing = await (await connection.execute('''SELECT clock_timestamp(),created_at+interval '15 seconds'>clock_timestamp()
             FROM command_inbox WHERE lane_id=%s AND sequence=%s''',(claim.entry.lane_id,claim.entry.sequence))).fetchone()
         if not timing[1]:

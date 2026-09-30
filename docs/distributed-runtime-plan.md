@@ -5333,3 +5333,56 @@ Verification and limitations:
   acceptance before setting `BHIDNE_HO_ACCOUNT_DELETION_ENABLED=1`. Example setting:
   [deletion.env.example](../deploy/deletion.env.example). No database reset required.
   No commit, push, deployment or remote build monitoring was performed here.
+
+### A4 first increment — player blocking (2026-09-30)
+
+- User deferred mobile notifications until near store testing and authorized the
+  block/unblock increment. Implemented migration 33 and authenticated owner-bound
+  block APIs, Settings list, friends/search and chat controls, English/Nepali copy
+  and existing theme support. Legacy runtimes advertise the feature unavailable.
+- Distributed social executors recheck both directions, including queued work.
+  Social effect transactions hold a shared policy lock and block/unblock takes the
+  exclusive lock before user/relationship writes. Inactive rows retain the last
+  unblock cutoff so commands admitted before **or during** a block cannot revive.
+  Repeated unblock is idempotent and does not move that cutoff.
+- Blocking removes friendship and cancels room invites; hosted/manual-seat invites
+  are rechecked at acceptance. Social history and per-viewer outbox replay suppress
+  blocked contact without altering immutable outbox rows or skipping cursor
+  advancement. Game state, seats, point history, room membership and automatic FIFO
+  progression remain intact. A3 cleanup removes block rows in both directions.
+- Limitations/design decisions: shared policy serialization is an initial correctness
+  boundary, not a capacity result; manual seat provenance reads are bounded and
+  fail closed at the documented limit. Already downloaded messages cannot be
+  recalled. Existing clients reconcile room/friend/table history via polling.
+  Pending seat-offer metadata can remain visible until resolved/expired, but
+  blocked manual acceptance fails. No mixed old/new gateway/worker deployment;
+  run additive migration 33 and release all distributed components together.
+- Verification: 45-test and 51-test focused/regression batches passed. Final cutoff
+  checks passed all 11 blocking cases and the existing-data migration case (12);
+  notification history/replay consistency also passed. Independent-connection real
+  PostgreSQL block/send race passed. TypeScript, Expo web export, eight localization/
+  table-social tests and mobile-width Chrome blocking/language/theme acceptance
+  against disposable PostgreSQL passed. No physical-device or production acceptance
+  claimed. See `docs/app-store-readiness-plan.md` for commands and exact boundaries.
+- Exact next step: user commits/pushes from their terminal and tracks deployment;
+  next implementation increment is bounded message/player reporting and protected
+  moderation. Notification implementation remains deferred. No commit, push,
+  remote build monitoring or production database operation performed here.
+
+### CI follow-up — unknown-account admission expectations (2026-09-30)
+
+- The user supplied a CI run with 1,755 passes and two failures in creation/table
+  executor tests. Both expected a nonexistent account's command to reach execution;
+  A3's account-availability check now correctly rejects it at inbox admission.
+- Replaced those stale parameter cases with explicit admission tests asserting
+  `Account unavailable.`, no inbox record, no sequence allocation, no outbox events
+  and no table creation/checkpoint changes. Each test then admits a real account at
+  sequence 1 and verifies successful execution, guarding against rollback gaps.
+  Existing executor rejection cases for system/malformed actors and nonmembers remain.
+- Production behavior and database schema are unchanged by this follow-up. User
+  retains commit/push and deployment monitoring; the next feature increment remains
+  bounded chat reporting and protected moderation, with notifications deferred.
+- Verification: both complete affected test files passed locally: **44 passed**
+  (`tests/test_creation_executor.py` and `tests/test_table_lane_executor.py`,
+  PostgreSQL/WASM). `git diff --check` passed. The full CI suite was not rerun
+  locally; user will commit/push and track the next CI run.

@@ -153,6 +153,8 @@ def create_app(*, runtime_mode="legacy", distributed_server=None) -> FastAPI:
     app.include_router(recovery_router)
     from app.account_deletion.http import router as deletion_router
     app.include_router(deletion_router)
+    from app.player_blocks.http import router as block_router
+    app.include_router(block_router)
     app.include_router(http.router)
     app.include_router(browser_social_router)
     app.include_router(social_auth_router)

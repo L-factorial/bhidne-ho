@@ -1,3 +1,4 @@
+import { BlockPlayerButton, useBlocking } from './PlayerBlocking';
 import { playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -26,6 +27,7 @@ export type FriendsTransport = {
 };
 export function FriendsPanel({ session, transport, onlineOnly = false }: { session: Session; transport?: FriendsTransport; onlineOnly?: boolean }) {
   useUiLanguage();
+  const blocking = useBlocking(session);
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const [snapshot, setSnapshot] = useState<Snapshot>(empty);
@@ -60,7 +62,7 @@ export function FriendsPanel({ session, transport, onlineOnly = false }: { sessi
       finally { if (!controller.signal.aborted) timer = setTimeout(poll, 3000); }
     }
     void poll(); return () => { controller.abort(); clearTimeout(timer); };
-  }, [session.token, onlineOnly]);
+  }, [session.token, onlineOnly, blocking.revision]);
   useEffect(() => {
     if (!selected) { setMessages([]); return; }
     const controller = new AbortController(); let timer: ReturnType<typeof setTimeout>;
@@ -113,6 +115,7 @@ export function FriendsPanel({ session, transport, onlineOnly = false }: { sessi
   const row = (player: Player, action: ReactNode) => <View key={player.user_id} style={styles.row}>
     <View style={{ flex: 1 }}><Text style={styles.name}>{label(player)}</Text>
       {!!player.username && <Text style={styles.detail}>@{player.username}</Text>}</View>{action}
+    <BlockPlayerButton session={session} player={{user_id: player.user_id, display_name: label(player)}} enabled={blocking.enabled} onBlocked={() => { setResults(current => current.filter(p => p.user_id !== player.user_id)); setSelected(null); setMessages([]); }} />
   </View>;
 
   return <View style={styles.panel}>

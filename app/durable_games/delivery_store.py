@@ -220,7 +220,7 @@ class PostgresDeliveryStore:
                 if after > emitted:
                     raise DeliveryResetRequired('Cursor is ahead of the stream.')
                 rows = await (await connection.execute('''SELECT event_id,sequence,event_type,event_version,
-                    audience_user_id,payload FROM notification_outbox WHERE lane_id=%s AND sequence>%s
+                    audience_user_id,payload,created_at FROM notification_outbox WHERE lane_id=%s AND sequence>%s
                     ORDER BY sequence LIMIT %s''', (lane_id, after, limit + 1))).fetchall()
                 events, scanned = [], after
                 for row in rows[:limit]:
@@ -228,7 +228,11 @@ class PostgresDeliveryStore:
                         raise DeliveryResetRequired('Outbox history is incomplete; reconcile an authorized snapshot.')
                     if row[3] != 1:
                         raise DeliveryResetRequired('Unsupported delivery event version.')
-                    payload = self._visible(row, user, target, member, match, seat)
+                    payload = self._visible(row[:6], user, target, member, match, seat)
+                    if payload is not None:
+                        from app.player_blocks.service import event_allowed
+                        if not await event_allowed(connection, actor, payload, row[6]):
+                            payload = None
                     if payload is not None:
                         events.append(dict(event_id=str(row[0]), lane_id=str(lane_id), sequence=row[1],
                             event_type=row[2], event_version=row[3], payload=payload))

@@ -30,6 +30,8 @@ async def authorize_friendship(connection, target, actor):
         ([str(target.user_low), str(target.user_high)],))).fetchall()
     if len(rows) != 2:
         raise QueryAccessDenied('Friendship participant is unavailable.')
+    from app.player_blocks.service import require_contact
+    await require_contact(connection, actor, f'user-{target.user_high if user==target.user_low else target.user_low}')
     return user
 
 
@@ -45,6 +47,8 @@ async def execute_friendship(claim, inbox, existing):
             raise QueryAccessDenied('Friendship commands cannot target gameplay.')
         FriendshipPayload.model_validate_json(canonical_json(request.payload))
         sender = await authorize_friendship(connection, target, actor)
+        from app.player_blocks.service import require_contact
+        await require_contact(connection,actor,f'user-{target.user_high if sender==target.user_low else target.user_low}',lane=claim.entry.lane_id,sequence=claim.entry.sequence)
         row = await (await connection.execute('''SELECT status,requested_by FROM friendships
             WHERE user_low=%s AND user_high=%s FOR UPDATE''', (target.user_low, target.user_high))).fetchone()
         if request.command == 'request-friend':

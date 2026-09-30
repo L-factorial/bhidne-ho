@@ -1,3 +1,4 @@
+import { BlockedPlayers } from '../components/PlayerBlocking';
 import { DeleteAccountLink } from './DeletionScreen';
 import { RecoveryEmailSettings } from './RecoveryScreen';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -44,7 +45,7 @@ export function ProfileScreen({ session, personal, onBack, onSignOut }: {
         {!!identityError && <Text accessibilityRole="alert" style={styles.description}>{identityError}</Text>}
       </View>
       <DisplayNameField session={session} onSaved={display_name => setIdentity(current => current ? { ...current, display_name } : { user_id: userId, display_name })} />
-      <RecoveryEmailSettings session={session} />
+      <RecoveryEmailSettings session={session} /><BlockedPlayers session={session} />
       <DeleteAccountLink />
       <FriendsPanel session={session} />
       <PlayerPhrases key={userId} userId={userId} phrases={personal.phrases} connected={true}

@@ -17,6 +17,7 @@ from .inbox import LaneTarget
 from .outbox import append_lane_events
 from .recovery import rebuild_hosted_game
 from .seat_offers import advance_offers, cancel_expiry
+from .queries import QueryAccessDenied
 from .store import DurableGameConflict
 from .table_closure import close_table, cancel_pending_actions
 from .table_executor import _LobbyHost, TableLaneExecutor
@@ -134,6 +135,8 @@ async def departure(claim, inbox, fence, *, max_tables=5):
 
 async def execute(claim, inbox, fence, *, max_events=512):
     request, actor, connection, room_id = claim.entry.request, claim.entry.actor_id, claim.connection, claim.target.room_id
+    from app.player_blocks.service import policy_read_lock, require_contact
+    await policy_read_lock(connection)
     detail, payload, actor_id = None, None, None
     context = None
     try:
@@ -184,6 +187,11 @@ async def execute(claim, inbox, fence, *, max_events=512):
                 recipients_ids = [user_uuid(u) for u in recipients]
             except (ValueError, AttributeError):
                 recipients_ids, detail = [], 'Invalid invitation recipient.'
+            for recipient in recipients if detail is None else []:
+                try:
+                    await require_contact(connection,actor,recipient,lane=claim.entry.lane_id,sequence=claim.entry.sequence)
+                except QueryAccessDenied as error:
+                    detail=str(error)
             for recipient in recipients_ids:
                 if not await (await connection.execute('SELECT 1 FROM users WHERE id=%s', (recipient,))).fetchone():
                     detail = 'Invitation recipient not found.'

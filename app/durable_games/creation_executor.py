@@ -61,6 +61,8 @@ class RoomCreationExecutor:
         async with self.inbox.claim(lane_id, fence=fence) as claim:
             if claim is None:
                 return None
+            from app.player_blocks.service import policy_read_lock
+            await policy_read_lock(claim.connection)
             request, actor = claim.entry.request, claim.entry.actor_id
             from .settlements import MODELS as SETTLEMENT_MODELS, execute as execute_settlement
             if claim.target.kind == 'room' and request.command in SETTLEMENT_MODELS:
@@ -140,7 +142,7 @@ class RoomCreationExecutor:
                     if any(name.casefold() == ' '.join(payload.name.split()).casefold() for (name,) in names):
                         detail = 'An open table with that name already exists in this room.'
             if detail is None:
-                eligibility = await hosted_invitations.eligibility(claim.connection, claim.target.room_id, actor, payload.invitees)
+                eligibility = await hosted_invitations.eligibility(claim.connection, claim.target.room_id, actor, payload.invitees, lane=claim.entry.lane_id, sequence=claim.entry.sequence)
                 detail = next((item['reason'] for item in eligibility if not item['eligible']), None)
             if detail is None:
                 detail = await hosted_invitations.reserve_rate(claim.connection, actor, len(set(payload.invitees)))

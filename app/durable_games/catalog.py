@@ -32,6 +32,8 @@ class PostgresRoomCreation:
             raise ValueError('A room name is required.')
         async with self.pool.connection() as connection:
             async with connection.transaction():
+                from app.player_blocks.service import policy_read_lock, require_contact
+                await policy_read_lock(connection)
                 user = await (await connection.execute('SELECT id FROM users WHERE id=%s FOR UPDATE', (identifier,))).fetchone()
                 if user is None:
                     raise QueryAccessDenied('An authenticated player is required.')
@@ -43,6 +45,7 @@ class PostgresRoomCreation:
                     room_id = prior[0]
                 else:
                     for recipient in set(body.invitees):
+                        await require_contact(connection,actor,recipient)
                         if recipient == actor or not await (await connection.execute('SELECT id FROM users WHERE id=%s', (user_uuid(recipient),))).fetchone():
                             raise ValueError('Choose another existing player as invitation recipient.')
                     room_id = uuid5(NAMESPACE_URL, canonical_json(['room-create-v1', actor, body.command_id])).hex

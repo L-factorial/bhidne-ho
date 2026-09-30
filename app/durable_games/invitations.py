@@ -4,7 +4,7 @@ from .checkpoints import canonical_json
 from .checkpoint_store import user_uuid
 
 
-async def eligibility(connection, room_id, actor, recipients):
+async def eligibility(connection, room_id, actor, recipients, *, lane=None, sequence=None):
     room = await (await connection.execute('SELECT creator_id,visibility FROM rooms WHERE id=%s', (room_id,))).fetchone()
     result = []
     for target in dict.fromkeys(recipients):
@@ -17,6 +17,13 @@ async def eligibility(connection, room_id, actor, recipients):
             reason = 'You cannot invite yourself.'
         if reason is None and not await (await connection.execute('SELECT 1 FROM users WHERE id=%s', (target_id,))).fetchone():
             reason = 'Player not found.'
+        if reason is None:
+            from app.player_blocks.service import require_contact
+            from .queries import QueryAccessDenied
+            try:
+                await require_contact(connection,actor,target,lane=lane,sequence=sequence)
+            except QueryAccessDenied as error:
+                reason=str(error)
         if reason is None and room[1] != 'public' and room[0] != user_uuid(actor):
             permitted = await (await connection.execute('''SELECT 1 FROM room_memberships WHERE room_id=%s AND user_id=%s
                 UNION ALL SELECT 1 FROM room_invitations WHERE room_id=%s AND recipient_id=%s AND status='pending' LIMIT 1''',
@@ -54,6 +61,8 @@ async def create(claim, game, recipients):
     observed = int((await (await connection.execute('SELECT floor(extract(epoch FROM clock_timestamp())*1000)::bigint')).fetchone())[0])
     invitations = []
     for recipient in dict.fromkeys(recipients):
+        from app.player_blocks.service import require_contact
+        await require_contact(connection,actor,recipient,lane=claim.entry.lane_id,sequence=claim.entry.sequence)
         identity = uuid5(NAMESPACE_URL, canonical_json(['hosted-invite', str(claim.entry.lane_id), actor,
             claim.entry.request.command_id, recipient])).hex
         invitations.append(dict(id=identity, room_id=game.room_id, match_id=game.match_id,
@@ -71,6 +80,9 @@ async def answer(claim, game, invitations, payload):
     actor = claim.entry.actor_id
     item = next((i for i in invitations if i.get('id') == payload.invitation_id and i.get('recipient_id') == actor), None)
     if item is None or item.get('status') != 'pending':
+        return 'Table invitation is no longer available.'
+    from app.player_blocks.service import invitation_allowed
+    if not await invitation_allowed(claim.connection,item):
         return 'Table invitation is no longer available.'
     if game.ended:
         return 'This table has ended.'

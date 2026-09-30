@@ -87,16 +87,30 @@ async def test_join_seat_and_close_last_seat_release_table_allocation(lobby):
     assert rejected.outcome['status'] == 'rejected'
 
 
-@pytest.mark.parametrize('actor', ['system:timer', 'missing', 'nonmember', 'unknown_uuid'])
+@pytest.mark.parametrize('actor', ['system:timer', 'missing', 'nonmember'])
 async def test_execution_rechecks_actor_and_membership(lobby, actor):
     pool, _, _, users, _, _, _, _, _ = lobby
     if actor == 'nonmember':
         actor = users[-1]
         await pool.execute('DELETE FROM room_memberships WHERE user_id=%s', (UUID(actor[5:]),))
-    elif actor == 'unknown_uuid':
-        actor = f'user-{uuid4()}'
     result, _ = await execute(lobby, actor, 'join-queue', 0)
     assert result.outcome['status'] == 'rejected' and result.outcome['revision'] == 0
+
+
+async def test_unknown_account_is_rejected_before_table_command_is_queued(lobby):
+    pool, checkpoints, fence, users, _, game, inbox, lane, executor = lobby
+    before = await checkpoints.load(game.table.table_id)
+    actor, body = f'user-{uuid4()}', request(game, 'join-queue', 0)
+    with pytest.raises(DurableGameConflict, match=r'Account unavailable\.'):
+        await inbox.enqueue(lane, actor, body)
+    assert await inbox.lookup(lane, actor, body['command_id']) is None
+    assert (await pool.execute('SELECT enqueued_sequence,processed_sequence FROM command_lanes WHERE lane_id=%s', (lane,))).rows == [(0, 0)]
+    assert (await pool.execute('SELECT count(*) FROM notification_outbox')).rows == [(0,)]
+    assert await checkpoints.load(game.table.table_id) == before
+    assert await executor.execute_one(lane, fence) is None
+    queued = await inbox.enqueue(lane, users[-1], request(game, 'join-queue', 0))
+    assert queued.sequence == 1
+    assert (await executor.execute_one(lane, fence)).outcome['status'] == 'accepted'
 
 
 async def test_full_table_and_invalid_match_revision_payload_are_no_effect_rejections(lobby):

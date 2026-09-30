@@ -56,6 +56,8 @@ async def authorize_social(connection, target, actor, *, lock=False):
     elif target.kind == 'conversation':
         if user not in (target.user_low, target.user_high):
             raise QueryAccessDenied('Conversation access is required.')
+        from app.player_blocks.service import require_contact
+        await require_contact(connection,actor,f'user-{target.user_high if user==target.user_low else target.user_low}')
         row = await (await connection.execute('''SELECT 1 FROM friendships
             WHERE user_low=%s AND user_high=%s AND status='accepted' ''' + ('FOR SHARE' if lock else ''),
             (target.user_low, target.user_high))).fetchone()
@@ -161,6 +163,8 @@ class SocialLaneExecutor:
         async with self.inbox.claim(lane_id) as claim:
             if claim is None:
                 return None
+            from app.player_blocks.service import policy_read_lock
+            await policy_read_lock(claim.connection)
             target, request, actor = claim.target, claim.entry.request, claim.entry.actor_id
             if target.kind not in SOCIAL_KINDS:
                 raise ValueError('Expected a platform social lane.')
@@ -180,6 +184,8 @@ class SocialLaneExecutor:
                     sender = user_uuid(actor)
                     await authorize_social(claim.connection, target, actor, lock=True)
                 if target.kind == 'conversation' and request.command == 'send-message' and actor != SYSTEM:
+                    from app.player_blocks.service import require_contact
+                    await require_contact(claim.connection,actor,f'user-{target.user_high if sender==target.user_low else target.user_low}',lane=lane_id,sequence=claim.entry.sequence)
                     text = ChatInput.model_validate(request.payload).text
                     recent = await (await claim.connection.execute('''SELECT 1 FROM direct_messages
                         WHERE lane_id=%s AND sender_id=%s AND sent_at>clock_timestamp()-interval '1 second'
@@ -207,6 +213,12 @@ class SocialLaneExecutor:
                     if data.actor_id is not None:
                         found = await (await claim.connection.execute('SELECT id FROM users WHERE id=%s', (data.actor_id,))).fetchone()
                         origin = found[0] if found else None
+                    if data.kind == 'friendship_changed' and data.payload.get('other_user_id'):
+                        from app.player_blocks.service import require_contact
+                        await require_contact(claim.connection,data.payload['other_user_id'],f'user-{target.recipient_id}',lane=lane_id,sequence=claim.entry.sequence)
+                    if origin is not None:
+                        from app.player_blocks.service import require_contact
+                        await require_contact(claim.connection,f'user-{origin}',f'user-{target.recipient_id}',lane=lane_id,sequence=claim.entry.sequence)
                     identity = uuid5(NAMESPACE_URL, canonical_json(['notification',str(target.recipient_id),data.key]))
                     seq = await self._next(claim)
                     now = (await (await claim.connection.execute('SELECT clock_timestamp()')).fetchone())[0]

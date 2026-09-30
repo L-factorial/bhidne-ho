@@ -198,8 +198,9 @@ class PostgresHostedQueries:
                     if status == 'closed' or not await can_enter(connection, (room, owner, visibility), actor):
                         continue
                     seated = (await (await connection.execute('SELECT count(*) FROM table_positions WHERE table_id=%s AND seat IS NOT NULL', (table,))).fetchone())[0]
+                    from app.player_blocks.service import invitation_allowed
                     for item in state['data']['invitations']:
-                        if item.get('recipient_id') == actor and item.get('status') == 'pending':
+                        if item.get('recipient_id') == actor and item.get('status') == 'pending' and await invitation_allowed(connection,item):
                             items.append(dict(item, table_id=table.hex, table_revision=revision, room_name=name,
                                 capacity=capacity, seated=seated, seat_available=status == 'waiting'
                                 and state['data']['host']['durable_game_id'] is None and seated < capacity))

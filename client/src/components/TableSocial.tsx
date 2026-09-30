@@ -1,3 +1,5 @@
+import type { Session } from '../multiplayer/session';
+import { BlockPlayerButton, useBlocking } from './PlayerBlocking';
 import { usePersistentNotice } from '../multiplayer/usePersistentNotice';
 import { playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
@@ -41,10 +43,11 @@ export function useSocialHandAnchor(existing?: RefObject<View | null>) {
   return { ref, onLayout: () => { if (ref.current) social?.anchor(ref.current); } };
 }
 
-export function TableSocialProvider({ children, snapshot, channel, connected, userId, pokes, phrases = [] }: {
-  children: ReactNode; snapshot: RoomSnapshot; channel?: TableSocialChannel; connected: boolean; userId: string; pokes: RoomPoke[]; phrases?: PlayerPhrase[];
+export function TableSocialProvider({ children, snapshot, channel, connected, userId, session, pokes, phrases = [] }: {
+  session: Session; children: ReactNode; snapshot: RoomSnapshot; channel?: TableSocialChannel; connected: boolean; userId: string; pokes: RoomPoke[]; phrases?: PlayerPhrase[];
 }) {
   const uiLanguage = useUiLanguage();
+  const blocking = useBlocking(session);
   const reconnecting = usePersistentNotice(!connected);
   const { colors: c } = useTheme();
   const { height: viewportHeight, width } = useWindowDimensions();
@@ -129,7 +132,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
     const fresh = valid.filter(m => !seen.current.has(m.id));
     valid.forEach(m => seen.current.add(m.id));
     if (seen.current.size > 500) seen.current = new Set([...seen.current].slice(-200));
-    setMessages(current => mergeTableMessages(current, valid));
+    setMessages(current => historical ? mergeTableMessages([], valid) : mergeTableMessages(current, valid));
     if (!historical) {
       const received = fresh.filter(m => m.sender_id !== userId);
       if (!openRef.current) setUnread(n => n+received.length);
@@ -143,11 +146,17 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
       const message = value as TableMessage;
       if (message?.type === 'TABLE_CHAT_MESSAGE') addMessages([message]);
     });
-    void channel.request('TABLE_CHAT_HISTORY', snapshot.match_id, {}, controller.signal).then(result => {
-      if (!controller.signal.aborted) { addMessages(result.messages || [], !historyLoaded.current); historyLoaded.current = true; }
-    }).catch(failure => { if (!controller.signal.aborted) setError(playerError(failure)); });
-    return () => { controller.abort(); unsubscribe(); };
-  }, [channel, canRead, connected, snapshot.match_id]);
+    let timer: ReturnType<typeof setTimeout>;
+    const refresh = async () => {
+      try {
+        const result = await channel!.request('TABLE_CHAT_HISTORY', snapshot.match_id!, {}, controller.signal);
+        if (!controller.signal.aborted) { addMessages(result.messages || [], true); historyLoaded.current = true; }
+      } catch (failure) { if (!controller.signal.aborted) setError(playerError(failure)); }
+      finally { if (!controller.signal.aborted && blocking.enabled) timer = setTimeout(() => void refresh(), 3000); }
+    };
+    void refresh();
+    return () => { controller.abort(); clearTimeout(timer); unsubscribe(); };
+  }, [channel, canRead, connected, snapshot.match_id, blocking.enabled, blocking.revision]);
   useEffect(() => {
     const fresh = pokes.filter(p => p.match_id === snapshot.match_id && p.expires_at > Date.now() && !seenPokes.current.has(p.id));
     fresh.forEach(p => seenPokes.current.add(p.id));
@@ -256,7 +265,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
           {/* RN Web's on-drag dismisses on every scroll, including auto-scroll and keyboard resizing. */}
           <ScrollView ref={scroll} testID="table-chat-messages" style={{flex:1,minHeight:0}} keyboardDismissMode={Platform.OS === 'web' ? 'none' : Platform.OS === 'ios' ? 'interactive' : 'on-drag'} keyboardShouldPersistTaps="always" onLayout={() => { if(follow.current) scroll.current?.scrollToEnd({animated:false}); }} onScroll={({nativeEvent:e}) => { follow.current = e.contentSize.height-e.contentOffset.y-e.layoutMeasurement.height < 40; }} scrollEventThrottle={16} onContentSizeChange={() => { if(follow.current) scroll.current?.scrollToEnd({animated:false}); }}>
             {!messages.length && <Text style={{color:c.textMuted}}>{ui("social.start_the_table_conversation")}</Text>}
-            {messages.map(message => <ChatMessage tableStyle key={message.id} message={message} own={message.sender_id === userId} />)}
+            {messages.map(message => <ChatMessage tableStyle key={message.id} message={message} own={message.sender_id === userId} action={<BlockPlayerButton session={session} enabled={blocking.enabled} player={{user_id: message.sender_id, display_name: message.sender_name}} onBlocked={() => {setMessages(current => current.filter(m => m.sender_id !== message.sender_id)); setEffects([]); setUnread(0);}} />} />)}
           </ScrollView>
           {!!error && <Text accessibilityRole="alert" style={{color:c.danger}}>{uiLabel(error, 'feedback')}</Text>}
           {reconnecting && <Text style={{color:c.textMuted}}>{ui("feedback.reconnecting")}</Text>}

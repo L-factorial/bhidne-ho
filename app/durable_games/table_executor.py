@@ -55,6 +55,8 @@ class TableLaneExecutor:
         async with self.inbox.claim(lane_id, fence=fence) as claim:
             if claim is None:
                 return None
+            from app.player_blocks.service import policy_read_lock
+            await policy_read_lock(claim.connection)
             if claim.target.kind != 'table':
                 raise DurableGameConflict('This executor handles table lanes only.')
             request = claim.entry.request

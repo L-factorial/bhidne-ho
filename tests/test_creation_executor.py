@@ -102,16 +102,32 @@ async def test_invalid_payload_is_a_no_effect_rejection(creation, change):
     assert (await pool.execute('SELECT open_table_count FROM rooms')).rows == [(0,)]
 
 
-@pytest.mark.parametrize('actor', ['system:timer', 'unknown_uuid', 'nonmember'])
+@pytest.mark.parametrize('actor', ['system:timer', 'nonmember'])
 async def test_execution_rechecks_membership_and_user_identity(creation, actor):
     pool, _, _, users, _, _, _ = creation
-    if actor == 'unknown_uuid': actor = f'user-{uuid4()}'
-    elif actor == 'nonmember':
+    if actor == 'nonmember':
         actor = users[-1]
         await pool.execute('DELETE FROM room_memberships WHERE user_id=%s', (UUID(actor[5:]),))
     result = await create(creation, actor, request())
     assert result['status'] == 'rejected'
     assert (await pool.execute('SELECT count(*) FROM room_tables')).rows == [(0,)]
+
+
+async def test_unknown_account_is_rejected_before_creation_is_queued(creation):
+    pool, _, fence, users, inbox, lane, executor = creation
+    actor, body = f'user-{uuid4()}', request()
+    # Account availability is checked at admission, before sequence allocation.
+    with pytest.raises(DurableGameConflict, match=r'Account unavailable\.'):
+        await inbox.enqueue(lane, actor, body)
+    assert await inbox.lookup(lane, actor, body['command_id']) is None
+    assert (await pool.execute('SELECT enqueued_sequence,processed_sequence FROM command_lanes WHERE lane_id=%s', (lane,))).rows == [(0, 0)]
+    assert (await pool.execute('SELECT count(*) FROM notification_outbox')).rows == [(0,)]
+    assert (await pool.execute('SELECT count(*) FROM room_tables')).rows == [(0,)]
+    assert await executor.execute_one(lane, fence) is None
+    # Rejection does not allocate a gap or prevent a real account from creating.
+    queued = await inbox.enqueue(lane, users[0], request())
+    assert queued.sequence == 1
+    assert (await executor.execute_one(lane, fence)).outcome['status'] == 'accepted'
 
 
 async def test_failure_after_creation_rolls_back_all_rows_and_preserves_retry_identity(creation):
