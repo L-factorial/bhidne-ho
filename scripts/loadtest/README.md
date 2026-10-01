@@ -23,6 +23,11 @@ new credential files have mode 0600. Use only dedicated `load_` accounts. An
 existing file can be supplied with `--accounts PATH`. Do not share account files
 between simultaneous runners: each account must have one active scenario owner.
 
+At scenario login the driver reads the current community rules and accepts them
+for these dedicated synthetic accounts before sending social commands. It checks
+that acceptance was saved and fails the scenario if this setup fails. Normal
+account signup and server posting enforcement are unchanged.
+
 Choose the explicit API target, then provision accounts before starting the clock:
 
 ```sh

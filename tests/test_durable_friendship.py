@@ -202,6 +202,14 @@ async def test_http_friendship_worker_notification_catchup_and_legacy_boundary(d
     async with application(database[0]) as (client, app, server):
         first, first_headers = await signup(client, 'friend_one')
         second, second_headers = await signup(client, 'friend_two')
+        for headers in (first_headers, second_headers):
+            rules = await client.get('/me/community-rules', headers=headers)
+            assert rules.status_code == 200, rules.text
+            assert rules.json()['accepted'] is False
+            accepted = await client.post('/me/community-rules', headers=headers,
+                json={'version': rules.json()['version'], 'accepted': True})
+            assert accepted.status_code == 200, accepted.text
+            assert (await client.get('/me/community-rules', headers=headers)).json()['accepted'] is True
         target = conversation(first['user_id'], second['user_id']).model_dump(mode='json', exclude_none=True)
         for headers, command in [(first_headers, 'request-friend'), (second_headers, 'accept-friend')]:
             body = request(command)
@@ -212,7 +220,8 @@ async def test_http_friendship_worker_notification_catchup_and_legacy_boundary(d
                 reply = await client.get(f'/distributed/commands/{lane}/{body["command_id"]}', headers=headers)
                 assert reply.status_code == 200, reply.text
                 return reply.json() if reply.json()['status'] != 'pending' else None
-            assert (await until(done))['status'] == 'accepted'
+            outcome = await until(done)
+            assert outcome['status'] == 'accepted', outcome
             assert (await client.post('/distributed/commands', headers=headers,
                 json={'target': target, 'body': body})).json()['status'] == 'accepted'
         assert (await client.get('/friends', headers=first_headers)).json()['friends'][0]['user_id'] == second['user_id']

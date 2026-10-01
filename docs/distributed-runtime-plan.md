@@ -5534,3 +5534,24 @@ PostgreSQL/Redis and two independent gateway processes (20.37s), covering all se
 adapter acceptance stages. The Node module-type warning was not the failure cause.
 Next: user commit/push and CI rerun; GitHub-secret delivery for moderator configuration
 remains separate pending implementation. No commit, push or deployment performed.
+
+### Remaining CI consent setup failures
+
+- Investigated the supplied CI run (4 failed, 1793 passed). Load-driver failures
+  explicitly reported missing community-rule acceptance during friendship setup.
+  The HTTP friendship and PostgreSQL block-race tests also created fresh accounts
+  without completing this newly required posting prerequisite.
+- HTTP friendship setup now reads the current rules, explicitly accepts through
+  the authenticated API, and verifies persisted acceptance for both accounts.
+  Block-race setup uses the production acceptance service before starting the race.
+  Both tests now include the rejection outcome in assertion failures.
+- The load driver's dedicated synthetic players accept the current rules after
+  signin, when needed, and verify saved acceptance before opening runtimes or
+  sending social commands. README documents this synthetic-account behavior.
+  Production signup, moderation enforcement, and command processing are unchanged.
+- Verification: friendship suite 13 passed; moderation enforcement 16 passed;
+  load-model tests 11 passed; Node syntax and whitespace checks passed. The native
+  block-race and two load-driver tests were skipped (3 total) because native
+  PostgreSQL/Redis test binaries are unavailable locally; WSL is not installed.
+- Next: commit/push when requested and rerun CI's native PostgreSQL/Redis tests.
+  No deployment or claim that the complete production workflow has passed.

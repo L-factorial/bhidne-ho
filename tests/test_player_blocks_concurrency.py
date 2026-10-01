@@ -16,6 +16,9 @@ async def test_block_waits_for_inflight_send_then_suppresses_its_delivery(postgr
     auth = PostgresAuthService(pool)
     a = await auth.sign_up('sender_player', 'original-password')
     b = await auth.sign_up('blocking_player', 'original-password')
+    from app.moderation.policy import accept_rules, RULES_VERSION
+    await accept_rules(pool, a.user_id, RULES_VERSION)
+    await accept_rules(pool, b.user_id, RULES_VERSION)
     ids = sorted([UUID(a.user_id[5:]), UUID(b.user_id[5:])])
     async with pool.connection() as c:
         await c.execute("INSERT INTO friendships(user_low,user_high,requested_by,status) VALUES (%s,%s,%s,'accepted')", (*ids, ids[0]))
@@ -43,7 +46,8 @@ async def test_block_waits_for_inflight_send_then_suppresses_its_delivery(postgr
                 await asyncio.sleep(.02)
         assert not block.done()
         release.set()
-        assert (await asyncio.wait_for(worker,5)).outcome['status'] == 'accepted'
+        outcome = (await asyncio.wait_for(worker,5)).outcome
+        assert outcome['status'] == 'accepted', outcome
         assert await asyncio.wait_for(block,5) == {'blocked': True}
         # The sender retains only their receipt; the old message is never replayed.
         page = await PostgresDeliveryStore(pool).page(a.user_id,lane)

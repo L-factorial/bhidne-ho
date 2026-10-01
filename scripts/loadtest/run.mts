@@ -67,6 +67,10 @@ async function provision() {
 }
 async function player(account:any) {
   const a=await raw('/auth/signin',null,account);used.add(account.username);
+  // Dedicated synthetic accounts follow the same posting prerequisite as the UI.
+  const rules=await raw('/me/community-rules',a,undefined,hard.signal);
+  if(!rules.accepted)await raw('/me/community-rules',a,{version:rules.version,accepted:true},hard.signal);
+  assert.equal((await raw('/me/community-rules',a,undefined,hard.signal)).accepted,true,'Community rules acceptance was not saved');
   const memory=new Map<string,string>();const owner=createJournalOwner({read:k=>memory.get(k)??null,write:(k,v)=>{memory.set(k,v);}},a.user_id,()=>{});
   const rt=new OriginalDistributedRuntime(owner,base+'/distributed',a,{install(){},remove(){},error(_lane,_error,source){inc(`background.${source??'delivery'}.error`);}},{fetcher:fetcher as any});
   rt.connectRequests(raw as any);
