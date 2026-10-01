@@ -64,3 +64,17 @@ def test_provisioning_preserves_installed_recovery_without_local_secret():
     assert filters.recovery_env_text(existing, {'BHIDNE_HO_RECOVERY_ENABLED':'0'}).startswith('BHIDNE_HO_RECOVERY_ENABLED=0')
     with pytest.raises(ValueError): filters.recovery_env_text(existing, {'UNRELATED':'override'})
     with pytest.raises(ValueError): filters.recovery_env_text(existing, {'BHIDNE_HO_RECOVERY_KEYS':'bad\nINJECTED=1'})
+
+
+def test_provisioning_preserves_and_revokes_moderator_settings():
+    spec = importlib.util.spec_from_file_location('moderation_filter', Path(__file__).parents[1]/'deploy/provision/filter_plugins/provision.py')
+    filters = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(filters)
+    existing='OTHER=private\nBHIDNE_HO_MODERATOR_USER_IDS=user-id\nBHIDNE_HO_MODERATOR_EMAILS=admin@example.test\n'
+    rendered=filters.moderation_env_text(existing)
+    assert 'OTHER' not in rendered
+    assert 'BHIDNE_HO_MODERATOR_USER_IDS=user-id' in rendered
+    assert 'BHIDNE_HO_MODERATOR_EMAILS=admin@example.test' in rendered
+    assert filters.moderation_env_text(existing, {'BHIDNE_HO_MODERATOR_USER_IDS':''}).endswith('BHIDNE_HO_MODERATOR_USER_IDS=')
+    with pytest.raises(ValueError): filters.moderation_env_text(existing, {'UNRELATED':'override'})
+    with pytest.raises(ValueError): filters.moderation_env_text(existing, {'BHIDNE_HO_MODERATOR_EMAILS':'bad\nINJECTED=1'})

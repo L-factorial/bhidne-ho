@@ -27,7 +27,8 @@ class PostgresRoomCreation:
         body = CreateRoom.model_validate_json(canonical_json(body))
         identifier = user_uuid(actor)
         fingerprint = canonical_json(body.model_dump(exclude={'command_id'}))
-        name = ' '.join(body.name.split())
+        from app.moderation.content import validate_content
+        name = validate_content(' '.join(body.name.split()))
         if not name:
             raise ValueError('A room name is required.')
         async with self.pool.connection() as connection:
@@ -44,7 +45,9 @@ class PostgresRoomCreation:
                         raise DurableGameConflict('Command ID already identifies a different room creation.')
                     room_id = prior[0]
                 else:
+                    from app.moderation.policy import require_posting
                     for recipient in set(body.invitees):
+                        await require_posting(connection, actor, category='invitation', consume=True)
                         await require_contact(connection,actor,recipient)
                         if recipient == actor or not await (await connection.execute('SELECT id FROM users WHERE id=%s', (user_uuid(recipient),))).fetchone():
                             raise ValueError('Choose another existing player as invitation recipient.')

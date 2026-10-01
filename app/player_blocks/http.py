@@ -18,7 +18,7 @@ def service(request):
 @router.get('/auth/safety/capabilities')
 async def capabilities(request:Request,response:Response):
     response.headers['Cache-Control']='no-store'
-    return {'blocking':getattr(request.app.state,'blocks',None) is not None}
+    return {'blocking':getattr(request.app.state,'blocks',None) is not None, 'reporting':getattr(request.app.state,'moderation',None) is not None}
 
 @router.get('/me/blocks')
 async def listed(request:Request,response:Response,after:UUID|None=None,limit:int=Query(50,ge=1,le=100),user=Depends(current_user)):

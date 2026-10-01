@@ -80,16 +80,19 @@ retained shared content, migration implications, test limits and activation step
 
 ### A4 — chat safety
 
-- [ ] Report message/player across all chat scopes, with bounded evidence and reasons.
+- [x] Report message/player across all chat scopes, with bounded evidence and reasons.
 - [x] Block/unblock and blocked-player Settings; server checks on existing sends,
   history/delivery, requests and invitations, including commands queued before a block.
 - [ ] Apply block suppression to mentions and push when A5 implements them.
 - [x] Define shared-table behavior: block social interaction without hiding game state.
-- [ ] Account-wide bursts, repeated-message and invitation/report abuse limits across hosts.
-- [ ] English/Nepali/transliterated content checks for messages, names and saved phrases.
-- [ ] Community rules accepted before posting; decide guest posting and age policy.
-- [ ] Protected moderator queue with server-enforced roles, minimal evidence access,
-  dismiss/remove/mute/suspend actions and audited decisions; assign human coverage.
+- [x] Account-wide bursts, repeated-message and invitation/report abuse limits across hosts.
+- [x] Basic English/Nepali/transliterated content checks for messages, names and saved phrases.
+- [x] Community rules accepted before posting; distributed guest posting denied.
+- [x] Confirm minimum age: 18; public metadata and terms display it. Deployment pending.
+- [x] Protected Profile moderation page grouped by reported user ID; required-reason
+  Accept/Decline decisions, backend account-ID/unique verified-email grants and audit records.
+- [x] Explicit remove/mute/suspend and restore actions with reasons and audit history.
+- [ ] Assign human moderation coverage and a monitored appeals inbox.
 - [ ] Test bypass attempts, concurrent block/send, unauthorized moderator access and appeals.
 
 ### A5 — notifications
@@ -110,7 +113,7 @@ Deferred by the user until near native/store testing; no implementation in A4.
 ### A6 — privacy and support
 
 - [ ] Publish /privacy, /support, /delete-account and community rules/terms without login.
-- [ ] Replace welcome notices and add Settings links; English/Nepali coverage.
+- [x] Replace welcome notices and add Settings links; English/Nepali coverage.
 - [ ] Actual data inventory, purpose, provider list, retention, deletion and monitored contact.
 - [ ] Match Apple privacy disclosures and Play Data safety to shipped behavior and SDKs.
 
@@ -615,3 +618,83 @@ Reviewed during planning on 2026-09-30; recheck before submission.
 - Next: user reviews and commits/pushes; no deployment or remote CI monitoring.
   Native device verification remains outstanding.
 - Production web build (including TypeScript) and `git diff --check` passed.
+
+
+### A4 reporting and grouped moderation (2026-09-30)
+
+- Added additive PostgreSQL migration 34 for bounded reports and one immutable
+  decision per report. Existing game/account data is preserved; no database reset.
+- Player rows and direct/room/table/game chat offer private reporting. The server
+  captures the referenced message/profile, checks sender and existing chat access,
+  rejects guessed private message IDs, deduplicates same reports for 24 hours,
+  and serializes a ten-new-reports/hour account limit across gateways.
+- Moderator access uses backend-only `BHIDNE_HO_MODERATOR_USER_IDS` and optional
+  `BHIDNE_HO_MODERATOR_EMAILS`. Only a current, unique verified recovery mailbox
+  qualifies. Signup/provider claims are excluded. Invalid configuration fails
+  startup; no configured identities means no moderator access. Each API request
+  rechecks current account/contact state. Provisioning preserves private settings.
+- Profile → Moderation follows the app header, language/theme and Back conventions.
+  Pending/Reviewed lists group by reported user ID; expanding loads individual
+  reports with server evidence and separately labeled reporter explanations.
+  Accept/Decline opens confirmation requiring a reason; reviewed reports display
+  decision, reason, moderator ID and time. Reads are paginated; permission failure
+  clears displayed evidence. Conflicting concurrent decisions cannot overwrite
+  the first result; identical retries are safe. Moderators cannot review reports
+  submitted by or targeting themselves.
+- Acceptance is classification only, with no automatic punishment or gameplay
+  changes. Removal, mute/suspension, appeals and community rules remain outstanding.
+- Evidence/decisions expire after 90 days and are purged hourly while the distributed
+  runtime runs. Account cleanup removes reports involving the deleted reporter,
+  reported player or deciding moderator. Public privacy copy must describe this.
+- Verification: 43 targeted backend cases across moderation, blocks, platform and
+  account deletion; a real PostgreSQL concurrent retry/decision race; five private
+  configuration tests; 308 frontend tests; TypeScript and production Expo export.
+  Local Chrome acceptance exercises player reporting, ordinary-user denial,
+  moderator-only Profile entry, grouping, required reasons, both decisions,
+  persistence, language/theme and Back. Mobile/desktop layouts inspected.
+- Configuration/rollout: `docs/moderation.md`, `deploy/moderation.env.example`.
+  Next step: user review/commit/push; deploy schema/code to all gateways, configure
+  the chosen moderator ID or verified email privately, restart all gateways, and
+  verify access with both moderator and ordinary accounts. No live grants,
+  commit/push, deployment or remote build monitoring performed. Native device
+  acceptance remains outstanding; notifications remain deferred.
+
+### Chat enforcement and public-policy implementation — 2026-09-30
+
+User expanded scope to all remaining chat-safety and policy features. Added modular
+message removal, mute/restore, safe suspension/restore, reasoned action history,
+server-enforced community-rule acceptance, basic multilingual filtering and shared
+account-wide message/invitation limits. Migration 35 is additive and preserves data.
+Public privacy/support/rules/terms routes and login/Profile links are implemented
+with English/Nepali, themes and Back navigation. Details: `docs/moderation.md`.
+
+Verification: 75 targeted moderation/chat/social/block/deletion cases; 29 additional
+enforcement/hosted-invitation/catalog/configuration cases; 32 poke/room-command/seat-
+offer/report cases; two real PostgreSQL concurrency tests; Chrome browser acceptance
+for grouped review, rule acceptance, mute/restore, public-page navigation and
+language/theme/Back. All 309 frontend tests, TypeScript and production web export
+passed. No remote builds tracked; no commit, push or deployment performed.
+
+Outstanding: operator name, monitored public support/appeals email, minimum age and
+backup disclosure confirmation/configuration. Public pages mark these unconfirmed;
+no contact or retention promise was invented. Verify deployed providers/log retention,
+store privacy disclosures, moderator configuration and native device behavior before
+submission. Suspension waits for empty participation/pending-command inventory;
+use mute during ongoing games. Filtering is a basic list, not comprehensive detection.
+Next: finalize the public metadata/copy after the owner's reply, then user review,
+commit/push and deployment checks. Notifications remain deferred.
+
+
+### Public policy details confirmed
+
+The owner confirmed operator **Lfactorial**, monitored support/appeals email
+**prajwal@lfactorial.com**, minimum age **18**, and **no configured database backups**.
+These now supply the default `/public/policy` metadata, with environment overrides
+preserved. The example configuration and moderation handoff are updated. This
+supersedes the pending confirmation noted above; it does not deploy the pages.
+
+Verification: checked default metadata, explicit override behavior, incomplete-config
+warning behavior and the existing public metadata/rule-acceptance API test.
+Next: user review/commit/push and deployment, then verify public URLs and configured
+moderator access. Provider/log-retention review and native acceptance remain.
+No live settings, commit, push or deployment performed.

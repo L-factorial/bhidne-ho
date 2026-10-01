@@ -70,6 +70,8 @@ async def apply_offer(claim, game, payload, occupied):
         from app.player_blocks.service import require_contact
         from .queries import QueryAccessDenied
         try:
+            from app.moderation.policy import require_posting
+            await require_posting(claim.connection, actor, category='invitation', consume=True)
             await require_contact(claim.connection,actor,recipient,lane=claim.entry.lane_id,sequence=claim.entry.sequence)
         except QueryAccessDenied as error:
             return str(error)

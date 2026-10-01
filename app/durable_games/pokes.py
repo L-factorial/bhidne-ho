@@ -28,6 +28,8 @@ async def execute(claim, checkpoints):
     try:
         await require_member(connection, claim.target.room_id, actor)
         poke = (TablePokePayload if request.command == 'send-reaction' else Poke).model_validate_json(canonical_json(request.payload))
+        from app.moderation.policy import require_posting
+        await require_posting(connection, actor, text=getattr(poke, 'text', None), consume=True)
         if request.command == 'send-reaction' and poke.reaction is None:
             raise ValueError('Choose a reaction.')
         if game.ended or request.match_id != game.match_id or request.expected_revision != data['table_revision']:

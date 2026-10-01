@@ -189,6 +189,8 @@ async def execute(claim, inbox, fence, *, max_events=512):
                 recipients_ids, detail = [], 'Invalid invitation recipient.'
             for recipient in recipients if detail is None else []:
                 try:
+                    from app.moderation.policy import require_posting
+                    await require_posting(connection, actor, category='invitation', consume=True)
                     await require_contact(connection,actor,recipient,lane=claim.entry.lane_id,sequence=claim.entry.sequence)
                 except QueryAccessDenied as error:
                     detail=str(error)

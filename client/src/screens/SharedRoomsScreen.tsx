@@ -1,3 +1,4 @@
+import { PolicyLinks } from '../components/moderation/PublicPolicies';
 import { DeleteAccountLink } from './DeletionScreen';
 import { isCurrentSession } from '../multiplayer/session';
 import { accountStyles } from '../components/AccountPage';
@@ -501,7 +502,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
     onSelect={tab => { setLobbyTab(tab === 'chat' ? 'chat' : tab === 'home' ? 'rooms' : tab === 'friends' ? 'players' : 'games'); }} />}
 
   {!session && accountFormOpen && <FormFooter><View style={{width: '100%', maxWidth: 424, alignSelf: 'center', gap: 8}}>
-            {authMode !== 'signup' && <DeleteAccountLink />}
+            {authMode !== 'signup' && <><PolicyLinks /><DeleteAccountLink /></>}
             {!!shared.error && <Text accessibilityRole="alert" style={styles.error}>{shared.error}</Text>}
             <Pressable accessibilityRole="button" disabled={authDisabled} accessibilityState={{ disabled: authDisabled }}
               onPress={submitAccount}

@@ -111,6 +111,11 @@ async def erase(c, job, recovery):
         for table in ('delivery_cursors','notification_outbox','friend_notifications','direct_messages','scheduled_actions','command_inbox'):
             await c.execute(sql.SQL('DELETE FROM {} WHERE lane_id=%s').format(sql.Identifier(table)).as_string(), (lane,))
         await c.execute('DELETE FROM command_lanes WHERE lane_id=%s', (lane,))
+    await c.execute('DELETE FROM moderation_actions WHERE target_id=%s OR moderator_id=%s',(uid,uid))
+    await c.execute('DELETE FROM community_acceptance WHERE user_id=%s',(uid,))
+    await c.execute('DELETE FROM social_abuse_limits WHERE user_id=%s',(uid,))
+    await c.execute('''DELETE FROM moderation_reports WHERE reporter_id=%s OR reported_id=%s
+        OR id IN (SELECT report_id FROM moderation_decisions WHERE moderator_id=%s)''',(uid,uid,uid))
     await c.execute('DELETE FROM player_blocks WHERE blocker_id=%s OR blocked_id=%s',(uid,uid))
     for table, where, params in (
         ('room_chat_messages','sender_id=%s',(uid,)),

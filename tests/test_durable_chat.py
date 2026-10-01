@@ -92,7 +92,7 @@ async def test_table_and_game_chat_are_separate_from_gameplay_and_scoped(databas
         lanes = []
         same_request = request()
         for target in targets:
-            pending = await ingress.submit(users[0], target, same_request)
+            pending = await ingress.submit(users[0], target, {**same_request, 'payload': {'text': target.kind}})
             lane = UUID(pending['lane_id'])
             lanes.append(lane)
             assert lane != game_lane
@@ -138,7 +138,7 @@ async def test_replacement_room_owner_recovers_all_chat_scopes(database):
         pending = []
         for target in targets:
             actor = users[-1] if target.kind == 'room_chat' else users[0]
-            body = request()
+            body = request(target.kind)
             accepted = await ingress.submit(actor, target, body)
             pending.append((UUID(accepted['lane_id']), actor, body))
         runtime, fence = await start(database)

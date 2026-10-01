@@ -1,3 +1,4 @@
+import { PolicyNavigation, PublicPolicyPage, type PolicyPage } from './src/components/moderation/PublicPolicies';
 import { DeletionNavigation, deletionLink } from './src/auth/deletion';
 import { DeletionScreen } from './src/screens/DeletionScreen';
 import { SessionNotice } from './src/components/SessionNotice';
@@ -84,6 +85,11 @@ function AppContent() {
     setInvitation(null);
     if (Platform.OS === 'web') { const url = new URL(globalThis.location.href); url.searchParams.delete('room'); url.searchParams.delete('match'); globalThis.history.replaceState(null, '', url.toString()); }
   }
+  const policyPath=():PolicyPage|null=>{const p=Platform.OS==='web'?globalThis.location.pathname.replace(/^\/|\/$/g,''):'';return ['privacy','support','terms','community-rules'].includes(p)?p as PolicyPage:null;};
+  const [policy,setPolicy]=useState<PolicyPage|null>(policyPath);
+  useEffect(()=>{if(Platform.OS!=='web')return;const pop=()=>setPolicy(policyPath());globalThis.addEventListener('popstate',pop);return()=>globalThis.removeEventListener('popstate',pop);},[]);
+  const openPolicy=(p:PolicyPage)=>{setPolicy(p);if(Platform.OS==='web')globalThis.history.pushState(null,'','/'+p);};
+  const closePolicy=()=>{setPolicy(null);if(Platform.OS==='web')globalThis.history.replaceState(null,'','/');};
   const [deletionOpen,setDeletionOpen] = useState(() => Platform.OS === 'web' && globalThis.location.pathname.replace(/\/$/,'') === '/delete-account');
   const [deletionToken,setDeletionToken] = useState<string|null>(() => Platform.OS === 'web' ? deletionLink(globalThis.location.href) : null);
   useEffect(()=>{
@@ -99,17 +105,17 @@ function AppContent() {
     <Image source={branding.icon} accessibilityLabel={t('common.loading')} resizeMode="contain" style={{ width: 160, height: 160, borderRadius: 24 }} />
   </View>;
   return (
-    <SafeAreaProvider><DeletionNavigation.Provider value={()=>setDeletionOpen(true)}>
+    <SafeAreaProvider><PolicyNavigation.Provider value={openPolicy}><DeletionNavigation.Provider value={()=>setDeletionOpen(true)}>
       <StatusBar style="light" />
       <SessionNotice />
       {!!authError && <Text accessibilityRole="alert" style={{ padding: 16, color: colors.danger }}>{uiLabel(authError, 'feedback')}</Text>}
-      {deletionOpen ? <DeletionScreen key={deletionToken || 'account-deletion'} session={readSession(apiUrl)?.session || null} token={deletionToken} onClose={()=>{setDeletionOpen(false);setDeletionToken(null);setInRooms(true);if(Platform.OS==='web'&&globalThis.location.pathname.startsWith('/delete-account'))globalThis.history.replaceState(null,'','/');}} /> : recovery ? <RecoveryScreen key={recovery.token} link={recovery} onDone={reset => {
+      {policy ? <PublicPolicyPage page={policy} onBack={closePolicy} /> : deletionOpen ? <DeletionScreen key={deletionToken || 'account-deletion'} session={readSession(apiUrl)?.session || null} token={deletionToken} onClose={()=>{setDeletionOpen(false);setDeletionToken(null);setInRooms(true);if(Platform.OS==='web'&&globalThis.location.pathname.startsWith('/delete-account'))globalThis.history.replaceState(null,'','/');}} /> : recovery ? <RecoveryScreen key={recovery.token} link={recovery} onDone={reset => {
         if (reset) { saveSession(apiUrl, null); setAuthVersion(value => value + 1); }
         setRecovery(null); setInRooms(true);
       }} /> : finishingSignIn ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.text }}>{ui('common.completing_sign_in')}</Text></View>
         : process.env.EXPO_PUBLIC_RUNTIME_MODE === 'distributed-integration' && (inRooms || invitation) ? <DistributedRoomsScreen key={authVersion} onExit={() => { dismissInvitation(); setInRooms(false); }} />
         : inRooms || invitation ? <SharedRoomsScreen key={authVersion} invitation={invitation} dismissInvitation={dismissInvitation} onExit={() => { dismissInvitation(); setInRooms(false); }} />
         : <WelcomeScreen onEnterLobby={() => setInRooms(true)} />}
-    </DeletionNavigation.Provider></SafeAreaProvider>
+    </DeletionNavigation.Provider></PolicyNavigation.Provider></SafeAreaProvider>
   );
 }

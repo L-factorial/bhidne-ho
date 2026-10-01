@@ -40,6 +40,13 @@ async def eligibility(connection, room_id, actor, recipients, *, lane=None, sequ
 async def reserve_rate(connection, actor, count):
     if not count:
         return None
+    from app.moderation.policy import require_posting
+    from .queries import QueryAccessDenied
+    try:
+        for _ in range(count):
+            await require_posting(connection, actor, category='invitation', consume=True)
+    except QueryAccessDenied as error:
+        return str(error)
     user = user_uuid(actor)
     await connection.execute('INSERT INTO hosted_invitation_limits(user_id) VALUES (%s) ON CONFLICT DO NOTHING', (user,))
     await connection.execute('SELECT user_id FROM hosted_invitation_limits WHERE user_id=%s FOR UPDATE', (user,))

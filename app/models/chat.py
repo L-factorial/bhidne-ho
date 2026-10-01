@@ -14,6 +14,7 @@ class ChatInput(BaseModel):
         value = value.strip()
         if not value:
             raise ValueError("Enter a message.")
-        return value
+        from app.moderation.content import validate_content
+        return validate_content(value)
 
 

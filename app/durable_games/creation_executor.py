@@ -37,6 +37,8 @@ class CreateTablePayload(Record):
 
     @model_validator(mode='after')
     def valid_capacity(self):
+        from app.moderation.content import validate_content
+        validate_content(self.name)
         allowed = range(2, 11) if self.game_type == 'flush' else range(2, 6) if self.game_type == 'marriage' else (4, 5)
         if self.capacity not in allowed or not self.name.strip():
             raise ValueError('Unsupported player count or empty table name.')

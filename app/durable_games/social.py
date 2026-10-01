@@ -187,6 +187,8 @@ class SocialLaneExecutor:
                     from app.player_blocks.service import require_contact
                     await require_contact(claim.connection,actor,f'user-{target.user_high if sender==target.user_low else target.user_low}',lane=lane_id,sequence=claim.entry.sequence)
                     text = ChatInput.model_validate(request.payload).text
+                    from app.moderation.policy import require_posting
+                    await require_posting(claim.connection,actor,text=text,consume=True)
                     recent = await (await claim.connection.execute('''SELECT 1 FROM direct_messages
                         WHERE lane_id=%s AND sender_id=%s AND sent_at>clock_timestamp()-interval '1 second'
                         ORDER BY sent_at DESC LIMIT 1''', (lane_id,sender))).fetchone()

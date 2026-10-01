@@ -1,3 +1,5 @@
+import enmoderation from './locales/en/moderation.ts';
+import nemoderation from './locales/ne/moderation.ts';
 import ensafety from './locales/en/safety.ts';
 import nesafety from './locales/ne/safety.ts';
 import endeletion from './locales/en/deletion.ts';
@@ -22,7 +24,7 @@ import enfeedback from './locales/en/feedback.ts';
 import nefeedback from './locales/ne/feedback.ts';
 
 export const uiCatalogs = {
-  en: { safety: ensafety, deletion: endeletion, recovery: enrecovery, common: encommon, rooms: enrooms, callbreak: encallbreak, flush: enflush, marriage: enmarriage, ledger: enledger, social: ensocial, feedback: enfeedback },
-  ne: { safety: nesafety, deletion: nedeletion, recovery: nerecovery, common: necommon, rooms: nerooms, callbreak: necallbreak, flush: neflush, marriage: nemarriage, ledger: neledger, social: nesocial, feedback: nefeedback },
+  en: { moderation: enmoderation, safety: ensafety, deletion: endeletion, recovery: enrecovery, common: encommon, rooms: enrooms, callbreak: encallbreak, flush: enflush, marriage: enmarriage, ledger: enledger, social: ensocial, feedback: enfeedback },
+  ne: { moderation: nemoderation, safety: nesafety, deletion: nedeletion, recovery: nerecovery, common: necommon, rooms: nerooms, callbreak: necallbreak, flush: neflush, marriage: nemarriage, ledger: neledger, social: nesocial, feedback: nefeedback },
 };
 export type UiKey = { [G in keyof typeof uiCatalogs.en]: `${G}.${keyof typeof uiCatalogs.en[G] & string}` }[keyof typeof uiCatalogs.en];

@@ -19,7 +19,8 @@ class ProfileInput(BaseModel):
     def clean_name(cls, value):
         if any(ord(char) < 32 or ord(char) == 127 for char in value):
             raise ValueError("Use a name without control characters.")
-        return " ".join(value.split())
+        from app.moderation.content import validate_content
+        return validate_content(" ".join(value.split()))
 
 
 @router.get("/me/profile")

@@ -34,11 +34,18 @@ class GuestInput(BaseModel):
         value = " ".join(value.split())
         if not value:
             raise ValueError("Enter your display name.")
-        return value
+        from app.moderation.content import validate_content
+        return validate_content(value)
 
 
 class SignUpInput(AccountInput, GuestInput):
     """Named app registration; legacy clients may omit the profile field."""
+
+    @field_validator('username')
+    @classmethod
+    def safe_username(cls, value):
+        from app.moderation.content import validate_content
+        return validate_content(value)
 
     email: str = Field(min_length=3, max_length=254)
 

@@ -1,3 +1,6 @@
+import { PolicyLinks } from '../components/moderation/PublicPolicies';
+import { CommunityRulesEntry } from '../components/moderation/CommunityRules';
+import { ModerationEntry } from '../components/Moderation';
 import { BlockedPlayers } from '../components/PlayerBlocking';
 import { DeleteAccountLink } from './DeletionScreen';
 import { RecoveryEmailSettings } from './RecoveryScreen';
@@ -45,8 +48,8 @@ export function ProfileScreen({ session, personal, onBack, onSignOut }: {
         {!!identityError && <Text accessibilityRole="alert" style={styles.description}>{identityError}</Text>}
       </View>
       <DisplayNameField session={session} onSaved={display_name => setIdentity(current => current ? { ...current, display_name } : { user_id: userId, display_name })} />
-      <RecoveryEmailSettings session={session} /><BlockedPlayers session={session} />
-      <DeleteAccountLink />
+      <CommunityRulesEntry session={session} /><ModerationEntry session={session} /><RecoveryEmailSettings session={session} /><BlockedPlayers session={session} />
+      <><PolicyLinks /><DeleteAccountLink /></>
       <FriendsPanel session={session} />
       <PlayerPhrases key={userId} userId={userId} phrases={personal.phrases} connected={true}
         loadError={personal.error} onSave={personal.save} onRemove={personal.remove} onUpdate={personal.update} />

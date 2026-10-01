@@ -1,3 +1,6 @@
+import { preserveRemovals } from './moderation/messages';
+import { CommunityRulesEntry } from './moderation/CommunityRules';
+import { ReportButton } from './Moderation';
 import { BlockPlayerButton, useBlocking } from './PlayerBlocking';
 import { usePersistentNotice } from '../multiplayer/usePersistentNotice';
 import { playerError } from '../multiplayer/playerError.ts';
@@ -15,7 +18,7 @@ import type { Session } from '../multiplayer/session';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { useTranslation } from 'react-i18next';
 
-type Message = { id: string; sender_id: string; sender_name: string; text: string; sent_at: number };
+type Message = { id: string; sender_id: string; sender_name: string; text: string; removed?: boolean; sent_at: number };
 
 export function useRoomChat({ roomId, session, connected, hideWhenBlocked = false, expanded, onExpandedChange, renderLauncher, bottomOffset = 0, launcherVisible = true }: { launcherVisible?: boolean; expanded?: boolean; onExpandedChange?: (open: boolean) => void; renderLauncher?: (state: { open: boolean; unread: number; blocked: boolean; toggle: () => void }) => ReactNode; bottomOffset?: number; hideWhenBlocked?: boolean; roomId: string; session: Session; connected: boolean }) {
   const blocking = useBlocking(session);
@@ -64,7 +67,7 @@ export function useRoomChat({ roomId, session, connected, hideWhenBlocked = fals
             setUnread(count => count + fresh.length);
             if (!notification.current.muted) notification.current.play();
           }
-          setMessages(history); setLoadError(''); setBlocked(false);
+          setMessages(current=>preserveRemovals(current,history)); setLoadError(''); setBlocked(false);
         }
       } catch (failure) {
         if (!controller.signal.aborted) {
@@ -105,10 +108,11 @@ export function useRoomChat({ roomId, session, connected, hideWhenBlocked = fals
           onScroll={({ nativeEvent: { contentOffset, contentSize, layoutMeasurement } }) => { followLatest.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 40; }}
           onContentSizeChange={() => { if (followLatest.current) scroll.current?.scrollToEnd({ animated: false }); }}>
           {!messages.length && <View style={{ paddingVertical: 32, gap: 8, alignItems: 'center' }}><Ionicons name="chatbubbles-outline" size={30} color={colors.textMuted} /><Text style={styles.heading}>{ui("social.no_messages_yet")}</Text><Text style={styles.note}>{ui("social.say_something_to_get_the_table_going")}</Text></View>}
-          {messages.map(message => <ChatMessage tableStyle key={message.id} message={message} own={message.sender_id === session.user_id} action={<BlockPlayerButton session={session} enabled={blocking.enabled} player={{user_id: message.sender_id, display_name: message.sender_name}} onBlocked={() => {setMessages(current => current.filter(m => m.sender_id !== message.sender_id)); setUnread(0);}} />} />)}
+          {messages.map(message => <ChatMessage tableStyle key={message.id} message={message} own={message.sender_id === session.user_id} action={<View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 8}}><ReportButton session={session} enabled={blocking.reporting} scope="chat" messageId={message.id} player={{user_id: message.sender_id, display_name: message.sender_name}} /><BlockPlayerButton session={session} enabled={blocking.enabled} player={{user_id: message.sender_id, display_name: message.sender_name}} onBlocked={() => {setMessages(current => current.filter(m => m.sender_id !== message.sender_id)); setUnread(0);}} /></View>} />)}
         </ScrollView>
         {reconnecting && <Text style={styles.note}>{t('chat.reconnecting')}</Text>}
         {!!visibleError && <Text accessibilityRole="alert" style={styles.error}>{visibleError}</Text>}
+        <CommunityRulesEntry session={session} />
         <ChatComposer value={draft} onChange={setDraft} onSend={() => void send()} disabled={busy || !connected} label={t('chat.title')} placeholder={t('chat.placeholder')} />
       </View>
     </RoomSheet>}

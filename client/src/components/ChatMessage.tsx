@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { fonts, useTheme } from '../theme';
 
 export function ChatMessage({ message, own, tableStyle = false, action }: {
-  action?: ReactNode; tableStyle?: boolean; message: { sender_name: string; text: string; sent_at: number }; own: boolean;
+  action?: ReactNode; tableStyle?: boolean; message: { sender_name: string; text: string; removed?: boolean; sent_at: number }; own: boolean;
 }) {
   const { colors: c } = useTheme();
   const { t } = useTranslation();
@@ -15,8 +15,8 @@ export function ChatMessage({ message, own, tableStyle = false, action }: {
       </View>
       <Text style={{ flex: 1, color: c.accent, fontFamily: fonts.medium, fontSize: 11 }}>{message.sender_name}{own ? ` (${t('chat.you')})` : ''}</Text>
       <Text style={{ color: c.textMuted, fontFamily: fonts.body, fontSize: 11 }}>{new Date(message.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
-      {action}
     </View>
-    <Text selectable style={{ marginLeft: 36, color: c.text, fontFamily: fonts.body, fontSize: 13, lineHeight: 20 }}>{message.text}</Text>
+    {!message.removed && action && <View style={{alignItems: 'flex-end'}}>{action}</View>}
+    <Text selectable style={{ marginLeft: 36, color: c.text, fontFamily: fonts.body, fontSize: 13, lineHeight: 20 }}>{message.removed ? t('moderation.removed') : message.text}</Text>
   </View>;
 }

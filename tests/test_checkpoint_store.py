@@ -38,6 +38,9 @@ async def database():
         await pool.execute('''INSERT INTO room_ownership
             (room_id,owner_instance_id,ownership_epoch,fencing_token_hash,lease_expires_at,runtime_status)
             VALUES ('room','one',1,%s,clock_timestamp()+interval '1 hour','serving')''', (_token_hash(fence.token),))
+        # These established players have already accepted the current rules.
+        from app.moderation.policy import RULES_VERSION
+        await pool.execute('INSERT INTO community_acceptance(user_id,version) SELECT id,%s FROM users', (RULES_VERSION,))
         yield pool, PostgresCheckpointStore(pool), fence, users
     finally:
         await pool.close()

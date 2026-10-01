@@ -180,7 +180,7 @@ async def test_http_actor_binding_and_cross_gateway_enforcement(database):
         a, headers = await signup(client,'block_owner')
         b, other = await signup(client,'block_target')
         path = '/me/blocks/'+b['user_id']
-        assert (await client.get('/auth/safety/capabilities')).json() == {'blocking':True}
+        assert (await client.get('/auth/safety/capabilities')).json() == {'blocking':True, 'reporting':True}
         assert (await client.post(path,json={})).status_code == 401
         assert (await client.post(path,headers=headers,json={'user_id':b['user_id']})).status_code == 422
         assert (await client.post('/me/blocks/'+a['user_id'],headers=headers,json={})).status_code == 422

@@ -150,11 +150,15 @@ def create_app(*, runtime_mode="legacy", distributed_server=None) -> FastAPI:
         allow_headers=["Authorization", "Content-Type"],
     )
     from app.auth.recovery_http import router as recovery_router
+    from app.moderation.public_policy import router as public_policy_router
+    app.include_router(public_policy_router)
     app.include_router(recovery_router)
     from app.account_deletion.http import router as deletion_router
     app.include_router(deletion_router)
     from app.player_blocks.http import router as block_router
     app.include_router(block_router)
+    from app.moderation.http import router as moderation_router
+    app.include_router(moderation_router)
     app.include_router(http.router)
     app.include_router(browser_social_router)
     app.include_router(social_auth_router)
@@ -174,6 +178,10 @@ def create_app(*, runtime_mode="legacy", distributed_server=None) -> FastAPI:
         web = Path(web_dir)
         if not (web / "index.html").is_file():
             raise RuntimeError("BHIDNE_WEB_DIR must contain the exported frontend index.html")
+        @app.get('/privacy', include_in_schema=False)
+        @app.get('/support', include_in_schema=False)
+        @app.get('/terms', include_in_schema=False)
+        @app.get('/community-rules', include_in_schema=False)
         @app.get('/delete-account', include_in_schema=False)
         async def delete_account_page():
             return FileResponse(web / 'index.html', headers={'Cache-Control':'no-store','Referrer-Policy':'no-referrer'})

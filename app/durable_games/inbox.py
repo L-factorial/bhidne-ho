@@ -192,7 +192,7 @@ class PostgresInboxStore:
         target, enqueued, processed = await self._lane(connection, lane_id)
         if actor_id.startswith('user-'):
             account = await (await connection.execute(
-                "SELECT deletion_pending,erased FROM users WHERE id=%s FOR SHARE", (UUID(actor_id[5:]),))).fetchone()
+                "SELECT deletion_pending,erased,COALESCE(suspended_until>clock_timestamp(),false) FROM users WHERE id=%s FOR SHARE", (UUID(actor_id[5:]),))).fetchone()
             if account is None or any(account):
                 raise DurableGameConflict('Account unavailable.')
         prior = await self._lookup(connection, lane_id, actor_id, request.command_id)

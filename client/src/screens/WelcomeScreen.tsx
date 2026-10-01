@@ -1,3 +1,4 @@
+import { PolicyLinks } from '../components/moderation/PublicPolicies';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { ui } from '../i18n/copy.ts';
 import { gameHeadingFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
@@ -52,11 +53,7 @@ export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
                 <Text style={styles.dismissText}>{t('welcome.dismiss')}</Text>
               </Pressable>
             </View>}
-            <View style={[styles.footer, wide && styles.wideFooter]}>
-              <Pressable accessibilityRole="button" onPress={() => setNotice(t('welcome.termsNotice'))} style={styles.footerButton}><Text style={styles.footerText}>{t('welcome.terms')}</Text></Pressable>
-              <Text style={styles.footerSeparator}>|</Text>
-              <Pressable accessibilityRole="button" onPress={() => setNotice(t('welcome.privacyNotice'))} style={styles.footerButton}><Text style={styles.footerText}>{t('welcome.privacy')}</Text></Pressable>
-            </View>
+            <PolicyLinks />
           </View>
         </View>
       </ScrollView>

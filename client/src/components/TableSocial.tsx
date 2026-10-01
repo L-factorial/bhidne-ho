@@ -1,3 +1,6 @@
+import { preserveRemovals } from './moderation/messages';
+import { CommunityRulesEntry } from './moderation/CommunityRules';
+import { ReportButton } from './Moderation';
 import type { Session } from '../multiplayer/session';
 import { BlockPlayerButton, useBlocking } from './PlayerBlocking';
 import { usePersistentNotice } from '../multiplayer/usePersistentNotice';
@@ -132,7 +135,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
     const fresh = valid.filter(m => !seen.current.has(m.id));
     valid.forEach(m => seen.current.add(m.id));
     if (seen.current.size > 500) seen.current = new Set([...seen.current].slice(-200));
-    setMessages(current => historical ? mergeTableMessages([], valid) : mergeTableMessages(current, valid));
+    setMessages(current => historical ? mergeTableMessages([], preserveRemovals(current,valid)) : mergeTableMessages(current, valid));
     if (!historical) {
       const received = fresh.filter(m => m.sender_id !== userId);
       if (!openRef.current) setUnread(n => n+received.length);
@@ -265,11 +268,12 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
           {/* RN Web's on-drag dismisses on every scroll, including auto-scroll and keyboard resizing. */}
           <ScrollView ref={scroll} testID="table-chat-messages" style={{flex:1,minHeight:0}} keyboardDismissMode={Platform.OS === 'web' ? 'none' : Platform.OS === 'ios' ? 'interactive' : 'on-drag'} keyboardShouldPersistTaps="always" onLayout={() => { if(follow.current) scroll.current?.scrollToEnd({animated:false}); }} onScroll={({nativeEvent:e}) => { follow.current = e.contentSize.height-e.contentOffset.y-e.layoutMeasurement.height < 40; }} scrollEventThrottle={16} onContentSizeChange={() => { if(follow.current) scroll.current?.scrollToEnd({animated:false}); }}>
             {!messages.length && <Text style={{color:c.textMuted}}>{ui("social.start_the_table_conversation")}</Text>}
-            {messages.map(message => <ChatMessage tableStyle key={message.id} message={message} own={message.sender_id === userId} action={<BlockPlayerButton session={session} enabled={blocking.enabled} player={{user_id: message.sender_id, display_name: message.sender_name}} onBlocked={() => {setMessages(current => current.filter(m => m.sender_id !== message.sender_id)); setEffects([]); setUnread(0);}} />} />)}
+            {messages.map(message => <ChatMessage tableStyle key={message.id} message={message} own={message.sender_id === userId} action={<View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 8}}><ReportButton session={session} enabled={blocking.reporting} scope="chat" messageId={message.id} player={{user_id: message.sender_id, display_name: message.sender_name}} /><BlockPlayerButton session={session} enabled={blocking.enabled} player={{user_id: message.sender_id, display_name: message.sender_name}} onBlocked={() => {setMessages(current => current.filter(m => m.sender_id !== message.sender_id)); setEffects([]); setUnread(0);}} /></View>} />)}
           </ScrollView>
           {!!error && <Text accessibilityRole="alert" style={{color:c.danger}}>{uiLabel(error, 'feedback')}</Text>}
           {reconnecting && <Text style={{color:c.textMuted}}>{ui("feedback.reconnecting")}</Text>}
           {seated ? <View testID="table-chat-composer" style={{flexShrink:0}}>
+            <CommunityRulesEntry session={session} />
             <ChatComposer value={draft} onChange={setDraft} onSend={() => void send()} disabled={!enabled || sending}
               label={ui("social.table_message")} sendLabel={ui("common.send_table_message")} placeholder={t('chat.placeholder')} />
             <ChatInputDiagnostics />

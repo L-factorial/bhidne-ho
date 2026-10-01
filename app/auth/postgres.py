@@ -32,7 +32,7 @@ class PostgresAuthService:
 
     async def _session(self, connection, user_id, username=None):
         available = await (await connection.execute(
-            "SELECT id FROM users WHERE id=%s AND NOT COALESCE((to_jsonb(users)->>'deletion_pending')::boolean,false) AND NOT COALESCE((to_jsonb(users)->>'erased')::boolean,false) FOR SHARE", (user_id,))).fetchone()
+            "SELECT id FROM users WHERE id=%s AND NOT COALESCE((to_jsonb(users)->>'deletion_pending')::boolean,false) AND NOT COALESCE((to_jsonb(users)->>'erased')::boolean,false) AND COALESCE((to_jsonb(users)->>'suspended_until')::timestamptz,'-infinity')<=clock_timestamp() FOR SHARE", (user_id,))).fetchone()
         if available is None:
             raise AuthenticationError('Invalid session token')
         token = secrets.token_urlsafe(32)
@@ -57,7 +57,7 @@ class PostgresAuthService:
             raise AuthenticationError("Invalid session token")
         async with self.pool.connection() as connection:
             result = await connection.execute(
-                "SELECT s.user_id FROM auth_sessions s JOIN users u ON u.id=s.user_id WHERE token_hash = %s AND expires_at > now() AND NOT COALESCE((to_jsonb(u)->>'deletion_pending')::boolean,false) AND NOT COALESCE((to_jsonb(u)->>'erased')::boolean,false)",
+                "SELECT s.user_id FROM auth_sessions s JOIN users u ON u.id=s.user_id WHERE token_hash = %s AND expires_at > now() AND NOT COALESCE((to_jsonb(u)->>'deletion_pending')::boolean,false) AND NOT COALESCE((to_jsonb(u)->>'erased')::boolean,false) AND COALESCE((to_jsonb(u)->>'suspended_until')::timestamptz,'-infinity')<=clock_timestamp()",
                 (self._token_hash(token),),
             )
             row = await result.fetchone()

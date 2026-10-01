@@ -42,6 +42,8 @@ class SharedPlatform:
         self.recovery = RecoveryRuntime.from_environment(pool, auth)
         from app.player_blocks.service import BlockService
         self.blocks = BlockService(pool)
+        from app.moderation.service import ModerationService
+        self.moderation = ModerationService(pool)
         self.auth = auth
         self.profiles = CachedProfiles(pool, cache) if cache else PostgresPlayerProfileService(pool)
         from app.multiplayer.player_phrases import PostgresPlayerPhraseService
@@ -64,6 +66,8 @@ class SharedPlatform:
         from app.players import http as players
         from app.social_auth import browser_http
         from app.player_blocks import http as block_http
+        from app.moderation import http as moderation_http
+        app.state.moderation = self.moderation
         app.state.blocks = self.blocks
         app.state.recovery = self.recovery
         app.state.deletion = self.deletion
@@ -77,6 +81,7 @@ class SharedPlatform:
         # Exact method/path contracts, not an entire legacy router or prefix.
         reviewed = (
             (block_http.router, block_http.CONTRACTS),
+            (moderation_http.router, moderation_http.CONTRACTS),
             (recovery_http.router, recovery_http.CONTRACTS),
             (deletion_http.router, deletion_http.CONTRACTS),
             (http.router, {('POST', '/auth/guest'), ('POST', '/auth/signup'),
@@ -99,5 +104,7 @@ class SharedPlatform:
             if {(method, route.path) for route in selected for method in route.methods} != contracts:
                 raise RuntimeError('Shared route contract changed; compatibility review required.')
             router.routes.extend(selected)
+        from app.moderation.public_policy import router as public_policy_router
+        app.include_router(public_policy_router)
         app.include_router(router, dependencies=[Depends(admission)])
-        return tuple(router.routes)
+        return tuple(router.routes) + tuple(public_policy_router.routes)

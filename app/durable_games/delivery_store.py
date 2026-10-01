@@ -234,6 +234,8 @@ class PostgresDeliveryStore:
                         if not await event_allowed(connection, actor, payload, row[6]):
                             payload = None
                     if payload is not None:
+                        from app.moderation.visibility import redact_event
+                        payload = await redact_event(connection, payload)
                         events.append(dict(event_id=str(row[0]), lane_id=str(lane_id), sequence=row[1],
                             event_type=row[2], event_version=row[3], payload=payload))
                     scanned = row[1]

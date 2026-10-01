@@ -11,17 +11,18 @@ const changes = new Set<(token: string) => void>();
 function changed(session: Session) { changes.forEach(listener => listener(session.token)); }
 export function useBlocking(session: Session) {
   const [enabled, setEnabled] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const [revision, setRevision] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
-    setEnabled(false);
-    void sharedRequest<{blocking: boolean}>('/auth/safety/capabilities', session, undefined, controller.signal)
-      .then(value => { if (!controller.signal.aborted) setEnabled(value.blocking); }).catch(() => {});
+    setEnabled(false); setReporting(false);
+    void sharedRequest<{blocking: boolean; reporting?: boolean}>('/auth/safety/capabilities', session, undefined, controller.signal)
+      .then(value => { if (!controller.signal.aborted) {setEnabled(value.blocking);setReporting(!!value.reporting);} }).catch(() => {});
     const listener = (token: string) => { if (token === session.token) setRevision(value => value + 1); };
     changes.add(listener);
     return () => { controller.abort(); changes.delete(listener); };
   }, [session.token]);
-  return { enabled, revision };
+  return { enabled, reporting, revision };
 }
 function Button({ text, onPress, disabled = false, label }: {text: string; onPress: () => void; disabled?: boolean; label?: string}) {
   const { colors: c } = useTheme();

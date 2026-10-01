@@ -13,7 +13,8 @@ class PlayerPhraseInput(BaseModel):
         value = " ".join(value.split())
         if not value or any(ord(char) < 32 for char in value):
             raise ValueError("Enter a keyword or punchline.")
-        return value
+        from app.moderation.content import validate_content
+        return validate_content(value)
 
 
 class CallBreakPokeInput(PlayerPhraseInput):

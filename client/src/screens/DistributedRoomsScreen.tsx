@@ -1,3 +1,6 @@
+import { CommunityRulesEntry } from '../components/moderation/CommunityRules';
+import { PolicyLinks } from '../components/moderation/PublicPolicies';
+import { ModerationEntry } from '../components/Moderation';
 import { AuthBackButton, AuthMethodChoices } from '../components/AuthMethodChoices';
 import { BlockedPlayers } from '../components/PlayerBlocking';
 import { DeleteAccountLink } from './DeletionScreen';
@@ -165,7 +168,7 @@ export function DistributedRoomsScreen({onExit}: {onExit: () => void}) {
     await pending;
   }
   if (!account) return <AccountPage compact footer={accountFormOpen ? <>
-    {!signupMode && <DeleteAccountLink />}
+    {!signupMode && <><PolicyLinks /><DeleteAccountLink /></>}
     <Pressable accessibilityRole="button" disabled={authBusy || (signupMode && (!confirmPassword || password !== confirmPassword || !validSignupEmail(email)))}
       onPress={() => void login(signupMode)} style={[authStyles.button,{backgroundColor:colors.primary},authBusy && {opacity:.5}]}>
       <Text style={[authStyles.buttonText,{color:colors.onPrimary}]}>{ui(signupMode ? 'common.create_account' : 'common.sign_in')}</Text>
@@ -228,7 +231,7 @@ export function DistributedRoomsScreen({onExit}: {onExit: () => void}) {
   }
   return <ScrollView style={{backgroundColor:colors.background}} contentContainerStyle={{padding:20,gap:12}}>
     <AppHeader hideProfile />
-    <RecoveryEmailSettings session={account} /><BlockedPlayers session={account} /><DeleteAccountLink />
+    <CommunityRulesEntry session={account} /><ModerationEntry session={account} /><RecoveryEmailSettings session={account} /><BlockedPlayers session={account} /><><PolicyLinks /><DeleteAccountLink /></>
     <Text accessibilityRole="header" style={{color:colors.text,fontSize:24}}>{projection?.name||ui("rooms.your_rooms")}</Text>
     {!!(error||action.error)&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(action.error||error, 'feedback')}</Text>}
     {action.status==='pending'&&button(ui("common.pending_action"),()=>void controller.current?.recover())}

@@ -5447,3 +5447,76 @@ Verification and limitations:
 - Next: user reviews and commits/pushes; no deployment or remote CI monitoring.
   Native device verification remains outstanding.
 - Production web build (including TypeScript) and `git diff --check` passed.
+
+
+### A4 reporting and grouped moderation (2026-09-30)
+
+- Added additive PostgreSQL migration 34 for bounded reports and one immutable
+  decision per report. Existing game/account data is preserved; no database reset.
+- Player rows and direct/room/table/game chat offer private reporting. The server
+  captures the referenced message/profile, checks sender and existing chat access,
+  rejects guessed private message IDs, deduplicates same reports for 24 hours,
+  and serializes a ten-new-reports/hour account limit across gateways.
+- Moderator access uses backend-only `BHIDNE_HO_MODERATOR_USER_IDS` and optional
+  `BHIDNE_HO_MODERATOR_EMAILS`. Only a current, unique verified recovery mailbox
+  qualifies. Signup/provider claims are excluded. Invalid configuration fails
+  startup; no configured identities means no moderator access. Each API request
+  rechecks current account/contact state. Provisioning preserves private settings.
+- Profile → Moderation follows the app header, language/theme and Back conventions.
+  Pending/Reviewed lists group by reported user ID; expanding loads individual
+  reports with server evidence and separately labeled reporter explanations.
+  Accept/Decline opens confirmation requiring a reason; reviewed reports display
+  decision, reason, moderator ID and time. Reads are paginated; permission failure
+  clears displayed evidence. Conflicting concurrent decisions cannot overwrite
+  the first result; identical retries are safe. Moderators cannot review reports
+  submitted by or targeting themselves.
+- Acceptance is classification only, with no automatic punishment or gameplay
+  changes. Removal, mute/suspension, appeals and community rules remain outstanding.
+- Evidence/decisions expire after 90 days and are purged hourly while the distributed
+  runtime runs. Account cleanup removes reports involving the deleted reporter,
+  reported player or deciding moderator. Public privacy copy must describe this.
+- Verification: 43 targeted backend cases across moderation, blocks, platform and
+  account deletion; a real PostgreSQL concurrent retry/decision race; five private
+  configuration tests; 308 frontend tests; TypeScript and production Expo export.
+  Local Chrome acceptance exercises player reporting, ordinary-user denial,
+  moderator-only Profile entry, grouping, required reasons, both decisions,
+  persistence, language/theme and Back. Mobile/desktop layouts inspected.
+- Configuration/rollout: `docs/moderation.md`, `deploy/moderation.env.example`.
+  Next step: user review/commit/push; deploy schema/code to all gateways, configure
+  the chosen moderator ID or verified email privately, restart all gateways, and
+  verify access with both moderator and ordinary accounts. No live grants,
+  commit/push, deployment or remote build monitoring performed. Native device
+  acceptance remains outstanding; notifications remain deferred.
+
+### Chat safety / policy follow-up — 2026-09-30
+
+Explicit user scope expansion: all remaining chat-safety and public-policy features.
+Migration 35 adds moderation enforcement/audits, message removal markers, rules
+acceptance and PostgreSQL abuse counters without resetting existing records. Actions
+are separate from accepted/declined report decisions. Suspension refuses active
+participation or pending commands, then revokes sessions; mute preserves gameplay.
+Redaction covers history/replay; removal markers survive evidence expiry. No gameplay
+sequence or snapshot schema changed. Public routes and modular bilingual UI are added.
+See `docs/moderation.md` for restrictions, rates, retention, rollout and limitations.
+
+Checks: 75 + 29 + 32 targeted backend cases (overlapping suites), two real PostgreSQL
+concurrency checks, Chrome acceptance, 309 frontend tests, TypeScript and production
+export passed. Public policy metadata still awaits operator/contact/age/backup
+confirmation; deployment/provider/log-retention review and native acceptance remain.
+No commit/push/deployment or remote CI tracking. Exact next step: finalize confirmed
+public policy metadata, then user review/commit/push and deployment acceptance.
+
+
+### Public policy details confirmed
+
+The owner confirmed operator **Lfactorial**, monitored support/appeals email
+**prajwal@lfactorial.com**, minimum age **18**, and **no configured database backups**.
+These now supply the default `/public/policy` metadata, with environment overrides
+preserved. The example configuration and moderation handoff are updated. This
+supersedes the pending confirmation noted above; it does not deploy the pages.
+
+Verification: checked default metadata, explicit override behavior, incomplete-config
+warning behavior and the existing public metadata/rule-acceptance API test.
+Next: user review/commit/push and deployment, then verify public URLs and configured
+moderator access. Provider/log-retention review and native acceptance remain.
+No live settings, commit, push or deployment performed.

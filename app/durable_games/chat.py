@@ -139,6 +139,8 @@ class ChatLaneExecutor:
                 if request.command != 'send-chat' or request.match_id is not None or request.expected_revision is not None:
                     raise QueryAccessDenied('Unsupported chat command.')
                 text = ChatInput.model_validate(request.payload).text
+                from app.moderation.policy import require_posting
+                await require_posting(claim.connection,actor,text=text,consume=True)
                 await authorize_chat(claim.connection, target, actor, write=True, checkpoints=self.checkpoints, lock=True)
                 recent = await (await claim.connection.execute('''SELECT 1 FROM room_chat_messages
                     WHERE lane_id=%s AND sender_id=%s AND sent_at>clock_timestamp()-interval '1 second'
@@ -196,8 +198,9 @@ class ChatHistory:
                 await authorize_chat(connection, target, actor, checkpoints=self.checkpoints)
                 rows = await (await connection.execute('''SELECT id,sequence,sender_id,text,sent_at,command_id FROM room_chat_messages
                     WHERE lane_id=%s AND sequence>%s AND NOT social_blocked(%s,sender_id) ORDER BY sequence LIMIT %s''', (lane_id,after,user_uuid(actor),limit+1))).fetchall()
-                return dict(items=[dict(id=str(r[0]),sequence=r[1],sender_id=f'user-{r[2]}',text=r[3],sent_at=r[4].isoformat(),command_id=r[5] if f'user-{r[2]}' == actor else None)
-                    for r in rows[:limit]], next_sequence=rows[limit-1][1] if len(rows)>limit else None)
+                from app.moderation.visibility import redact_messages
+                items=[dict(id=str(r[0]),sequence=r[1],sender_id=f'user-{r[2]}',text=r[3],sent_at=r[4].isoformat(),command_id=r[5] if f'user-{r[2]}' == actor else None) for r in rows[:limit]]
+                return dict(items=await redact_messages(connection,'chat',items),next_sequence=rows[limit-1][1] if len(rows)>limit else None)
 
     async def _target(self, connection, lane_id):
         from .inbox import PostgresInboxStore

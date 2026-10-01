@@ -54,6 +54,8 @@ async def execute_friendship(claim, inbox, existing):
         if request.command == 'request-friend':
             if row is not None:
                 raise QueryAccessDenied('A friendship or request already exists.')
+            from app.moderation.policy import require_posting
+            await require_posting(connection, actor, category='invitation', consume=True)
             state, requested_by, change = 'pending', sender, 'friend_requested'
         elif request.command == 'accept-friend':
             if row is None or row[0] != 'pending' or row[1] == sender:

@@ -53,6 +53,9 @@ class SocialHistory:
                         WHERE lane_id=%s AND sequence>%s AND social_notification_allowed(%s,COALESCE(source_actor_id,actor_id),kind,payload,created_at) ORDER BY sequence LIMIT %s''', (lane_id,after,user_uuid(actor),limit+1))).fetchall()
                     items = [dict(id=str(r[0]),sequence=r[1],kind=r[2],actor_id=f'user-{r[3]}' if r[3] else None,
                         payload=r[4],created_at=r[5].isoformat(),read=r[6] is not None) for r in rows[:limit]]
+                if target.kind == 'conversation':
+                    from app.moderation.visibility import redact_messages
+                    items=await redact_messages(connection,'direct',items)
                 return dict(source='sequenced',items=items,next_sequence=rows[limit-1][1] if len(rows)>limit else None)
 
     @staticmethod
@@ -88,8 +91,9 @@ class SocialHistory:
                 rows = await (await connection.execute(' UNION ALL '.join(parts)+
                     ' ORDER BY sent_at DESC,id DESC LIMIT %s',(*params,limit+1))).fetchall()
                 selected = rows[:limit]
-                return dict(source='legacy',items=[dict(id=str(r[0]),sender_id=f'user-{r[1]}',recipient_id=f'user-{r[2]}',
-                    text=r[3],sent_at=r[4].isoformat()) for r in reversed(selected)],
+                from app.moderation.visibility import redact_messages
+                items=[dict(id=str(r[0]),sender_id=f'user-{r[1]}',recipient_id=f'user-{r[2]}',text=r[3],sent_at=r[4].isoformat()) for r in reversed(selected)]
+                return dict(source='legacy',items=await redact_messages(connection,'direct',items),
                     next_before=dict(at=selected[-1][4].isoformat(),id=str(selected[-1][0])) if len(rows)>limit else None)
 
     async def legacy_notifications(self, actor, *, before=None, limit=100):

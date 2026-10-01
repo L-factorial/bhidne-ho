@@ -1,3 +1,6 @@
+import { preserveRemovals } from './moderation/messages';
+import { CommunityRulesEntry } from './moderation/CommunityRules';
+import { ReportButton } from './Moderation';
 import { BlockPlayerButton, useBlocking } from './PlayerBlocking';
 import { playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
@@ -15,7 +18,7 @@ import type { Session } from '../multiplayer/session';
 
 type Player = { user_id: string; display_name: string; username?: string | null };
 type Snapshot = { online_friend_ids?: string[] | null; friends: Player[]; incoming: Player[]; outgoing: Player[] };
-export type Message = { id: string; sender_id: string; recipient_id: string; text: string; sent_at: number };
+export type Message = { id: string; sender_id: string; recipient_id: string; text: string; removed?: boolean; sent_at: number };
 const empty: Snapshot = { friends: [], incoming: [], outgoing: [] };
 const label = (player: Player) => player.display_name || player.username || ui("common.player");
 
@@ -69,7 +72,7 @@ export function FriendsPanel({ session, transport, onlineOnly = false }: { sessi
     async function poll() {
       try {
         const value = await (transport ? transport.history(selected!.user_id, controller.signal) : request<Message[]>(`/friends/${encodeURIComponent(selected!.user_id)}/messages`, session, undefined, controller.signal));
-        if (!controller.signal.aborted) { setMessages(value); setError(''); }
+        if (!controller.signal.aborted) { setMessages(current=>preserveRemovals(current,value)); setError(''); }
       } catch (failure) { if (!controller.signal.aborted) setError(playerError(failure, ui("feedback.could_not_load_messages"))); }
       finally { if (!controller.signal.aborted) timer = setTimeout(poll, 1500); }
     }
@@ -115,6 +118,7 @@ export function FriendsPanel({ session, transport, onlineOnly = false }: { sessi
   const row = (player: Player, action: ReactNode) => <View key={player.user_id} style={styles.row}>
     <View style={{ flex: 1 }}><Text style={styles.name}>{label(player)}</Text>
       {!!player.username && <Text style={styles.detail}>@{player.username}</Text>}</View>{action}
+    <ReportButton session={session} enabled={blocking.reporting} player={{user_id: player.user_id, display_name: label(player)}} />
     <BlockPlayerButton session={session} player={{user_id: player.user_id, display_name: label(player)}} enabled={blocking.enabled} onBlocked={() => { setResults(current => current.filter(p => p.user_id !== player.user_id)); setSelected(null); setMessages([]); }} />
   </View>;
 
@@ -150,6 +154,7 @@ export function FriendsPanel({ session, transport, onlineOnly = false }: { sessi
       footer={<FormFooter>
         {!!(sendError || error) && <Text accessibilityRole="alert" style={styles.error}>{sendError || error}</Text>}
         {!available && <Text style={styles.detail}>{ui("social.friend_unavailable")}</Text>}
+        <CommunityRulesEntry session={session} />
         <ChatComposer value={draft} onChange={value => setDrafts(current => ({ ...current, [selected.user_id]: value }))}
           onSend={() => void send()} disabled={busy || !available} placeholder={ui("social.write_a_private_message")} label={ui("social.message_player", {player: label(selected)})} sendLabel={ui("common.send_privately")} />
       </FormFooter>}>
@@ -157,7 +162,8 @@ export function FriendsPanel({ session, transport, onlineOnly = false }: { sessi
         {!messages.length && <Text style={styles.detail}>{ui("common.no_messages_yet")}</Text>}
         {messages.map(message => <View key={message.id} style={[styles.message, message.sender_id === session.user_id && styles.mine]}>
           <Text style={styles.detail}>{message.sender_id === session.user_id ? ui("common.you") : label(selected)} · {new Date(message.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
-          <Text selectable style={styles.messageText}>{message.text}</Text>
+          <Text selectable style={styles.messageText}>{message.removed ? ui('moderation.removed') : message.text}</Text>
+          <ReportButton session={session} enabled={blocking.reporting && !message.removed} scope="direct" messageId={message.id} player={{user_id: message.sender_id, display_name: label(selected)}} />
         </View>)}
       </ScrollView>
     </RoomSheet>}
@@ -169,7 +175,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   panel: { ...gamePanelFinish(colors), backgroundColor: colors.surface, padding: 20, borderRadius: 16, gap: 12 },
   title: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 25, color: colors.text }, heading: { ...gameHeadingFinish(colors), fontFamily: fonts.medium, fontSize: 14, color: colors.text },
   detail: { fontFamily: fonts.body, fontSize: 11, lineHeight: 18, color: colors.textMuted },
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8 }, row: { flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderColor: colors.border, paddingVertical: 10 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8 }, row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderColor: colors.border, paddingVertical: 10 },
   name: { fontFamily: fonts.medium, fontSize: 13, color: colors.text }, actions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   input: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, color: colors.text, backgroundColor: colors.background, fontFamily: fonts.body },
   button: { ...gameControlFinish(colors), minHeight: 44, paddingHorizontal: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
