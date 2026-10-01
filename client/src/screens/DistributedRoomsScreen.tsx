@@ -1,4 +1,4 @@
-import { AuthMethodChoices } from '../components/AuthMethodChoices';
+import { AuthBackButton, AuthMethodChoices } from '../components/AuthMethodChoices';
 import { BlockedPlayers } from '../components/PlayerBlocking';
 import { DeleteAccountLink } from './DeletionScreen';
 import { setSessionNotice } from '../auth/sessionNotice';
@@ -44,7 +44,7 @@ const payload = (value: object = {}) => value as {[key:string]:Json};
 
 // Mounted only by the explicit integration build. No legacy room socket, command
 // client or process-local read route is constructed by this screen.
-export function DistributedRoomsScreen() {
+export function DistributedRoomsScreen({onExit}: {onExit: () => void}) {
   useUiLanguage();
   const {colors} = useTheme();
   const authStyles = accountStyles(colors);
@@ -171,6 +171,7 @@ export function DistributedRoomsScreen() {
       <Text style={[authStyles.buttonText,{color:colors.onPrimary}]}>{ui(signupMode ? 'common.create_account' : 'common.sign_in')}</Text>
     </Pressable>
   </> : null}>
+    <AuthBackButton disabled={authBusy} onPress={() => accountFormOpen ? setAccountFormOpen(false) : onExit()} />
     <Text accessibilityRole="header" style={authStyles.title}>{ui(signupMode ? 'common.create_your_account' : 'common.welcome_back')}</Text>
     {button(ui(signupMode ? 'common.sign_in' : 'common.sign_up'),()=>{setSignupMode(!signupMode);setAccountFormOpen(false);setConfirmPassword('');setError('');},authBusy)}
     {!accountFormOpen ? <AuthMethodChoices signup={signupMode} disabled={authBusy} onContinue={() => setAccountFormOpen(true)} /> : <>

@@ -596,3 +596,22 @@ Reviewed during planning on 2026-09-30; recheck before submission.
   configuration; rerunning with `--clear` and checking the API endpoint resolved it.
 - Next step: user review and commit/push. Reporting/moderation is still pending;
   notifications remain deferred. No commit, push, deployment, or CI monitoring.
+
+
+### Authentication Back navigation (2026-09-30)
+
+- Welcome now has one “Sign in or sign up” entry action; social options appear
+  only on the following authentication method screen, where they remain disabled.
+- Added a localized Back control above the auth heading. From either form it
+  returns to the selected method choices without clearing the entered fields;
+  from method choices it returns to Welcome. Back dismisses the keyboard and is
+  disabled during submission. Integration runtime uses the same welcome entry.
+- Existing signup/login/recovery APIs, validation and form submission are unchanged.
+- Verification: all 308 frontend tests, TypeScript, and three local Chrome
+  acceptance scenarios passed (signup/recovery, session lifecycle, deletion).
+  Browser coverage confirms no welcome social buttons, return to Welcome, and
+  all signup values preserved after Back/reopening. Updated browser entry labels
+  and scoped recovery Back selection to the foreground modal.
+- Next: user reviews and commits/pushes; no deployment or remote CI monitoring.
+  Native device verification remains outstanding.
+- Production web build (including TypeScript) and `git diff --check` passed.

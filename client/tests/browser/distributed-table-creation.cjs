@@ -28,7 +28,7 @@ assert.ok(['localhost', '127.0.0.1'].includes(new URL(site).hostname));
         return route.continue();
       });
       await page.goto(site);
-      await page.getByRole('button', { name: 'Sign in or create account' }).click();
+      await page.getByRole('button', { name: 'Sign in or sign up' }).click();
       await page.getByRole('button', { name: 'Sign up', exact: true }).click();
     await page.getByRole('button',{name:'Sign up with username or email',exact:true}).click();
       await page.getByLabel('Profile name', { exact: true }).fill('Creation test');

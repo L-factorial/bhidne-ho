@@ -21,7 +21,7 @@ async function mail(purpose, username) {
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   const username='delete_'+Date.now(),password='Delete-test-123';
   const user=await(await request('/auth/signup',{username,password,email:username+'@example.test',display_name:'Deletion Player'})).json();
-  await page.goto(site);await page.getByRole('button',{name:'Sign in or create account',exact:true}).click();await page.getByRole('button',{name:'Continue with username or email',exact:true}).click();
+  await page.goto(site);await page.getByRole('button',{name:'Sign in or sign up',exact:true}).click();await page.getByRole('button',{name:'Continue with username or email',exact:true}).click();
   await page.getByLabel('Username',{exact:true}).fill(username);await page.getByLabel('Password',{exact:true}).fill(password);
   await page.getByRole('button',{name:'Sign in',exact:true}).last().click();
   await page.getByRole('button',{name:'Open profile',exact:true}).click();

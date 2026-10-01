@@ -107,7 +107,7 @@ function AppContent() {
         if (reset) { saveSession(apiUrl, null); setAuthVersion(value => value + 1); }
         setRecovery(null); setInRooms(true);
       }} /> : finishingSignIn ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.text }}>{ui('common.completing_sign_in')}</Text></View>
-        : process.env.EXPO_PUBLIC_RUNTIME_MODE === 'distributed-integration' ? <DistributedRoomsScreen key={authVersion} />
+        : process.env.EXPO_PUBLIC_RUNTIME_MODE === 'distributed-integration' && (inRooms || invitation) ? <DistributedRoomsScreen key={authVersion} onExit={() => { dismissInvitation(); setInRooms(false); }} />
         : inRooms || invitation ? <SharedRoomsScreen key={authVersion} invitation={invitation} dismissInvitation={dismissInvitation} onExit={() => { dismissInvitation(); setInRooms(false); }} />
         : <WelcomeScreen onEnterLobby={() => setInRooms(true)} />}
     </DeletionNavigation.Provider></SafeAreaProvider>

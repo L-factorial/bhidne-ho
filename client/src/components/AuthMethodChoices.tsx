@@ -1,4 +1,4 @@
-import { Text, View } from 'react-native';
+import { Keyboard, Pressable, Text, View } from 'react-native';
 import { ui } from '../i18n/copy';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { fonts, useTheme } from '../theme';
@@ -26,4 +26,16 @@ export function AuthMethodChoices({signup = false, disabled = false, onContinue}
     </View>
     <SignInButton compact method="account" disabled={disabled} label={ui(signup ? 'common.signup_username_email' : 'common.continue_username_email')} onPress={onContinue} />
   </View>;
+}
+
+/** Return through auth presentation steps without submitting or clearing the form. */
+export function AuthBackButton({onPress, disabled = false}: {onPress: () => void; disabled?: boolean}) {
+  useUiLanguage();
+  const { colors } = useTheme();
+  return <Pressable accessibilityRole="button" accessibilityLabel={ui('common.back')}
+    disabled={disabled} accessibilityState={{disabled}}
+    onPress={() => { Keyboard.dismiss(); onPress(); }}
+    style={{alignSelf: 'flex-start', minHeight: 44, paddingHorizontal: 4, justifyContent: 'center', opacity: disabled ? 0.55 : 1}}>
+    <Text style={{fontFamily: fonts.medium, fontSize: 14, color: colors.accent}}>← {ui('common.back')}</Text>
+  </Pressable>;
 }

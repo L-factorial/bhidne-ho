@@ -8,8 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { branding } from '../branding';
 import { BrandBanner } from '../components/BrandArt';
-import { SignInButton, SignInMethod } from '../components/SignInButton';
-import { DisabledSocialOptions } from '../components/AuthMethodChoices';
+import { SignInButton } from '../components/SignInButton';
 import { LanguageToggle } from '../components/LanguageToggle';
 import { useTranslation } from 'react-i18next';
 
@@ -22,10 +21,6 @@ export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
   const insets = useSafeAreaInsets();
   const wide = width >= 1024;
   const [notice, setNotice] = useState('');
-  const [signingIn, setSigningIn] = useState(false);
-  function selectMethod(method: SignInMethod) {
-    if (method === 'account') { onEnterLobby(); return; }
-  }
   return (
     <LinearGradient colors={[colors.surface, colors.background, colors.background]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.page}>
       <View pointerEvents="none" style={styles.halo} />
@@ -49,10 +44,7 @@ export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
               <Text accessibilityRole="header" style={styles.heading}>{t('welcome.heading')}</Text>
               <Text style={styles.subtitle}>{t('welcome.subtitle')}</Text>
             </View>}
-            <View style={styles.buttons}>
-              <DisabledSocialOptions />
-            </View>
-            <View style={{ marginTop: 12 }}><SignInButton method="account" disabled={signingIn} onPress={() => selectMethod('account')} /></View>
+            <SignInButton method="account" onPress={onEnterLobby} />
             <Text style={styles.helper}>{t('welcome.helper')}</Text>
             {!!notice && <View style={styles.notice} accessibilityLiveRegion="polite">
               <Text style={styles.noticeText}>{notice}</Text>
@@ -84,12 +76,11 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   mobileHeading: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 31, color: colors.text },
   mobileSubtitle: { fontFamily: fonts.body, fontSize: 14, color: colors.textMuted },
   panel: { ...gamePanelFinish(colors), backgroundColor: colors.surface, borderRadius: 22 },
-  widePanel: { width: 480, paddingHorizontal: 44, paddingTop: 48, paddingBottom: 24, justifyContent: 'center', minHeight: 660 },
+  widePanel: { width: 480, paddingHorizontal: 44, paddingTop: 48, paddingBottom: 24, justifyContent: 'center', minHeight: 320 },
   mobilePanel: { marginTop: 22, width: '100%', padding: 22, borderRadius: 20 },
   intro: { alignItems: 'center', marginBottom: 48 },
   heading: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 52, color: colors.text, letterSpacing: -1.5, textAlign: 'center' },
   subtitle: { fontFamily: fonts.body, fontSize: 19, color: colors.textMuted, marginTop: 8, textAlign: 'center' },
-  buttons: { gap: 13 },
   divider: { flexDirection: 'row', alignItems: 'center', gap: 20, marginVertical: 25 },
   dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
   or: { fontFamily: fonts.body, fontSize: 14, color: colors.textMuted },

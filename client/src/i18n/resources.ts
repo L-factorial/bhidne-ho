@@ -5,7 +5,7 @@ export const resources = {
       copyGameLink: 'Copy game link', copyRoomLink: 'Copy room link', copied: 'Link copied. Paste it into any messaging app.',
       copyFallback: 'Select and copy the link below.', loading: 'Loading Bhidne Ho' },
     welcome: { heading: 'Take your seat.', subtitle: 'Call Break, Marriage and Flush with friends.', or: 'or',
-      account: 'Sign in or create account', helper: 'Sign in with your Bhidne Ho account or create a new one.',
+      account: 'Sign in or sign up', helper: 'Sign in with your Bhidne Ho account or create a new one.',
       dismiss: 'Dismiss', dismissMessage: 'Dismiss message', terms: 'Terms', privacy: 'Privacy',
       termsNotice: 'Terms will be available before account sign-in launches.', privacyNotice: 'The privacy policy will be available before account sign-in launches.' },
     chat: { title: 'Room chat', paused: 'Paused', unread: '{{count}} new', close: 'Close chat', soundOn: 'Chat sound on', soundOff: 'Chat sound off',

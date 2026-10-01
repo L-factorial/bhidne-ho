@@ -42,7 +42,7 @@ import { RoomLedger } from '../components/RoomLedger';
 import { apiUrl, request } from '../multiplayer/api';
 import type { Room } from '../multiplayer/session';
 import { useRoomSession } from '../multiplayer/useRoomSession';
-import { AuthMethodChoices } from '../components/AuthMethodChoices';
+import { AuthBackButton, AuthMethodChoices } from '../components/AuthMethodChoices';
 import { validSignupEmail } from '../auth/email';
 
 type InvitePlayer = { user_id: string; display_name: string; username?: string | null };
@@ -366,6 +366,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
           </View>
         </View>}
         {!session && <View style={[styles.panel, {padding: 18}]}>
+          <AuthBackButton disabled={shared.loggingIn} onPress={() => accountFormOpen ? setAccountFormOpen(false) : onExit()} />
           <Text style={styles.sectionTitle}>{authMode === 'signup' ? ui("common.create_your_account") : ui("common.welcome_back")}</Text>
           <View style={styles.gameTabs}>
             {([['signin', ui("common.sign_in")], ['signup', ui("common.sign_up")]] as const).map(([value, label]) =>

@@ -13,7 +13,7 @@ async function api(path, body, token, method) {
   const username='block_'+Date.now(), password='Blocking-test-123';
   const a=await api('/auth/signup',{username,password,email:username+'@example.test',display_name:'Block Owner'});
   const b=await api('/auth/signup',{username:username+'_other',password,email:username+'_other@example.test',display_name:'Block Target'});
-  await page.goto(site);await page.getByRole('button',{name:'Sign in or create account',exact:true}).click();await page.getByRole('button',{name:'Continue with username or email',exact:true}).click();
+  await page.goto(site);await page.getByRole('button',{name:'Sign in or sign up',exact:true}).click();await page.getByRole('button',{name:'Continue with username or email',exact:true}).click();
   await page.getByLabel('Username',{exact:true}).fill(username);await page.getByLabel('Password',{exact:true}).fill(password);
   await page.getByRole('button',{name:'Sign in',exact:true}).last().click();
   await page.getByRole('button',{name:'Open profile',exact:true}).click();

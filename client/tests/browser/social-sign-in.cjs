@@ -35,6 +35,7 @@ const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8098';
       page.on('console', message => logs.push(message.text()));
       page.on('pageerror', error => errors.push(error.message));
       await page.goto(site);
+      await page.getByRole('button', {name: 'Sign in or sign up', exact:true}).click();
       assert.equal(await page.getByRole('button', { name: `Continue with ${provider[0].toUpperCase() + provider.slice(1)}` }).isDisabled(), true);
       // Preserve callback coverage for an already-started login without enabling a provider button.
       await page.evaluate(({site,attempt,secret}) => sessionStorage.setItem(`bhidne.social.v1:${site}`, JSON.stringify({attempt_id:attempt,secret,returnUri:site+'/',expiresAt:Date.now()+60000})), {site,attempt,secret});

@@ -12,7 +12,7 @@ async function api(path, user, body) {
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     const username = `profile_${Date.now()}`, password = 'Profile-test-123';
     await page.goto(site);
-    await page.getByRole('button', { name: 'Sign in or create account', exact: true }).click();
+    await page.getByRole('button', { name: 'Sign in or sign up', exact: true }).click();
     await page.getByRole('button', { name: 'Sign up', exact: true }).click();
     await page.getByRole('button',{name:'Sign up with username or email',exact:true}).click();
     await page.getByLabel('Username', { exact: true }).fill(username);

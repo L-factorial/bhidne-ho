@@ -32,7 +32,10 @@ async function checkAccountHeader(page, nepaliTitle) {
     const errors=[];page.on('pageerror',e=>errors.push(e.message));
     const username=`recovery_${Date.now()}`;
     await page.goto(site);
-    await page.getByRole('button',{name:'Sign in or create account',exact:true}).click();
+    assert.equal(await page.getByRole('button',{name:'Continue with Google',exact:true}).count(),0);
+    await page.getByRole('button',{name:'Sign in or sign up',exact:true}).click();
+    await page.getByRole('button',{name:'Back',exact:true}).click();
+    await page.getByRole('button',{name:'Sign in or sign up',exact:true}).click();
     await checkAccountHeader(page);
     for (const provider of ['Google','Facebook','Apple']) assert.equal(await page.getByRole('button',{name:`Continue with ${provider}`,exact:true}).isDisabled(),true);
     assert.equal(await page.getByLabel('Password',{exact:true}).count(),0);
@@ -50,6 +53,9 @@ async function checkAccountHeader(page, nepaliTitle) {
     await page.getByRole('button',{name:'Sign up with username or email',exact:true}).click();
     await checkAccountHeader(page);
     for(const [label,value] of [['Username',username],['Password','Original-pass-123'],['Confirm password','Original-pass-123'],['Email','browser@example.test'],['Profile name','Recovery Player']]) await page.getByLabel(label,{exact:true}).fill(value);
+    await page.getByRole('button',{name:'Back',exact:true}).click();
+    await page.getByRole('button',{name:'Sign up with username or email',exact:true}).click();
+    for(const [label,value] of [['Username',username],['Password','Original-pass-123'],['Confirm password','Original-pass-123'],['Email','browser@example.test'],['Profile name','Recovery Player']]) assert.equal(await page.getByLabel(label,{exact:true}).inputValue(),value);
     const signed=page.waitForResponse(r=>r.url().endsWith('/auth/signup')&&r.status()===201);
     await page.getByRole('button',{name:'Create account',exact:true}).click();
     const user=await(await signed).json();
@@ -67,7 +73,7 @@ async function checkAccountHeader(page, nepaliTitle) {
     await verify.getByRole('button',{name:'Verify email',exact:true}).click();
     await verify.getByText('Email verified. You can now use it to recover your account.',{exact:true}).waitFor();
     await checkAccountHeader(verify,'इमेल प्रमाणित गर्नुहोस्');
-    await verify.getByRole('button',{name:'Back',exact:true}).click();
+    await verify.getByRole('button',{name:'Back',exact:true}).last().click();
     await verify.getByRole('button',{name:'Continue with username or email',exact:true}).click();
     await verify.getByRole('button',{name:'Forgot username or password?',exact:true}).click();
     await verify.screenshot({path:'/tmp/auth-recovery-choices-mobile.png'});
@@ -82,7 +88,7 @@ async function checkAccountHeader(page, nepaliTitle) {
     await sendUsername.click();
     await verify.getByText('If this email is linked to a verified account, we will send your username. Check your spam folder too.',{exact:true}).waitFor();
     assert.deepEqual((await mail('username_reminder', true)).usernames,[username]);
-    await verify.getByRole('button',{name:'Back',exact:true}).click();
+    await verify.getByRole('button',{name:'Back',exact:true}).last().click();
     await verify.getByRole('button',{name:'Forgot username or password?',exact:true}).click();
     await verify.getByRole('button',{name:'Forgot password',exact:true}).click();
     await verify.getByLabel('Username',{exact:true}).last().fill(username);
