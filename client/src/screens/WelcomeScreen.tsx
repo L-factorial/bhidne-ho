@@ -9,9 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { branding } from '../branding';
 import { BrandBanner } from '../components/BrandArt';
 import { SignInButton, SignInMethod } from '../components/SignInButton';
-import { SocialSignInButtons } from '../components/SocialSignInButtons';
-import { apiUrl } from '../multiplayer/api';
-import { saveSession } from '../multiplayer/session';
+import { DisabledSocialOptions } from '../components/AuthMethodChoices';
 import { LanguageToggle } from '../components/LanguageToggle';
 import { useTranslation } from 'react-i18next';
 
@@ -52,9 +50,7 @@ export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
               <Text style={styles.subtitle}>{t('welcome.subtitle')}</Text>
             </View>}
             <View style={styles.buttons}>
-              <SocialSignInButtons onBusyChange={setSigningIn} onSession={session => {
-                saveSession(apiUrl, { session, room: null, game: null }); onEnterLobby();
-              }} />
+              <DisabledSocialOptions />
             </View>
             <View style={{ marginTop: 12 }}><SignInButton method="account" disabled={signingIn} onPress={() => selectMethod('account')} /></View>
             <Text style={styles.helper}>{t('welcome.helper')}</Text>

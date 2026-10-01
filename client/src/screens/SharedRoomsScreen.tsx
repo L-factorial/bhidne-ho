@@ -42,7 +42,7 @@ import { RoomLedger } from '../components/RoomLedger';
 import { apiUrl, request } from '../multiplayer/api';
 import type { Room } from '../multiplayer/session';
 import { useRoomSession } from '../multiplayer/useRoomSession';
-import { SocialSignInButtons } from '../components/SocialSignInButtons';
+import { AuthMethodChoices } from '../components/AuthMethodChoices';
 import { validSignupEmail } from '../auth/email';
 
 type InvitePlayer = { user_id: string; display_name: string; username?: string | null };
@@ -68,6 +68,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const [form, setForm] = useState<'create' | 'join'>("create");
   const [linkedMatch, setLinkedMatch] = useState<string>();
   const [linkedEntry, setLinkedEntry] = useState<{ matchId: string; action: TableEntry }>();
+  const [accountFormOpen, setAccountFormOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -235,7 +236,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   return <HeaderProfileContext.Provider value={session && !expired ? close => <ProfileScreen session={session} personal={personal} onBack={close} onSignOut={signOut} /> : null}><KeyboardFrame><FormScrollView keyboardShouldPersistTaps="handled" style={styles.page} contentContainerStyle={[styles.container, room && { flexGrow: 1 }, {
     paddingTop: Math.max(insets.top, 16), paddingBottom: (room ? Math.max(insets.bottom, 28) + 64 : 24),
   }]}>
-    <View style={[styles.content, room && { flexGrow: 1, maxWidth: 760 }]}>
+    <View style={[styles.content, !session && {maxWidth: 460}, room && { flexGrow: 1, maxWidth: 760 }]}>
       <AppHeader lobby={!room && !!session} onOpenProfile={!room ? () => setLobbyProfileOpen(true) : undefined} inlineActions={session && !expired ? <NotificationBell session={session} onOpenTable={invited => {
         setLinkedMatch(invited.match_id);
         enterRoom({ room_id: invited.room_id, name: invited.table_name, members: [] }, invited.game_type);
@@ -364,17 +365,16 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
             {([["games", ui("rooms.active_games")], ['rooms', ui("rooms.your_rooms")], ['friendRooms', ui("rooms.friends_rooms")], ["createJoin", ui("rooms.create_or_join")]] as const).map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: lobbyTab === value }} onPress={() => setLobbyTab(value)} style={styles.lobbyTab}><Text style={[styles.lobbyTabText, lobbyTab === value && styles.activeLobbyTabText]}>{label}</Text>{lobbyTab === value && <View style={styles.activeLobbyTab} />}</Pressable>)}
           </View>
         </View>}
-        {!session && <View style={styles.panel}>
-          <SocialSignInButtons disabled={shared.loggingIn} onBusyChange={shared.socialLoginBusy} onSession={shared.acceptSocialSession} />
+        {!session && <View style={[styles.panel, {padding: 18}]}>
           <Text style={styles.sectionTitle}>{authMode === 'signup' ? ui("common.create_your_account") : ui("common.welcome_back")}</Text>
           <View style={styles.gameTabs}>
             {([['signin', ui("common.sign_in")], ['signup', ui("common.sign_up")]] as const).map(([value, label]) =>
               <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: authMode === value }}
-                onPress={() => { setAuthMode(value); setConfirmPassword(''); setError(''); }} style={[styles.gameTab, authMode === value && styles.selectedTab]}>
+                onPress={() => { setAuthMode(value); setAccountFormOpen(false); setConfirmPassword(''); setError(''); }} style={[styles.gameTab, authMode === value && styles.selectedTab]}>
                 <Text style={[styles.tabText, authMode === value && styles.selectedTabText]}>{label}</Text>
               </Pressable>)}
           </View>
-          <>
+          {!accountFormOpen ? <AuthMethodChoices signup={authMode === 'signup'} disabled={shared.loggingIn} onContinue={() => setAccountFormOpen(true)} /> : <>
             <Text style={styles.subtitle}>{authMode === 'signup'
               ? ui("common.signup_description")
               : ui("common.signin_description")}</Text>
@@ -403,6 +403,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
                 if (authMode === 'signup') confirmPasswordInput.current?.focus();
                 else submitAccount();
               }} />
+            {authMode === 'signin' && <ForgotPassword />}
             {authMode === 'signup' && <>
               <FormInput ref={confirmPasswordInput} accessibilityLabel={ui("common.confirm_password")} aria-required
                 placeholder={ui("common.confirm_password")} placeholderTextColor={colors.textMuted}
@@ -413,7 +414,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
             </>}
             <Text style={styles.description}>{ui("common.account_requirements")}</Text>
 
-          </>
+          </>}
         </View>}
         {(lobbyTab === 'rooms' || lobbyTab === 'createJoin') && <View style={[styles.columns, !session && { marginTop: 24 }]}>
           {session && !expired && lobbyTab === 'createJoin' && <>
@@ -498,14 +499,14 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   {session && !expired && !room && !invitation && <LobbyNavigation selected={lobbyTab === 'chat' ? 'chat' : lobbyTab === 'players' ? 'friends' : lobbyTab === 'games' ? 'games' : 'home'}
     onSelect={tab => { setLobbyTab(tab === 'chat' ? 'chat' : tab === 'home' ? 'rooms' : tab === 'friends' ? 'players' : 'games'); }} />}
 
-  {!session && <FormFooter>
-            {authMode !== 'signup' && <><ForgotPassword /><DeleteAccountLink /></>}
+  {!session && accountFormOpen && <FormFooter><View style={{width: '100%', maxWidth: 424, alignSelf: 'center', gap: 8}}>
+            {authMode !== 'signup' && <DeleteAccountLink />}
             {!!shared.error && <Text accessibilityRole="alert" style={styles.error}>{shared.error}</Text>}
             <Pressable accessibilityRole="button" disabled={authDisabled} accessibilityState={{ disabled: authDisabled }}
               onPress={submitAccount}
               style={[styles.button, { backgroundColor: colors.primary }, authDisabled && styles.disabled]}>
               <Text style={[styles.buttonText, { color: colors.onPrimary }]}>{shared.loggingIn ? ui("common.please_wait") : authMode === 'signup' ? ui("common.create_account") : ui("common.sign_in")}</Text>
-            </Pressable></FormFooter>}{room && !expired && !invitation && !gameOpen && chat.view}</KeyboardFrame></HeaderProfileContext.Provider>;
+            </Pressable></View></FormFooter>}{room && !expired && !invitation && !gameOpen && chat.view}</KeyboardFrame></HeaderProfileContext.Provider>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.background }, container: { alignItems: 'center', paddingHorizontal: 16 }, content: { width: '100%', maxWidth: 1120 },

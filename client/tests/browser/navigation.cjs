@@ -16,7 +16,7 @@ async function api(path, user, body) {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
     const page = await context.newPage(); page.on('pageerror', e => errors.push(e.message));
     await page.goto(site);
-    await page.getByRole('button', { name: 'Sign in or create account', exact: true }).click();
+    await page.getByRole('button', { name: 'Sign in or create account', exact: true }).click();await page.getByRole('button',{name:'Continue with username or email',exact:true}).click();
     await page.getByRole('textbox', { name: 'Username', exact: true }).fill(username);
     await page.getByLabel('Password', { exact: true }).fill(password);
     await page.getByRole('button', { name: 'Sign in', exact: true }).last().click();

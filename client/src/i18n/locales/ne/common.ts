@@ -1,5 +1,13 @@
 // Editable Nepali common copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "social_options_unavailable": "सामाजिक खाताबाट लगइन अहिले उपलब्ध छैन।",
+  "auth_or": "वा",
+  "continue_username_email": "प्रयोगकर्ता नाम वा इमेलबाट जारी राख्नुहोस्",
+  "signup_username_email": "प्रयोगकर्ता नाम वा इमेलबाट खाता बनाउनुहोस्",
+  "forgot_username_password": "प्रयोगकर्ता नाम वा पासवर्ड बिर्सनुभयो?",
+  "recovery_choices": "खाता पुनःप्राप्ति",
+  "recover_username_choice": "प्रयोगकर्ता नाम बिर्सनुभयो",
+  "recover_password_choice": "पासवर्ड बिर्सनुभयो",
   "storage_read_failed": "सुरक्षित गरिएको लगइन पढ्न सकिएन। उपकरण अनलक गरेर एप फेरि खोल्नुहोस् वा फेरि लगइन गर्नुहोस्।",
   "storage_save_failed": "अहिले लगइन भएको छ, तर यो उपकरणमा लगइन सुरक्षित गर्न सकिएन। एप फेरि खोल्दा लगइन गर्नुपर्ने हुन सक्छ।",
   "storage_clear_failed": "सुरक्षित गरिएको लगइन मेटाउन सकिएन। एप फेरि खोल्दा यो बाँकी हुन सक्छ। उपकरण अनलक गरेर यसलाई मेटाउन पुनः प्रयास थिच्नुहोस्।",

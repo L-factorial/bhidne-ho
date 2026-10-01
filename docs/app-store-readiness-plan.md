@@ -572,3 +572,27 @@ Reviewed during planning on 2026-09-30; recheck before submission.
 - `npm run build:production` also passed locally, including TypeScript and
   the production-configured Expo web export. `git diff --check` passed. The full
   Docker image/remote CI build was not rerun here.
+
+
+### Authentication presentation follow-up (2026-09-30)
+
+- UI-only: Sign In and Sign Up offer disabled Google, Facebook, Apple buttons,
+  then an “or” divider and the requested username/email form-reveal action.
+  The welcome entry also keeps providers disabled, regardless of configuration.
+- Existing form fields, validation, submit handlers, API contracts, session logic,
+  recovery screens, and navigation destinations remain intact. The requested
+  “username or email” label does not add email login: existing sign-in still uses
+  the username. No backend, database, migration, or provider configuration changes.
+- One subtle recovery link under the sign-in password opens a compact chooser
+  for the existing username and password recovery screens. New copy is localized
+  in English/Nepali and uses existing theme tokens; mobile auth panels are narrowed.
+- Verification: 308 frontend tests, TypeScript, production web export, and local
+  Chrome acceptance for signup, verification, username/password recovery, reset,
+  session restoration/expiry/logout, and account deletion passed. Disabled social
+  controls and existing valid/unsolicited callback handling also passed. Mobile
+  screenshots checked; native iOS/Android device testing remains outstanding.
+- Browser fixtures now reveal forms explicitly. Clear Metro's cache when changing
+  export environment variables: the initial local export retained cached production
+  configuration; rerunning with `--clear` and checking the API endpoint resolved it.
+- Next step: user review and commit/push. Reporting/moderation is still pending;
+  notifications remain deferred. No commit, push, deployment, or CI monitoring.

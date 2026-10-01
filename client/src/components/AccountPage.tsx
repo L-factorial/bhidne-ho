@@ -17,15 +17,15 @@ export const accountStyles = (colors: ThemeColors) => StyleSheet.create({
   description: { fontFamily: fonts.body, fontSize: 13, lineHeight: 23, color: colors.textMuted },
 });
 
-export function AccountPage({ children, footer }: { children: ReactNode; footer: ReactNode }) {
+export function AccountPage({ children, footer, compact = false }: { children: ReactNode; footer: ReactNode; compact?: boolean }) {
   const { colors } = useTheme(); const insets = useSafeAreaInsets(); const styles = accountStyles(colors);
   return <KeyboardFrame>
     <FormScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{alignItems:'center',paddingHorizontal:16,paddingTop:Math.max(insets.top,16),paddingBottom:24}}>
-      <View style={{width:'100%',maxWidth:1120}}>
+      <View style={{width:'100%',maxWidth:compact ? 460 : 1120}}>
         <AppHeader hideProfile />
         <View style={styles.panel}>{children}</View>
       </View>
     </FormScrollView>
-    <FormFooter>{footer}</FormFooter>
+    {footer && <FormFooter>{compact ? <View style={{width: '100%', maxWidth: 424, alignSelf: 'center', gap: 8}}>{footer}</View> : footer}</FormFooter>}
   </KeyboardFrame>;
 }

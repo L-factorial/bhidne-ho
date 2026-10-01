@@ -1,3 +1,4 @@
+import { AuthMethodChoices } from '../components/AuthMethodChoices';
 import { BlockedPlayers } from '../components/PlayerBlocking';
 import { DeleteAccountLink } from './DeletionScreen';
 import { setSessionNotice } from '../auth/sessionNotice';
@@ -50,6 +51,7 @@ export function DistributedRoomsScreen() {
   const [account,setAccount] = useState<Session|null>(()=>readSession(apiUrl)?.session??null);
   const [username,setUsername] = useState(''), [password,setPassword] = useState('');
   const [email,setEmail] = useState('');
+  const [accountFormOpen,setAccountFormOpen] = useState(false);
   const [signupMode,setSignupMode] = useState(false), [confirmPassword,setConfirmPassword] = useState('');
   const [authBusy,setAuthBusy] = useState(false), [error,setError] = useState('');
   const [runtime,setRuntime] = useState<DistributedRootRuntime|null>(null);
@@ -162,15 +164,16 @@ export function DistributedRoomsScreen() {
     setSelected(null);setAccount(null);setProjection(null);setMessages({});setMembers([]);setPokes([]);setText('');setError('');
     await pending;
   }
-  if (!account) return <AccountPage footer={<>
-    {!signupMode && <><ForgotPassword /><DeleteAccountLink /></>}
+  if (!account) return <AccountPage compact footer={accountFormOpen ? <>
+    {!signupMode && <DeleteAccountLink />}
     <Pressable accessibilityRole="button" disabled={authBusy || (signupMode && (!confirmPassword || password !== confirmPassword || !validSignupEmail(email)))}
       onPress={() => void login(signupMode)} style={[authStyles.button,{backgroundColor:colors.primary},authBusy && {opacity:.5}]}>
       <Text style={[authStyles.buttonText,{color:colors.onPrimary}]}>{ui(signupMode ? 'common.create_account' : 'common.sign_in')}</Text>
     </Pressable>
-  </>}>
+  </> : null}>
     <Text accessibilityRole="header" style={authStyles.title}>{ui(signupMode ? 'common.create_your_account' : 'common.welcome_back')}</Text>
-    {button(ui(signupMode ? 'common.sign_in' : 'common.sign_up'),()=>{setSignupMode(!signupMode);setConfirmPassword('');setError('');},authBusy)}
+    {button(ui(signupMode ? 'common.sign_in' : 'common.sign_up'),()=>{setSignupMode(!signupMode);setAccountFormOpen(false);setConfirmPassword('');setError('');},authBusy)}
+    {!accountFormOpen ? <AuthMethodChoices signup={signupMode} disabled={authBusy} onContinue={() => setAccountFormOpen(true)} /> : <>
     <FormInput accessibilityLabel={ui('common.username')} placeholder={ui('common.username')} value={username} onChangeText={setUsername} autoCapitalize="none" autoCorrect={false} editable={!authBusy} style={authStyles.input} />
     {signupMode && <>
       <FormInput accessibilityLabel={ui('common.email')} aria-required placeholder={ui('common.email')} value={email}
@@ -180,9 +183,11 @@ export function DistributedRoomsScreen() {
       {!!email && !validSignupEmail(email) && <Text accessibilityRole="alert" style={{color:colors.danger}}>{ui('common.enter_valid_email')}</Text>}
     </>}
     <FormInput accessibilityLabel={ui('common.password')} placeholder={ui('common.password')} value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} maxLength={128} editable={!authBusy} style={authStyles.input} />
+    {!signupMode && <ForgotPassword />}
     {signupMode && <FormInput accessibilityLabel={ui('common.confirm_password')} placeholder={ui('common.confirm_password')} value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} maxLength={128} editable={!authBusy} style={authStyles.input} />}
     {signupMode && !!confirmPassword && password !== confirmPassword && <Text accessibilityRole="alert" style={{color:colors.danger}}>{ui('common.passwords_do_not_match')}</Text>}
     {!!error&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(error, 'feedback')}</Text>}
+    </>}
   </AccountPage>;
 
   const snapshot=projection?.snapshot;

@@ -30,6 +30,7 @@ assert.ok(['localhost', '127.0.0.1'].includes(new URL(site).hostname));
       await page.goto(site);
       await page.getByRole('button', { name: 'Sign in or create account' }).click();
       await page.getByRole('button', { name: 'Sign up', exact: true }).click();
+    await page.getByRole('button',{name:'Sign up with username or email',exact:true}).click();
       await page.getByLabel('Profile name', { exact: true }).fill('Creation test');
       await page.getByLabel('Username', { exact: true }).fill(`create_${Date.now()}`);
       await page.getByLabel('Password', { exact: true }).fill('Local-test-password-42');

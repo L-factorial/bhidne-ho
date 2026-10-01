@@ -8,14 +8,14 @@ const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8197';
   page.on('pageerror',e=>errors.push(e.message));
   const password='Session-test-123',username=`session_${Date.now()}`;
   const create=await fetch(site+'/auth/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password,email:'session@example.test',display_name:'Session Player'})});assert.equal(create.status,201);
-  await page.goto(site);await page.getByRole('button',{name:'Sign in or create account',exact:true}).click();
+  await page.goto(site);await page.getByRole('button',{name:'Sign in or create account',exact:true}).click();await page.getByRole('button',{name:'Continue with username or email',exact:true}).click();
   async function login(accountName=username) {
    await page.getByLabel('Username',{exact:true}).fill(accountName);await page.getByLabel('Password',{exact:true}).fill(password);
    const response=page.waitForResponse(r=>r.url().endsWith('/auth/signin')&&r.status()===200);
    await page.getByRole('button',{name:'Sign in',exact:true}).last().click();const session=await(await response).json();
    await page.getByRole('button',{name:'Open profile',exact:true}).waitFor();return session;
   }
-  async function openLogin() {await page.getByRole('button',{name:'Sign in or create account',exact:true}).click();}
+  async function openLogin() {await page.getByRole('button',{name:'Sign in or create account',exact:true}).click();await page.getByRole('button',{name:'Continue with username or email',exact:true}).click();}
   async function logout() {await page.getByRole('button',{name:'Open profile',exact:true}).click();await page.getByRole('button',{name:'Sign out',exact:true}).click();}
   console.log('Checking session restoration');
   let session=await login();await page.reload();await page.getByRole('button',{name:'Open profile',exact:true}).waitFor();
@@ -23,6 +23,7 @@ const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8197';
   // Revocation elsewhere returns this screen to login, including clearing passwords.
   await fetch(site+'/auth/signout',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.token}`},body:'{}'});
   await page.getByText('Your session has ended. Please sign in again.',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Continue with username or email',exact:true}).click();
   assert.equal(await page.getByLabel('Password',{exact:true}).inputValue(),'');
   session=await login();
   console.log('Checking online logout');

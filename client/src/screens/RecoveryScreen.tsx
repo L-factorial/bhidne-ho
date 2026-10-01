@@ -1,3 +1,4 @@
+import { RoomSheet } from '../components/RoomSheet';
 import { AccountPage, accountStyles } from '../components/AccountPage';
 import { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, Text, View, type TextInput } from 'react-native';
@@ -6,7 +7,7 @@ import { sharedRequest, ApiError } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 import type { RecoveryLink } from '../auth/recoveryLink';
 import { validSignupEmail } from '../auth/email';
-import { useTheme } from '../theme';
+import { fonts, useTheme } from '../theme';
 import { ui } from '../i18n/copy';
 import type { UiKey } from '../i18n/catalogs';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -64,10 +65,20 @@ export function RecoveryScreen({ link, onDone, recoverUsername = false }: {link?
   </AccountPage>;
 }
 export function ForgotPassword() {
-  const [mode, setMode] = useState<'password' | 'username' | null>(null); useUiLanguage();
-  return <><Action label={ui('recovery.forgot')} onPress={() => setMode('password')}/>
-    <Action label={ui('recovery.forgotUsername')} onPress={() => setMode('username')}/>
-    <Modal visible={mode !== null} animationType="slide" onRequestClose={() => setMode(null)}>{mode && <RecoveryScreen key={mode} recoverUsername={mode === 'username'} onDone={() => setMode(null)}/>}</Modal></>;
+  const [mode, setMode] = useState<'password' | 'username' | null>(null);
+  const [choices, setChoices] = useState(false);
+  const { colors } = useTheme(); useUiLanguage();
+  const choose = (value: 'password' | 'username') => { setChoices(false); setMode(value); };
+  return <>
+    <Pressable accessibilityRole="button" onPress={() => setChoices(true)} style={{minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start'}}>
+      <Text style={{fontFamily: fonts.body, fontSize: 12, color: colors.textMuted}}>{ui('common.forgot_username_password')}</Text>
+    </Pressable>
+    {choices && <RoomSheet visible title={ui('common.recovery_choices')} onClose={() => setChoices(false)}>
+      <Action label={ui('common.recover_username_choice')} onPress={() => choose('username')} />
+      <Action label={ui('common.recover_password_choice')} onPress={() => choose('password')} />
+    </RoomSheet>}
+    <Modal visible={mode !== null} animationType="slide" onRequestClose={() => setMode(null)}>{mode && <RecoveryScreen key={mode} recoverUsername={mode === 'username'} onDone={() => setMode(null)}/>}</Modal>
+  </>;
 }
 
 type EmailStatus = {enabled: boolean; password_account: boolean; verified_email: string | null; pending_email: string | null};

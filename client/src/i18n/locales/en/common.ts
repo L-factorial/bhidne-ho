@@ -1,5 +1,13 @@
 // Editable English common copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "social_options_unavailable": "Social sign-in is not available yet.",
+  "auth_or": "or",
+  "continue_username_email": "Continue with username or email",
+  "signup_username_email": "Sign up with username or email",
+  "forgot_username_password": "Forgot username or password?",
+  "recovery_choices": "Recover your account",
+  "recover_username_choice": "Forgot username",
+  "recover_password_choice": "Forgot password",
   "storage_read_failed": "Saved sign-in could not be read. Unlock your device and reopen the app, or sign in again.",
   "storage_save_failed": "You are signed in for now, but this device could not save your login. You may need to sign in again after restarting.",
   "storage_clear_failed": "The saved login could not be erased. It may remain after restarting. Unlock your device and tap Retry to erase it.",

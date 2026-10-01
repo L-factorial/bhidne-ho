@@ -19,21 +19,21 @@ function GoogleIcon() {
     </Svg>
   );
 }
-export function SignInButton({ method, onPress, disabled = false, label }: { method: SignInMethod; onPress: () => void; disabled?: boolean; label?: string }) {
+export function SignInButton({ method, onPress, disabled = false, label, compact = false }: { method: SignInMethod; onPress: () => void; disabled?: boolean; label?: string; compact?: boolean }) {
   const uiLanguage = useUiLanguage();
   const { colors } = useTheme();
   const { t } = useTranslation();
   const styles = useThemedStyles(createStyles);
   const [focused, setFocused] = useState(false);
   const backgroundColor = { Apple: '#141414', Google: '#FFFFFF', Facebook: '#0866FF', account: colors.primary }[method];
-  const color = method === 'Google' ? '#242424' : '#FFFFFF';
+  const color = method === 'account' ? colors.onPrimary : method === 'Google' ? '#242424' : '#FFFFFF';
   const text = label || (method === 'account' ? t('welcome.account') : ui("common.continue_with_provider", { "provider": method }));
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={text}
       disabled={disabled} accessibilityState={{ disabled }}
       onPress={onPress} onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)} style={({ pressed }) => [
-        styles.button, gameControlFinish(colors, pressed), { backgroundColor, opacity: disabled ? 0.4 : pressed ? 0.78 : 1 },
+        styles.button, compact && { minHeight: 48, paddingVertical: 11, paddingHorizontal: 12 }, gameControlFinish(colors, pressed), { backgroundColor, opacity: disabled ? 0.55 : pressed ? 0.78 : 1 },
         method === 'Google' && styles.google, focused && styles.focused,
       ]}>
       <View style={styles.icon}>
@@ -41,7 +41,7 @@ export function SignInButton({ method, onPress, disabled = false, label }: { met
           <FontAwesome name={method === 'Apple' ? 'apple' : method === 'Facebook' ? 'facebook-square' : 'user'} size={24} color={color} />
         )}
       </View>
-      <Text style={[styles.label, { color }]}>{text}</Text>
+      <Text style={[styles.label, compact && {fontSize: 13}, { color }]}>{text}</Text>
       <View style={styles.balance} />
     </Pressable>
   );

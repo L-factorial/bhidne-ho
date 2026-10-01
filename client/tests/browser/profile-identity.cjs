@@ -14,6 +14,7 @@ async function api(path, user, body) {
     await page.goto(site);
     await page.getByRole('button', { name: 'Sign in or create account', exact: true }).click();
     await page.getByRole('button', { name: 'Sign up', exact: true }).click();
+    await page.getByRole('button',{name:'Sign up with username or email',exact:true}).click();
     await page.getByLabel('Username', { exact: true }).fill(username);
     await page.getByLabel('Password', { exact: true }).fill(password);
     await page.getByLabel('Confirm password', { exact: true }).fill(password);
