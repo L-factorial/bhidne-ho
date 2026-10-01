@@ -698,3 +698,10 @@ warning behavior and the existing public metadata/rule-acceptance API test.
 Next: user review/commit/push and deployment, then verify public URLs and configured
 moderator access. Provider/log-retention review and native acceptance remain.
 No live settings, commit, push or deployment performed.
+
+### CI acceptance fixture correction
+
+Original UI adapter test accounts now explicitly accept the current community rules
+through the API before exercising social commands. Consent enforcement is unchanged.
+The previously failing distributed original UI test passed locally using real
+PostgreSQL, Redis and two gateways. User commit/push and CI rerun remain next.

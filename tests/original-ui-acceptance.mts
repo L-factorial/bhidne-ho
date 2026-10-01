@@ -8,7 +8,19 @@ if(!base||!['127.0.0.1','localhost'].includes(new URL(base).hostname))throw Erro
 const runtimes:any[]=[];
 async function raw(path:string,session:any,body?:object,signal?:AbortSignal,method?:string){const r=await fetch(base+path,{method:method??(body?'POST':'GET'),headers:{'Content-Type':'application/json',...(session?{Authorization:'Bearer '+session.token}:{})},...(body?{body:JSON.stringify(body)}:{}),signal});const text=await r.text();if(!r.ok)throw Error(`${r.status}: ${text}`);return text?JSON.parse(text):undefined;}
 async function retry<T>(fn:()=>Promise<T>):Promise<T>{for(let n=0;;n++)try{return await fn();}catch(e){if(n===3||!String(e).match(/confirmation|confirm|reconciliation|already being/))throw e;await new Promise(r=>setTimeout(r,1000));}}
-async function player(i:number){const a=await raw('/auth/signup',null,{username:'adapter_'+Date.now()+'_'+i,password:'local-test-password-42',email:`adapter-${i}@example.test`,display_name:'Adapter '+i});const memory=new Map<string,string>();const owner=createJournalOwner({read:k=>memory.get(k)??null,write:(k,v)=>{memory.set(k,v);}},a.user_id,()=>{});const rt=new OriginalDistributedRuntime(owner,base+'/distributed',a,{install(){},remove(){},error(){}});rt.connectRequests(raw as any);runtimes.push(rt);return {a,rt,request:(path:string,body?:object,method?:any)=>retry(()=>rt.api!.request<any>(path,a,body,undefined,method))};}
+async function player(i:number){
+ const a=await raw('/auth/signup',null,{username:'adapter_'+Date.now()+'_'+i,password:'local-test-password-42',email:`adapter-${i}@example.test`,display_name:'Adapter '+i});
+ // Test accounts follow the same explicit consent flow as the Profile UI.
+ const rules=await raw('/me/community-rules',a);
+ assert.equal(rules.accepted,false);
+ await raw('/me/community-rules',a,{version:rules.version,accepted:true});
+ assert.equal((await raw('/me/community-rules',a)).accepted,true);
+ const memory=new Map<string,string>();
+ const owner=createJournalOwner({read:k=>memory.get(k)??null,write:(k,v)=>{memory.set(k,v);}},a.user_id,()=>{});
+ const rt=new OriginalDistributedRuntime(owner,base+'/distributed',a,{install(){},remove(){},error(){}});
+ rt.connectRequests(raw as any);runtimes.push(rt);
+ return {a,rt,request:(path:string,body?:object,method?:any)=>retry(()=>rt.api!.request<any>(path,a,body,undefined,method))};
+}
 try {
 const players=await Promise.all([0,1,2,3].map(player)),[host,guest]=players;
 await host.request('/friends/requests/'+guest.a.user_id,{});await guest.request('/friends/requests/'+host.a.user_id+'/accept',{});

@@ -5520,3 +5520,17 @@ warning behavior and the existing public metadata/rule-acceptance API test.
 Next: user review/commit/push and deployment, then verify public URLs and configured
 moderator access. Provider/log-retention review and native acceptance remain.
 No live settings, commit, push or deployment performed.
+
+### Original UI acceptance consent follow-up
+
+CI's original UI adapter acceptance failed because its newly created accounts sent
+friend requests without accepting the community rules. Updated the test player
+setup to fetch the current rules version, assert initial non-acceptance, explicitly
+accept through the public authenticated API, and verify persisted acceptance before
+using social commands. Runtime enforcement and production signup remain unchanged.
+
+Verification: `tests/test_distributed_original_ui.py` passed against disposable real
+PostgreSQL/Redis and two independent gateway processes (20.37s), covering all seven
+adapter acceptance stages. The Node module-type warning was not the failure cause.
+Next: user commit/push and CI rerun; GitHub-secret delivery for moderator configuration
+remains separate pending implementation. No commit, push or deployment performed.
