@@ -5555,3 +5555,23 @@ remains separate pending implementation. No commit, push or deployment performed
   PostgreSQL/Redis test binaries are unavailable locally; WSL is not installed.
 - Next: commit/push when requested and rerun CI's native PostgreSQL/Redis tests.
   No deployment or claim that the complete production workflow has passed.
+
+### Process-suite posting setup follow-up
+
+- The separately executed final CI process suite still used an untouched signup
+  helper. Its Redis-loss, Nginx fallback and command-latency scenarios all reached
+  chat with fresh accounts lacking community-rule acceptance.
+- Updated only that suite's account helper to fetch the current rules, assert
+  initial non-acceptance, explicitly accept through the authenticated API, and
+  verify persisted acceptance before outages or timing measurements begin.
+  Added full outcome diagnostics to chat acceptance assertions. Runtime policy,
+  Redis fallback, lease takeover and latency thresholds are unchanged.
+- Added a non-native regression using the same helper against the actual ASGI
+  application and PostgreSQL/WASM. With its Redis broker offline, a freshly
+  provisioned account creates a room, commits chat and reads the message back.
+- Verification: new regression plus moderation enforcement: 17 passed. All six
+  native process scenarios skipped locally because service binaries are not
+  configured. Whitespace check passed. Native PostgreSQL/Redis/Nginx behavior must
+  still pass the existing final CI job; no full-workflow success claim.
+- Next: commit/push when requested and rerun the backend workflow. No commit,
+  push, production mutation or deployment performed by the agent.

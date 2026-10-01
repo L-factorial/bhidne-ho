@@ -15,7 +15,19 @@ async def signup(client, base, name):
     response=await client.post(base+'/auth/signup',json=dict(email='signup@example.test', username=name,password='integration-test-password'))
     assert response.status_code==201,response.text
     value=response.json()
-    return value,{'Authorization':'Bearer '+value['token']}
+    headers={'Authorization':'Bearer '+value['token']}
+    # These scenarios exercise delivery/failover, so complete posting setup before
+    # stopping services or starting latency measurements. Signup itself stays opt-in.
+    rules=await client.get(base+'/me/community-rules',headers=headers)
+    assert rules.status_code==200,rules.text
+    assert rules.json()['accepted'] is False
+    accepted=await client.post(base+'/me/community-rules',headers=headers,
+        json={'version':rules.json()['version'],'accepted':True})
+    assert accepted.status_code==200,accepted.text
+    saved=await client.get(base+'/me/community-rules',headers=headers)
+    assert saved.status_code==200,saved.text
+    assert saved.json()['accepted'] is True,saved.text
+    return value,headers
 
 
 async def submit(client, base, headers, target, command, payload=None, *, match=None, revision=None, key=None, wait=True):
@@ -89,14 +101,14 @@ async def test_independent_gateways_redis_loss_pause_takeover_and_receipt_dedupe
         await cluster.redis.stop()
         chat_target=dict(kind='table_chat',room_id=room_id,table_id=table)
         message,msg=await submit(client,cluster.urls[other],ha,chat_target,'send-chat',{'text':'Redis is offline'})
-        assert message['status']=='accepted'
+        assert message['status']=='accepted',message
         history=await client.get(cluster.urls[other]+'/distributed/history/chat/'+message['lane_id'],headers=hb)
         assert history.status_code==200 and history.json()['items'][0]['text']=='Redis is offline'
         # Pause owner beyond its real lease. Survivor must reacquire with a new epoch.
         cluster.processes[owner].send_signal(signal.SIGSTOP)
         pending,intent=await submit(client,cluster.urls[other],hb,chat_target,'send-chat',{'text':'After takeover'},wait=False)
         recovered=await terminal(client,cluster.urls[other],hb,pending)
-        assert recovered['status']=='accepted'
+        assert recovered['status']=='accepted',recovered
         replacement=await cluster.owner(room_id)
         assert replacement[0]==other and replacement[1]>epoch,replacement
         cluster.processes[owner].send_signal(signal.SIGCONT)
@@ -178,7 +190,7 @@ async def test_actual_nginx_http_websocket_and_retry_contract(cluster):
                 assert json.loads(await ws.recv())['type']=='SUBSCRIBED'
                 await cluster.redis.stop()
                 outcome,_=await submit(client,base,headers,dict(kind='room_chat',room_id=room_id),'send-chat',{'text':'Across the proxy without Redis'})
-                assert outcome['status']=='accepted'
+                assert outcome['status']=='accepted',outcome
                 async with asyncio.timeout(15):
                     while True:
                         frame=json.loads(await ws.recv())
