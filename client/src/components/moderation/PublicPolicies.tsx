@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { ui } from '../../i18n/copy.ts';
 import { useUiLanguage } from '../../i18n/useUiLanguage';
 import { sharedRequest } from '../../multiplayer/api';
 import { AccountPage } from '../AccountPage';
@@ -19,6 +21,7 @@ export function PolicyLinks(){
 }
 type Metadata={ready:boolean;operator:string;contact:string;minimum_age:number|null;backups:string};
 export function PublicPolicyPage({page,onBack}:{page:PolicyPage;onBack:()=>void}){
+ const {colors:c}=useTheme();
  const ne=useUiLanguage()==='ne';const [meta,setMeta]=useState<Metadata|null>(null);
  useEffect(()=>{const a=new AbortController();void sharedRequest<Metadata>('/public/policy',null,undefined,a.signal).then(v=>{if(!a.signal.aborted)setMeta(v);}).catch(()=>{});return()=>a.abort();},[]);
  const paragraphs=page==='community-rules'?rulesText[ne?'ne':'en']:page==='privacy'?(ne?[
@@ -36,7 +39,11 @@ export function PublicPolicyPage({page,onBack}:{page:PolicyPage;onBack:()=>void}
  'Request deletion in Profile or at /delete-account. Personal data is erased and sessions revoked; shared game records may be anonymized to preserve other players’ games.',
  'Operational request/error logs and rate-limit identifiers support service reliability and abuse prevention. Your device stores sign-in sessions and language/theme preferences.'
  ]):page==='terms'?(ne?['यो खेल मनोरञ्जनका लागि हो। खेल अङ्कको नगद मूल्य छैन। समुदाय नियम स्वीकार गरेपछि मात्र च्याट र निमन्त्रणा पठाउन सकिन्छ।','तपाईं आफ्नो खाताको सुरक्षाका लागि जिम्मेवार हुनुहुन्छ। नियम उल्लङ्घनमा सामग्री हटाउन, च्याट रोक्न वा खाता निलम्बन गर्न सकिन्छ। सहयोगमार्फत अपिल गर्न सकिन्छ।']:['This is a recreational game. Game points have no cash value. Accept the community rules before sending chat or invitations.','Keep your account secure. Rule violations may result in content removal, chat restrictions or account suspension. You may appeal through support.']):(ne?['समस्या वा अपिलका लागि आफ्नो प्रयोगकर्ता नाम, समस्या भएको समय र सान्दर्भिक विवरण पठाउनुहोस्। पासवर्ड वा रिकभरी लिंक नपठाउनुहोस्।','दुर्व्यवहारको उजुरी खेलाडी वा सन्देशको Report बाट गर्नुहोस्। अनिच्छित सम्पर्क रोक्न Block प्रयोग गर्नुहोस्।']:['For help or an appeal, provide your username, the time of the issue and relevant details. Never send your password or recovery links.','Report abuse using Report on a player or message. Use Block to stop unwanted contact.']);
- return <AccountPage compact footer={null} onBack={onBack} title={labels[ne?'ne':'en'][page]}>
+ return <AccountPage compact footer={null}>
+  <Pressable accessibilityRole="button" accessibilityLabel={ui('common.back')} onPress={onBack}
+    style={{alignSelf:'flex-start',minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center'}}>
+   <Ionicons name="arrow-back" size={22} color={c.textMuted} />
+  </Pressable>
   <Copy>{labels[ne?'ne':'en'][page]}</Copy>
   {!meta?.ready&&<Copy alert>{ne?'प्रकाशन विवरण अझै पुष्टि हुँदैछ।':'Publication details are awaiting operator confirmation.'}</Copy>}
   {!!meta?.operator&&<Copy>{meta.operator}</Copy>}

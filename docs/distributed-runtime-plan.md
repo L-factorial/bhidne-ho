@@ -5619,3 +5619,11 @@ chat and Friends UI changes and authorized implementation with “go ahead”.
 - Exact next step: review the local UI changes/screenshots, then commit/push when
   requested and run deployed distributed/native acceptance. No commit, push,
   account deletion enablement or deployment performed.
+
+### Public policy header and Back placement
+
+- Privacy, Terms, Community rules and Support now keep the shared Bhidne Ho
+  branding beside the logo. Their page labels remain in the content panel.
+- Moved Back from before the header logo to the top-left of that panel, retaining
+  the existing navigation callback, localized accessibility label and 44px target.
+- Verification: TypeScript passed. No backend change, commit or deployment.
