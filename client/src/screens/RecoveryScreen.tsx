@@ -71,7 +71,7 @@ export function ForgotPassword() {
   const choose = (value: 'password' | 'username') => { setChoices(false); setMode(value); };
   return <>
     <Pressable accessibilityRole="button" onPress={() => setChoices(true)} style={{minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start'}}>
-      <Text style={{fontFamily: fonts.body, fontSize: 12, color: colors.textMuted}}>{ui('common.forgot_username_password')}</Text>
+      <Text style={{fontFamily: fonts.medium, fontSize: 13, color: colors.accent, textDecorationLine: 'underline'}}>{ui('common.forgot_username_password')}</Text>
     </Pressable>
     {choices && <RoomSheet visible title={ui('common.recovery_choices')} onClose={() => setChoices(false)}>
       <Action label={ui('common.recover_username_choice')} onPress={() => choose('username')} />

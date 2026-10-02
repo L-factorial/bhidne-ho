@@ -1,3 +1,5 @@
+import { ContextMenu, MenuAction } from './ContextMenu';
+import type { ReactNode } from 'react';
 import { Button, Copy, copy } from './moderation/Controls';
 import { EnforcementActions } from './moderation/EnforcementActions';
 import { useEffect, useRef, useState } from 'react';
@@ -19,8 +21,8 @@ const categories = ['harassment','hate','sexual','spam','other'] as const;
 function failure(error: unknown) {
   return copy(error instanceof ApiError ? error.status === 403 ? 'denied' : error.status === 429 ? 'limited' : error.status === 409 ? 'conflict' : 'failed' : 'failed');
 }
-export function ReportButton({session,player,enabled,scope='player',messageId}: {
-  session:Session;player:{user_id:string;display_name:string};enabled:boolean;scope?:'player'|'direct'|'chat';messageId?:string;
+export function ReportButton({session,player,enabled,scope='player',messageId,renderTrigger}: {
+  session:Session;player:{user_id:string;display_name:string};enabled:boolean;scope?:'player'|'direct'|'chat';messageId?:string;renderTrigger?:(open:()=>void)=>ReactNode;
 }) {
   useUiLanguage();const {colors:c}=useTheme();
   const [open,setOpen]=useState(false),[busy,setBusy]=useState(false),[done,setDone]=useState(false),[error,setError]=useState('');
@@ -31,9 +33,11 @@ export function ReportButton({session,player,enabled,scope='player',messageId}: 
     try {await sharedRequest('/me/reports',session,{reported_user_id:player.user_id,scope,message_id:messageId||null,category,explanation});setDone(true);}
     catch(e){setError(failure(e));}finally{pending.current=false;setBusy(false);}
   }
-  if(!enabled||player.user_id===session.user_id)return null;
+  const allowed=enabled && player.user_id!==session.user_id;
+  const launch=()=>{setOpen(true);setDone(false);setError('');};
+  if(!allowed)return renderTrigger ? <>{renderTrigger(()=>{})}</> : null;
   return <>
-    <Button label={copy(scope==='player'?'report_player':'report_message')} onPress={()=>{setOpen(true);setDone(false);setError('');}} />
+    {renderTrigger ? renderTrigger(launch) : scope==='player' ? <Button label={copy('report_player')} onPress={launch} /> : <ContextMenu label={ui('common.message_actions')}>{close=><MenuAction label={`🚩 ${copy('report_message')}`} onPress={()=>{close();launch();}} />}</ContextMenu>}
     {open&&<RoomSheet visible presentation="dialog" title={copy(scope==='player'?'report_player':'report_message')} onClose={()=>{if(!busy)setOpen(false);}}>
       <Copy>{player.display_name}</Copy>
       {done?<><Copy>{copy('submitted')}</Copy><Button label={copy('close')} onPress={()=>setOpen(false)} /></>:<>

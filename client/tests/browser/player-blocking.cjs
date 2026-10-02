@@ -19,10 +19,12 @@ async function api(path, body, token, method) {
   await page.getByRole('button',{name:'Open profile',exact:true}).click();
   await page.getByLabel('Find players',{exact:true}).fill('Block Target');
   await page.getByRole('button',{name:'Search',exact:true}).click();
-  await page.getByRole('button',{name:'Block Block Target',exact:true}).click();
+  await page.getByRole('button',{name:'Player actions · Block Target',exact:true}).click();
+  await page.getByRole('button',{name:'⊘ Block player',exact:true}).click();
   await page.getByRole('button',{name:'Cancel',exact:true}).last().click();
   assert.equal((await api('/me/blocks',undefined,a.token)).items.length,0);
-  await page.getByRole('button',{name:'Block Block Target',exact:true}).click();
+  await page.getByRole('button',{name:'Player actions · Block Target',exact:true}).click();
+  await page.getByRole('button',{name:'⊘ Block player',exact:true}).click();
   await page.getByRole('button',{name:'Block player',exact:true}).click();
   await page.getByRole('button',{name:'Manage blocked players',exact:true}).click();
   await page.getByRole('button',{name:'Unblock Block Target',exact:true}).waitFor();

@@ -1,14 +1,22 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { Linking, View } from 'react-native';
+import { Linking, Pressable, Text, View } from 'react-native';
 import { useUiLanguage } from '../../i18n/useUiLanguage';
 import { sharedRequest } from '../../multiplayer/api';
 import { AccountPage } from '../AccountPage';
 import { Button, Copy } from './Controls';
+import { fonts, useTheme } from '../../theme';
 import { rulesText } from './CommunityRules';
 export type PolicyPage='privacy'|'support'|'community-rules'|'terms';
 export const PolicyNavigation=createContext<(page:PolicyPage)=>void>(()=>{});
 export const labels={en:{privacy:'Privacy',support:'Support', 'community-rules':'Community rules',terms:'Terms'},ne:{privacy:'गोपनीयता',support:'सहयोग','community-rules':'समुदाय नियम',terms:'सर्तहरू'}};
-export function PolicyLinks(){const ne=useUiLanguage()==='ne',open=useContext(PolicyNavigation);return <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>{(Object.keys(labels.en) as PolicyPage[]).map(p=><Button key={p} label={labels[ne?'ne':'en'][p]} onPress={()=>open(p)} />)}</View>;}
+export function PolicyLinks(){
+ const ne=useUiLanguage()==='ne',open=useContext(PolicyNavigation),{colors:c}=useTheme();
+ const pages:PolicyPage[]=['privacy','terms','community-rules','support'];
+ return <View style={{flexDirection:'row',flexWrap:'wrap',alignItems:'center',justifyContent:'center',columnGap:8,marginTop:20}}>{pages.map((p,i)=><View key={p} style={{flexDirection:'row',alignItems:'center',gap:8}}>
+  {i>0&&<Text accessibilityElementsHidden style={{color:c.textMuted}}>·</Text>}
+  <Pressable accessibilityRole="link" onPress={()=>open(p)} style={{minHeight:44,justifyContent:'center'}}><Text style={{fontFamily:fonts.body,fontSize:12,color:c.textMuted}}>{labels[ne?'ne':'en'][p]}</Text></Pressable>
+ </View>)}</View>;
+}
 type Metadata={ready:boolean;operator:string;contact:string;minimum_age:number|null;backups:string};
 export function PublicPolicyPage({page,onBack}:{page:PolicyPage;onBack:()=>void}){
  const ne=useUiLanguage()==='ne';const [meta,setMeta]=useState<Metadata|null>(null);
@@ -28,7 +36,7 @@ export function PublicPolicyPage({page,onBack}:{page:PolicyPage;onBack:()=>void}
  'Request deletion in Profile or at /delete-account. Personal data is erased and sessions revoked; shared game records may be anonymized to preserve other players’ games.',
  'Operational request/error logs and rate-limit identifiers support service reliability and abuse prevention. Your device stores sign-in sessions and language/theme preferences.'
  ]):page==='terms'?(ne?['यो खेल मनोरञ्जनका लागि हो। खेल अङ्कको नगद मूल्य छैन। समुदाय नियम स्वीकार गरेपछि मात्र च्याट र निमन्त्रणा पठाउन सकिन्छ।','तपाईं आफ्नो खाताको सुरक्षाका लागि जिम्मेवार हुनुहुन्छ। नियम उल्लङ्घनमा सामग्री हटाउन, च्याट रोक्न वा खाता निलम्बन गर्न सकिन्छ। सहयोगमार्फत अपिल गर्न सकिन्छ।']:['This is a recreational game. Game points have no cash value. Accept the community rules before sending chat or invitations.','Keep your account secure. Rule violations may result in content removal, chat restrictions or account suspension. You may appeal through support.']):(ne?['समस्या वा अपिलका लागि आफ्नो प्रयोगकर्ता नाम, समस्या भएको समय र सान्दर्भिक विवरण पठाउनुहोस्। पासवर्ड वा रिकभरी लिंक नपठाउनुहोस्।','दुर्व्यवहारको उजुरी खेलाडी वा सन्देशको Report बाट गर्नुहोस्। अनिच्छित सम्पर्क रोक्न Block प्रयोग गर्नुहोस्।']:['For help or an appeal, provide your username, the time of the issue and relevant details. Never send your password or recovery links.','Report abuse using Report on a player or message. Use Block to stop unwanted contact.']);
- return <AccountPage compact footer={<Button label={ne?'पछाडि':'Back'} onPress={onBack} />}>
+ return <AccountPage compact footer={null} onBack={onBack} title={labels[ne?'ne':'en'][page]}>
   <Copy>{labels[ne?'ne':'en'][page]}</Copy>
   {!meta?.ready&&<Copy alert>{ne?'प्रकाशन विवरण अझै पुष्टि हुँदैछ।':'Publication details are awaiting operator confirmation.'}</Copy>}
   {!!meta?.operator&&<Copy>{meta.operator}</Copy>}

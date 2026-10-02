@@ -1,3 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
+import { PlayerAvatar } from './PlayerAvatar';
+import { ContextMenu, MenuAction } from './ContextMenu';
+import { ChatMessage } from './ChatMessage';
 import { preserveRemovals } from './moderation/messages';
 import { CommunityRulesEntry } from './moderation/CommunityRules';
 import { ReportButton } from './Moderation';
@@ -5,7 +9,7 @@ import { BlockPlayerButton, useBlocking } from './PlayerBlocking';
 import { playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
-import { gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { gameControlFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { FormInput } from './FormInput';
 import { RoomSheet } from './RoomSheet';
 import { ChatComposer } from './ChatComposer';
@@ -16,7 +20,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { request } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 
-type Player = { user_id: string; display_name: string; username?: string | null };
+type Player = { user_id: string; display_name: string; username?: string | null; avatar_url?: string | null };
 type Snapshot = { online_friend_ids?: string[] | null; friends: Player[]; incoming: Player[]; outgoing: Player[] };
 export type Message = { id: string; sender_id: string; recipient_id: string; text: string; removed?: boolean; sent_at: number };
 const empty: Snapshot = { friends: [], incoming: [], outgoing: [] };
@@ -50,7 +54,7 @@ export function FriendsPanel({ session, transport, onlineOnly = false }: { sessi
   },[transport?.sent?.id]);
 
   async function refresh(signal?: AbortSignal) {
-    const value = await request<Snapshot>(onlineOnly ? '/friends?include_presence=true' : '/friends', session, undefined, signal);
+    const value = await request<Snapshot>('/friends?include_presence=true', session, undefined, signal);
     if (!signal?.aborted) {
       setSnapshot(value);
       setSelected(current => current && !value.friends.some(friend => friend.user_id === current.user_id) ? null : current);
@@ -116,38 +120,49 @@ export function FriendsPanel({ session, transport, onlineOnly = false }: { sessi
   const visibleFriends = onlineOnly ? snapshot.friends.filter(player => snapshot.online_friend_ids?.includes(player.user_id)) : snapshot.friends;
   const related = new Set([...snapshot.friends, ...snapshot.incoming, ...snapshot.outgoing].map(player => player.user_id));
   const row = (player: Player, action: ReactNode) => <View key={player.user_id} style={styles.row}>
-    <View style={{ flex: 1 }}><Text style={styles.name}>{label(player)}</Text>
-      {!!player.username && <Text style={styles.detail}>@{player.username}</Text>}</View>{action}
-    <ReportButton session={session} enabled={blocking.reporting} player={{user_id: player.user_id, display_name: label(player)}} />
-    <BlockPlayerButton session={session} player={{user_id: player.user_id, display_name: label(player)}} enabled={blocking.enabled} onBlocked={() => { setResults(current => current.filter(p => p.user_id !== player.user_id)); setSelected(null); setMessages([]); }} />
+    <PlayerAvatar uri={player.avatar_url || undefined} />
+    <View style={{ flex: 1, minWidth:60 }}><Text numberOfLines={1} style={styles.name}>{label(player)}</Text>
+      {!!player.username && <Text style={styles.detail}>@{player.username}</Text>}
+      {snapshot.online_friend_ids?.includes(player.user_id) && <View style={{flexDirection:'row',alignItems:'center',gap:5}}><View style={{width:7,height:7,borderRadius:4,backgroundColor:colors.success}}/><Text style={styles.detail}>{ui('common.online')}</Text></View>}
+    </View>{action}
+    {(blocking.reporting || blocking.enabled || snapshot.friends.some(f=>f.user_id===player.user_id)) && player.user_id!==session.user_id &&
+      <ReportButton session={session} enabled={blocking.reporting} player={{user_id:player.user_id,display_name:label(player)}} renderTrigger={report=>
+        <BlockPlayerButton session={session} enabled={blocking.enabled} player={{user_id:player.user_id,display_name:label(player)}} onBlocked={()=>{setResults(current=>current.filter(p=>p.user_id!==player.user_id));setSelected(null);setMessages([]);}} renderTrigger={block=>
+          <ContextMenu label={`${ui('common.player_actions')} · ${label(player)}`}>{close=><>
+            {blocking.reporting && <MenuAction label={`⚑ ${ui('moderation.report_player')}`} onPress={()=>{close();report();}}/>}
+            {blocking.enabled && <MenuAction label={`⊘ ${ui('safety.confirm')}`} onPress={()=>{close();block();}}/>}
+            {snapshot.friends.some(f=>f.user_id===player.user_id) && <View style={{borderTopWidth:1,borderColor:colors.border}}><MenuAction danger disabled={busy} label={ui('common.remove_friend')} onPress={()=>{close();void mutate(player.user_id,'remove-friend');}}/></View>}
+          </>}</ContextMenu>}/>} />}
+
   </View>;
 
   return <View style={styles.panel}>
-    <View style={styles.row}><Text accessibilityRole="header" style={styles.title}>{onlineOnly ? ui("social.lobby_chat") : ui("common.friends")}</Text></View>
+    <View style={{paddingVertical:8,borderBottomWidth:1,borderColor:colors.border}}><Text accessibilityRole="header" style={styles.title}>{onlineOnly ? ui("social.lobby_chat") : ui("common.friends")}</Text></View>
     <Text style={styles.detail}>{onlineOnly ? ui("social.online_chat_help") : ui("social.friends_help")}</Text>
     {!onlineOnly && <>
     <View style={styles.searchRow}>
-      <FormInput accessibilityLabel={ui("social.find_players")} value={query} onChangeText={setQuery} maxLength={50}
+      <View style={styles.searchField}><Ionicons name="search-outline" size={20} color={colors.textMuted}/><FormInput accessibilityLabel={ui("social.find_players")} value={query} onChangeText={setQuery} maxLength={50}
         autoCapitalize="none" placeholder={ui("social.username_or_display_name")} placeholderTextColor={colors.textMuted}
-        returnKeyType="search" onSubmitEditing={() => void search()} style={styles.input} />
+        returnKeyType="search" onSubmitEditing={() => void search()} style={styles.input} /></View>
       <Pressable accessibilityRole="button" disabled={busy || query.trim().length < 2} onPress={() => void search()} style={[styles.button, (busy || query.trim().length < 2) && styles.disabled]}><Text style={styles.buttonText}>{ui("common.search")}</Text></Pressable>
     </View>
+    {!!results.length && <View style={styles.sectionHeading}><Text style={styles.heading}>{ui('common.search_results')}</Text><Text style={styles.count}>{results.length}</Text></View>}
     {results.map(player => row(player, related.has(player.user_id)
       ? <Text style={styles.detail}>{ui("social.already_connected")}</Text>
-      : <Pressable accessibilityRole="button" onPress={() => void mutate(player.user_id, 'request-friend')} style={styles.smallButton}><Text style={styles.buttonText}>{ui("social.add_friend")}</Text></Pressable>))}
+      : <Pressable accessibilityRole="button" accessibilityLabel={ui('social.add_friend')} disabled={busy} onPress={() => void mutate(player.user_id, 'request-friend')} style={styles.smallButton}><View style={{flexDirection:'row',alignItems:'center',gap:5}}><Ionicons name="person-add-outline" size={17} color={colors.accent}/><Text style={styles.link}>{ui("social.add_friend")}</Text></View></Pressable>))}
 
     {!!snapshot.incoming.length && <><Text style={styles.heading}>{ui("social.requests_received")}</Text>{snapshot.incoming.map(player => row(player, <View style={styles.actions}>
-      <Pressable accessibilityRole="button" onPress={() => void mutate(player.user_id, 'accept-friend')} style={styles.smallButton}><Text style={styles.buttonText}>{ui("common.accept")}</Text></Pressable>
+      <Pressable accessibilityRole="button" onPress={() => void mutate(player.user_id, 'accept-friend')} disabled={busy} style={styles.smallButton}><Text style={styles.link}>{ui("common.accept")}</Text></Pressable>
       <Pressable accessibilityRole="button" onPress={() => void mutate(player.user_id, 'remove-friend')} style={styles.linkButton}><Text style={styles.link}>{ui("common.decline")}</Text></Pressable>
     </View>))}</>}
     {!!snapshot.outgoing.length && <><Text style={styles.heading}>{ui("social.requests_sent")}</Text>{snapshot.outgoing.map(player => row(player,
       <Pressable accessibilityRole="button" onPress={() => void mutate(player.user_id, 'remove-friend')} style={styles.linkButton}><Text style={styles.link}>{ui("common.cancel")}</Text></Pressable>))}</>}
     </>}
-    <Text style={styles.heading}>{onlineOnly ? ui("social.online_friends") : ui("social.your_friends")}</Text>
+    <View style={styles.sectionHeading}><Text style={styles.heading}>{onlineOnly ? ui("social.online_friends") : ui("social.your_friends")}</Text><Text style={styles.count}>{visibleFriends.length}</Text></View>
     {!visibleFriends.length && <Text style={styles.detail}>{onlineOnly ? ui("social.no_online_friends") : ui("social.no_friends_yet")}</Text>}
     {visibleFriends.map(player => row(player, <View style={styles.actions}>
-      <Pressable accessibilityRole="button" onPress={() => { setMessages([]); setError(''); setSendError(''); setSelected(player); }} style={styles.smallButton}><Text style={styles.buttonText}>{ui("social.message")}</Text></Pressable>
-      {!onlineOnly && <Pressable accessibilityRole="button" onPress={() => void mutate(player.user_id, 'remove-friend')} style={styles.linkButton}><Text style={styles.link}>{ui("common.remove")}</Text></Pressable>}
+      <Pressable accessibilityRole="button" accessibilityLabel={ui('social.message')} onPress={() => { setMessages([]); setError(''); setSendError(''); setSelected(player); }} style={styles.linkButton}><View style={{flexDirection:'row',alignItems:'center',gap:6}}><Ionicons name="chatbubble-outline" size={18} color={colors.accent}/><Text style={styles.link}>{ui("social.message")}</Text></View></Pressable>
+
     </View>))}
 
     {selected && <RoomSheet visible title={ui("social.chat_with_player", { "player": label(selected) })} closeLabel={ui("common.close_private_chat")} onClose={() => setSelected(null)} scrollable={false}
@@ -160,11 +175,9 @@ export function FriendsPanel({ session, transport, onlineOnly = false }: { sessi
       </FormFooter>}>
       <ScrollView style={{ flex: 1, minHeight: 0 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
         {!messages.length && <Text style={styles.detail}>{ui("common.no_messages_yet")}</Text>}
-        {messages.map(message => <View key={message.id} style={[styles.message, message.sender_id === session.user_id && styles.mine]}>
-          <Text style={styles.detail}>{message.sender_id === session.user_id ? ui("common.you") : label(selected)} · {new Date(message.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
-          <Text selectable style={styles.messageText}>{message.removed ? ui('moderation.removed') : message.text}</Text>
-          <ReportButton session={session} enabled={blocking.reporting && !message.removed} scope="direct" messageId={message.id} player={{user_id: message.sender_id, display_name: label(selected)}} />
-        </View>)}
+        {messages.map(message => <ChatMessage tableStyle key={message.id} own={message.sender_id===session.user_id}
+          message={{...message,sender_name:message.sender_id===session.user_id?ui('common.you'):label(selected)}}
+          action={<ReportButton session={session} enabled={blocking.reporting && !message.removed} scope="direct" messageId={message.id} player={{user_id:message.sender_id,display_name:label(selected)}}/>}/>)}
       </ScrollView>
     </RoomSheet>}
     {!!error && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
@@ -172,15 +185,18 @@ export function FriendsPanel({ session, transport, onlineOnly = false }: { sessi
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  panel: { ...gamePanelFinish(colors), backgroundColor: colors.surface, padding: 20, borderRadius: 16, gap: 12 },
-  title: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 25, color: colors.text }, heading: { ...gameHeadingFinish(colors), fontFamily: fonts.medium, fontSize: 14, color: colors.text },
+  panel: { ...gamePanelFinish(colors), backgroundColor: colors.surface, padding: 16, borderRadius: 20, gap: 12 },
+  title: { fontFamily: fonts.display, fontSize: 30, color: colors.text }, heading: { fontFamily: fonts.medium, fontSize: 16, color: colors.text },
+  sectionHeading: { flexDirection:'row',alignItems:'center',gap:10,borderTopWidth:1,borderColor:colors.border,paddingTop:16,marginTop:4 },
+  count: { color:colors.textMuted,backgroundColor:colors.surfaceRaised,borderRadius:16,paddingHorizontal:10,paddingVertical:4,fontFamily:fonts.medium },
   detail: { fontFamily: fonts.body, fontSize: 11, lineHeight: 18, color: colors.textMuted },
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8 }, row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderColor: colors.border, paddingVertical: 10 },
-  name: { fontFamily: fonts.medium, fontSize: 13, color: colors.text }, actions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  input: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, color: colors.text, backgroundColor: colors.background, fontFamily: fonts.body },
-  button: { ...gameControlFinish(colors), minHeight: 44, paddingHorizontal: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  smallButton: { minHeight: 40, paddingHorizontal: 10, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  linkButton: { minHeight: 40, paddingHorizontal: 8, justifyContent: 'center' }, buttonText: { fontFamily: fonts.medium, fontSize: 11, color: colors.text }, link: { fontFamily: fonts.medium, fontSize: 11, color: colors.accent }, disabled: { opacity: 0.5 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8 }, row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, backgroundColor:colors.surfaceRaised,borderRadius:14,padding:12 },
+  name: { fontFamily: fonts.medium, fontSize: 15, color: colors.text }, actions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  searchField: { flex:1,minWidth:0,flexDirection:'row',alignItems:'center',paddingLeft:12,borderWidth:1,borderColor:colors.border,borderRadius:12,backgroundColor:colors.background },
+  input: { flex: 1, minWidth:0, padding: 12, color: colors.text, backgroundColor: 'transparent', fontFamily: fonts.body },
+  button: { ...gameControlFinish(colors), minHeight: 44, paddingHorizontal: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.coin, borderWidth: 1, borderColor: colors.coinBorder },
+  smallButton: { minHeight: 40, paddingHorizontal: 10, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.accent },
+  linkButton: { minHeight: 40, paddingHorizontal: 8, justifyContent: 'center' }, buttonText: { fontFamily: fonts.medium, fontSize: 12, color: colors.onCoin }, link: { fontFamily: fonts.medium, fontSize: 11, color: colors.accent }, disabled: { opacity: 0.5 },
   message: { alignSelf: 'flex-start', maxWidth: '85%', backgroundColor: colors.background, padding: 10, borderRadius: 10, marginVertical: 4 }, mine: { alignSelf: 'flex-end', backgroundColor: colors.surfaceSelected },
   messageText: { fontFamily: fonts.body, fontSize: 13, lineHeight: 19, color: colors.text }, error: { fontFamily: fonts.body, fontSize: 12, color: colors.danger },
 });

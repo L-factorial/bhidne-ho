@@ -5575,3 +5575,47 @@ remains separate pending implementation. No commit, push or deployment performed
   still pass the existing final CI job; no full-workflow success claim.
 - Next: commit/push when requested and rerun the backend workflow. No commit,
   push, production mutation or deployment performed by the agent.
+
+### Collected UI refinement increment — 2026-10-02
+
+The user explicitly expanded scope to the collected welcome, policy, sign-in,
+chat and Friends UI changes and authorized implementation with “go ahead”.
+
+- Welcome uses an open layout without a bordered sign-in panel, existing brand
+  artwork and a spade divider. English copy is “Play together. Stay connected.” /
+  “Your games, your people, your table”; Nepali copy is updated too.
+- Privacy, Terms, Community rules and Support share subdued, dot-separated footer
+  links in that order. Public policy pages use an accessible header back arrow;
+  the redundant bottom back control is removed. Rules acceptance also uses the
+  header arrow. Recovery is now an accent-colored, underlined sign-in action.
+  Delete account is removed from both sign-in variants and retained in Profile.
+- Room, table and direct chats share compact message headers with a muted ellipsis
+  beside the timestamp. Only another player's non-removed message can offer a
+  report menu, and reporting capability still gates it. The menu contains
+  “🚩 Report message” and opens the existing report form. Community rules uses a
+  small shield icon and understated text; acceptance behavior is preserved.
+- Friends uses a gold Search button, search icon, section counts, avatar fallbacks,
+  compact player rows, live presence indicators and Add friend / Message actions.
+  Reporting, blocking and red Remove friend are moved into anchored ellipsis
+  menus. Incoming/outgoing request controls and existing confirmation forms remain.
+  Menus render outside scrolling containers, dismiss on outside press/Escape/back,
+  focus their first action on web and fit their measured height to the viewport.
+- Design decisions: keep the current selected app theme rather than force the
+  reference's blue palette. Reuse existing artwork and semantic colors. The
+  current friendship API does not supply avatar images, so the existing anonymous
+  avatar is shown; no image service or backend profile expansion was added.
+- Verification: TypeScript and all 309 frontend tests passed; production Expo
+  export passed. Local Chrome fixture acceptance at 390px and 1280px verifies all
+  four policy/back routes, deletion absence on sign-in, player reporting, block
+  cancellation, friend removal, direct-message reporting and own-message action
+  absence, with no page errors. Existing reporting/blocking browser scripts now
+  open the contextual menus. Added `client/tests/browser/ui-refinement.cjs`; run
+  against an isolated local Expo export with `EXPO_PUBLIC_RUNTIME_MODE=legacy`
+  and `TEST_WEB_URL` pointing to its local static server. Fixtures intercept APIs;
+  this verifies presentation, not distributed persistence or production services.
+- Limitations: native device acceptance and real distributed backend/browser
+  acceptance of the updated safety controls remain outstanding. Account deletion
+  enablement, deployment, capacity and operational readiness remain separate.
+- Exact next step: review the local UI changes/screenshots, then commit/push when
+  requested and run deployed distributed/native acceptance. No commit, push,
+  account deletion enablement or deployment performed.

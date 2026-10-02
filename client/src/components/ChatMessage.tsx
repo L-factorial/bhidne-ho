@@ -8,15 +8,15 @@ export function ChatMessage({ message, own, tableStyle = false, action }: {
 }) {
   const { colors: c } = useTheme();
   const { t } = useTranslation();
-  return <View style={{ paddingVertical: 12, gap: 6, ...(tableStyle ? { backgroundColor: own ? c.ownMessage : c.surfaceRaised, borderRadius: 14, paddingHorizontal: 10, marginBottom: 8 } : {}) }}>
+  return <View style={{ paddingVertical: 6, gap: 4, ...(tableStyle ? { backgroundColor: own ? c.ownMessage : c.surfaceRaised, borderRadius: 14, paddingHorizontal: 10, marginBottom: 8 } : {}) }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
       <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: c.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ color: c.accent, fontFamily: fonts.medium, fontSize: 11 }}>{message.sender_name.slice(0, 1).toUpperCase()}</Text>
       </View>
-      <Text style={{ flex: 1, color: c.accent, fontFamily: fonts.medium, fontSize: 11 }}>{message.sender_name}{own ? ` (${t('chat.you')})` : ''}</Text>
+      <Text style={{ flex: 1, color: c.accent, fontFamily: fonts.medium, fontSize: 11 }}>{message.sender_name}{own && message.sender_name !== t('chat.you') ? ` (${t('chat.you')})` : ''}</Text>
       <Text style={{ color: c.textMuted, fontFamily: fonts.body, fontSize: 11 }}>{new Date(message.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+      {!own && !message.removed && action}
     </View>
-    {!message.removed && action && <View style={{alignItems: 'flex-end'}}>{action}</View>}
     <Text selectable style={{ marginLeft: 36, color: c.text, fontFamily: fonts.body, fontSize: 13, lineHeight: 20 }}>{message.removed ? t('moderation.removed') : message.text}</Text>
   </View>;
 }

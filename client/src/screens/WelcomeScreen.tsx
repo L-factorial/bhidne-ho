@@ -1,7 +1,7 @@
 import { PolicyLinks } from '../components/moderation/PublicPolicies';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { ui } from '../i18n/copy.ts';
-import { gameHeadingFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { gameHeadingFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { ThemeAction } from '../components/ThemeAction';
 import { useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
@@ -24,7 +24,6 @@ export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
   const [notice, setNotice] = useState('');
   return (
     <LinearGradient colors={[colors.surface, colors.background, colors.background]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.page}>
-      <View pointerEvents="none" style={styles.halo} />
       <ScrollView contentContainerStyle={[styles.scroll, {
         paddingTop: Math.max(insets.top, wide ? 40 : 24), paddingBottom: Math.max(insets.bottom, 24),
         paddingLeft: Math.max(insets.left, wide ? 40 : 16), paddingRight: Math.max(insets.right, wide ? 40 : 16),
@@ -53,6 +52,7 @@ export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
                 <Text style={styles.dismissText}>{t('welcome.dismiss')}</Text>
               </Pressable>
             </View>}
+            <View style={styles.divider}><View style={styles.dividerLine}/><Text style={{color:colors.accent,fontSize:22}}>♠</Text><View style={styles.dividerLine}/></View>
             <PolicyLinks />
           </View>
         </View>
@@ -70,9 +70,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   brandSide: { alignItems: 'center', width: '100%' },
   wideBrand: { flex: 1, width: 'auto', justifyContent: 'center', paddingVertical: 32 },
   mobileIntro: { alignItems: 'center', marginTop: 13, gap: 6 },
-  mobileHeading: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 31, color: colors.text },
-  mobileSubtitle: { fontFamily: fonts.body, fontSize: 14, color: colors.textMuted },
-  panel: { ...gamePanelFinish(colors), backgroundColor: colors.surface, borderRadius: 22 },
+  mobileHeading: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 31, color: colors.text, textAlign: 'center' },
+  mobileSubtitle: { fontFamily: fonts.body, fontSize: 14, color: colors.textMuted, textAlign: 'center', fontStyle: 'italic' },
+  panel: { backgroundColor: 'transparent' },
   widePanel: { width: 480, paddingHorizontal: 44, paddingTop: 48, paddingBottom: 24, justifyContent: 'center', minHeight: 320 },
   mobilePanel: { marginTop: 22, width: '100%', padding: 22, borderRadius: 20 },
   intro: { alignItems: 'center', marginBottom: 48 },
@@ -80,7 +80,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   subtitle: { fontFamily: fonts.body, fontSize: 19, color: colors.textMuted, marginTop: 8, textAlign: 'center' },
   divider: { flexDirection: 'row', alignItems: 'center', gap: 20, marginVertical: 25 },
   dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
-  or: { fontFamily: fonts.body, fontSize: 14, color: colors.textMuted },
+  or: { fontFamily: fonts.body, fontSize: 14, color: colors.textMuted, textAlign: 'center', fontStyle: 'italic' },
   helper: { fontFamily: fonts.body, fontSize: 11, lineHeight: 18, color: colors.textMuted, textAlign: 'center', marginTop: 14 },
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 23 },
   wideFooter: { marginTop: 50 },

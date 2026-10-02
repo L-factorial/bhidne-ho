@@ -1,5 +1,10 @@
 // Editable Nepali common copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "message_actions": "सन्देश विकल्प",
+  "player_actions": "खेलाडी विकल्प",
+  "search_results": "खोज नतिजा",
+  "remove_friend": "मित्र हटाउनुहोस्",
+  "online": "अनलाइन",
   "social_options_unavailable": "सामाजिक खाताबाट लगइन अहिले उपलब्ध छैन।",
   "auth_or": "वा",
   "continue_username_email": "प्रयोगकर्ता नाम वा इमेलबाट जारी राख्नुहोस्",

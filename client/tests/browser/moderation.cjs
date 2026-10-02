@@ -19,7 +19,8 @@ async function login(page,username){await page.goto(site);await page.getByRole('
   await page.getByRole('button',{name:'Rules accepted',exact:true}).waitFor();
   await page.getByRole('button',{name:'Back',exact:true}).last().click();
   await page.getByLabel('Find players',{exact:true}).fill('Reported Player');await page.getByRole('button',{name:'Search',exact:true}).click();
-  await page.getByRole('button',{name:'Report player',exact:true}).click();
+  await page.getByRole('button',{name:'Player actions · Reported Player',exact:true}).click();
+  await page.getByRole('button',{name:'⚑ Report player',exact:true}).click();
   await page.getByLabel('Additional details (optional)',{exact:true}).fill('Repeated harassment during our game');
   await page.getByRole('button',{name:'Submit report',exact:true}).click();
   await page.getByText('Report received. A moderator can review it.',{exact:true}).waitFor();
@@ -65,7 +66,7 @@ async function login(page,username){await page.goto(site);await page.getByRole('
   await admin.getByRole('button',{name:'Back',exact:true}).last().click();await admin.getByRole('button',{name:'Moderation',exact:true}).waitFor();
   const publicPage=await browser.newPage();await publicPage.goto(site+'/privacy');
   await publicPage.getByText('We store your username, profile name, email, password hash, sessions and recovery records to operate your account. We also store friendships, blocks, invitations, chat, game points and shared game history.',{exact:true}).waitFor();
-  await publicPage.getByRole('button',{name:'Support',exact:true}).click();
+  await publicPage.getByRole('link',{name:'Support',exact:true}).click();
   await publicPage.getByText('For help or an appeal, provide your username, the time of the issue and relevant details. Never send your password or recovery links.',{exact:true}).waitFor();
   assert.deepEqual(errors,[]);console.log('PASS private reporting, moderator Profile entry, grouped reports, required reasons, accept/decline, reload persistence, language/theme and Back');
  }finally{await browser.close();}

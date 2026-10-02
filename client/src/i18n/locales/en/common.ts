@@ -1,5 +1,10 @@
 // Editable English common copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "message_actions": "Message actions",
+  "player_actions": "Player actions",
+  "search_results": "Search results",
+  "remove_friend": "Remove friend",
+  "online": "Online",
   "social_options_unavailable": "Social sign-in is not available yet.",
   "auth_or": "or",
   "continue_username_email": "Continue with username or email",

@@ -168,7 +168,7 @@ export function DistributedRoomsScreen({onExit}: {onExit: () => void}) {
     await pending;
   }
   if (!account) return <AccountPage compact footer={accountFormOpen ? <>
-    {!signupMode && <><PolicyLinks /><DeleteAccountLink /></>}
+    {!signupMode && <PolicyLinks />}
     <Pressable accessibilityRole="button" disabled={authBusy || (signupMode && (!confirmPassword || password !== confirmPassword || !validSignupEmail(email)))}
       onPress={() => void login(signupMode)} style={[authStyles.button,{backgroundColor:colors.primary},authBusy && {opacity:.5}]}>
       <Text style={[authStyles.buttonText,{color:colors.onPrimary}]}>{ui(signupMode ? 'common.create_account' : 'common.sign_in')}</Text>

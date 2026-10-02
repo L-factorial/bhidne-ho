@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Modal, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Modal, Pressable, Text, View } from 'react-native';
 import type { Session } from '../../multiplayer/session';
 import { sharedRequest } from '../../multiplayer/api';
 import { useUiLanguage } from '../../i18n/useUiLanguage';
@@ -24,9 +25,9 @@ export function CommunityRulesEntry({session}:{session:Session}){
  const ne=useUiLanguage()==='ne',{colors:c}=useTheme();const [open,setOpen]=useState(false),[accepted,setAccepted]=useState(false),[version,setVersion]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[until,setUntil]=useState<string|null>(null);
  useEffect(()=>{const abort=new AbortController();void sharedRequest<{accepted:boolean;version:string;muted_until:string|null}>('/me/community-rules',session,undefined,abort.signal).then(s=>{if(!abort.signal.aborted){setAccepted(s.accepted);setVersion(s.version);setUntil(s.muted_until);}}).catch(()=>{});return()=>abort.abort();},[session.token,open]);
  async function accept(){setBusy(true);setError('');try{await sharedRequest('/me/community-rules',session,{accepted:true,version});setAccepted(true);}catch{setError(ne?'स्वीकार गर्न सकिएन। फेरि प्रयास गर्नुहोस्।':'Could not save acceptance. Please try again.');}finally{setBusy(false);}}
- return <><Button label={ne?'समुदाय नियम':'Community rules'} onPress={()=>setOpen(true)} />
+ return <><Pressable accessibilityRole="button" onPress={()=>setOpen(true)} style={{alignSelf:'flex-start',flexDirection:'row',alignItems:'center',gap:6,minHeight:36}}><Ionicons name="shield-checkmark-outline" size={14} color={c.textMuted}/><Text style={{color:c.textMuted,fontSize:11}}>{ne?'समुदाय नियम':'Community rules'}</Text></Pressable>
  {open&&<Modal visible animationType="slide" onRequestClose={()=>setOpen(false)}><FormScrollView style={{flex:1,backgroundColor:c.background}} contentContainerStyle={{padding:20,paddingTop:48,alignItems:'center'}}><View style={{width:'100%',maxWidth:680,gap:18}}>
- <AppHeader title={ne?'समुदाय नियम':'Community rules'} hideProfile inlineActions={<Button label={ne?'पछाडि':'Back'} onPress={()=>setOpen(false)} />} />
+ <AppHeader title={ne?'समुदाय नियम':'Community rules'} hideProfile onBack={()=>setOpen(false)} />
  {rulesText[ne?'ne':'en'].map((p,i)=><Copy key={i}>{p}</Copy>)}
  {!!until&&Date.parse(until)>Date.now()&&<Copy>{ne?'च्याट रोकिएको समय: ':'Chat muted until: '}{new Date(until).toLocaleString()}</Copy>}
  {!!error&&<Copy alert>{error}</Copy>}

@@ -1,7 +1,7 @@
 import { preserveRemovals } from './moderation/messages';
 import { CommunityRulesEntry } from './moderation/CommunityRules';
 import { ReportButton } from './Moderation';
-import { BlockPlayerButton, useBlocking } from './PlayerBlocking';
+import { useBlocking } from './PlayerBlocking';
 import { usePersistentNotice } from '../multiplayer/usePersistentNotice';
 import { playerError } from '../multiplayer/playerError.ts';
 import { ui } from '../i18n/copy.ts';
@@ -108,7 +108,7 @@ export function useRoomChat({ roomId, session, connected, hideWhenBlocked = fals
           onScroll={({ nativeEvent: { contentOffset, contentSize, layoutMeasurement } }) => { followLatest.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 40; }}
           onContentSizeChange={() => { if (followLatest.current) scroll.current?.scrollToEnd({ animated: false }); }}>
           {!messages.length && <View style={{ paddingVertical: 32, gap: 8, alignItems: 'center' }}><Ionicons name="chatbubbles-outline" size={30} color={colors.textMuted} /><Text style={styles.heading}>{ui("social.no_messages_yet")}</Text><Text style={styles.note}>{ui("social.say_something_to_get_the_table_going")}</Text></View>}
-          {messages.map(message => <ChatMessage tableStyle key={message.id} message={message} own={message.sender_id === session.user_id} action={<View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 8}}><ReportButton session={session} enabled={blocking.reporting} scope="chat" messageId={message.id} player={{user_id: message.sender_id, display_name: message.sender_name}} /><BlockPlayerButton session={session} enabled={blocking.enabled} player={{user_id: message.sender_id, display_name: message.sender_name}} onBlocked={() => {setMessages(current => current.filter(m => m.sender_id !== message.sender_id)); setUnread(0);}} /></View>} />)}
+          {messages.map(message => <ChatMessage tableStyle key={message.id} message={message} own={message.sender_id === session.user_id} action={<ReportButton session={session} enabled={blocking.reporting} scope="chat" messageId={message.id} player={{user_id: message.sender_id, display_name: message.sender_name}} />} />)}
         </ScrollView>
         {reconnecting && <Text style={styles.note}>{t('chat.reconnecting')}</Text>}
         {!!visibleError && <Text accessibilityRole="alert" style={styles.error}>{visibleError}</Text>}

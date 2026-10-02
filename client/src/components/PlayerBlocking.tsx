@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { sharedRequest } from '../multiplayer/api';
@@ -31,8 +32,8 @@ function Button({ text, onPress, disabled = false, label }: {text: string; onPre
     <Text style={{color: c.text, fontFamily: fonts.medium}}>{text}</Text>
   </Pressable>;
 }
-export function BlockPlayerButton({session, player, enabled, onBlocked}: {
-  session: Session; player: {user_id: string; display_name: string}; enabled: boolean; onBlocked?: () => void;
+export function BlockPlayerButton({session, player, enabled, onBlocked, renderTrigger}: {
+  session: Session; player: {user_id: string; display_name: string}; enabled: boolean; onBlocked?: () => void; renderTrigger?: (open:()=>void)=>ReactNode;
 }) {
   useUiLanguage();
   const { colors: c } = useTheme();
@@ -47,9 +48,10 @@ export function BlockPlayerButton({session, player, enabled, onBlocked}: {
     } catch { setError(ui('safety.failed')); }
     finally { pending.current = false; setBusy(false); }
   }
-  if (!enabled || player.user_id === session.user_id) return null;
+  const launch=()=>{setError('');setOpen(true);};
+  if (!enabled || player.user_id === session.user_id) return renderTrigger ? <>{renderTrigger(()=>{})}</> : null;
   return <>
-    <Button text={ui('safety.block')} label={ui('safety.block_player', {name: player.display_name})} onPress={() => { setError(''); setOpen(true); }} />
+    {renderTrigger ? renderTrigger(launch) : <Button text={ui('safety.block')} label={ui('safety.block_player', {name: player.display_name})} onPress={launch} />}
     {open && <RoomSheet visible presentation="dialog" title={ui('safety.block_player', {name: player.display_name})} onClose={() => { if (!busy) setOpen(false); }}>
       <Text style={{color: c.text, fontFamily: fonts.body}}>{ui('safety.explanation')}</Text>
       {!!error && <Text accessibilityRole="alert" style={{color: c.danger}}>{error}</Text>}
