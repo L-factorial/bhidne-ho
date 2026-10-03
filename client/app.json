@@ -7,6 +7,7 @@
     "userInterfaceStyle": "light",
     "backgroundColor": "#4B0D0D",
     "ios": {
+      "icon": "./assets/branding/BhidneHoAppLogo.png",
       "supportsTablet": true,
       "bundleIdentifier": "com.lfactorial.bhidne-ho",
       "infoPlist": {

@@ -5883,3 +5883,13 @@ chat and Friends UI changes and authorized implementation with “go ahead”.
   build and run the two-player device matrix in client/TESTFLIGHT.md, inspecting
   close diagnostics during background/resume and network interruptions. Capacity,
   observability and deployment readiness remain separately scoped follow-up work.
+
+### iOS TestFlight icon
+
+- Copied the supplied BhidneHoAppLogo.png into client/assets/branding and set
+  expo.ios.icon in client/app.json to that repository-relative asset.
+- Verified the original PNG is square (1254x1254) with no transparent pixels.
+  Kept the supplied artwork intact; Expo generates native icon sizes at build.
+- Verified Expo's resolved public configuration points to the existing asset.
+  Next: user commits/pushes the asset and config, pulls on the build machine,
+  and runs the production iOS EAS build. No build upload or deployment performed.
