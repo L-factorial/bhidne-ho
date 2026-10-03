@@ -98,6 +98,40 @@ def test_bad_origin_and_auth_never_subscribe(fixture):
     assert not g.handles
 
 
+@pytest.mark.parametrize('origin', [
+    'https://prod.bhidne-ho.lfactorial.com',
+    'https://api.prod.bhidne-ho.lfactorial.com',
+])
+def test_production_browser_and_native_origins_still_require_auth(origin):
+    from pathlib import Path
+    template = Path(__file__).parents[1] / 'deploy/provision/templates/runtime.env.j2'
+    setting = next(line for line in template.read_text().splitlines()
+                   if line.startswith('BHIDNE_DISTRIBUTED_ORIGINS='))
+    assert setting == ('BHIDNE_DISTRIBUTED_ORIGINS={{ client_origin }},'
+                       'https://api.prod.bhidne-ho.lfactorial.com')
+    origins = {'https://prod.bhidne-ho.lfactorial.com',
+               'https://api.prod.bhidne-ho.lfactorial.com'}
+    app = FastAPI()
+    ingress, gateway = Ingress(), Gateway()
+    app.include_router(create_router(auth=Auth(), hosted=ingress, chat=ingress,
+        social=ingress, gateway=gateway, allowed_origins=origins))
+    with TestClient(app) as client:
+        with client.websocket_connect('/distributed/delivery', headers={'origin': origin}) as ws:
+            ws.send_json(dict(type='AUTH', token='valid', client_id='phone'))
+            assert ws.receive_json() == {'type': 'READY'}
+            ws.send_json(dict(type='PING'))
+            assert ws.receive_json() == {'type': 'PONG'}
+        with client.websocket_connect('/distributed/delivery', headers={'origin': origin}) as ws:
+            ws.send_json(dict(type='AUTH', token='invalid', client_id='phone'))
+            with pytest.raises(WebSocketDisconnect):
+                ws.receive_json()
+        with pytest.raises(WebSocketDisconnect):
+            with client.websocket_connect('/distributed/delivery', headers={
+                'origin': 'https://api.prod.bhidne-ho.lfactorial.com.evil.test'}):
+                pass
+    assert not gateway.handles and not ingress.calls
+
+
 def test_read_routes_bind_actor_selection_cursor_and_bounds():
     calls=[]
     class Reads:

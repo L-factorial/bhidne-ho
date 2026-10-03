@@ -37,6 +37,13 @@ without either distributed mode retain the legacy backend contracts.
 
 The scalability frontend deployment is configured to use native Nginx on both app VMs at
 `https://prod.bhidne-ho.lfactorial.com`, matching the provisioning `client_origin`.
+The production `BHIDNE_DISTRIBUTED_ORIGINS` allowlist includes that frontend and
+`https://api.prod.bhidne-ho.lfactorial.com`. React Native iOS uses SocketRocket,
+which derives its WebSocket Origin from the API socket URL. Omitting the API
+Origin rejects native delivery handshakes with HTTP 403 and leaves game/social
+controls reconnecting. Keep these exact origins; authentication is still required
+after the upgrade. Environment changes require container recreation, not merely
+`docker restart`, and must roll out sequentially with peer readiness checks.
 The DigitalOcean managed load balancer terminates HTTPS and forwards HTTP to private
 Nginx port 80. Nginx selects frontend files or the local backend by Host header.
 The previous Cloudflare preparation was replaced by `npm run build:production`.

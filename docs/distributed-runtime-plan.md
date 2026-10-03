@@ -5627,3 +5627,33 @@ chat and Friends UI changes and authorized implementation with “go ahead”.
 - Moved Back from before the header logo to the top-left of that panel, retaining
   the existing navigation callback, localized accessibility label and 44px target.
 - Verification: TypeScript passed. No backend change, commit or deployment.
+
+### TestFlight native delivery Origin fix — 2026-10-02 PDT
+
+- User authorized fixing build 1.0 (3)'s reconnecting/game/social symptoms after
+  read-only diagnosis. During the supplied October 3 02:30–03:20 UTC window,
+  app1/app2 logged 44/49 delivery WebSocket HTTP 403 rejections. SocketRocket
+  0.7.1 derives the iOS Origin from the API URL; production allowed only the
+  frontend Origin. Live handshake probes reproduced API Origin 403 versus
+  frontend Origin 101 before the change.
+- Provisioning now includes the exact production API Origin alongside the exact
+  frontend Origin. The backend Origin/authentication logic is unchanged. Added
+  regressions for both approved Origins, invalid authentication and an attacker
+  domain with the API hostname as a prefix. Focused transport/session checks:
+  19 passed, 2 native PostgreSQL-dependent cases skipped.
+- Applied the same origin-only runtime environment change to both production
+  app hosts sequentially using the installed release helper, peer/readiness
+  checks and its rollback path. Recreated the existing immutable image
+  `sha256:d92af6acfa98d3d4f5b60b1309ba550d935fd7b4b9e5dc7024a2ee5904ccdbf5`;
+  both deployments healthy. Root-only environment backups remain on each host
+  at `/etc/bhidne-prod/runtime.env.before-native-origin`. No schema changes,
+  image upgrade, commit or push. Existing TestFlight build can use this fix.
+- Post-rollout public TLS WebSocket verification passed for both exact approved
+  Origins; invalid AUTH tokens closed both connections and an unrelated Origin
+  still returned 403. Whitespace checks passed.
+- Limitations: physical-device acceptance remains pending. The blocked readiness
+  flag explains chat/poke gating and suppressed Flush glow, and can disable the
+  Marriage declaration; any residual native declaration/layout defect must be
+  assessed after reconnection works. Exact next step: reopen build 3 on both
+  phones, verify connection and retest all four reported symptoms, then
+  commit/push the provisioning regression and documentation when requested.
