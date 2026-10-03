@@ -47,8 +47,7 @@ async function unclipped(locator) {
     const stamp = Date.now(), password = 'Keyboard-forms-123';
     await page.goto(site);
     await button('Sign in or sign up').click(); await button('Sign up').click(); await button('Sign up with username or email').click();
-    await field('Profile name').fill('कीबोर्ड साथी'); await field('Profile name').press('Enter');
-    assert.ok(await field('Username').evaluate(el => el === document.activeElement));
+    assert.equal(await field('Profile name').count(), 0);
     await field('Username').fill(`keyboard_${stamp}`); await field('Username').press('Enter');
     assert.ok(await field('Email').evaluate(el => el === document.activeElement));
     await field('Email').fill('keyboard@example.test'); await field('Email').press('Enter');

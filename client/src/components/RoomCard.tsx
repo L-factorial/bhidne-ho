@@ -2,12 +2,13 @@ import { playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { gameControlFinish, gamePanelFinish, fonts, radii, typography, useTheme } from '../theme';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ImageBackground, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { RoomShareActions } from './ShareLink';
 import { RoomSheet } from './RoomSheet';
+import { useDismissalAction } from './useDismissalAction';
 import type { Room } from '../multiplayer/session';
 
 export function RoomCard({ room, member, busy, activeTables, onPress, owner, onRemove }: { room: Room; member: boolean; busy: boolean; activeTables?: number; onPress: () => void; owner?: boolean; onRemove?: () => Promise<void> }) {
@@ -15,6 +16,24 @@ export function RoomCard({ room, member, busy, activeTables, onPress, owner, onR
   const { colors: c } = useTheme();
   const [confirming, setConfirming] = useState(false), [removing, setRemoving] = useState(false), [removed, setRemoved] = useState(false), [error, setError] = useState('');
   const [sharing, setSharing] = useState(false);
+  const removalPending = useRef(false), mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const { afterDismiss, onDismiss } = useDismissalAction(confirming, () => setConfirming(false));
+  function removeRoom() {
+    if (!onRemove || removalPending.current || busy) return;
+    removalPending.current = true; setRemoving(true); setError('');
+    afterDismiss(() => {
+      void (async () => {
+        try { await onRemove(); if (mounted.current) setRemoved(true); }
+        catch (error) {
+          if (mounted.current) { setError(playerError(error)); setConfirming(true); }
+        } finally {
+          removalPending.current = false;
+          if (mounted.current) setRemoving(false);
+        }
+      })();
+    });
+  }
   const [bannerWidth, setBannerWidth] = useState(340);
   const online = room.connected_members?.length || 0;
   const tables = room.table_count ?? activeTables ?? 0;
@@ -36,7 +55,7 @@ export function RoomCard({ room, member, busy, activeTables, onPress, owner, onR
         <Ionicons name="people" size={12} color={online ? c.success : c.textMuted} />
         <Text style={{ color: online ? c.success : c.textMuted, fontFamily: fonts.medium, fontSize: 11 }}>{ui("rooms.count_online", { "count": room.presence_status && room.presence_status !== 'observed' ? '—' : online })}</Text>
       </View>
-      <Pressable accessibilityRole="button" accessibilityLabel={ui("common.share_name", { "name": room.name })} onPress={() => setSharing(true)}
+      <Pressable accessibilityRole="button" accessibilityLabel={ui("common.share_name", { "name": room.name })} disabled={removing} onPress={() => setSharing(true)}
         style={({ pressed }) => ({ width: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: pressed ? c.surfaceRaised : 'transparent' })}>
         <Ionicons name="ellipsis-horizontal" size={20} color={c.textMuted} />
       </Pressable>
@@ -60,24 +79,24 @@ export function RoomCard({ room, member, busy, activeTables, onPress, owner, onR
               <Text style={{ color: c.text, fontFamily: fonts.medium, fontSize: 11 }}>+{extra}</Text>
             </View>}
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel={`${member ? ui("rooms.enter") : ui("rooms.join")} ${room.name}`} disabled={busy} accessibilityState={{ disabled: busy }} onPress={onPress}
+          <Pressable accessibilityRole="button" accessibilityLabel={`${member ? ui("rooms.enter") : ui("rooms.join")} ${room.name}`} disabled={busy || removing} accessibilityState={{ disabled: busy || removing }} onPress={onPress}
             style={({ pressed }) => ({ ...gameControlFinish(c, pressed), minHeight: 44, paddingHorizontal: 10, borderRadius: 10, backgroundColor: c.successSurface,
               flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center' })}>
             <Text style={{ color: c.success, fontFamily: fonts.medium, fontSize: 13 }}>{member ? ui("rooms.enter") : ui("rooms.join")}</Text>
             <Ionicons name="arrow-forward" size={16} color={c.success} />
           </Pressable>
-          {member && onRemove && <Pressable accessibilityRole="button" accessibilityLabel={`${owner ? ui("common.delete") : ui("common.leave")} ${room.name}`} disabled={busy} onPress={() => setConfirming(true)}
+          {member && onRemove && <Pressable accessibilityRole="button" accessibilityLabel={`${owner ? ui("common.delete") : ui("common.leave")} ${room.name}`} disabled={busy || removing} onPress={() => setConfirming(true)}
             style={{width:44,minHeight:44,alignItems:'center',justifyContent:'center',borderRadius:10,backgroundColor:c.surface}}>
             <Ionicons name={owner ? 'trash-outline' : 'exit-outline'} size={19} color={c.danger} />
           </Pressable>}
         </View>
       </LinearGradient>
     </ImageBackground>
-    <RoomSheet visible={confirming} title={`${owner ? ui("common.delete") : ui("common.leave")} ${room.name}?`} onClose={() => { if (!removing) setConfirming(false); }} presentation="dialog">
+    <RoomSheet visible={confirming} title={`${owner ? ui("common.delete") : ui("common.leave")} ${room.name}?`} onClose={() => { if (!removing) setConfirming(false); }} onDismiss={onDismiss} presentation="dialog">
       <Text style={{color:c.text}}>{owner ? ui("rooms.delete_effect_help") : ui("rooms.leave_effect_help")}</Text>
       {!!error && <Text accessibilityRole="alert" style={{color:c.danger}}>{uiLabel(error, 'feedback')}</Text>}
       <Pressable accessibilityRole="button" disabled={removing} onPress={() => setConfirming(false)} style={{minHeight:44,justifyContent:'center'}}><Text style={{color:c.text}}>{ui("common.cancel")}</Text></Pressable>
-      <Pressable accessibilityRole="button" disabled={removing} onPress={async () => {setRemoving(true);setError('');try {await onRemove?.();setRemoved(true);setConfirming(false);} catch(e) {setError(playerError(e));} finally {setRemoving(false);}}} style={{minHeight:44,justifyContent:'center'}}><Text style={{color:c.danger}}>{removing ? ui("common.working_label") : owner ? ui("rooms.delete_room") : ui("rooms.leave_room")}</Text></Pressable>
+      <Pressable accessibilityRole="button" disabled={removing} onPress={removeRoom} style={{minHeight:44,justifyContent:'center'}}><Text style={{color:c.danger}}>{removing ? ui("common.working_label") : owner ? ui("rooms.delete_room") : ui("rooms.leave_room")}</Text></Pressable>
     </RoomSheet>
     <RoomSheet visible={sharing} title={room.name} closeLabel={ui("common.close_room_sharing")} onClose={() => setSharing(false)} presentation="dialog">
       <Text style={{ color: c.textMuted, fontFamily: fonts.body }}>{ui("rooms.sharing_code_help")}</Text>

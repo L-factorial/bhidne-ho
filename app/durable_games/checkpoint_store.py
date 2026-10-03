@@ -157,8 +157,20 @@ class PostgresCheckpointStore:
         if receipt:
             if receipt.outcome.status == 'rejected' and old.engine != data.engine:
                 raise DurableGameConflict('A rejected command cannot change engine state.')
-            if receipt.outcome.status == 'accepted' and receipt.request.expected_revision != old.engine.revision:
-                raise DurableGameConflict('Accepted request does not match the committed revision.')
+            if receipt.outcome.status == 'accepted':
+                scoped = (data.game_type == 'marriage' and receipt.request.command == 'DECLARE_TUNNELAS'
+                          and receipt.request.payload.get('declaration_phase_id') is not None)
+                if scoped:
+                    from app.adapters.marriage.concurrency import declaration_scope_matches
+                    prior_state = decode_checkpoint(previous.checkpoint).engine_state
+                    actor = receipt.actor_id
+                    seat = str(old.host.users.index(actor) + 1) if actor in old.host.users else None
+                    valid = seat is not None and declaration_scope_matches(
+                        prior_state, old.match_id, receipt.request, seat)
+                else:
+                    valid = receipt.request.expected_revision == old.engine.revision
+                if not valid:
+                    raise DurableGameConflict('Accepted request does not match the committed revision or declaration phase.')
         if old_id and old_id != game_id:
             await connection.execute("UPDATE games SET status='completed',completed_at=COALESCE(completed_at,clock_timestamp()) WHERE id=%s", (old_id,))
             await connection.execute('DELETE FROM active_game_players WHERE game_id=%s', (old_id,))

@@ -9,7 +9,8 @@ import { ui } from '../i18n/copy.ts';
 import { gameControlFinish, gameHeadingFinish, fonts, useThemedStyles, type ThemeColors } from '../theme';
 import { FormScrollView } from '../components/FormInput';
 import { KeyboardFrame } from '../components/KeyboardFrame';
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
+import { ProfileDismissal } from '../components/ProfileModal';
 import { request } from '../multiplayer/api';
 import { AppHeader } from '../components/AppHeader';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -24,6 +25,7 @@ export function ProfileScreen({ session, personal, onBack, onSignOut }: {
   session: Session; personal: ReturnType<typeof usePlayerPhrases>; onBack: () => void; onSignOut?: () => void;
 }) {
   useUiLanguage();
+  const afterDismiss = useContext(ProfileDismissal);
   const styles = useThemedStyles(createStyles);
   const userId = session.user_id;
   const insets = useSafeAreaInsets();
@@ -54,7 +56,7 @@ export function ProfileScreen({ session, personal, onBack, onSignOut }: {
       <PlayerPhrases key={userId} userId={userId} phrases={personal.phrases} connected={true}
         loadError={personal.error} onSave={personal.save} onRemove={personal.remove} onUpdate={personal.update} />
       <Text style={styles.description}>{ui("social.phrase_edit_help")}</Text>
-      {onSignOut && <Pressable accessibilityRole="button" onPress={onSignOut} style={styles.signOut}><Text style={styles.signOutText}>{ui("common.sign_out_label")}</Text></Pressable>}
+      {onSignOut && <Pressable accessibilityRole="button" onPress={() => afterDismiss(onSignOut)} style={styles.signOut}><Text style={styles.signOutText}>{ui("common.sign_out_label")}</Text></Pressable>}
     </View>
   </FormScrollView></KeyboardFrame>;
 }

@@ -3,7 +3,8 @@ import { fonts, useTheme } from '../theme';
 import { ThemeAction } from './ThemeAction';
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, Modal, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { ProfileModal } from './ProfileModal';
 import { BrandIcon, headerLogoSize } from './BrandArt';
 import { HeaderAction } from './HeaderAction';
 import { LanguageToggle } from './LanguageToggle';
@@ -36,8 +37,8 @@ export function AppHeader({ title, actions, inlineActions, hideProfile = false, 
       </View>
     </View>
     {!!actions && <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>{actions}</View>}
-    {!hideProfile && renderProfile && profileOpen && <Modal visible animationType="slide" onRequestClose={() => setProfileOpen(false)}>
+    {!hideProfile && renderProfile && <ProfileModal visible={profileOpen} onClose={() => setProfileOpen(false)}>
       {renderProfile(() => setProfileOpen(false))}
-    </Modal>}
+    </ProfileModal>}
   </View>;
 }

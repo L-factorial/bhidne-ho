@@ -15,7 +15,7 @@ from psycopg.types.json import Jsonb
 from app.adapters.callbreak.host import CallBreakCommandTarget
 from app.games.base import GameCommandRejected
 from app.models.action import ReliableActionCommand
-from app.runtime.command_runtime import CommandAccessError, OutgoingEvent
+from app.runtime.command_runtime import CommandAccessError, OutgoingEvent, validate_concurrency
 from app.test_games.service import TestGameService
 from .checkpoint_store import user_uuid
 from .checkpoints import capture_checkpoint
@@ -124,8 +124,7 @@ class GameLaneExecutor:
                 target.authorize(actor)
                 if actor not in game.table.seats(game):
                     raise CommandAccessError(403, 'You no longer hold a seat in this game.')
-                if request.expected_revision != target.revision:
-                    raise GameCommandRejected('STALE_REVISION', 'The turn changed. Refresh and try again.')
+                validate_concurrency(target, actor, request)
                 if request.command == 'NEXT_DEAL':
                     events = next_deal(host, game, actor, request)
                 else:

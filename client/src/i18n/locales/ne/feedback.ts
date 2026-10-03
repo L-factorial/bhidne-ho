@@ -26,6 +26,7 @@ export default {
   "reconnecting_to_your_room": "कोठामा फेरि जोडिँदै…",
   "reconnecting_your_seat_is_saved": "फेरि जोडिँदै… खेलको पछिल्लो अपडेट पर्खँदै।",
   "reconnecting_send_when_you_re_back": "फेरि जोडिँदै… जोडिएपछि पठाउने।",
+  "updating_chat": "च्याट अद्यावधिक हुँदैछ…",
   "updating_game": "खेल अद्यावधिक हुँदैछ…",
   "game_updated": "खेल अद्यावधिक भयो",
   "sending_your_action": "तपाईँको चाल पठाउँदै…",

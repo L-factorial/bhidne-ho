@@ -270,3 +270,42 @@ async def test_flush_executes_continuation_and_enqueues_one_round_settlement(dat
         assert (await pool.execute('SELECT count(*) FROM active_game_players')).rows == [(0,)]
     finally:
         await host.close()
+
+
+async def test_same_deal_declarations_survive_durable_execution_and_recovery(database):
+    from app.adapters.marriage.concurrency import declaration_phase_id
+    pool, checkpoints, fence, users = database
+    host, game = await host_game(users, 'marriage', started=False)
+    try:
+        game.marriage_scoring = replace(game.marriage_scoring, initial_tunnela_declaration=True)
+        await host.table_command('room', users[0], game.match_id, 'lock')
+        await host.start('room', users[0], game.match_id)
+        game.durable_game_id = UUID(game.match_id)
+        await checkpoints.save(capture_checkpoint(game, table_revision=0), expected_revision=None, fence=fence)
+        inbox = PostgresInboxStore(pool)
+        lane = await inbox.ensure_lane(LaneTarget(kind='game', room_id='room',
+            table_id=UUID(game.table.table_id), game_id=game.durable_game_id))
+        requests = []
+        for user in users[:2]:
+            request = ReliableActionCommand(match_id=game.match_id, command_id=uuid4().hex,
+                expected_revision=1, command='DECLARE_TUNNELAS',
+                payload={'melds': [], 'declaration_phase_id': declaration_phase_id(game.match_id)}).model_dump(mode='json')
+            requests.append(request)
+            await inbox.enqueue(lane, user, request)
+        first = await GameLaneExecutor(inbox).execute_one(lane, fence)
+        assert first.outcome['status'] == 'accepted' and first.outcome['revision'] == 2
+        # A fresh executor rebuilds the game solely from its committed checkpoint.
+        second = await GameLaneExecutor(inbox).execute_one(lane, fence)
+        assert second.outcome['status'] == 'accepted' and second.outcome['revision'] == 3
+        loaded = await checkpoints.load(game.table.table_id)
+        assert loaded.receipt_snapshot['receipt_count'] == 2
+        state = loaded.checkpoint['data']['engine']['state']
+        assert all(p['tunnela_declared'] for p in state['players'])
+        assert (await inbox.enqueue(lane, users[0], requests[0])).outcome == first.outcome
+        stale = ReliableActionCommand(match_id=game.match_id, command_id=uuid4().hex,
+            expected_revision=1, command='DRAW_CARD', payload={'source': 'stock'}).model_dump(mode='json')
+        await inbox.enqueue(lane, users[0], stale)
+        assert (await GameLaneExecutor(inbox).execute_one(lane, fence)).outcome['status'] == 'rejected'
+        assert (await checkpoints.load(game.table.table_id)).checkpoint == loaded.checkpoint
+    finally:
+        await host.close()

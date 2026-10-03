@@ -94,10 +94,38 @@ The target resolves the actor from the authenticated user and fixed roster. Only
 the mapped owner can issue `START_GAME`; current-turn checks stay in the engine.
 The adapter revalidates command objects at dispatch, including mutated payloads.
 
-All commands, including queries, require the current expected revision. Queries
+Ordinary commands, including queries, require the current expected revision. Queries
 do not increment it or consume randomness. Receipt replay with the same command
 ID and exact request does not reapply or redeliver; a reused ID with different
 request content is rejected by the shared runtime.
+
+### Independent initial Tunnela declarations
+
+While initial declarations are pending, adapter snapshots expose
+`declaration_phase_id` in the public view (also in a player's `view.public`).
+The hosted UI exposes it in `marriage.public`. Submit that captured value inside
+the `DECLARE_TUNNELAS` payload alongside `melds`; an empty meld list declares none.
+The client captures and journals the phase, original revision, and cards once,
+and never rewrites them during retry or recovery.
+
+For this command only, a matching open phase replaces the exact-revision check.
+The submitted revision must still be a dealt-state revision between 1 and the
+current revision. Each accepted declaration increments the engine revision as
+usual. Player eligibility, one declaration per player, natural meld validity,
+and ownership remain engine-enforced. Ordinary gameplay stays blocked until all
+nonfolded players declare. Closing the window and accepting the final declaration
+are one state transition. A duplicate receipt resolves even after closure;
+a fresh command for a closed/wrong phase or already declared player is rejected.
+
+One Marriage adapter contains one immutable deal, so its persisted match ID
+deterministically identifies the window as `<match_id>:initial-tunnelas`.
+Recovery reconstructs the same ID; a replacement match has a different ID.
+No database migration or engine-state schema change is required. If multiple
+deals are ever added within one Marriage adapter, this identity must include a
+persisted deal generation before that behavior is enabled.
+
+Older callers may omit the phase ID and retain exact-revision validation.
+Deployment must update the server before enabling the new client payload.
 
 ## Command catalog
 

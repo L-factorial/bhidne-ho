@@ -279,3 +279,64 @@ async def test_delivery_failure_commits_once_and_retry_does_not_redeliver():
     assert target.revision == 1
     result = await runtime.execute(session, target, "u1", request, fail)
     assert result["action_ack"]["status"] == "accepted" and target.revision == 1
+
+
+async def test_independent_declarations_keep_revisions_and_retry_receipts():
+    from app.adapters.marriage.concurrency import declaration_phase_id
+    from app.adapters.marriage.host import MarriageCommandTarget
+    from app.runtime.command_runtime import CommandSession
+    game = MarriageAdapter(MarriageGameEngine(('a', 'b'), rng=Random(42)),
+                           match_id='declaration-match', owner_player_id='a')
+    target = MarriageCommandTarget(game, seat_by_user={'user-a': 'a', 'user-b': 'b'})
+    session, runtime = CommandSession(match_id=game.match_id), CommandRuntime()
+    async def deliver(events): pass
+    async def send(user, name, revision, payload, cid):
+        return await runtime.execute(session, target, user, ReliableActionCommand(
+            match_id=game.match_id, command_id=cid, expected_revision=revision,
+            command=name, payload=payload), deliver)
+    await send('user-a', 'START_GAME', 0, {}, 'start')
+    phase = game.snapshot()['view']['declaration_phase_id']
+    assert phase == declaration_phase_id(game.match_id)
+    payload = {'melds': [], 'declaration_phase_id': phase}
+    first = await send('user-a', 'DECLARE_TUNNELAS', 1, payload, 'a')
+    assert first['action_ack']['revision'] == 2
+    # Missing phase retains the legacy exact-revision rule.
+    legacy = await send('user-b', 'DECLARE_TUNNELAS', 1, {'melds': []}, 'legacy')
+    assert legacy['action_ack']['status'] == 'rejected'
+    for cid, bad in [('wrong', 'other:initial-tunnelas'), ('empty', ''), ('future', phase)]:
+        result = await send('user-b', 'DECLARE_TUNNELAS', 99 if cid == 'future' else 2,
+                            {'melds': [], 'declaration_phase_id': bad}, cid)
+        assert result['action_ack']['status'] == 'rejected'
+        assert game.revision == 2
+    duplicate = await send('user-a', 'DECLARE_TUNNELAS', 1, payload, 'a-new')
+    assert duplicate['action_ack']['status'] == 'rejected'
+    second = await send('user-b', 'DECLARE_TUNNELAS', 1, payload, 'b')
+    assert second['action_ack'] == {'command_id': 'b', 'status': 'accepted', 'revision': 3}
+    assert game.snapshot()['view']['declaration_phase_id'] is None
+    retry = await send('user-a', 'DECLARE_TUNNELAS', 1, payload, 'a')
+    assert retry['action_ack'] == first['action_ack'] and game.revision == 3
+    closed = await send('user-b', 'DECLARE_TUNNELAS', 3, payload, 'closed')
+    assert closed['action_ack']['status'] == 'rejected'
+    stale = await send('user-a', 'DRAW_CARD', 1, {'source': 'stock'}, 'stale-draw')
+    assert stale['action_ack']['status'] == 'rejected'
+    drawn = await send('user-a', 'DRAW_CARD', 3, {'source': 'stock'}, 'draw')
+    assert drawn['action_ack']['status'] == 'accepted' and game.revision == 4
+
+
+def test_stale_phase_declaration_still_validates_owned_natural_tunnelas():
+    game = MarriageAdapter(MarriageGameEngine(('a', 'b'), rng=Random(10)),
+                           match_id='match', owner_player_id='a')
+    command(game, 'START_GAME')
+    phase = game.snapshot()['view']['declaration_phase_id']
+    command(game, 'DECLARE_TUNNELAS', {'melds': [], 'declaration_phase_id': phase})
+    before = game.checkpoint()
+    def declare(ids, cid):
+        return game.dispatch_player(PlayerCommand(match_id='match', command_id=cid,
+            expected_revision=1, command='DECLARE_TUNNELAS', payload={
+                'declaration_phase_id': phase,
+                'melds': [{'meld_type': 'tunnela', 'card_ids': ids}]}), player_id='b')
+    invalid = declare(['D0:7H', 'D1:7H', 'D2:7H'], 'foreign')
+    assert isinstance(invalid, CommandRejected) and game.checkpoint() is before
+    accepted = declare(['D2:8D', 'D1:8D', 'D0:8D'], 'natural')
+    assert isinstance(accepted, AdapterResult) and accepted.revision == 3
+    assert game.snapshot()['view']['players'][1]['initial_tunnelas'][0]['card_ids'] == ['D2:8D', 'D1:8D', 'D0:8D']

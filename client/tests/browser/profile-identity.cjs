@@ -20,10 +20,7 @@ async function api(path, user, body) {
     await page.getByLabel('Confirm password', { exact: true }).fill(password);
     const create = page.getByRole('button', { name: 'Create account', exact: true });
     assert.equal(await create.isDisabled(), true);
-    await page.getByLabel('Profile name', { exact: true }).fill('   ');
-    assert.equal(await create.isDisabled(), true);
-    await page.getByLabel('Profile name', { exact: true }).fill('Sita Rai');
-    assert.equal(await create.isDisabled(), true, 'email is required for signup');
+    assert.equal(await page.getByLabel('Profile name', { exact: true }).count(), 0);
     await page.getByLabel('Email', { exact: true }).fill('invalid-email');
     await page.getByText('Enter a valid email address.', { exact: true }).waitFor();
     assert.equal(await create.isDisabled(), true);
@@ -46,9 +43,9 @@ async function api(path, user, body) {
       await page.getByTestId('profile-identity').getByText(`@${username}`, { exact: true }).waitFor();
       await page.getByText('Ekraj Friend', { exact: true }).waitFor();
     }
-    await verify('Sita Rai');
+    await verify(username);
     await page.reload();
-    await verify('Sita Rai');
+    await verify(username);
     const input = page.getByLabel('Game display name', { exact: true });
     await input.fill('Sita Updated');
     await page.getByRole('button', { name: 'Save display name', exact: true }).click();
@@ -58,6 +55,6 @@ async function api(path, user, body) {
     await page.waitForTimeout(350); // Finish the Profile modal slide before visual capture.
     await page.screenshot({ path: '/tmp/profile-identity-mobile.png', fullPage: true });
     assert.deepEqual(errors, []);
-    console.log('PASS: required signup name/email, matching passwords, profile identity, name update, and unchanged identity/friends after refresh');
+    console.log('PASS: username-based signup name, required email, matching passwords, profile identity, name update, and unchanged identity/friends after refresh');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

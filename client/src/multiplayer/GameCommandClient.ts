@@ -2,7 +2,14 @@ import { ui } from '../i18n/copy.ts';
 import { PendingGameAction, GameRequestError } from './PendingGameAction.ts';
 import type { ActionAck, ActionRequest } from './PendingGameAction.ts';
 
-export type GameSnapshot = { match_id?: string; game?: { revision: number }; action_ack?: ActionAck };
+export type GameSnapshot = { match_id?: string; game?: { revision: number }; action_ack?: ActionAck;
+  game_type?: string; marriage?: { public: { declaration_phase_id?: string | null } } };
+
+export function captureGamePayload(snapshot: GameSnapshot, command: string, payload: object): object {
+  const phase = snapshot.marriage?.public.declaration_phase_id;
+  return JSON.parse(JSON.stringify(command === 'DECLARE_TUNNELAS' && snapshot.game_type === 'marriage' && phase
+    ? {...payload, declaration_phase_id: phase} : payload));
+}
 export type GameCommandTransport<T extends GameSnapshot> = {
   snapshot(signal: AbortSignal): Promise<T>;
   action(request: ActionRequest, signal: AbortSignal): Promise<T>;
@@ -20,7 +27,8 @@ export class GameCommandClient<T extends GameSnapshot> {
 
   submit(snapshot: T, command: string, payload: object = {}) {
     if (!snapshot.match_id || !snapshot.game) return false;
-    const submitted = this.action.begin({ match_id: snapshot.match_id, expected_revision: snapshot.game.revision, command, payload });
+    const submitted = this.action.begin({ match_id: snapshot.match_id, expected_revision: snapshot.game.revision, command,
+      payload: captureGamePayload(snapshot, command, payload) });
     if (submitted) this.generation++;
     return submitted;
   }

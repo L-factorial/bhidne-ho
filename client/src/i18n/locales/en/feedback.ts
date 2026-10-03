@@ -26,6 +26,7 @@ export default {
   "reconnecting_to_your_room": "Reconnecting to your room…",
   "reconnecting_your_seat_is_saved": "Reconnecting… Waiting for the latest game update.",
   "reconnecting_send_when_you_re_back": "Reconnecting… send when you’re back.",
+  "updating_chat": "Updating chat…",
   "updating_game": "Updating game…",
   "game_updated": "Game updated",
   "sending_your_action": "Sending your action…",

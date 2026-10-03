@@ -37,6 +37,10 @@ class MarriageCommandTarget:
     def restore(self, checkpoint):
         self.adapter.restore(checkpoint)
 
+    def validate_concurrency(self, user_id, command):
+        if not self.adapter.validate_concurrency(command, self.seat_by_user[user_id]):
+            raise GameCommandRejected('STALE_REVISION', 'The game or declaration phase changed. Refresh and try again.')
+
     def snapshot(self, user_id):
         self.authorize(user_id)
         return self.adapter.snapshot(self.seat_by_user[user_id])

@@ -32,7 +32,6 @@ assert.ok(['localhost', '127.0.0.1'].includes(new URL(site).hostname));
       await page.getByRole('button', { name: 'Sign in or sign up' }).click();
       await page.getByRole('button', { name: 'Sign up', exact: true }).click();
     await page.getByRole('button',{name:'Sign up with username or email',exact:true}).click();
-      await page.getByLabel('Profile name', { exact: true }).fill('Fold');
       await page.getByLabel('Username', { exact: true }).fill(`lobby_${Date.now()}_${width}`);
       await page.getByLabel('Password', { exact: true }).fill('Local-test-password-42');
       await page.getByLabel('Password', { exact: true }).press('Enter');

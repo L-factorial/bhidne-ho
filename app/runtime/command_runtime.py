@@ -87,8 +87,7 @@ class CommandRuntime:
 
             checkpoint = target.checkpoint()
             try:
-                if command.expected_revision != target.revision:
-                    raise GameCommandRejected("STALE_REVISION", "The turn changed. Your view has been refreshed; try again.")
+                validate_concurrency(target, user_id, command)
                 events = target.apply(user_id, command)
                 # Validate serialization before committing, while rollback is possible.
                 for event in events:
@@ -122,3 +121,12 @@ class CommandRuntime:
             if receipt is not None:
                 snapshot["action_ack"] = dict(receipt)
             return snapshot
+
+
+def validate_concurrency(target, user_id, command):
+    """Adapters may define a narrower independent-action scope; default is exact."""
+    validator = getattr(target, 'validate_concurrency', None)
+    if validator is not None:
+        validator(user_id, command)
+    elif command.expected_revision != target.revision:
+        raise GameCommandRejected('STALE_REVISION', 'The turn changed. Your view has been refreshed; try again.')

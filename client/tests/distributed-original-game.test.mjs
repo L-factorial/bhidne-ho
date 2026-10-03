@@ -87,3 +87,26 @@ test('a delivered committed snapshot satisfies confirmation without a duplicate 
  client.submit(view,'BET');client.observe({...view,game:{revision:4}});
  assert.equal((await client.refresh(signal())).snapshot.game.revision,4);
 });
+
+
+test('distributed declarations journal the original phase through reconnect and restoration',async()=>{
+ let saved=null,original=null,current={...view,game_type:'marriage',
+  marriage:{public:{declaration_phase_id:'match:initial-tunnelas'}}};
+ const persistence={load:()=>saved,save:value=>{saved=structuredClone(value);},check:()=>{}};
+ const transport={submit:async request=>{
+  if(!original){original=structuredClone(request);throw Error('response lost');}
+  assert.deepEqual(request,original);return receipt(request);
+ },status:async()=>assert.fail()};
+ const commands=new DurableCommandClient(transport,{persistence});
+ const client=new DistributedGameCommandClient(commands,async()=>current,s=>s);
+ const payload={melds:[]};
+ assert.equal(client.submit(current,'DECLARE_TUNNELAS',payload),true);
+ payload.melds.push({changed:true});
+ await assert.rejects(client.refresh(signal()),/response lost/);
+ current={...current,game:{revision:4},marriage:{public:{declaration_phase_id:null}}};
+ const restored=new DistributedGameCommandClient(new DurableCommandClient(transport,{persistence}),async()=>current,s=>s);
+ await restored.refresh(signal());
+ assert.deepEqual(original.body.payload,{melds:[],declaration_phase_id:'match:initial-tunnelas'});
+ assert.equal(original.body.expected_revision,3);
+ assert.equal(restored.pending,false);
+});

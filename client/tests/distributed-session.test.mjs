@@ -144,3 +144,20 @@ test('initial connection becomes healthy only after all stream snapshots are ins
  pending.a({});await wait(()=>f.views.length===1);assert.deepEqual(f.health,[]);
  pending.b({});await wait(()=>f.health.at(-1)===true);assert.equal(f.views.length,2);
 });
+
+
+test('pending command receipts retry without waiting for or repeating healthy discovery',async t=>{
+ let discoveries=0,sends=0;
+ const f=fixture({discover:async()=>{discoveries++;return {items:[{lane_id:'a'}],next_lane_id:null};},
+  commands:{submit:async request=>{
+   if(++sends===1)throw Error('response lost');
+   const command_id=request.body.command_id;
+   return {lane_id:'a',sequence:1,command_id,status:'accepted',outcome:{command_id,status:'accepted',revision:2},status_reference:{lane_id:'a',command_id}};
+  },status:async()=>assert.fail()}});
+ t.after(()=>f.session.close());await f.session.connect();await wait(()=>f.views.length===1);
+ const command=f.session.command('move');command.begin({kind:'game'},{command:'DRAW_CARD',payload:{source:'stock'},expected_revision:1});
+ const original=command.request;await assert.rejects(command.reconcile(),/response lost/);
+ await new Promise(resolve=>setTimeout(resolve,1100));
+ assert.equal(command.latest.status,'accepted');assert.equal(sends,2);assert.equal(discoveries,1);
+ assert.deepEqual(command.request,original);assert.equal(f.opened.length,1);
+});

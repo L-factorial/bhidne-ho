@@ -24,3 +24,19 @@ test('late recovery cannot overwrite newer delivered state; a new game may reset
  const next={...latest,table_revision:5,durable_game_id:'new',game:{revision:0}};
  assert.equal(committedSnapshot(latest,next),next);
 });
+
+
+test('fallback poll joins the event read in flight rather than scheduling a duplicate',async()=>{
+ let calls=0,finish;
+ const reader=new CoalescedRead(async()=>{calls++;return new Promise(resolve=>finish=resolve);});
+ const event=reader.load(signal());while(!finish)await new Promise(r=>setTimeout(r,2));
+ const poll=reader.load(signal(),false);finish(7);
+ assert.deepEqual(await Promise.all([event,poll]),[7,7]);assert.equal(calls,1);
+});
+test('a poll follows a queued newer invalidation rather than joining its older in-flight read',async()=>{
+ let calls=0,finish;
+ const reader=new CoalescedRead(async()=>{calls++;if(calls===1)return new Promise(resolve=>finish=resolve);return 2;});
+ const old=reader.load(signal());while(!finish)await new Promise(r=>setTimeout(r,2));
+ const notification=reader.load(signal()),poll=reader.load(signal(),false);finish(1);
+ assert.deepEqual(await Promise.all([old,notification,poll]),[1,2,2]);assert.equal(calls,2);
+});

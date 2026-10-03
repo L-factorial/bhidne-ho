@@ -60,10 +60,9 @@ async def sign_up(body: SignUpInput, request: Request, response: Response):
         if hasattr(request.app.state.players.store, "usernames"):
             request.app.state.players.store.usernames[credentials.user_id] = credentials.username
         request.app.state.player_profiles.remember_username(credentials.user_id, credentials.username)
-        if body.display_name:
-            saved = request.app.state.player_profiles.update(credentials.user_id, body.display_name)
-            if isawaitable(saved):
-                await saved
+        saved = request.app.state.player_profiles.update(credentials.user_id, body.display_name or credentials.username)
+        if isawaitable(saved):
+            await saved
         await request.app.state.players.refresh_player(credentials.user_id)
         return credentials
     except UsernameTakenError as error:

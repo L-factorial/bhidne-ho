@@ -113,8 +113,8 @@ export class OriginalUiApi {
   private async command(slot:string,target:CommandTarget,command:string,payload:Payload,signal:AbortSignal) {
     return this.intents.run(slot,target,{command,payload},signal,async()=>undefined);
   }
-  async game(room:string,match:string|null,signal:AbortSignal) {
-    return this.root.reads.gameView<LeaveView & {status:string}>(room,match,signal);
+  async game(room:string,match:string|null,signal:AbortSignal,invalidate=true) {
+    return this.root.readGameView<LeaveView & {status:string}>(room,match,signal,invalidate);
   }
   private pair(other:string):CommandTarget {
     const users=[this.account.user_id.replace(/^user-/,''),other.replace(/^user-/,'')].sort();
@@ -184,7 +184,7 @@ export class OriginalUiApi {
       if(parts[0]==='rooms'&&parts.length===2)return reads.preview(parts[1],signal);
       if(parts[0]==='rooms'&&parts[2]==='members')return reads.memberProfiles(parts[1],signal);
       if(parts[0]==='rooms'&&parts[2]==='ledger')return reads.ledger(parts[1],signal);
-      if(parts[0]==='test-games'&&parts.length===2&&parts[1]!=='invitations')return this.game(parts[1],url.searchParams.get('match_id'),signal);
+      if(parts[0]==='test-games'&&parts.length===2&&parts[1]!=='invitations')return this.game(parts[1],url.searchParams.get('match_id'),signal,false);
     }
     if(path==='/notifications/read'&&body) {
       const ids=(await this.notificationRows(signal)).filter(r=>r.read!==true).map(r=>String(r.id));

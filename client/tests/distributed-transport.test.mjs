@@ -38,3 +38,34 @@ test('wrong device cannot subscribe; malformed handshake closes connection',asyn
  f.socket.onopen();f.frame({type:'READY'});const p=f.open();const id=f.sent.at(-1).subscription_id;
  f.frame({type:'SUBSCRIBED',subscription_id:id,lane_id:'wrong',cursor:0});await assert.rejects(p);assert.equal(f.closed,1);
 });
+
+
+test('foreground health probes share PING and retain the authenticated socket on PONG',async t=>{
+ const f=fixture();t.after(()=>f.t.close());f.socket.onopen();f.frame({type:'READY'});
+ const first=f.t.checkHealth(100),second=f.t.checkHealth(100);
+ assert.equal(first,second);assert.equal(f.sent.filter(m=>m.type==='PING').length,1);
+ f.frame({type:'PONG'});await Promise.all([first,second]);assert.equal(f.closed,0);assert.equal(f.t.connected,true);
+});
+test('foreground health timeout reports one genuine disconnect',async()=>{
+ const reasons=[],socket={send:()=>{},close:()=>{}};
+ const transport=new DistributedSocketTransport('wss://host','token','device',reason=>reasons.push(reason),()=>socket);
+ socket.onopen();socket.onmessage({data:JSON.stringify({type:'READY'})});
+ await assert.rejects(transport.checkHealth(10),/health check failed/);
+ assert.deepEqual(reasons,[{cause:'heartbeat'}]);assert.equal(transport.connected,false);
+});
+test('overdue heartbeat probes a healthy socket after app suspension',t=>{
+ let now=0;t.mock.method(Date,'now',()=>now);
+ t.mock.timers.enable({apis:['setInterval','setTimeout']});
+ const f=fixture();t.after(()=>f.t.close());f.socket.onopen();f.frame({type:'READY'});
+ f.socket.send=value=>{const frame=JSON.parse(value);f.sent.push(frame);if(frame.type==='PING')f.frame({type:'PONG'});};
+ now=120000;t.mock.timers.tick(10000);
+ assert.equal(f.sent.filter(m=>m.type==='PING').length,1);
+ assert.equal(f.closed,0);assert.equal(f.t.connected,true);
+});
+test('socket close diagnostics retain code and reason without protocol payloads',()=>{
+ const reasons=[],socket={send:()=>{},close:()=>{}};
+ const transport=new DistributedSocketTransport('wss://host','token','device',reason=>reasons.push(reason),()=>socket);
+ socket.onclose({code:1001,reason:'going away',wasClean:true});
+ assert.deepEqual(reasons,[{cause:'close',code:1001,reason:'going away',wasClean:true}]);
+ transport.close();assert.equal(reasons.length,1);
+});

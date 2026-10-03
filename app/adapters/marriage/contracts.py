@@ -70,6 +70,7 @@ class InitialMeldsPayload(Payload):
 
 class TunnelasPayload(Payload):
     melds: Annotated[list[MeldPayload], Field(max_length=7)]
+    declaration_phase_id: Annotated[str, Field(min_length=1, max_length=256)] | None = None
 
 
 class DubleesPayload(Payload):

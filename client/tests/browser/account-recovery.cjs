@@ -52,10 +52,10 @@ async function checkAccountHeader(page, nepaliTitle) {
     await page.screenshot({path:'/tmp/auth-signup-choices-mobile.png'});
     await page.getByRole('button',{name:'Sign up with username or email',exact:true}).click();
     await checkAccountHeader(page);
-    for(const [label,value] of [['Username',username],['Password','Original-pass-123'],['Confirm password','Original-pass-123'],['Email','browser@example.test'],['Profile name','Recovery Player']]) await page.getByLabel(label,{exact:true}).fill(value);
+    for(const [label,value] of [['Username',username],['Password','Original-pass-123'],['Confirm password','Original-pass-123'],['Email','browser@example.test']]) await page.getByLabel(label,{exact:true}).fill(value);
     await page.getByRole('button',{name:'Back',exact:true}).click();
     await page.getByRole('button',{name:'Sign up with username or email',exact:true}).click();
-    for(const [label,value] of [['Username',username],['Password','Original-pass-123'],['Confirm password','Original-pass-123'],['Email','browser@example.test'],['Profile name','Recovery Player']]) assert.equal(await page.getByLabel(label,{exact:true}).inputValue(),value);
+    for(const [label,value] of [['Username',username],['Password','Original-pass-123'],['Confirm password','Original-pass-123'],['Email','browser@example.test']]) assert.equal(await page.getByLabel(label,{exact:true}).inputValue(),value);
     const signed=page.waitForResponse(r=>r.url().endsWith('/auth/signup')&&r.status()===201);
     await page.getByRole('button',{name:'Create account',exact:true}).click();
     const user=await(await signed).json();

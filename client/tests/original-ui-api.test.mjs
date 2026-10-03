@@ -14,6 +14,7 @@ function setup(submit) {
  const sent=[],shared=[],slots=new Map();
  const root={session:{command(slot){if(!slots.has(slot))slots.set(slot,new DurableCommandClient({submit:async r=>{sent.push(r);return submit?submit(r):receipt(r);},status:async()=>assert.fail()}));return slots.get(slot);},releaseCommand(slot){slots.get(slot)?.close();return slots.delete(slot);}},
  reads:{gameView:async()=>structuredClone(view),lobby:async()=>['lobby'],activity:async k=>[k],preview:async()=>({room_id:'r'}),memberProfiles:async()=>[],ledger:async()=>({})}};
+ root.readGameView=(...args)=>root.reads.gameView(...args);
  const api=new OriginalUiApi(root,account,async(...args)=>{shared.push(args);return {user_id:'player',display_name:'Player'};});
  return {api,root,sent,shared};
 }

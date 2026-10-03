@@ -1,3 +1,4 @@
+import { SnapshotRefreshClock } from './SnapshotRefreshClock.ts';
 import { CoalescedRead } from './CoalescedRead.ts';
 import { DistributedScreenController } from './DistributedScreenController.ts';
 import { OwnedSession } from './JournalOwner.ts';
@@ -6,20 +7,23 @@ import { DistributedSession } from './DistributedSession.ts';
 import { DistributedReadClient } from './DistributedReadClient.ts';
 import { distributedHttpTransport, DistributedRequestError } from './DistributedHttpTransport.ts';
 import { DistributedSocketTransport } from './DistributedSocketTransport.ts';
-import { boundedDelivery, discoverDeliveryStreams } from './DurableDeliveryClient.ts';
+import type { SocketDisconnect } from './DistributedSocketTransport.ts';
+import { discoverDeliveryStreams } from './DurableDeliveryClient.ts';
 import type { CommandTarget } from './DurableCommandClient.ts';
 import type { SelectedTable } from './DistributedControls.ts';
 import { gameControl, tableControl, roomControl } from './DistributedControls.ts';
 
 export type Selection = { room: string; table: string | null; chat?: ('room_chat'|'table_chat'|'game_chat')[] };
 export type Projection = { room_id: string; snapshot: (SelectedTable & { durable_game_id: string | null; status?: string }) | null };
+type GameReadView = Partial<SelectedTable> & {room_id: string; status?: string; [key: string]: unknown};
 export type RootView = {kind:'lobby';value:null} | { kind: 'snapshot'; value: Projection } | { kind: 'chat'|'social'; value: unknown };
-type SocketFactory = (url: string, token: string, device: string, disconnected: () => void) => DistributedSocketTransport;
+type SocketFactory = (url: string, token: string, device: string, disconnected: (detail?: SocketDisconnect) => void, ready?: () => void) => DistributedSocketTransport;
 export type RootCallbacks = {
   install(lane: string, value: RootView): void; remove(lane: string): void;
-  error(lane: string | null, error: unknown, source?: 'command' | 'delivery'): void;
+  error(lane: string | null, error: unknown, source?: 'command' | 'delivery' | 'connection'): void;
   transient?(payload: unknown): void;
   health?(ready: boolean): void;
+  recovery?(kind: 'snapshot' | 'chat' | 'social' | null): void;
 };
 const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 
@@ -28,10 +32,14 @@ const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 export class DistributedRootRuntime {
   readonly session: DistributedSession<RootView>;
   readonly reads: DistributedReadClient;
+  readonly snapshotClock = new SnapshotRefreshClock();
+  private gameReads = new Map<string, CoalescedRead<GameReadView>>();
   private socket: DistributedSocketTransport | null = null;
   private selection: Selection | null = null;
   private targets = new Map<string, CommandTarget>();
   private projection: Projection | null = null;
+  private streamReady = new Map<string, boolean>();
+  private discoveryIssues: ('chat' | 'social')[] = [];
   private activityObservers = new Set<() => void>();
   observeActivity(listener: () => void) {
     this.activityObservers.add(listener);
@@ -45,6 +53,9 @@ export class DistributedRootRuntime {
   }
   private snapshotRead: CoalescedRead<Projection> | null = null;
   private generation = 0;
+  private selectionGeneration = 0;
+  private connecting: Promise<void> | null = null;
+  readonly connectionDiagnostics: (SocketDisconnect & {at: number})[] = [];
   private closed = false;
   private retry?: ReturnType<typeof setTimeout>;
   private attempts = 0;
@@ -58,7 +69,7 @@ export class DistributedRootRuntime {
     options: { fetcher?: typeof fetch; socketFactory?: SocketFactory; refreshMs?: number } = {}) {
     this.owner = owner; this.base = base.replace(/\/$/, ''); this.token = token;
     this.callbacks = callbacks;
-    this.socketFactory = options.socketFactory ?? ((...args) => new DistributedSocketTransport(...args));
+    this.socketFactory = options.socketFactory ?? ((url, token, device, failed, ready) => new DistributedSocketTransport(url, token, device, failed, undefined, ready));
     this.reads = new DistributedReadClient(this.base, token, options.fetcher);
     this.session = new DistributedSession(owner.clientId, {
       commands: distributedHttpTransport(this.base, token, options.fetcher),
@@ -71,7 +82,6 @@ export class DistributedRootRuntime {
     }, {
       install: (lane, view) => this.install(lane, view),
       remove: lane => {
-        if (['room','table'].includes(this.targets.get(lane)?.kind ?? '')) this.projection = null;
         callbacks.remove(lane);
       },
       error: (lane, error, source) => {
@@ -82,21 +92,32 @@ export class DistributedRootRuntime {
         if(error instanceof DistributedRequestError && [403,404].includes(error.status))for(const listener of this.activityObservers)listener();
       },
       transient: events => { if(!this.closed) for(const event of events) callbacks.transient?.(event.payload); },
-      health: ready => { if (!this.closed) callbacks.health?.(ready); },
+      streamHealth: (lane, ready) => {
+        this.streamReady.set(lane,ready); this.reportRecovery();
+      },
+      health: ready => { if(ready){for(const lane of this.streamReady.keys())this.streamReady.set(lane,true);}this.reportRecovery(); },
     }, {refreshMs:options.refreshMs ?? 30000}, owner.journal);
   }
   private async discover(signal: AbortSignal) {
-    const selected = copy(this.selection), generation = this.generation;
+    const selected = copy(this.selection), generation = this.selectionGeneration;
     const targets = new Map<string, CommandTarget>();
+    const issues: ('chat' | 'social')[] = [];
     const recipient = await this.reads.recipient(signal); targets.set(recipient.lane_id, recipient.target);
-    const social = await discoverDeliveryStreams((after,s) => this.reads.socialStreams(after,s),signal);
-    for (const lane of social) if (!targets.has(lane)) targets.set(lane,{kind:'conversation'});
+    try {
+      const social = await discoverDeliveryStreams((after,s) => this.reads.socialStreams(after,s),signal);
+      for (const lane of social) if (!targets.has(lane)) targets.set(lane,{kind:'conversation'});
+    } catch(error) {
+      if(signal.aborted || error instanceof DistributedRequestError && error.status===401)throw error;
+      issues.push('social');
+      for(const [lane,target] of this.targets)if(target.kind==='conversation')targets.set(lane,target);
+      this.callbacks.error(null,error,'delivery');
+    }
     const open = async (target: CommandTarget) => {
       const stream = await this.reads.open(target,signal); targets.set(stream.lane_id,target);
     };
     await open({kind:'lobby'});
     if (selected) {
-      const projection = await this.reads.room<Projection>(selected.room,selected.table,signal);
+      const projection = this.projection ?? await this.readSelectedProjection(signal, false);
       this.validateProjection(projection, selected);
       await open({kind:'room',room_id:selected.room});
       const table = projection.snapshot;
@@ -120,13 +141,22 @@ export class DistributedRootRuntime {
           // Chat may be paused during active play or unavailable to spectators.
           // An optional chat scope must not prevent the authorized game snapshot
           // from loading. Transport/authentication failures still fail discovery.
-          if (!(error instanceof DistributedRequestError && error.status === 403)) throw error;
+          if(signal.aborted || error instanceof DistributedRequestError && error.status===401)throw error;
+          if (!(error instanceof DistributedRequestError && error.status === 403)) {
+            issues.push('chat');
+            for(const [lane,old] of this.targets)if(JSON.stringify(old)===JSON.stringify(target))targets.set(lane,old);
+            this.callbacks.error(null,error,'delivery');
+          }
         }
       }
     }
-    if (signal.aborted || generation !== this.generation) throw Error('Obsolete selection discovery.');
+    if (signal.aborted || generation !== this.selectionGeneration) throw Error('Obsolete selection discovery.');
     if (targets.size > 128) throw Error('Selected stream bound exceeded.');
     this.targets = targets;
+    for(const lane of this.streamReady.keys())if(!targets.has(lane))this.streamReady.delete(lane);
+    this.discoveryIssues=issues;
+    if(issues.length)this.session.retryDiscovery();
+    this.reportRecovery();
     return {items:[...targets.keys()].sort().map(lane_id=>({lane_id})),next_lane_id:null};
   }
   private validateProjection(value: Projection, selected: Selection) {
@@ -143,55 +173,132 @@ export class DistributedRootRuntime {
     if (!target) throw Error('Undiscovered stream.');
     if (target.kind === 'lobby') return {kind:'lobby',value:null};
     if (['room','table','game'].includes(target.kind)) {
-      const selected = copy(this.selection);
-      if (!selected) throw Error('No selected hosted view.');
-      if (!this.snapshotRead) this.snapshotRead = new CoalescedRead(async signal => {
-        const value = await this.reads.room<Projection>(selected.room,selected.table,signal);
-        this.validateProjection(value,selected); return value;
-      });
-      return {kind:'snapshot',value:await this.snapshotRead.load(signal)};
+      return {kind:'snapshot',value:await this.readSelectedProjection(signal)};
     }
     const kind = target.kind.endsWith('_chat') ? 'chat':'social';
     return {kind,value:await this.reads.history(kind,lane,signal)};
   }
-  private install(lane: string, view: RootView) {
+  private install(lane: string, view: RootView, notifyLane = true) {
     if (this.closed) return;
     if (view.kind === 'snapshot') {
       const selected = this.selection;
-      if (!selected) return;
+      if (!selected || view.value.room_id !== selected.room
+          || (selected.table && view.value.snapshot?.table_id?.replaceAll('-','') !== selected.table.replaceAll('-',''))) return;
       this.validateProjection(view.value, selected);
       const old = this.projection?.snapshot, next = view.value.snapshot;
       if (old && next && (next.table_revision < old.table_revision
           || (next.durable_game_id === old.durable_game_id && next.game && old.game && next.game.revision < old.game.revision))) return;
       this.projection = copy(view.value);
+      if(old && next && old.durable_game_id!==next.durable_game_id)this.session.retryDiscovery(50);
       for (const listener of this.observers) listener(copy(view.value));
     }
-    this.callbacks.install(lane,copy(view));
+    if(notifyLane)this.callbacks.install(lane,copy(view));
     if(view.kind==='lobby'||view.kind==='social')for(const listener of this.activityObservers)listener();
+  }
+  private reportRecovery() {
+    if(this.closed)return;
+    const failed=[...this.streamReady].filter(([lane,ready])=>!ready && this.targets.has(lane)).map(([lane])=>this.targets.get(lane)!.kind);
+    this.callbacks.recovery?.(failed.some(k=>['room','table','game'].includes(k))?'snapshot'
+      :failed.some(k=>k.endsWith('_chat')) || this.discoveryIssues.includes('chat')?'chat':failed.length || this.discoveryIssues.length?'social':null);
   }
   async select(selection: Selection | null) {
     if (selection && (!selection.room || (selection.chat?.length ?? 0) > 3)) throw Error('Invalid selection.');
     if(this.socket && JSON.stringify(selection)===JSON.stringify(this.selection))return;
-    this.selection = copy(selection); this.projection = null;
-    await this.reconnect();
+    const previous = this.selection;
+    this.selection = copy(selection); this.selectionGeneration++;
+    this.projection = null; this.snapshotRead = null; this.streamReady.clear();this.reportRecovery();
+    if(!this.socket) { await this.reconnect(); return; }
+    await this.session.reconfigure(lane => {
+      const target = this.targets.get(lane);
+      if(!target)return false;
+      if(!target.room_id)return true; // Account/lobby/social streams survive navigation.
+      if(target.room_id !== selection?.room)return false;
+      if(target.kind === 'room' || target.kind === 'room_chat')return previous?.room === selection.room;
+      return previous?.table===selection.table && target.table_id===selection.table
+        && (['table','game'].includes(target.kind) || selection.chat?.includes(target.kind as 'table_chat'|'game_chat')===true);
+    });
+
   }
-  async reconnect(): Promise<void> {
-    if (this.closed) throw Error('Root session closed.');
+  async wake(): Promise<void> {
+    if(this.closed)return;
+    if(!this.socket){await this.reconnect();return;}
+    // Start health verification immediately, before timers delayed by suspension.
+    const probe = this.socket.checkHealth?.() ?? Promise.resolve();
+    await Promise.all([probe, this.session.refresh(), this.selection ? this.readSelectedProjection(new AbortController().signal,false) : Promise.resolve()]);
+  }
+  reconnect(): Promise<void> {
+    if (this.closed) return Promise.reject(Error('Root session closed.'));
+    if(this.connecting)return this.connecting;
+    if(this.socket)return this.session.refresh();
+    const work = this.connectSocket().finally(()=>{if(this.connecting===work)this.connecting=null;});
+    this.connecting=work;return work;
+  }
+  private async connectSocket(): Promise<void> {
     clearTimeout(this.retry);
     const generation = ++this.generation;
-    this.session.disconnect(); this.socket?.close(); this.socket = null; this.targets.clear(); this.projection = null; this.snapshotRead = null;
-    const failed = () => {
+    this.session.disconnect(); this.targets.clear(); this.snapshotRead = null;
+    const failed = (detail: SocketDisconnect = {cause:'error'}) => {
       if (this.closed || generation !== this.generation) return;
-      this.generation++; this.session.disconnect(); this.socket?.close(); this.socket = null;
-      this.callbacks.error(null,new Error('Delivery connection interrupted.'),'delivery');
-      this.retry = setTimeout(() => { void this.reconnect().catch(e=>this.callbacks.error(null,e)); },Math.min(1000*2**this.attempts++,8000));
+      this.connectionDiagnostics.push({...detail,at:Date.now()});
+      if(this.connectionDiagnostics.length>20)this.connectionDiagnostics.shift();
+      this.generation++; this.callbacks.health?.(false);
+      this.session.disconnect(); this.socket?.close(); this.socket = null;
+      this.callbacks.error(null,new Error(`Delivery connection interrupted (${detail.cause}${detail.code ? ` ${detail.code}` : ''}).`),'connection');
+      this.retry = setTimeout(() => { void this.reconnect().catch(e=>this.callbacks.error(null,e,'connection')); },Math.min(1000*2**this.attempts++,8000));
     };
     try {
-      const socket = this.socketFactory(this.base.replace(/^http/,'ws')+'/delivery',this.token,this.owner.clientId,failed);
+      const socket = this.socketFactory(this.base.replace(/^http/,'ws')+'/delivery',this.token,this.owner.clientId,failed,()=>{
+        if(this.closed || generation!==this.generation)return;
+        this.attempts=0;this.callbacks.health?.(true);
+      });
       if (this.closed || generation !== this.generation) { socket.close(); return; }
       this.socket = socket;
       await this.session.connect();
     } catch (error) { failed(); throw error; }
+  }
+  private readSelectedProjection(signal: AbortSignal, invalidate = true): Promise<Projection> {
+    const selected = copy(this.selection), generation = this.selectionGeneration;
+    if(!selected)return Promise.reject(Error('No selected hosted view.'));
+    if(!this.snapshotRead)this.snapshotRead=new CoalescedRead(async signal=>{
+      const value=await this.reads.room<Projection>(selected.room,selected.table,signal);
+      if(signal.aborted || generation!==this.selectionGeneration)throw Error('Obsolete snapshot read.');
+      this.validateProjection(value,selected);
+      const old=this.projection?.snapshot,next=value.snapshot;
+      if(!old || !next || (next.table_revision>=old.table_revision && (next.durable_game_id!==old.durable_game_id
+          || !next.game || !old.game || next.game.revision>=old.game.revision))) {
+        if(next?.match_id)this.snapshotClock.success(selected.room,next.match_id);
+        this.install('snapshot-read',{kind:'snapshot',value},false);
+      }
+      return value;
+    });
+    return this.snapshotRead.load(signal,invalidate);
+  }
+  async readGameView<T>(room: string, match: string | null, signal: AbortSignal, invalidate = false): Promise<T> {
+    const selected=this.selection;
+    if(match && selected?.room===room && selected.table && this.projection?.snapshot?.match_id===match) {
+      const projection=await this.readSelectedProjection(signal,invalidate);
+      if(projection.snapshot?.match_id===match)return copy(projection.snapshot) as T;
+      // Preserve the original match-addressed endpoint's 404 semantics after a rematch.
+    }
+    const key=JSON.stringify([room,match]);
+    let reader=this.gameReads.get(key);
+    if(!reader){
+      reader=new CoalescedRead(async signal=>{
+        const value=await this.reads.gameView<GameReadView>(room,match,signal);
+        if(this.closed || signal.aborted)throw Error('Obsolete game read.');
+        if(value?.room_id===room && value.match_id && value.game && Number.isSafeInteger(value.game.revision) && value.game.revision>=0) {
+          const old=this.projection?.snapshot;
+          if(!old || old.match_id!==value.match_id || value.game.revision>=(old.game?.revision??0))
+            this.snapshotClock.success(room,value.match_id);
+          if(this.selection?.room===room && this.selection.table && value.table_id===this.selection.table)
+            this.install('snapshot-read',{kind:'snapshot',value:{room_id:room,snapshot:value as Projection['snapshot']}},false);
+        }
+        return value;
+      });
+      this.gameReads.set(key,reader);
+      if(this.gameReads.size>128)this.gameReads.delete(this.gameReads.keys().next().value!);
+    }
+    return copy(await reader.load(signal,invalidate)) as T;
   }
   screen(slot: string, callbacks: ConstructorParameters<typeof DistributedScreenController>[1]) {
     return new DistributedScreenController(this.session.command(slot),callbacks);
@@ -213,8 +320,8 @@ export class DistributedRootRuntime {
   }
   close() {
     if (this.closed) return;
-    this.closed = true; this.generation++;clearTimeout(this.retry);
-    this.session.close(); this.socket?.close(); this.socket = null;this.targets.clear();this.projection = null;this.observers.clear();this.activityObservers.clear();
+    this.closed = true; this.generation++;this.selectionGeneration++;clearTimeout(this.retry);
+    this.session.close(); this.socket?.close(); this.socket = null;this.targets.clear();this.projection = null;this.observers.clear();this.activityObservers.clear();this.gameReads.clear();this.streamReady.clear();
   }
 }
 

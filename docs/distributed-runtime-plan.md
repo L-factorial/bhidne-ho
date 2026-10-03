@@ -5693,3 +5693,193 @@ chat and Friends UI changes and authorized implementation with “go ahead”.
   iOS/TestFlight build, then run the two-phone waiting Call Break end/reentry and
   remote-open-dialog scenarios plus Flush/Marriage equivalents. Build 3 cannot
   receive this client change from a backend deployment. No commit/push performed.
+
+### Room and profile dismissal cleanup — 2026-10-03 PDT
+
+- User explicitly authorized extending the iOS presentation cleanup to room and
+  profile/account deletion while preserving existing working behavior. These
+  paths had source-level risks; no physical-device deletion freeze was reproduced.
+- Added a shared dismissal-action hook. iOS actions wait for native `onDismiss`;
+  web/Android actions run after committing hidden state, without depending on an
+  iOS-only callback. Pending actions run once and are canceled on unmount,
+  reopening, or explicit room/session invalidation. No animation timeout is used.
+- Both lobby and room Profile presentations stay mounted while dismissing.
+  Delete account, public policy navigation and Profile sign-out close Profile
+  before their callbacks can replace its owner. Ordinary Back only closes Profile.
+  Existing profile editing and account confirmation/proof/status behavior remain.
+- Room Options closes its sheet before issuing deletion. Duplicate taps are
+  guarded; confirmation resets on submission and room/session changes. A changed
+  selection/account cancels a queued deletion and releases the busy state. Failed
+  deletion preserves the room with its existing error and permits a fresh retry.
+  Lobby room-card Delete/Leave confirmations likewise close before removal can
+  unmount the card; failures reopen the existing confirmation with the error.
+  Joining/sharing/removing that card is disabled during its removal request.
+- Verification: TypeScript; all 313 ordinary frontend tests; six new React
+  lifecycle cases plus the four existing game cases (10 passed); production web
+  export and production-configured iOS Hermes export; whitespace check. Six local
+  mobile Chrome scenarios passed Room Options/card cancellation/failure/retry,
+  both Profile entry points with display-name editing, policy/Back, deletion/Back,
+  rejected proof/success/status/Back and sign-out/sign-in navigation. The three
+  existing game-ending browser scenarios also passed. All fixture API/WebSocket
+  calls are intercepted; no production room/account writes were made.
+- Limits: lifecycle tests mock native Modal; web fixtures do not exercise UIKit
+  or real distributed services. No signed native compilation, physical-device
+  acceptance, deletion enablement, deployment or EAS upload is claimed. No
+  account/backend deletion rules were changed. Commands and device checks are
+  in `client/TESTFLIGHT.md`.
+- Exact next step: review/commit/push the client increment, create a fresh iOS
+  TestFlight build from this code, and retest room/card deletion and both Profile
+  entry points using disposable room/account data, alongside the two-phone game
+  ending matrix. An already-built/uploaded artifact will need a newer build to
+  include this increment. No commit/push/upload performed by the agent.
+
+### Independent initial Marriage Tunnela declarations — 2026-10-03 PDT
+
+- User authorized implementing the reviewed phase-based declaration design.
+  Only initial `DECLARE_TUNNELAS` gains independent-action acceptance. Ordinary
+  gameplay, queries, later meld showing, and other games retain exact revisions.
+- Every accepted declaration, including an explicit empty declaration, still
+  advances the engine revision. The adapter exposes `declaration_phase_id` in
+  public/private snapshots while declarations are pending; clients capture it
+  in the declaration payload alongside the original revision and cards.
+- Each Marriage adapter owns one immutable deal. Derive the phase identity from
+  its persisted match ID (`<match_id>:initial-tunnelas`), avoiding random recovery
+  state, database migrations, or engine/checkpoint schema changes. A rematch has
+  a new match identity. Supporting multiple deals inside one Marriage adapter
+  would first require adding a persisted deal generation to this identity.
+- Shared-runtime, direct-adapter, distributed executor, and durable checkpoint
+  checks accept the same open phase only for an eligible undeclared player.
+  Original revision must be between 1 and the current engine revision; future
+  and predeal revisions remain invalid. Ownership and natural/distinct meld
+  validation remain in the engine. The final declaration closes the window in
+  its existing atomic transition; gameplay remains blocked until all nonfolded
+  players declare. Duplicate receipts still resolve after closure without new
+  state/events. Fresh declarations for closed/wrong phases or completed players
+  reject. Older callers omitting the phase retain exact-revision behavior.
+- Both HTTP and distributed UI command clients capture detached payloads at
+  submission. Reconnects, journal restoration, later snapshots, and caller-side
+  payload changes cannot rewrite the original phase, revision, or cards.
+- Verification: adapter/shared-runtime cases cover same-deal stale acceptance,
+  wrong/empty/closed phases, future revisions, repeated player declarations,
+  legacy stale rejection, natural/foreign-card validation, duplicate receipts,
+  and ordinary stale draws. PostgreSQL/WASM game-lane and checkpoint suites:
+  30 passed, including two commands queued at revision 1 and fresh-executor
+  recovery between acceptance at revisions 2 and 3. Full backend: 1,167 passed,
+  648 optional integration tests skipped, two dependency deprecation warnings.
+  Full frontend: 315 passed, including HTTP lost-response payload pinning and
+  distributed journal restoration; TypeScript and Expo web export passed.
+  `git diff --check` passed. SQL command used
+  `PGLITE_MODULE=/private/tmp/bhidne-ci-pglite/node_modules/@electric-sql/pglite`.
+  Full backend needed local socket access for the telemetry listener test.
+- Limits: no production deployment, native-device acceptance, commit, or push.
+  Existing unrelated working-tree changes were preserved. Phase identity is
+  transport metadata, not a credential or a substitute for authorization.
+- Exact next step: review this increment, deploy the backend before releasing
+  the client that sends the new payload field, then verify simultaneous initial
+  declarations from two devices and reconnect/retry during the declaration
+  window. Existing installed clients continue using exact revisions until updated.
+
+### Username as the initial sign-up display name — 2026-10-03 PDT
+
+- User explicitly requested removing the profile/nickname field from account
+  sign-up. Removed that input, required-name gating, and its form state. The
+  account submission now sends username/password/email; email validation and
+  password confirmation remain in place.
+- The sign-up endpoint persists the normalized account username as the initial
+  display name when the optional legacy display-name field is omitted. Existing
+  callers supplying a display name remain compatible. Existing accounts and
+  profile-edit behavior are unchanged; users can choose a new display name there.
+  Usernames retain their existing 3–32-character range; custom profile names
+  retain their existing 25-character limit.
+- Updated existing signup browser scenarios to omit the removed field and
+  expect the username in Profile before a subsequent display-name edit.
+- Verification: 19 focused backend profile/signup tests passed (three optional
+  SQL cases skipped); all 315 frontend tests passed; TypeScript and whitespace
+  checks passed. Existing profile regression now verifies `/me/profile` stores
+  the username as well as displaying it at a game table. Updated browser scripts
+  were not run against a live browser/backend in this increment.
+- Exact next step: review/release backend and client together, then verify signup
+  and profile editing on a device. No deployment, commit or push performed.
+  Socket/polling changes discussed above remain planning-only.
+
+### Socket preservation C1 — 2026-10-03 PDT
+
+- Implemented the user's authorized connection-lifecycle increment. Navigation
+  now reconciles room/table/game/chat subscriptions on the existing authenticated
+  socket and retains account/lobby/social streams and journaled command slots.
+  Obsolete discovery is aborted before applying its catalog; old private views
+  cannot install into another selection.
+- Foreground/online recovery probes the existing socket using the existing
+  PING/PONG protocol. Concurrent probes share a bounded health check. Actual
+  close/error, malformed protocol, send failure, or heartbeat timeout triggers
+  replacement with capped backoff; authentication READY resets backoff.
+- UI socket health now comes from authenticated transport readiness rather than
+  aggregate subscription/discovery health. Isolated discovery/chat/social
+  failures retry without labeling the socket disconnected or freezing gameplay.
+  Recovery notices distinguish game/chat updating from actual reconnecting.
+- Added bounded in-memory close diagnostics (cause, close code/reason/clean flag,
+  timestamp; no credentials or message frames). This is diagnostic evidence for
+  future device reproduction, not proof of a specific production failure cause.
+- Verification: TypeScript and 41 focused root/session/transport tests passed,
+  including navigation/account-stream retention, healthy foreground probes,
+  heartbeat timeout, close diagnostics, isolated failures, and original pending
+  command preservation across genuine socket replacement. Whitespace passed.
+- No endpoint, command payload, WebSocket message format, auth, or receipt changes.
+  Existing unrelated changes preserved. No deployment or physical-device test.
+- Exact next step: C2, unify active-game snapshot reads and schedule fallback
+  polling from the last successful authoritative read, preserving in-flight
+  invalidations and independent pending-command/failed-read retries.
+
+### Snapshot refresh coordination C2 — 2026-10-03 PDT
+
+- Implemented shared active-game snapshot reads across WebSocket invalidations,
+  HTTP UI reads, foreground recovery and fallback polling. Selection-scoped
+  projections retain authorized endpoint semantics, including match-addressed
+  reads after replacement. Reads for other scopes remain separately bounded.
+- The active-game fallback now uses a room/match clock updated only by successful
+  authoritative reads. A delivered event refresh reschedules the mounted screen's
+  fallback for 30 seconds later. Empty views retain a 30-second fallback rather
+  than spinning; a different game or failed read cannot postpone the current
+  game's check. In-flight refresh callbacks are serialized in the mounted screen.
+- Coalesced reads distinguish invalidations from fallback reads. Polls can join
+  a running read; a notification arriving after a read starts requires a later
+  read, and polls follow that newer queued invalidation. Canceling one waiter
+  cannot cancel other active consumers. Subscription discovery uses the current
+  projection rather than independently fetching the same game every 30 seconds.
+- Failed snapshot/command retries remain at their separate one-second cadence.
+  Background pending commands wake receipt recovery without waiting for the
+  discovery interval or repeatedly rediscovering healthy streams. Original IDs,
+  revisions, payloads, receipts and journal ownership remain pinned.
+- Verification: TypeScript and all 326 frontend tests passed, including the
+  second-28 event / second-58 fallback clock, independent scopes/retries,
+  event/poll coalescing, mid-flight invalidation ordering and late obsolete
+  discovery. Local distributed-original web export passed. No API contract or
+  backend changes were needed for C1/C2. Whitespace checks passed.
+- Exact next step: C3 mounted browser/device-style verification of socket
+  retention, chat isolation, genuine replacement and near-deadline events;
+  inspect available diagnostics and document remaining physical-device limits.
+
+
+### Socket and refresh verification C3 — 2026-10-03 PDT
+
+- Completed the client implementation and verification increment. Mounted Chrome
+  fixture checks passed for socket retention across selection/online recovery,
+  near-deadline notifications postponing fallback by 30 seconds, isolated chat
+  recovery, and genuine close/replacement with restored subscriptions.
+- An overdue heartbeat after app suspension now probes the authenticated socket
+  before declaring failure. A deterministic transport test verifies a responsive
+  socket survives a two-minute wall-clock gap; missing PONG still times out.
+- Verification: all 330 frontend tests passed; production web build (including
+  TypeScript) and production-configured iOS Hermes export passed. Browser checks
+  used intercepted HTTP/WebSocket fixtures; the subsequent heartbeat adjustment
+  was covered by deterministic transport tests. Whitespace checks passed.
+- Close diagnostics capture bounded transport causes and actual close details.
+  No production/device disconnect was reproduced, so no remaining real-drop cause
+  is claimed. Server auth/protocol/ACK close protections remain unchanged.
+- HTTP command submission, API contracts and original pending command IDs remain
+  unchanged. No backend changes were needed for these socket/refresh increments.
+  Existing unrelated work was preserved; no commit, push or deployment performed.
+- Exact next step: review the completed client diff, then prepare a fresh native
+  build and run the two-player device matrix in client/TESTFLIGHT.md, inspecting
+  close diagnostics during background/resume and network interruptions. Capacity,
+  observability and deployment readiness remain separately scoped follow-up work.

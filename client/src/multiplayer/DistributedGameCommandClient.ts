@@ -1,4 +1,5 @@
 import type { GameSnapshot } from './GameCommandClient.ts';
+import { captureGamePayload } from './GameCommandClient.ts';
 import type { DurableCommandClient, DurableReceipt, Json } from './DurableCommandClient.ts';
 import { gameControl } from './DistributedControls.ts';
 import type { SelectedTable } from './DistributedControls.ts';
@@ -16,13 +17,13 @@ function pause(signal: AbortSignal) {
 // owns the supplied journal slot; disposing a screen cannot discard an action.
 export class DistributedGameCommandClient<T extends GameSnapshot> {
   private commands: DurableCommandClient;
-  private read: (signal: AbortSignal) => Promise<T>;
+  private read: (signal: AbortSignal, invalidate?: boolean) => Promise<T>;
   private selected: (snapshot: T) => SelectedTable;
   private unobserved: string | null;
   private generation = 0;
   private observed: T | null = null;
   observe(snapshot:T) { this.observed=snapshot; }
-  constructor(commands: DurableCommandClient, read: (signal: AbortSignal) => Promise<T>,
+  constructor(commands: DurableCommandClient, read: (signal: AbortSignal, invalidate?: boolean) => Promise<T>,
     selected: (snapshot: T) => SelectedTable) {
     this.commands = commands; this.read = read; this.selected = selected;
     this.unobserved = commands.request?.body.command_id ?? null;
@@ -34,7 +35,7 @@ export class DistributedGameCommandClient<T extends GameSnapshot> {
     if (view.match_id !== snapshot.match_id || view.game?.revision !== snapshot.game.revision) {
       throw Error('Selected game does not match its committed snapshot.');
     }
-    if (!gameControl(this.commands,view,command,payload as {[key:string]:Json})) return false;
+    if (!gameControl(this.commands,view,command,captureGamePayload(snapshot,command,payload) as {[key:string]:Json})) return false;
     this.unobserved = this.commands.request!.body.command_id; this.generation++;
     return true;
   }
@@ -63,7 +64,7 @@ export class DistributedGameCommandClient<T extends GameSnapshot> {
     }
     const revision=receipt && 'outcome' in receipt ? receipt.outcome?.revision : null;
     const snapshot = receipt?.status==='accepted' && revision!=null && this.observed?.match_id===this.commands.request?.body.match_id
-      && (this.observed?.game?.revision ?? -1)>=revision ? this.observed! : await this.read(signal);
+      && (this.observed?.game?.revision ?? -1)>=revision ? this.observed! : await this.read(signal,!!commandId || this.commands.pending);
     if (signal.aborted) throw Error('Game refresh aborted.');
     if (generation !== this.generation) throw Error('Game changed during refresh.');
     // Keep the result unobserved until a fresh projection succeeds. A failed read

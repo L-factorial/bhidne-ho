@@ -9,7 +9,7 @@ import { type ReactNode, useCallback, useEffect, useRef } from 'react';
 import { Keyboard, Platform, Pressable, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export function RoomSheet({ visible, title, onClose, children, scrollable = true, footer, testID = 'room-sheet', closeLabel = ui("common.close_room_panel"), contentHandlesBottomInset = false, presentation = 'sheet', tableStyle = false, headerActions, isolateKeyboard = false }: { isolateKeyboard?: boolean; headerActions?: ReactNode; tableStyle?: boolean; visible: boolean; title: string; onClose: () => void; children: ReactNode; scrollable?: boolean; footer?: ReactNode; testID?: string; closeLabel?: string; contentHandlesBottomInset?: boolean; presentation?: 'sheet' | 'dialog' }) {
+export function RoomSheet({ visible, title, onClose, onDismiss, children, scrollable = true, footer, testID = 'room-sheet', closeLabel = ui("common.close_room_panel"), contentHandlesBottomInset = false, presentation = 'sheet', tableStyle = false, headerActions, isolateKeyboard = false }: { isolateKeyboard?: boolean; headerActions?: ReactNode; tableStyle?: boolean; visible: boolean; title: string; onClose: () => void; onDismiss?: () => void; children: ReactNode; scrollable?: boolean; footer?: ReactNode; testID?: string; closeLabel?: string; contentHandlesBottomInset?: boolean; presentation?: 'sheet' | 'dialog' }) {
   const uiLanguage = useUiLanguage();
   const { colors: c } = useTheme();
   const wide = useWindowDimensions().width >= 900;
@@ -31,7 +31,7 @@ export function RoomSheet({ visible, title, onClose, children, scrollable = true
     return () => { globalThis.removeEventListener('keyup', escape, true); previous?.focus?.(); };
   }, [visible]);
   const close = () => { Keyboard.dismiss(); onClose(); };
-  return <Modal transparent visible={visible} animationType={Platform.OS === 'web' ? 'none' : 'fade'} onRequestClose={close} onShow={focusClose}>
+  return <Modal transparent visible={visible} animationType={Platform.OS === 'web' ? 'none' : 'fade'} onRequestClose={close} onShow={focusClose} onDismiss={onDismiss}>
     <KeyboardFocusBoundary enabled={isolateKeyboard} visible={visible} label={title} onClose={close}>
     <KeyboardFrame style={[{ flex: 1, backgroundColor: c.overlay, justifyContent: wide ? 'center' : 'flex-end', alignItems: 'center', padding: wide ? 24 : 0, paddingTop: Math.max(24, insets.top) }, dialog && { justifyContent: 'center', paddingHorizontal: space.xl, paddingTop: Math.max(16, insets.top), paddingBottom: Math.max(16, insets.bottom) }]}>
       <View ref={panel} testID={testID} accessibilityViewIsModal style={[{ ...gamePanelFinish(c), width: '100%', maxWidth: wide ? 640 : undefined, maxHeight: '90%', height: scrollable ? undefined : '90%', minHeight: 0, backgroundColor: c.surface, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, borderBottomLeftRadius: wide ? 20 : 0, borderBottomRightRadius: wide ? 20 : 0, paddingBottom: footer || contentHandlesBottomInset ? 0 : Math.max(16, insets.bottom) }, dialog && { maxWidth: 480, maxHeight: '100%', borderTopLeftRadius: 18, borderTopRightRadius: 18, borderBottomLeftRadius: 18, borderBottomRightRadius: 18, overflow: 'hidden' }]}>

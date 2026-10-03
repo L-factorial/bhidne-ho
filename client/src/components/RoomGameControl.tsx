@@ -56,6 +56,8 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
   const insets = useSafeAreaInsets();
   const social = useRoomPokes(roomId, userId, token, connected);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const snapshotRef=useRef(snapshot);snapshotRef.current=snapshot;
+  const rescheduleRefresh=useRef<()=>void>(()=>{});
   const [open, setOpen] = useState(false);
   useEffect(()=>{
     if(!runtime||!snapshot?.table_id)return;
@@ -91,7 +93,8 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
     if (requestedMatchId) { selectedMatch.current = requestedMatchId; setActionTick(v => v + 1); }
   }, [requestedMatchId]);
   const commandClient = useMemo(() => runtime
-    ? new DistributedGameCommandClient(runtime.root.session.command('original-game-actions'),transport.snapshot,
+    ? new DistributedGameCommandClient(runtime.root.session.command('original-game-actions'),
+      (signal,invalidate=false)=>runtime.root.readGameView<Snapshot>(roomId,selectedMatch.current??null,signal,invalidate),
       snapshot=>({...snapshot,room_id:roomId}) as unknown as SelectedTable)
     : new GameCommandClient(transport), [transport,runtime,roomId]);
   const [actionTick, setActionTick] = useState(0);
@@ -161,10 +164,20 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
     refreshClient.current=commandClient;
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
+    let refreshFailed = false, refreshing = false;
+    const schedule=()=>{
+      if(controller.signal.aborted || refreshing)return;
+      clearTimeout(timer);
+      const delay=runtime ? runtime.root.snapshotClock.delay(roomId,selectedMatch.current??snapshotRef.current?.match_id,
+        commandClient.pending,refreshFailed) : 1000;
+      timer=setTimeout(refresh,delay);
+    };
+    rescheduleRefresh.current=schedule;
     async function refresh() {
+      if(refreshing || controller.signal.aborted)return;
+      refreshing=true;
       const version = generation.current;
       let noticeTimer: ReturnType<typeof setTimeout> | undefined;
-      let refreshFailed = false;
       try {
         if (!pending.current) {
           const hadPending = commandClient.pending;
@@ -179,11 +192,12 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
           const result = await commandClient.refresh(controller.signal);
           if (controller.signal.aborted || generation.current !== version) return;
           const data = result.snapshot;
+          if(runtime && data.match_id && !selectedMatch.current && data.status!=='ended')selectedMatch.current=data.match_id;
           if (hadPending) {
             setError(result.error ? playerError(result.error) : ''); setBusy(false); setActionNotice('');
           }
           if (!controller.signal.aborted && generation.current === version) {
-            setSnapshot(current=>committedSnapshot(current,data)); setRefreshError(''); setSynced(true);
+            setSnapshot(current=>committedSnapshot(current,data)); snapshotRef.current=committedSnapshot(snapshotRef.current,data); refreshFailed=false; setRefreshError(''); setSynced(true);
           }
         }
       } catch (error) {
@@ -199,13 +213,13 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
         }
       }
       finally {
-        clearTimeout(noticeTimer);
-        if (!controller.signal.aborted) timer = setTimeout(refresh, runtime && !commandClient.pending && !refreshFailed ? 30000 : 1000);
+        clearTimeout(noticeTimer); refreshing=false;
+        if (!controller.signal.aborted) schedule();
       }
     }
     if (sessionActive) refresh();
     return () => {
-      controller.abort(); clearTimeout(timer);
+      controller.abort(); clearTimeout(timer); if(rescheduleRefresh.current===schedule)rescheduleRefresh.current=()=>{};
     };
   }, [commandClient, sessionActive, actionTick]);
   useEffect(() => {
@@ -218,12 +232,13 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
       setSnapshot(current=>committedSnapshot(current,next));
       if(commandClient instanceof DistributedGameCommandClient)commandClient.observe(next);
       setSynced(true); setRefreshError('');
+      snapshotRef.current=next;rescheduleRefresh.current();
     });
   }, [runtime, roomId, sessionActive, commandClient]);
 
   useEffect(() => {
     if(!runtime)return;
-    const wake=()=>{setActionTick(value=>value+1);void runtime.root.reconnect().catch(()=>{});};
+    const wake=()=>{setActionTick(value=>value+1);void runtime.root.wake().catch(()=>{});};
     const sub=AppState.addEventListener('change',state=>{if(state==='active')wake();});
     if(Platform.OS==='web')globalThis.addEventListener('online',wake);
     return()=>{sub.remove();if(Platform.OS==='web')globalThis.removeEventListener('online',wake);};

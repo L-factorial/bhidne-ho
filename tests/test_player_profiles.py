@@ -31,12 +31,14 @@ def test_profile_names_are_owned_validated_and_visible_at_table():
         assert snapshot()['players'][0]['display_name'] == users[0]['user_id']
 
 
-def test_signup_username_is_the_game_name_when_profile_name_is_empty():
+def test_signup_username_is_saved_as_initial_profile_and_game_name():
     with TestClient(create_app()) as client:
         accounts = [client.post('/auth/signup', json={'email': 'signup@example.test',
             'username': username, 'password': 'test-password-123'}).json()
             for username in ('table-alice', 'table-bob')]
         headers = [{'Authorization': f"Bearer {account['token']}"} for account in accounts]
+        for account, values in zip(accounts, headers):
+            assert client.get('/me/profile', headers=values).json()['display_name'] == account['username']
         room = client.post('/rooms', headers=headers[0], json={'name': 'Names', 'visibility': 'public'}).json()['room_id']
         for values in headers:
             assert client.post(f'/rooms/{room}/enter', headers=values).status_code == 200

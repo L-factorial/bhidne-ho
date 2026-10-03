@@ -478,3 +478,50 @@ for build/test setup and external gates. Mounted Chromium login/create/reload an
 three-game projection smoke, 236 client tests, TypeScript and web/iOS exports passed.
 The iOS export is not a physical-device persistence/lock test. This separate UI still
 requires product navigation/visual parity validation before replacing production.
+
+
+## Current socket and snapshot lifecycle (2026-10-03)
+
+The distributed-original client retains one authenticated socket across room,
+table and chat selection changes. `select` aborts obsolete discovery, removes
+only obsolete selected streams, and reconciles subscriptions on that socket.
+Account, lobby and unaffected game streams remain subscribed. Foreground/online
+recovery shares a bounded PING/PONG probe and refreshes the selected snapshot;
+only a genuine socket close/error, send/protocol failure or heartbeat timeout
+replaces the connection. HTTP command submission and all server contracts remain
+unchanged. Intentional logout/account replacement closes the old lifetime.
+
+Transport authentication READY drives connected status. Discovery or individual
+subscription failures drive separate game/chat recovery status and retry the
+failed scope without declaring a healthy socket disconnected. Optional chat and
+social discovery failures retain successful scopes and schedule rediscovery.
+A real disconnect restores subscriptions and reconciles pending command IDs
+with capped backoff; authentication readiness resets backoff. The root retains
+up to twenty `connectionDiagnostics` entries with timestamp, cause, and available
+WebSocket close code/reason/clean flag, without credentials or message frames.
+These records can identify actual transport failures during device reproduction;
+periodic discovery failures do not create socket-close records.
+
+Selected room/table/game invalidations and match-addressed UI reads share the
+active projection reader. Concurrent fallback reads can join an ongoing fetch;
+a notification arriving after a request starts queues a fresh read so its
+commit cannot be missed. Cancellation is per consumer. Selection generation and
+revision checks prevent obsolete or older private snapshots replacing current
+state. Rematches/round identity changes promptly trigger subscription discovery.
+
+The mounted game's fallback runs thirty seconds after its last successful
+authoritative snapshot read, regardless of whether that read came from an event,
+foreground recovery, a table action or polling. Another room/match cannot move
+that deadline. Background discovery uses the current projection rather than
+adding a separate game poll. Failed snapshot reads and pending commands retain
+one-second retries, independent of successful event refreshes; receipt recovery
+does not wait thirty seconds or repeatedly rediscover healthy streams.
+
+Automated browser verification is in
+`client/tests/browser/distributed-connection.cjs`. Serve a localhost
+`distributed-original` web export with a matching local API URL, generate
+projections with `tests/export_distributed_views.py`, and set `PLAYWRIGHT_MODULE`,
+`VIEW_FIXTURES` and `TEST_WEB_URL` as needed. All HTTP/WebSocket traffic is mocked;
+this proves mounted client behavior, not production network or mobile suspension
+behavior. Test physical iOS/Android backgrounding, intermittent connectivity and
+real close diagnostics before claiming the reported device issue is resolved.

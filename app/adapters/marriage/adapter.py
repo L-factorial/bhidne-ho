@@ -7,9 +7,11 @@ from pydantic import TypeAdapter
 
 from marriage import (CardConservationError, DrawSource, MarriageError, MarriageGameEngine,
                       Meld, MeldType)
+from marriage.turns import tunnela_declarations_pending
 
 from .contracts import (COMMAND_SPECS, CommandName, CommandRejected, Identifier, OutboundEvent,
                         PlayerCommand, RoutedEvent)
+from .concurrency import declaration_phase_id, declaration_scope_matches
 
 _JSON = TypeAdapter(Any)
 
@@ -47,8 +49,18 @@ class MarriageAdapter:
 
     def snapshot(self, player_id: str | None = None):
         view = self._engine.get_public_view() if player_id is None else self._engine.get_player_view(player_id)
+        projected = json_value(view)
+        public = projected if player_id is None else projected['public']
+        public['declaration_phase_id'] = (declaration_phase_id(self.match_id)
+            if tunnela_declarations_pending(self._engine.get_state()) else None)
         return {"game_type": "marriage", "protocol_version": 1, "match_id": self.match_id,
-                "revision": self.revision, "view": json_value(view)}
+                "revision": self.revision, "view": projected}
+
+    def validate_concurrency(self, request, player_id):
+        scoped = request.command == 'DECLARE_TUNNELAS' and request.payload.get('declaration_phase_id') is not None
+        if scoped:
+            return declaration_scope_matches(self._engine.get_state(), self.match_id, request, player_id)
+        return request.expected_revision == self.revision
 
     def checkpoint(self):
         # Accepted calls replace the engine only; they never mutate an older checkpoint.
@@ -68,7 +80,7 @@ class MarriageAdapter:
             return reject("MATCH_MISMATCH", "Request belongs to another match.")
         if player_id not in self._engine.get_state().config.player_ids:
             return reject("UNKNOWN_PLAYER", "Spectators cannot submit player commands.")
-        if request.expected_revision != self.revision:
+        if not self.validate_concurrency(request, player_id):
             return reject("STALE_REVISION", "Refresh the game before retrying.")
         if request.command is CommandName.START_GAME and player_id != self.owner_player_id:
             return reject("OWNER_REQUIRED", "Only the game owner can start this round.")

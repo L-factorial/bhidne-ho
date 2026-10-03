@@ -107,3 +107,25 @@ test('selected table stays pinned during polling and commands across table switc
   await transport.snapshot(signal());
   assert.deepEqual(urls, ['http://local/test-games/room?match_id=first', 'http://local/test-games/room/action', 'http://local/test-games/room?match_id=second']);
 });
+
+
+test('initial tunnela declaration pins its phase and payload across a lost response', async () => {
+  let revision=1, phase='match:initial-tunnelas';
+  const bodies=[];
+  const snapshot=()=>({match_id:'match',game_type:'marriage',game:{revision},
+    marriage:{public:{declaration_phase_id:phase}}});
+  const client=new GameCommandClient({snapshot:async()=>snapshot(),action:async body=>{
+    bodies.push(structuredClone(body));
+    if(bodies.length===1)throw Error('response lost');
+    return {...snapshot(),action_ack:{command_id:body.command_id,status:'accepted',revision:3}};
+  }});
+  const payload={melds:[]};
+  assert.equal(client.submit(snapshot(),'DECLARE_TUNNELAS',payload),true);
+  payload.melds.push({meld_type:'tunnela',card_ids:['changed']});
+  await assert.rejects(client.refresh(signal()),/response lost/);
+  revision=3;phase=null;
+  await client.refresh(signal());
+  assert.deepEqual(bodies[0],bodies[1]);
+  assert.equal(bodies[0].expected_revision,1);
+  assert.deepEqual(bodies[0].payload,{melds:[],declaration_phase_id:'match:initial-tunnelas'});
+});
