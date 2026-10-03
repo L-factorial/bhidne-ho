@@ -5693,3 +5693,13 @@ chat and Friends UI changes and authorized implementation with “go ahead”.
   iOS/TestFlight build, then run the two-phone waiting Call Break end/reentry and
   remote-open-dialog scenarios plus Flush/Marriage equivalents. Build 3 cannot
   receive this client change from a backend deployment. No commit/push performed.
+
+### iOS TestFlight icon
+
+- Copied the supplied BhidneHoAppLogo.png into client/assets/branding and set
+  expo.ios.icon in client/app.json to that repository-relative asset.
+- Verified the original PNG is square (1254x1254) with no transparent pixels.
+  Kept the supplied artwork intact; Expo generates native icon sizes at build.
+- Verified Expo's resolved public configuration points to the existing asset.
+  Next: user commits/pushes the asset and config, pulls on the build machine,
+  and runs the production iOS EAS build. No build upload or deployment performed.
