@@ -38,5 +38,36 @@ An export checks JavaScript bundling; the EAS build still needs to verify native
 compilation and signing. On the installed build, check sign-in, room/game joining,
 reconnection, sound, and social-login return links.
 
+## Game dialog dismissal regression
+
+The native game dialog cleanup change requires a **new iOS/TestFlight build**.
+Pushing the frontend or updating the backend cannot change the installed build 3.
+
+On two phones, verify the following with the updated build:
+
+1. Create a Call Break table, join from the other phone, and keep two seats empty.
+   Open the table menu, cancel an end confirmation, then end for everyone. The
+   room's member/chat controls must remain tappable, and another table must open.
+2. End remotely while the other phone has its table menu, chat draft, theme
+   picker, or confirmation open. Both phones must return to usable room controls.
+3. Back out to the room and reenter repeatedly. Old menus/confirmations must not
+   reopen. Repeat the end flow in Flush and Marriage. Check dialog scrolling,
+   keyboard input, language menus, VoiceOver and Android Back if available.
+
+Local fixture checks (all data intercepted; no production game mutations):
+
+```sh
+# Serve a legacy web export at the same TEST_WEB_URL/API origin.
+TEST_WEB_URL=http://127.0.0.1:8099 node tests/browser/game-modal-ending.cjs
+# Registry behavior is part of the ordinary Node test suite.
+node --experimental-strip-types --test tests/game-modal-layers.test.mjs
+# Optional React lifecycle harness, with matching tools outside project dependencies.
+npm install --prefix /private/tmp/bhidne-native-modal-tests --no-audit --no-fund react@19.2.3 react-test-renderer@19.2.3
+TEST_REACT_TOOLS=/private/tmp/bhidne-native-modal-tests node --test tests/native-game-modal.cjs
+```
+
+The lifecycle harness models the iOS Modal boundary; it does not exercise UIKit.
+Browser checks and successful bundling do not replace the two-phone retest.
+
 References: [Expo TestFlight wizard](https://docs.expo.dev/build-reference/npx-testflight/)
 and [TestFlight distribution](https://docs.expo.dev/submit/testflight/).

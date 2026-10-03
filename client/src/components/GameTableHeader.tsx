@@ -1,3 +1,4 @@
+import { GameModal as Modal } from './GameModal';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { TableThemePicker } from './TableThemePicker';
@@ -7,7 +8,7 @@ import { useTableTheme } from '../TableThemeProvider';
 import { BrandIcon, headerLogoSize } from './BrandArt';
 import { KeyboardFrame } from './KeyboardFrame';
 import { type ReactNode, useEffect, useState } from 'react';
-import { Modal, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TableShareSheet } from './ShareLink';
 import { fonts, radii, typography, useTheme } from '../theme';

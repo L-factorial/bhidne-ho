@@ -1,8 +1,9 @@
+import { GameModal as Modal } from './GameModal';
 import { ruleFieldLabel, ruleValueLabel } from '../i18n/ruleCopy.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useTheme } from '../theme';
 
 export type RuleProposalView = {

@@ -33,6 +33,7 @@ import { PokeOverlay } from './PokeOverlay';
 import { FlushTable } from '../screens/FlushTable';
 import { MarriageTable } from '../screens/MarriageTable';
 import { GameRequestError, type GameRequestDetail } from '../multiplayer/PendingGameAction';
+import { GameModalContent, GameModalRoot } from './GameModal';
 import { request } from '../multiplayer/api';
 
 type InvitePlayer = { user_id: string; display_name: string; username?: string | null; eligible?: boolean; reason?: string | null };
@@ -414,12 +415,12 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
     </Modal>
     {/* Web registers modal focus after its animation. A late parent onShow can
         steal focus from chat opened during the transition and block typing. */}
-    <Modal transparent visible={open} animationType={Platform.OS === 'web' ? 'none' : 'fade'} onRequestClose={collapseGame}>
-      {live && snapshot ? <View testID="live-game-backdrop" style={[styles.liveBackdrop, {
+    <GameModalRoot transparent visible={open} animationType={Platform.OS === 'web' ? 'none' : 'fade'} onRequestClose={collapseGame}>
+      {live && snapshot ? <ThemeContext.Provider value={gameTheme}><TableSocialProvider key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} channel={socialChannel} connected={connected} userId={userId} session={{user_id: userId, token}} pokes={pokes} phrases={personal.phrases}>
+      <View testID="live-game-backdrop" style={[styles.liveBackdrop, {
         backgroundColor: gameTheme.colors.background, paddingTop: insets.top, paddingBottom: insets.bottom,
         paddingLeft: insets.left, paddingRight: insets.right,
       }]}><View accessibilityViewIsModal testID="live-game-overlay" style={[styles.liveOverlay, (mobileGame || snapshot.game_type === 'flush') && !chat && { paddingBottom: 0 }]}>
-        <ThemeContext.Provider value={gameTheme}><TableSocialProvider key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} channel={socialChannel} connected={connected} userId={userId} session={{user_id: userId, token}} pokes={pokes} phrases={personal.phrases}>
         {snapshot.game_type === 'flush' ? <FlushTable connectionReady={connected && synced} onLock={() => void lobbyAction('/table/lock')} tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onFormationBlocked={setFormationBlocked} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={uiLabel(error, 'feedback')}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: text => social.send(snapshot.match_id!, null, text) }}
           onSave={payload => lobbyAction('/flush-settings', payload)} onStart={rules_revision => lobbyAction('/start', { rules_revision })}
@@ -443,9 +444,8 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
         </ScrollView>
         {chat}
         {snapshot.status !== 'ended' && snapshot.rule_proposal?.status === 'PENDING' && ruleReview}
-        </TableSocialProvider></ThemeContext.Provider>
-      </View></View> :
-      <KeyboardFrame style={[styles.overlay, { paddingVertical: 16 }]}><View accessibilityViewIsModal style={styles.modal}>
+      </View></View></TableSocialProvider></ThemeContext.Provider> :
+      <GameModalContent><KeyboardFrame style={[styles.overlay, { paddingVertical: 16 }]}><View accessibilityViewIsModal style={styles.modal}>
         <FormScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
           <Text accessibilityRole="header" style={styles.title}>{ui("rooms.create_table")}</Text>
           {createContent}
@@ -477,8 +477,8 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
           <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_this_table")} disabled={busy || !creationEnabled || !tableName.trim()} accessibilityState={{ disabled: busy || !creationEnabled || !tableName.trim() }} onPress={() => void act(false)} style={[styles.button, (busy || !creationEnabled || !tableName.trim()) && { opacity: 0.5 }]}><Text style={styles.buttonText}>{ui("rooms.create_table")}</Text></Pressable>
           <Pressable accessibilityRole="button" onPress={() => setOpen(false)} style={styles.choice}><Text style={styles.text}>{ui("common.back_to_room")}</Text></Pressable>
         </FormFooter>
-      </View></KeyboardFrame>}
-    </Modal>
+      </View></KeyboardFrame></GameModalContent>}
+    </GameModalRoot>
   </>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({

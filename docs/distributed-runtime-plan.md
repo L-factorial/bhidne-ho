@@ -5657,3 +5657,39 @@ chat and Friends UI changes and authorized implementation with “go ahead”.
   assessed after reconnection works. Exact next step: reopen build 3 on both
   phones, verify connection and retest all four reported symptoms, then
   commit/push the provisioning regression and documentation when requested.
+
+### Native game modal cleanup — 2026-10-02 PDT
+
+- User authorized implementing the reported iOS room freeze and related game
+  dialog cleanup. Sigma ended the waiting two-seat Call Break table in “Sigma
+  room” at October 3 06:21:41 UTC. Read-only production checks confirmed an
+  accepted end command and a closed table; UIKit touch interception could not
+  be established from server logs. The source exposed nested game/menu/end
+  native presentations and replacement of their contents during parent dismissal.
+- Added a scoped game presentation boundary. Native game menus, confirmation,
+  chat/poke/share/theme, language/context menus and Flush/Marriage dialogs render
+  as ordered views within one native game Modal. Outside a game and on web,
+  existing Modal behavior remains. The outlet is inside both theme/social
+  contexts and spans the window, preserving measured menu positions. Lower
+  layers and the game are untappable/hidden from accessibility while a higher
+  layer is shown; Back/accessibility escape goes to the top dialog first.
+- End confirmation closes on submission. On iOS the live contents stay mounted
+  through native `onDismiss`, and closing the root clears game layers and their
+  open flags. A late dismissal cannot clear a newly reopened presentation.
+  Inner overlays appear without native presentation animations; the parent
+  retains its existing animation. No gameplay, account, database or server changes.
+- Verification: four ordered-layer cases; four React lifecycle cases using a
+  mocked iOS Modal host and matching React tools in a temporary directory;
+  TypeScript and all 313 frontend tests; production Expo web build; production
+  configured iOS Hermes export; whitespace checks. Local Chrome fixture cases
+  passed cancel/end failure/retry/success and remote end with menu/chat open,
+  followed by tappable room controls and new table creation. All browser APIs
+  are intercepted; no production account/game writes. Exact test commands and
+  physical-device matrix are in `client/TESTFLIGHT.md`.
+- Limitations: no signed native compilation, UIKit/VoiceOver/device acceptance,
+  EAS upload or deployment claimed. Simulator access is unavailable in the
+  sandbox; lifecycle mocks and browser checks cannot prove the physical iPhone
+  freeze is eliminated. Exact next step: user review/commit/push, create a new
+  iOS/TestFlight build, then run the two-phone waiting Call Break end/reentry and
+  remote-open-dialog scenarios plus Flush/Marriage equivalents. Build 3 cannot
+  receive this client change from a backend deployment. No commit/push performed.

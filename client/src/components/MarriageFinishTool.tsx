@@ -1,7 +1,8 @@
+import { GameModal as Modal } from './GameModal';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useMemo } from 'react';
-import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import type { MarriageCard, MarriageMeld } from '../multiplayer/marriage';
 import { marriageFace } from '../multiplayer/marriage';
 import { dubleeFinishProgress, finishingGaps, isMarriageWild, normalFinishProgress, type SeenMaal } from '../multiplayer/marriageFinishProgress';

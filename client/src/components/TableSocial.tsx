@@ -14,6 +14,7 @@ import type { PlayerPhrase } from '../multiplayer/pokes';
 import { FormFooter } from './FormFooter';
 import { PlayerAvatar } from './PlayerAvatar';
 import { RoomSheet } from './RoomSheet';
+import { GameModalContent } from './GameModal';
 import { ChatMessage } from './ChatMessage';
 import { useTranslation } from 'react-i18next';
 import { ChatComposer } from './ChatComposer';
@@ -210,6 +211,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
   const iconStyle = { minWidth:44, minHeight:44, alignItems:'center' as const, justifyContent:'center' as const };
   return <Context.Provider value={{pokeMode,eligible,poke,effects,anchor,openChat,canRead,chatOpen:open&&canRead,overlayOpen:(open&&canRead)||pokeMode||targetPlayer!==null,registerSeat}}>
     <View ref={root} collapsable={false} style={{flex:1,minHeight:0,minWidth:0,width:'100%'}} onLayout={measureRoot}>
+      <GameModalContent>
       {children}
       {flights.map(flight => <TableReactionFlight key={flight.event.id} flight={flight} recipient={flight.event.recipient_id === userId}
         onComplete={() => setFlights(current => current.filter(item => item.event.id !== flight.event.id))} />)}
@@ -280,6 +282,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
           </View> : <Text style={{color:c.textMuted}}>{ui("social.waiting_players_can_read_take_a_seat_to_chat")}</Text>}
         </View>
       </RoomSheet>}
+      </GameModalContent>
     </View>
   </Context.Provider>;
 }

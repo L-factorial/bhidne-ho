@@ -1,6 +1,7 @@
+import { GameModal as Modal } from '../GameModal';
 import { useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Modal, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import type { Session } from '../../multiplayer/session';
 import { sharedRequest } from '../../multiplayer/api';
 import { useUiLanguage } from '../../i18n/useUiLanguage';

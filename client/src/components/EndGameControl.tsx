@@ -11,6 +11,10 @@ export function EndGameControl({ busy, onEnd, compact = false, table = false }: 
   const label = table ? ui("rooms.end_table") : ui("rooms.end_game");
   const confirmation = table ? ui("common.confirm_end_table_help") : ui("common.confirm_end_game_help");
   const [confirming, setConfirming] = useState(false);
+  function confirmEnd() {
+    setConfirming(false);
+    void onEnd();
+  }
   const button = (label: string, onPress: () => void) => <Pressable accessibilityRole="button"
     accessibilityLabel={label} disabled={busy} accessibilityState={{ disabled: busy }} onPress={onPress}
     style={{ minHeight: 44, padding: 12, justifyContent: 'center', opacity: busy ? 0.5 : 1 }}>
@@ -21,7 +25,7 @@ export function EndGameControl({ busy, onEnd, compact = false, table = false }: 
     <RoomSheet visible={confirming} presentation="dialog" title={table ? ui("rooms.end_this_table") : ui("rooms.end_this_game")} closeLabel={ui("rooms.cancel_ending_table")} onClose={() => setConfirming(false)}>
       <Text accessibilityRole="alert" style={{ color: colors.text, fontFamily: fonts.body }}>{confirmation}</Text>
       {button(ui("common.keep_playing"), () => setConfirming(false))}
-      {button(ui("common.action_everyone", { "action": label }), () => { void onEnd(); })}
+      {button(ui("common.action_everyone", { "action": label }), confirmEnd)}
     </RoomSheet>
   </View>;
   return <View style={{ backgroundColor: colors.surface, paddingHorizontal: 12, borderRadius: 8 }}>
@@ -31,7 +35,7 @@ export function EndGameControl({ busy, onEnd, compact = false, table = false }: 
       </Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
         {button(ui("common.keep_playing"), () => setConfirming(false))}
-        {button(ui("common.action_everyone", { "action": label }), () => { void onEnd(); })}
+        {button(ui("common.action_everyone", { "action": label }), confirmEnd)}
       </View>
     </> : button(label, () => setConfirming(true))}
   </View>;

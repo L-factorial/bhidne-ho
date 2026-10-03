@@ -1,5 +1,6 @@
+import { GameModal as Modal } from './GameModal';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Modal, Platform, Pressable, Text, useWindowDimensions, View } from 'react-native';
+import { Platform, Pressable, Text, useWindowDimensions, View } from 'react-native';
 import { fonts, useTheme } from '../theme';
 import { ui } from '../i18n/copy';
 

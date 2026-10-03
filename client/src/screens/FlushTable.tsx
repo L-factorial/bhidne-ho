@@ -1,3 +1,4 @@
+import { GameModal as Modal } from '../components/GameModal';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { HandAreaBar } from '../components/HandAreaBar';
@@ -14,7 +15,7 @@ import { FlushMenu } from '../components/FlushMenu';
 import { GameTableHeader } from '../components/GameTableHeader';
 import { flushDecision } from '../multiplayer/flushDecision';
 import { type ReactNode, useEffect, useState } from 'react';
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import type { RoomSnapshot } from './LiveGameTable';
 import { FlushFoldNotice } from '../components/FlushFoldNotice';
