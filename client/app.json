@@ -7,10 +7,17 @@
     "userInterfaceStyle": "light",
     "backgroundColor": "#4B0D0D",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.lfactorial.bhidne-ho",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -31,6 +38,11 @@
       "expo-secure-store",
       "expo-web-browser"
     ],
-    "scheme": "bhidneho"
+    "scheme": "bhidneho",
+    "extra": {
+      "eas": {
+        "projectId": "871109b4-8ebb-45ea-9899-d852ac7acc1c"
+      }
+    }
   }
 }
