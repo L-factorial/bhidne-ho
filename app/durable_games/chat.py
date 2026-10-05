@@ -97,6 +97,8 @@ class ChatIngress:
                     entry = previous  # Same request remains resolvable after departure/deletion.
                 else:
                     await authorize_chat(connection, target, actor, write=True, checkpoints=self.checkpoints)
+                    if getattr(self,'ephemeral_limits',None) is not None:
+                        await self.ephemeral_limits.consume(actor,request,durable=True,connection=connection)
                     entry = await self.inbox.enqueue_in_transaction(connection, lane, actor, request.model_dump(mode='json'))
         submitted(target, entry, previous is not None)
         if self.wakeup is not None and entry.status == 'pending':
@@ -151,7 +153,9 @@ class ChatLaneExecutor:
                 detail = str(error)
             except ValidationError:
                 detail = 'Invalid chat text.'
-            sender = await (await claim.connection.execute('SELECT id FROM users WHERE id=%s FOR KEY SHARE',
+            sender = await (await claim.connection.execute('''SELECT u.id,COALESCE(NULLIF(p.display_name,''),a.username)
+                FROM users u LEFT JOIN user_profiles p ON p.user_id=u.id
+                LEFT JOIN account_credentials a ON a.user_id=u.id WHERE u.id=%s FOR KEY SHARE OF u''',
                 (user_uuid(actor),))).fetchone()
             if sender is None:
                 detail = 'Chat sender is unavailable.'
@@ -165,7 +169,8 @@ class ChatLaneExecutor:
                 message = dict(type='CHAT_MESSAGE', id=str(identity), scope=target.kind.removesuffix('_chat'),
                     room_id=target.room_id, table_id=str(target.table_id) if target.table_id else None,
                     game_id=str(target.game_id) if target.game_id else None, sender_id=actor,
-                    text=text, sent_at=now.isoformat())
+                    text=text, sent_at=now.isoformat(), command_id=request.command_id,
+                    sender_name=sender[1] or actor)
                 outgoing.append(OutgoingEvent(message))
                 # Allocate outbox sequence and write message in this same transaction.
                 # The lane lock makes the message's first emitted sequence stable.

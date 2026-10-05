@@ -34,7 +34,7 @@ class SignalCodec:
         return json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()
 
     def encode(self, kind, destination, *, room_id=None, lane_id=None, epoch=None, nonce=None,
-               event_id=None, sequence=None):
+               event_id=None, sequence=None, content=None):
         body = dict(v=1, kind=kind, destination=destination, at=time.time(), nonce=nonce or uuid4().hex)
         if kind in ('wakeup', 'placement'):
             body['room_id'] = room_id
@@ -42,6 +42,10 @@ class SignalCodec:
             body.update(lane_id=str(lane_id), epoch=epoch)
         if kind == 'delivery':
             body.update(lane_id=str(lane_id), event_id=str(event_id), sequence=sequence)
+            if content is not None:
+                body['content'] = content
+        if kind == 'ephemeral':
+            body['content'] = content
         self._validate(body)
         body['mac'] = hmac.new(self._secret, self._json(body), hashlib.sha256).hexdigest()
         result = self._json(body)
@@ -69,7 +73,15 @@ class SignalCodec:
             fields.update(('lane_id', 'epoch'))
         if kind == 'delivery':
             fields.update(('lane_id', 'event_id', 'sequence'))
-        if kind not in ('wakeup', 'placement', 'probe', 'delivery') or set(body) != fields or type(body['v']) is not int or body['v'] != 1:
+            if 'content' in body:
+                fields.add('content')
+                if not isinstance(body['content'], dict):
+                    raise ValueError('Invalid delivery content.')
+        if kind == 'ephemeral':
+            fields.add('content')
+            if not isinstance(body.get('content'),dict) or set(body['content'])!={'target','payload'}:
+                raise ValueError('Invalid ephemeral content.')
+        if kind not in ('wakeup', 'placement', 'probe', 'delivery','ephemeral') or set(body) != fields or type(body['v']) is not int or body['v'] != 1:
             raise ValueError('Unsupported signal envelope.')
         for key in ('destination', 'nonce', 'room_id'):
             if key in body and (not isinstance(body[key], str) or not body[key].strip() or len(body[key]) > 128):
@@ -114,9 +126,10 @@ class RedisSignalTransport:
                 or retry_max < retry_base or on_health is not None and not callable(on_health)):
             raise ValueError('Invalid Redis transport configuration.')
         self.client, self.instance_id, self.namespace = client, instance_id, namespace
-        self.codec = SignalCodec(secret)
+        self.codec = SignalCodec(secret, max_bytes=524288)
         self.wakeup_receiver, self.placement_receiver, self.on_health = wakeup_receiver, placement_receiver, on_health
         self.delivery_receiver = delivery_receiver
+        self.ephemeral_receiver = None
         self.workers, self.queue = workers, asyncio.Queue(maxsize=max_pending)
         self.operation_timeout, self.probe_interval, self.probe_timeout = operation_timeout, probe_interval, probe_timeout
         self.retry_base, self.retry_max, self.owns_client = retry_base, retry_max, owns_client
@@ -194,7 +207,13 @@ class RedisSignalTransport:
         if not isinstance(notice, DeliveryWakeup) or destination != notice.instance_id:
             raise ValueError('Delivery destination mismatch.')
         return await self._publish(destination, self.codec.encode('delivery', destination,
-            lane_id=notice.lane_id, event_id=notice.event_id, sequence=notice.sequence))
+            lane_id=notice.lane_id, event_id=notice.event_id, sequence=notice.sequence, content=notice.content))
+
+    async def send_ephemeral(self, destination, notice):
+        from .ephemeral import EphemeralNotice
+        if not isinstance(notice,EphemeralNotice) or destination!=notice.instance_id:
+            raise ValueError('Ephemeral destination mismatch.')
+        return await self._publish(destination,self.codec.encode('ephemeral',destination,content=notice.content))
 
     async def _dispatch(self):
         while True:
@@ -206,9 +225,13 @@ class RedisSignalTransport:
                             self.instance_id, body['epoch']))
                     elif body['kind'] == 'placement':
                         await self.placement_receiver.receive(PlacementDemand(body['room_id'], self.instance_id))
+                    elif body['kind']=='ephemeral':
+                        if self.ephemeral_receiver is not None:
+                            from .ephemeral import EphemeralNotice
+                            await self.ephemeral_receiver.receive(EphemeralNotice(self.instance_id,body['content']))
                     elif self.delivery_receiver is not None:
                         await self.delivery_receiver.receive(DeliveryWakeup(self.instance_id, UUID(body['lane_id']),
-                            UUID(body['event_id']), body['sequence']))
+                            UUID(body['event_id']), body['sequence'], body.get('content')))
             except Exception:
                 event('redis_dispatch_failed')
                 self.dispatch_failures += 1

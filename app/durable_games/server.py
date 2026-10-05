@@ -16,12 +16,13 @@ from .delivery import _join_cleanup
 class DistributedServer:
     def __init__(self, *, runtime, discovery, signals, presence, gateway, publisher,
                  social, polling, pool, redis, owns_pool=False, owns_redis=False,
-                 max_requests=4096):
+                 max_requests=4096, generation=None):
         if type(max_requests) is not int or max_requests < 1:
             raise ValueError('Invalid request capacity.')
         self.runtime, self.discovery, self.signals = runtime, discovery, signals
         self.presence, self.gateway, self.publisher = presence, gateway, publisher
         self.social, self.polling = social, polling
+        self.generation = generation
         self.pool, self.redis = pool, redis
         self.owns_pool, self.owns_redis = owns_pool, owns_redis
         self.max_requests = max_requests
@@ -58,6 +59,9 @@ class DistributedServer:
                 for name in ('runtime', 'presence', 'gateway', 'social', 'signals', 'publisher', 'discovery'):
                     self._attempted.add(name)  # Include partially completed starts.
                     await getattr(self, name).start()
+                if self.generation is not None:
+                    self._attempted.add('generation')
+                    await self.generation.start()
                 self.state = 'running'
             except BaseException:
                 self.state = 'stopping'
@@ -93,7 +97,7 @@ class DistributedServer:
         for task in requests:
             task.cancel()
         await asyncio.gather(*requests, return_exceptions=True)
-        for name in ('social', 'publisher', 'gateway', 'presence', 'runtime'):
+        for name in ('generation', 'social', 'publisher', 'gateway', 'presence', 'runtime'):
             await stop(name)
         if errors:
             # A failed stop is not proof that its tasks no longer use the pool.
@@ -135,6 +139,7 @@ def build_server(pool, redis, *, internal_address, signal_secret, auth, allowed_
     runtime = RoomExecutionRuntime(pool, internal_address, max_rooms=max_rooms,
                                    maintenance_workers=min(2, max_rooms), inbox_polling=polling)
     instance = runtime.leases.registration.instance_id
+    runtime.inbox.checkpoints.retain_view_transitions = True
     coordinator = RoomOwnerCoordinator(runtime)
     receiver = RoomWakeupReceiver(runtime)
     store = PostgresDeliveryStore(pool)
@@ -147,9 +152,11 @@ def build_server(pool, redis, *, internal_address, signal_secret, auth, allowed_
         delivery_receiver=gateway)
     discovery = RoomPlacementDiscovery(coordinator, send_remote=signals.send_placement)
     publisher = OutboxPublisher(store, presence, signals.send_delivery)
+    from .view_generation import ViewGenerationWorker
+    generation = ViewGenerationWorker(pool, presence)
     server = DistributedServer(runtime=runtime, discovery=discovery, signals=signals,
         presence=presence, gateway=gateway, publisher=publisher, social=social,
-        polling=polling, pool=pool, redis=redis, owns_pool=owns_pool, owns_redis=owns_redis)
+        polling=polling, pool=pool, redis=redis, owns_pool=owns_pool, owns_redis=owns_redis, generation=generation)
     server.allowed_origins = frozenset(allowed_origins)
     read_cache = ReadCache(redis, namespace=namespace)
     server.platform = SharedPlatform(pool, auth, guest_login_enabled=guest_login_enabled, cache=read_cache)
@@ -161,9 +168,16 @@ def build_server(pool, redis, *, internal_address, signal_secret, auth, allowed_
         # from the persisted lane and accepts only the lane ID.
         return await router.wake(lane_id)
 
+    from .ephemeral import EphemeralService, EphemeralLimits
+    ephemeral = EphemeralService(pool, presence, signals, gateway,
+        EphemeralLimits(redis, pool, namespace=namespace))
+    chat_ingress = ChatIngress(runtime.inbox, wakeup=wake_room_lane)
+    social_ingress = SocialIngress(runtime.inbox, wakeup=social.wake)
+    chat_ingress.ephemeral_limits = social_ingress.ephemeral_limits = ephemeral.limits
+    signals.ephemeral_receiver = ephemeral
     server.router = create_router(auth=auth, hosted=HostedCommandIngress(runtime.inbox, wakeup=wake_room_lane),
-        chat=ChatIngress(runtime.inbox, wakeup=wake_room_lane),
-        social=SocialIngress(runtime.inbox, wakeup=social.wake), gateway=gateway,
+        chat=chat_ingress, social=social_ingress, gateway=gateway,
         allowed_origins=server.allowed_origins, reads=DistributedReads(pool, cache=read_cache), catalog=PostgresRoomCreation(pool),
-        presence=presence, presence_room=store.presence_room, admission=server.admission)
+        presence=presence, presence_room=store.presence_room, admission=server.admission,
+        ephemeral=ephemeral)
     return server

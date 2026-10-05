@@ -7,7 +7,7 @@ from app.durable_games.store import DurableGameConflict
 from test_checkpoint_store import database
 
 
-async def test_atomic_room_creation_retry_tombstone_and_catalog_privacy(database):
+async def test_atomic_room_creation_retry_tombstone_and_public_catalog(database):
     pool, store, fence, users = database
     catalog, queries = PostgresRoomCreation(pool), PostgresHostedQueries(pool)
     body = dict(command_id=uuid4().hex, name='Private', visibility='private')
@@ -18,7 +18,7 @@ async def test_atomic_room_creation_retry_tombstone_and_catalog_privacy(database
     assert (await queries.members(result['room_id'], users[0]))['items'] == users[:1]
     with pytest.raises(QueryAccessDenied):
         await queries.members(result['room_id'], users[-1])
-    assert result['room_id'] not in [r['room_id'] for r in (await queries.catalog(users[-1]))['items']]
+    assert result['room_id'] in [r['room_id'] for r in (await queries.catalog(users[-1]))['items']]
     await pool.execute('INSERT INTO deleted_rooms(id) VALUES (%s)', (result['room_id'],))
     assert await catalog.create(users[0], body) == result
     assert result['room_id'] not in [r['room_id'] for r in (await queries.catalog(users[0]))['items']]

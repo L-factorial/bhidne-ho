@@ -64,7 +64,7 @@ def test_signup_signin_identity_and_validation():
             assert client.post('/auth/signup', json={'email': 'signup@example.test', 'username': username, 'password': password}).status_code == 422
 
 
-def test_created_room_is_private_to_owner_feed_until_joined_and_accounts_can_chat():
+def test_created_room_is_public_and_accounts_can_chat():
     app = create_app()
     with TestClient(app) as client:
         alice, bob = register(client), register(client, 'bob')
@@ -72,7 +72,7 @@ def test_created_room_is_private_to_owner_feed_until_joined_and_accounts_can_cha
         assert room_response.status_code == 201
         room = room_response.json()
         assert room['name'] == 'Test table' and room['members'] == [alice['user_id']]
-        assert client.get('/rooms', headers=headers(bob)).json() == []
+        assert client.get('/rooms', headers=headers(bob)).json()[0]['room_id'] == room['room_id']
         assert client.post(f"/rooms/{room['room_id']}/invitations", headers=headers(alice),
                            json={'invitees':[bob['user_id']]}).status_code == 200
         url = f"/ws/rooms/{room['room_id']}?token="

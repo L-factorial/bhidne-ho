@@ -5893,3 +5893,451 @@ chat and Friends UI changes and authorized implementation with “go ahead”.
 - Verified Expo's resolved public configuration points to the existing asset.
   Next: user commits/pushes the asset and config, pulls on the build machine,
   and runs the production iOS EAS build. No build upload or deployment performed.
+
+
+### Direct two-host production deployment — 2026-10-03 PDT
+
+- User explicitly authorized deploying the current build to both app servers
+  without waiting for GitHub deployment. Released committed merge revision
+  `40f6099c073c070b71b786330599115481afc3e4`; both hosts previously ran `02cbe92`.
+- Built `deploy/Dockerfile.production` from a tracked-source Git archive on app1.
+  The host's legacy builder produced an incomplete Docker-save archive; app2's
+  candidate metadata check refused it before any live application changes.
+  Installed only Ubuntu's docker-buildx plugin (no Docker engine upgrade/restart)
+  and rebuilt with BuildKit. Verified all 13 layers and revision metadata in the
+  complete archive, and its SHA-256 checksum after transfer.
+- Both hosts now run identical local immutable image ID
+  `sha256:02a9a54e425b287506769618b48b9f335504d9d4721bf09a5b78047718b0e578`.
+  This is a sideloaded image ID, not a published GHCR reference. Administrator
+  adapter `/var/tmp/bhidne-direct-release-40f6099.py` uses the installed release
+  helper in memory, substituting this verified image ID for registry resolution.
+  Installed receiver/configuration files are unchanged. Release locking, schema
+  and Redis checks, restricted containers, peer-health/readiness checks and
+  backend/frontend rollback safeguards remain in use.
+- Ran candidate checks and staged assets on both hosts, replaced backends
+  sequentially, then activated both frontends only after both backends were
+  healthy. No database migration/reset or runtime-environment change was needed.
+- Verification: image build passed all 330 frontend tests, TypeScript and
+  production web export; 58 focused backend/release tests passed locally. Both
+  hosts report healthy revision `40f6099` with identical image IDs, frontend
+  symlinks, index hashes and served JavaScript hashes. Public API health, frontend
+  index and JavaScript asset also match over HTTPS. Evidence is in local
+  `/private/tmp/bhidne-direct-40f6099-verification.json`.
+- No GitHub workflow dispatch, image publication, source push or native build
+  upload performed. Installed native apps require a fresh native release to
+  receive client changes; backend/web rollout does not update their bundles.
+- Exact next step: verify the two-player native/device matrix against the live
+  backend using a fresh native build and inspect real disconnect diagnostics.
+  Review/commit this deployment handoff separately; existing deployment assets
+  and the previous managed containers remain available for recovery.
+
+### Authorized pushed-view and ephemeral-chat plan — 2026-10-05 PDT
+
+The user approved implementation after discussing these delivery semantics:
+
+- Game commands/state remain durable and fenced. Replace ordinary game
+  notification-triggered snapshot reads with automatically generated authorized
+  view deltas, not a duplicate client game engine. Changed arrays are initially
+  replaced whole. Optional semantic events may drive animation only.
+- Keep per-player projection/comparison out of the gameplay transaction. Commit
+  durable generation intent and immutable transition inputs with state/receipts;
+  generate exact before/after views asynchronously, persist output idempotently,
+  then publish via Redis to connection servers and authenticated WebSockets.
+- Target active subscribers; offline/rejoining clients fetch snapshots. Presence
+  is advisory and cannot grant access. Recheck current authorization before
+  delivery, including private seat/match identity, blocking and moderation.
+- Apply patches atomically against matching identity/revisions/checksums; ignore
+  duplicate/older updates. Reconcile gaps, mismatches, unsupported versions,
+  reconnects and stale command outcomes. Retain the 30-second fallback, postponed
+  by successful authoritative pushes; preserve independent receipt retries.
+- Room chat stays durable, with committed message-content pushes and local merge
+  by ID/sequence. Entry/reconnect/gaps recover history.
+- In-game chat becomes ephemeral, with bounded client-memory history, direct
+  Redis/WebSocket delivery and no DB writes, inbox, outbox, retry or replay.
+  Missing messages are acceptable. Pokes likewise become ephemeral, deduplicated
+  and expiring. Authorization may still read the DB. Preserve posting permissions,
+  rate limits, blocking/moderation and private recipients; do not silently turn
+  existing write-based policy checks into unbounded posting.
+- Preserve historical stored chat and existing table-chat semantics unless the
+  user explicitly extends scope. Audit original UI routing: its visible in-game
+  chat must use the ephemeral path even if it previously selected a durable
+  table-chat lane. Keep deliberate persistent table chat distinct.
+- Negotiate client capabilities so old clients retain safe existing behavior.
+  Bound payloads, generation concurrency, pending work and socket queues. If a
+  transition cannot be delivered as a patch, signal snapshot reconciliation.
+  Production enablement waits for complete integration and verification.
+
+Reviewable increments:
+
+- [x] D1. Shared patch/checksum codec and opt-in immutable transition inputs.
+- [x] D2. Bounded post-commit generation worker, exact authorized projections,
+  idempotent output, ordered claims and snapshot-recovery output.
+- [x] D3. Authenticated recipient-aware Redis payload transport, current-access
+  checks, capability negotiation and direct durable room-chat delivery.
+- [x] D4. Client patch installation, native-compatible checksum implementation,
+  push/read race protection, fallback clock and command/reconnect recovery.
+- [x] D5. Ephemeral in-game chat and pokes with preserved authorization/policy,
+  bounded queues and no persistence or replay; original UI integration.
+- [x] D6. Integrated multi-gateway failure/recovery checks, browser/native limits,
+  request/latency/payload evidence and rollout review.
+
+### D1: delta codec and exact transition retention — 2026-10-05 PDT
+
+- Existing engine history retains revisions, but the table recovery document is
+  overwritten. Engine snapshots alone cannot reproduce historical table metadata
+  and authorized player views. Added additive migration 36 for immutable full
+  delivery checkpoints and generation jobs referencing contiguous table revisions.
+  Table revisions cover lifecycle changes as well as engine moves; game identity
+  and engine revisions remain separate in the eventual wire envelope.
+- `PostgresCheckpointStore(retain_view_transitions=True)` records inputs/intent in
+  the same fenced state transaction. Initial creation retains a baseline; enabling
+  on an existing table retains its prior baseline. Receipt retries append nothing,
+  and transaction aborts roll back state and generation records together.
+- Retention defaults to **false**, and no existing composition enables it. No
+  projection worker, Redis payload delivery or client patch application has been
+  activated. Existing deployed notification/fetch and chat/poke behavior remains.
+- Added matching Python/TypeScript version-1 patch codecs: recursive object
+  set/remove operations, whole-array replacement, base/result checksums and
+  identity/revision validation. Apply to detached values; mismatches, overlapping
+  paths, unsafe keys, unsupported JSON numbers, depth/size/operation overflow
+  require snapshot recovery. The Python generator verifies its own output.
+- Checksum input is an ASCII tagged JSON tree: object keys sorted by UTF-16 code
+  units, strings encoded as UTF-16 hex, finite safe integers/floats encoded as
+  big-endian IEEE-754 binary64, negative zero normalized to zero. SHA-256 output
+  avoids Python/JavaScript decimal-printing and Unicode-sort disagreements. The
+  TypeScript codec accepts an injected async digest; native digest wiring is D4.
+- Verification: 22 codec tests including actual JSON player views for all three
+  games; six PostgreSQL/WASM transition tests covering exact historical inputs,
+  retry/immutability, opt-in/default behavior, rollback and two phase-based empty
+  Tunnela declarations; checkpoint suite 14 passed; game-lane suite 16 passed.
+  All 341 frontend tests passed and TypeScript passed. Tests use a SHA-512-verified
+  cached PGlite 0.5.8 package extracted into `/private/tmp/bhidne-view-delta-tests`;
+  the previous temporary PGlite install was incomplete. No repository dependency
+  changes were needed. Full backend regression: 1,188 passed, 654 optional SQL
+  tests skipped, and one existing telemetry-listener test failed because sandbox
+  socket binding was denied. That exact test passed with local socket access;
+  two existing dependency deprecation warnings remain. Focused SQL tests above
+  ran with PGlite enabled. `git diff --check` passed.
+- Limits: full checkpoint retention adds durable bytes and serialization to the
+  commit path, but no per-player views are computed there. Retention/cleanup must
+  be bounded before enabling the worker; raw checkpoints remain trusted server
+  data and must never enter Redis/client payloads. Profile/room metadata used by
+  projection must be supplied consistently for before/after; checksum mismatch
+  safely reconciles independent changes. Migration is local only, not deployed.
+- Exact next step: D2. Read this plan, implement bounded generation claims that
+  serialize each table's pending transitions across workers; rebuild before/after
+  authorized views with the same HTTP projection rules; persist recipient outputs
+  and job completion atomically with claim-token fencing, plus an explicit
+  snapshot-recovery result for oversized/unsupported transitions. Include pruning
+  and backlog bounds before runtime retention is enabled. D3–D6 remain required.
+  No commit, push or deployment performed. Pre-existing deployment handoff edits
+  in this document were preserved.
+
+### D2: post-commit generation — 2026-10-05 PDT
+
+- Added bounded worker claims that admit only the earliest pending transition per
+  table, use expiring claim tokens, and atomically persist recipient outbox output
+  with completion. Output is built solely from retained before/after checkpoints.
+  Replacements and unsupported/oversized views yield snapshot-recovery markers.
+- Projection uses the same detached host and profile naming as HTTP. Room catalog
+  `tables` is excluded from the patch/checksum; it remains separately reconciled.
+  Patch ordering uses table revisions so table/lifecycle changes are covered.
+- Active table subscriptions register advisory `view:<table UUID>` presence.
+  Membership and private seat/match access are independently checked at delivery.
+- Completed generation inputs are pruned in bounded batches. Under sustained
+  failure, pending work caps at 64 per table by discarding unclaimed backlog;
+  the resulting revision gap requires a snapshot, never speculative acceptance.
+- Extended account erasure to discard generation inputs/jobs and replace related
+  delta payloads with recovery markers, preventing a late worker from restoring
+  erased identity. This is directly required by the new persisted source.
+- Verification: four PostgreSQL/WASM cases passed for all games, exact player
+  projection reproduction, duplicate finish, ordered claims, expired-token
+  rejection and checkpoint pruning. Runtime integration is under construction;
+  D3–D6 must pass before the combined change is ready. No commit/push/deployment.
+- Exact next step: D3, finish authenticated payload transport and negotiated
+  subscriptions, verify current-access redaction and legacy-client behavior.
+
+### D3: recipient-aware payload delivery — 2026-10-05 PDT
+
+- Signed, size-bounded Redis notices now carry committed event content. A modern
+  contiguous table stream sends it directly after a read-only current-access and
+  committed-row check; it does not construct a game snapshot or scan an event
+  page. Changed/moderated/erased rows override old Redis content. Sequence gaps
+  use durable catch-up. Slow subscribers are isolated in bounded worker batches.
+- READY advertises `view-delta-v1`/`ephemeral-v1`; clients opt in on SUBSCRIBE.
+  AUTH remains compatible. Old clients retain notification/fetch behavior. New
+  table/game clients receive ordinary semantic notifications as `VIEW_PENDING`,
+  while receipts, deltas and recovery markers retain their independent meanings.
+- Generation output checks current audience, membership, match and seat again at
+  delivery. Advisory view presence only selects work; it never grants access.
+  Oversized patches become recovery markers before reaching the client buffer.
+- Durable room chat carries committed message ID, command ID, sequence, sender
+  name and text. Client history merging removes the subsequent history HTTP read
+  on ordinary pushes. Entry, reconnect and discontinuities still recover history.
+- Verification: 54 focused delivery/generation/signalling/server/ephemeral tests
+  passed (one real-Redis case skipped in that run), followed by 41 transport,
+  authorization, generation and slow-socket tests. Existing account-erasure tests
+  also passed; late generation is explicitly fenced by removal of erased inputs.
+- Limitation: connection servers still read SQL for current authorization and
+  current committed payloads. This removes client snapshot requests and repeated
+  snapshot construction; it is not a zero-database-read delivery design.
+- Exact next step completed by D4 below. No commit, push or deployment.
+
+### D4: client state application and recovery — 2026-10-05 PDT
+
+- The authenticated root owns the selected view and applies generic patches to a
+  detached copy. Identity, revisions, base/result hashes and supported format must
+  all match before installation and ACK. The client does not reproduce game rules.
+- Native/browser SHA-256 uses typed arrays and ASCII canonical encoding, without
+  WebCrypto, TextEncoder, Node crypto or another native dependency. Independent
+  crypto vectors and shared Python/TypeScript fixtures agree.
+- Successful deltas advance the existing per-room/match 30-second fallback clock.
+  Gaps, corrupt payloads, resets and rejected commands reconcile immediately.
+  Reconnect restores snapshots. HTTP/push races cannot replace a newer view or
+  expose state from an obsolete selection. Accepted moves briefly await an
+  observed committed result, then fall back to an authorized read if needed.
+- Added local room-chat push observers; successful messages postpone its
+  30-second recovery read. Legacy room-chat polling keeps its previous interval.
+- Verification: 349 frontend tests and TypeScript passed at this increment;
+  production web export and iOS/Android Hermes exports passed. Chromium checks
+  independently applied the shared fixture and actual authorized views from all
+  three games, rejecting gaps, bad checksums and missing operations atomically.
+- Exact next step completed by D5 below. Physical-device/live-release validation
+  remains an operational release check; local exports are not device testing.
+  No commit, push or deployment.
+
+### D5: ephemeral game chat, pokes and reactions — 2026-10-05 PDT
+
+- Added an authenticated, bounded `/distributed/ephemeral` endpoint and signed
+  Redis/WebSocket delivery. Game chat expires for delivery after 30 seconds;
+  pokes/reactions after five. No game-state mutation, inbox, receipt, message row,
+  outbox, durable counter, replay or automatic retry is created by this path.
+- SQL authorization uses a **read-only transaction**, including membership,
+  exact current match/seat, posting permissions and blocks. Thus “no DB
+  transaction” means no DB **write** transaction here; DB authorization reads
+  remain necessary. Redis failure rejects live posting; lost publication is
+  acceptable. Receiver access and expiry are checked again before socket delivery.
+- Redis Lua atomically enforces a shared actor-wide 20/minute budget, normalized
+  duplicate-text rejection, 1.5-second poke cooldown and two-minute request-ID
+  deduplication. Durable ingress mirrors this budget and preserves its SQL policy
+  fallback; existing SQL counters supply a floor so switching paths cannot bypass
+  posting limits. Rate/dedup keys have TTLs and no game/message persistence.
+- Original UI in-game chat now uses this path with at most 100 locally retained
+  messages per match and five match buffers. Private pokes keep recipient filtering;
+  public reactions preserve target metadata for their renderer and spectators.
+  Expired chat is discarded by the client. Ephemeral-message reports target the
+  player, because no durable message exists for a message-history report.
+- Explicit persistent table chat and historical stored chat remain available.
+  Old clients keep their durable paths; capability negotiation protects rollout.
+- Verification: ten integrated generation/live-content tests passed using
+  isolated real Redis plus PostgreSQL/WASM. Tests prove zero SQL writes/revision
+  changes for chat, private pokes and public reactions; expiry, blocks and departure
+  suppress delivery. Real Lua tests verify shared budgets, deduplication, conflict,
+  cooldown and TTLs. Frontend tests cover bounded history, no snapshot fetch for
+  cached live posting, single delivery, expiry and durable room-chat pushes.
+- Exact next step: D6 final integrated regression/build review and evidence.
+  No commit, push or deployment; original document handoff edits preserved.
+
+### D6: completed integration and review handoff — 2026-10-05 PDT
+
+- Distributed server assembly now enables retention and starts/stops generation
+  with its existing lifecycle. All six increments are integrated locally. No
+  deployment, migration against a deployed DB, commit or push was performed.
+- Final generation refinements: rebuild before/after engines once per transition
+  and reuse them for authorized recipients; yield between recipient builds so
+  cancellation/deadlines run. No active subscribers means no projection work.
+  Backlog compaction also deletes orphaned inputs in bounded batches, so a down
+  worker cannot accumulate one retained checkpoint per subsequent move forever.
+- The complete room catalog remains outside the game checksum. Each result now
+  includes an authorized selected-table preview with its own checksum. The client
+  replaces/removes only that table's entry, preserving other room tables. This
+  fixes stale seat/phase summaries without another full snapshot read. Other
+  tables still use their existing room/catalog refresh paths.
+- View result notices target all gateways subscribed to that table, so every
+  stream can advance past other recipients' rows without artificial sequence
+  gaps. These private bytes remain within trusted Redis/server transport; current
+  SQL audience/seat/match checks filter them before a socket send. The real-Redis
+  two-gateway test uses the actual publisher and deliberately changes a signed
+  hint's checksum; committed SQL content overrides it and exact views still apply.
+  Missing publication catches up from durable output; departed seats cannot replay
+  formerly private results. Room chat retains durable history and direct local merge.
+- Erasure invalidates view outputs across affected rooms, including previews that
+  contain a deleted player's name without their ID appearing in the changed
+  fields. Tests cover already-generated output and fence a second in-flight job.
+  Explicit dealt-Tunnela declare **and** no-declare cases both retain contiguous
+  transitions and reproduce every authorized result exactly through the codec.
+- Verification: final focused backend suite **138 passed** with real isolated
+  Redis and PostgreSQL/WASM. Follow-up suites after the last publication/erasure
+  refinements: **37 passed** (publisher/server/live social), **18 passed** (erasure),
+  **43 passed** (signalling/presence/polling/bounds), and **5 passed** (platform).
+  Frontend **350 passed**, TypeScript passed, production web export passed, and
+  iOS/Android Hermes exports passed with `distributed-original` enabled.
+- Full PostgreSQL/WASM-enabled backend regression: **1,813 passed, 37 optional
+  external-service cases skipped, two failures**. The telemetry listener failure
+  was sandbox socket binding; its elevated listener suite passed (also included
+  in the 138-case focused run). The platform assertion consumed an unrelated
+  worker SQL response because it bypassed the embedded harness connection lock.
+  Fixed those two count assertions to hold the connection; all five platform
+  tests then passed. This is a directly related test-harness correction, not a
+  production database or player-profile behavior change. Two existing dependency
+  deprecation warnings remain. Final `git diff --check` passed.
+- Request evidence: client tests assert **zero additional snapshot HTTP requests**
+  for a valid push/duplicate and selected-table preview; gaps and bad checksums
+  cause an immediate recovery request. Live posting from a cached view performs
+  no snapshot HTTP request and SQL tests assert no DB writes. SQL authorization
+  reads on gateways and on live posting are intentionally retained.
+- Sample codec evidence for one real authorized transition per game (compact
+  JSON, excluding the separate preview/envelope): Callbreak 1,706-byte delta vs
+  7,116-byte snapshot; Marriage 4,233 vs 8,342; Flush 985 vs 6,340. Chromium applied
+  these actual views and tested three recovery failures in approximately 10–22 ms
+  per sample total. These are local functional samples, not production latency,
+  capacity or physical-device measurements; small changes need not always produce
+  a smaller patch. Oversized patches deliberately recover with a snapshot.
+- Review/rollout order: review these uncommitted changes; obtain the user's
+  approval before any commit/push. Any later deployment must first make migration
+  36 available to all upgraded runtime processes, then roll out complete servers
+  and compatible clients. Old clients and older rolling gateways retain recovery
+  behavior; ephemeral losses during mixed-version rollout are acceptable. Fresh
+  native releases are needed for installed apps to receive these client changes.
+- Exact next step: **user review and approval for commit/push**. Capacity testing,
+  observability, DB HA deployment, physical-device/live-release checks and broader
+  operational readiness remain the subsequent task set; none was silently enabled.
+
+### UI increment — shared game attention header (2026-10-05)
+
+User explicitly extended the branch scope to implement the discussed game-section
+UI. Existing D1–D6 runtime changes remain uncommitted and intact.
+
+- Completed: Callbreak, Marriage and Flush share a collapsed row with Chat on the
+  left, an expandable attention header in the center, and Poke on the right.
+  Waiting players always receive the click/tap-to-expand affordance. Expanded
+  games display the same reactive header above the table and retain existing
+  expanded social controls.
+- Required actions take priority: bid/play, Marriage draw/discard/finish and
+  initial Tunnela declaration, Flush bets and authorized side-show responses.
+  Hand review and game/round results also receive cues. Marriage suggestions use
+  only the authorized private hand, exclude already-shown qualification cards,
+  and identify Dublee, Maal qualification and known Marriage opportunities.
+  Suggestions never authorize a game command.
+- The rounded header has a glowing border and exactly three animated rays on
+  either side. Required actions pulse while actionable; optional discoveries
+  animate briefly. Cue identity excludes snapshot revision and countdown changes.
+  Reduced-motion users receive static cues. English and Nepali copy are included.
+- Social state now lives above the expanded modal: collapse/expand preserves
+  history, unread counts and drafts. Presentation outlets keep social sheets
+  within native game-modal layering when expanded, while collapsed buttons open
+  social sheets directly. The previous collapsed notification sound remains;
+  its unused old opacity animation is disabled.
+- Verification: TypeScript passed; all 357 client tests passed, including seven
+  new attention tests covering stable cue identity, spectator privacy, declaration
+  gates, required-action priority, shown-card exclusion, known Maal identities,
+  side-show permissions and round settlement. Production web build and both iOS
+  and Android exports passed. `git diff --check` passed.
+- Limitations: builds and unit tests do not establish physical-device layout,
+  native modal transition or live multiplayer interaction correctness. Those
+  visual/interaction checks remain part of release review. No commit, push or
+  deployment was performed.
+- Exact next step: user review of the accumulated runtime and UI changes, with
+  approval required before commit/push. Capacity, observability, database HA and
+  operational readiness remain the subsequent task set.
+
+### Room increment — retire room privacy (2026-10-05)
+
+User explicitly extended scope: all rooms are public; remove the public/private
+choice throughout room UI.
+
+- Completed: removed visibility choices from both room creation screens and room
+  settings. Room cards no longer display public/private badges. Browse and friend
+  room labels now refer to rooms rather than public rooms, in English and Nepali.
+  `RoomPrivacySettings` is now `RoomInvitations`, retaining player discovery and
+  invitations without privacy controls.
+- Both memory/legacy and distributed creation paths default to public and persist
+  public visibility even if an older client supplies private/friends input.
+  Compatibility visibility endpoints/commands retain owner authorization but
+  preserve public visibility. Durable creation keeps legacy visibility input in
+  the idempotency fingerprint so retries of explicit old requests still match.
+  Recovered client creation receipts always describe a public room.
+- Migration **37** converts existing room rows to public, supplies the database
+  default, and installs a normalization trigger so older rolling servers cannot
+  recreate private rooms. The compatibility column remains for old clients and
+  SQL callers. Migration 36 from the earlier runtime increment remains intact.
+- All live rooms are discoverable and enterable by authenticated players. Room
+  membership, owner controls, private per-player game projections, moderation,
+  invitations and tombstones retain their separate access boundaries. Leaving a
+  room no longer requires an invitation to rejoin it.
+- Verification: TypeScript passed; all 357 client tests passed; production web
+  build passed. Targeted backend suite: 81 passed; the remaining active-table test
+  was updated for public discovery and passed on rerun (82 targeted checks total).
+  PostgreSQL/WASM migration regression passed, covering pre-existing rooms,
+  retained invitations, omitted visibility, and legacy private/friends writes.
+  Distributed migration upgrade/idempotency tests also passed. Diff check passed.
+- Deployment requirement: apply through migration **37** before running the new
+  room behavior. This intentionally makes formerly private rooms publicly
+  discoverable and joinable. No live dataset, commit, push or deployment changed.
+- Exact next step: user review of accumulated runtime/UI/room changes and approval
+  before commit/push. Operational readiness work remains the subsequent task set.
+
+### Push increment P1 — native delivery foundations (2026-10-05)
+
+User authorized the notification plan and direct APNs (iOS)/FCM (Android).
+Implementation proceeds without commit/push. Migration 38 adds session-bound
+native devices, notification preferences, committed game-generation jobs and a
+leased delivery queue. Jobs enqueue inside existing game/invitation transactions;
+provider network calls occur only in a separate worker. Old runtimes advertise
+no notification provider support. No real credentials or delivery is enabled yet.
+
+P1 is complete and verified by the P3 checks below. Credentials, Android Firebase
+configuration and physical-device delivery require operator setup before release.
+Browser push, chat push and poke push are outside this first release.
+
+### Push increment P2 — native opt-in and navigation (2026-10-05)
+
+- Added Expo SDK 57 native notifications and application-environment modules.
+  Profile settings offer device opt-in, game-action/invitation/sound preferences
+  and local quiet hours. Permission is requested only after explicit opt-in.
+- Native registration uses APNs/FCM device tokens, never Expo relay tokens. iOS
+  environment comes from the built app's entitlement. Android build configuration
+  accepts the operator's existing application ID and Google-services client file;
+  no published application ID was guessed or changed.
+- Foreground match activity is reported with an expiring lease. A current-game
+  alert is deferred while that lease is renewed; if the client disappears, its
+  lease expires and delivery can proceed while the alert is still valid. Native
+  foreground banners elsewhere obey the sound setting.
+- Cold-start and live notification taps validate the current account and target
+  identifiers, deduplicate delivery identities, and use the existing invitation/
+  selected-match flow to obtain current authorized state. Account changes abort
+  obsolete native operations. Logout/server session revocation cascades device
+  and queued-delivery removal. Account erasure also removes push preferences.
+- P2 is complete; P3 verification and operator documentation are recorded below.
+  No provider credentials have been configured or push sent.
+
+
+### Push increment P3 — verification and release handoff (2026-10-05)
+
+- Completed direct APNs/FCM delivery, committed queue generation, opt-in settings,
+  foreground activity leases and current-account notification navigation. Both
+  the production shared screen and explicit distributed integration screen support
+  notifications; tap targets fetch current authorized game state.
+- Required Callbreak alerts include manual shuffle/cut/deal, hand review, bidding
+  and play. Marriage declaration and draw/discard/finish and Flush betting/side-show
+  responses use authorized views. Local eligibility suggestions remain in-game.
+- Queue checks cover hosted invitations as well as room invitations, transaction
+  rollback, deduplication, foreground expiry, stale actions, session revocation,
+  preferences, blocks, concurrent claims and retries. Native transport tests cover
+  APNs signing/environment and FCM OAuth, expiry, silent channels and invalid tokens.
+  Token-bearing provider transport logs are suppressed during send operations.
+- Verification: 66 distinct targeted backend tests passed across the regression
+  run and focused rerun (25 final focused checks). The sole initial regression
+  failure was an old private-room discovery expectation; it now verifies the
+  approved public-room behavior while preserving membership/ledger boundaries.
+  All 360 client tests, TypeScript, production web build and iOS/Android bundle
+  exports passed. Python compilation and diff whitespace checks passed.
+- Added `docs/app-notifications.md` with migration 38, credentials, native build
+  configuration, delivery guarantees/limitations and physical-device release checks.
+  Credentials remain absent. No live push, database migration, deployment, commit
+  or push occurred. Native bundle export does not replace signed device testing.
+- Exact next step: operator supplies APNs credentials, Firebase service-account
+  credentials, existing Android application ID and native Firebase client config;
+  rebuild and test signed apps on physical devices before release. User approval
+  is still required before committing/pushing accumulated changes. Capacity,
+  observability, database HA and operational readiness remain the next task set.

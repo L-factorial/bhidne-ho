@@ -44,6 +44,11 @@ class SharedPlatform:
         self.blocks = BlockService(pool)
         from app.moderation.service import ModerationService
         self.moderation = ModerationService(pool)
+        from app.push.providers import NativeProviders
+        from app.push.service import PushService
+        from app.push.worker import PushWorker
+        self.push = PushService(pool, NativeProviders.from_environment())
+        self.push_worker = PushWorker(pool, self.push.providers)
         self.auth = auth
         self.profiles = CachedProfiles(pool, cache) if cache else PostgresPlayerProfileService(pool)
         from app.multiplayer.player_phrases import PostgresPlayerPhraseService
@@ -67,6 +72,8 @@ class SharedPlatform:
         from app.social_auth import browser_http
         from app.player_blocks import http as block_http
         from app.moderation import http as moderation_http
+        from app.push import http as push_http
+        app.state.push = self.push
         app.state.moderation = self.moderation
         app.state.blocks = self.blocks
         app.state.recovery = self.recovery
@@ -80,6 +87,7 @@ class SharedPlatform:
         router = APIRouter()
         # Exact method/path contracts, not an entire legacy router or prefix.
         reviewed = (
+            (push_http.router, push_http.CONTRACTS),
             (block_http.router, block_http.CONTRACTS),
             (moderation_http.router, moderation_http.CONTRACTS),
             (recovery_http.router, recovery_http.CONTRACTS),

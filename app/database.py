@@ -6,6 +6,7 @@ application starts cannot race schema installation.
 """
 
 from psycopg_pool import AsyncConnectionPool
+from app.push.schema import PUSH_SCHEMA
 from app.account_deletion.schema import DELETION_SCHEMA
 from app.player_blocks.schema import BLOCK_SCHEMA
 from app.moderation.schema import MODERATION_SCHEMA
@@ -14,6 +15,7 @@ from app.auth.recovery_schema import RECOVERY_SCHEMA, RECOVERY_DELIVERY_SCHEMA, 
 
 from app.distributed_schema import DELIVERY_RECOVERY_SCHEMA, HOSTED_RECEIPT_SCHEMA, INBOX_REQUEST_SCHEMA, INSTANCE_REGISTRATION_SCHEMA, HOSTED_MATCH_ARCHIVE_SCHEMA, FLUSH_ROUND_ARCHIVE_SCHEMA
 from app.distributed_schema import HOSTED_INVITATION_SCHEMA, SCOPED_CHAT_SCHEMA
+from app.durable_games.view_transition import VIEW_TRANSITION_SCHEMA
 
 
 SCHEMA = """
@@ -697,6 +699,23 @@ MIGRATIONS = (
     (33, BLOCK_SCHEMA),
     (34, MODERATION_SCHEMA),
     (35, ENFORCEMENT_SCHEMA),
+    (36, VIEW_TRANSITION_SCHEMA),
+    (37, """
+        -- Room privacy is retired. Preserve the compatibility column and force
+        -- public visibility even for writes from older rolling runtime servers.
+        UPDATE rooms SET visibility='public' WHERE visibility<>'public';
+        ALTER TABLE rooms ALTER COLUMN visibility SET DEFAULT 'public';
+        CREATE FUNCTION rooms_public_visibility() RETURNS trigger AS $$
+        BEGIN
+            NEW.visibility := 'public';
+            RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
+        CREATE TRIGGER rooms_public_visibility
+            BEFORE INSERT OR UPDATE OF visibility ON rooms
+            FOR EACH ROW EXECUTE FUNCTION rooms_public_visibility();
+    """),
+    (38, PUSH_SCHEMA),
 )
 
 

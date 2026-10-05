@@ -10,17 +10,18 @@ from test_durable_room_commands import run
 from test_delivery import sql
 
 
-async def test_private_creation_notifies_only_creator_and_invitee_and_retry_does_not_duplicate(database):
+async def test_default_creation_notifies_lobby_creator_and_invitee_and_retry_does_not_duplicate(database):
     pool,_,_,users=database
     creator=PostgresRoomCreation(pool)
     body=dict(command_id=uuid4().hex,name='Private',invitees=[users[1]])
     await creator.create(users[0],body)
     before=await sql(pool,"SELECT l.kind,l.recipient_id,o.payload FROM notification_outbox o JOIN command_lanes l USING(lane_id) WHERE event_type='LOBBY_CHANGED'")
-    assert len(before)==2
-    assert {r[1] for r in before}=={UUID(u[5:]) for u in users[:2]}
-    assert all(r[0]=='recipient' and r[2]=={'type':'LOBBY_CHANGED'} for r in before)
+    assert len(before)==3
+    assert {r[1] for r in before if r[0]=='recipient'}=={UUID(u[5:]) for u in users[:2]}
+    assert {r[0] for r in before}=={'recipient','lobby'}
+    assert all(r[2]=={'type':'LOBBY_CHANGED'} for r in before)
     await creator.create(users[0],body)
-    assert await sql(pool,"SELECT count(*) FROM notification_outbox")==[(2,)]
+    assert await sql(pool,"SELECT count(*) FROM notification_outbox")==[(3,)]
 
 
 async def test_public_creation_signal_is_authorized_minimal_and_transactional(database,monkeypatch):
@@ -50,7 +51,7 @@ async def test_leave_and_delete_notify_former_members_on_personal_lanes(database
     pool,_,fence,users=database
     assert (await run(pool,fence,users[1],'leave-room'))['status']=='accepted'
     assert (await run(pool,fence,users[0],'delete-room'))['status']=='accepted'
-    rows=await sql(pool,"SELECT DISTINCT recipient_id FROM notification_outbox JOIN command_lanes USING(lane_id) WHERE event_type='LOBBY_CHANGED'")
+    rows=await sql(pool,"SELECT DISTINCT recipient_id FROM notification_outbox JOIN command_lanes USING(lane_id) WHERE event_type='LOBBY_CHANGED' AND recipient_id IS NOT NULL")
     assert {r[0] for r in rows}=={UUID(u[5:]) for u in users}
 
 
@@ -79,7 +80,7 @@ async def test_explicit_upgrade_preserves_old_dataset_and_is_idempotent():
             return await execute(statement,args,**kwargs)
         pool.execute=migration_execute
         await migrate_pool(pool);await migrate_pool(pool);await verify_dataset(pool)
-        assert await sql(pool,'SELECT name FROM rooms')==[('Existing',)]
+        assert await sql(pool,'SELECT name,visibility FROM rooms')==[('Existing','public')]
         await pool.execute("UPDATE runtime_dataset SET mode='legacy'")
         with pytest.raises(ValueError):await migrate_pool(pool)
     finally:await pool.close()

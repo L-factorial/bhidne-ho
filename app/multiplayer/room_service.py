@@ -56,12 +56,12 @@ class RoomService:
     async def has_membership(self, room_id: str, user_id: str) -> bool:
         return user_id in await self.members(room_id)
 
-    async def create(self, name: str, creator_id: str, visibility: str = "private") -> RoomSummary:
+    async def create(self, name: str, creator_id: str, visibility: str = "public") -> RoomSummary:
         async with self._lock:
             room_id = uuid4().hex[:12]
             while await self._catalog.get(room_id) is not None or await self._catalog.deleted(room_id) or room_id in self._rooms:
                 room_id = uuid4().hex[:12]
-            record = await self._catalog.create(room_id, name, creator_id, ("private" if visibility == "friends" else visibility))
+            record = await self._catalog.create(room_id, name, creator_id, "public")
             await self._catalog.join(room_id, creator_id)
             self._rooms.setdefault(room_id, set()).add(creator_id)
             # Feed source is viewer-relative and is assigned by list_rooms.
@@ -106,8 +106,8 @@ class RoomService:
         async with self._lock:
             room = await self.room(room_id)
             if not room or room["creator_id"] != user_id:
-                raise HTTPException(403, "Only the room owner can change privacy.")
-            await self._catalog.update_visibility(room_id, visibility)
+                raise HTTPException(403, "Only the room owner can update room settings.")
+            await self._catalog.update_visibility(room_id, "public")
             return await self.room(room_id)
 
     async def room(self, room_id):
@@ -116,12 +116,7 @@ class RoomService:
     async def can_enter(self, room_id, user_id, are_friends) -> bool:
         if await self._catalog.deleted(room_id):
             return False
-        room = await self.room(room_id)
-        if room is None or room["visibility"] == "public" or room["creator_id"] == user_id:
-            return True
-        if room_id in await self._catalog.joined(user_id):
-            return True
-        return any(i["room_id"] == room_id for i in await self._catalog.invitations_for(user_id))
+        return True
 
     async def delete(self, room_id: str) -> bool:
         async with self._lock:
@@ -149,8 +144,6 @@ class RoomService:
                 is_joined = (rid in joined or viewer_id in members) and not is_owner
                 is_friend = bool(viewer_id and record["creator_id"] and are_friends
                                  and await are_friends(viewer_id, record["creator_id"]))
-                if not is_owner and not is_joined and record["visibility"] != "public":
-                    continue
                 source = "you" if is_owner else "joined" if is_joined else "friend" if is_friend else "public"
                 output.append(RoomSummary(**record, members=sorted(members),
                                           feed_source=source, creator_is_friend=is_friend))

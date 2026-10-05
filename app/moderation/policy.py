@@ -7,10 +7,11 @@ from .content import normalized, validate_content
 
 RULES_VERSION='2026-10-01'
 
-async def require_posting(connection,actor, *, text=None, category='message', consume=False):
+async def require_posting(connection,actor, *, text=None, category='message', consume=False, lock=True):
     uid=user_uuid(actor)
     # A policy update takes the exclusive counterpart before changing restrictions.
-    await connection.execute('SELECT revision FROM social_policy_revision FOR SHARE')
+    if lock:
+        await connection.execute('SELECT revision FROM social_policy_revision FOR SHARE')
     row=await (await connection.execute('''SELECT kind,muted_until>clock_timestamp() AS muted,suspended_until>clock_timestamp() AS suspended,
         EXISTS(SELECT 1 FROM community_acceptance WHERE user_id=u.id AND version=%s)
         FROM users u WHERE id=%s AND NOT deletion_pending AND NOT erased''',(RULES_VERSION,uid))).fetchone()

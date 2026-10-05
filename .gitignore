@@ -9,3 +9,8 @@ dist/
 
 # Dedicated load-test credentials, journals and reports
 .loadtest/
+
+# Native notification credentials and local Firebase client configuration
+.credentials/
+*.p8
+client/google-services.json

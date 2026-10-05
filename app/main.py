@@ -151,6 +151,8 @@ def create_app(*, runtime_mode="legacy", distributed_server=None) -> FastAPI:
     )
     from app.auth.recovery_http import router as recovery_router
     from app.moderation.public_policy import router as public_policy_router
+    from app.push.http import router as push_router
+    app.include_router(push_router)
     app.include_router(public_policy_router)
     app.include_router(recovery_router)
     from app.account_deletion.http import router as deletion_router

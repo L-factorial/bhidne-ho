@@ -14,7 +14,8 @@ from app.models.action import CommandId
 class CreateRoom(Record):
     command_id: CommandId
     name: Annotated[str, Field(min_length=1, max_length=60)]
-    visibility: Literal['public', 'private'] = 'private'
+    # Retain legacy input in the retry fingerprint, but never persist privacy.
+    visibility: Literal['public', 'private'] = 'public'
     invitees: list[Identity] = Field(default_factory=list, max_length=20)
 
 
@@ -53,7 +54,7 @@ class PostgresRoomCreation:
                             raise ValueError('Choose another existing player as invitation recipient.')
                     room_id = uuid5(NAMESPACE_URL, canonical_json(['room-create-v1', actor, body.command_id])).hex
                     await connection.execute('''INSERT INTO rooms(id,creator_id,name,visibility,creation_request_id,creation_fingerprint)
-                        VALUES (%s,%s,%s,%s,%s,%s)''', (room_id, identifier, name, body.visibility, body.command_id, fingerprint))
+                        VALUES (%s,%s,%s,%s,%s,%s)''', (room_id, identifier, name, 'public', body.command_id, fingerprint))
                     await connection.execute('INSERT INTO room_memberships(room_id,user_id) VALUES (%s,%s)', (room_id, identifier))
                     for recipient in dict.fromkeys(body.invitees):
                         invitation = uuid5(NAMESPACE_URL, canonical_json(['room-create-invite-v1', room_id, recipient])).hex

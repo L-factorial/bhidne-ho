@@ -22,7 +22,7 @@ async def test_room_invite_entry_privacy_and_deletion(database):
     pool, store, fence, users = database
     actor = users[-1]
     await pool.execute('DELETE FROM room_memberships WHERE user_id=%s', (UUID(actor[5:]),))
-    assert (await run(pool, fence, actor, 'enter-room'))['status'] == 'rejected'
+    assert (await run(pool, fence, actor, 'enter-room'))['status'] == 'accepted'
     assert (await run(pool, fence, actor, 'room-visibility', {'visibility':'public'}))['status'] == 'rejected'
     assert (await run(pool, fence, users[0], 'invite-room', {'recipients':[actor]}))['status'] == 'accepted'
     invitation = (await pool.execute('SELECT id FROM room_invitations')).rows[0][0]

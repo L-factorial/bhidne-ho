@@ -19,12 +19,15 @@ async def test_lobby_visibility_sources_profiles_and_pagination(database):
     await pool.execute("INSERT INTO room_invitations(id,room_id,inviter_id,recipient_id) VALUES ('invite','invited',%s,%s)",
                        (users[1], users[0]))
     queries = PostgresHostedQueries(pool)
-    first = await queries.lobby(users[0], limit=2)
-    second = await queries.lobby(users[0], after_room_id=first['next_room_id'], limit=2)
-    items = first['items'] + second['items']
-    assert second['next_room_id'] is None
+    items, cursor = [], ''
+    while True:
+        page = await queries.lobby(users[0], after_room_id=cursor, limit=2)
+        items.extend(page['items'])
+        if page['next_room_id'] is None: break
+        cursor = page['next_room_id']
     assert [(r['room_id'], r['feed_source']) for r in items] == [
-        ('friend', 'friend'), ('joined', 'joined'), ('public', 'public'), ('room', 'you')]
+        ('friend', 'friend'), ('hidden', 'friend'), ('invited', 'friend'),
+        ('joined', 'joined'), ('public', 'public'), ('room', 'you')]
     own = items[-1]
     assert own['members'] == users
     assert own['table_count'] == 0
@@ -35,7 +38,7 @@ async def test_lobby_visibility_sources_profiles_and_pagination(database):
     assert (await pool.execute('SELECT count(*) FROM notification_outbox')).rows == [(0,)]
     # An invitation is visible in its own inbox, without changing room membership.
     assert (await queries.room_invitations(users[0]))['items'][0]['room_id'] == 'invited'
-    assert 'invited' not in [r['room_id'] for r in items]
+    assert 'invited' in [r['room_id'] for r in items]
 
 
 @pytest.mark.parametrize('limit', [0, 101, True])
@@ -93,8 +96,6 @@ async def test_active_table_previews_do_not_grant_private_game_access(database):
     try:
         await store.save(capture_checkpoint(game, table_revision=0), expected_revision=None, fence=fence)
         query = PostgresHostedQueries(pool)
-        assert (await query.activity(outsider))['items'] == []
-        await pool.execute("UPDATE rooms SET visibility='public' WHERE id='room'")
         public = await query.activity(outsider)
         assert len(public['items']) == 1
         assert public['items'][0]['match_id'] == game.match_id
@@ -117,8 +118,7 @@ async def test_invitation_preview_does_not_join_room_or_grant_member_profiles(da
     pool, _, _, users = database
     query = PostgresHostedQueries(pool)
     await pool.execute('DELETE FROM room_memberships WHERE user_id=%s', (UUID(users[-1][5:]),))
-    with pytest.raises(QueryAccessDenied):
-        await query.room('room', users[-1], invitation_preview=True)
+    assert (await query.room('room', users[-1], invitation_preview=True))['snapshot'] is None
     await pool.execute("INSERT INTO room_invitations(id,room_id,inviter_id,recipient_id) VALUES ('i','room',%s,%s)",
                        (users[0], users[-1]))
     result = await query.room('room', users[-1], invitation_preview=True)
@@ -136,5 +136,4 @@ async def test_invitation_preview_does_not_join_room_or_grant_member_profiles(da
     assert [p['user_id'] for p in next_page['items']] == users[2:-1]
     assert next_page['next_user_id'] is None
     await pool.execute("UPDATE room_invitations SET status='declined' WHERE id='i'")
-    with pytest.raises(QueryAccessDenied):
-        await query.room('room', users[-1], invitation_preview=True)
+    assert (await query.room('room', users[-1], invitation_preview=True))['snapshot'] is None

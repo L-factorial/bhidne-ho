@@ -46,12 +46,9 @@ COMMANDS = frozenset(MODELS)
 
 
 async def can_enter(connection, room, actor):
-    if room[1] == user_uuid(actor) or room[2] == 'public':
-        return True
-    return bool(await (await connection.execute('''SELECT 1 FROM room_memberships
-        WHERE room_id=%s AND user_id=%s UNION ALL SELECT 1 FROM room_invitations
-        WHERE room_id=%s AND recipient_id=%s AND status='pending' LIMIT 1''',
-        (room[0], user_uuid(actor), room[0], actor))).fetchone())
+    # All live rooms are open to authenticated players. Membership checks for
+    # chat, room management and game commands remain at their own boundaries.
+    return True
 
 
 async def departure(claim, inbox, fence, *, max_tables=5):
@@ -180,7 +177,7 @@ async def execute(claim, inbox, fence, *, max_events=512):
                 await connection.execute('DELETE FROM room_memberships WHERE room_id=%s', (room_id,))
                 await connection.execute("UPDATE room_invitations SET status='cancelled' WHERE room_id=%s AND status='pending'", (room_id,))
         elif command == 'room-visibility':
-            await connection.execute('UPDATE rooms SET visibility=%s WHERE id=%s', (payload.visibility, room_id))
+            await connection.execute('UPDATE rooms SET visibility=%s WHERE id=%s', ('public', room_id))
         elif command == 'invite-room':
             recipients = list(dict.fromkeys(payload.recipients))
             try:

@@ -58,8 +58,11 @@ def _game_status(data):
 
 
 class PostgresCheckpointStore:
-    def __init__(self, pool):
+    def __init__(self, pool, *, retain_view_transitions=False):
+        if type(retain_view_transitions) is not bool:
+            raise ValueError('View transition retention must be boolean.')
         self.pool = pool
+        self.retain_view_transitions = retain_view_transitions
 
     async def save(self, checkpoint, *, expected_revision, fence: RoomWriteFence,
                    receipt=None, receipt_limit=10000):
@@ -207,6 +210,9 @@ class PostgresCheckpointStore:
             (data.name, _status(data), data.table_revision, _status(data), table_id))
         # Recheck wall-clock expiry after all work, even when the transaction began
         # before a pause. SHARE prevents concurrent takeover until commit/rollback.
+        if self.retain_view_transitions:
+            from .view_transition import record_view_transition
+            await record_view_transition(connection, previous.checkpoint if previous else None, checkpoint)
         await self._fence(connection, fence, data.room_id)
         return await self._load(connection, table_id)
 

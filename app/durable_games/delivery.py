@@ -32,6 +32,7 @@ class DeliveryWakeup:
     lane_id: UUID
     event_id: UUID
     sequence: int
+    content: dict | None = None
 
     def __post_init__(self):
         identity(self.instance_id)
@@ -63,7 +64,15 @@ class OutboxPublisher:
         published = False
         try:
             async with asyncio.timeout(self.timeout):
-                if claim.audience_user_id is not None:
+                content = getattr(claim, 'content', None)
+                if (claim.kind == 'table' and getattr(claim, 'table_id', None) is not None
+                        and content and content.get('event_type') in ('VIEW_DELTA','VIEW_RESET')):
+                    from .view_generation import view_scope
+                    # Every subscribed gateway needs sequence advancement even
+                    # for another audience. Private payloads stay inside trusted
+                    # servers; store visibility filters them before socket send.
+                    audiences = [('room', view_scope(claim.table_id))]
+                elif claim.audience_user_id is not None:
                     audiences = [('user', f'user-{claim.audience_user_id}')]
                 elif claim.kind == 'conversation':
                     audiences = [('user', f'user-{u}') for u in (claim.user_low,claim.user_high)]
@@ -86,7 +95,7 @@ class OutboxPublisher:
                 pending, results = iter(sorted(destinations)), []
                 async def worker():
                     for destination in pending:
-                        notice = DeliveryWakeup(destination, claim.lane_id, claim.event_id, claim.sequence)
+                        notice = DeliveryWakeup(destination, claim.lane_id, claim.event_id, claim.sequence, getattr(claim, 'content', None))
                         try:
                             results.append(await self.send(destination, notice) is True)
                         except Exception:
@@ -153,6 +162,7 @@ class _Stream:
     sent: int
     acknowledged: int
     on_close: object = None
+    deltas: bool = False
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
 
@@ -196,7 +206,7 @@ class GatewayDelivery:
             self._wake.set()
 
     @observe('delivery.subscribe')
-    async def subscribe(self, actor, client_id, lane_id, send, *, on_close=None, paused=False):
+    async def subscribe(self, actor, client_id, lane_id, send, *, on_close=None, paused=False, deltas=False):
         client_identity(client_id)
         lane_id = UUID(str(lane_id))
         if (self._closed or not callable(send) or on_close is not None and not callable(on_close)
@@ -206,11 +216,13 @@ class GatewayDelivery:
         try:
             async with asyncio.timeout(self.timeout):
                 cursor = await self.store.cursor(actor, client_id, lane_id)
+                if deltas:
+                    deltas = await self.store.is_view_lane(actor, lane_id)
             if self._closed or any((s.actor, s.client_id, s.lane_id) == (actor, client_id, lane_id)
                                    for s in self._streams.values()):
                 raise RuntimeError('This client stream is already subscribed or closed.')
             handle = uuid4()
-            self._streams[handle] = _Stream(actor, client_id, lane_id, send, cursor, cursor, on_close)
+            self._streams[handle] = _Stream(actor, client_id, lane_id, send, cursor, cursor, on_close, deltas)
             if paused:
                 self._paused.add(handle)
             else:
@@ -245,11 +257,52 @@ class GatewayDelivery:
     async def receive(self, notice):
         if not isinstance(notice, DeliveryWakeup) or notice.instance_id != self.instance_id or self._closed:
             return False
-        for handle, stream in self._streams.items():
-            if stream.lane_id == notice.lane_id:
-                self._dirty.add(handle)
+        async def offer(handle, stream):
+            try:
+                if stream.deltas and notice.content is not None and handle not in self._paused:
+                    async with stream.lock:
+                        if (self._streams.get(handle) is stream and notice.sequence == stream.sent+1
+                                and stream.sent-stream.acknowledged < self.max_unacknowledged):
+                            async with asyncio.timeout(self.timeout):
+                                events = await self.store.hinted_event(stream.actor, notice)
+                                await stream.send(dict(type='DELIVERY_PAGE',lane_id=str(stream.lane_id),
+                                    after_sequence=stream.sent,scanned_sequence=notice.sequence,
+                                    events=self._offered(stream, events),has_more=False))
+                                stream.sent = notice.sequence
+                if notice.sequence > stream.sent:
+                    self._dirty.add(handle)
+            except Exception:
+                self.failures += 1
+                self.unsubscribe(handle)
+                if stream.on_close is not None:
+                    try:
+                        async with asyncio.timeout(self.timeout):
+                            await stream.on_close('delivery_reconciliation_required')
+                    except Exception:
+                        pass
+        recipients = [(h,s) for h,s in tuple(self._streams.items()) if s.lane_id == notice.lane_id]
+        for start in range(0,len(recipients),self.workers):
+            await asyncio.gather(*(offer(h,s) for h,s in recipients[start:start+self.workers]))
         self._wake.set()
         return True  # Advisory only: does not advance any cursor.
+
+    @staticmethod
+    def _offered(stream, events):
+        from .delivery_store import ACKS
+        offered = []
+        for e in events:
+            kind = e['event_type']
+            if stream.deltas and kind not in ACKS | {'VIEW_DELTA','VIEW_RESET','ROOM_POKE','TABLE_REACTION'}:
+                e = dict(e, event_type='VIEW_PENDING', payload={'type':'VIEW_PENDING'})
+            elif not stream.deltas and kind in ('VIEW_DELTA','VIEW_RESET'):
+                e = dict(e, event_type='GAME_STATE_CHANGED', payload={'type':'GAME_STATE_CHANGED'})
+            offered.append(e)
+        # A very large patch/page must not create an endless client overflow loop.
+        import json
+        if len(json.dumps(offered, ensure_ascii=True)) > 100000:
+            offered = [dict(e, event_type='VIEW_RESET', payload={'type':'VIEW_RESET'})
+                       if e['event_type']=='VIEW_DELTA' else e for e in offered]
+        return offered
 
     async def pump(self, handle):
         stream = self._streams.get(handle)
@@ -269,7 +322,7 @@ class GatewayDelivery:
                     if self._streams.get(handle) is not stream or page.scanned_sequence == stream.sent:
                         return
                     await stream.send(dict(type='DELIVERY_PAGE', lane_id=str(page.lane_id), after_sequence=stream.sent,
-                        events=list(page.events), scanned_sequence=page.scanned_sequence, has_more=page.has_more))
+                        events=self._offered(stream, page.events), scanned_sequence=page.scanned_sequence, has_more=page.has_more))
                     event('delivery_page_sent', log=False)
                     stream.sent = page.scanned_sequence
                     if page.has_more:

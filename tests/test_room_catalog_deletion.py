@@ -124,7 +124,7 @@ async def test_deleted_room_cannot_return_from_stale_in_memory_membership():
 
 
 @pytest.mark.asyncio
-async def test_catalog_persists_private_invitations_and_visibility_updates():
+async def test_catalog_persists_invitations_and_legacy_privacy_updates_remain_public():
     pool = SqlPool()
     catalog = PostgresRoomCatalog(pool)
     owner, recipient = f'user-{uuid4()}', f'user-{uuid4()}'
@@ -140,5 +140,6 @@ async def test_catalog_persists_private_invitations_and_visibility_updates():
     await restarted.update_visibility('private-room', owner, 'public')
     assert (await catalog.get('private-room'))['visibility'] == 'public'
     await restarted.update_visibility('private-room', owner, 'private')
+    assert (await catalog.get('private-room'))['visibility'] == 'public'
     await restarted.leave('private-room', recipient)
-    assert not await restarted.can_enter('private-room', recipient, None)
+    assert await restarted.can_enter('private-room', recipient, None)

@@ -36,6 +36,8 @@ class OutboxClaim:
     user_low: UUID | None = None
     user_high: UUID | None = None
     recipient_id: UUID | None = None
+    content: dict | None = None
+    table_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -81,9 +83,11 @@ class PostgresDeliveryStore:
                     UPDATE notification_outbox o SET claim_token=%s,
                     claim_expires_at=clock_timestamp()+(%s * interval '1 second'),
                     attempts=o.attempts+1 FROM picked p WHERE o.event_id=p.event_id
-                    RETURNING o.event_id,o.lane_id,o.sequence,o.claim_token,o.attempts,o.audience_user_id
+                    RETURNING o.event_id,o.lane_id,o.sequence,o.claim_token,o.attempts,o.audience_user_id,
+                        jsonb_build_object('event_type',o.event_type,'event_version',o.event_version,
+                            'audience_user_id',o.audience_user_id,'payload',o.payload,'created_at',o.created_at) AS content
                 ) SELECT c.event_id,c.lane_id,c.sequence,c.claim_token,c.attempts,
-                    l.room_id,c.audience_user_id,l.kind,l.user_low,l.user_high,l.recipient_id
+                    l.room_id,c.audience_user_id,l.kind,l.user_low,l.user_high,l.recipient_id,c.content,l.table_id
                     FROM claimed c JOIN command_lanes l USING(lane_id)''',
                     (limit, token, lease_seconds))).fetchall()
         return tuple(OutboxClaim(*row) for row in rows)
@@ -190,6 +194,17 @@ class PostgresDeliveryStore:
             return {'type':'LOBBY_CHANGED'} if kind == 'LOBBY_CHANGED' else None
         if target.kind in ('conversation', 'recipient'):
             return payload
+        if kind == 'VIEW_RESET':
+            return payload
+        if kind == 'VIEW_DELTA':
+            if audience != user or target.kind != 'table' or match is None:
+                return None
+            try:
+                if UUID(payload['match_id']) != match or payload.get('viewer_seat') != seat:
+                    return None
+            except (ValueError, KeyError, TypeError):
+                return None
+            return payload
         if audience is not None and kind not in ('TABLE_INVITATION_CREATED',):
             # Historical private engine messages require a current seat in the same
             # match. Room-level private metadata is denied unless explicitly supported.
@@ -250,6 +265,54 @@ class PostgresDeliveryStore:
                 await connection.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
                 target, _, allowed, _, _ = await self._access(connection, lane_id, actor)
                 return ('__public_lobby__' if target.kind == 'lobby' else target.room_id) if allowed else None
+
+    async def presence_view(self, actor, lane_id):
+        from .view_generation import view_scope
+        async with self.pool.connection() as c:
+            async with c.transaction():
+                await c.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
+                target, _, allowed, _, _ = await self._access(c, lane_id, actor)
+                return view_scope(target.table_id) if allowed and target.kind == 'table' else None
+
+    async def is_view_lane(self, actor, lane_id):
+        async with self.pool.connection() as c:
+            async with c.transaction():
+                target, _, _, _, _ = await self._access(c, lane_id, actor)
+                return target.kind in ('table','game')
+
+    async def hinted_event(self, actor, notice):
+        """Redis carries content; SQL rechecks current access, not game projection.
+
+        Verify the hinted content still equals its committed row (moderation and
+        erasure can replace it). Redis/HMAC is transport trust, not DB authority.
+        """
+        async with self.pool.connection() as c:
+            async with c.transaction():
+                await c.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
+                target, _, member, match, seat = await self._access(c, notice.lane_id, actor)
+                row = await (await c.execute('''SELECT event_id,sequence,event_type,event_version,
+                    audience_user_id,payload,created_at FROM notification_outbox
+                    WHERE event_id=%s AND lane_id=%s AND sequence=%s''',
+                    (notice.event_id, notice.lane_id, notice.sequence))).fetchone()
+                if row is None:
+                    raise DeliveryResetRequired('Delivery hint is no longer committed.')
+                if row[3] != 1:
+                    raise DeliveryResetRequired('Unsupported delivery event version.')
+                content = notice.content
+                if (content and content.get('event_type') == row[2] and content.get('event_version') == row[3]
+                        and content.get('audience_user_id') == (str(row[4]) if row[4] else None)
+                        and content.get('payload') == row[5]):
+                    row = (*row[:5], content['payload'], row[6])
+                payload = self._visible(row[:6], user_uuid(actor), target, member, match, seat)
+                if payload is None:
+                    return ()
+                from app.player_blocks.service import event_allowed
+                from app.moderation.visibility import redact_event
+                if not await event_allowed(c, actor, payload, row[6]):
+                    return ()
+                payload = await redact_event(c, payload)
+                return (dict(event_id=str(row[0]),lane_id=str(notice.lane_id),sequence=row[1],
+                    event_type=row[2],event_version=row[3],payload=payload),)
 
     async def cursor(self, actor, client_id, lane_id):
         client_identity(client_id)

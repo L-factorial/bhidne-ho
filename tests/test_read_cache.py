@@ -107,15 +107,15 @@ async def test_committed_projection_cache_cross_server_versions_and_authorizatio
         await host.close()
 
 
-async def test_public_cache_does_not_survive_private_room_change(database):
+async def test_public_cache_remains_public_after_legacy_privacy_request(database):
     pool, store, fence, users = database
     query = PostgresHostedQueries(pool, cache=ReadCache(Redis()))
     await pool.execute("UPDATE rooms SET visibility='public' WHERE id='room'")
     await pool.execute('DELETE FROM room_memberships WHERE user_id=%s', (UUID(users[-1][5:]),))
     assert await query.room('room', users[-1], public_preview=True)
     await pool.execute("UPDATE rooms SET visibility='private' WHERE id='room'")
-    with pytest.raises(QueryAccessDenied):
-        await query.room('room', users[-1], public_preview=True)
+    assert await query.room('room', users[-1], public_preview=True)
+    assert (await pool.execute("SELECT visibility FROM rooms WHERE id='room'")).rows == [('public',)]
 
 
 @pytest.mark.parametrize('kind', ['callbreak', 'marriage'])

@@ -74,10 +74,11 @@ async def erase(c, job, recovery):
         UNION SELECT g.room_id FROM games g WHERE g.initial_state::text LIKE %s
         UNION SELECT t.room_id FROM table_recovery_state r JOIN room_tables t USING(table_id) WHERE r.state::text LIKE %s
         UNION SELECT t.room_id FROM hosted_match_archives a JOIN room_tables t USING(table_id) WHERE a.checkpoint::text LIKE %s
+        UNION SELECT t.room_id FROM delivery_checkpoints d JOIN room_tables t USING(table_id) WHERE d.checkpoint::text LIKE %s
         UNION SELECT g.room_id FROM ledger_games g JOIN game_ledger_entries e USING(game_id) WHERE e.player_id=%s
         UNION SELECT b.room_id FROM settlement_batches b JOIN settlement_transfers t USING(batch_id) WHERE t.payer_id=%s OR t.payee_id=%s
         UNION SELECT g.room_id FROM game_events e JOIN games g ON g.id=e.game_id WHERE e.actor_id=%s
-        ) affected ORDER BY room_id''', (uid,uid,'%'+old+'%','%'+old+'%','%'+old+'%',uid,uid,uid,actor))).fetchall()
+        ) affected ORDER BY room_id''', (uid,uid,'%'+old+'%','%'+old+'%','%'+old+'%','%'+old+'%',uid,uid,uid,actor))).fetchall()
     rooms = [r[0] for r in room_rows]
     for room in rooms:
         await c.execute('SELECT room_id FROM room_ownership WHERE room_id=%s FOR UPDATE', (room,))
@@ -90,6 +91,16 @@ async def erase(c, job, recovery):
     queued = await (await c.execute("SELECT 1 FROM command_inbox WHERE status='pending' AND (actor_id=%s OR payload::text LIKE %s) LIMIT 1", (actor,'%'+old+'%'))).fetchone()
     if queued:
         raise CleanupWaiting('pending_actions')
+    # Projection inputs are short-lived delivery work, not retained game history.
+    # Removing the job fences an in-flight generator before it can reintroduce
+    # erased identity. Existing delta rows become snapshot recovery markers.
+    await c.execute('''DELETE FROM view_generation_jobs WHERE table_id IN (
+        SELECT table_id FROM delivery_checkpoints WHERE checkpoint::text LIKE %s)''', ('%'+old+'%',))
+    await c.execute('DELETE FROM delivery_checkpoints WHERE checkpoint::text LIKE %s', ('%'+old+'%',))
+    await c.execute('''UPDATE notification_outbox SET event_type='VIEW_RESET',
+        payload=jsonb_build_object('type','VIEW_RESET','table_id',payload->>'table_id')
+        WHERE event_type='VIEW_DELTA' AND (payload::text LIKE %s OR lane_id IN (
+            SELECT lane_id FROM command_lanes WHERE room_id=ANY(%s::text[])))''', ('%'+old+'%',rooms))
     # Recovery digests cover the assembled record, including SQL-backed engine
     # and positions. Do not sign just the partial table_recovery_state document.
     checkpoints = {}
@@ -124,6 +135,8 @@ async def erase(c, job, recovery):
         ('notification_outbox','audience_user_id=%s',(uid,)),
         ('delivery_cursors','user_id=%s',(uid,)),
         ('friendships','user_low=%s OR user_high=%s',(uid,uid)),
+        ('push_devices','user_id=%s',(uid,)),
+        ('push_preferences','user_id=%s',(uid,)),
         ('player_phrases','user_id=%s',(uid,)),
         ('hosted_invitation_limits','user_id=%s',(uid,)),
         ('room_invitations','inviter_id=%s OR recipient_id=%s',(actor,actor)),

@@ -17,14 +17,15 @@ class RoomSummary(RoomPresence):
     member_previews: list[PlayerSummary] = Field(default_factory=list)
     name: str
     creator_id: str | None = None
-    visibility: Literal["public", "private", "friends"] = "private"
+    visibility: Literal["public", "private", "friends"] = "public"
     created_at: int | None = None
     feed_source: Literal["you", "joined", "friend", "public"] = "public"
 
 
 class CreateRoom(BaseModel):
+    # Accept old clients' visibility fields; all persisted rooms are public.
     name: str = Field(min_length=1, max_length=60)
-    visibility: Literal["public", "private", "friends"] = "private"
+    visibility: Literal["public", "private", "friends"] = "public"
     invitees: list[str] = Field(default_factory=list, max_length=20)
     model_config = ConfigDict(str_strip_whitespace=True)
 

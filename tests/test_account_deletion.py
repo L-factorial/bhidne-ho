@@ -33,6 +33,12 @@ async def test_password_proof_revokes_sessions_and_cleanup_preserves_other_accou
     pool=recovery_database;auth,a,recovery,deletion=await setup(pool)
     b=await auth.sign_up('other_player','original-password')
     second=await auth.sign_in('deletion_player','original-password')
+    from app.push.service import PushService
+    from app.push.http import Device,Preferences
+    from test_push import Providers
+    push=PushService(pool,Providers())
+    await push.register(a.user_id,a.token,uuid4(),Device(provider='apns',token='1'*64))
+    await push.update_preferences(a.user_id,Preferences(sound=False))
     with pytest.raises(DeletionError,match='invalid_proof'):
         await deletion.request(a.user_id,password='wrong')
     assert (await auth.authenticate(a.token)).user_id==a.user_id
@@ -45,6 +51,8 @@ async def test_password_proof_revokes_sessions_and_cleanup_preserves_other_accou
     assert (await deletion.status(result['status_token']))['status']=='completed'
     assert (await pool.execute('SELECT count(*) FROM users WHERE id=%s',(UUID(a.user_id[5:]),))).rows==[(0,)]
     assert (await pool.execute('SELECT count(*) FROM account_credentials WHERE username=%s',('deletion_player',))).rows==[(0,)]
+    assert (await pool.execute('SELECT count(*) FROM push_devices')).rows==[(0,)]
+    assert (await pool.execute('SELECT count(*) FROM push_preferences')).rows==[(0,)]
     assert (await auth.authenticate(b.token)).user_id==b.user_id
     with pytest.raises(DeletionError): await deletion.request(a.user_id,password='original-password')
 
@@ -108,14 +116,28 @@ async def test_erased_completed_checkpoint_and_receipts_still_rebuild(database, 
     uid=UUID(a.user_id[5:])
     await pool.execute("INSERT INTO room_memberships(room_id,user_id) VALUES ('room',%s)",(uid,))
     host,game=await host_game([a.user_id,*users[1:]],kind)
+    from app.durable_games.checkpoint_store import PostgresCheckpointStore
+    from app.durable_games.view_generation import ViewGenerationWorker
+    from test_view_generation import Presence
+    store=PostgresCheckpointStore(pool,retain_view_transitions=True)
     try:
         await store.save(capture_checkpoint(game,table_revision=0),expected_revision=None,fence=fence)
         receipt=await advance(host,game)
         await store.save(capture_checkpoint(game,table_revision=1),expected_revision=0,fence=fence,receipt=receipt)
         game.ended=True;game.table.phase='ENDED'
         await store.save(capture_checkpoint(game,table_revision=2),expected_revision=1,fence=fence)
+        worker=ViewGenerationWorker(pool,Presence(game.users))
+        claim,=await worker.claim()
+        output=await worker.generate(claim)
+        assert await worker.finish(claim,output)
+        claim,=await worker.claim()
+        output=await worker.generate(claim)
         await deletion.request(a.user_id,password='original-password')
         await clean(pool,recovery,a.user_id)
+        assert not await worker.finish(claim,output)
+        assert (await pool.execute('SELECT count(*) FROM view_generation_jobs')).rows==[(0,)]
+        assert (await pool.execute('SELECT count(*) FROM delivery_checkpoints')).rows==[(0,)]
+        assert (await pool.execute("SELECT count(*) FROM notification_outbox WHERE event_type='VIEW_DELTA'")).rows==[(0,)]
         saved=await store.load(game.table.table_id)
         restored=GameHost(host.rooms,Delivery())
         try:

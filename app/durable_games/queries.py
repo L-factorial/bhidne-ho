@@ -84,9 +84,9 @@ class PostgresHostedQueries:
     async def lobby(self, actor, *, after_room_id='', limit=50):
         """Original room-card contract, from committed shared state.
 
-        Invitation discovery remains separate: an invitation alone must not put a
-        private room into the public/friend feed. Presence is deliberately absent
-        here; membership is not evidence that a player is currently connected.
+        All live rooms are discoverable. Invitations remain separate from room
+        membership. Presence is deliberately absent here; membership is not
+        evidence that a player is currently connected.
         Pagination uses stable IDs; the client sorts the complete feed by source
         and creation time, just as the original lobby does.
         """

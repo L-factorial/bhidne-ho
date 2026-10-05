@@ -1,6 +1,5 @@
 import pytest
 from fastapi.testclient import TestClient
-from starlette.websockets import WebSocketDisconnect
 
 from app.main import create_app
 from app.multiplayer.room_catalog import MemoryRoomCatalog
@@ -12,7 +11,7 @@ def room_ids(client, headers):
     return [room["room_id"] for room in client.get("/rooms", headers=headers).json()]
 
 
-def test_private_rooms_exclude_friends_and_public_rooms_include_everyone():
+def test_all_rooms_include_everyone_and_legacy_visibility_is_public():
     with TestClient(create_app()) as client:
         owner, owner_headers = account(client, "room-owner", "Owner")
         friend, friend_headers = account(client, "room-friend", "Friend")
@@ -27,18 +26,16 @@ def test_private_rooms_exclude_friends_and_public_rooms_include_everyone():
         assert public.status_code == private.status_code == 201
         public_room, private_room = public.json(), private.json()
         assert private_room["creator_id"] == owner["user_id"]
-        assert private_room["visibility"] == "private"
+        assert private_room["visibility"] == "public"
 
-        # Knowing a private room's code does not bypass its audience.
-        assert private_room["room_id"] not in room_ids(client, stranger_headers)
-        assert client.post(f"/rooms/{private_room['room_id']}/enter", headers=stranger_headers).status_code == 403
-        assert client.get(f"/rooms/{private_room['room_id']}", headers=stranger_headers).status_code == 403
-        with pytest.raises(WebSocketDisconnect) as closed:
-            with client.websocket_connect(
-                f"/ws/rooms/{private_room['room_id']}?token={stranger_headers['Authorization'].removeprefix('Bearer ')}"
-            ):
-                pass
-        assert closed.value.code == 1008
+        # Legacy privacy input no longer restricts discovery, reads or sockets.
+        assert private_room["room_id"] in room_ids(client, stranger_headers)
+        assert client.post(f"/rooms/{private_room['room_id']}/enter", headers=stranger_headers).status_code == 200
+        assert client.get(f"/rooms/{private_room['room_id']}", headers=stranger_headers).status_code == 200
+        with client.websocket_connect(
+            f"/ws/rooms/{private_room['room_id']}?token={stranger_headers['Authorization'].removeprefix('Bearer ')}"
+        ) as socket:
+            assert socket.receive_json()['room_id'] == private_room['room_id']
         assert public_room["room_id"] in room_ids(client, stranger_headers)
         assert client.post(f"/rooms/{public_room['room_id']}/enter", headers=stranger_headers).status_code == 200
         public_item = next(room for room in client.get("/rooms", headers=stranger_headers).json()
@@ -46,11 +43,11 @@ def test_private_rooms_exclude_friends_and_public_rooms_include_everyone():
         assert public_item["feed_source"] == "joined"
 
         client.post(f"/friends/requests/{friend['user_id']}", headers=owner_headers)
-        assert private_room["room_id"] not in room_ids(client, friend_headers)
+        assert private_room["room_id"] in room_ids(client, friend_headers)
         client.post(f"/friends/requests/{owner['user_id']}/accept", headers=friend_headers)
 
-        assert private_room["room_id"] not in room_ids(client, friend_headers)
-        assert client.post(f"/rooms/{private_room['room_id']}/enter", headers=friend_headers).status_code == 403
+        assert private_room["room_id"] in room_ids(client, friend_headers)
+        assert client.post(f"/rooms/{private_room['room_id']}/enter", headers=friend_headers).status_code == 200
         assert client.post(f"/rooms/{private_room['room_id']}/invitations", headers=owner_headers, json={"invitees": [friend["user_id"]]}).status_code == 200
         assert client.post(f"/rooms/{private_room['room_id']}/enter", headers=friend_headers).status_code == 200
         joined_item = next(room for room in client.get("/rooms", headers=friend_headers).json()
@@ -77,12 +74,12 @@ def test_private_rooms_exclude_friends_and_public_rooms_include_everyone():
         assert client.delete(f"/rooms/{private_room['room_id']}", headers=owner_headers).status_code == 404
 
 
-def test_room_visibility_is_validated_and_defaults_to_private():
+def test_room_visibility_is_validated_and_defaults_to_public():
     with TestClient(create_app()) as client:
         _, headers = account(client, "room-validation", "Creator")
         created = client.post("/rooms", headers=headers, json={"name": "Default audience"})
         assert created.status_code == 201
-        assert created.json()["visibility"] == "private"
+        assert created.json()["visibility"] == "public"
         assert client.post("/rooms", headers=headers, json={
             "name": "Invalid audience", "visibility": "unknown",
         }).status_code == 422
@@ -223,7 +220,7 @@ def test_room_feed_batches_real_member_previews_and_excludes_ended_tables(monkey
         assert feed[rooms[0]]['table_count'] == 0
 
 
-def test_privacy_changes_preserve_members_and_leaving_requires_new_invitation():
+def test_legacy_privacy_changes_preserve_public_access_and_membership():
     with TestClient(create_app()) as client:
         owner, host = account(client, "privacy-host", "Owner")
         member, guest = account(client, "privacy-member", "Member")
@@ -236,20 +233,20 @@ def test_privacy_changes_preserve_members_and_leaving_requires_new_invitation():
         assert room['room_id'] in room_ids(client, outsider)
         assert client.post(path+'/enter', headers=guest).status_code == 200
         assert client.patch(path, headers=host, json={'visibility':'private'}).status_code == 200
-        assert room['room_id'] not in room_ids(client, outsider)
+        assert room['room_id'] in room_ids(client, outsider)
         assert room['room_id'] in room_ids(client, guest)
         assert client.get('/test-games/'+room['room_id'], headers=outsider).status_code == 403
         assert client.post(path+'/leave', headers=guest).status_code == 200
-        assert client.post(path+'/enter', headers=guest).status_code == 403
+        assert client.post(path+'/enter', headers=guest).status_code == 200
         assert client.post(path+'/invitations', headers=host, json={'invitees':[member['user_id']]}).status_code == 200
         assert client.post(path+'/enter', headers=guest).status_code == 200
         assert client.get('/room-invitations', headers=guest).json() == []
         assert client.post(path+'/leave', headers=guest).status_code == 200
-        assert client.post(path+'/enter', headers=guest).status_code == 403
+        assert client.post(path+'/enter', headers=guest).status_code == 200
 
 
 @pytest.mark.asyncio
-async def test_pending_invitation_survives_restart_and_does_not_grant_reentry_after_leaving():
+async def test_pending_invitation_survives_restart_and_public_reentry_after_leaving():
     catalog = MemoryRoomCatalog()
     first = RoomService(catalog)
     room = await first.create("Private", "owner")
@@ -261,4 +258,4 @@ async def test_pending_invitation_survives_restart_and_does_not_grant_reentry_af
     await restarted.answer_invitation("invited", invitations[0]["id"], True)
     await restarted.invite(room.room_id, "owner", ["invited"])
     await restarted.leave(room.room_id, "invited")
-    assert not await restarted.can_enter(room.room_id, "invited", None)
+    assert await restarted.can_enter(room.room_id, "invited", None)

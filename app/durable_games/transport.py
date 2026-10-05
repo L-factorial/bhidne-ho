@@ -29,7 +29,7 @@ class InvitationEligibility(Record):
 
 def create_router(*, auth, hosted, chat, social, gateway, allowed_origins, reads=None, catalog=None,
                   presence=None, presence_room=None, admission=None,
-                  session_check_interval=5.0, session_check_timeout=2.0):
+                  session_check_interval=5.0, session_check_timeout=2.0, ephemeral=None):
     """All dependencies are explicit; origins is an exact allowlist for browsers.
 
     Non-browser clients may omit Origin. Authentication still requires a bearer
@@ -92,6 +92,19 @@ def create_router(*, auth, hosted, chat, social, gateway, allowed_origins, reads
         who = await http_actor(request)
         # Actor-only inbox status is generic across all supported lanes.
         return await execute(lambda: hosted.status(who, lane_id, command_id))
+
+    if ephemeral is not None:
+        @router.post('/ephemeral')
+        async def transient(request: Request):
+            who = await http_actor(request)
+            async def work():
+                raw=bytearray()
+                async for chunk in request.stream():
+                    raw.extend(chunk)
+                    if len(raw)>8192:raise HTTPException(413,'Live message exceeds limit.')
+                data=Submission.model_validate_json(bytes(raw))
+                return await ephemeral.submit(who,data.target,data.body.model_dump(mode='json'))
+            return await execute(work)
 
     if catalog is not None:
         @router.post('/rooms')
@@ -266,7 +279,11 @@ def create_router(*, auth, hosted, chat, social, gateway, allowed_origins, reads
         session = None
         connection_presence = None
         room_presence, alias_rooms = {}, {}
+        view_presence = {}
         async def remove_room(alias):
+            view = view_presence.pop(alias, None)
+            if view is not None:
+                await presence.detach(view)
             room = alias_rooms.pop(alias, None)
             if room is not None and room not in alias_rooms.values():
                 await presence.detach(room_presence.pop(room))
@@ -299,7 +316,9 @@ def create_router(*, auth, hosted, chat, social, gateway, allowed_origins, reads
             session.start()
             if presence is not None:
                 connection_presence = presence.attach(who)
-            await send({'type': 'READY'})
+            capabilities=['view-delta-v1'] if hasattr(getattr(gateway,'store',None),'is_view_lane') else []
+            if ephemeral is not None:capabilities.append('ephemeral-v1')
+            await send({'type': 'READY', **({'capabilities':capabilities} if capabilities else {})})
             while True:
                 data = await frame(45)
                 await session.check()
@@ -310,7 +329,11 @@ def create_router(*, auth, hosted, chat, social, gateway, allowed_origins, reads
                 alias = data.get('subscription_id')
                 if not isinstance(alias, str) or not 1 <= len(alias) <= 128:
                     raise ValueError('Invalid subscription alias.')
-                if kind == 'SUBSCRIBE' and set(data) == {'type', 'subscription_id', 'lane_id'}:
+                if kind == 'SUBSCRIBE' and set(data) in ({'type', 'subscription_id', 'lane_id'},
+                        {'type', 'subscription_id', 'lane_id', 'capabilities'}):
+                    capabilities = data.get('capabilities', [])
+                    if not isinstance(capabilities, list) or any(c not in ('view-delta-v1','ephemeral-v1') for c in capabilities):
+                        raise ValueError('Unsupported subscription capability.')
                     if alias in handles or len(handles) >= 128:
                         raise ValueError('Subscription limit or duplicate alias.')
                     lane = UUID(data['lane_id'])
@@ -320,7 +343,8 @@ def create_router(*, auth, hosted, chat, social, gateway, allowed_origins, reads
                         handles.pop(alias, None)
                         await remove_room(alias)
                         await send({'type': 'STREAM_CLOSED', 'subscription_id': alias})
-                    handle = await gateway.subscribe(who, client, lane, page, on_close=revoked, paused=True)
+                    handle = await gateway.subscribe(who, client, lane, page, on_close=revoked, paused=True,
+                        **({'deltas': True} if 'view-delta-v1' in capabilities else {}))
                     handles[alias] = handle
                     if presence is not None:
                         async with asyncio.timeout(3):
@@ -329,6 +353,10 @@ def create_router(*, auth, hosted, chat, social, gateway, allowed_origins, reads
                             if room not in room_presence:
                                 room_presence[room] = presence.attach(who, room_id=room)
                             alias_rooms[alias] = room
+                        if 'view-delta-v1' in capabilities and hasattr(gateway.store, 'presence_view'):
+                            view = await gateway.store.presence_view(who, lane)
+                            if view is not None:
+                                view_presence[alias] = presence.attach(who, room_id=view)
                     await send({'type': 'SUBSCRIBED', 'subscription_id': alias, 'lane_id': str(lane),
                                 'cursor': gateway.subscription_cursor(handle)})
                     gateway.activate(handle)
@@ -370,6 +398,8 @@ def create_router(*, auth, hosted, chat, social, gateway, allowed_origins, reads
                 if session is not None:
                     await session.stop()
                 if presence is not None:
+                    for entry in tuple(view_presence.values()):
+                        await presence.detach(entry)
                     for entry in tuple(room_presence.values()):
                         await presence.detach(entry)
                     if connection_presence is not None:

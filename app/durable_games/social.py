@@ -112,6 +112,8 @@ class SocialIngress:
                 else:
                     if not friendship:
                         await authorize_social(connection, target, actor)
+                    if request.command=='send-message' and getattr(self,'ephemeral_limits',None) is not None:
+                        await self.ephemeral_limits.consume(actor,request,durable=True,connection=connection)
                     entry = await self.inbox.enqueue_in_transaction(connection, lane, actor, request.model_dump(mode='json'))
         submitted(target, entry, previous is not None)
         if self.wakeup and entry.status == 'pending':

@@ -89,8 +89,12 @@ async def test_platform_player_reads_are_fresh_across_gateways(database):
             assert response.json()[0]['user_id'] == other['user_id']
         assert (await client.get('/players/user-invalid', headers=headers)).status_code == 404
         assert (await client.get('/friends', headers=headers)).json() == {'friends': [], 'incoming': [], 'outgoing': []}
-        assert (await pool.execute('SELECT count(*) FROM friend_notifications')).rows == [(0,)]
-        assert (await pool.execute('SELECT count(*) FROM direct_messages')).rows == [(0,)]
+        # The embedded harness has one SQL connection shared with live workers.
+        # Hold its connection lock so direct assertions cannot consume a worker's
+        # response while generation maintenance is polling in the background.
+        async with pool.connection() as connection:
+            assert (await connection.execute('SELECT count(*) FROM friend_notifications')).rows == [(0,)]
+            assert (await connection.execute('SELECT count(*) FROM direct_messages')).rows == [(0,)]
 
 
 async def test_native_catalog_members_invitations_ledger_authorization_and_bounds(database):
@@ -104,7 +108,8 @@ async def test_native_catalog_members_invitations_ledger_authorization_and_bound
         catalog = await client.get('/distributed/rooms', headers=headers, params={'limit': 1})
         assert catalog.status_code == 200 and catalog.headers['cache-control'] == 'no-store'
         assert catalog.json()['items'][0]['room_id'] == room
-        assert (await client.get('/distributed/rooms', headers=outsider)).json()['items'] == []
+        discovered = (await client.get('/distributed/rooms', headers=outsider)).json()['items']
+        assert any(item['room_id'] == room and item['visibility'] == 'public' for item in discovered)
         members = await client.get(f'/distributed/rooms/{room}/members', headers=headers)
         assert members.json()['items'] == [owner['user_id']]
         for suffix in ('members', 'ledger'):

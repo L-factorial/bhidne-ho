@@ -6,6 +6,7 @@ const { join } = require('node:path');
 const assert = require('node:assert/strict');
 const source = readFileSync(join(__dirname, '../app/database.py'), 'utf8');
 const upgrade = source.match(/\(12, """([\s\S]*?)"""\)/)[1];
+const publicOnly = source.match(/\(37, """([\s\S]*?)"""\)/)[1];
 (async () => {
   const db = new PGlite();
   try {
@@ -28,6 +29,13 @@ const upgrade = source.match(/\(12, """([\s\S]*?)"""\)/)[1];
     await db.exec(upgrade);
     assert.equal((await db.query('SELECT * FROM room_invitations')).rows.length, 1);
     assert.equal((await db.query('SELECT * FROM rooms')).rows.length, 2);
-    console.log('PASS: legacy PostgreSQL room schema upgrades; private rooms and invitations work; existing data retained');
+    await db.exec(publicOnly);
+    assert.deepEqual((await db.query('SELECT visibility FROM rooms')).rows.map(row => row.visibility), ['public', 'public']);
+    await db.exec("INSERT INTO rooms (id,visibility) VALUES ('older-client','private')");
+    await db.exec("UPDATE rooms SET visibility='friends' WHERE id='existing'");
+    await db.exec("INSERT INTO rooms (id) VALUES ('default-room')");
+    assert.ok((await db.query('SELECT visibility FROM rooms')).rows.every(row => row.visibility === 'public'));
+    assert.equal((await db.query('SELECT * FROM room_invitations')).rows.length, 1);
+    console.log('PASS: room privacy migration preserves invitations, converts existing rooms and normalizes legacy writes');
   } finally { await db.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

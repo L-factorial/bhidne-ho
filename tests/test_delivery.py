@@ -146,7 +146,8 @@ async def test_publisher_signals_ids_once_per_server_and_retries_unknown_presenc
     presence.status = 'observed'
     await publisher.sweep_once()
     assert len(notices) == 3
-    assert all(set(vars(n)) == {'instance_id','lane_id','event_id','sequence'} for n in notices)
+    assert all(set(vars(n)) == {'instance_id','lane_id','event_id','sequence','content'} for n in notices)
+    assert all(n.content and 'payload' in n.content for n in notices)
     assert (await sql(pool, 'SELECT count(*) FROM notification_outbox WHERE published_at IS NOT NULL')) == [(3,)]
     assert (await sql(pool, 'SELECT count(*) FROM delivery_cursors')) == [(0,)]
     assert len((await store.page(users[0], lane)).events) == 2

@@ -258,3 +258,29 @@ def test_original_ui_read_routes_are_authenticated_and_use_explicit_projections(
         assert views.calls[4][2]['memberships'] is True
         assert 'memberships' not in views.calls[5][2]
         assert ingress.calls == []
+
+
+def test_new_socket_negotiates_deltas_and_ephemeral_route_binds_actor():
+    class ModernGateway(Gateway):
+        store=SimpleNamespace(is_view_lane=True)
+        async def subscribe(self,*args,deltas=False,**kwargs):
+            assert deltas
+            return await super().subscribe(*args,**kwargs)
+    i,g=Ingress(),ModernGateway()
+    app=FastAPI()
+    app.include_router(create_router(auth=Auth(),hosted=i,chat=i,social=i,gateway=g,
+        allowed_origins=set(),ephemeral=i))
+    with TestClient(app) as c:
+        body=dict(target=dict(kind='table',room_id='room',table_id=str(uuid4())),
+            body=dict(command_id='live',command='send-chat',payload={'text':'Hello'}))
+        assert c.post('/distributed/ephemeral',json=body).status_code==401
+        response=c.post('/distributed/ephemeral',json=body,headers={'Authorization':'Bearer valid'})
+        assert response.status_code==200 and response.headers['cache-control']=='no-store'
+        assert i.calls[0][0].endswith('0001') and i.calls[0][1]=='table'
+        with c.websocket_connect('/distributed/delivery') as ws:
+            ws.send_json(dict(type='AUTH',token='valid',client_id='phone'))
+            assert ws.receive_json()==dict(type='READY',capabilities=['view-delta-v1','ephemeral-v1'])
+            ws.send_json(dict(type='SUBSCRIBE',subscription_id='one',lane_id=str(uuid4()),
+                capabilities=['view-delta-v1','ephemeral-v1']))
+            assert ws.receive_json()['type']=='SUBSCRIBED'
+    assert not g.handles
