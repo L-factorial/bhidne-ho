@@ -86,7 +86,7 @@ export class DistributedRoomActions implements RoomActions {
       if (!('room_id' in receipt)) throw Error('Missing committed room identity.');
       const input = request.body.payload;
       const room: Room = { room_id: receipt.room_id, name: input.name as string,
-        visibility: input.visibility as 'public' | 'private', creator_id: this.account.user_id,
+        visibility: 'public', creator_id: this.account.user_id,
         members: [this.account.user_id] };
       return { command: 'create-room', roomId: room.room_id, room };
     }

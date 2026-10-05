@@ -1,3 +1,4 @@
+import {PushSettings} from '../notifications/PushSettings';
 import { PolicyLinks } from '../components/moderation/PublicPolicies';
 import { CommunityRulesEntry } from '../components/moderation/CommunityRules';
 import { ModerationEntry } from '../components/Moderation';
@@ -49,6 +50,7 @@ export function ProfileScreen({ session, personal, onBack, onSignOut }: {
         <Text selectable accessibilityLabel={ui("common.profile_id", {id: userId})} style={styles.description}>{ui("common.profile_id", {id: userId})}</Text>
         {!!identityError && <Text accessibilityRole="alert" style={styles.description}>{identityError}</Text>}
       </View>
+      <PushSettings />
       <DisplayNameField session={session} onSaved={display_name => setIdentity(current => current ? { ...current, display_name } : { user_id: userId, display_name })} />
       <CommunityRulesEntry session={session} /><ModerationEntry session={session} /><RecoveryEmailSettings session={session} /><BlockedPlayers session={session} />
       <><PolicyLinks /><DeleteAccountLink /></>

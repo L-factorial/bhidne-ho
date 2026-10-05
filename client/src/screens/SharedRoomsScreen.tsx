@@ -1,3 +1,4 @@
+import {PushProvider} from '../notifications/PushProvider';
 import { PolicyLinks } from '../components/moderation/PublicPolicies';
 import { isCurrentSession } from '../multiplayer/session';
 import { accountStyles } from '../components/AccountPage';
@@ -9,7 +10,7 @@ import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { legacyRoomActions } from '../multiplayer/legacyRoomActions';
 import type { RoomActions } from '../multiplayer/RoomActions';
-import { RoomPrivacySettings } from '../components/RoomPrivacySettings';
+import { RoomInvitations } from '../components/RoomInvitations';
 import { gameTabFinish, gameSeparatorFinish, gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { ActiveGames, type ActiveTable } from '../components/ActiveGames';
 import type { TableEntry } from '../multiplayer/tableNavigation';
@@ -98,6 +99,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const greetingName = greetingIdentity?.user_id === session?.user_id
     ? greetingIdentity?.display_name?.trim() || greetingIdentity?.username?.trim() : '';
 
+  const [viewedMatch,setViewedMatch]=useState<string|null>(null);
   const [gameOpen, setGameOpen] = useState(false);
   const chat = useRoomChat({ roomId: room?.room_id || '', session: session || { token: '', user_id: '' }, connected: !!room && !!session && !expired && !gameOpen && shared.status === 'connected',
     launcherVisible: false, expanded: roomPanel === 'chat', onExpandedChange: open => setRoomPanel(current => open ? 'chat' : current === 'chat' ? null : current), bottomOffset: 56,
@@ -109,7 +111,6 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   useEffect(() => { if (gameOpen) setRoomPanel(null); }, [gameOpen]);
   const personal = usePlayerPhrases(session, !!session && !expired);
   const [name, setName] = useState('');
-  const [visibility, setVisibility] = useState<'public' | 'private'>("private");
   const [code, setCode] = useState('');
   const [roomInviteQuery, setRoomInviteQuery] = useState('');
   const [roomInviteResults, setRoomInviteResults] = useState<InvitePlayer[]>([]);
@@ -200,9 +201,9 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
     if (!name.trim()) { setError(ui("feedback.enter_a_room_name")); return; }
     roomOperationPending.current = true; setBusy(true); setError('');
     try {
-      const created = await shared.roomActions.create(session, { name: name.trim(), visibility, invitees: roomInvitees.map(player => player.user_id) });
+      const created = await shared.roomActions.create(session, { name: name.trim(), visibility: 'public', invitees: roomInvitees.map(player => player.user_id) });
       if (!mounted.current || !isCurrentSession(apiUrl, session)) return;
-      setName(''); setVisibility("private"); setRoomInviteQuery(''); setRoomInviteResults([]); setRoomInvitees([]); enterRoom(created);
+      setName(''); setRoomInviteQuery(''); setRoomInviteResults([]); setRoomInvitees([]); enterRoom(created);
     } catch (error) { if (mounted.current) setError(playerError(error, ui("feedback.could_not_create_room"))); }
     finally { roomOperationPending.current = false; if (mounted.current) setBusy(false); }
   }
@@ -232,8 +233,8 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const enterRooms = rooms.filter(item => item.creator_id === session?.user_id || item.members.includes(session?.user_id || ''));
   const ownedRooms = rooms.filter(item => item.creator_id === session?.user_id);
   const joinedRooms = enterRooms.filter(item => item.creator_id !== session?.user_id);
-  const friendRooms = rooms.filter(item => item.visibility === 'public' && item.creator_is_friend);
-  const publicRooms = rooms.filter(item => item.visibility === 'public');
+  const friendRooms = rooms.filter(item => item.creator_is_friend);
+  const publicRooms = rooms;
   const [publicRoomsOpen, setPublicRoomsOpen] = useState(false);
 
   const roomCard = (item: Room) => <View key={item.room_id} style={wide ? { width: '48.8%' } : { width: '100%' }}>
@@ -267,7 +268,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
     return () => controller.abort();
   }, [session?.token, room?.room_id, roomPanel, memberKey, memberRetry]);
 
-  return <HeaderProfileContext.Provider value={session && !expired ? close => <ProfileScreen session={session} personal={personal} onBack={close} onSignOut={signOut} /> : null}><KeyboardFrame><FormScrollView keyboardShouldPersistTaps="handled" style={styles.page} contentContainerStyle={[styles.container, room && { flexGrow: 1 }, {
+  return <PushProvider session={expired ? null : session} viewedMatch={viewedMatch}><HeaderProfileContext.Provider value={session && !expired ? close => <ProfileScreen session={session} personal={personal} onBack={close} onSignOut={signOut} /> : null}><KeyboardFrame><FormScrollView keyboardShouldPersistTaps="handled" style={styles.page} contentContainerStyle={[styles.container, room && { flexGrow: 1 }, {
     paddingTop: Math.max(insets.top, 16), paddingBottom: (room ? Math.max(insets.bottom, 28) + 64 : 24),
   }]}>
     <View style={[styles.content, !session && {maxWidth: 460}, room && { flexGrow: 1, maxWidth: 760 }]}>
@@ -305,7 +306,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
         {!gameOpen && roomPanel === null && chat.navigation}
         <View style={[styles.columns, { flex: 1 }]}>
           <View style={styles.mainColumn}>
-            {session && <RoomGameControl runtime={shared.runtime} socialChannel={shared.socialChannel} onOpenChange={setGameOpen} requestedMatchId={linkedMatch} requestedEntry={linkedEntry && linkedEntry.matchId === linkedMatch ? linkedEntry.action : undefined} personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={current?.connected_members || []} roomMembers={roomMembers} connectionMessage={expired ? shared.error : undefined}
+            {session && <RoomGameControl runtime={shared.runtime} socialChannel={shared.socialChannel} onOpenChange={setGameOpen} onViewChange={setViewedMatch} requestedMatchId={linkedMatch} requestedEntry={linkedEntry && linkedEntry.matchId === linkedMatch ? linkedEntry.action : undefined} personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={current?.connected_members || []} roomMembers={roomMembers} connectionMessage={expired ? shared.error : undefined}
               presenceKnown={shared.presenceFresh && (current?.presence_status ? current.presence_status === 'observed' : !shared.runtime && !!current?.connected_members)} sessionActive={!expired} gameType={selectedGame} createContent={<>
             <Text style={styles.eyebrowDark}>{ui("rooms.choose_a_game")}</Text>
             <View style={styles.gameTabs}>
@@ -329,7 +330,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
               <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.invite_people")} aria-expanded={inviteOpen} accessibilityState={{ expanded: inviteOpen }} onPress={() => setInviteOpen(value => !value)} style={styles.sectionToggle}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><Ionicons name="person-add-outline" size={21} color={colors.accent} /><Text style={styles.sectionTitle}>{ui("rooms.invite_people")}</Text></View><Text style={styles.sectionTitle}>{inviteOpen ? '-' : '+'}</Text>
               </Pressable>
-            {inviteOpen && <View style={styles.panel}>{current?.creator_id === session.user_id && <RoomPrivacySettings key={room.room_id} room={current!} session={session} />}
+            {inviteOpen && <View style={styles.panel}>{current?.creator_id === session.user_id && <RoomInvitations key={room.room_id} room={current!} session={session} />}
               <View>
                 <Text style={styles.description}>{ui("rooms.sharing_help")}</Text>
                 <View style={styles.codeBox}><Text style={styles.codeLabel}>{ui("rooms.room_code")}</Text><Text selectable accessibilityLabel={ui("common.room_code_accessible", {code: roomInvitationCode(room.room_id)})} style={styles.code}>{roomInvitationCode(room.room_id)}</Text></View>
@@ -365,7 +366,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
             <RoomShareActions roomId={room.room_id} menu />
             <Pressable accessibilityRole="button" accessibilityLabel={ui("ledger.ledger_settlements")} onPress={() => setRoomPanel("ledger")} style={{ paddingVertical: 16 }}><View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}><Ionicons name="document-text-outline" size={24} color={colors.accent} /><View style={{ flex: 1, gap: 5 }}><Text style={styles.sectionTitle}>{ui("ledger.ledger_settlements")}</Text><Text style={styles.description}>{ui("rooms.ledger_help")}</Text></View><Ionicons name="chevron-forward" size={18} color={colors.textMuted} /></View></Pressable>
             {current?.creator_id === session?.user_id && <View style={styles.panel}>
-              <RoomPrivacySettings key={room.room_id} room={current!} session={session} />
+              <RoomInvitations key={room.room_id} room={current!} session={session} />
               <Text style={styles.sectionTitle}>{ui("rooms.room_owner_controls")}</Text>
               <Text style={styles.description}>{ui("rooms.delete_help")}</Text>
               {deleteConfirming ? <>
@@ -461,15 +462,6 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
               {!!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error || shared.error, 'feedback')}</Text>}
 
               {<>
-              <Text style={styles.description}>{ui("rooms.who_can_discover_and_enter_this_room")}</Text>
-              <View style={styles.gameTabs}>
-                {([['private', ui('rooms.private')], ['public', ui('rooms.public')]] as const).map(([value, label]) =>
-                  <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: visibility === value }}
-                    onPress={() => setVisibility(value)} style={[styles.gameTab, visibility === value && styles.selectedTab]}>
-                    <Text style={[styles.tabText, visibility === value && styles.selectedTabText]}>{label}</Text>
-                  </Pressable>)}
-              </View>
-              <Text style={styles.description}>{visibility === 'private' ? ui("common.private_room_access_help") : ui("rooms.every_signed_in_player_can_see_and_enter_it")}</Text>
               <Text style={styles.sectionTitle}>{ui("rooms.invite_people_optional")}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><FormInput accessibilityLabel={ui("rooms.find_people_to_invite_to_room")} value={roomInviteQuery} onChangeText={setRoomInviteQuery} maxLength={64} placeholder={ui("rooms.name_username_or_user_id")} placeholderTextColor={colors.textMuted} autoCapitalize="none" autoCorrect={false} returnKeyType="search" onSubmitEditing={() => void searchRoomDirectory()} style={[styles.input, { flex: 1, minWidth: 0 }]} />
               <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.search_directory")} disabled={roomInviteSearching || roomInviteQuery.trim().length < 2} onPress={() => void searchRoomDirectory()} style={[styles.button, (roomInviteSearching || roomInviteQuery.trim().length < 2) && styles.disabled]}><Text style={styles.buttonText}>{roomInviteSearching ? '…' : ui("common.search")}</Text></Pressable></View>
@@ -535,7 +527,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
               onPress={submitAccount}
               style={[styles.button, { backgroundColor: colors.primary }, authDisabled && styles.disabled]}>
               <Text style={[styles.buttonText, { color: colors.onPrimary }]}>{shared.loggingIn ? ui("common.please_wait") : authMode === 'signup' ? ui("common.create_account") : ui("common.sign_in")}</Text>
-            </Pressable></View></FormFooter>}{room && !expired && !invitation && !gameOpen && chat.view}</KeyboardFrame></HeaderProfileContext.Provider>;
+            </Pressable></View></FormFooter>}{room && !expired && !invitation && !gameOpen && chat.view}</KeyboardFrame></HeaderProfileContext.Provider></PushProvider>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.background }, container: { alignItems: 'center', paddingHorizontal: 16 }, content: { width: '100%', maxWidth: 1120 },

@@ -1,3 +1,4 @@
+import {usePushNavigation} from './src/notifications/usePushNavigation';
 import { PolicyNavigation, PublicPolicyPage, type PolicyPage } from './src/components/moderation/PublicPolicies';
 import { DeletionNavigation, deletionLink } from './src/auth/deletion';
 import { DeletionScreen } from './src/screens/DeletionScreen';
@@ -35,6 +36,7 @@ function AppContent() {
   const { colors } = useTheme();
   const [invitation, setInvitation] = useState<Invitation | null>(() => Platform.OS === 'web' ? readInvitation(globalThis.location.href) : null);
   const [inRooms, setInRooms] = useState(() => !!readSession(apiUrl) || !!invitation);
+  usePushNavigation(target => {setInvitation(target);setInRooms(true);});
   const [recovery, setRecovery] = useState<RecoveryLink | null>(() => Platform.OS === 'web' ? readRecoveryLink(globalThis.location.href) : null);
   const [authVersion, setAuthVersion] = useState(0);
   const [authError, setAuthError] = useState('');
@@ -113,7 +115,7 @@ function AppContent() {
         if (reset) { saveSession(apiUrl, null); setAuthVersion(value => value + 1); }
         setRecovery(null); setInRooms(true);
       }} /> : finishingSignIn ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.text }}>{ui('common.completing_sign_in')}</Text></View>
-        : process.env.EXPO_PUBLIC_RUNTIME_MODE === 'distributed-integration' && (inRooms || invitation) ? <DistributedRoomsScreen key={authVersion} onExit={() => { dismissInvitation(); setInRooms(false); }} />
+        : process.env.EXPO_PUBLIC_RUNTIME_MODE === 'distributed-integration' && (inRooms || invitation) ? <DistributedRoomsScreen key={authVersion} invitation={invitation} dismissInvitation={dismissInvitation} onExit={() => { dismissInvitation(); setInRooms(false); }} />
         : inRooms || invitation ? <SharedRoomsScreen key={authVersion} invitation={invitation} dismissInvitation={dismissInvitation} onExit={() => { dismissInvitation(); setInRooms(false); }} />
         : <WelcomeScreen onEnterLobby={() => setInRooms(true)} />}
     </DeletionNavigation.Provider></PolicyNavigation.Provider></SafeAreaProvider>

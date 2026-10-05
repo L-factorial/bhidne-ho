@@ -15,6 +15,7 @@ function setup(submit) {
  const root={session:{command(slot){if(!slots.has(slot))slots.set(slot,new DurableCommandClient({submit:async r=>{sent.push(r);return submit?submit(r):receipt(r);},status:async()=>assert.fail()}));return slots.get(slot);},releaseCommand(slot){slots.get(slot)?.close();return slots.delete(slot);}},
  reads:{gameView:async()=>structuredClone(view),lobby:async()=>['lobby'],activity:async k=>[k],preview:async()=>({room_id:'r'}),memberProfiles:async()=>[],ledger:async()=>({})}};
  root.readGameView=(...args)=>root.reads.gameView(...args);
+ root.targetForLane=()=>null;
  const api=new OriginalUiApi(root,account,async(...args)=>{shared.push(args);return {user_id:'player',display_name:'Player'};});
  return {api,root,sent,shared};
 }
@@ -130,4 +131,36 @@ test('UI waits for root receipt recovery instead of racing a second reconciliati
  const ui=f.api.request('/test-games/r/table/lock',account,{match_id:'m'});
  finish();await background;await ui;
  assert.equal(f.sent.length,1);
+});
+
+test('live game chat uses only cached view and ephemeral endpoint, bounded local history',async()=>{
+ const f=setup(),delivered=[],calls=[];
+ f.root.ephemeralEnabled=true;f.root.cachedGameView=()=>structuredClone(view);
+ f.root.reads.gameView=async()=>assert.fail('unexpected snapshot fetch');
+ f.root.reads.ephemeral=async(target,body)=>{
+  calls.push([target,body]);return {message:{type:'TABLE_CHAT_MESSAGE',id:body.command_id,
+   room_id:'r',match_id:'m',sender_id:account.user_id,text:body.payload.text,ephemeral:true,sent_at:Date.now(),expires_at:Date.now()+30000}};
+ };
+ const channel={receive:row=>delivered.push(row)};f.api.attachSocial(channel);f.api.selectedRoom='r';
+ assert.deepEqual((await channel.transport('TABLE_CHAT_HISTORY','m',{},signal())).messages,[]);
+ const ack=await channel.transport('TABLE_CHAT_SEND','m',{text:'Hi'},signal());
+ assert.equal(calls[0][0].kind,'table');assert.equal(calls[0][1].expected_revision,7);
+ assert.equal(f.sent.length,0);assert.equal(delivered.length,1);
+ f.api.deliverEphemeral(ack.message);assert.equal(delivered.length,1);
+ f.api.deliverEphemeral({...ack.message,id:'wrong-room',room_id:'other'});assert.equal(delivered.length,1);
+ f.api.deliverEphemeral({...ack.message,id:'expired',expires_at:0});assert.equal(delivered.length,1);
+ for(let n=0;n<110;n++)f.api.deliverEphemeral({...ack.message,id:'live-'+n});
+ assert.equal((await channel.transport('TABLE_CHAT_HISTORY','m',{},signal())).messages.length,100);
+ f.api.close();assert.equal(channel.transport,undefined);
+});
+
+test('room chat push uses committed names without profile or history fetch',async()=>{
+ const f=setup(),received=[];
+ f.root.targetForLane=()=>({kind:'room_chat',room_id:'r'});
+ const stop=f.api.observeChat('/rooms/r/chat',rows=>received.push(rows));
+ const row={id:'message',sender_id:account.user_id,sender_name:'Alice',text:'Hi',sent_at:'2026-01-01T00:00:00Z'};
+ await f.api.deliverChat('room-chat',[row]);
+ assert.equal(received[0][0].sender_name,'Alice');assert.equal(typeof received[0][0].sent_at,'number');
+ assert.equal(f.shared.length,0);assert.equal(f.sent.length,0);
+ stop();await f.api.deliverChat('room-chat',[row]);assert.equal(received.length,1);f.api.close();
 });

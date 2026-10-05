@@ -17,6 +17,7 @@ import { ApiError, request } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { useTranslation } from 'react-i18next';
+import { observeRuntimeChat } from '../multiplayer/RuntimeRequests';
 
 type Message = { id: string; sender_id: string; sender_name: string; text: string; removed?: boolean; sent_at: number };
 
@@ -57,17 +58,24 @@ export function useRoomChat({ roomId, session, connected, hideWhenBlocked = fals
   useEffect(() => {
     const controller = new AbortController(); lifetime.current = controller;
     let timer: ReturnType<typeof setTimeout>;
+    let pushGeneration=0;
+    const install=(history:Message[])=>{
+      if(controller.signal.aborted)return;
+      const fresh=previousIds.current?history.filter(m=>!previousIds.current!.has(m.id)&&m.sender_id!==session.user_id):[];
+      previousIds.current=new Set(history.map(m=>m.id));
+      if(fresh.length&&!notification.current.open){setUnread(n=>n+fresh.length);if(!notification.current.muted)notification.current.play();}
+      setMessages(current=>preserveRemovals(current,history));setLoadError('');setBlocked(false);
+    };
+    const unsubscribe=observeRuntimeChat(session,path,rows=>{
+      pushGeneration++;
+      install(rows);clearTimeout(timer);timer=setTimeout(refresh,30000);
+    });
     async function refresh() {
+      const generation=pushGeneration;
       try {
         const history = await request<Message[]>(path, session, undefined, controller.signal);
-        if (!controller.signal.aborted) {
-          const fresh = previousIds.current ? history.filter(message => !previousIds.current!.has(message.id) && message.sender_id !== session.user_id) : [];
-          previousIds.current = new Set(history.map(message => message.id));
-          if (fresh.length && !notification.current.open) {
-            setUnread(count => count + fresh.length);
-            if (!notification.current.muted) notification.current.play();
-          }
-          setMessages(current=>preserveRemovals(current,history)); setLoadError(''); setBlocked(false);
+        if (!controller.signal.aborted && generation===pushGeneration) {
+          install(history);
         }
       } catch (failure) {
         if (!controller.signal.aborted) {
@@ -77,11 +85,11 @@ export function useRoomChat({ roomId, session, connected, hideWhenBlocked = fals
           setLoadError(playerError(failure, ui("feedback.could_not_load_chat")));
         }
       } finally {
-        if (!controller.signal.aborted) timer = setTimeout(refresh, 1000);
+        if (!controller.signal.aborted){clearTimeout(timer);timer = setTimeout(refresh, unsubscribe?30000:1000);}
       }
     }
     if (connected) void refresh();
-    return () => { controller.abort(); clearTimeout(timer); };
+    return () => { controller.abort(); clearTimeout(timer);unsubscribe?.(); };
   }, [path, session.token, connected, blocking.revision]);
   async function send() {
     if (sending.current || blocked || !connected || !draft.trim() || length > 500) return;

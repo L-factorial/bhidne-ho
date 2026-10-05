@@ -26,7 +26,7 @@ test('original room actions submit durable commands without legacy requests',asy
  });
  const {actions}=setup(transport);
  const room=await actions.create(account,input);
- assert.deepEqual(room,{room_id:roomId,name:input.name,visibility:'private',creator_id:account.user_id,members:[account.user_id]});
+ assert.deepEqual(room,{room_id:roomId,name:input.name,visibility:'public',creator_id:account.user_id,members:[account.user_id]});
  await actions.enter(account,'created');await actions.leave(account,'created');await actions.remove(account,'created');
  assert.deepEqual(calls.map(c=>c.url),['https://host/distributed/rooms',...Array(3).fill('https://host/distributed/commands')]);
  assert.deepEqual(calls.slice(1).map(c=>JSON.parse(c.options.body).body.command),['enter-room','leave-room','delete-room']);

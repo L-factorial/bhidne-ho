@@ -1,0 +1,99 @@
+{
+  "before": {
+    "cards": [
+      "A",
+      "K"
+    ],
+    "pot": 12.5,
+    "turn": "1",
+    "actions": {
+      "bet": true
+    },
+    "remove_me": null,
+    "unicode": "नेपाल 🂡",
+    "float": 1e-07,
+    "zero": -0.0
+  },
+  "after": {
+    "cards": [
+      "K"
+    ],
+    "pot": 15.5,
+    "turn": "2",
+    "actions": {
+      "bet": false,
+      "fold": true
+    },
+    "unicode": "नेपाल 🂡",
+    "float": 1e-07,
+    "zero": 0,
+    "score": {
+      "1": 2
+    }
+  },
+  "canonical_before": "[\"object\",[[\"0061006300740069006f006e0073\",[\"object\",[[\"006200650074\",[\"bool\",true]]]]],[\"00630061007200640073\",[\"array\",[[\"string\",\"0041\"],[\"string\",\"004b\"]]]],[\"0066006c006f00610074\",[\"number\",\"3e7ad7f29abcaf48\"]],[\"0070006f0074\",[\"number\",\"4029000000000000\"]],[\"00720065006d006f00760065005f006d0065\",[\"null\"]],[\"007400750072006e\",[\"string\",\"0031\"]],[\"0075006e00690063006f00640065\",[\"string\",\"09280947092a093e09320020d83cdca1\"]],[\"007a00650072006f\",[\"number\",\"0000000000000000\"]]]]",
+  "delta": {
+    "version": 1,
+    "game_id": "match",
+    "base_revision": 10,
+    "revision": 11,
+    "base_checksum": "bb1230a2d081be1132aa57d7cffe15a518c8b05330f5d6c49dc0ee1d310f0550",
+    "checksum": "007a6620fe602139307538884c48ee770afe2c9adeb0517e8322ad268d1193aa",
+    "operations": [
+      {
+        "op": "remove",
+        "path": [
+          "remove_me"
+        ]
+      },
+      {
+        "op": "set",
+        "path": [
+          "actions",
+          "bet"
+        ],
+        "value": false
+      },
+      {
+        "op": "set",
+        "path": [
+          "actions",
+          "fold"
+        ],
+        "value": true
+      },
+      {
+        "op": "set",
+        "path": [
+          "cards"
+        ],
+        "value": [
+          "K"
+        ]
+      },
+      {
+        "op": "set",
+        "path": [
+          "pot"
+        ],
+        "value": 15.5
+      },
+      {
+        "op": "set",
+        "path": [
+          "score"
+        ],
+        "value": {
+          "1": 2
+        }
+      },
+      {
+        "op": "set",
+        "path": [
+          "turn"
+        ],
+        "value": "2"
+      }
+    ]
+  }
+}

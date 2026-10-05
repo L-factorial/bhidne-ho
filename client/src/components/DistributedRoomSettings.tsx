@@ -17,8 +17,6 @@ export function DistributedRoomSettings({root,room,session}:{root:DistributedRoo
   const button=(label:string,run:()=>void)=><Pressable accessibilityRole="button" disabled={!controller||state.busy} onPress={run} style={{padding:12}}><Text style={{color:colors.accent}}>{label}</Text></Pressable>;
   return <View style={{gap:8}}>
     <Text style={{color:colors.text}}>{ui("common.room_settings")}</Text>
-    {button(ui("common.make_public"),()=>void controller?.room(room,'room-visibility',{visibility:'public'}))}
-    {button(ui("common.make_private"),()=>void controller?.room(room,'room-visibility',{visibility:'private'}))}
     {friends.map(friend=><View key={friend.user_id}>{button(ui("rooms.invite_player", {player: friend.display_name}),()=>void controller?.room(room,'invite-room',{recipients:[friend.user_id]}))}</View>)}
     {confirm?button(ui("common.confirm_delete_room"),()=>void controller?.room(room,'delete-room')):button(ui("rooms.delete_room"),()=>setConfirm(true))}
     {state.status==='pending'&&button(ui("common.pending_action"),()=>void controller?.recover())}

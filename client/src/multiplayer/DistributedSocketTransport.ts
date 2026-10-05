@@ -20,6 +20,8 @@ export class DistributedSocketTransport {
   private probe: {promise: Promise<void>; resolve(): void; reject(error: Error): void; timer: ReturnType<typeof setTimeout>} | null = null;
   private disconnected: (detail?: SocketDisconnect) => void;
   private onReady: () => void;
+  capabilities: string[] = [];
+  onEphemeral?: (payload: unknown) => void;
   get connected() { return this.ready && !this.closed; }
   constructor(url: string, token: string, clientId: string, onDisconnect: (detail?: SocketDisconnect) => void,
     factory: (url: string) => Socket = url => new WebSocket(url), onReady: () => void = () => {}) {
@@ -36,8 +38,9 @@ export class DistributedSocketTransport {
         if (typeof event.data !== 'string' || event.data.length > 1048576) throw Error('Invalid frame.');
         const data = JSON.parse(event.data);
         if (data.type === 'READY' && !this.ready) {
+          this.capabilities=Array.isArray(data.capabilities)?data.capabilities.filter((c:unknown)=>typeof c==='string'):[];
           this.ready = true; this.lastReply = Date.now(); this.onReady();
-          for (const [id,e] of this.entries) this.send({type:'SUBSCRIBE',subscription_id:id,lane_id:e.lane});
+          for (const [id,e] of this.entries) this.subscribe(id,e.lane);
           return;
         }
         if (data.type === 'PONG') {
@@ -45,6 +48,7 @@ export class DistributedSocketTransport {
           if(this.probe){const probe=this.probe;this.probe=null;clearTimeout(probe.timer);probe.resolve();}
           return;
         }
+        if(data.type==='EPHEMERAL' && this.ready){this.onEphemeral?.(data.payload);return;}
         const e = this.entries.get(data.subscription_id);
         if (!e) return; // Late response for a locally closed subscription.
         if (data.type === 'SUBSCRIBED' && !e.ready && data.lane_id === e.lane
@@ -90,6 +94,10 @@ export class DistributedSocketTransport {
     if (this.closed) throw Error('Delivery socket closed.');
     this.socket.send(JSON.stringify(value));
   }
+  private subscribe(id: string, lane: string) {
+    const capabilities=this.capabilities.filter(c=>['view-delta-v1','ephemeral-v1'].includes(c));
+    this.send({type:'SUBSCRIBE',subscription_id:id,lane_id:lane,...(capabilities.length?{capabilities}:{})});
+  }
   open(lane: string, _clientId: string, page: (value: unknown) => void, revoked: () => void,
     signal: AbortSignal): Promise<Subscription> {
     if (this.closed || _clientId !== this.clientId || signal.aborted || this.entries.size >= 128) return Promise.reject(Error('Subscription unavailable.'));
@@ -99,7 +107,7 @@ export class DistributedSocketTransport {
       const e: Entry = {lane, ready:false, page, revoked, resolve, reject,
         cleanup:()=>signal.removeEventListener('abort',abort)};
       this.entries.set(id,e); signal.addEventListener('abort',abort,{once:true});
-      try { if (this.ready) this.send({type:'SUBSCRIBE',subscription_id:id,lane_id:lane}); }
+      try { if (this.ready) this.subscribe(id,lane); }
       catch { this.remove(id,true); }
     });
   }

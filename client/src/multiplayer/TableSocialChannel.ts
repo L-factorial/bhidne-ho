@@ -1,5 +1,5 @@
 import { ui } from '../i18n/copy.ts';
-export type TableMessage = { type: 'TABLE_CHAT_MESSAGE'; id: string; room_id: string; match_id: string; sender_id: string; sender_player_id?: number; sender_name: string; text: string; removed?: boolean; sent_at: number };
+export type TableMessage = { type: 'TABLE_CHAT_MESSAGE'; id: string; room_id: string; match_id: string; sender_id: string; sender_player_id?: number; sender_name: string; text: string; removed?: boolean; ephemeral?: boolean; expires_at?: number; sent_at: number };
 export type SocialAck = { type: 'TABLE_SOCIAL_ACK'; room_id: string; match_id: string; command_id: string; status: 'accepted' | 'rejected'; detail?: string; messages?: TableMessage[]; message?: TableMessage };
 export class TableSocialChannel {
   transport?: (type: 'TABLE_CHAT_SEND' | 'TABLE_CHAT_HISTORY' | 'TABLE_POKE_SEND', match:string,payload:object,signal:AbortSignal)=>Promise<SocialAck>;

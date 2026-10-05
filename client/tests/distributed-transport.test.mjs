@@ -69,3 +69,15 @@ test('socket close diagnostics retain code and reason without protocol payloads'
  assert.deepEqual(reasons,[{cause:'close',code:1001,reason:'going away',wasClean:true}]);
  transport.close();assert.equal(reasons.length,1);
 });
+
+test('new capabilities are negotiated after READY while AUTH stays compatible',async t=>{
+ const f=fixture();t.after(()=>f.t.close());const opening=f.open();
+ f.socket.onopen();assert.deepEqual(f.sent[0],{type:'AUTH',token:'token',client_id:'phone'});
+ f.frame({type:'READY',capabilities:['view-delta-v1','ephemeral-v1','future-feature']});
+ assert.deepEqual(f.sent[1].capabilities,['view-delta-v1','ephemeral-v1']);
+ const id=f.sent[1].subscription_id;
+ f.frame({type:'SUBSCRIBED',subscription_id:id,lane_id:'lane',cursor:0});await opening;
+ const live=[];f.t.onEphemeral=payload=>live.push(payload);
+ f.frame({type:'EPHEMERAL',payload:{type:'TABLE_CHAT_MESSAGE',text:'Hi'}});
+ assert.deepEqual(live,[{type:'TABLE_CHAT_MESSAGE',text:'Hi'}]);assert.equal(f.pages.length,0);
+});

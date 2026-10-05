@@ -59,6 +59,8 @@ export type DeliveryView<T> = {
   // Optional expiring presentation only; never apply game state or payments here.
   transient?(events: DeliveryEvent[]): void;
   committed?(events: DeliveryEvent[]): void;
+  // True means payloads were applied (or safely ignored) without a history read.
+  apply?(events: DeliveryEvent[], signal: AbortSignal): Promise<boolean>;
 };
 
 // One instance per authenticated device/lane/subscription incarnation. Different
@@ -108,7 +110,8 @@ export class DurableDeliveryClient<T> {
         const transient = page.events.filter(e => e.sequence > this.cursor! && ['ROOM_POKE','TABLE_REACTION'].includes(e.event_type));
         // Events invalidate current state; never replay old engine deltas over a
         // newer snapshot. Hidden-only pages need no view refresh.
-        if (page.events.some(e => e.sequence > this.cursor!)) {
+        const fresh=page.events.filter(e=>e.sequence>this.cursor!);
+        if (fresh.length && !(await this.view.apply?.(fresh,signal))) {
           const state = await this.view.load(signal);
           this.check(signal); this.view.install(state); this.check(signal);
         }

@@ -12,9 +12,12 @@ import { discoverDeliveryStreams } from './DurableDeliveryClient.ts';
 import type { CommandTarget } from './DurableCommandClient.ts';
 import type { SelectedTable } from './DistributedControls.ts';
 import { gameControl, tableControl, roomControl } from './DistributedControls.ts';
+import { applyViewDelta, canonicalView } from './GameViewDelta.ts';
+import { viewDigest } from './ViewDigest.ts';
+import type { DeliveryEvent } from './DurableDeliveryClient.ts';
 
 export type Selection = { room: string; table: string | null; chat?: ('room_chat'|'table_chat'|'game_chat')[] };
-export type Projection = { room_id: string; snapshot: (SelectedTable & { durable_game_id: string | null; status?: string }) | null };
+export type Projection = { room_id: string; snapshot: (SelectedTable & { durable_game_id: string | null; status?: string; tables?: unknown }) | null };
 type GameReadView = Partial<SelectedTable> & {room_id: string; status?: string; [key: string]: unknown};
 export type RootView = {kind:'lobby';value:null} | { kind: 'snapshot'; value: Projection } | { kind: 'chat'|'social'; value: unknown };
 type SocketFactory = (url: string, token: string, device: string, disconnected: (detail?: SocketDisconnect) => void, ready?: () => void) => DistributedSocketTransport;
@@ -38,6 +41,20 @@ export class DistributedRootRuntime {
   private selection: Selection | null = null;
   private targets = new Map<string, CommandTarget>();
   private projection: Projection | null = null;
+  private laneViews = new Map<string, RootView>();
+  targetForLane(lane: string) { return copy(this.targets.get(lane)??null); }
+  get pushViewsEnabled() { return this.socket?.capabilities?.includes('view-delta-v1')===true; }
+  get ephemeralEnabled() { return this.socket?.capabilities?.includes('ephemeral-v1')===true; }
+  cachedChat(target: CommandTarget): any[] | null {
+    for(const [lane,t] of this.targets)if(t.kind===target.kind&&t.room_id===target.room_id&&t.table_id===target.table_id){
+      const view=this.laneViews.get(lane);if(view?.kind==='chat'&&Array.isArray(view.value))return copy(view.value);
+    }
+    return null;
+  }
+  cachedGameView<T>(room: string, match: string | null): T | null {
+    const value=this.projection?.snapshot;
+    return value && this.selection?.room===room && (!match||value.match_id===match)?copy(value) as T:null;
+  }
   private streamReady = new Map<string, boolean>();
   private discoveryIssues: ('chat' | 'social')[] = [];
   private activityObservers = new Set<() => void>();
@@ -79,9 +96,11 @@ export class DistributedRootRuntime {
         return this.socket.open(...args);
       },
       load: (lane, signal) => this.load(lane, signal),
+      apply: (lane, events, signal) => this.applyEvents(lane, events, signal),
     }, {
       install: (lane, view) => this.install(lane, view),
       remove: lane => {
+        this.laneViews.delete(lane);
         callbacks.remove(lane);
       },
       error: (lane, error, source) => {
@@ -192,8 +211,78 @@ export class DistributedRootRuntime {
       if(old && next && old.durable_game_id!==next.durable_game_id)this.session.retryDiscovery(50);
       for (const listener of this.observers) listener(copy(view.value));
     }
-    if(notifyLane)this.callbacks.install(lane,copy(view));
+    if(notifyLane){this.laneViews.set(lane,copy(view));this.callbacks.install(lane,copy(view));}
     if(view.kind==='lobby'||view.kind==='social')for(const listener of this.activityObservers)listener();
+  }
+  private async applyEvents(lane: string, events: DeliveryEvent[], signal: AbortSignal): Promise<boolean> {
+    const target=this.targets.get(lane);
+    if(!target)return false;
+    const ack=(e:DeliveryEvent)=>e.event_type.endsWith('_ACK');
+    if(target.kind.endsWith('_chat')){
+      if(events.some(e=>e.event_type!=='CHAT_MESSAGE'&&!ack(e)))return false;
+      const previous=this.laneViews.get(lane);
+      if(previous?.kind!=='chat'||!Array.isArray(previous.value))return false;
+      const rows=new Map(previous.value.map(r=>[r.id,r]));
+      for(const event of events)if(event.event_type==='CHAT_MESSAGE'){
+        const row=event.payload as Record<string,unknown>;
+        if(!row || typeof row.id!=='string' || !Number.isSafeInteger(row.sequence))return false;
+        rows.set(row.id,{...row});
+      }
+      if(signal.aborted)return false;
+      this.install(lane,{kind:'chat',value:[...rows.values()].sort((a,b)=>a.sequence-b.sequence).slice(-1000)});
+      return true;
+    }
+    if(!['table','game'].includes(target.kind) || !this.socket?.capabilities?.includes('view-delta-v1'))return false;
+    const generation=this.selectionGeneration, installed=this.projection;
+    if(!installed?.snapshot)return false;
+    const current=copy(installed.snapshot);
+    let catalog=current.tables;
+    delete current.tables;
+    let candidate=current;
+    let changed=false;
+    try{
+      for(const event of events){
+        const payload=event.payload as {type?:string;delta?:import('./GameViewDelta.ts').ViewDelta;
+          table_preview?:Record<string,unknown>|null;preview_checksum?:string};
+        if(event.event_type==='VIEW_RESET'||payload?.type==='VIEW_RESET')return false;
+        if(event.event_type==='VIEW_DELTA'){
+          const delta=payload.delta;
+          if(!delta || delta.game_id!==candidate.match_id)return false;
+          if(delta.revision<=candidate.table_revision)continue;
+          const result=await applyViewDelta(candidate,delta,candidate.match_id,candidate.table_revision,viewDigest);
+          candidate=result.value;
+          if(candidate.table_revision!==result.revision || candidate.match_id!==current.match_id)return false;
+          if(Object.hasOwn(payload,'table_preview')){
+            const preview=payload.table_preview;
+            if(await viewDigest(canonicalView(preview))!==payload.preview_checksum)return false;
+            if(preview && (preview.table_id!==candidate.table_id || preview.match_id!==candidate.match_id
+              || preview.table_revision!==result.revision))return false;
+            if(Array.isArray(catalog)){
+              const index=catalog.findIndex(row=>row?.table_id===candidate.table_id);
+              if(preview){if(index<0)catalog.push(preview);else catalog[index]=preview;}
+              else catalog=catalog.filter(row=>row?.table_id!==candidate.table_id);
+            }
+          }
+          changed=true;
+        }else if(ack(event)){
+          const result=payload as {status?:string};
+          if(result.status==='rejected')return false;
+        }else if(!['VIEW_PENDING','ROOM_POKE','TABLE_REACTION'].includes(event.event_type))return false;
+      }
+      if(signal.aborted || this.closed || generation!==this.selectionGeneration)return false;
+      if(this.projection!==installed){
+        // An HTTP read or another lane installed while checksums were calculated.
+        // Do not replace it; reconcile if it hasn't already reached this revision.
+        return !!this.projection?.snapshot && this.projection.snapshot.match_id===candidate.match_id
+          && this.projection.snapshot.table_revision>=candidate.table_revision;
+      }
+      if(changed){
+        candidate.tables=catalog;
+        this.install(lane,{kind:'snapshot',value:{...installed,snapshot:candidate}});
+        this.snapshotClock.success(installed.room_id,candidate.match_id);
+      }
+      return true;
+    }catch{return false;}
   }
   private reportRecovery() {
     if(this.closed)return;
@@ -253,6 +342,7 @@ export class DistributedRootRuntime {
       });
       if (this.closed || generation !== this.generation) { socket.close(); return; }
       this.socket = socket;
+      socket.onEphemeral = payload=>{if(!this.closed&&generation===this.generation)this.callbacks.transient?.(payload);};
       await this.session.connect();
     } catch (error) { failed(); throw error; }
   }
@@ -269,7 +359,9 @@ export class DistributedRootRuntime {
         if(next?.match_id)this.snapshotClock.success(selected.room,next.match_id);
         this.install('snapshot-read',{kind:'snapshot',value},false);
       }
-      return value;
+      const latest=this.projection;
+      return latest?.snapshot && value.snapshot && latest.snapshot.match_id===value.snapshot.match_id
+        && latest.snapshot.table_revision>=value.snapshot.table_revision ? copy(latest):value;
     });
     return this.snapshotRead.load(signal,invalidate);
   }
@@ -293,7 +385,9 @@ export class DistributedRootRuntime {
           if(this.selection?.room===room && this.selection.table && value.table_id===this.selection.table)
             this.install('snapshot-read',{kind:'snapshot',value:{room_id:room,snapshot:value as Projection['snapshot']}},false);
         }
-        return value;
+        const latest=this.projection?.snapshot;
+        return latest && latest.match_id===value.match_id && latest.table_revision>=(value.table_revision??-1)
+          ? copy(latest) as GameReadView:value;
       });
       this.gameReads.set(key,reader);
       if(this.gameReads.size>128)this.gameReads.delete(this.gameReads.keys().next().value!);
@@ -321,7 +415,7 @@ export class DistributedRootRuntime {
   close() {
     if (this.closed) return;
     this.closed = true; this.generation++;this.selectionGeneration++;clearTimeout(this.retry);
-    this.session.close(); this.socket?.close(); this.socket = null;this.targets.clear();this.projection = null;this.observers.clear();this.activityObservers.clear();this.gameReads.clear();this.streamReady.clear();
+    this.session.close(); this.socket?.close(); this.socket = null;this.targets.clear();this.laneViews.clear();this.projection = null;this.observers.clear();this.activityObservers.clear();this.gameReads.clear();this.streamReady.clear();
   }
 }
 

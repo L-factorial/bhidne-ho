@@ -4,15 +4,15 @@ import { DistributedRootRuntime, distributedRoot } from '../src/multiplayer/Dist
 import { createJournalOwner } from '../src/multiplayer/JournalOwner.ts';
 const wait=async fn=>{for(let n=0;n<150;n++){if(fn())return;await new Promise(r=>setTimeout(r,2));}assert.fail('timed out');};
 function setup(options={}){
- const data=new Map(),installed=[],removed=[],errors=[],sockets=[],sent=[],health=[],recovery=[];let room='r',revision=4;
+ const data=new Map(),installed=[],removed=[],errors=[],sockets=[],sent=[],health=[],recovery=[];let room='r',revision=4,tableRevision=2,roomReads=0;
  const owner=createJournalOwner({read:k=>data.get(k)??null,write:(k,v)=>data.set(k,v)},'alice',()=>{});
- const projection=()=>({room_id:room,snapshot:{room_id:room,table_id:'t',match_id:'m',durable_game_id:'g',table_revision:2,game:{revision}}});
+ const projection=()=>({room_id:room,snapshot:{room_id:room,table_id:'t',match_id:'m',durable_game_id:'g',table_revision:tableRevision,game:{revision}}});
  const fetcher=async(url,opts)=>{
   if(options.fetcher)return options.fetcher(url,opts);
   if(options.chatStatus&&url.endsWith('/streams/open')&&JSON.parse(opts.body).kind.endsWith('_chat'))return {ok:false,status:options.chatStatus};
   let value;
   if(url.endsWith('/commands')){sent.push(JSON.parse(opts.body));throw Error('response lost');}
-  if(url.includes('/rooms/'))value=projection();
+  if(url.includes('/rooms/')){roomReads++;value=options.roomRead?await options.roomRead(projection()):projection();}
   else if(url.endsWith('/streams/recipient'))value={lane_id:'personal',target:{kind:'recipient',recipient_id:'alice'}};
   else if(url.includes('/streams/social'))value={items:[{lane_id:'personal'}],next_lane_id:null};
   else if(url.endsWith('/streams/open')){const target=JSON.parse(opts.body);value={lane_id:target.kind,target};}
@@ -21,13 +21,13 @@ function setup(options={}){
  };
  const socketFactory=(url,token,device,failed,ready)=>{
   queueMicrotask(()=>ready?.());
-  const socket={failed,closed:false,opens:[],close(){this.closed=true;},async open(lane,id,page,revoked,signal){
+  const socket={capabilities:options.capabilities??[],failed,closed:false,opens:[],close(){this.closed=true;},async open(lane,id,page,revoked,signal){
    const sub={lane,page,revoked,signal,closed:false};this.opens.push(sub);return {cursor:0,acknowledge:async()=>{},close:()=>{sub.closed=true;}};
   }};sockets.push(socket);return socket;
  };
  const root=new DistributedRootRuntime(owner,'https://host/distributed','token',{install:(l,v)=>installed.push([l,v]),remove:l=>removed.push(l),error:(l,e)=>errors.push(e),health:v=>health.push(v),recovery:v=>recovery.push(v)},
  {fetcher,socketFactory,refreshMs:300000});
- return {root,owner,installed,removed,errors,sockets,sent,health,recovery,setRoom:v=>room=v,setRevision:v=>revision=v};
+ return {root,owner,installed,removed,errors,sockets,sent,health,recovery,roomReads:()=>roomReads,setRoom:v=>room=v,setRevision:v=>revision=v,setTableRevision:v=>tableRevision=v};
 }
 test('root assembles authenticated discovery, hosted/history views and journaled controls',async t=>{
  const f=setup();t.after(()=>{f.root.close();f.owner.close();});await f.root.select({room:'r',table:'t',chat:['room_chat']});
@@ -167,4 +167,55 @@ test('changing chat selection preserves the healthy game and table subscriptions
  await f.root.select({room:'r',table:'t',chat:['room_chat','table_chat']});
  assert.equal(f.sockets.length,1);assert.equal(game.closed,false);assert.equal(table.closed,false);
  assert.equal(socket.opens.filter(s=>s.lane==='game').length,1);
+});
+
+async function pushedDelta(f,base=2,next=3,corrupt=false,sequence=1){
+ const {canonicalView}=await import('../src/multiplayer/GameViewDelta.ts');
+ const {viewDigest}=await import('../src/multiplayer/ViewDigest.ts');
+ const before={room_id:'r',table_id:'t',match_id:'m',durable_game_id:'g',table_revision:base,game:{revision:base+2}};
+ const after={...before,table_revision:next,game:{revision:next+2}};
+ const delta={version:1,game_id:'m',base_revision:base,revision:next,
+  base_checksum:await viewDigest(canonicalView(before)),checksum:corrupt?'0'.repeat(64):await viewDigest(canonicalView(after)),
+  operations:[{op:'set',path:['table_revision'],value:next},{op:'set',path:['game','revision'],value:next+2}]};
+ f.sockets[0].opens.find(s=>s.lane==='table').page({type:'DELIVERY_PAGE',lane_id:'table',after_sequence:sequence-1,
+  scanned_sequence:sequence,has_more:false,events:[{event_id:'delta'+sequence,lane_id:'table',sequence,event_type:'VIEW_DELTA',event_version:1,payload:{type:'VIEW_DELTA',delta}}]});
+}
+test('committed delta updates controls and fallback clock without a snapshot HTTP request',async t=>{
+ const f=setup({capabilities:['view-delta-v1']});t.after(()=>{f.root.close();f.owner.close();});
+ await f.root.select({room:'r',table:'t'});await wait(()=>f.installed.length===5);
+ const reads=f.roomReads();await pushedDelta(f);await wait(()=>f.root.cachedGameView('r','m')?.table_revision===3);
+ assert.equal(f.roomReads(),reads);assert.ok(f.root.snapshotClock.delay('r','m')>29000);
+ f.root.game('move','PLAY_CARD');assert.equal(f.root.session.command('move').request.body.expected_revision,5);
+ await pushedDelta(f,2,3,false,2);await new Promise(r=>setTimeout(r,10));assert.equal(f.roomReads(),reads);
+});
+for(const failure of ['gap','checksum'])test(`${failure} reconciles immediately instead of installing an invalid delta`,async t=>{
+ const f=setup({capabilities:['view-delta-v1']});t.after(()=>{f.root.close();f.owner.close();});
+ await f.root.select({room:'r',table:'t'});await wait(()=>f.installed.length===5);
+ const reads=f.roomReads();await pushedDelta(f,failure==='gap'?3:2,4,failure==='checksum');
+ await wait(()=>f.roomReads()>reads);assert.equal(f.root.cachedGameView('r','m').table_revision,2);
+});
+test('HTTP read started before a push returns the newer installed view',async t=>{
+ let release=null,delay=false;
+ const f=setup({capabilities:['view-delta-v1'],roomRead:v=>delay?new Promise(resolve=>{release=()=>resolve(v);}):v});
+ t.after(()=>{f.root.close();f.owner.close();});await f.root.select({room:'r',table:'t'});await wait(()=>f.installed.length===5);
+ delay=true;const reading=f.root.readGameView('r','m',new AbortController().signal,true);await wait(()=>release!==null);
+ await pushedDelta(f);await wait(()=>f.root.cachedGameView('r','m')?.table_revision===3);release();
+ assert.equal((await reading).table_revision,3);assert.equal(f.root.cachedGameView('r','m').table_revision,3);
+});
+
+test('pushed selected-table preview stays current without replacing other room tables',async t=>{
+ const f=setup({capabilities:['view-delta-v1'],roomRead:v=>({...v,snapshot:{...v.snapshot,tables:[
+  {table_id:'t',match_id:'m',table_revision:2,name:'Before'},
+  {table_id:'other',match_id:'other-match',name:'Keep'}]}})});
+ t.after(()=>{f.root.close();f.owner.close();});await f.root.select({room:'r',table:'t'});await wait(()=>f.installed.length===5);
+ const {canonicalView}=await import('../src/multiplayer/GameViewDelta.ts');
+ const {viewDigest}=await import('../src/multiplayer/ViewDigest.ts');
+ const sub=f.sockets[0].opens.find(s=>s.lane==='table'),original=sub.page;
+ const preview={table_id:'t',match_id:'m',table_revision:3,name:'After'};
+ sub.page=page=>{page.events[0].payload.table_preview=preview;
+  page.events[0].payload.preview_checksum=checksum;original(page);};
+ const checksum=await viewDigest(canonicalView(preview)),reads=f.roomReads();
+ await pushedDelta(f);await wait(()=>f.root.cachedGameView('r','m')?.table_revision===3);
+ assert.deepEqual(f.root.cachedGameView('r','m').tables,[preview,{table_id:'other',match_id:'other-match',name:'Keep'}]);
+ assert.equal(f.roomReads(),reads);
 });

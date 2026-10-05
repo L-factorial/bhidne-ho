@@ -13,14 +13,16 @@ import { useTableTheme } from '../TableThemeProvider';
 import { FormInput, FormScrollView } from './FormInput';
 import { KeyboardFrame } from './KeyboardFrame';
 import { FormFooter } from './FormFooter';
-import { TableSocialProvider } from './TableSocial';
+import { TableSocialProvider, TableSocialPresentation, TableSocialButton } from './TableSocial';
 import type { TableSocialChannel } from '../multiplayer/TableSocialChannel';
 import { TableCard } from './TableCard';
 import type { TableEntry } from '../multiplayer/tableNavigation';
 import { RuleProposal } from './RuleProposal';
 import { TableControls } from './TableControls';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { AppState, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { GameAttentionBanner } from './GameAttentionBanner';
+import { gameAttention } from '../notifications/gameAttention';
 import { useGameNotification } from '../notifications/useGameNotification';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LiveGameTable, RoomSnapshot as Snapshot } from '../screens/LiveGameTable';
@@ -38,10 +40,10 @@ import { request } from '../multiplayer/api';
 
 type InvitePlayer = { user_id: string; display_name: string; username?: string | null; eligible?: boolean; reason?: string | null };
 
-export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, requestedMatchId, requestedEntry, roomId, apiUrl, token, connected, sessionActive = true, members, presenceKnown = true, roomMembers = members, connectionMessage, userId, pokes, personal, createContent, creationEnabled = true, gameType = 'callbreak' }: {
+export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, onViewChange, requestedMatchId, requestedEntry, roomId, apiUrl, token, connected, sessionActive = true, members, presenceKnown = true, roomMembers = members, connectionMessage, userId, pokes, personal, createContent, creationEnabled = true, gameType = 'callbreak' }: {
   runtime?: OriginalDistributedRuntime | null;
   presenceKnown?: boolean;
-  socialChannel?: TableSocialChannel; chat?: ReactNode; onOpenChange?: (open: boolean) => void;
+  socialChannel?: TableSocialChannel; chat?: ReactNode; onOpenChange?: (open: boolean) => void; onViewChange?: (match:string|null)=>void;
   requestedMatchId?: string; requestedEntry?: TableEntry;
   gameType?: 'callbreak' | 'marriage' | 'flush';
   createContent?: ReactNode; creationEnabled?: boolean;
@@ -61,15 +63,17 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
   const [open, setOpen] = useState(false);
   useEffect(()=>{
     if(!runtime||!snapshot?.table_id)return;
-    void runtime.root.select({room:roomId,table:snapshot.status==='ended'?null:snapshot.table_id,chat:snapshot.status==='ended'?['room_chat']:['room_chat','table_chat']}).catch(()=>{});
-  },[runtime,roomId,snapshot?.table_id,snapshot?.durable_game_id,snapshot?.status==='ended']);
+    void runtime.root.select({room:roomId,table:snapshot.status==='ended'?null:snapshot.table_id,
+      chat:snapshot.status==='ended'||runtime.root.ephemeralEnabled?['room_chat']:['room_chat','table_chat']}).catch(()=>{});
+  },[runtime,roomId,snapshot?.table_id,snapshot?.durable_game_id,snapshot?.status==='ended',runtime?.root.ephemeralEnabled]);
   const [seatConflict, setSeatConflict] = useState<GameRequestDetail | null>(null);
   const visibleTables = snapshot?.tables?.filter(isActiveTable) || [];
   useEffect(() => { onOpenChange?.(open); }, [open, onOpenChange]);
   useEffect(() => () => onOpenChange?.(false), [onOpenChange]);
   const [live, setLive] = useState(false);
+  useEffect(() => {onViewChange?.(open && live ? snapshot?.match_id || null : null);return () => onViewChange?.(null);},[onViewChange,open,live,snapshot?.match_id]);
   const collapsed = !open && live && !!snapshot && snapshot.status !== 'empty';
-  const notification = useGameNotification(snapshot, collapsed);
+  const notification = useGameNotification(snapshot, collapsed, false);
   function collapseGame() { notification.prepare(); setOpen(false); }
   const [capacity, setCapacity] = useState(4);
   const [tableName, setTableName] = useState('');
@@ -95,7 +99,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
   const commandClient = useMemo(() => runtime
     ? new DistributedGameCommandClient(runtime.root.session.command('original-game-actions'),
       (signal,invalidate=false)=>runtime.root.readGameView<Snapshot>(roomId,selectedMatch.current??null,signal,invalidate),
-      snapshot=>({...snapshot,room_id:roomId}) as unknown as SelectedTable)
+      snapshot=>({...snapshot,room_id:roomId}) as unknown as SelectedTable,()=>runtime.root.pushViewsEnabled)
     : new GameCommandClient(transport), [transport,runtime,roomId]);
   const [actionTick, setActionTick] = useState(0);
   const [actionNotice, setActionNotice] = useState('');
@@ -390,7 +394,8 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
     enteredFromLobby.current = key;
     void enterTable(requestedMatchId, requestedEntry);
   }, [requestedMatchId, requestedEntry, busy, snapshot?.match_id]);
-  return <>
+  const attention = gameAttention(visibleSnapshot || snapshot);
+  const content = <>
     {!snapshot && !refreshError && <Text accessibilityLiveRegion="polite" style={styles.text}>{sessionActive ? ui("rooms.loading_tables") : ui("feedback.sign_in_again_to_load_tables")}</Text>}
     {refreshError && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.retry_loading_tables")} disabled={pendingAction || !sessionActive}
       onPress={() => setActionTick(value => value + 1)} style={styles.choice}><Text style={styles.text}>{ui("rooms.retry_loading_tables")}</Text></Pressable>}
@@ -408,9 +413,11 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
       {!!visibleTables.length && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_table")} disabled={pendingAction || !sessionActive || !creationEnabled} onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 52, marginBottom: 16 }]}>
         <Text style={[styles.buttonText, { color: colors.onPrimary }]}>{ui("rooms.create_new_table")}</Text>
       </Pressable>}
-    {collapsed && !!notification.notice && <Animated.View style={{ opacity: notification.opacity }}>
-      <Pressable accessibilityRole="button" onPress={() => void returnToGame()} style={styles.choice}><Text style={styles.text}>{ui("rooms.return_table_status", { "status": notification.notice })}</Text></Pressable>
-    </Animated.View>}
+    {collapsed && <ThemeContext.Provider value={gameTheme}><TableSocialPresentation expanded={false}>
+      <View testID="collapsed-game-controls" style={{flexDirection:'row',alignItems:'center',gap:4,backgroundColor:gameTheme.colors.tableHeader,borderRadius:20,padding:4}}>
+        <TableSocialButton kind="chat" /><GameAttentionBanner attention={attention} onPress={() => void returnToGame()} /><TableSocialButton kind="poke" />
+      </View>
+    </TableSocialPresentation></ThemeContext.Provider>}
     {!!actionNotice && !open && <Text accessibilityLiveRegion="polite" style={styles.note}>{actionNotice}</Text>}
     {!!error && !open && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
     {!open && snapshot?.status !== 'ended' && snapshot?.rule_proposal?.status === 'PENDING' && ruleReview}
@@ -431,11 +438,12 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
     {/* Web registers modal focus after its animation. A late parent onShow can
         steal focus from chat opened during the transition and block typing. */}
     <GameModalRoot transparent visible={open} animationType={Platform.OS === 'web' ? 'none' : 'fade'} onRequestClose={collapseGame}>
-      {live && snapshot ? <ThemeContext.Provider value={gameTheme}><TableSocialProvider key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} channel={socialChannel} connected={connected} userId={userId} session={{user_id: userId, token}} pokes={pokes} phrases={personal.phrases}>
+      {live && snapshot ? <ThemeContext.Provider value={gameTheme}><TableSocialPresentation>
       <View testID="live-game-backdrop" style={[styles.liveBackdrop, {
         backgroundColor: gameTheme.colors.background, paddingTop: insets.top, paddingBottom: insets.bottom,
         paddingLeft: insets.left, paddingRight: insets.right,
       }]}><View accessibilityViewIsModal testID="live-game-overlay" style={[styles.liveOverlay, (mobileGame || snapshot.game_type === 'flush') && !chat && { paddingBottom: 0 }]}>
+        <GameAttentionBanner attention={attention} />
         {snapshot.game_type === 'flush' ? <FlushTable connectionReady={connected && synced} onLock={() => void lobbyAction('/table/lock')} tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onFormationBlocked={setFormationBlocked} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={uiLabel(error, 'feedback')}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: text => social.send(snapshot.match_id!, null, text) }}
           onSave={payload => lobbyAction('/flush-settings', payload)} onStart={rules_revision => lobbyAction('/start', { rules_revision })}
@@ -459,7 +467,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
         </ScrollView>
         {chat}
         {snapshot.status !== 'ended' && snapshot.rule_proposal?.status === 'PENDING' && ruleReview}
-      </View></View></TableSocialProvider></ThemeContext.Provider> :
+      </View></View></TableSocialPresentation></ThemeContext.Provider> :
       <GameModalContent><KeyboardFrame style={[styles.overlay, { paddingVertical: 16 }]}><View accessibilityViewIsModal style={styles.modal}>
         <FormScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
           <Text accessibilityRole="header" style={styles.title}>{ui("rooms.create_table")}</Text>
@@ -495,6 +503,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, re
       </View></KeyboardFrame></GameModalContent>}
     </GameModalRoot>
   </>;
+  return live && snapshot ? <TableSocialProvider key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} channel={socialChannel} connected={connected} userId={userId} session={{user_id:userId,token}} pokes={pokes} phrases={personal.phrases} expanded={open} colors={gameTheme.colors}>{content}</TableSocialProvider> : content;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   invitation: { backgroundColor: colors.surfaceSelected, borderWidth: 1, borderColor: colors.accent, borderRadius: 16, padding: 20, gap: 12, marginBottom: 20 },

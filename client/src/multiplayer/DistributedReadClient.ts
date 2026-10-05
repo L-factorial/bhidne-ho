@@ -38,6 +38,9 @@ export class DistributedReadClient {
   room<T>(room: string, table: string | null, signal: AbortSignal): Promise<T> {
     return this.request(`/rooms/${encodeURIComponent(room)}${table ? `?table_id=${encodeURIComponent(table)}` : ''}`, signal);
   }
+  ephemeral<T>(target: CommandTarget, body: object, signal: AbortSignal): Promise<T> {
+    return this.request('/ephemeral',signal,{target,body});
+  }
   gameView<T>(room: string, match: string | null, signal: AbortSignal): Promise<T> {
     return this.request(`/ui/rooms/${encodeURIComponent(room)}/game${match ? `?match_id=${encodeURIComponent(match)}` : ''}`,signal);
   }

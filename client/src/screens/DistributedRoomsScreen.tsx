@@ -1,3 +1,6 @@
+import {PushProvider} from '../notifications/PushProvider';
+import {PushSettings} from '../notifications/PushSettings';
+import type {Invitation} from '../multiplayer/invitations';
 import { CommunityRulesEntry } from '../components/moderation/CommunityRules';
 import { PolicyLinks } from '../components/moderation/PublicPolicies';
 import { ModerationEntry } from '../components/Moderation';
@@ -47,7 +50,7 @@ const payload = (value: object = {}) => value as {[key:string]:Json};
 
 // Mounted only by the explicit integration build. No legacy room socket, command
 // client or process-local read route is constructed by this screen.
-export function DistributedRoomsScreen({onExit}: {onExit: () => void}) {
+export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {onExit: () => void;invitation?:Invitation|null;dismissInvitation?:()=>void}) {
   useUiLanguage();
   const {colors} = useTheme();
   const authStyles = accountStyles(colors);
@@ -67,7 +70,6 @@ export function DistributedRoomsScreen({onExit}: {onExit: () => void}) {
   const [kind,setKind] = useState<'callbreak'|'marriage'|'flush'>('callbreak'), [capacity,setCapacity] = useState('4');
   const [refresh,setRefresh] = useState(0);
   const [platformOpen,setPlatformOpen] = useState(false), [ledgerOpen,setLedgerOpen] = useState(false);
-  const [visibility,setVisibility] = useState<'public'|'private'>('public');
   const [chatOpen,setChatOpen] = useState(false);
   const [settingsOpen,setSettingsOpen] = useState(false);
   const [inviteOpen,setInviteOpen] = useState(false),[invitees,setInvitees] = useState<string[]>([]);
@@ -151,6 +153,20 @@ export function DistributedRoomsScreen({onExit}: {onExit: () => void}) {
     void load();return ()=>{active=false;abort.abort();clearTimeout(timer);};
   },[runtime,selected,refresh]);
 
+  useEffect(()=>{
+    if(!runtime||!account||!invitation)return;
+    let active=true;const abort=new AbortController();
+    void (async()=>{
+      const ok=await controller.current?.room(invitation.roomId,'enter-room');
+      if(!ok||controller.current?.state.status!=='accepted'||!active)return;
+      const view=invitation.matchId?await runtime.reads.gameView<Snapshot>(invitation.roomId,invitation.matchId,abort.signal):null;
+      if(active&&isCurrentSession(apiUrl,account)){
+        setSelected({room:invitation.roomId,table:view?.table_id??null});dismissInvitation?.();
+      }
+    })().catch(e=>{if(active)fail(e);});
+    return()=>{active=false;abort.abort();};
+  },[runtime,account,invitation?.roomId,invitation?.matchId]);
+
   const button=(label:string,run:()=>void,disabled=false)=><Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled}
     onPress={run} style={{padding:12,minHeight:44,borderRadius:8,backgroundColor:colors.surface,opacity:disabled?0.45:1}}><Text style={{color:colors.text}}>{label}</Text></Pressable>;
   const input=(label:string,value:string,change:(s:string)=>void,secure=false)=><TextInput accessibilityLabel={label} placeholder={label} placeholderTextColor={colors.textMuted}
@@ -216,7 +232,7 @@ export function DistributedRoomsScreen({onExit}: {onExit: () => void}) {
   if(snapshot&&selected?.table) {
     const common={snapshot,busy,error:action.error||error,onBack:back,onNewGame:back,endControl,tableControl:controls,
       onAction:(command:string,data?:object)=>{void game(command,data);}};
-    return <View style={{flex:1}}>
+    return <PushProvider session={account} viewedMatch={snapshot.match_id}><View style={{flex:1}}>
       {action.status==='pending'&&button(ui("common.pending_action"),()=>void controller.current?.recover())}
       {button(chatOpen?ui("common.close_chat"):ui("social.chat"),()=>setChatOpen(v=>!v))}
       {chatOpen&&runtime&&<DistributedChat root={runtime} view={{...snapshot,room_id:selected.room}}/>}
@@ -227,10 +243,11 @@ export function DistributedRoomsScreen({onExit}: {onExit: () => void}) {
       :<LiveGameTable {...common} social={social} onSave={settings=>void table('settings',settings)} onStart={()=>start()}
         onNextDeal={()=>void game('NEXT_DEAL',{deal_number:snapshot.round_review?.deal_number})} onTableAction={command=>void table(command)}/>}
       <PokeOverlay pokes={pokes} matchId={snapshot.match_id}/>
-    </View>;
+    </View></PushProvider>;
   }
-  return <ScrollView style={{backgroundColor:colors.background}} contentContainerStyle={{padding:20,gap:12}}>
+  return <PushProvider session={account} viewedMatch={null}><ScrollView style={{backgroundColor:colors.background}} contentContainerStyle={{padding:20,gap:12}}>
     <AppHeader hideProfile />
+    <PushSettings />
     <CommunityRulesEntry session={account} /><ModerationEntry session={account} /><RecoveryEmailSettings session={account} /><BlockedPlayers session={account} /><><PolicyLinks /><DeleteAccountLink /></>
     <Text accessibilityRole="header" style={{color:colors.text,fontSize:24}}>{projection?.name||ui("rooms.your_rooms")}</Text>
     {!!(error||action.error)&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(action.error||error, 'feedback')}</Text>}
@@ -259,13 +276,12 @@ export function DistributedRoomsScreen({onExit}: {onExit: () => void}) {
       {!!chatAction.error&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(chatAction.error, 'feedback')}</Text>}
     </>:<>
       {input(ui("rooms.room_name"),name,setName)}
-      {button(visibility==='public'?'Public room':'Private room',()=>setVisibility(v=>v==='public'?'private':'public'))}
-      {button(ui("rooms.create_room"),()=>void controller.current?.createRoom(name,visibility,invitees),busy||!name.trim())}
+      {button(ui("rooms.create_room"),()=>void controller.current?.createRoom(name,'public',invitees),busy||!name.trim())}
       {rooms.map(r=><View key={r.room_id}>{button(r.name+(r.is_member?'':' · Join'),()=>{
         if(r.is_member)setSelected({room:r.room_id,table:null});
         else void controller.current?.room(r.room_id,'enter-room').then(ok=>{if(ok&&controller.current?.state.status==='accepted')setSelected({room:r.room_id,table:null});});
       },busy)}</View>)}
       {cursor&&button('More rooms',()=>{const abort=new AbortController();void runtime?.reads.catalog(cursor,abort.signal).then(page=>{if(!selectionRef.current){setRooms(old=>[...old,...page.items.filter(item=>!old.some(r=>r.room_id===item.room_id))]);setCursor(page.next_room_id);}}).catch(fail);})}
     </>}
-  </ScrollView>;
+  </ScrollView></PushProvider>;
 }

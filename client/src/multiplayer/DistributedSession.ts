@@ -16,6 +16,7 @@ export type SessionTransport<T> = {
   open(lane: string, clientId: string, page: (value: unknown) => void,
     revoked: () => void, signal: AbortSignal): Promise<Subscription>;
   load(lane: string, signal: AbortSignal): Promise<T>;
+  apply?(lane: string, events: DeliveryEvent[], signal: AbortSignal): Promise<boolean>;
 };
 type Entry<T> = {
   lane: string; controller: AbortController; queue: unknown[]; running: boolean; ready: boolean;
@@ -234,6 +235,7 @@ export class DistributedSession<T> {
       e.subscription = subscription;
       e.delivery = new DurableDeliveryClient(e.lane, {
         load: signal => this.transport.load(e.lane, signal),
+        apply: this.transport.apply ? (events,signal)=>this.transport.apply!(e.lane,events,signal) : undefined,
         install: value => { if (this.current(e)) this.install(e.lane, value); },
         acknowledge: (n, signal) => subscription.acknowledge(n, signal),
         transient: events => { if(this.current(e)) this.transient?.(events); },

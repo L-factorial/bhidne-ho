@@ -4,7 +4,7 @@ import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { notificationKey, notificationText } from './gameNotification';
 import { usePong } from './usePong';
 
-export function useGameNotification(snapshot: RoomSnapshot | null, collapsed: boolean) {
+export function useGameNotification(snapshot: RoomSnapshot | null, collapsed: boolean, animate = true) {
   const { prepare, play } = usePong();
   const [muted, setMuted] = useState(false);
   const [notice, setNotice] = useState('');
@@ -27,13 +27,13 @@ export function useGameNotification(snapshot: RoomSnapshot | null, collapsed: bo
     if (!muted) play();
   }, [key, collapsed, snapshot, muted, play]);
   useEffect(() => {
-    if (!notice || !collapsed || reduceMotion) { opacity.setValue(1); return; }
+    if (!animate || !notice || !collapsed || reduceMotion) { opacity.setValue(1); return; }
     const animation = Animated.loop(Animated.sequence([
       Animated.timing(opacity, { toValue: 0.55, duration: 650, useNativeDriver: true }),
       Animated.timing(opacity, { toValue: 1, duration: 650, useNativeDriver: true }),
     ]));
     animation.start();
     return () => { animation.stop(); opacity.setValue(1); };
-  }, [notice, collapsed, reduceMotion, opacity]);
+  }, [notice, collapsed, reduceMotion, opacity, animate]);
   return { opacity, notice, muted, prepare, toggleSound: () => { prepare(); setMuted(value => !value); } };
 }

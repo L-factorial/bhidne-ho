@@ -25,6 +25,22 @@ export class OriginalUiApi {
   private chatTail:Promise<void>=Promise.resolve();
   private profiles=new Map<string,{value:{user_id:string;display_name:string;username?:string|null};until:number}>();
   private chatScopes=new Map<string,{room:string;match:string;seen:Set<string>;ready:boolean}>();
+  private roomChatListeners=new Map<string,Set<(rows:any[])=>void>>();
+  readonly observeChat=(path:string,listener:(rows:any[])=>void)=>{
+    const listeners=this.roomChatListeners.get(path)??new Set();listeners.add(listener);this.roomChatListeners.set(path,listeners);
+    return()=>{listeners.delete(listener);if(!listeners.size)this.roomChatListeners.delete(path);};
+  };
+  private ephemeralHistory=new Map<string,TableMessage[]>();
+  deliverEphemeral(value:unknown){
+    const event=value as TableMessage;
+    if(event?.type!=='TABLE_CHAT_MESSAGE'||event.room_id!==this.selectedRoom||this.closed.signal.aborted)return;
+    if(event.ephemeral&&(!Number.isFinite(event.expires_at)||event.expires_at!<=Date.now()))return;
+    const current=this.ephemeralHistory.get(event.match_id)??[];
+    if(current.some(row=>row.id===event.id))return;
+    if(this.ephemeralHistory.size>=5&&!this.ephemeralHistory.has(event.match_id))this.ephemeralHistory.delete(this.ephemeralHistory.keys().next().value!);
+    this.ephemeralHistory.set(event.match_id,[...current,event].slice(-100));
+    this.channel?.receive(event);
+  }
   constructor(root:DistributedRootRuntime,account:Session,shared:UiRequest) {
     this.root=root;this.account={...account};this.shared=shared;this.intents=new DistributedUiIntent(root.session);
     for(const slot of ['ui-table-control','ui-room-settings','ui-ledger','ui-invitations','ui-friendship','ui-notifications','ui-direct-chat','ui-room-chat','ui-table-chat']) {
@@ -77,6 +93,17 @@ export class OriginalUiApi {
     channel.transport=async(type,match,payload,signal)=>{
       const room=this.selectedRoom;
       if(!room)throw Error('Open a table before using its chat.');
+      if(this.root.ephemeralEnabled){
+        const view=this.root.cachedGameView<LeaveView>(room,match)??await this.game(room,match,signal);
+        const result:SocialAck={type:'TABLE_SOCIAL_ACK',room_id:room,match_id:match,command_id:'ephemeral',status:'accepted'};
+        if(type==='TABLE_CHAT_HISTORY'){result.messages=this.ephemeralHistory.get(match)??[];return result;}
+        const command_id=globalThis.crypto?.randomUUID?.()??`${Date.now()}-${Math.random()}`;
+        const response=await this.root.reads.ephemeral<{message:TableMessage|null}>({kind:'table',room_id:room,table_id:view.table_id},
+          {command_id,command:type==='TABLE_POKE_SEND'?'send-reaction':'send-chat',match_id:match,
+            expected_revision:view.table_revision,payload},signal);
+        if(response.message){this.deliverEphemeral(response.message);result.message=response.message;}
+        return result;
+      }
       const view=await this.game(room,match,signal);
       const target={kind:'table_chat',room_id:room,table_id:view.table_id};
       const stream=await this.root.reads.open(target,signal);
@@ -97,6 +124,13 @@ export class OriginalUiApi {
     this.chatTail=work;return work;
   }
   private async deliverChatRows(lane:string,value:unknown) {
+    const target=this.root.targetForLane(lane);
+    if(target?.kind==='room_chat'&&Array.isArray(value)&&target.room_id){
+      const rows=await Promise.all(value.map(async row=>({...row,
+        sender_name:row.sender_name??(await this.player(String(row.sender_id),this.closed.signal)).display_name,
+        sent_at:Date.parse(String(row.sent_at))})));
+      if(!this.closed.signal.aborted)for(const listener of this.roomChatListeners.get(`/rooms/${encodeURIComponent(target.room_id)}/chat`)??[])listener(rows);
+    }
     const scope=this.chatScopes.get(lane);
     if(!scope||!scope.ready||!Array.isArray(value)||this.closed.signal.aborted)return;
     for(const row of value) {
@@ -109,7 +143,7 @@ export class OriginalUiApi {
         sender_name:player.display_name,sent_at:Date.parse(String(row.sent_at))});
     }
   }
-  close(){clearTimeout(this.recoveryTimer);this.closed.abort();if(this.channel)this.channel.transport=undefined;this.channel=null;this.chatScopes.clear();}
+  close(){clearTimeout(this.recoveryTimer);this.closed.abort();if(this.channel)this.channel.transport=undefined;this.channel=null;this.chatScopes.clear();this.roomChatListeners.clear();this.ephemeralHistory.clear();}
   private async command(slot:string,target:CommandTarget,command:string,payload:Payload,signal:AbortSignal) {
     return this.intents.run(slot,target,{command,payload},signal,async()=>undefined);
   }
@@ -161,6 +195,15 @@ export class OriginalUiApi {
   async sendMessage(target:CommandTarget,text:Json,signal:AbortSignal) {
     return this.intents.run(target.kind==='conversation'?'ui-direct-chat':target.kind==='table_chat'?'ui-table-chat':'ui-room-chat',target,
       {command:target.kind==='conversation'?'send-message':'send-chat',payload:{text}},signal,async(_receipt,request)=>{
+        if(target.kind==='room_chat'&&this.root.pushViewsEnabled){
+          const deadline=Date.now()+1000;
+          while(!signal.aborted&&Date.now()<deadline){
+            const pushed=this.root.cachedChat(target)?.find(row=>row.command_id===request.body.command_id);
+            if(pushed)return {...pushed,sent_at:Date.parse(String(pushed.sent_at)),
+              sender_name:pushed.sender_name??(await this.player(String(pushed.sender_id),signal)).display_name};
+            await new Promise<void>(resolve=>setTimeout(resolve,50));
+          }
+        }
         const rows=await this.messages(target,signal);
         const message=rows.find(r=>(r as any).command_id===request.body.command_id);
         if(!message)throw Error('Message accepted; waiting for its committed history.');
@@ -240,6 +283,16 @@ export class OriginalUiApi {
     }
   }
   async tableRequest(room:string,action:string,data:Payload,signal:AbortSignal):Promise<unknown> {
+    if(['poke','send-poke','send-reaction'].includes(action)&&this.root.ephemeralEnabled){
+      const match=typeof data.match_id==='string'?data.match_id:null;
+      const view=this.root.cachedGameView<LeaveView>(room,match)??await this.game(room,match,signal);
+      const {match_id,...payload}=data;
+      await this.root.reads.ephemeral({kind:'table',room_id:room,table_id:view.table_id},
+        {command_id:globalThis.crypto?.randomUUID?.()??`${Date.now()}-${Math.random()}`,
+          command:action==='send-reaction'?'send-reaction':'send-poke',match_id:view.match_id,
+          expected_revision:view.table_revision,payload},signal);
+      return view;
+    }
     if(!action) {
       const payload:Payload={game_type:data.game_type,capacity:data.player_count,name:data.name,invitees:data.invitees??[]};
       const saved=this.root.session.command('ui-table-control').request;

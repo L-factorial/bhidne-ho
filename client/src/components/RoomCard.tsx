@@ -47,7 +47,7 @@ export function RoomCard({ room, member, busy, activeTables, onPress, owner, onR
       <View style={{ flex: 1, minWidth: 0, gap: 4, paddingTop: 3 }}>
         <Text numberOfLines={2} style={{ color: c.text, fontFamily: fonts.medium, fontSize: typography.cardTitle, lineHeight: 23 }}>{room.name}</Text>
         <Text style={{ color: c.textMuted, fontFamily: fonts.body, fontSize: 12, lineHeight: 18 }}>
-          {room.visibility === 'public' ? ui("rooms.public") : ui("rooms.private")} · {room.members.length} {room.members.length === 1 ? ui("common.member") : ui("rooms.members")} · {tables} {tables === 1 ? ui("common.table") : ui("rooms.tables")}
+          {room.members.length} {room.members.length === 1 ? ui("common.member") : ui("rooms.members")} · {tables} {tables === 1 ? ui("common.table") : ui("rooms.tables")}
         </Text>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 6,

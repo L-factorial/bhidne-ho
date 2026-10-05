@@ -22,11 +22,13 @@ export class DistributedGameCommandClient<T extends GameSnapshot> {
   private unobserved: string | null;
   private generation = 0;
   private observed: T | null = null;
+  private preferPush: () => boolean;
   observe(snapshot:T) { this.observed=snapshot; }
   constructor(commands: DurableCommandClient, read: (signal: AbortSignal, invalidate?: boolean) => Promise<T>,
-    selected: (snapshot: T) => SelectedTable) {
+    selected: (snapshot: T) => SelectedTable, preferPush: () => boolean = ()=>false) {
     this.commands = commands; this.read = read; this.selected = selected;
     this.unobserved = commands.request?.body.command_id ?? null;
+    this.preferPush=preferPush;
   }
   get pending() { return this.commands.pending || this.unobserved !== null; }
   submit(snapshot: T, command: string, payload: object = {}) {
@@ -63,6 +65,11 @@ export class DistributedGameCommandClient<T extends GameSnapshot> {
       throw new GameConfirmationPending('Waiting for the server to confirm your action.');
     }
     const revision=receipt && 'outcome' in receipt ? receipt.outcome?.revision : null;
+    if(receipt?.status==='accepted'&&revision!=null&&this.preferPush()){
+      const deadline=Date.now()+1000;
+      while(Date.now()<deadline && !signal.aborted && generation===this.generation
+        && (this.observed?.match_id!==this.commands.request?.body.match_id || (this.observed?.game?.revision??-1)<revision))await pause(signal);
+    }
     const snapshot = receipt?.status==='accepted' && revision!=null && this.observed?.match_id===this.commands.request?.body.match_id
       && (this.observed?.game?.revision ?? -1)>=revision ? this.observed! : await this.read(signal,!!commandId || this.commands.pending);
     if (signal.aborted) throw Error('Game refresh aborted.');

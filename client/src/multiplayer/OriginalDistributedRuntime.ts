@@ -29,7 +29,10 @@ export class OriginalDistributedRuntime {
   constructor(owner: JournalOwner, base: string, account: Session, callbacks: RootCallbacks,
     options: ConstructorParameters<typeof DistributedRootRuntime>[4] = {}) {
     this.account = {...account};
-    this.root = new DistributedRootRuntime(owner,base,account.token,{...callbacks,install:(lane,view)=>{
+    this.root = new DistributedRootRuntime(owner,base,account.token,{...callbacks,transient:payload=>{
+      if((payload as {type?:string})?.type==='TABLE_CHAT_MESSAGE')this.api?.deliverEphemeral(payload);
+      else callbacks.transient?.(payload);
+    },install:(lane,view)=>{
       callbacks.install(lane,view);
       if(view.kind==='chat')void this.api?.deliverChat(lane,view.value).catch(error=>callbacks.error(lane,error));
     }},options);
@@ -46,7 +49,7 @@ export class OriginalDistributedRuntime {
   connectRequests(shared: UiRequest) {
     if (this.closed || this.api) throw Error('API runtime already connected or closed.');
     const api = new OriginalUiApi(this.root,this.account,shared);
-    try { this.unregister = registerRuntimeRequests(this.account,api.request); this.api=api; }
+    try { this.unregister = registerRuntimeRequests(this.account,api.request,api.observeChat); this.api=api; }
     catch (error) { api.close(); throw error; }
   }
   private availableActions() {
