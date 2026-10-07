@@ -221,3 +221,11 @@ test('Play creation sends room notification intent with selected invitations',as
  await f.api.request('/test-games/r',account,{name:'Friday',player_count:10,game_type:'flush',invitees:['user-b'],notify_room:true});
  assert.deepEqual(f.sent[0].body.payload,{name:'Friday',capacity:10,game_type:'flush',invitees:['user-b'],notify_room:true});
 });
+
+test('automatic Marriage capacity is left to the server and Call Break preserves five-player choice',async()=>{
+ const f=setup();
+ await f.api.request('/test-games/r',account,{name:'Marriage',game_type:'marriage',notify_room:true});
+ assert.deepEqual(f.sent[0].body.payload,{name:'Marriage',game_type:'marriage',invitees:[],notify_room:true});
+ await f.api.request('/test-games/r',account,{name:'Call Break',game_type:'callbreak',player_count:5,notify_room:true});
+ assert.equal(f.sent[1].body.payload.capacity,5);
+});

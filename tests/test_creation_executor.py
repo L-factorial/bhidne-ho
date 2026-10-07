@@ -311,3 +311,43 @@ async def test_room_notification_skips_blocked_member_and_acceptance_does_not_ad
     assert (await TableLaneExecutor(inbox).execute_one(lane, fence)).outcome['status'] == 'accepted'
     assert (await pool.execute("SELECT count(*) FROM command_inbox WHERE command='accept-invitation-friend'")).rows == [(0,)]
     assert (await pool.execute('SELECT count(*) FROM friendships')).rows == [(0,)]
+
+
+@pytest.mark.parametrize('kind,explicit', [('marriage',None),('callbreak',5)])
+async def test_server_capacity_drives_projection_and_full_table_join_gate(creation,kind,explicit):
+    from app.durable_games.queries import PostgresHostedQueries
+    pool, checkpoints, fence, users, inbox, _, _ = creation
+    body=request(game_type=kind)
+    if explicit is None:body['payload'].pop('capacity')
+    else:body['payload']['capacity']=explicit
+    result=await create(creation,users[0],body)
+    assert result['status']=='accepted'
+    assert (await checkpoints.load(result['table_id'])).checkpoint['data']['capacity']==5
+    queries=PostgresHostedQueries(pool)
+    initial=(await queries.room('room',users[-1]))['tables'][0]
+    assert initial['capacity']==5 and initial['current_user']['can_join']
+    lane=await inbox.ensure_lane(LaneTarget(kind='table',room_id='room',table_id=UUID(result['table_id'])))
+    for revision,user in enumerate(users[1:5]):
+        await inbox.enqueue(lane,user,dict(command_id=uuid4().hex,command='join-seat',match_id=result['match_id'],expected_revision=revision,payload={}))
+        assert (await TableLaneExecutor(inbox).execute_one(lane,fence)).outcome['status']=='accepted'
+    full=(await queries.room('room',users[-1]))['tables'][0]
+    assert full['players']==full['capacity']==5 and not full['current_user']['can_join']
+    await inbox.enqueue(lane,users[-1],dict(command_id=uuid4().hex,command='join-seat',match_id=result['match_id'],expected_revision=4,payload={}))
+    assert (await TableLaneExecutor(inbox).execute_one(lane,fence)).outcome['status']=='rejected'
+
+
+async def test_default_marriage_table_can_start_with_two_players(creation):
+    from app.durable_games.queries import PostgresHostedQueries
+    _, checkpoints, fence, users, inbox, _, _=creation
+    body=request(game_type='marriage');body['payload'].pop('capacity')
+    result=await create(creation,users[0],body)
+    lane=await inbox.ensure_lane(LaneTarget(kind='table',room_id='room',table_id=UUID(result['table_id'])))
+    for revision,(actor,command) in enumerate([(users[1],'join-seat'),(users[0],'lock'),(users[0],'start')]):
+        await inbox.enqueue(lane,actor,dict(command_id=uuid4().hex,command=command,match_id=result['match_id'],expected_revision=revision,payload={}))
+        assert (await TableLaneExecutor(inbox).execute_one(lane,fence)).outcome['status']=='accepted'
+    data=(await checkpoints.load(result['table_id'])).checkpoint['data']
+    assert data['capacity']==5 and data['phase']=='STARTED'
+    assert len(data['host']['users'])==2
+    spectator=await PostgresHostedQueries(creation[0]).game_view('room',users[-1],match_id=result['match_id'])
+    assert spectator['table']['min_players']==2 and spectator['table']['max_players']==5
+    assert not spectator['table']['current_user']['can_join']

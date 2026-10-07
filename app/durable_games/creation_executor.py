@@ -36,12 +36,21 @@ class CreateTablePayload(Record):
     replace_table_id: UUID | None = None
     replace_revision: Nonnegative | None = None
 
+    @model_validator(mode='before')
+    @classmethod
+    def default_capacity(cls, value):
+        if isinstance(value, dict) and value.get('capacity') is None:
+            from app.multiplayer.table_creation import table_capacity
+            return dict(value, capacity=table_capacity(value.get('game_type')))
+        return value
+
     @model_validator(mode='after')
     def valid_capacity(self):
         from app.moderation.content import validate_content
         validate_content(self.name)
-        allowed = range(2, 11) if self.game_type == 'flush' else range(2, 6) if self.game_type == 'marriage' else (4, 5)
-        if self.capacity not in allowed or not self.name.strip():
+        from app.multiplayer.table_creation import table_capacity
+        table_capacity(self.game_type, self.capacity)
+        if not self.name.strip():
             raise ValueError('Unsupported player count or empty table name.')
         if (self.replace_table_id is None) != (self.replace_revision is None):
             raise ValueError('Replacement requires the old table and its revision.')

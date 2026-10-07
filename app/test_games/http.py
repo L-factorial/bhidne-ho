@@ -17,17 +17,15 @@ router = APIRouter(prefix="/test-games", tags=["Test console only"])
 
 class CreateGame(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    player_count: Annotated[int, Field(strict=True, ge=2, le=10)]
+    player_count: Annotated[int, Field(strict=True, ge=2, le=10)] | None = None
     game_type: Literal["callbreak", "marriage", "flush"] = "callbreak"
     name: Annotated[str, Field(min_length=1, max_length=60)] = "Table"
     invitees: list[str] = Field(default_factory=list, max_length=20)
 
     @model_validator(mode="after")
     def capacity(self):
-        if self.game_type != "flush" and self.player_count > 5:
-            raise ValueError("Marriage and Call Break support at most five players.")
-        if self.game_type == "callbreak" and self.player_count < 4:
-            raise ValueError("Call Break requires four or five players.")
+        from app.multiplayer.table_creation import table_capacity
+        self.player_count = table_capacity(self.game_type, self.player_count)
         return self
 
 

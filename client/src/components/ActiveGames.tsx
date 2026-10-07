@@ -73,20 +73,20 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable
   const retry = <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.retry_active_games")} onPress={() => setRefresh(v => v + 1)} style={{ minHeight: 44, paddingHorizontal: 16, borderRadius: 10, backgroundColor: c.primary, justifyContent: 'center' }}><Text style={{ color: c.onPrimary, fontFamily: fonts.medium }}>{ui("common.retry")}</Text></Pressable>;
   return <View testID="active-games" style={{ gap: 14, paddingVertical: 16 }}>
     <Pressable testID="play-create-table" accessibilityRole="button" accessibilityLabel={ui('rooms.create_game_table')} disabled={busy||discarding} accessibilityState={{disabled:busy||discarding}} onPress={onCreateTable}
-      style={({pressed})=>({minHeight:64,paddingHorizontal:18,borderRadius:18,borderWidth:2,borderColor:c.success,backgroundColor:c.successSurface,boxShadow:`0 0 16px ${c.success}`,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:10,opacity:busy||discarding?0.5:pressed?0.8:1})}>
-      <Ionicons name="add-circle-outline" size={26} color={c.success}/><Text style={{flexShrink:1,color:c.success,fontFamily:fonts.medium,fontSize:17}}>{ui('rooms.create_game_table')}</Text>
+      style={({pressed})=>({minHeight:64,paddingHorizontal:18,borderRadius:18,borderWidth:2,borderColor:c.onPrimary,backgroundColor:c.primary,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:10,opacity:busy||discarding?0.5:pressed?0.8:1})}>
+      <Ionicons name="add-circle-outline" size={26} color={c.onPrimary}/><Text style={{flexShrink:1,color:c.onPrimary,fontFamily:fonts.medium,fontSize:17}}>{ui('rooms.create_game_table')}</Text>
     </Pressable>
     {!!actionError&&<Text accessibilityRole="alert" style={{color:c.danger}}>{actionError}</Text>}
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+      <Text accessibilityRole="header" style={{ flex: 1, color: c.text, fontFamily: fonts.medium, fontSize: 18 }}>{ui("rooms.available_tables")}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.refresh_active_games")} disabled={refreshing} accessibilityState={{ disabled: refreshing }} onPress={() => setRefresh(v => v + 1)} style={{ minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="refresh-outline" size={20} color={refreshing ? c.textMuted : c.accent} /></Pressable>
+    </View>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} accessibilityRole="tablist" accessibilityLabel={ui("rooms.filter_active_games")}>
       {filters.map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityLabel={ui("ledger.count_games", { "count": uiLabel(label, "rooms") })} accessibilityState={{ selected: filter === value }} onPress={() => setFilter(value)} style={{ ...gameTabFinish(c, filter === value), minHeight: 44, paddingHorizontal: 14, borderRadius: 22, borderWidth: 1, borderColor: c.tableTrim, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <Text style={{ color: filter === value ? c.onCoin : c.textMuted, fontFamily: fonts.medium, fontSize: 13 }}>{uiLabel(label, 'rooms')}</Text>
         {loaded && <Text style={{ color: filter === value ? c.onCoin : c.textMuted, fontSize: 12 }}>{value === 'all' ? tables.length : tables.filter(table => table.game_type === value).length}</Text>}
       </Pressable>)}
     </ScrollView>
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-      <Text accessibilityRole="header" style={{ flex: 1, color: c.text, fontFamily: fonts.medium, fontSize: 18 }}>{ui("rooms.available_tables")}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.refresh_active_games")} disabled={refreshing} accessibilityState={{ disabled: refreshing }} onPress={() => setRefresh(v => v + 1)} style={{ minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="refresh-outline" size={20} color={refreshing ? c.textMuted : c.accent} /></Pressable>
-    </View>
     {error && <View accessibilityRole="alert" testID="active-games-error" style={{ gap: 12, alignItems: 'flex-start', backgroundColor: c.surface, padding: 20, borderRadius: 18, borderWidth: 1, borderColor: c.borderSubtle }}>
       <Text style={{ color: c.text, fontFamily: fonts.medium }}>{loaded ? ui("rooms.couldn_t_refresh_tables") : ui("rooms.couldn_t_load_tables")}</Text>
       <Text style={{ color: c.textMuted }}>{loaded ? ui("common.showing_the_last_available_tables_try_refreshing_again") : ui("feedback.check_your_connection_and_try_again")}</Text>{retry}

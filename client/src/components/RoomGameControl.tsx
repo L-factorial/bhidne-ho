@@ -10,7 +10,7 @@ import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, ThemeContext, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { useTableTheme } from '../TableThemeProvider';
-import { FormInput, FormScrollView } from './FormInput';
+import { FormScrollView } from './FormInput';
 import { KeyboardFrame } from './KeyboardFrame';
 import { FormFooter } from './FormFooter';
 import { TableSocialProvider, TableSocialPresentation } from './TableSocial';
@@ -34,17 +34,18 @@ import { FlushTable } from '../screens/FlushTable';
 import { MarriageTable } from '../screens/MarriageTable';
 import { GameRequestError, type GameRequestDetail } from '../multiplayer/PendingGameAction';
 import { GameModalContent, GameModalRoot } from './GameModal';
+import {CreateTableForm} from './CreateTableForm';
 import { request } from '../multiplayer/api';
 
 type InvitePlayer = { user_id: string; display_name: string; username?: string | null; eligible?: boolean; reason?: string | null };
 
-export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, onViewChange, requestedMatchId, requestedEntry, roomId, apiUrl, token, connected, sessionActive = true, members, presenceKnown = true, roomMembers = members, connectionMessage, userId, pokes, personal, createContent, creationEnabled = true, gameType = 'callbreak' }: {
+export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, onViewChange, requestedMatchId, requestedEntry, roomId, apiUrl, token, connected, sessionActive = true, members, presenceKnown = true, roomMembers = members, connectionMessage, userId, pokes, personal, onGameTypeChange, creationEnabled = true, gameType = 'callbreak' }: {
   runtime?: OriginalDistributedRuntime | null;
   presenceKnown?: boolean;
   socialChannel?: TableSocialChannel; chat?: ReactNode; onOpenChange?: (open: boolean) => void; onViewChange?: (match:string|null)=>void;
   requestedMatchId?: string; requestedEntry?: TableEntry;
   gameType?: 'callbreak' | 'marriage' | 'flush';
-  createContent?: ReactNode; creationEnabled?: boolean;
+  onGameTypeChange?: (game:'callbreak'|'marriage'|'flush')=>void; creationEnabled?: boolean;
   userId: string; pokes: RoomPoke[]; personal: ReturnType<typeof usePlayerPhrases>;
   roomId: string; apiUrl: string; token: string; connected: boolean; sessionActive?: boolean; members: string[]; roomMembers?: string[]; connectionMessage?: string;
 }) {
@@ -73,14 +74,9 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
   const collapsed = !open && live && !!snapshot && snapshot.status !== 'empty';
   const notification = useGameNotification(snapshot, collapsed, false);
   function collapseGame() { notification.prepare(); setOpen(false); }
-  const [capacity, setCapacity] = useState(4);
+  const [capacity, setCapacity] = useState<4|5>(4);
   const [tableName, setTableName] = useState('');
-  const [inviteQuery, setInviteQuery] = useState('');
-  const [inviteResults, setInviteResults] = useState<InvitePlayer[]>([]);
   const [selectedInvitees, setSelectedInvitees] = useState<InvitePlayer[]>([]);
-  const [inviteError, setInviteError] = useState('');
-  const [searchingPlayers, setSearchingPlayers] = useState(false);
-  useEffect(() => { if (gameType === 'callbreak') setCapacity(value => Math.max(4, value)); }, [gameType]);
   const [pendingAction, setBusy] = useState(false);
   const [formationBlocked, setFormationBlocked] = useState(false);
   const base = `${apiUrl}/test-games/${encodeURIComponent(roomId)}`;
@@ -263,11 +259,11 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
     if (!join && !tableName.trim()) { setError(ui("feedback.enter_a_table_name")); return; }
     pending.current = true; const version = ++generation.current; setBusy(true); setError('');
     try {
-      const data = await api(join ? '/join' : '', join ? { match_id: snapshot?.match_id } : { player_count: gameType === 'flush' ? 10 : capacity, game_type: gameType, name: tableName.trim(), invitees: selectedInvitees.map(player => player.user_id) });
+      const data = await api(join ? '/join' : '', join ? { match_id: snapshot?.match_id } : { ...(gameType === 'callbreak' ? {player_count:capacity} : {}), notify_room:true, game_type: gameType, name: tableName.trim(), invitees: selectedInvitees.map(player => player.user_id) });
       if (alive.current && generation.current === version) {
         selectedMatch.current = data.match_id;
         setSnapshot(data); setLive(true); setOpen(true);
-        if (!join) { setTableName(''); setSelectedInvitees([]); setInviteQuery(''); setInviteResults([]); }
+        if (!join) { setTableName(''); setSelectedInvitees([]); }
       }
     } catch (error) {
       if (alive.current && generation.current === version) {
@@ -306,7 +302,6 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
   const mobileGame = mobile;
   const canCreate = snapshot?.status === 'empty' || (snapshot?.status === 'finished' && !snapshot.table?.requires_replacement) || snapshot?.status === 'ended';
   const canEnd = !canCreate && (snapshot?.is_creator || (connected && roomMembers.length === 1 && roomMembers[0] === userId));
-  const selectedGameName = ({ marriage: 'Marriage', callbreak: 'Call Break', flush: 'Flush' })[gameType];
   const gameName = ({ marriage: 'Marriage', callbreak: 'Call Break', flush: 'Flush' })[(canCreate ? gameType : snapshot?.game_type) || 'callbreak'];
   const noun = (canCreate ? gameType : snapshot?.game_type) === 'flush' ? 'table' : 'game';
   async function gameAction(command: string, payload: object = {}) {
@@ -338,34 +333,6 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
   const leaveControl = !snapshot?.table?.current_user.can_leave_seat && !snapshot?.table?.current_user.can_abandon_match && snapshot?.your_player_id
     ? <Pressable accessibilityRole="button" accessibilityLabel={snapshot.game_type === 'flush' || snapshot.game_type === 'marriage' ? ui("rooms.leave_table") : ui("common.leave_gameortable", { "gameOrTable": noun })} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => void lobbyAction('/leave')} style={{ minHeight: 44, padding: 10, justifyContent: 'center' }}><Text style={[styles.text, live && open && { color: colors.text }, { color: colors.danger }]}>{snapshot.game_type === 'flush' || snapshot.game_type === 'marriage' ? ui("rooms.leave_table") : ui("common.leave_gameortable", { "gameOrTable": noun })}</Text></Pressable> : null;
   const ruleReview = snapshot?.rule_proposal && <RuleProposal key={snapshot.rule_proposal.id} proposal={snapshot.rule_proposal} busy={busy} userId={userId} error={uiLabel(error, 'feedback')} vote={accept => void lobbyAction('/rule-vote', { proposal_id: snapshot.rule_proposal!.id, accept })} />;
-  async function eligiblePlayers(players: InvitePlayer[], signal?: AbortSignal) {
-    if (!players.length) return [];
-    const eligibility = await request<{ user_id: string; eligible: boolean; reason?: string | null }[]>(
-      `/test-games/${encodeURIComponent(roomId)}/invitations/eligibility`, { user_id: userId, token },
-      { player_ids: players.map(player => player.user_id) }, signal);
-    return players.map(player => ({ ...player, ...eligibility.find(item => item.user_id === player.user_id) }));
-  }
-  useEffect(() => {
-    if (!open || live || inviteQuery.trim().length < 2) { setInviteResults([]); return; }
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      try {
-        const players = await request<InvitePlayer[]>(`/players/search?q=${encodeURIComponent(inviteQuery.trim())}`, { user_id: userId, token }, undefined, controller.signal);
-        setInviteResults(await eligiblePlayers(players, controller.signal)); setInviteError('');
-      } catch (error) { if (!controller.signal.aborted) setInviteError(playerError(error, ui("feedback.could_not_search_recent_players"))); }
-    }, 250);
-    return () => { clearTimeout(timer); controller.abort(); };
-  }, [inviteQuery, live, open, roomId, token, userId]);
-  async function searchDirectory() {
-    if (inviteQuery.trim().length < 2 || searchingPlayers) return;
-    setSearchingPlayers(true); setInviteError('');
-    try {
-      const players = await request<InvitePlayer[]>(`/players/directory?q=${encodeURIComponent(inviteQuery.trim())}`, { user_id: userId, token });
-      setInviteResults(await eligiblePlayers(players));
-      if (!players.length) setInviteError(ui("feedback.no_player_found_with_that_exact_name_username_or_user_id"));
-    } catch (error) { setInviteError(playerError(error, ui("feedback.could_not_search_the_player_directory"))); }
-    finally { setSearchingPlayers(false); }
-  }
   async function enterTable(matchId: string, action: TableEntry) {
     if (busy || pending.current) return;
     pending.current = true; const version = ++generation.current; setBusy(true); setError('');
@@ -474,33 +441,13 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
       <GameModalContent><KeyboardFrame style={[styles.overlay, { paddingVertical: 16 }]}><View accessibilityViewIsModal style={styles.modal}>
         <FormScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
           <Text accessibilityRole="header" style={styles.title}>{ui("rooms.create_table")}</Text>
-          {createContent}
-          <Text style={styles.text}>{gameType === 'flush' ? ui("common.flush_roster_help") : ui("rooms.seats")}</Text>
-          <View style={[styles.choices, { flexWrap: 'wrap' }]}>{(gameType === 'flush' ? [] : gameType === 'marriage' ? [2, 3, 4, 5] : [4, 5]).map(size => <Pressable key={size} accessibilityRole="button" accessibilityState={{ selected: capacity === size }}
-            onPress={() => setCapacity(size)} style={[styles.choice, { minHeight: 48 }, size === capacity && { borderColor: colors.accent }]}><Text style={styles.text}>{ui("rooms.count_players", { "count": size })}</Text></Pressable>)}</View>
-            <Text style={styles.text}>{ui("rooms.table_name_required")}</Text><FormInput accessibilityLabel={ui("rooms.table_name")} accessibilityHint={ui("rooms.required_to_create_a_table")} aria-required value={tableName} onChangeText={setTableName} maxLength={60} placeholder={ui("common.game_table", { "game": selectedGameName })} placeholderTextColor={colors.textMuted} style={[styles.choice, { color: colors.text }]} />
-            <Text style={styles.text}>{ui("rooms.invite_players_optional")}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><FormInput accessibilityLabel={ui("rooms.find_players_to_invite")} value={inviteQuery} onChangeText={setInviteQuery} maxLength={64}
-              placeholder={ui("rooms.name_username_or_user_id")} placeholderTextColor={colors.textMuted} autoCapitalize="none" autoCorrect={false}
-              returnKeyType="search" onSubmitEditing={() => void searchDirectory()} style={[styles.choice, { flex: 1, minWidth: 0, color: colors.text }]} />
-            <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.search_directory")} disabled={searchingPlayers || inviteQuery.trim().length < 2} onPress={() => void searchDirectory()} style={[styles.choice, (searchingPlayers || inviteQuery.trim().length < 2) && { opacity: 0.5 }]}>
-              <Text style={styles.text}>{searchingPlayers ? '…' : ui("common.search")}</Text>
-            </Pressable></View>
-            {!!selectedInvitees.length && <View style={styles.choices}>{selectedInvitees.map(player => <Pressable key={player.user_id} accessibilityRole="button" accessibilityLabel={ui("rooms.remove_player", { "player": player.display_name || player.username || player.user_id })} onPress={() => setSelectedInvitees(current => current.filter(item => item.user_id !== player.user_id))} style={styles.choice}>
-              <Text style={styles.text}>{ui("common.player_remove", { "player": player.display_name || player.username || player.user_id })}</Text>
-            </Pressable>)}</View>}
-            {!!inviteResults.length && <View>{inviteResults.filter(player => !selectedInvitees.some(selected => selected.user_id === player.user_id)).map(player => <Pressable key={player.user_id} accessibilityRole="button" disabled={player.eligible === false} accessibilityLabel={ui("rooms.invite_player", { "player": player.display_name || player.username || player.user_id })} onPress={() => setSelectedInvitees(current => [...current, player])} style={[styles.choice, player.eligible === false && { opacity: 0.5 }]}>
-              <Text style={styles.summary}>{player.display_name || player.username || ui("common.player")}</Text>
-              <Text style={styles.note}>{player.username ? `@${player.username} · ` : ''}{player.user_id}{player.eligible === false ? ` · ${player.reason}` : ''}</Text>
-            </Pressable>)}</View>}
-            {!!inviteError && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(inviteError, 'feedback')}</Text>}
-          <Text style={styles.note}>{ui("rooms.advanced_rules_help")}</Text>
+          <CreateTableForm session={{user_id:userId,token}} game={gameType} setGame={value=>onGameTypeChange?.(value)} callbreakPlayers={capacity} setCallbreakPlayers={setCapacity} name={tableName} setName={setTableName} invitees={selectedInvitees} setInvitees={setSelectedInvitees} busy={busy || !creationEnabled}/>
         </FormScrollView>
         <FormFooter>
           {!!error && <Text accessibilityRole="alert" style={styles.modalError}>{uiLabel(error, 'feedback')}</Text>}
           {!synced && <Text accessibilityLiveRegion="polite" style={styles.note}>{sessionActive ? ui("common.waiting_for_the_table_service_your_form_will_stay_open_while_it_retries") : ui("feedback.sign_in_again_before_creating_a_table")}</Text>}
           {refreshError && sessionActive && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.retry_table_service")} onPress={() => setActionTick(value => value + 1)} style={styles.choice}><Text style={styles.text}>{ui("rooms.retry_table_service")}</Text></Pressable>}
-          <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_this_table")} disabled={busy || !creationEnabled || !tableName.trim()} accessibilityState={{ disabled: busy || !creationEnabled || !tableName.trim() }} onPress={() => void act(false)} style={[styles.button, (busy || !creationEnabled || !tableName.trim()) && { opacity: 0.5 }]}><Text style={styles.buttonText}>{ui("rooms.create_table")}</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_this_table")} disabled={busy || !creationEnabled || !tableName.trim()} accessibilityState={{ disabled: busy || !creationEnabled || !tableName.trim() }} onPress={() => void act(false)} style={[styles.button, {borderWidth:1,borderColor:colors.onPrimary}, (busy || !creationEnabled || !tableName.trim()) && { opacity: 0.5 }]}><Text style={styles.buttonText}>{ui("rooms.create_table")}</Text></Pressable>
           <Pressable accessibilityRole="button" onPress={() => setOpen(false)} style={styles.choice}><Text style={styles.text}>{ui("common.back_to_room")}</Text></Pressable>
         </FormFooter>
       </View></KeyboardFrame></GameModalContent>}

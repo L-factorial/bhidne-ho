@@ -6562,3 +6562,95 @@ requested stronger drawn/discard card markers. Tap selection remains unchanged.
   backend/web and produce a new signed TestFlight build when requested. Verify
   room-member and invitee delivery, invitation acceptance, join/spectator entry,
   and persistent discard with separate accounts on devices.
+
+### 2026-10-06 — Direct production deployment of lobby refactor
+
+- User explicitly authorized direct server deployment. Deployed committed
+  `7cc4cf0bf5f88417d53c526094c76998fad69000`, packaging a fresh production web
+  build with the exact committed backend. Dependencies and schema are unchanged.
+- Built on the verified prior production image and transferred the same image
+  to both app hosts, checking archive and image hashes. New image:
+  `sha256:9b9aa338f273d7d4384fd79351b72788d706146270ff6735f2bafff07574cc43`,
+  local tag `bhidne-direct:7cc4cf0`. Retained the installed release lock, schema
+  and dependency preflight, peer-health gate, graceful shutdown, and rollback.
+  Activated backends sequentially, then their matching frontends.
+- Verification: fresh TypeScript/production web build passed. Both hosts report
+  the exact revision/image and healthy backend, identical frontend index/JS,
+  and APNs enabled. Backend lobby/push file hashes match the committed source.
+  Public HTTPS API health, APNs capability, frontend index and exact JS hash
+  passed; public JS contains the new lobby create flow and notification intent.
+  Record: `/private/tmp/bhidne-7cc4cf0-direct/verification.json`.
+- No migration, credentials change, or signed native build/submission was made.
+  Backend/web rollout is complete. Existing TestFlight installations still need
+  a new signed app build to receive the client lobby changes.
+- Exact next step: produce/install that TestFlight build when requested, then
+  verify room-member/invitee notification delivery, automatic membership and
+  friendship, join/spectator entry, and persistent discard on separate devices.
+
+### 2026-10-06 — Create-table and invitation refinements
+
+- User authorized implementation of the collected follow-ups. When no rooms
+  exist, the create form hides the room label, dropdown and fallback-room text.
+  Submission implicitly creates `ProfileName-Room`; existing-room selection
+  remains available, and the default room is reused after a partial failure.
+- Call Break exposes 4/5-player radio choices. Marriage and Flush omit a client
+  capacity override; the server resolves their maximum from game rules (5/10).
+  A shared resolver preserves explicit valid capacities and supplies defaults
+  for both durable creation and the legacy HTTP model. Play cards continue to
+  use committed capacity and permission projections for Join/Watch.
+- Interpretation stated while working: Marriage can start with 2 players at a
+  maximum of 5. Call Break retains its engine's exact selected 4/5-player roster
+  requirement. An optional clarification was requested because a 2-player
+  Call Break match conflicts with that engine contract; no answer was received.
+  No Call Break rules or engine roster semantics were changed.
+- Invitation autocomplete begins after 3 trimmed characters, debounces 250ms,
+  reuses a bounded component-local profile cache, and refreshes through the
+  version-aware player search. Exact directory fallback preserves pasted-ID
+  and uncached exact-name lookup. Query changes/unmount/session changes abort
+  stale results. Suggestions exclude self and already selected players; each
+  selected player appears below with a remove control. Selection clears the
+  query and prevents duplicates; the existing 20-invite limit remains enforced.
+- Verification: 388 client tests and 78 targeted backend tests passed. Four
+  Chrome checks at 390/1280px passed for implicit/default rooms, 4/5 selection,
+  three-character threshold, stale-response cancellation, self/duplicate
+  exclusion, removable selections and final invitation payloads. Backend
+  integration tests verify computed capacities, full-table join rejection, and
+  starting a default five-capacity Marriage table with only two players.
+  TypeScript/production web build and web/iOS/Android exports passed.
+- Limitations: browser checks use mocked transport; no physical TestFlight
+  keyboard/device check, signed native build, or deployment of these refinements
+  was performed. No database migration is required.
+- Exact next step: commit/release the refinements when requested, deploying the
+  capacity-default backend before shipping its matching frontend/native bundle,
+  then verify autocomplete and keyboard behavior on devices. If the user means
+  actual two-player Call Break, clarify that separately before changing its rules.
+
+### Create Table consistency and Play card presentation — 2026-10-06
+
+- Implemented the user-approved UI collection with a shared `CreateTableForm`
+  used by lobby and room creation. Both show existing game logos and names,
+  three-character autocomplete with removable invitees, and only Call Break's
+  four/five-player choice. Lobby alone supplies a room selector when rooms exist;
+  its existing implicit ProfileName-Room creation remains intact. Removed the
+  introductory paragraph and room-specific Marriage/Flush capacity controls.
+- Room creation now omits Marriage/Flush capacity so the previously implemented
+  server defaults apply, and sends notify_room like lobby creation. Existing
+  durable commands, duplicate-submit protection and seat-conflict recovery remain.
+  Invitation eligibility is enforced by the server at submission; both forms now
+  use the same discovery flow rather than the former room-only eligibility list.
+- Play's create action uses theme primary red with a light border and no glow.
+  Order is Create, Available tables/refresh, game filters, then cards. Cards show
+  seated-player circles and differently colored italic room/table names. Where
+  invitation metadata supplies only a seated count, circles show neutral dots;
+  actual roster metadata supplies player initials without fabricating identities.
+- Verification: TypeScript and all 388 client tests passed; production web build
+  and web/iOS/Android exports passed. Chrome checks at 390 and 1280 pixels, with
+  and without existing rooms, verify row order, non-glowing button, game images,
+  roster initials, italic/distinct name colors, room selector visibility, invite
+  search/removal, server-capacity defaults and room/lobby creation payloads.
+  Screenshots include `/private/tmp/bhidne-room-create-390.png` and matching
+  desktop/lobby captures. Browser transport is mocked; device keyboard behavior
+  and signed TestFlight release remain unverified. No deployment was performed.
+- Exact next step: review/commit the combined pending capacity and UI refinements
+  when requested; deploy the server capacity defaults before distributing their
+  matching web/native release. No database migration is required.

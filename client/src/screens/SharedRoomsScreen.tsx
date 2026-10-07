@@ -33,7 +33,6 @@ import { readJoinTarget, roomInvitationCode, type Invitation } from '../multipla
 import { AppHeader, HeaderProfileContext } from '../components/AppHeader';
 import { HeaderAction } from '../components/HeaderAction';
 import { NotificationBell } from '../components/NotificationBell';
-import { GameIcon } from '../components/BrandArt';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -314,21 +313,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
         <View style={[styles.columns, { flex: 1 }]}>
           <View style={styles.mainColumn}>
             {session && <RoomGameControl runtime={shared.runtime} socialChannel={shared.socialChannel} onOpenChange={setGameOpen} onViewChange={setViewedMatch} requestedMatchId={linkedMatch} requestedEntry={linkedEntry && linkedEntry.matchId === linkedMatch ? linkedEntry.action : undefined} personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={current?.connected_members || []} roomMembers={roomMembers} connectionMessage={expired ? shared.error : undefined}
-              presenceKnown={shared.presenceFresh && (current?.presence_status ? current.presence_status === 'observed' : !shared.runtime && !!current?.connected_members)} sessionActive={!expired} gameType={selectedGame} createContent={<>
-            <Text style={styles.eyebrowDark}>{ui("rooms.choose_a_game")}</Text>
-            <View style={styles.gameTabs}>
-              {(['callbreak', 'flush', 'marriage'] as const).map(value => <Pressable key={value} accessibilityRole="button"
-                accessibilityLabel={ui("common.choose_game", { "game": value === 'callbreak' ? 'Call Break' : value === 'flush' ? 'Flush' : 'Marriage' })}
-                accessibilityState={{ selected: selectedGame === value }} onPress={() => setGame(value)}
-                style={[styles.gameTab, selectedGame === value && styles.selectedTab]}>
-                <GameIcon game={value} />
-                <Text style={[styles.tabText, selectedGame === value && styles.selectedTabText]}>{value === 'callbreak' ? ui("rooms.call_break") : value === 'flush' ? ui("rooms.flush") : ui("rooms.marriage")}</Text>
-              </Pressable>)}
-            </View>
-              {selectedGame === 'callbreak' ? <Text style={styles.description}>{ui("rooms.callbreak_description")}</Text>
-                : selectedGame === 'marriage' ? <Text style={styles.description}>{ui("rooms.marriage_description")}</Text>
-                : <Text style={styles.description}>{ui("rooms.flush_description")}</Text>}
-              </>} />}
+              presenceKnown={shared.presenceFresh && (current?.presence_status ? current.presence_status === 'observed' : !shared.runtime && !!current?.connected_members)} sessionActive={!expired} gameType={selectedGame} onGameTypeChange={setGame} />}
           </View>
         </View>
         {session && <RoomMemberDetails member={selectedMember} session={session} online={!!selectedMember && !!current?.connected_members?.includes(selectedMember.user_id)} onClose={() => { setSelectedMember(null); setRoomPanel("members"); }} />}

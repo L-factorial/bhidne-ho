@@ -16,3 +16,10 @@ test('Join respects authoritative permission, full tables and existing seats',()
  assert.equal(playEntry(table('a',0,{current_user:{is_seated:true,can_join:true}})),'watch');
  assert.equal(playEntry(table('a',0,{current_user:undefined})),'watch');
 });
+
+test('Marriage and both Call Break sizes use the server-computed capacity for Join/Watch',()=>{
+ for(const [game_type,capacity] of [['marriage',5],['callbreak',4],['callbreak',5]]){
+  assert.equal(playEntry(table('a',0,{game_type,capacity,players:capacity-1})),'seat');
+  assert.equal(playEntry(table('a',0,{game_type,capacity,players:capacity})),'watch');
+ }
+});
