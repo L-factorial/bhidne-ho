@@ -4,7 +4,7 @@ import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useRef, useState } from 'react';
 import {Pressable, ScrollView, StyleSheet, View} from 'react-native';
 import { TablePlayer } from './CardTable';
-import { fonts, useThemedStyles, type ThemeColors } from '../theme';
+import { radii, fonts, useThemedStyles, type ThemeColors } from '../theme';
 
 export function DealStatusPanel({ players, viewerId, activePlayerId, cardsPlayed, paused, trickNumber = 1, complete = false }: {
   players: TablePlayer[]; viewerId: string; activePlayerId: string; cardsPlayed: number; paused: boolean;
@@ -63,12 +63,12 @@ export function DealStatusPanel({ players, viewerId, activePlayerId, cardsPlayed
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  panel: { backgroundColor: colors.surfaceSelected, borderWidth: 1, borderColor: colors.textMuted, borderRadius: 12, padding: 14, marginTop: 16 },
+  panel: { backgroundColor: colors.surfaceSelected, borderWidth: 1, borderColor: colors.textMuted, borderRadius: radii.large, padding: 14, marginTop: 16 },
   headingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, heading: { fontFamily: fonts.display, fontSize: 24, color: colors.text }, deal: { fontFamily: fonts.medium, fontSize: 12, color: colors.accent },
   status: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 20, color: colors.text, marginTop: 6 }, detail: { fontFamily: fonts.body, fontSize: 11, lineHeight: 20, color: colors.textMuted },
   toggle: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 6 }, toggleText: { fontFamily: fonts.medium, fontSize: 12, color: colors.accent },
   scrollHeader: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8 }, arrows: { flexDirection: 'row', gap: 6 },
-  arrow: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.textMuted, borderRadius: 8 }, disabled: { opacity: 0.35 },
-  bidList: { gap: 10, paddingVertical: 12 }, bidCard: { width: 154, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.textMuted, backgroundColor: colors.background }, active: { borderColor: colors.turnText },
+  arrow: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.textMuted, borderRadius: radii.medium }, disabled: { opacity: 0.35 },
+  bidList: { gap: 10, paddingVertical: 12 }, bidCard: { width: 154, padding: 12, borderRadius: radii.medium, borderWidth: 1, borderColor: colors.textMuted, backgroundColor: colors.background }, active: { borderColor: colors.turnText },
   player: { fontFamily: fonts.medium, fontSize: 12, color: colors.text }, bid: { fontFamily: fonts.display, fontSize: 26, color: colors.accent, marginVertical: 5 }, turn: { fontFamily: fonts.medium, fontSize: 10, color: colors.accent, marginTop: 8 }, hint: { fontFamily: fonts.body, fontSize: 10, lineHeight: 17, color: colors.textMuted },
 });

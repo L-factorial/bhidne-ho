@@ -9,7 +9,7 @@ import type { SelectedTable } from '../multiplayer/DistributedControls';
 import { DistributedGameCommandClient, GameConfirmationPending } from '../multiplayer/DistributedGameCommandClient';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
-import { gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, ThemeContext, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { visualStates, radii, gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, ThemeContext, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { useTableTheme } from '../TableThemeProvider';
 import { FormScrollView } from './FormInput';
 import { KeyboardFrame } from './KeyboardFrame';
@@ -385,7 +385,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
     </Pressable>}
     {snapshot && !visibleTables.length && <View testID="room-empty-tables" style={{ flexGrow: 1, minHeight: 260, alignItems: 'center', justifyContent: 'center', paddingVertical: 32, gap: 24 }}>
       <Text style={[styles.text, { textAlign: 'center', maxWidth: 320, fontSize: 17, lineHeight: 26 }]}>{ui("rooms.no_tables_yet_start_a_table_and_invite_your_friends")}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_table")} disabled={pendingAction || !sessionActive || !creationEnabled} accessibilityState={{ disabled: pendingAction || !sessionActive || !creationEnabled }} onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 48, paddingHorizontal: 24, opacity: pendingAction || !sessionActive || !creationEnabled ? 0.5 : 1 }]}>
+      <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_table")} disabled={pendingAction || !sessionActive || !creationEnabled} accessibilityState={{ disabled: pendingAction || !sessionActive || !creationEnabled }} onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 48, paddingHorizontal: 24, opacity: pendingAction || !sessionActive || !creationEnabled ? visualStates.disabledOpacity : 1 }]}>
         <Text style={[styles.buttonText, { color: colors.onPrimary, fontSize: 15 }]}>{ui("rooms.create_table_2")}</Text>
       </Pressable>
     </View>}
@@ -451,7 +451,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
           {!!error && <Text accessibilityRole="alert" style={styles.modalError}>{uiLabel(error, 'feedback')}</Text>}
           {!synced && <Text accessibilityLiveRegion="polite" style={styles.note}>{sessionActive ? ui("common.waiting_for_the_table_service_your_form_will_stay_open_while_it_retries") : ui("feedback.sign_in_again_before_creating_a_table")}</Text>}
           {refreshError && sessionActive && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.retry_table_service")} onPress={() => setActionTick(value => value + 1)} style={styles.choice}><Text style={styles.text}>{ui("rooms.retry_table_service")}</Text></Pressable>}
-          <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_this_table")} disabled={busy || !creationEnabled || !tableName.trim()} accessibilityState={{ disabled: busy || !creationEnabled || !tableName.trim() }} onPress={() => void act(false)} style={[styles.button, {borderWidth:1,borderColor:colors.onPrimary}, (busy || !creationEnabled || !tableName.trim()) && { opacity: 0.5 }]}><Text style={styles.buttonText}>{ui("rooms.create_table")}</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_this_table")} disabled={busy || !creationEnabled || !tableName.trim()} accessibilityState={{ disabled: busy || !creationEnabled || !tableName.trim() }} onPress={() => void act(false)} style={[styles.button, {borderWidth:1,borderColor:colors.onPrimary}, (busy || !creationEnabled || !tableName.trim()) && { opacity: visualStates.disabledOpacity }]}><Text style={styles.buttonText}>{ui("rooms.create_table")}</Text></Pressable>
           <Pressable accessibilityRole="button" onPress={() => setOpen(false)} style={styles.choice}><Text style={styles.text}>{ui("common.back_to_room")}</Text></Pressable>
         </FormFooter>
       </View></KeyboardFrame></GameModalContent>}
@@ -464,17 +464,17 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   roomCard: { backgroundColor: colors.surface, borderRadius: 16, padding: 24, gap: 8, marginBottom: 20 },
   sectionToggle: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   connectionNotice: { padding: 10, color: colors.accent, backgroundColor: colors.surfaceSelected, fontFamily: fonts.medium, fontSize: 12 },
-  returnPanel: { gap: 10, padding: 14, marginTop: 16, borderWidth: 1, borderColor: colors.accent, borderRadius: 12 },
+  returnPanel: { gap: 10, padding: 14, marginTop: 16, borderWidth: 1, borderColor: colors.accent, borderRadius: radii.medium },
   notified: { borderWidth: 2, borderColor: colors.turnText, backgroundColor: colors.turnSurface },
-  bidNotice: { padding: 14, gap: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.accent, backgroundColor: colors.surfaceSelected },
+  bidNotice: { padding: 14, gap: 10, borderRadius: radii.medium, borderWidth: 1, borderColor: colors.accent, backgroundColor: colors.surfaceSelected },
   liveBackdrop: { flex: 1, backgroundColor: colors.overlay, alignItems: 'center', justifyContent: 'center' },
   gameFooter: { flexGrow: 0, flexShrink: 0, maxHeight: '38%', borderTopWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   liveOverlay: { width: '100%', height: '100%', paddingBottom: 64, overflow: 'hidden', backgroundColor: colors.background },
-  codePanel: { padding: 16, borderRadius: 10, backgroundColor: colors.surface, gap: 8 },
+  codePanel: { padding: 16, borderRadius: radii.medium, backgroundColor: colors.surface, gap: 8 },
   code: { fontFamily: fonts.medium, fontSize: 22, color: colors.text, letterSpacing: 1 },
   joinHint: { fontFamily: fonts.body, fontSize: 12, lineHeight: 21, color: colors.textMuted, marginTop: 8 },
   bar: { gap: 18, paddingTop: 24, paddingBottom: 8 }, summary: { color: colors.text, fontFamily: fonts.medium, fontSize: 14, lineHeight: 23 },
-  button: { ...gameControlFinish(colors), minHeight: 44, padding: 12, borderRadius: 8, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }, buttonText: { fontFamily: fonts.medium, fontSize: 12, color: colors.onPrimary },
-  error: { color: colors.danger, padding: 12, fontFamily: fonts.body, fontSize: 12 }, overlay: { flex: 1, paddingHorizontal: 20, paddingVertical: 48, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.overlay }, modal: { ...gamePanelFinish(colors), maxWidth: 480, width: '100%', maxHeight: '100%', borderRadius: 18, overflow: 'hidden', backgroundColor: colors.surface }, body: { padding: 24, gap: 16 },
-  title: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 30, color: colors.text }, text: { fontFamily: fonts.body, color: colors.text, fontSize: 13, lineHeight: 22 }, choices: { flexDirection: 'row', gap: 12 }, choice: { minHeight: 44, padding: 10, borderWidth: 1, borderColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }, player: { fontFamily: fonts.medium, fontSize: 13, color: colors.text }, note: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 11, lineHeight: 19 }, modalError: { fontFamily: fonts.body, color: colors.danger, fontSize: 12 },
+  button: { ...gameControlFinish(colors), minHeight: 44, padding: 12, borderRadius: radii.medium, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }, buttonText: { fontFamily: fonts.medium, fontSize: 12, color: colors.onPrimary },
+  error: { color: colors.danger, padding: 12, fontFamily: fonts.body, fontSize: 12 }, overlay: { flex: 1, paddingHorizontal: 20, paddingVertical: 48, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.overlay }, modal: { ...gamePanelFinish(colors), maxWidth: 480, width: '100%', maxHeight: '100%', borderRadius: radii.large, overflow: 'hidden', backgroundColor: colors.surface }, body: { padding: 24, gap: 16 },
+  title: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 30, color: colors.text }, text: { fontFamily: fonts.body, color: colors.text, fontSize: 13, lineHeight: 22 }, choices: { flexDirection: 'row', gap: 12 }, choice: { minHeight: 44, padding: 10, borderWidth: 1, borderColor: colors.border, borderRadius: radii.medium, alignItems: 'center', justifyContent: 'center' }, player: { fontFamily: fonts.medium, fontSize: 13, color: colors.text }, note: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 11, lineHeight: 19 }, modalError: { fontFamily: fonts.body, color: colors.danger, fontSize: 12 },
 });

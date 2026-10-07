@@ -15,7 +15,7 @@ import type { RoomSnapshot } from '../screens/LiveGameTable';
 import type { MarriagePublic } from '../multiplayer/marriage';
 import { physicalLabel } from '../multiplayer/marriage';
 import { MarriageScoring, MarriagePoints } from './MarriageScoring';
-import { fonts, useThemedStyles, type ThemeColors } from '../theme';
+import { radii, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 type Player = MarriagePublic['players'][number];
 const route = (p: Player) => p.route === 'dublee' ? ui("marriage.7_dublees") : p.route === 'normal' ? ui("marriage.3_sequences_tunnelas") : ui("marriage.not_shown");
@@ -26,6 +26,7 @@ const playerName = (snapshot: RoomSnapshot, id: string) => snapshot.players?.fin
 export function MarriagePlayers({ snapshot, onPoke, registerSeat, children }: { children?: ReactNode; snapshot: RoomSnapshot; onPoke?: (seat: number) => void; registerSeat?: (seat: string, node: View | null) => void }) {
   const uiLanguage = useUiLanguage();
   const styles = useThemedStyles(createStyles);
+  const { colors } = useTheme();
   const [shownPlayer, setShownPlayer] = useState<{ match: string; id: string } | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
@@ -43,7 +44,7 @@ export function MarriagePlayers({ snapshot, onPoke, registerSeat, children }: { 
           accessibilityLabel={ui("marriage.view_player_s_shown_cards", { "player": playerName(snapshot, p.player_id) })}
           accessibilityHint={ui("common.maal_unlocked_hint")}
           onPress={() => setShownPlayer({ match: snapshot.match_id || '', id: p.player_id })} style={styles.maalCheck}>
-          <View style={styles.maalCheckCircle}><Ionicons name="checkmark" size={18} color="#FFFFFF" /></View>
+          <View style={styles.maalCheckCircle}><Ionicons name="checkmark" size={18} color={colors.success} /></View>
         </Pressable>}
       </View>}>
       {children}
@@ -78,6 +79,7 @@ export function MarriagePlayers({ snapshot, onPoke, registerSeat, children }: { 
 export function MarriageDetails({ snapshot, section, onClose, busy, error, onSave }: { busy: boolean; error: string; onSave: (rules: import('../multiplayer/marriage').MarriageScoringRules) => void; snapshot: RoomSnapshot; section: 'stats' | 'rules' | 'points' | null; onClose: () => void }) {
   const uiLanguage = useUiLanguage();
   const styles = useThemedStyles(createStyles);
+  const { colors } = useTheme();
   const pub = snapshot.marriage?.public;
   return <RoomSheet visible={section !== null} title={section === 'stats' ? ui("common.game_stats") : section === 'rules' ? ui("common.rules_and_config") : ui("marriage.game_result")} onClose={onClose} closeLabel={ui("common.close_details")} testID="marriage-details" scrollable={false} contentHandlesBottomInset={section === 'rules'}>
         {section === 'rules' ? <MarriageRulesAndConfig snapshot={snapshot} busy={busy} error={uiLabel(error, 'feedback')} onSave={onSave} /> : <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.details}>
@@ -98,6 +100,7 @@ function MarriageRulesAndConfig(props: React.ComponentProps<typeof MarriageScori
   const uiLanguage = useUiLanguage();
   const [tab, setTab] = useState<'rules' | 'config'>("config");
   const styles = useThemedStyles(createStyles);
+  const { colors } = useTheme();
   return <View style={{flex:1,minHeight:0}}>
     <View accessibilityRole="tablist" style={{flexDirection:'row',padding:12,gap:8}}>
       {(["rules","config"] as const).map(value => <Pressable key={value} accessibilityRole="tab"
@@ -126,11 +129,11 @@ function MarriageRulesAndConfig(props: React.ComponentProps<typeof MarriageScori
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  tab: { flex:1,minHeight:44,alignItems:'center',justifyContent:'center',borderRadius:10,borderWidth:1,borderColor:colors.border },
+  tab: { flex:1,minHeight:44,alignItems:'center',justifyContent:'center',borderRadius: radii.medium,borderWidth:1,borderColor:colors.border },
   tabSelected: { backgroundColor:colors.surfaceSelected,borderColor:colors.accent },
   seat: { width: '100%', position: 'relative' },
   maalCheck: { position: 'absolute', top: -8, right: -6, width: 44, height: 44, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
-  maalCheckCircle: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#167A46', borderWidth: 2, borderColor: colors.table, alignItems: 'center', justifyContent: 'center' },
+  maalCheckCircle: { width: 26, height: 26, borderRadius: 13, backgroundColor: colors.successSurface, borderWidth: 2, borderColor: colors.table, alignItems: 'center', justifyContent: 'center' },
   name: { fontFamily: fonts.medium, color: colors.text, fontSize: 14 },
   small: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 11, lineHeight: 16 },
   route: { fontFamily: fonts.medium, color: colors.accent, fontSize: 11, lineHeight: 15 }, seen: { color: colors.success },
@@ -139,5 +142,5 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   dialogHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 18, borderBottomWidth: 1, borderColor: colors.border },
   close: { minHeight: 44, padding: 14, justifyContent: 'center' }, heading: { fontFamily: fonts.medium, color: colors.accent, fontSize: 18 },
   details: { padding: 18, gap: 16 }, stat: { gap: 6, paddingBottom: 14, borderBottomWidth: 1, borderColor: colors.border },
-  text: { fontFamily: fonts.body, color: colors.text, fontSize: 13, lineHeight: 21 }, meld: { padding: 8, backgroundColor: colors.surface, borderRadius: 8, gap: 3 },
+  text: { fontFamily: fonts.body, color: colors.text, fontSize: 13, lineHeight: 21 }, meld: { padding: 8, backgroundColor: colors.surface, borderRadius: radii.medium, gap: 3 },
 });

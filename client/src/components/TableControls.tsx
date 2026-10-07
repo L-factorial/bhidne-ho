@@ -5,7 +5,7 @@ import { useUiLanguage } from '../i18n/useUiLanguage';
 import { ActionCue } from './ActionCue';
 import { useState } from 'react';
 import {Pressable, View} from 'react-native';
-import { fonts, primaryAction, useTheme } from '../theme';
+import { visualStates, radii, fonts, primaryAction, useTheme } from '../theme';
 
 export type TableView = {
   table_id: string; phase: 'OPEN' | 'LOCKED' | 'STARTED' | 'COMPLETED' | 'ENDED';
@@ -29,7 +29,7 @@ export function TableControls({ table, members, userId, busy, act, start, format
   const me = table.current_user, offer = me.replacement_offer;
   const button = (label: string, action: () => void, disabled = false, prominent = false, pulse = false, danger = false) => <Pressable accessibilityRole="button"
     accessibilityLabel={label} disabled={busy || disabled} onPress={action}
-    style={({ pressed }) => [{ padding: 10, minHeight: 44, borderRadius: 8, justifyContent: 'center', opacity: busy || disabled ? 0.45 : 1 }, prominent && primaryAction(colors, pressed)]}>
+    style={({ pressed }) => [{ padding: 10, minHeight: 44, borderRadius: radii.medium, justifyContent: 'center', opacity: busy || disabled ? visualStates.disabledOpacity : 1 }, prominent && primaryAction(colors, pressed)]}>
     {pulse ? <ActionCue active={!busy && !disabled} style={{ color: colors.onPrimary, fontFamily: fonts.medium }}>{label}</ActionCue> : <Text style={{ color: menuSection === 'leave' || danger ? colors.danger : prominent ? colors.onPrimary : colors.text, fontFamily: fonts.medium }}>{label}</Text>}
   </Pressable>;
   return <View testID="table-lifecycle" style={{ backgroundColor: colors.surface, padding: 8, gap: 4 }}>

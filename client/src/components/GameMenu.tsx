@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTableSocial } from './TableSocial';
 import { type ReactNode, type ComponentProps, useState } from 'react';
 import {Pressable, View} from 'react-native';
-import { fonts, useTheme } from '../theme';
+import { visualStates, radii, fonts, useTheme } from '../theme';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { TableShareSheet } from './ShareLink';
 import { useLanguage } from '../i18n/LanguageProvider';
@@ -28,8 +28,8 @@ export function GameMenu({ snapshot, close, rules, history, poke, canPoke, back,
   const row = (label: string, action: () => void, disabled = false, expanded?: boolean, value?: string, icon: ComponentProps<typeof Ionicons>['name'] = 'options-outline') => <Pressable accessibilityRole="button"
     accessibilityLabel={value ? `${label}, ${value}` : label} accessibilityState={{ disabled, ...(expanded === undefined ? {} : { expanded }) }} disabled={disabled}
     onPress={action} style={({ pressed }) => ({ minHeight: 52, paddingVertical: 10, paddingHorizontal: 8, marginHorizontal: -8,
-      borderRadius: 12, flexDirection: 'row', gap: 12, alignItems: 'center', justifyContent: 'space-between',
-      backgroundColor: pressed ? colors.surfaceRaised : 'transparent', opacity: disabled ? 0.55 : 1 })}>
+      borderRadius: radii.medium, flexDirection: 'row', gap: 12, alignItems: 'center', justifyContent: 'space-between',
+      backgroundColor: pressed ? colors.surfaceRaised : 'transparent', opacity: disabled ? visualStates.disabledOpacity : 1 })}>
     <Ionicons name={icon} size={19} color={colors.textMuted} />
     <Text style={{ flex: 1, flexShrink: 1, color: disabled ? colors.textMuted : colors.text, fontFamily: fonts.medium, fontSize: 14 }}>{label}</Text>
     {value ? <Text style={{ color: colors.textMuted, fontFamily: fonts.body, fontSize: 13 }}>{value}</Text>

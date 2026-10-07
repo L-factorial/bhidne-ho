@@ -1,7 +1,7 @@
 import {AppText as Text} from '../components/AppText';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
-import { gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { visualStates, radii, gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { FormInput, FormScrollView } from '../components/FormInput';
 import { KeyboardFrame } from '../components/KeyboardFrame';
 import { AppHeader } from '../components/AppHeader';
@@ -28,7 +28,7 @@ function Action({ label, onPress, secondary = false, disabled = false, caption }
   const styles = useThemedStyles(createStyles);
   return <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled}
     accessibilityState={{ disabled }} onPress={onPress} style={({ pressed }) => [
-      styles.action, secondary && styles.secondary, (disabled || pressed) && { opacity: 0.5 },
+      styles.action, secondary && styles.secondary, { opacity: disabled ? visualStates.disabledOpacity : pressed ? visualStates.pressedOpacity : 1 },
     ]}><Text style={[styles.actionLabel, secondary && { color: colors.text }]}>{caption || label}</Text></Pressable>;
 }
 
@@ -182,23 +182,23 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   account: { flexDirection: 'row', alignItems: 'center', gap: 10 }, avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surfaceSelected, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontFamily: fonts.medium, color: colors.accent }, accountName: { fontFamily: fonts.medium, fontSize: 13, color: colors.text },
   exit: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 }, lightLink: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 12 },
-  hero: { paddingTop: 36, paddingBottom: 24, gap: 10 }, eyebrow: { fontFamily: fonts.medium, color: colors.accent, fontSize: 10, letterSpacing: 3 },
+  hero: { paddingTop: 36, paddingBottom: 24, gap: 10 }, eyebrow: { fontFamily: fonts.medium, color: colors.accent, fontSize: 10, letterSpacing: 0 },
   title: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 60, color: colors.text }, subtitle: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 14, lineHeight: 23 },
   preview: { paddingBottom: 20 }, previewText: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 11, lineHeight: 18 },
   columns: { gap: 22 }, wideColumns: { flexDirection: 'row', alignItems: 'flex-start' }, controls: { gap: 22 },
-  panel: { ...gamePanelFinish(colors), backgroundColor: colors.surface, borderRadius: 18, padding: 24 }, copperIcon: { fontSize: 28, color: colors.accent, marginBottom: 10 },
+  panel: { ...gamePanelFinish(colors), backgroundColor: colors.surface, borderRadius: radii.large, padding: 24 }, copperIcon: { fontSize: 28, color: colors.accent, marginBottom: 10 },
   panelTitle: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 28, color: colors.text, flexShrink: 1 }, description: { fontFamily: fonts.body, fontSize: 12, lineHeight: 20, color: colors.textMuted, marginTop: 6 },
   label: { fontFamily: fonts.medium, fontSize: 11, color: colors.text, marginTop: 20, marginBottom: 8 },
   input: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 9, padding: 13, minHeight: 48, fontFamily: fonts.body, fontSize: 13, color: colors.text },
   codeInput: { marginTop: 18, marginBottom: 12, letterSpacing: 2 }, segments: { flexDirection: 'row', gap: 8, marginBottom: 20 },
-  segment: { ...gameControlFinish(colors), flex: 1, minHeight: 46, borderWidth: 1, borderColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  segment: { ...gameControlFinish(colors), flex: 1, minHeight: 46, borderWidth: 1, borderColor: colors.border, borderRadius: radii.medium, alignItems: 'center', justifyContent: 'center' },
   segmentSelected: { borderColor: colors.accent, backgroundColor: colors.surfaceSelected }, segmentText: { fontFamily: fonts.medium, color: colors.textMuted, fontSize: 12 },
   action: { ...gameControlFinish(colors), minHeight: 46, borderRadius: 9, backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 13, justifyContent: 'center', alignItems: 'center' },
   actionLabel: { fontFamily: fonts.medium, fontSize: 12, color: colors.onPrimary, textAlign: 'center' }, secondary: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.border },
   error: { color: colors.danger, fontFamily: fonts.body, fontSize: 12, lineHeight: 19, marginBottom: 12 },
   directory: { flex: 1, minWidth: 0 }, directoryHeader: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  sampleLabel: { fontFamily: fonts.medium, fontSize: 9, letterSpacing: 1.5, color: colors.accent },
-  filters: { flexDirection: 'row', gap: 8, marginTop: 22, marginBottom: 8 }, filter: { ...gameControlFinish(colors), minHeight: 44, paddingHorizontal: 15, justifyContent: 'center', borderRadius: 22 },
+  sampleLabel: { fontFamily: fonts.medium, fontSize: 9, letterSpacing: 0, color: colors.accent },
+  filters: { flexDirection: 'row', gap: 8, marginTop: 22, marginBottom: 8 }, filter: { ...gameControlFinish(colors), minHeight: 44, paddingHorizontal: 15, justifyContent: 'center', borderRadius: radii.large },
   filterSelected: { backgroundColor: colors.surfaceSelected }, filterText: { fontFamily: fonts.medium, fontSize: 12, color: colors.textMuted },
   table: { paddingVertical: 23, borderBottomWidth: 1, borderColor: colors.border, gap: 8 },
   tableHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 }, tableName: { fontFamily: fonts.medium, fontSize: 15, color: colors.text, flex: 1 },
@@ -208,9 +208,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   emptyMiniSeat: { backgroundColor: 'transparent', borderWidth: 1, borderStyle: 'dashed', borderColor: colors.textMuted }, miniSeatText: { fontFamily: fonts.medium, fontSize: 10, color: colors.textMuted },
   rulesRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', paddingTop: 18 }, copperLink: { fontFamily: fonts.medium, color: colors.accent, fontSize: 12 },
   bottomNote: { fontFamily: fonts.display, color: colors.textMuted, fontSize: 21, textAlign: 'center', marginTop: 28 },
-  overlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 }, modal: { ...gamePanelFinish(colors), width: '100%', maxWidth: 460, maxHeight: '100%', backgroundColor: colors.surface, borderRadius: 20 },
+  overlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 }, modal: { ...gamePanelFinish(colors), width: '100%', maxWidth: 460, maxHeight: '100%', backgroundColor: colors.surface, borderRadius: radii.large },
   modalContent: { padding: 26 }, modalTitle: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 36, color: colors.text, marginTop: 12 },
-  invite: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: 12, marginVertical: 20, paddingBottom: 18 }, inviteCode: { fontFamily: fonts.medium, fontSize: 21, letterSpacing: 1, color: colors.text },
+  invite: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.medium, marginVertical: 20, paddingBottom: 18 }, inviteCode: { fontFamily: fonts.medium, fontSize: 21, letterSpacing: 1, color: colors.text },
   waitingSeat: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52, borderBottomWidth: 1, borderColor: colors.border }, seatNumber: { fontFamily: fonts.medium, color: colors.accent, fontSize: 12 }, playerName: { flex: 1, fontFamily: fonts.body, fontSize: 13, color: colors.text },
   modalNote: { fontFamily: fonts.body, fontSize: 11, lineHeight: 18, color: colors.textMuted, marginVertical: 20 }, rulesText: { fontFamily: fonts.body, fontSize: 14, lineHeight: 23, color: colors.text, marginVertical: 24 },
 });

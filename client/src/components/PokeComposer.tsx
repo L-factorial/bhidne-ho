@@ -8,7 +8,7 @@ import { FormFooter } from './FormFooter';
 import { useEffect, useRef, useState } from 'react';
 import {Pressable, StyleSheet, View} from 'react-native';
 import { limitPokeText, PLAYER_PHRASE_LIMIT, POKE_TEXT_LIMIT, type PlayerPhrase } from '../multiplayer/pokes';
-import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { visualStates, radii, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 export function PokeComposer({ recipient, recipientName, phrases, connected, onClose, onSend, onSave }: {
   recipient: number | null; recipientName?: string; phrases: PlayerPhrase[]; connected: boolean; onClose: () => void;
@@ -42,7 +42,7 @@ export function PokeComposer({ recipient, recipientName, phrases, connected, onC
         onSend={() => void submit(false)} disabled={busy || !connected} editable={!busy} maxLength={POKE_TEXT_LIMIT}
         placeholder={ui("social.your_own_little_punchline")} label={ui("common.poke_message_limit", {limit: POKE_TEXT_LIMIT})} sendLabel={ui("common.poke_send_target", {player: target})} />
       <View style={styles.between}><Text style={styles.note}>{ui("social.saved_limit_saved", { "saved": phrases.length, "limit": PLAYER_PHRASE_LIMIT })}</Text>
-        {!alreadySaved && <Pressable accessibilityRole="button" disabled={busy || !connected || !text.trim() || phrases.length >= PLAYER_PHRASE_LIMIT} onPress={() => void submit(true)} style={[styles.save, (busy || !connected || !text.trim() || phrases.length >= PLAYER_PHRASE_LIMIT) && { opacity: 0.45 }]}>
+        {!alreadySaved && <Pressable accessibilityRole="button" disabled={busy || !connected || !text.trim() || phrases.length >= PLAYER_PHRASE_LIMIT} onPress={() => void submit(true)} style={[styles.save, (busy || !connected || !text.trim() || phrases.length >= PLAYER_PHRASE_LIMIT) && { opacity: visualStates.disabledOpacity }]}>
           <Text style={styles.saveText}>{ui("social.save_phrase")}</Text>
         </Pressable>}</View>
       {!!notice && <Text accessibilityLiveRegion="polite" style={styles.success}>{notice}</Text>}
@@ -62,7 +62,7 @@ export function PokeComposer({ recipient, recipientName, phrases, connected, onC
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   note: { fontFamily: fonts.body, fontSize: 11, color: colors.textMuted, lineHeight: 18 },
-  phrases: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, paddingVertical: 8 }, chip: { borderRadius: 14, backgroundColor: colors.surface, paddingHorizontal: 12, minHeight: 40, justifyContent: 'center' },
+  phrases: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, paddingVertical: 8 }, chip: { borderRadius: radii.medium, backgroundColor: colors.surface, paddingHorizontal: 12, minHeight: 40, justifyContent: 'center' },
   selected: { backgroundColor: colors.surfaceSelected }, chipText: { color: colors.text, fontSize: 12, fontFamily: fonts.medium },
   between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, save: { minHeight: 44, justifyContent: 'center' }, saveText: { color: colors.accent, fontFamily: fonts.medium, fontSize: 12 },
   success: { color: colors.success, fontFamily: fonts.body, fontSize: 11 }, error: { color: colors.danger, fontFamily: fonts.body, fontSize: 12 },

@@ -10,7 +10,7 @@ import type { Session } from '../multiplayer/session';
 import { ui } from '../i18n/copy';
 import type { UiKey } from '../i18n/catalogs';
 import { useUiLanguage } from '../i18n/useUiLanguage';
-import { fonts, useTheme } from '../theme';
+import { radii, fonts, useTheme } from '../theme';
 import { AppHeader } from './AppHeader';
 import { FormInput, FormScrollView } from './FormInput';
 import { KeyboardFrame } from './KeyboardFrame';
@@ -45,7 +45,7 @@ export function ReportButton({session,player,enabled,scope='player',messageId,re
         <Copy>{copy('private')}</Copy>
         <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>{categories.map(value=><Button key={value} label={copy(value)} selected={category===value} disabled={busy} onPress={()=>setCategory(value)} />)}</View>
         <FormInput accessibilityLabel={copy('explanation')} placeholder={copy('explanation')} placeholderTextColor={c.textMuted} value={explanation} onChangeText={setExplanation}
-          multiline maxLength={1000} editable={!busy} style={{color:c.text,borderWidth:1,borderColor:c.border,borderRadius:10,padding:12,minHeight:80}} />
+          multiline maxLength={1000} editable={!busy} style={{color:c.text,borderWidth:1,borderColor:c.border,borderRadius: radii.medium,padding:12,minHeight:80}} />
         {!!error&&<Copy alert>{error}</Copy>}
         <Button label={copy('submit')} disabled={busy} onPress={()=>void submit()} />
       </>}
@@ -81,7 +81,7 @@ function ReportGroup({group,session,reviewed,onDecision,onDenied}: {group:Group;
     catch(e){if(!signal?.aborted){setError(failure(e));if(e instanceof ApiError&&e.status===403)onDenied();}}
     finally{pending.current=false;if(!signal?.aborted)setBusy(false);}
   }
-  return <View style={{borderWidth:1,borderColor:c.border,borderRadius:12,padding:12,gap:10}}>
+  return <View style={{borderWidth:1,borderColor:c.border,borderRadius: radii.medium,padding:12,gap:10}}>
     <Pressable accessibilityRole="button" accessibilityState={{expanded:open}} accessibilityLabel={`${copy('reports_for')} ${group.username||group.display_name||group.user_id}`} onPress={()=>setOpen(v=>!v)} style={{minHeight:44,gap:4}}>
       <Text style={{color:c.text,fontFamily:fonts.medium,fontSize:16}}>{open?'▾':'▸'} {group.display_name||group.username||group.user_id}</Text>
       {!!group.username&&<Copy>@{group.username}</Copy>}
@@ -94,11 +94,11 @@ function ReportGroup({group,session,reviewed,onDecision,onDenied}: {group:Group;
       {page.items.map(report=><View key={report.id} style={{borderTopWidth:1,borderColor:c.borderSubtle,paddingTop:12,gap:10}}>
         <Text style={{color:c.accent,fontFamily:fonts.medium}}>{copy(report.category)} · {copy(report.scope==='player'?'report_player':'report_message')}</Text>
         <Copy>{new Date(report.created_at).toLocaleString()}</Copy>
-        {report.scope==='player'&&<View style={{padding:12,borderRadius:10,backgroundColor:c.surfaceRaised}}>
+        {report.scope==='player'&&<View style={{padding:12,borderRadius: radii.medium,backgroundColor:c.surfaceRaised}}>
           <Copy>{copy('profile_evidence')}</Copy><Copy>{report.evidence.display_name}</Copy>
           {!!report.evidence.username&&<Copy>@{report.evidence.username}</Copy>}
         </View>}
-        {report.evidence.text&&<View style={{padding:12,borderRadius:10,backgroundColor:c.surfaceRaised}}><Copy>{copy('message_evidence')}</Copy><Copy>{report.evidence.text}</Copy></View>}
+        {report.evidence.text&&<View style={{padding:12,borderRadius: radii.medium,backgroundColor:c.surfaceRaised}}><Copy>{copy('message_evidence')}</Copy><Copy>{report.evidence.text}</Copy></View>}
         {!!report.explanation&&<View><Copy>{copy('reporter_details')}</Copy><Copy>{report.explanation}</Copy></View>}
         {report.decision==='accepted'&&<EnforcementActions session={session} reportId={report.id} scope={report.scope} target={group.user_id} />}
         {report.decision?<><Copy>{copy(report.decision)}</Copy><Copy>{report.reason}</Copy><Copy>{report.moderator_id} · {report.decided_at&&new Date(report.decided_at).toLocaleString()}</Copy></>:
@@ -109,7 +109,7 @@ function ReportGroup({group,session,reviewed,onDecision,onDenied}: {group:Group;
     {decision&&<RoomSheet visible presentation="dialog" title={copy(decision.value==='accepted'?'accept':'decline')} onClose={()=>{if(!busy)setDecision(null);}}>
       <Copy>{copy('decision_help')}</Copy>
       <FormInput accessibilityLabel={copy('reason')} placeholder={copy('reason')} placeholderTextColor={c.textMuted} value={reason} onChangeText={setReason} multiline maxLength={1000} editable={!busy}
-        style={{color:c.text,borderWidth:1,borderColor:c.border,borderRadius:10,padding:12,minHeight:90}} />
+        style={{color:c.text,borderWidth:1,borderColor:c.border,borderRadius: radii.medium,padding:12,minHeight:90}} />
       {!!error&&<Copy alert>{error}</Copy>}
       <Button label={copy('confirm')} disabled={busy||!reason.trim()} onPress={()=>void confirm()} />
     </RoomSheet>}

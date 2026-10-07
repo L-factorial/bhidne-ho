@@ -2,7 +2,7 @@ import {AppText as Text} from './AppText';
 import { playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
-import { gameControlFinish, gamePanelFinish, fonts, radii, typography, useTheme } from '../theme';
+import { visualStates, actionFinish, gameControlFinish, gamePanelFinish, fonts, radii, typography, useTheme } from '../theme';
 import { useEffect, useRef, useState } from 'react';
 import {ImageBackground, Pressable, View} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,7 +43,7 @@ export function RoomCard({ room, member, busy, activeTables, onPress, owner, onR
   const extra = Math.max(0, room.members.length - shown.length);
   if (removed) return null;
   return <View testID={`room-card-${room.room_id}`} style={{ ...gamePanelFinish(c), padding: 10, borderRadius: radii.large, backgroundColor: c.surface,
-    borderWidth: 1, borderColor: c.borderSubtle, gap: 8, opacity: busy ? 0.55 : 1 }}>
+    borderWidth: 1, borderColor: c.borderSubtle, gap: 8, opacity: busy ? visualStates.disabledOpacity : 1 }}>
     <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 4, paddingLeft: 3 }}>
       <View style={{ flex: 1, minWidth: 0, gap: 4, paddingTop: 3 }}>
         <Text numberOfLines={2} style={{ color: c.text, fontFamily: fonts.medium, fontSize: typography.cardTitle, lineHeight: 23 }}>{room.name}</Text>
@@ -57,13 +57,13 @@ export function RoomCard({ room, member, busy, activeTables, onPress, owner, onR
         <Text style={{ color: online ? c.success : c.textMuted, fontFamily: fonts.medium, fontSize: 11 }}>{ui("rooms.count_online", { "count": room.presence_status && room.presence_status !== 'observed' ? '—' : online })}</Text>
       </View>
       <Pressable accessibilityRole="button" accessibilityLabel={ui("common.share_name", { "name": room.name })} disabled={removing} onPress={() => setSharing(true)}
-        style={({ pressed }) => ({ width: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: pressed ? c.surfaceRaised : 'transparent' })}>
+        style={({ pressed }) => ({ width: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radii.medium, backgroundColor: pressed ? c.surfaceRaised : 'transparent' })}>
         <Ionicons name="ellipsis-horizontal" size={20} color={c.textMuted} />
       </Pressable>
     </View>
     <ImageBackground source={require('../../assets/lobby/nepal-valley.jpg')} resizeMode="cover"
       onLayout={event => setBannerWidth(event.nativeEvent.layout.width)}
-      style={{ height: 64, borderRadius: 12, overflow: 'hidden', backgroundColor: c.table }} imageStyle={{ width: bannerWidth, height: bannerWidth * 2 / 3, top: -bannerWidth * 0.1, opacity: 0.8 }}>
+      style={{ height: 64, borderRadius: radii.medium, overflow: 'hidden', backgroundColor: c.table }} imageStyle={{ width: bannerWidth, height: bannerWidth * 2 / 3, top: -bannerWidth * 0.1, opacity: 0.8 }}>
       <LinearGradient colors={['transparent', 'rgba(17,25,20,0.56)']} style={{ flex: 1, justifyContent: 'flex-end', padding: 9 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 }}>
@@ -81,13 +81,13 @@ export function RoomCard({ room, member, busy, activeTables, onPress, owner, onR
             </View>}
           </View>
           <Pressable accessibilityRole="button" accessibilityLabel={`${member ? ui("rooms.enter") : ui("rooms.join")} ${room.name}`} disabled={busy || removing} accessibilityState={{ disabled: busy || removing }} onPress={onPress}
-            style={({ pressed }) => ({ ...gameControlFinish(c, pressed), minHeight: 44, paddingHorizontal: 10, borderRadius: 10, backgroundColor: c.successSurface,
+            style={({ pressed }) => ({ ...actionFinish(c, 'primary', pressed, busy || removing), minHeight: 44, paddingHorizontal: 10,
               flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center' })}>
-            <Text style={{ color: c.success, fontFamily: fonts.medium, fontSize: 13 }}>{member ? ui("rooms.enter") : ui("rooms.join")}</Text>
-            <Ionicons name="arrow-forward" size={16} color={c.success} />
+            <Text style={{ color: c.onPrimary, fontFamily: fonts.medium, fontSize: 13 }}>{member ? ui("rooms.enter") : ui("rooms.join")}</Text>
+            <Ionicons name="arrow-forward" size={20} color={c.onPrimary} />
           </Pressable>
           {member && onRemove && <Pressable accessibilityRole="button" accessibilityLabel={`${owner ? ui("common.delete") : ui("common.leave")} ${room.name}`} disabled={busy || removing} onPress={() => setConfirming(true)}
-            style={{width:44,minHeight:44,alignItems:'center',justifyContent:'center',borderRadius:10,backgroundColor:c.surface}}>
+            style={{width:44,minHeight:44,alignItems:'center',justifyContent:'center',borderRadius: radii.medium,backgroundColor:c.surface}}>
             <Ionicons name={owner ? 'trash-outline' : 'exit-outline'} size={19} color={c.danger} />
           </Pressable>}
         </View>

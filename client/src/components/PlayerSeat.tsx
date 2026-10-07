@@ -44,10 +44,10 @@ export function PlayerSeat({ name, mine = false, active = false, connected = tru
     <PlayerSocialEffect playerId={playerId} />
     {target && <Text pointerEvents="none" style={{position:'absolute',right:0,top:0,fontSize:14}}>👋</Text>}
     <Animated.View style={{ transform: [{ scale }], width: size, height: size, borderRadius: size / 2, borderWidth: active ? 3 : 1,
-      borderColor: target ? colors.accent : active ? colors.attention : '#DCC9A5', borderStyle: connected ? 'solid' : 'dashed',
+      borderColor: target ? colors.accent : active ? colors.attention : colors.borderSubtle, borderStyle: connected ? 'solid' : 'dashed',
       backgroundColor: active ? colors.turnSurface : colors.surface, alignItems: 'center', justifyContent: 'center' }}>
       {avatarUrl && failedImage !== avatarUrl ? <Image source={{ uri: avatarUrl }} onError={() => setFailedImage(avatarUrl)}
-        style={{ width: size - 6, height: size - 6, borderRadius: size / 2 }} /> : <View style={{ width: size - 6, height: size - 6, borderRadius: size / 2, backgroundColor: '#E5E5E5', alignItems: 'center', justifyContent: 'center' }}><Ionicons accessibilityLabel={ui("common.anonymous_profile")} name="person" size={compact ? 18 : 28} color="#737373" /></View>}
+        style={{ width: size - 6, height: size - 6, borderRadius: size / 2 }} /> : <View style={{ width: size - 6, height: size - 6, borderRadius: size / 2, backgroundColor: colors.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}><Ionicons accessibilityLabel={ui("common.anonymous_profile")} name="person" size={compact ? 18 : 28} color={colors.textMuted} /></View>}
     </Animated.View>
     <Text numberOfLines={1} style={{ maxWidth: '100%', backgroundColor: colors.surface, paddingHorizontal: 8, borderRadius: 8, color: colors.text, fontFamily: fonts.medium, fontSize: compact ? 11 : 12 }}>{name}</Text>
     <Text numberOfLines={1} style={{ backgroundColor: active ? colors.turnSurface : colors.surface, paddingHorizontal: 5, borderRadius: 5, color: active ? colors.turnText : colors.textMuted, fontFamily: fonts.medium, fontSize: compact ? 8 : active && mine ? 9 : 10 }}>

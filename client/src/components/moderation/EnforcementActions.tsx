@@ -5,7 +5,7 @@ import type { Session } from '../../multiplayer/session';
 import { Button, Copy, copy } from './Controls';
 import { FormInput } from '../FormInput';
 import { RoomSheet } from '../RoomSheet';
-import { useTheme } from '../../theme';
+import { radii, useTheme } from '../../theme';
 // Non-secret idempotency key; native fallback does not supply authentication.
 const newId=()=>globalThis.crypto?.randomUUID?.()??'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.floor(Math.random()*16);return(c==='x'?r:(r&3)|8).toString(16);});
 
@@ -27,7 +27,7 @@ export function EnforcementActions({session,reportId,scope,target}:{session:Sess
   {action&&<RoomSheet visible presentation="dialog" title={copy(action)} onClose={()=>{if(!busy)setAction(null);}}>
    <Copy>{copy('enforcement_help')}</Copy>
    {(action==='mute'||action==='suspend')&&<View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>{[1,24,168,720].map(h=><Button key={h} label={copy(`duration_${h}`)} selected={hours===h} disabled={busy} onPress={()=>{setHours(h);requestId.current=newId();}} />)}</View>}
-   <FormInput accessibilityLabel={copy('reason')} placeholder={copy('reason')} placeholderTextColor={c.textMuted} value={reason} onChangeText={v=>{setReason(v);requestId.current=newId();}} editable={!busy} multiline maxLength={1000} style={{color:c.text,borderColor:c.border,borderWidth:1,borderRadius:10,padding:12,minHeight:80}} />
+   <FormInput accessibilityLabel={copy('reason')} placeholder={copy('reason')} placeholderTextColor={c.textMuted} value={reason} onChangeText={v=>{setReason(v);requestId.current=newId();}} editable={!busy} multiline maxLength={1000} style={{color:c.text,borderColor:c.border,borderWidth:1,borderRadius: radii.medium,padding:12,minHeight:80}} />
    {!!error&&<Copy alert>{error}</Copy>}<Button label={copy('confirm_action')} disabled={busy||!reason.trim()} onPress={()=>void submit()} />
   </RoomSheet>}
  </View>;

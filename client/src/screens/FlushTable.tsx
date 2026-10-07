@@ -18,7 +18,7 @@ import { GameTableHeader } from '../components/GameTableHeader';
 import { flushDecision } from '../multiplayer/flushDecision';
 import { type ReactNode, useEffect, useState } from 'react';
 import {Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions} from 'react-native';
-import { fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { visualStates, radii, fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import type { RoomSnapshot } from './LiveGameTable';
 import { FlushFoldNotice } from '../components/FlushFoldNotice';
 import { FlushLockButton } from '../components/FlushLockButton';
@@ -103,7 +103,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
     || !(locking ? snapshot.table?.current_user.can_lock : snapshot.table?.current_user.can_start);
   const centerLabel = starting ? ui("rooms.start_game") : ui("rooms.lock_players");
   const formation = snapshot.status !== 'ended' && (locking || starting);
-  const centerControl = formation ? <View style={{ backgroundColor: 'transparent', borderRadius: 18, padding: 12, gap: 8, alignItems: 'center', maxWidth: 220 }}>
+  const centerControl = formation ? <View style={{ backgroundColor: 'transparent', borderRadius: radii.large, padding: 12, gap: 8, alignItems: 'center', maxWidth: 220 }}>
     <Text style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 15, textAlign: 'center' }}>{starting ? ui("rooms.players_locked") : ui("rooms.waiting_for_players")}</Text>
     <Text style={{ color: colors.textMuted, fontSize: 12 }}>{ui("rooms.seated_of_capacity_seated", { "seated": snapshot.players?.length || 0, "capacity": snapshot.table?.max_players || snapshot.capacity })}</Text>
     {snapshot.is_creator ? <FloatingTableAction testID="flush-center-start" label={centerLabel}
@@ -141,7 +141,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   const can = (kind: string) => !busy && snapshot.status === 'playing' && !!mine?.actions.kinds.includes(kind);
   const button = (label: string, action: () => void, disabled = false, primary = false, danger = false, caption = label) => {
     return <Pressable accessibilityRole="button" accessibilityLabel={label}
-      disabled={disabled} accessibilityState={{ disabled }} onPress={action} style={({ pressed }) => [s.button, gameButtonStyle(colors, primary ? 'primary' : 'secondary', pressed), disabled && { opacity: 0.45 }]}>
+      disabled={disabled} accessibilityState={{ disabled }} onPress={action} style={({ pressed }) => [s.button, gameButtonStyle(colors, primary ? 'primary' : 'secondary', pressed), disabled && { opacity: visualStates.disabledOpacity }]}>
       <Text style={[s.text, primary && { color: colors.onPrimary }, danger && { color: colors.onTableHeader }]}>{caption}</Text>
     </Pressable>;
   };
@@ -202,7 +202,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
         {!ended && mine && !preparing && !pub?.settlement && <View style={s.cards} testID="flush-own-cards">
           <View style={s.scaledCards}><FlushCards tapToToggle key={pub?.round_number} cards={mine.cards} /></View>
         </View>}
-        <Text accessibilityLiveRegion="polite" style={[s.status, { backgroundColor: colors.tableHeader, borderRadius: 8, color: colors.onTableHeader }]}>{!ended && !connectionReady ? ui("flush.reconnecting_updating_game") : busy && myTurn ? ui("feedback.sending_your_action") : turnText}</Text>
+        <Text accessibilityLiveRegion="polite" style={[s.status, { backgroundColor: colors.tableHeader, borderRadius: radii.medium, color: colors.onTableHeader }]}>{!ended && !connectionReady ? ui("flush.reconnecting_updating_game") : busy && myTurn ? ui("feedback.sending_your_action") : turnText}</Text>
         {!!(localError || error) && <Text accessibilityRole="alert" style={s.error}>{uiLabel(localError || error, 'feedback')}</Text>}
         <View style={s.actions} testID="flush-actions">
           {finalStage && button(finalStage === 'pending' ? ui("flush.view_final_show") : ui("flush.view_round_result"), () => setFinalShowOpen(true))}
@@ -294,17 +294,17 @@ const styles = (c: ThemeColors) => StyleSheet.create({
   cards: { width: 224, height: 128, alignItems: 'center', justifyContent: 'center' },
   scaledCards: { width: 280, height: 172, transform: [{ scale: 0.75 }] },
   status: { color: c.textMuted, fontFamily: fonts.body, fontSize: 13, textAlign: 'center' },
-  yourTurn: { color: c.turnText, fontFamily: fonts.medium, backgroundColor: c.turnSurface, borderWidth: 1, borderColor: c.attention, borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10 },
+  yourTurn: { color: c.turnText, fontFamily: fonts.medium, backgroundColor: c.turnSurface, borderWidth: 1, borderColor: c.attention, borderRadius: radii.medium, paddingVertical: 6, paddingHorizontal: 10 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, width: '100%', maxWidth: 900 },
   notice: { position: 'absolute', top: 0, left: 72, right: 72 },
   backdrop: { flex: 1, backgroundColor: c.overlay, alignItems: 'center', justifyContent: 'center', padding: 16 },
-  modal: { backgroundColor: c.surface, padding: 16, borderRadius: 14, width: '100%', maxWidth: 720, maxHeight: '90%', gap: 12 },
-  panel: { backgroundColor: c.surface, padding: 16, borderRadius: 14, gap: 12 },
+  modal: { backgroundColor: c.surface, padding: 16, borderRadius: radii.large, width: '100%', maxWidth: 720, maxHeight: '90%', gap: 12 },
+  panel: { backgroundColor: c.surface, padding: 16, borderRadius: radii.large, gap: 12 },
   row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   title: { color: c.text, fontFamily: fonts.medium, fontSize: 20 }, text: { color: c.text, fontFamily: fonts.body, fontSize: 14 },
   button: { justifyContent: 'center', padding: 10, ...gameButtonStyle(c) },
   helpButton: { ...gameButtonStyle(c), justifyContent: 'center', paddingHorizontal: 8 },
   chosen: { borderColor: c.accent, backgroundColor: c.surfaceSelected },
-  field: { gap: 6 }, input: { padding: 12, borderRadius: 8, borderWidth: 1, borderColor: c.border, color: c.text },
+  field: { gap: 6 }, input: { padding: 12, borderRadius: radii.medium, borderWidth: 1, borderColor: c.border, color: c.text },
   error: { color: c.danger, fontFamily: fonts.body },
 });

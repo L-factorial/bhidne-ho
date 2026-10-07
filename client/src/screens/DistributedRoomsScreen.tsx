@@ -29,7 +29,7 @@ import type { DistributedScreenController, ScreenActionState } from '../multipla
 import type { SelectedTable } from '../multiplayer/DistributedControls';
 import type { CatalogRoom } from '../multiplayer/DistributedReadClient';
 import type { Json } from '../multiplayer/DurableCommandClient';
-import { useTheme } from '../theme';
+import { visualStates, radii, useTheme } from '../theme';
 import { LiveGameTable, type RoomSnapshot } from './LiveGameTable';
 import { MarriageTable } from './MarriageTable';
 import { FlushTable } from './FlushTable';
@@ -169,9 +169,9 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
   },[runtime,account,invitation?.roomId,invitation?.matchId]);
 
   const button=(label:string,run:()=>void,disabled=false)=><Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled}
-    onPress={run} style={{padding:12,minHeight:44,borderRadius:8,backgroundColor:colors.surface,opacity:disabled?0.45:1}}><Text style={{color:colors.text}}>{label}</Text></Pressable>;
+    onPress={run} style={{padding:12,minHeight:44,borderRadius: radii.medium,backgroundColor:colors.surface,opacity:disabled?visualStates.disabledOpacity:1}}><Text style={{color:colors.text}}>{label}</Text></Pressable>;
   const input=(label:string,value:string,change:(s:string)=>void,secure=false)=><FormInput accessibilityLabel={label} placeholder={label} placeholderTextColor={colors.textMuted}
-    value={value} onChangeText={change} secureTextEntry={secure} autoCapitalize="none" style={{color:colors.text,borderColor:colors.textMuted,borderWidth:1,padding:12,borderRadius:8}}/>;
+    value={value} onChangeText={change} secureTextEntry={secure} autoCapitalize="none" style={{color:colors.text,borderColor:colors.textMuted,borderWidth:1,padding:12,borderRadius: radii.medium}}/>;
   async function login(signup: boolean) {
     if (authBusy || (signup && (!confirmPassword || password !== confirmPassword || !validSignupEmail(email)))) return;
     setAuthBusy(true);setError('');
@@ -187,7 +187,7 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
   if (!account) return <AccountPage compact footer={accountFormOpen ? <>
     {!signupMode && <PolicyLinks />}
     <Pressable accessibilityRole="button" disabled={authBusy || (signupMode && (!confirmPassword || password !== confirmPassword || !validSignupEmail(email)))}
-      onPress={() => void login(signupMode)} style={[authStyles.button,{backgroundColor:colors.primary},authBusy && {opacity:.5}]}>
+      onPress={() => void login(signupMode)} style={[authStyles.button,{backgroundColor:colors.primary},authBusy && {opacity:visualStates.disabledOpacity}]}>
       <Text style={[authStyles.buttonText,{color:colors.onPrimary}]}>{ui(signupMode ? 'common.create_account' : 'common.sign_in')}</Text>
     </Pressable>
   </> : null}>

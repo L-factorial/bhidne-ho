@@ -1,7 +1,7 @@
 import {AppText as Text} from './AppText';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
-import { gameControlFinish, gameHeadingFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { visualStates, radii, gameControlFinish, gameHeadingFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { RoundResultsTable } from './RoundResultsTable';
 import type { ReactNode } from 'react';
 import { ActionCue } from './ActionCue';
@@ -33,7 +33,7 @@ export function RoundSummary({ snapshot, busy, error, onContinue, onBack, onNewG
     {controls}
     {!!error && <Text accessibilityRole="alert" style={styles.note}>{uiLabel(error, 'feedback')}</Text>}
     {controls === undefined && (final && snapshot.table?.requires_replacement ? <Text style={styles.note}>{ui("rooms.next_match_help")}</Text> : (final || snapshot.round_review?.can_continue) ? <Pressable accessibilityRole="button" disabled={busy} onPress={final ? onNewGame : onContinue}
-      style={[styles.button, busy && { opacity: 0.5 }]}><ActionCue active={!busy} style={styles.name}>{final ? ui("rooms.start_a_new_game") : ui("callbreak.start_next_deal")}</ActionCue></Pressable>
+      style={[styles.button, busy && { opacity: visualStates.disabledOpacity }]}><ActionCue active={!busy} style={styles.name}>{final ? ui("rooms.start_a_new_game") : ui("callbreak.start_next_deal")}</ActionCue></Pressable>
       : <Text style={styles.note}>{ui("common.waiting_for_the_creator_to_start_the_next_deal")}</Text>)}
     {!hideNavigation && <Pressable accessibilityRole="button" onPress={onBack} style={styles.back}><Text style={styles.note}>{ui("common.back_to_room")}</Text></Pressable>}
   </ScrollView>;
@@ -42,6 +42,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.background }, body: { padding: 20, gap: 16 },
   title: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 32, color: colors.text }, name: { fontFamily: fonts.medium, color: colors.text, fontSize: 15 },
   note: { fontFamily: fonts.body, color: colors.accent, fontSize: 13, lineHeight: 22 },
-  row: { padding: 14, borderRadius: 10, backgroundColor: colors.surface, gap: 6 },
-  button: { ...gameControlFinish(colors), minHeight: 48, padding: 14, borderRadius: 8, backgroundColor: colors.surfaceSelected, alignItems: 'center' }, back: { ...gameControlFinish(colors), minHeight: 44, justifyContent: 'center' },
+  row: { padding: 14, borderRadius: radii.medium, backgroundColor: colors.surface, gap: 6 },
+  button: { ...gameControlFinish(colors), minHeight: 48, padding: 14, borderRadius: radii.medium, backgroundColor: colors.surfaceSelected, alignItems: 'center' }, back: { ...gameControlFinish(colors), minHeight: 44, justifyContent: 'center' },
 });

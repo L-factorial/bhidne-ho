@@ -5,7 +5,7 @@ import { FormInput } from './FormInput';
 import { useCallback, useRef, useState } from 'react';
 import {Keyboard, Pressable, TextInput, View, type TextInputProps} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { fonts, useTheme } from '../theme';
+import { radii, fonts, useTheme } from '../theme';
 
 export function ChatComposer({ value, onChange, onSend, disabled, placeholder, label, sendLabel = ui("social.send_chat_message"), maxLength = 500, editable = true }: {
   value: string; onChange: (value: string) => void; onSend: () => void;
@@ -26,7 +26,7 @@ export function ChatComposer({ value, onChange, onSend, disabled, placeholder, l
       <FormInput ref={input} accessibilityLabel={label} placeholder={placeholder} placeholderTextColor={c.textMuted}
         multiline editable={editable} value={value} onChangeText={text => onChange(Array.from(text).slice(0, maxLength).join(''))}
         onContentSizeChange={onContentSizeChange}
-        style={{ flex: 1, minWidth: 0, height: value ? height : 44, maxHeight: 104, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 22, borderWidth: 1, borderColor: c.borderSubtle, backgroundColor: c.surfaceRaised, fontFamily: fonts.body, fontSize: 14, lineHeight: 20, color: c.text }} />
+        style={{ flex: 1, minWidth: 0, height: value ? height : 44, maxHeight: 104, paddingHorizontal: 12, paddingVertical: 10, borderRadius: radii.large, borderWidth: 1, borderColor: c.borderSubtle, backgroundColor: c.surfaceRaised, fontFamily: fonts.body, fontSize: 14, lineHeight: 20, color: c.text }} />
       <Pressable accessibilityRole="button" accessibilityLabel={sendLabel} accessibilityState={{ disabled: unavailable }} disabled={unavailable}
         onPress={() => { input.current?.blur(); Keyboard.dismiss(); onSend(); }}
         style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: unavailable ? c.surfaceRaised : c.primary }}>

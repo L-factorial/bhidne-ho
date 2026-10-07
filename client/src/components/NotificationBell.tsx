@@ -7,7 +7,7 @@ import {Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions} fro
 import Svg, { Path } from 'react-native-svg';
 import { request } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
-import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { radii, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import type {Invitation} from '../multiplayer/invitations';
 
 type Player = { user_id: string; display_name: string; username?: string | null };
@@ -138,15 +138,15 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radii.medium, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   pressed: { backgroundColor: colors.surfaceSelected }, badge: { position: 'absolute', right: 3, top: 3, minWidth: 17, height: 17, paddingHorizontal: 4, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },
   badgeText: { color: colors.onPrimary, fontFamily: fonts.medium, fontSize: 9 }, backdrop: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end', alignItems: 'center' },
   sheet: { width: '100%', maxHeight: '78%', backgroundColor: colors.surface, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 20, gap: 12 },
-  desktopSheet: { width: 420, maxHeight: 560, alignSelf: 'flex-end', marginRight: 28, marginBottom: 28, borderRadius: 18 },
+  desktopSheet: { width: 420, maxHeight: 560, alignSelf: 'flex-end', marginRight: 28, marginBottom: 28, borderRadius: radii.large },
   headingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }, title: { fontFamily: fonts.display, fontSize: 24, color: colors.text },
   detail: { fontFamily: fonts.body, fontSize: 11, lineHeight: 18, color: colors.textMuted }, close: { minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center' }, link: { fontFamily: fonts.medium, fontSize: 12, color: colors.accent },
   markRead: { alignSelf: 'flex-end', minHeight: 40, justifyContent: 'center' }, list: { maxHeight: 440 }, notice: { flexDirection: 'row', gap: 10, paddingVertical: 13, borderBottomWidth: 1, borderColor: colors.border },
-  unread: { backgroundColor: colors.surfaceSelected, marginHorizontal: -8, paddingHorizontal: 8, borderRadius: 10 }, avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }, avatarText: { fontFamily: fonts.medium, color: colors.accent },
+  unread: { backgroundColor: colors.surfaceSelected, marginHorizontal: -8, paddingHorizontal: 8, borderRadius: radii.medium }, avatar: { width: 36, height: 36, borderRadius: radii.large, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }, avatarText: { fontFamily: fonts.medium, color: colors.accent },
   name: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 19, color: colors.text }, empty: { paddingVertical: 36, alignItems: 'center', gap: 5 }, error: { color: colors.danger, fontFamily: fonts.body, fontSize: 11 },
-  requestActions: { alignItems: 'stretch', gap: 4 }, accept: { minHeight: 34, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: colors.primary }, acceptText: { fontFamily: fonts.medium, fontSize: 11, color: colors.onPrimary }, decline: { minHeight: 34, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center' },
+  requestActions: { alignItems: 'stretch', gap: 4 }, accept: { minHeight: 34, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', borderRadius: radii.medium, backgroundColor: colors.primary }, acceptText: { fontFamily: fonts.medium, fontSize: 11, color: colors.onPrimary }, decline: { minHeight: 34, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center' },
 });

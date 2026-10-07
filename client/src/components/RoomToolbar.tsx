@@ -4,7 +4,7 @@ import { useUiLanguage } from '../i18n/useUiLanguage';
 import { Ionicons } from '@expo/vector-icons';
 import {Pressable, View} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fonts, useTheme } from '../theme';
+import { visualStates, radii, fonts, useTheme } from '../theme';
 
 export function RoomToolbar({ panel, unread, chatBlocked, onTables, onChat, onMembers, onMore, onLedger, inline = false }: {
   inline?: boolean; onLedger?: () => void; panel: string | null; unread: number; chatBlocked: boolean;
@@ -25,11 +25,11 @@ export function RoomToolbar({ panel, unread, chatBlocked, onTables, onChat, onMe
         aria-pressed={(panel || 'tables') === item.key || (item.key === 'more' && panel === 'ledger')}
         accessibilityHint={item.key === 'chat' && unread ? ui("social.count_unread_messages", { "count": unread }) : undefined}
         accessibilityState={{ selected: (panel || 'tables') === item.key || (item.key === 'more' && panel === 'ledger'), expanded: panel === item.key || (item.key === 'more' && panel === 'ledger'), disabled: item.disabled }} disabled={item.disabled}
-        onPress={item.action} style={{ flex: 1, minHeight: 64, flexDirection: 'column', gap: 4, alignItems: 'center', justifyContent: 'center', opacity: item.disabled ? 0.5 : 1 }}>
+        onPress={item.action} style={{ flex: 1, minHeight: 64, flexDirection: 'column', gap: 4, alignItems: 'center', justifyContent: 'center', opacity: item.disabled ? visualStates.disabledOpacity : 1 }}>
         {!inline && <Ionicons name={item.icon} size={21} color={(panel || 'tables') === item.key || (item.key === 'more' && panel === 'ledger') ? c.accent : c.textMuted} />}
         <Text style={{ color: (panel || 'tables') === item.key || (item.key === 'more' && panel === 'ledger') ? c.accent : c.textMuted, fontFamily: fonts.medium, fontSize: inline ? 14 : 11 }}>{item.label}</Text>
         {inline && (panel || 'tables') === item.key && <View style={{ position: 'absolute', bottom: 0, width: '70%', height: 3, borderRadius: 3, backgroundColor: c.primary }} />}
-        {item.key === 'chat' && unread > 0 && <Text testID="room-chat-unread" accessibilityLiveRegion="polite" style={{ position: 'absolute', top: 3, right: 18, color: c.onPrimary, backgroundColor: c.primary, borderRadius: 12, paddingHorizontal: 7, paddingVertical: 2 }}>{unread}</Text>}
+        {item.key === 'chat' && unread > 0 && <Text testID="room-chat-unread" accessibilityLiveRegion="polite" style={{ position: 'absolute', top: 3, right: 18, color: c.onPrimary, backgroundColor: c.primary, borderRadius: radii.medium, paddingHorizontal: 7, paddingVertical: 2 }}>{unread}</Text>}
       </Pressable>)}
     </View>
   </View>;

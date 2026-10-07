@@ -1,7 +1,7 @@
 import {AppText} from './AppText';
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, StyleSheet, type TextProps } from 'react-native';
-import { fonts, useThemedStyles, type ThemeColors } from '../theme';
+import { radii, fonts, useThemedStyles, type ThemeColors } from '../theme';
 
 const AnimatedText=Animated.createAnimatedComponent(AppText);
 export function TurnPulse({ text, personal = false, active = true, children, style, ...props }: TextProps & { text?: string; personal?: boolean; active?: boolean }) {
@@ -30,5 +30,5 @@ export function TurnPulse({ text, personal = false, active = true, children, sty
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   text: { color: colors.turnText, fontFamily: fonts.medium, fontWeight: 'bold', fontSize: 18, textAlign: 'center', paddingVertical: 8 },
-  personal: { fontSize: 22, backgroundColor: colors.turnSurface, borderColor: colors.attention, borderWidth: 1, borderRadius: 8, paddingHorizontal: 16 },
+  personal: { fontSize: 22, backgroundColor: colors.turnSurface, borderColor: colors.attention, borderWidth: 1, borderRadius: radii.medium, paddingHorizontal: 16 },
 });

@@ -10,7 +10,7 @@ import { DeleteAccountLink } from './DeletionScreen';
 import { RecoveryEmailSettings } from './RecoveryScreen';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { ui } from '../i18n/copy.ts';
-import { gameControlFinish, gameHeadingFinish, fonts, useThemedStyles, type ThemeColors } from '../theme';
+import { radii, gameControlFinish, gameHeadingFinish, fonts, useThemedStyles, type ThemeColors } from '../theme';
 import { FormScrollView } from '../components/FormInput';
 import { KeyboardFrame } from '../components/KeyboardFrame';
 import { useContext, useEffect, useState } from 'react';
@@ -71,6 +71,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   title: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 36, color: colors.text },
   back: { ...gameControlFinish(colors), minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center' },
   link: { fontFamily: fonts.medium, color: colors.accent, fontSize: 14 },
-  signOut: { ...gameControlFinish(colors), minHeight: 46, borderWidth: 1, borderColor: colors.border, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }, signOutText: { fontFamily: fonts.medium, color: colors.textMuted, fontSize: 13 },
+  signOut: { ...gameControlFinish(colors), minHeight: 46, borderWidth: 1, borderColor: colors.border, borderRadius: radii.medium, alignItems: 'center', justifyContent: 'center' }, signOutText: { fontFamily: fonts.medium, color: colors.textMuted, fontSize: 13 },
   description: { fontFamily: fonts.body, color: colors.text, fontSize: 13, lineHeight: 22 },
 });

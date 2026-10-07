@@ -45,7 +45,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     borderWidth: 1, borderColor: colors.cardBorder, padding: 11, boxShadow: `0px 12px 22px ${colors.shadow}` },
   corner: { alignSelf: 'flex-start', alignItems: 'center' },
   bottomCorner: { position: 'absolute', right: 11, bottom: 11, alignItems: 'center', transform: [{ rotate: '180deg' }] },
-  rank: { fontFamily: fonts.display, fontSize: 29, lineHeight: 30, color: colors.cardInk },
+  rank: { fontFamily: fonts.card, fontSize: 29, lineHeight: 30, color: colors.cardInk },
   smallSuit: { fontSize: 20, lineHeight: 24, color: colors.cardInk },
   suit: { position: 'absolute', alignSelf: 'center', top: 65, fontSize: 53, color: colors.cardInk },
   red: { color: colors.cardRed },

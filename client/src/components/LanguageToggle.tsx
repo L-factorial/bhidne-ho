@@ -5,7 +5,7 @@ import {Platform, Pressable, View, useWindowDimensions} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { gameControlFinish, gamePanelFinish, fonts, useTheme } from '../theme';
+import { radii, gameControlFinish, gamePanelFinish, fonts, useTheme } from '../theme';
 import { useLanguage } from '../i18n/LanguageProvider';
 
 export function LanguageToggle() {
@@ -32,7 +32,7 @@ export function LanguageToggle() {
       accessibilityState={{ expanded: !!anchor }} aria-expanded={!!anchor}
       onPress={() => button.current?.measureInWindow((x, y, w, h) => setAnchor({ x: x + w, y: y + h }))}
       style={({ pressed }) => ({ ...gameControlFinish(colors, pressed), width: 44, height: 44, flexShrink: 0,
-        borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center',
+        borderRadius: radii.medium, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center',
         backgroundColor: pressed ? colors.surfaceSelected : colors.surface })}>
       <Text style={{ color: colors.accent, fontFamily: fonts.medium, fontSize: 17 }}>{'अ A'}</Text>
     </Pressable>
@@ -46,11 +46,11 @@ export function LanguageToggle() {
         <View testID="language-menu" accessibilityViewIsModal style={{ ...gamePanelFinish(colors), position: 'absolute',
           top: Math.max(insets.top + 8, Math.min((anchor?.y ?? 0) + 8, height - insets.bottom - 120)),
           left: Math.max(insets.left + 8, Math.min((anchor?.x ?? width) - menuWidth, width - insets.right - menuWidth - 8)),
-          width: menuWidth, padding: 6, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }}>
+          width: menuWidth, padding: 6, borderRadius: radii.medium, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }}>
           {(['en', 'ne'] as const).map(value => <Pressable key={value} ref={language === value ? selected : undefined}
             accessibilityRole="radio" accessibilityLabel={value === 'en' ? 'English' : 'नेपाली'} accessibilityState={{ checked: language === value }} aria-checked={language === value}
             onPress={() => { setLanguage(value); close(); }}
-            style={({ pressed }) => ({ minHeight: 48, paddingHorizontal: 12, borderRadius: 8,
+            style={({ pressed }) => ({ minHeight: 48, paddingHorizontal: 12, borderRadius: radii.medium,
               flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
               backgroundColor: pressed || language === value ? colors.surfaceSelected : colors.surface })}>
             <Text style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 16 }}>{value === 'en' ? 'English' : 'नेपाली'}</Text>

@@ -8,7 +8,7 @@ import { marriageWinChoices, type MarriageWinChoice, type SeenMaal } from '../mu
 import { physicalLabel, type MarriageCard, type MarriageMeld } from '../multiplayer/marriage';
 import { MarriageMeldCards } from './MarriageMeldCards';
 import { TurnGlow } from './TurnGlow';
-import { fonts, gameButtonStyle, useTheme } from '../theme';
+import { visualStates, radii, fonts, gameButtonStyle, useTheme } from '../theme';
 
 export function MarriageWinPanel({ hand, shown, initialTunnelas = [], maal, route, visible, enabled, busy, canFinish, preview, setPreview, error, submit, onEligibility }: {
   onEligibility?: (ready:boolean)=>void; hand: MarriageCard[]; shown: MarriageMeld[]; initialTunnelas?: MarriageMeld[]; maal: SeenMaal; route: string; visible: boolean; enabled: boolean;
@@ -34,11 +34,11 @@ export function MarriageWinPanel({ hand, shown, initialTunnelas = [], maal, rout
   useEffect(()=>{onEligibility?.(ready);},[ready,onEligibility]);
   const text = { color: c.text, fontFamily: fonts.body };
   const button = (label: string, onPress: () => void, disabled = false, primary = false) => <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
-    style={({ pressed }) => ({ ...gameButtonStyle(c, primary ? 'primary' : 'secondary', pressed), minHeight: 44, justifyContent: 'center', opacity: disabled ? 0.45 : 1 })}><Text style={{ color: primary ? c.onPrimary : c.onTableHeader, fontFamily: fonts.medium }}>{label}</Text></Pressable>;
+    style={({ pressed }) => ({ ...gameButtonStyle(c, primary ? 'primary' : 'secondary', pressed), minHeight: 44, justifyContent: 'center', opacity: disabled ? visualStates.disabledOpacity : 1 })}><Text style={{ color: primary ? c.onPrimary : c.onTableHeader, fontFamily: fonts.medium }}>{label}</Text></Pressable>;
   if (!preview) {
     const label = !visible ? ui("marriage.reveal_cards_to_check_marriage") : checking ? ui("marriage.checking_marriage") : ready ? allowed ? ui("marriage.marriage_eligible_show_marriage") : ui("marriage.marriage_eligible_view_options") : ui("marriage.marriage_not_eligible");
-    return <View testID="marriage-win-eligibility" style={{ borderRadius: 12, borderWidth: 1, borderColor: ready ? c.accent : c.border, overflow: 'hidden' }}>
-      <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: !canPreview }} disabled={!canPreview} onPress={() => setPreview(true)} style={{ minHeight: 48, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 8, opacity: ready ? 1 : 0.5 }}>
+    return <View testID="marriage-win-eligibility" style={{ borderRadius: radii.medium, borderWidth: 1, borderColor: ready ? c.accent : c.border, overflow: 'hidden' }}>
+      <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: !canPreview }} disabled={!canPreview} onPress={() => setPreview(true)} style={{ minHeight: 48, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 8, opacity: ready ? 1 : visualStates.disabledOpacity }}>
         <Ionicons name={ready ? 'bulb' : 'bulb-outline'} size={22} color={ready ? c.accent : c.textMuted} />
         <Text accessibilityLiveRegion="polite" style={{ ...text, color: ready ? c.accent : c.textMuted, flexShrink: 1 }}>{label}</Text>
       </Pressable><TurnGlow active={canPreview} radius={12} />

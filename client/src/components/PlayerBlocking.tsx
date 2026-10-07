@@ -6,7 +6,7 @@ import { sharedRequest } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 import { ui } from '../i18n/copy';
 import { useUiLanguage } from '../i18n/useUiLanguage';
-import { fonts, useTheme } from '../theme';
+import { visualStates, radii, fonts, useTheme } from '../theme';
 import { RoomSheet } from './RoomSheet';
 
 const changes = new Set<(token: string) => void>();
@@ -29,7 +29,7 @@ export function useBlocking(session: Session) {
 function Button({ text, onPress, disabled = false, label }: {text: string; onPress: () => void; disabled?: boolean; label?: string}) {
   const { colors: c } = useTheme();
   return <Pressable accessibilityRole="button" accessibilityLabel={label || text} accessibilityState={{disabled}} disabled={disabled}
-    onPress={onPress} style={{paddingHorizontal: 12, minHeight: 44, justifyContent: 'center', borderWidth: 1, borderColor: c.border, borderRadius: 10, opacity: disabled ? 0.5 : 1}}>
+    onPress={onPress} style={{paddingHorizontal: 12, minHeight: 44, justifyContent: 'center', borderWidth: 1, borderColor: c.border, borderRadius: radii.medium, opacity: disabled ? visualStates.disabledOpacity : 1}}>
     <Text style={{color: c.text, fontFamily: fonts.medium}}>{text}</Text>
   </Pressable>;
 }

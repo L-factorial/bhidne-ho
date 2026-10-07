@@ -59,9 +59,22 @@ test('monochrome controls, status text and table surfaces retain contrast', () =
     }
     for (const bg of [c.background,c.surface]) assert.ok(contrast(c.border,bg)>=3);
     for (const [key,value] of Object.entries(c)) {
-      if (!value.startsWith('#') || ['cardFace','cardInk','cardRed','cardClub','cardBorder','cardSelected'].includes(key)) continue;
+      if (!value.startsWith('#') || ['destructiveAction','onDestructive','danger','dangerSurface','cardFace','cardInk','cardRed','cardClub','cardBorder','cardSelected'].includes(key)) continue;
       const rgb=value.slice(1,7).match(/../g);
-      assert.equal(rgb[0],rgb[1],`${id}: ${key}`);assert.equal(rgb[1],rgb[2],`${id}: ${key}`);
+      const channels=rgb.map(channel=>parseInt(channel,16));
+      assert.ok(Math.max(...channels)-Math.min(...channels)<=8,`${id}: ${key} must stay neutral`);
     }
+  }
+});
+
+
+test('semantic action and error text remain readable across every theme', () => {
+  for (const {name,colors:c} of Object.values(tableThemes)) {
+    for (const [fg,bg] of [[c.onPrimary,c.primary],[c.onPrimary,c.primaryPressed],
+      [c.onDestructive,c.destructiveAction],[c.danger,c.dangerSurface],[c.success,c.successSurface],[c.text,c.surfaceSelected],
+      [c.onTableHeader,c.tableHeader],[c.danger,c.surfaceRaised]]) {
+      assert.ok(contrast(fg,bg)>=4.5,`${name}: ${fg} on ${bg}`);
+    }
+    assert.ok(contrast(c.accent,c.surface)>=3,`${name}: focus indicator`);
   }
 });

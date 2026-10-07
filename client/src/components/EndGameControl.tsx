@@ -4,7 +4,7 @@ import { useUiLanguage } from '../i18n/useUiLanguage';
 import { RoomSheet } from './RoomSheet';
 import { useState } from 'react';
 import {Pressable, View} from 'react-native';
-import { fonts, useTheme } from '../theme';
+import { visualStates, radii, fonts, useTheme } from '../theme';
 
 export function EndGameControl({ busy, onEnd, compact = false, table = false }: { table?: boolean; compact?: boolean; busy: boolean; onEnd: () => Promise<void> }) {
   useUiLanguage();
@@ -18,7 +18,7 @@ export function EndGameControl({ busy, onEnd, compact = false, table = false }: 
   }
   const button = (label: string, onPress: () => void) => <Pressable accessibilityRole="button"
     accessibilityLabel={label} disabled={busy} accessibilityState={{ disabled: busy }} onPress={onPress}
-    style={{ minHeight: 44, padding: 12, justifyContent: 'center', opacity: busy ? 0.5 : 1 }}>
+    style={{ minHeight: 44, padding: 12, justifyContent: 'center', opacity: busy ? visualStates.disabledOpacity : 1 }}>
     <Text style={{ color: colors.accent, fontFamily: fonts.medium }}>{label}</Text>
   </Pressable>;
   if (compact) return <View>
@@ -29,7 +29,7 @@ export function EndGameControl({ busy, onEnd, compact = false, table = false }: 
       {button(ui("common.action_everyone", { "action": label }), confirmEnd)}
     </RoomSheet>
   </View>;
-  return <View style={{ backgroundColor: colors.surface, paddingHorizontal: 12, borderRadius: 8 }}>
+  return <View style={{ backgroundColor: colors.surface, paddingHorizontal: 12, borderRadius: radii.medium }}>
     {confirming ? <>
       <Text accessibilityRole="alert" style={{ color: colors.text, paddingTop: 12, fontFamily: fonts.body }}>
         {confirmation}

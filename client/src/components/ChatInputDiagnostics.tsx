@@ -1,3 +1,4 @@
+import { useTheme, radii } from '../theme';
 import {AppText as Text} from './AppText';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { ui, uiLabel } from '../i18n/copy.ts';
@@ -20,6 +21,7 @@ function describe(target: EventTarget | null): string {
 }
 
 function Recorder() {
+  const { colors: c } = useTheme();
   const entries = useRef<object[]>([]);
   const [report, setReport] = useState('');
   const [status, setStatus] = useState('Copy diagnostics');
@@ -62,16 +64,16 @@ function Recorder() {
       window.visualViewport?.removeEventListener('resize', record);
     };
   }, []);
-  return <View testID="chat-input-diagnostics" style={{ padding: 6, backgroundColor: '#f0f4fa', borderRadius: 8 }}>
-    <Text style={{ color: '#152238', fontSize: 12 }}>{ui("common.chat_diagnostics")}</Text>
+  return <View testID="chat-input-diagnostics" style={{ padding: 6, backgroundColor: c.surfaceRaised, borderRadius: radii.medium }}>
+    <Text style={{ color: c.text, fontSize: 12 }}>{ui("common.chat_diagnostics")}</Text>
     <Pressable accessibilityRole="button" accessibilityLabel={ui("common.copy_chat_diagnostics")} onPress={async () => {
       const snapshot = JSON.stringify({ version: 1, events: entries.current }, null, 2);
       setReport(snapshot);
       try { await navigator.clipboard.writeText(snapshot); setStatus('Copied'); }
       catch { setStatus(ui("common.copy_diagnostics_failed")); }
     }} style={{ minHeight: 44, justifyContent: 'center' }}>
-      <Text style={{ color: '#152238' }}>{uiLabel(status)}</Text>
+      <Text style={{ color: c.text }}>{uiLabel(status)}</Text>
     </Pressable>
-    <Text testID="chat-input-diagnostics-report" selectable numberOfLines={2} style={{ color: '#152238', fontSize: 10 }}>{report}</Text>
+    <Text testID="chat-input-diagnostics-report" selectable numberOfLines={2} style={{ color: c.text, fontSize: 10 }}>{report}</Text>
   </View>;
 }

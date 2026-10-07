@@ -5,15 +5,15 @@ import { AppHeader } from './AppHeader';
 import { FormScrollView } from './FormInput';
 import { FormFooter } from './FormFooter';
 import { KeyboardFrame } from './KeyboardFrame';
-import { fonts, gameControlFinish, gamePanelFinish, useTheme, type ThemeColors } from '../theme';
+import { radii, typography, fonts, gameControlFinish, gamePanelFinish, useTheme, type ThemeColors } from '../theme';
 
 /** Shared with the original sign-in form, including its panel and field styling. */
 export const accountStyles = (colors: ThemeColors) => StyleSheet.create({
-  panel: { ...gamePanelFinish(colors), backgroundColor: colors.surface, borderRadius: 16, padding: 24, gap: 8 },
-  input: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: 8, minHeight: 48, padding: 14, fontFamily: fonts.body, color: colors.text, marginVertical: 10 },
-  button: { ...gameControlFinish(colors), backgroundColor: colors.tableHeader, borderWidth: 1, borderColor: colors.tableTrim, minHeight: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', padding: 12 },
+  panel: { ...gamePanelFinish(colors), backgroundColor: colors.surface, borderRadius: radii.large, padding: 24, gap: 8 },
+  input: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: radii.medium, minHeight: 48, padding: 14, fontFamily: fonts.body, color: colors.text, marginVertical: 10 },
+  button: { ...gameControlFinish(colors), backgroundColor: colors.tableHeader, borderWidth: 1, borderColor: colors.tableTrim, minHeight: 48, borderRadius: radii.medium, alignItems: 'center', justifyContent: 'center', padding: 12 },
   buttonText: { fontFamily: fonts.medium, color: colors.text, fontSize: 12 },
-  title: { fontFamily: fonts.medium, fontSize: 16, color: colors.text },
+  title: { fontFamily: fonts.editorial, fontSize: typography.pageTitle, color: colors.text },
   description: { fontFamily: fonts.body, fontSize: 13, lineHeight: 23, color: colors.textMuted },
 });
 

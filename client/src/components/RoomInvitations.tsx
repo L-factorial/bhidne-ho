@@ -7,7 +7,7 @@ import { useState } from 'react';
 import {Pressable, TextInput, View} from 'react-native';
 import { request } from '../multiplayer/api';
 import type { Room, Session } from '../multiplayer/session';
-import { fonts, useTheme } from '../theme';
+import { radii, fonts, useTheme } from '../theme';
 
 export function RoomInvitations({ room, session }: { room: Room; session: Session }) {
   useUiLanguage();
@@ -26,7 +26,7 @@ export function RoomInvitations({ room, session }: { room: Room; session: Sessio
   }
   return <View style={{gap: 12}}>
     <Text style={{color:c.text,fontFamily:fonts.medium}}>{ui("rooms.invite_people")}</Text>
-    <FormInput accessibilityLabel={ui("rooms.find_player_to_invite")} placeholder={ui("rooms.username_or_user_id")} placeholderTextColor={c.textMuted} value={query} onChangeText={setQuery} autoCapitalize="none" style={{color:c.text,borderWidth:1,borderColor:c.border,padding:12,borderRadius:10}} />
+    <FormInput accessibilityLabel={ui("rooms.find_player_to_invite")} placeholder={ui("rooms.username_or_user_id")} placeholderTextColor={c.textMuted} value={query} onChangeText={setQuery} autoCapitalize="none" style={{color:c.text,borderWidth:1,borderColor:c.border,padding:12,borderRadius: radii.medium}} />
     <Pressable accessibilityRole="button" disabled={busy || !query.trim()} onPress={() => void search()} style={{minHeight:44,justifyContent:'center'}}><Text style={{color:c.accent}}>{ui("rooms.search_players")}</Text></Pressable>
     {players.map(p => <Pressable key={p.user_id} accessibilityRole="button" disabled={busy} onPress={() => void invite(p.user_id)} style={{minHeight:44,justifyContent:'center'}}><Text style={{color:c.text}}>{ui("rooms.invite_player", { "player": p.display_name || p.username || p.user_id })}</Text></Pressable>)}
     {!!message && <Text accessibilityLiveRegion="polite" style={{color:c.text}}>{message}</Text>}

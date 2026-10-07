@@ -4,7 +4,7 @@ import {Ionicons} from '@expo/vector-icons';
 import {Pressable, View} from 'react-native';
 import {RoomSheet} from './RoomSheet';
 import {CreateTableForm} from './CreateTableForm';
-import {fonts,useTheme} from '../theme';
+import { visualStates, radii, fonts,useTheme} from '../theme';
 import {ui} from '../i18n/copy';
 import {request,apiUrl} from '../multiplayer/api';
 import {isCurrentSession,type Room,type Session} from '../multiplayer/session';
@@ -25,7 +25,7 @@ export function CreateTableSheet({session,rooms,playerName,roomActions,onClose,o
   const [busy,setBusy]=useState(false),[error,setError]=useState('');
   const creating=useRef(false),defaultRoom=useRef<Room|null>(null);
   const selected=rooms.find(room=>room.room_id===roomId)??(!roomId?rooms[0]:undefined);
-  const text={color:c.text,fontFamily:fonts.body},input={color:c.text,borderWidth:1,borderColor:c.border,borderRadius:12,padding:12,minHeight:48};
+  const text={color:c.text,fontFamily:fonts.body},input={color:c.text,borderWidth:1,borderColor:c.border,borderRadius: radii.medium,padding:12,minHeight:48};
   async function create(){
     if(creating.current||!name.trim()||rooms.length&&!selected)return;
     creating.current=true;setBusy(true);setError('');
@@ -49,14 +49,14 @@ export function CreateTableSheet({session,rooms,playerName,roomActions,onClose,o
   }
   return <RoomSheet visible presentation="dialog" testID="create-game-table" title={ui('rooms.create_table')} closeLabel={ui('rooms.close_create_table')} onClose={()=>{if(!creating.current)onClose();}}
     footer={<Pressable accessibilityRole="button" accessibilityLabel={ui('rooms.create_table')} disabled={busy||!name.trim()||rooms.length>0&&!selected} accessibilityState={{disabled:busy||!name.trim()||rooms.length>0&&!selected}}
-      onPress={()=>void create()} style={{minHeight:52,borderRadius:12,alignItems:'center',justifyContent:'center',backgroundColor:c.primary,borderWidth:1,borderColor:c.onPrimary,opacity:busy||!name.trim()?0.5:1}}><Text style={{color:c.onPrimary,fontFamily:fonts.medium}}>{busy?ui('social.sending'):ui('rooms.create_table')}</Text></Pressable>}>
+      onPress={()=>void create()} style={{minHeight:52,borderRadius: radii.medium,alignItems:'center',justifyContent:'center',backgroundColor:c.primary,borderWidth:1,borderColor:c.onPrimary,opacity:busy||!name.trim()?visualStates.disabledOpacity:1}}><Text style={{color:c.onPrimary,fontFamily:fonts.medium}}>{busy?ui('social.sending'):ui('rooms.create_table')}</Text></Pressable>}>
     <View style={{padding:16,gap:14}}>
 <CreateTableForm session={session} game={game} setGame={setGame} callbreakPlayers={callbreakPlayers} setCallbreakPlayers={setCallbreakPlayers} name={name} setName={setName} invitees={invitees} setInvitees={setInvitees} busy={busy} roomSelector={<>      {!!rooms.length&&<>
       <Text style={{...text,fontFamily:fonts.medium}}>{ui('rooms.choose_room')}</Text>
       <Pressable accessibilityRole="button" accessibilityLabel={ui('rooms.select_room')} accessibilityState={{expanded:dropdown,disabled:busy||!rooms.length}} disabled={busy||!rooms.length} onPress={()=>setDropdown(open=>!open)} style={{...input,flexDirection:'row',alignItems:'center',gap:10}}>
         <Text style={{...text,flex:1}}>{selected?.name}</Text><Ionicons name={dropdown?'chevron-up':'chevron-down'} size={18} color={c.text}/>
       </Pressable>
-      {dropdown&&<View style={{borderWidth:1,borderColor:c.border,borderRadius:12}}>{rooms.map(room=><Pressable key={room.room_id} accessibilityRole="button" accessibilityState={{selected:selected?.room_id===room.room_id}} onPress={()=>{setRoomId(room.room_id);setDropdown(false);}} style={{padding:12,minHeight:44,backgroundColor:selected?.room_id===room.room_id?c.surfaceSelected:c.surface}}><Text style={text}>{room.name}</Text></Pressable>)}</View>}
+      {dropdown&&<View style={{borderWidth:1,borderColor:c.border,borderRadius: radii.medium}}>{rooms.map(room=><Pressable key={room.room_id} accessibilityRole="button" accessibilityState={{selected:selected?.room_id===room.room_id}} onPress={()=>{setRoomId(room.room_id);setDropdown(false);}} style={{padding:12,minHeight:44,backgroundColor:selected?.room_id===room.room_id?c.surfaceSelected:c.surface}}><Text style={text}>{room.name}</Text></Pressable>)}</View>}
       </>}
 </>}/>
       {!!error&&<Text accessibilityRole="alert" style={{color:c.danger}}>{error}</Text>}

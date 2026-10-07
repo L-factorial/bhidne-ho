@@ -10,7 +10,7 @@ import { BlockPlayerButton, useBlocking } from './PlayerBlocking';
 import { playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
-import { gameControlFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { visualStates, radii, gameControlFinish, gamePanelFinish, typography, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { FormInput } from './FormInput';
 import { RoomSheet } from './RoomSheet';
 import { ChatComposer } from './ChatComposer';
@@ -201,18 +201,18 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  panel: { ...gamePanelFinish(colors), backgroundColor: colors.surface, padding: 16, borderRadius: 20, gap: 12 },
-  title: { fontFamily: fonts.display, fontSize: 30, color: colors.text }, heading: { fontFamily: fonts.medium, fontSize: 16, color: colors.text },
+  panel: { ...gamePanelFinish(colors), backgroundColor: colors.surface, padding: 16, borderRadius: radii.large, gap: 12 },
+  title: { fontFamily: fonts.display, fontSize: typography.pageTitle, color: colors.text }, heading: { fontFamily: fonts.medium, fontSize: 16, color: colors.text },
   sectionHeading: { flexDirection:'row',alignItems:'center',gap:10,borderTopWidth:1,borderColor:colors.border,paddingTop:16,marginTop:4 },
   count: { color:colors.textMuted,backgroundColor:colors.surfaceRaised,borderRadius:16,paddingHorizontal:10,paddingVertical:4,fontFamily:fonts.medium },
   detail: { fontFamily: fonts.body, fontSize: 11, lineHeight: 18, color: colors.textMuted },
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8 }, row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, backgroundColor:colors.surfaceRaised,borderRadius:14,padding:12 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8 }, row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, backgroundColor:colors.surfaceRaised,borderRadius: radii.medium,padding:12 },
   name: { fontFamily: fonts.medium, fontSize: 15, color: colors.text }, actions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  searchField: { flex:1,minWidth:0,flexDirection:'row',alignItems:'center',paddingLeft:12,borderWidth:1,borderColor:colors.border,borderRadius:12,backgroundColor:colors.background },
+  searchField: { flex:1,minWidth:0,flexDirection:'row',alignItems:'center',paddingLeft:12,borderWidth:1,borderColor:colors.border,borderRadius: radii.medium,backgroundColor:colors.background },
   input: { flex: 1, minWidth:0, padding: 12, color: colors.text, backgroundColor: 'transparent', fontFamily: fonts.body },
-  button: { ...gameControlFinish(colors), minHeight: 44, paddingHorizontal: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.coin, borderWidth: 1, borderColor: colors.coinBorder },
-  smallButton: { minHeight: 40, paddingHorizontal: 10, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.accent },
-  linkButton: { minHeight: 40, paddingHorizontal: 8, justifyContent: 'center' }, buttonText: { fontFamily: fonts.medium, fontSize: 12, color: colors.onCoin }, link: { fontFamily: fonts.medium, fontSize: 11, color: colors.accent }, disabled: { opacity: 0.5 },
-  message: { alignSelf: 'flex-start', maxWidth: '85%', backgroundColor: colors.background, padding: 10, borderRadius: 10, marginVertical: 4 }, mine: { alignSelf: 'flex-end', backgroundColor: colors.surfaceSelected },
+  button: { ...gameControlFinish(colors), minHeight: 44, paddingHorizontal: 16, borderRadius: radii.medium, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.coin, borderWidth: 1, borderColor: colors.coinBorder },
+  smallButton: { minHeight: 40, paddingHorizontal: 10, borderRadius: radii.medium, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.accent },
+  linkButton: { minHeight: 40, paddingHorizontal: 8, justifyContent: 'center' }, buttonText: { fontFamily: fonts.medium, fontSize: 12, color: colors.onCoin }, link: { fontFamily: fonts.medium, fontSize: 11, color: colors.accent }, disabled: { opacity: visualStates.disabledOpacity },
+  message: { alignSelf: 'flex-start', maxWidth: '85%', backgroundColor: colors.background, padding: 10, borderRadius: radii.medium, marginVertical: 4 }, mine: { alignSelf: 'flex-end', backgroundColor: colors.surfaceSelected },
   messageText: { fontFamily: fonts.body, fontSize: 13, lineHeight: 19, color: colors.text }, error: { fontFamily: fonts.body, fontSize: 12, color: colors.danger },
 });

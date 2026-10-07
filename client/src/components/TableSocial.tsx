@@ -22,7 +22,7 @@ import { ChatComposer } from './ChatComposer';
 import { ChatInputDiagnostics } from './ChatInputDiagnostics';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import {AccessibilityInfo, Animated, Keyboard, Platform, Pressable, ScrollView, View, useWindowDimensions} from 'react-native';
-import { fonts, useTheme, type ThemeColors } from '../theme';
+import { radii, fonts, useTheme, type ThemeColors } from '../theme';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { TableSocialChannel, mergeTableMessages, type TableMessage } from '../multiplayer/TableSocialChannel';
 import type { RoomPoke } from '../multiplayer/pokes';
@@ -233,7 +233,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8}}>
           {players.filter(player => eligible(player.player_id)).map(player => <Pressable key={player.player_id}
             accessibilityRole="button" accessibilityLabel={ui("social.poke_player_2", { "player": player.display_name })} accessibilityState={{ selected: targetPlayer === player.player_id, disabled: sendingPoke }} disabled={sendingPoke}
-            onPress={() => poke(player.player_id)} style={{width:76,minHeight:76,padding:6,gap:6,alignItems:'center',borderRadius:12,borderWidth:1,
+            onPress={() => poke(player.player_id)} style={{width:76,minHeight:76,padding:6,gap:6,alignItems:'center',borderRadius: radii.medium,borderWidth:1,
               borderColor:targetPlayer===player.player_id?c.accent:'transparent',backgroundColor:targetPlayer===player.player_id?c.surfaceSelected:'transparent'}}>
             <PlayerAvatar uri={player.avatar_url}/><Text numberOfLines={2} style={{color:c.text,fontFamily:fonts.medium,fontSize:12,textAlign:'center'}}>{player.display_name}</Text>
           </Pressable>)}
@@ -248,11 +248,11 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
       </RoomSheet>
       {presentationExpanded && canRead && (!handCollapsed || !!error) && <View testID="game-social-controls" onTouchStart={event => event.stopPropagation()} onPointerDown={event => event.stopPropagation()} style={{position:'absolute',right:14,bottom,zIndex:45,alignItems:'flex-end',maxWidth:240}}>
         {!!error && !open && <Pressable accessibilityRole="button" accessibilityLabel={ui("common.dismiss_social_error")} onPress={() => setError('')}><Text style={{color:c.danger,backgroundColor:c.surface,padding:6}}>{uiLabel(error, 'feedback')}</Text></Pressable>}
-        {!handCollapsed && <View style={{flexDirection:'row',backgroundColor:c.tableHeader,borderColor:c.tableTrim,borderWidth:1,borderRadius:24}}>
+        {!handCollapsed && <View style={{flexDirection:'row',backgroundColor:c.tableHeader,borderColor:c.tableTrim,borderWidth:1,borderRadius: radii.large}}>
           <Pressable accessibilityRole="button" accessibilityLabel={unread ? ui('common.chat_unread', { count: unread }) : ui('common.table_chat')} onPress={openChat} style={[iconStyle,{flexDirection:'row',paddingHorizontal:8}]}>
-            <Ionicons name="chatbubble-outline" size={22} color={c.onTableHeader} />{unread > 0 && <Text testID="table-chat-unread" style={{color:c.onPrimary,backgroundColor:c.primary,borderRadius:10,fontSize:11,paddingHorizontal:5}}>{unread > 99 ? '99+' : unread}</Text>}
+            <Ionicons name="chatbubble-outline" size={22} color={c.onTableHeader} />{unread > 0 && <Text testID="table-chat-unread" style={{color:c.onPrimary,backgroundColor:c.primary,borderRadius: radii.medium,fontSize:11,paddingHorizontal:5}}>{unread > 99 ? '99+' : unread}</Text>}
           </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel={ui("social.poke_a_player")} accessibilityState={{selected:pokeMode,disabled:!enabled}} disabled={!enabled} onPress={() => { closeChat(); setError(''); setTargetPlayer(null); setPokeMode(true); }} style={[iconStyle,{opacity:enabled?1:0.4,backgroundColor:pokeMode?c.surfaceSelected:undefined,borderRadius:24}]}><Text accessibilityLiveRegion="polite" accessibilityLabel={pokeSent ? ui("social.poke_sent") : undefined} style={{fontSize:20,color:c.onTableHeader}}>{pokeSent ? '✓' : '👋'}</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={ui("social.poke_a_player")} accessibilityState={{selected:pokeMode,disabled:!enabled}} disabled={!enabled} onPress={() => { closeChat(); setError(''); setTargetPlayer(null); setPokeMode(true); }} style={[iconStyle,{opacity:enabled?1:0.4,backgroundColor:pokeMode?c.surfaceSelected:undefined,borderRadius: radii.large}]}><Text accessibilityLiveRegion="polite" accessibilityLabel={pokeSent ? ui("social.poke_sent") : undefined} style={{fontSize:20,color:c.onTableHeader}}>{pokeSent ? '✓' : '👋'}</Text></Pressable>
         </View>}
       </View>}
       {open && canRead && <RoomSheet visible tableStyle isolateKeyboard title={ui("common.table_chat")} testID="table-chat-panel" closeLabel={ui("common.close_table_chat")} onClose={closeChat} scrollable={false}>
@@ -292,7 +292,7 @@ export function TableSocialButton({kind}: {kind:'chat'|'poke'}) {
     accessibilityLabel={chat ? social.unread ? ui('common.chat_unread',{count:social.unread}) : ui('common.table_chat') : ui('social.poke_a_player')}
     accessibilityState={{disabled}} disabled={disabled} onPress={chat ? social.openChat : social.openPoke}
     style={{minWidth:44,minHeight:48,alignItems:'center',justifyContent:'center',opacity:disabled?0.4:1}}>
-    {chat ? <><Ionicons name="chatbubble-outline" size={22} color={c.onTableHeader} />{social.unread > 0 && <Text style={{color:c.onPrimary,backgroundColor:c.primary,borderRadius:10,paddingHorizontal:4}}>{social.unread > 99 ? '99+' : social.unread}</Text>}</> : <Text style={{fontSize:22}}>{social.pokeSent ? '✓' : '👋'}</Text>}
+    {chat ? <><Ionicons name="chatbubble-outline" size={22} color={c.onTableHeader} />{social.unread > 0 && <Text style={{color:c.onPrimary,backgroundColor:c.primary,borderRadius: radii.medium,paddingHorizontal:4}}>{social.unread > 99 ? '99+' : social.unread}</Text>}</> : <Text style={{fontSize:22}}>{social.pokeSent ? '✓' : '👋'}</Text>}
   </Pressable>;
 }
 
@@ -311,7 +311,7 @@ export function PlayerSocialEffect({ playerId }: { playerId?: number }) {
     return () => { live=false; fade.stopAnimation(); fade.setValue(1); };
   }, [effect?.id]);
   if (!effect) return null;
-  return <Animated.View testID={`seat-social-${playerId}`} pointerEvents="none" accessibilityLiveRegion="polite" style={{position:'absolute',bottom:'100%',marginBottom:4,maxWidth:110,minWidth:44,padding:5,borderRadius:10,backgroundColor:c.surface,borderColor:c.border,borderWidth:1,opacity:fade,zIndex:20}}>
+  return <Animated.View testID={`seat-social-${playerId}`} pointerEvents="none" accessibilityLiveRegion="polite" style={{position:'absolute',bottom:'100%',marginBottom:4,maxWidth:110,minWidth:44,padding:5,borderRadius: radii.medium,backgroundColor:c.surface,borderColor:c.border,borderWidth:1,opacity:fade,zIndex:20}}>
     <Text numberOfLines={2} style={{color:c.text,fontSize:effect.kind==='poke'&&effect.text==='👋'?22:11,textAlign:'center'}}>{effect.text}</Text>
   </Animated.View>;
 }

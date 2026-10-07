@@ -8,7 +8,7 @@ import {Pressable, View} from 'react-native';
 import { request } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 import { pokeTextLength } from '../multiplayer/pokes';
-import { fonts, gameControlFinish, useTheme } from '../theme';
+import { radii, fonts, gameControlFinish, useTheme } from '../theme';
 
 export function DisplayNameField({ session, onSaved }: { session: Session; onSaved?: (name: string) => void }) {
   useUiLanguage();
@@ -43,9 +43,9 @@ export function DisplayNameField({ session, onSaved }: { session: Session; onSav
     <FormInput accessibilityLabel={ui("common.game_display_name")} value={name} editable={loaded && !busy} maxLength={50}
       onChangeText={value => { setName(Array.from(value).slice(0, 25).join('')); setMessage(''); }} placeholder={ui("common.name_nickname")}
       placeholderTextColor={colors.textMuted} autoCapitalize="words" returnKeyType="done" onSubmitEditing={() => void save()}
-      style={{ flex: 1, minWidth: 0, backgroundColor: colors.surfaceRaised, borderRadius: 8, padding: 12, minHeight: 46, fontFamily: fonts.body, color: colors.text }} />
+      style={{ flex: 1, minWidth: 0, backgroundColor: colors.surfaceRaised, borderRadius: radii.medium, padding: 12, minHeight: 46, fontFamily: fonts.body, color: colors.text }} />
     <Pressable accessibilityRole="button" accessibilityLabel={ui("common.save_display_name")} disabled={!loaded || busy} onPress={() => void save()}
-      style={{ ...gameControlFinish(colors), minHeight: 44, padding: 12, borderRadius: 8, alignItems: 'center', backgroundColor: colors.surfaceSelected, opacity: loaded && !busy ? 1 : 0.5 }}>
+      style={{ ...gameControlFinish(colors), minHeight: 44, padding: 12, borderRadius: radii.medium, alignItems: 'center', backgroundColor: colors.surfaceSelected, opacity: loaded && !busy ? 1 : 0.5 }}>
       <Text style={{ color: colors.text, fontFamily: fonts.medium }}>{busy ? ui("common.saving") : ui("common.save")}</Text>
     </Pressable></View>
     <Text style={{ color: colors.textMuted, fontSize: 12 }}>{pokeTextLength(name)}/25</Text>

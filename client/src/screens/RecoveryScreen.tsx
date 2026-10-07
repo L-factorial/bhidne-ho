@@ -8,7 +8,7 @@ import { sharedRequest, ApiError } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 import type { RecoveryLink } from '../auth/recoveryLink';
 import { validSignupEmail } from '../auth/email';
-import { fonts, useTheme } from '../theme';
+import { visualStates, fonts, useTheme } from '../theme';
 import { ui } from '../i18n/copy';
 import type { UiKey } from '../i18n/catalogs';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -21,7 +21,7 @@ function recoveryError(error: unknown) {
 function Action({ label, onPress, disabled = false, primary = false }: {label: string; onPress: () => void; disabled?: boolean; primary?: boolean}) {
   const { colors } = useTheme(); const styles = accountStyles(colors);
   return <Pressable accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
-    style={[styles.button, primary && {backgroundColor:colors.primary}, disabled && {opacity:.5}]}>
+    style={[styles.button, primary && {backgroundColor:colors.primary}, disabled && {opacity:visualStates.disabledOpacity}]}>
     <Text style={[styles.buttonText, primary && {color:colors.onPrimary}]}>{label}</Text>
   </Pressable>;
 }

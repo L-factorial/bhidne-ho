@@ -2,14 +2,14 @@ import {AppText as Text} from './AppText';
 import type { ReactNode } from 'react';
 import {View} from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { fonts, useTheme } from '../theme';
+import { radii, fonts, useTheme } from '../theme';
 
 export function ChatMessage({ message, own, tableStyle = false, action }: {
   action?: ReactNode; tableStyle?: boolean; message: { sender_name: string; text: string; removed?: boolean; sent_at: number }; own: boolean;
 }) {
   const { colors: c } = useTheme();
   const { t } = useTranslation();
-  return <View style={{ paddingVertical: 6, gap: 4, ...(tableStyle ? { backgroundColor: own ? c.ownMessage : c.surfaceRaised, borderRadius: 14, paddingHorizontal: 10, marginBottom: 8 } : {}) }}>
+  return <View style={{ paddingVertical: 6, gap: 4, ...(tableStyle ? { backgroundColor: own ? c.ownMessage : c.surfaceRaised, borderRadius: radii.medium, paddingHorizontal: 10, marginBottom: 8 } : {}) }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
       <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: c.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ color: c.accent, fontFamily: fonts.medium, fontSize: 11 }}>{message.sender_name.slice(0, 1).toUpperCase()}</Text>

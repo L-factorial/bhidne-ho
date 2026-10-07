@@ -1,7 +1,7 @@
 import {AppText as Text} from './AppText';
 import {useEffect, useRef, useState, type ReactNode} from 'react';
 import {AccessibilityInfo, Animated, Pressable, View} from 'react-native';
-import {fonts, useTheme} from '../theme';
+import { radii, fonts, useTheme} from '../theme';
 import {ui} from '../i18n/copy';
 import {useUiLanguage} from '../i18n/useUiLanguage';
 import type {GameAttention} from '../notifications/gameAttention';
@@ -35,8 +35,8 @@ export function GameAttentionBanner({attention, onPress, idleContent, endControl
   </Animated.View>;
   const body = <View style={{flexDirection:'row',alignItems:'center',gap:4,minHeight:64}}>
     {rays('left')}
-    <View style={{flex:1,minWidth:0,borderRadius:18,borderWidth:1,borderColor:attention ? c.tableTrim : c.border,backgroundColor:c.tableHeader,paddingHorizontal:12,paddingVertical:9,flexDirection:'row',alignItems:'center',gap:10}}>
-      {!!attention && <Animated.View pointerEvents="none" style={{position:'absolute',inset:0,borderRadius:18,borderWidth:1,borderColor:c.tableTrim,opacity:pulse,boxShadow:`0 0 12px ${c.tableTrim}`}} />}
+    <View style={{flex:1,minWidth:0,borderRadius: radii.large,borderWidth:1,borderColor:attention ? c.tableTrim : c.border,backgroundColor:c.tableHeader,paddingHorizontal:12,paddingVertical:9,flexDirection:'row',alignItems:'center',gap:10}}>
+      {!!attention && <Animated.View pointerEvents="none" style={{position:'absolute',inset:0,borderRadius: radii.large,borderWidth:1,borderColor:c.tableTrim,opacity:pulse,boxShadow:`0 0 12px ${c.tableTrim}`}} />}
       {!attention && idleContent ? <View style={{flex:1,minWidth:0}}>{idleContent}</View> : <><Text style={{color:c.tableTrim,fontSize:24}}>♠</Text>
       <View style={{flex:1,minWidth:0}}><Text accessibilityLiveRegion="polite" numberOfLines={2} style={{fontFamily:fonts.medium,color:attention ? c.tableTrim : c.onTableHeader,fontSize:15}}>{title}</Text>
         {!!detail && <Text style={{fontFamily:fonts.body,color:c.onTableHeader,fontSize:12}}>{detail}</Text>}

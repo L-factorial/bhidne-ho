@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import {Pressable, View} from 'react-native';
 import { RoomSheet } from './RoomSheet';
 import { PlayerAvatar } from './PlayerAvatar';
-import { fonts, useTheme } from '../theme';
+import { visualStates, radii, fonts, useTheme } from '../theme';
 import { request } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 
@@ -34,7 +34,7 @@ export function RoomMemberDetails({ member, session, online, onClose }: { member
   }
   return <RoomSheet visible={!!member} title={ui("common.player_profile")} closeLabel={ui("common.close_player_profile")} onClose={onClose}>
     {member && <><View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><PlayerAvatar uri={member.avatar_url} /><View style={{ flex: 1, gap: 4 }}><Text style={{ color: c.text, fontFamily: fonts.medium, fontSize: 20 }}>{member.display_name}</Text>{!!member.username && <Text style={{ color: c.textMuted }}>@{member.username}</Text>}<Text style={{ color: online ? c.success : c.textMuted }}>{online ? ui("rooms.online") : ui("rooms.offline")}</Text></View></View>
-      {['none', 'incoming'].includes(relationship) && <Pressable accessibilityRole="button" disabled={busy} onPress={() => void add()} style={{ minHeight: 48, backgroundColor: c.primary, borderRadius: 12, justifyContent: 'center', alignItems: 'center', opacity: busy ? 0.5 : 1 }}><Text style={{ color: c.onPrimary, fontFamily: fonts.medium }}>{relationship === 'incoming' ? ui("common.accept_friend_request") : ui("social.add_friend")}</Text></Pressable>}
+      {['none', 'incoming'].includes(relationship) && <Pressable accessibilityRole="button" disabled={busy} onPress={() => void add()} style={{ minHeight: 48, backgroundColor: c.primary, borderRadius: radii.medium, justifyContent: 'center', alignItems: 'center', opacity: busy ? visualStates.disabledOpacity : 1 }}><Text style={{ color: c.onPrimary, fontFamily: fonts.medium }}>{relationship === 'incoming' ? ui("common.accept_friend_request") : ui("social.add_friend")}</Text></Pressable>}
       {relationship === 'friend' && <Text style={{ color: c.success }}>{ui("social.friends_status_help")}</Text>}
       {relationship === 'outgoing' && <Text style={{ color: c.textMuted }}>{ui("social.request_sent_label")}</Text>}
       {!!error && <Text accessibilityRole="alert" style={{ color: c.danger }}>{uiLabel(error, 'feedback')}</Text>}

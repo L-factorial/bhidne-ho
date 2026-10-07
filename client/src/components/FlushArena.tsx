@@ -8,7 +8,7 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {AccessibilityInfo, Animated, Pressable, StyleSheet, View} from 'react-native';
 import { flushDecision } from '../multiplayer/flushDecision';
 import Svg, { Circle } from 'react-native-svg';
-import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { radii, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { minimumArenaHeight, newBets, playerPosition, potBeforeFlights, type FlushBet } from '../multiplayer/flushTable';
 
@@ -84,16 +84,16 @@ function CoinFlight({ bet, from, to, onFinish }: { bet: FlushBet; from: { x: num
       { translateX: value.interpolate({ inputRange: [0, 1], outputRange: [0, to.x - from.x] }) },
       { translateY: value.interpolate({ inputRange: [0, 1], outputRange: [0, to.y - from.y] }) }] }}>
     <Svg width={44} height={30} viewBox="0 0 44 30">{[0, 1, 2].map(i => <Circle key={i} cx={14 + i * 7} cy={18 - i * 4} r={10} fill={colors.coin} stroke={colors.coinBorder} strokeWidth={2} />)}</Svg>
-    <Text style={{ color: colors.onCoin, backgroundColor: colors.coin, borderRadius: 8, paddingHorizontal: 7, fontWeight: 'bold' }}>+{bet.amount}</Text>
+    <Text style={{ color: colors.onCoin, backgroundColor: colors.coin, borderRadius: radii.medium, paddingHorizontal: 7, fontWeight: 'bold' }}>+{bet.amount}</Text>
   </Animated.View>;
 }
 const styles = (c: ThemeColors) => StyleSheet.create({
   arena: { height: 370, flexShrink: 0, width: '100%', maxWidth: 1040, alignSelf: 'center' },
-  pot: { backgroundColor: c.surface, borderRadius: 18, paddingVertical: 8, position: 'absolute', top: 151, width: 116, alignItems: 'center' }, potValue: { color: c.text, fontFamily: fonts.medium, fontSize: 32 },
+  pot: { backgroundColor: c.surface, borderRadius: radii.large, paddingVertical: 8, position: 'absolute', top: 151, width: 116, alignItems: 'center' }, potValue: { color: c.text, fontFamily: fonts.medium, fontSize: 32 },
   seat: { position: 'absolute', width: 80, alignItems: 'center', gap: 3 },
   icon: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: c.tableTrim, backgroundColor: c.surface },
   dealer: { position: 'absolute', left: -5, bottom: 0, color: c.text, backgroundColor: c.surfaceSelected, borderRadius: 9, minWidth: 18, textAlign: 'center', fontSize: 11 },
   turnLabel: { position: 'absolute', top: -13, color: c.turnText, backgroundColor: c.turnSurface, borderRadius: 4, paddingHorizontal: 4, fontSize: 9, fontFamily: fonts.medium },
-  current: { borderColor: c.attention, borderWidth: 3, backgroundColor: c.turnSurface }, count: { position: 'absolute', right: -3, top: -5, color: c.text, backgroundColor: c.surfaceSelected, borderRadius: 10, minWidth: 18, textAlign: 'center', fontSize: 12 },
-  name: { backgroundColor: c.surface, borderRadius: 8, paddingHorizontal: 5, color: c.text, fontFamily: fonts.medium, fontSize: 12 }, caption: { backgroundColor: c.surface, borderRadius: 5, paddingHorizontal: 4, color: c.textMuted, fontFamily: fonts.body, fontSize: 10 },
+  current: { borderColor: c.attention, borderWidth: 3, backgroundColor: c.turnSurface }, count: { position: 'absolute', right: -3, top: -5, color: c.text, backgroundColor: c.surfaceSelected, borderRadius: radii.medium, minWidth: 18, textAlign: 'center', fontSize: 12 },
+  name: { backgroundColor: c.surface, borderRadius: radii.medium, paddingHorizontal: 5, color: c.text, fontFamily: fonts.medium, fontSize: 12 }, caption: { backgroundColor: c.surface, borderRadius: 5, paddingHorizontal: 4, color: c.textMuted, fontFamily: fonts.body, fontSize: 10 },
 });

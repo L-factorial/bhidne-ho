@@ -3,7 +3,7 @@ import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import {StyleSheet, View} from 'react-native';
 import { physicalLabel, type MarriageWinningMeld } from '../multiplayer/marriage';
-import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { radii, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 export function MarriageMeldCards({ groups, hideLabels = false }: { groups: MarriageWinningMeld[]; hideLabels?: boolean }) {
   useUiLanguage();
@@ -20,7 +20,7 @@ export function MarriageMeldCards({ groups, hideLabels = false }: { groups: Marr
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   groups: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' },
-  group: { gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 8, maxWidth: '100%' },
+  group: { gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: radii.medium, padding: 8, maxWidth: '100%' },
   label: { color: colors.accent, fontFamily: fonts.medium, fontSize: 12 }, cards: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   card: { width: 44, height: 64, backgroundColor: colors.cardFace, borderRadius: 6, borderWidth: 1, borderColor: colors.cardBorder, alignItems: 'center', justifyContent: 'space-around' },
   face: { fontFamily: fonts.medium, color: colors.cardInk, fontSize: 21, fontWeight: 'bold' }, copy: { color: colors.cardInk, fontSize: 9 },

@@ -7,7 +7,7 @@ import {Pressable, ScrollView, View} from 'react-native';
 import type { MarriageCard, MarriageMeld } from '../multiplayer/marriage';
 import { marriageFace } from '../multiplayer/marriage';
 import { dubleeFinishProgress, finishingGaps, isMarriageWild, normalFinishProgress, type SeenMaal } from '../multiplayer/marriageFinishProgress';
-import { fonts, gameButtonStyle, useTheme } from '../theme';
+import { visualStates, fonts, gameButtonStyle, useTheme } from '../theme';
 import { MarriageMeldCards } from './MarriageMeldCards';
 
 export function MarriageFinishTool({ hand, shown, maal, route, topDiscard, canTakeDiscard, canFinish, busy, open, setOpen, onReview }: {
@@ -29,7 +29,7 @@ export function MarriageFinishTool({ hand, shown, maal, route, topDiscard, canTa
     : ready ? ui("marriage.winning_groups_ready") : ui("marriage.covered_target_remaining_cards_grouped", { "covered": normal?.covered, "target": normal?.target });
   const button = (label: string, action: () => void, disabled = false) => <Pressable accessibilityRole="button" accessibilityLabel={label}
     disabled={disabled} accessibilityState={{ disabled }} onPress={action}
-    style={({ pressed }) => ({ ...gameButtonStyle(c, 'secondary', pressed), opacity: disabled ? 0.5 : 1 })}>
+    style={({ pressed }) => ({ ...gameButtonStyle(c, 'secondary', pressed), opacity: disabled ? visualStates.disabledOpacity : 1 })}>
     <Text style={{ color: c.onTableHeader, fontFamily: fonts.medium }}>{label}</Text>
   </Pressable>;
   const text = { color: c.text };

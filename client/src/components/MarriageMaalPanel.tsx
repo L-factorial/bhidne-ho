@@ -9,7 +9,7 @@ import { canSubmitMarriage, marriageFace, type MarriageCard, type MarriageMeld, 
 import { arrangeMarriageHand, type MarriageArrangement } from '../multiplayer/marriageArrangement';
 import { MarriageMeldCards } from './MarriageMeldCards';
 import { TurnGlow } from './TurnGlow';
-import { fonts, gameButtonStyle, useTheme } from '../theme';
+import { visualStates, radii, fonts, gameButtonStyle, useTheme } from '../theme';
 
 export function MarriageMaalPanel({ hand, shown, unlocked, maal, enabled, visible, busy, actions, preview, setPreview, arrangement, error, submit, onEligibility }: {
   onEligibility?: (ready:boolean)=>void; hand: MarriageCard[]; shown: MarriageMeld[]; unlocked: boolean; maal: NonNullable<MarriageView['private']>['maal'];
@@ -38,10 +38,10 @@ export function MarriageMaalPanel({ hand, shown, unlocked, maal, enabled, visibl
   useEffect(()=>{onEligibility?.(eligible && !unlocked);},[eligible,unlocked,onEligibility]);
   const text={color:c.text,fontFamily:fonts.body};
   const button=(label:string,onPress:()=>void,disabled=false,primary=false)=><Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled}} disabled={disabled} onPress={onPress}
-    style={({pressed})=>({...gameButtonStyle(c,primary?'primary':'secondary',pressed),minHeight:44,justifyContent:'center',opacity:disabled?0.45:1})}><Text style={{color:primary?c.onPrimary:c.onTableHeader,fontFamily:fonts.medium}}>{label}</Text></Pressable>;
+    style={({pressed})=>({...gameButtonStyle(c,primary?'primary':'secondary',pressed),minHeight:44,justifyContent:'center',opacity:disabled?visualStates.disabledOpacity:1})}><Text style={{color:primary?c.onPrimary:c.onTableHeader,fontFamily:fonts.medium}}>{label}</Text></Pressable>;
   if (!preview) {
     const label=unlocked?ui("marriage.view_maal"):!visible?ui("marriage.reveal_cards_to_check_maal"):checking?ui("marriage.checking_maal"):eligible?(canShow?ui("marriage.maal_eligible_show_for_maal"):ui("marriage.maal_eligible_view_options")):ui("marriage.maal_not_eligible");
-    return <View testID="marriage-maal-eligibility" style={{borderRadius:12,borderWidth:1,borderColor:eligible||unlocked?c.accent:c.border,overflow:'hidden'}}>
+    return <View testID="marriage-maal-eligibility" style={{borderRadius: radii.medium,borderWidth:1,borderColor:eligible||unlocked?c.accent:c.border,overflow:'hidden'}}>
       <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled:unlocked? !visible : !canPreview}} disabled={unlocked?!visible:!canPreview} onPress={()=>setPreview(true)} style={{minHeight:48,padding:10,flexDirection:'row',alignItems:'center',gap:8,opacity:eligible||unlocked?1:0.5}}>
         <Ionicons name={eligible||unlocked?'bulb':'bulb-outline'} size={22} color={eligible||unlocked?c.accent:c.textMuted}/>
         <Text accessibilityLiveRegion="polite" style={{...text,color:eligible||unlocked?c.accent:c.textMuted,flexShrink:1}}>{label}</Text>

@@ -8,7 +8,7 @@ import {Platform, Share, Pressable, View} from 'react-native';
 import Svg, { Rect, Path } from 'react-native-svg';
 import * as Clipboard from 'expo-clipboard';
 import { invitationLink, roomInvitationCode, tableInvitationCode } from '../multiplayer/invitations';
-import { fonts, useTheme } from '../theme';
+import { visualStates, fonts, useTheme } from '../theme';
 import { useTranslation } from 'react-i18next';
 
 export function ShareLink({ roomId, matchId, compact = false, menu = false, disabled = false, label }: { label?: string; roomId: string; matchId?: string; compact?: boolean; menu?: boolean; disabled?: boolean }) {
@@ -29,7 +29,7 @@ export function ShareLink({ roomId, matchId, compact = false, menu = false, disa
   }
   return <View style={{ gap: 4, paddingHorizontal: compact || menu ? 0 : 8 }}>
     <Pressable accessibilityRole="button" accessibilityLabel={label || (menu ? ui("common.copy_invite_link") : t(kind === 'game' ? 'common.copyGameLink' : 'common.copyRoomLink'))}
-      disabled={disabled} accessibilityState={{ disabled }} onPress={() => void copy()} style={{ opacity: disabled ? 0.55 : 1, minWidth: 44, minHeight: 44, alignSelf: menu ? 'stretch' : 'flex-start', flexDirection: 'row', alignItems: 'center', justifyContent: menu ? 'flex-start' : 'center', gap: 8, paddingVertical: 10, paddingHorizontal: menu ? 0 : compact ? 8 : 10 }}>
+      disabled={disabled} accessibilityState={{ disabled }} onPress={() => void copy()} style={{ opacity: disabled ? visualStates.disabledOpacity : 1, minWidth: 44, minHeight: 44, alignSelf: menu ? 'stretch' : 'flex-start', flexDirection: 'row', alignItems: 'center', justifyContent: menu ? 'flex-start' : 'center', gap: 8, paddingVertical: 10, paddingHorizontal: menu ? 0 : compact ? 8 : 10 }}>
       <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={menu ? colors.textMuted : colors.accent} strokeWidth={1.8} accessible={false}>
         <Path strokeLinecap="round" strokeLinejoin="round" d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2" />
       </Svg>

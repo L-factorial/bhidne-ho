@@ -4,7 +4,7 @@ import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useEffect, useRef, useState } from 'react';
 import {AccessibilityInfo, Animated, StyleSheet, View, useWindowDimensions} from 'react-native';
 import type { RoomPoke } from '../multiplayer/pokes';
-import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { radii, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 function PokeBubble({ poke, reduceMotion }: { poke: RoomPoke; reduceMotion: boolean }) {
   const uiLanguage = useUiLanguage();
@@ -63,7 +63,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   // so an expanded hand always covers this layer instead of being obscured by it.
   overlay: { position: 'absolute', top: '38%', left: 12, right: 12, zIndex: 24, alignItems: 'center', gap: 8 },
   compactOverlay: { top: '32%', left: 8, right: 8 },
-  bubble: { width: '100%', maxWidth: 350, borderRadius: 20, borderWidth: 2, borderColor: colors.accent,
+  bubble: { width: '100%', maxWidth: 350, borderRadius: radii.large, borderWidth: 2, borderColor: colors.accent,
     backgroundColor: colors.surfaceSelected, paddingHorizontal: 20, paddingVertical: 16, overflow: 'hidden',
     boxShadow: `0 4px 20px ${colors.shadow}` },
   privateBubble: { backgroundColor: colors.successSurface, borderColor: colors.success, boxShadow: `0 4px 20px ${colors.shadow}` },

@@ -4,7 +4,7 @@ import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useEffect, useId, useRef, useState } from 'react';
 import {AccessibilityInfo, Animated, View, useWindowDimensions} from 'react-native';
 import Svg, { Defs, Ellipse, LinearGradient, Rect, Stop } from 'react-native-svg';
-import { fonts, useTheme } from '../theme';
+import { radii, fonts, useTheme } from '../theme';
 import { tableReactions, type TableReaction } from '../multiplayer/tableReactions';
 
 export type ReactionFlight = { event: TableReaction; from: { x: number; y: number }; to: { x: number; y: number }; bounds?: { width: number; height: number } };
@@ -63,25 +63,25 @@ export function TableReactionFlight({ flight, recipient, onComplete }: { flight:
             { scaleY: reduced ? 1 : impact.interpolate({ inputRange: [0, 0.3, 0.65, 1], outputRange: [1, 0.78, 1.08, 1] }) },
           ] }}>
         <View style={{ minHeight: 88, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 28, borderTopLeftRadius: 34,
-          borderBottomRightRadius: 32, borderWidth: recipient ? 2 : 1, borderColor: 'rgba(221,241,255,0.62)', backgroundColor: 'rgba(166,203,245,0.12)',
-          boxShadow: '0px 5px 18px rgba(173,203,255,0.18)', gap: 5, justifyContent: 'center', overflow: 'hidden' }}>
+          borderBottomRightRadius: 32, borderWidth: recipient ? 2 : 1, borderColor: c.border, backgroundColor: c.surfaceRaised,
+          boxShadow: `0px 5px 18px ${c.shadow}`, gap: 5, justifyContent: 'center', overflow: 'hidden' }}>
           <Svg pointerEvents="none" accessible={false} width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }}>
             <Defs><LinearGradient id={bubbleGradient} x1="0%" y1="0%" x2="100%" y2="100%">
-              <Stop offset="0%" stopColor="#C5F5FF" stopOpacity={0.3} />
-              <Stop offset="45%" stopColor="#C8BBFF" stopOpacity={0.12} />
-              <Stop offset="80%" stopColor="#FFCBEA" stopOpacity={0.22} />
-              <Stop offset="100%" stopColor="#BAF4ED" stopOpacity={0.32} />
+              <Stop offset="0%" stopColor={c.accent} stopOpacity={0.3} />
+              <Stop offset="45%" stopColor={c.accent} stopOpacity={0.12} />
+              <Stop offset="80%" stopColor={c.accent} stopOpacity={0.22} />
+              <Stop offset="100%" stopColor={c.accent} stopOpacity={0.32} />
             </LinearGradient></Defs>
             <Rect width="100%" height="100%" fill={`url(#${bubbleGradient})`} />
             <Ellipse cx="23%" cy="13%" rx="15%" ry="4%" fill="white" opacity={0.48} />
-            <Ellipse cx="79%" cy="85%" rx="9%" ry="3%" fill="#FFE5F5" opacity={0.32} />
+            <Ellipse cx="79%" cy="85%" rx="9%" ry="3%" fill={c.accent} opacity={0.32} />
           </Svg>
           <Text numberOfLines={1} style={{ color: c.textMuted, fontFamily: fonts.medium, fontSize: 10, textAlign: 'center' }}>{event.sender_name}</Text>
           <Text style={{ color: c.text, fontFamily: fonts.medium, fontSize: recipient ? 16 : 14, lineHeight: 20, textAlign: 'center' }}>{event.text}</Text>
         </View>
         <View style={{ alignSelf: 'center', marginTop: -2, width: 0, height: 0, borderLeftWidth: 10, borderRightWidth: 4, borderTopWidth: 18,
-          borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: 'rgba(200,218,255,0.38)', transform: [{ translateX: Math.max(-bubbleWidth / 2 + 20, Math.min(bubbleWidth / 2 - 20, to.x - clampX(to.x))) }] }} />
-        {arrived && recipient && <Text testID="table-punchline-catch" style={{ color: c.text, backgroundColor: 'rgba(185,204,245,0.2)', padding: 6, borderRadius: 12, fontFamily: fonts.medium, fontSize: 11, textAlign: 'center' }}>{ui('social.punchline_from', { player: event.sender_name })}</Text>}
+          borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: c.border, transform: [{ translateX: Math.max(-bubbleWidth / 2 + 20, Math.min(bubbleWidth / 2 - 20, to.x - clampX(to.x))) }] }} />
+        {arrived && recipient && <Text testID="table-punchline-catch" style={{ color: c.text, backgroundColor: c.surfaceSelected, padding: 6, borderRadius: radii.medium, fontFamily: fonts.medium, fontSize: 11, textAlign: 'center' }}>{ui('social.punchline_from', { player: event.sender_name })}</Text>}
       </Animated.View>
     </View>;
   }
@@ -94,7 +94,7 @@ export function TableReactionFlight({ flight, recipient, onComplete }: { flight:
         { scale: reduced ? 1 : impact.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, recipient ? 2.3 : 1.5, recipient ? 1.7 : 1.15] }) },
       ] }}><Text style={{ fontSize: 42 }}>{reaction.emoji}</Text></Animated.View>
     {arrived && recipient && <Animated.View testID="table-reaction-catch" accessibilityLiveRegion="polite" accessibilityRole="alert"
-      style={{ position: 'absolute', top: '25%', alignSelf: 'center', maxWidth: '85%', alignItems: 'center', padding: 16, borderRadius: 22, borderWidth: 2, borderColor: c.tableTrim, backgroundColor: c.tableHeader, boxShadow: `0px 8px 28px ${c.shadow}`, opacity }}>
+      style={{ position: 'absolute', top: '25%', alignSelf: 'center', maxWidth: '85%', alignItems: 'center', padding: 16, borderRadius: radii.large, borderWidth: 2, borderColor: c.tableTrim, backgroundColor: c.tableHeader, boxShadow: `0px 8px 28px ${c.shadow}`, opacity }}>
       <Text style={{ fontSize: 48 }}>{reaction.emoji}</Text>
       <Text style={{ color: c.onTableHeader, fontFamily: fonts.medium, textAlign: 'center' }}>{ui("social.player_sent_you_reaction", { "player": event.sender_name, "reaction": uiLabel(reaction.label, 'social') })}</Text>
     </Animated.View>}

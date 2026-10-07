@@ -1,7 +1,7 @@
 import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
-import { gameControlFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { visualStates, radii, gameControlFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { useState } from 'react';
 import {Pressable, StyleSheet, View} from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -34,7 +34,7 @@ export function SignInButton({ method, onPress, disabled = false, label, compact
       disabled={disabled} accessibilityState={{ disabled }}
       onPress={onPress} onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)} style={({ pressed }) => [
-        styles.button, compact && { minHeight: 48, paddingVertical: 11, paddingHorizontal: 12 }, gameControlFinish(colors, pressed), { backgroundColor, opacity: disabled ? 0.55 : pressed ? 0.78 : 1 },
+        styles.button, compact && { minHeight: 48, paddingVertical: 11, paddingHorizontal: 12 }, gameControlFinish(colors, pressed), { backgroundColor, opacity: disabled ? visualStates.disabledOpacity : pressed ? 0.78 : 1 },
         method === 'Google' && styles.google, focused && styles.focused,
       ]}>
       <View style={styles.icon}>
@@ -48,7 +48,7 @@ export function SignInButton({ method, onPress, disabled = false, label, compact
   );
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  button: { minHeight: 56, borderRadius: 11, paddingHorizontal: 20, paddingVertical: 15,
+  button: { minHeight: 56, borderRadius: radii.medium, paddingHorizontal: 20, paddingVertical: 15,
     flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: 'transparent' },
   google: { borderColor: colors.surfaceRaised, boxShadow: `0px 3px 8px ${colors.shadow}` },
   focused: { outlineWidth: 3, outlineColor: colors.accent, outlineOffset: 4 },

@@ -5,7 +5,7 @@ import { type ReactNode, useEffect, useRef, useState } from 'react';
 import {AccessibilityInfo, Animated, StyleSheet, View} from 'react-native';
 import { PlayerSeat } from './PlayerSeat';
 import { TableSeatLayout } from './TableSeatLayout';
-import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { radii, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 export type TablePlayer = { id: string; name: string; bid: number; tricks: number; cardsRemaining: number; connected?: boolean | null; avatarUrl?: string };
 type Props = {
@@ -75,9 +75,9 @@ export function CardTable({ players, viewerId, activePlayerId, width, plays, pen
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   playedCard: { width: 40, height: 56, borderRadius: 8, backgroundColor: colors.cardFace,
     alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.cardBorder },
-  playedText: { fontFamily: fonts.display, fontSize: 20, color: colors.cardInk },
+  playedText: { fontFamily: fonts.card, fontSize: 22, color: colors.cardInk },
   red: { color: colors.cardRed },
   club: { color: colors.cardClub },
   playOrder: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 10, textAlign: 'center', marginTop: 6 },
-  empty: { color: '#E3EEDD', fontSize: 18 },
+  empty: { color: colors.textMuted, fontSize: 18 },
 });

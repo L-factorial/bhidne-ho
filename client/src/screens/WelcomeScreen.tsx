@@ -2,7 +2,7 @@ import {AppText as Text} from '../components/AppText';
 import { PolicyLinks } from '../components/moderation/PublicPolicies';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { ui } from '../i18n/copy.ts';
-import { gameHeadingFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { radii, gameHeadingFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { ThemeAction } from '../components/ThemeAction';
 import { useState } from 'react';
 import {Image, Pressable, ScrollView, StyleSheet, useWindowDimensions, View} from 'react-native';
@@ -32,7 +32,7 @@ export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
         <View style={[styles.layout, wide && styles.wideLayout]}>
           <View style={[styles.brandSide, wide && styles.wideBrand]}>
             <View style={{ flexDirection: 'row', gap: 8 }}><LanguageToggle /><ThemeAction /></View>
-            {wide ? <Image source={branding.splash} accessibilityLabel={ui("common.brand_art")} resizeMode="contain" style={{ width: '100%', aspectRatio: 507 / 953, maxHeight: 760, marginTop: 16, borderRadius: 20 }} /> : <>
+            {wide ? <Image source={branding.splash} accessibilityLabel={ui("common.brand_art")} resizeMode="contain" style={{ width: '100%', aspectRatio: 507 / 953, maxHeight: 760, marginTop: 16, borderRadius: radii.large }} /> : <>
               <BrandBanner />
               <View style={styles.mobileIntro}>
                 <Text accessibilityRole="header" style={styles.mobileHeading}>{t('welcome.heading')}</Text>
@@ -75,7 +75,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   mobileSubtitle: { fontFamily: fonts.body, fontSize: 14, color: colors.textMuted, textAlign: 'center', fontStyle: 'italic' },
   panel: { backgroundColor: 'transparent' },
   widePanel: { width: 480, paddingHorizontal: 44, paddingTop: 48, paddingBottom: 24, justifyContent: 'center', minHeight: 320 },
-  mobilePanel: { marginTop: 22, width: '100%', padding: 22, borderRadius: 20 },
+  mobilePanel: { marginTop: 22, width: '100%', padding: 22, borderRadius: radii.large },
   intro: { alignItems: 'center', marginBottom: 48 },
   heading: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 52, color: colors.text, letterSpacing: -1.5, textAlign: 'center' },
   subtitle: { fontFamily: fonts.body, fontSize: 19, color: colors.textMuted, marginTop: 8, textAlign: 'center' },
@@ -88,7 +88,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   footerButton: { minHeight: 44, minWidth: 60, alignItems: 'center', justifyContent: 'center' },
   footerText: { fontFamily: fonts.body, fontSize: 12, color: colors.textMuted },
   footerSeparator: { color: colors.textMuted, fontSize: 12 },
-  notice: { backgroundColor: colors.surface, borderRadius: 10, padding: 14, marginTop: 18 },
+  notice: { backgroundColor: colors.surface, borderRadius: radii.medium, padding: 14, marginTop: 18 },
   noticeText: { fontFamily: fonts.body, fontSize: 12, lineHeight: 19, color: colors.text },
   dismiss: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
   dismissText: { fontFamily: fonts.medium, fontSize: 12, color: colors.accent },

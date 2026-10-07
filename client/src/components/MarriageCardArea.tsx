@@ -8,7 +8,7 @@ import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { marriageFace, type MarriageMove } from '../multiplayer/marriage';
 import { MarriagePlayers } from './MarriagePlayers';
 import { MarriageCardBack } from './MarriageCardBack';
-import { fonts, gameButtonStyle, useThemedStyles, type ThemeColors } from '../theme';
+import { visualStates, radii, fonts, gameButtonStyle, useThemedStyles, type ThemeColors } from '../theme';
 
 type Point = { x: number; y: number };
 function center(node: View): Promise<Point> {
@@ -134,6 +134,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   label: { backgroundColor: colors.surface, borderRadius: 6, paddingHorizontal: 5, color: colors.accent, fontFamily: fonts.medium, fontSize: 12 }, card: { width: 52, height: 72, backgroundColor: colors.cardFace, borderRadius: 7, borderWidth: 2, borderColor: colors.cardBorder, alignItems: 'center', justifyContent: 'center' },
   legal: { borderColor: colors.attention, borderWidth: 3, boxShadow: `0px 0px 9px ${colors.turnSurface}` },
   back: { backgroundColor: colors.cardBack, borderColor: colors.cardBorder }, stack: { boxShadow: `3px 3px 0 ${colors.cardBorder}` }, face: { fontFamily: fonts.medium, fontSize: 24, color: colors.cardInk }, red: { color: colors.cardRed },
-  button: { minHeight: 44, padding: 7, justifyContent: 'center', backgroundColor: colors.surfaceRaised, borderRadius: 8 }, buttonText: { color: colors.text, fontFamily: fonts.medium, fontSize: 11, textAlign: 'center' },
-  disabled: { opacity: 0.42 }, caption: { backgroundColor: colors.surface, borderRadius: 8, minHeight: 44, padding: 9, color: colors.textMuted, fontFamily: fonts.body, fontSize: 11 }, flying: { position: 'absolute', left: 0, top: 0, zIndex: 50, elevation: 12 },
+  button: { minHeight: 44, padding: 7, justifyContent: 'center', backgroundColor: colors.surfaceRaised, borderRadius: radii.medium }, buttonText: { color: colors.text, fontFamily: fonts.medium, fontSize: 11, textAlign: 'center' },
+  disabled: { opacity: visualStates.disabledOpacity }, caption: { backgroundColor: colors.surface, borderRadius: radii.medium, minHeight: 44, padding: 9, color: colors.textMuted, fontFamily: fonts.body, fontSize: 11 }, flying: { position: 'absolute', left: 0, top: 0, zIndex: 50, elevation: 12 },
 });

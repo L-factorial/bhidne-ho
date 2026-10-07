@@ -4,7 +4,7 @@ import { useUiLanguage } from '../i18n/useUiLanguage';
 import { CardBack } from './CardBack';
 import { useEffect, useState } from 'react';
 import {Pressable, ScrollView, StyleSheet, View} from 'react-native';
-import { fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { visualStates, radii, fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 const defaultSuits = ['S', 'C', 'H', 'D'];
 function shuffledSuits(previous = defaultSuits, present = defaultSuits) {
@@ -109,7 +109,7 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
         return <Pressable key={card} accessibilityRole="button" accessibilityLabel={faceUp ? ui("common.select_card", { "card": card }) : ui("common.reveal_card_card", { "card": index + 1 })}
           accessibilityHint={faceUp ? `${card.slice(0, -1)} of ${uiLabel(suitNames[suit])}` : ui("common.turn_this_card_face_up_without_playing_it")} disabled={faceUp && !enabled} accessibilityState={{ disabled: faceUp && !enabled, selected: selectedCard === card }} aria-pressed={selectedCard === card}
           onHoverIn={() => { if (enabled) setHovered(card); }} onHoverOut={() => setHovered(null)}
-          onPress={() => { if (enabled) selectCard(card); }} style={[styles.gridCard, enabled && hovered === card && { transform: [{ translateY: -4 }] }, !faceUp && styles.cardBack, enabled && styles.legal, selectedCard === card && styles.chosenGrid, faceUp && canPlay && !enabled && { opacity: 0.55 }]}>
+          onPress={() => { if (enabled) selectCard(card); }} style={[styles.gridCard, enabled && hovered === card && { transform: [{ translateY: -4 }] }, !faceUp && styles.cardBack, enabled && styles.legal, selectedCard === card && styles.chosenGrid, faceUp && canPlay && !enabled && { opacity: visualStates.disabledOpacity }]}>
           {faceUp ? <>
           <Text style={[styles.gridRank, /[HD]/.test(suit) && styles.red, suit === 'C' && styles.club]}>{card.slice(0, -1)}{suits[suit]}</Text>
           <Text style={[styles.suitName, /[HD]/.test(suit) && styles.red, suit === 'C' && styles.club]}>{uiLabel(suitNames[suit])}</Text>
@@ -198,13 +198,13 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   cardBack: { backgroundColor: colors.cardBack, borderColor: colors.cardBorder },
   backMark: { color: colors.accent, fontSize: 25, fontWeight: 'bold' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingVertical: 8, justifyContent: 'center' },
-  gridCard: { width: 56, minHeight: 60, borderRadius: 8, borderWidth: 2, borderColor: colors.cardBorder, backgroundColor: colors.cardFace, alignItems: 'center', justifyContent: 'center', padding: 4 },
+  gridCard: { width: 56, minHeight: 60, borderRadius: radii.medium, borderWidth: 2, borderColor: colors.cardBorder, backgroundColor: colors.cardFace, alignItems: 'center', justifyContent: 'center', padding: 4 },
   gridRank: { fontFamily: fonts.medium, fontSize: 21, color: colors.cardInk }, suitName: { fontFamily: fonts.body, fontSize: 9, color: colors.cardInk },
   selector: { flexDirection: 'row', gap: 4, marginTop: 6 }, option: { flex: 1, alignItems: 'center', justifyContent: 'center', ...gameButtonStyle(colors) },
   selected: { backgroundColor: colors.surfaceSelected, borderColor: colors.accent }, optionText: { fontFamily: fonts.medium, color: colors.onTableHeader, fontSize: 12 },
   empty: { color: colors.text, fontFamily: fonts.body, fontSize: 12, padding: 8 },
   scroll: { flexGrow: 1, justifyContent: 'center' },
-  card: { position: 'absolute', width: 64, height: 170, borderRadius: 8, backgroundColor: colors.cardFace,
+  card: { position: 'absolute', width: 64, height: 170, borderRadius: radii.medium, backgroundColor: colors.cardFace,
     borderWidth: 2, borderColor: colors.cardBorder, boxShadow: `0px 3px 6px ${colors.shadow}` },
   legal: { borderColor: colors.attention },
   corner: { position: 'absolute', top: 3, left: 5, alignItems: 'center' },

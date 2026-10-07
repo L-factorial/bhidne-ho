@@ -2,7 +2,7 @@ import {AppText as Text} from './AppText';
 import {Keyboard, Pressable, View} from 'react-native';
 import { ui } from '../i18n/copy';
 import { useUiLanguage } from '../i18n/useUiLanguage';
-import { fonts, useTheme } from '../theme';
+import { visualStates, fonts, useTheme } from '../theme';
 import { SignInButton } from './SignInButton';
 
 /** Presentation only: providers remain unavailable regardless of backend configuration. */
@@ -36,7 +36,7 @@ export function AuthBackButton({onPress, disabled = false}: {onPress: () => void
   return <Pressable accessibilityRole="button" accessibilityLabel={ui('common.back')}
     disabled={disabled} accessibilityState={{disabled}}
     onPress={() => { Keyboard.dismiss(); onPress(); }}
-    style={{alignSelf: 'flex-start', minHeight: 44, paddingHorizontal: 4, justifyContent: 'center', opacity: disabled ? 0.55 : 1}}>
+    style={{alignSelf: 'flex-start', minHeight: 44, paddingHorizontal: 4, justifyContent: 'center', opacity: disabled ? visualStates.disabledOpacity : 1}}>
     <Text style={{fontFamily: fonts.medium, fontSize: 14, color: colors.accent}}>← {ui('common.back')}</Text>
   </Pressable>;
 }

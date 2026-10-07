@@ -8,6 +8,7 @@ export const colors = {
   // `accent` is used by existing links/headings; keep it readable on neutral surfaces.
   accent: '#7A1F2B', attention: '#D5A12A', turnText: '#6B1924', turnSurface: '#F6E5B5',
   text: '#211D1B', textMuted: '#6F655F', border: '#99867A', borderSubtle: '#E5DDD3', disabled: '#B7AAA0',
+  destructiveAction: '#AD2440', onDestructive: '#FFFFFF',
   success: '#167344', successSurface: '#E5F4EC', danger: '#B42335', dangerSurface: '#FBE8EA', overlay: '#17111399',
   maalSeen: '#167344', maalUnseen: '#6F655F',
   cardFace: '#FFFCF7', cardInk: '#211B19', cardRed: '#B42335', cardClub: '#211B19', cardBorder: '#DDD2C4',
@@ -44,44 +45,54 @@ export function useThemedStyles<T>(factory: (colors: ThemeColors) => T): T {
 export function primaryAction(colors: ThemeColors, pressed = false) {
   return { backgroundColor: pressed ? colors.primaryPressed : colors.primary, borderColor: colors.primary };
 }
-export const fonts = { editorial: 'CormorantGaramond_700Bold', display: 'CormorantGaramond_700Bold', body: 'Inter_400Regular', medium: 'Inter_500Medium' };
+export const fonts = { card: 'CormorantGaramond_700Bold', editorial: 'CormorantGaramond_600SemiBold', display: 'CormorantGaramond_600SemiBold', body: 'Inter_400Regular', medium: 'Inter_500Medium' };
 
 export const space = { xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, section: 32 } as const;
-export const radii = { small: 8, medium: 12, large: 18, xl: 24 } as const;
-export const typography = { display: 42, pageTitle: 30, sectionTitle: 22, cardTitle: 18, body: 16, metadata: 14, caption: 14 } as const;
+export const radii = { small: 8, medium: 12, large: 18, xl: 20 } as const;
+export const typography = { display: 42, pageTitle: 28, sectionTitle: 22, cardTitle: 20, body: 16, metadata: 14, caption: 14 } as const;
 
 /** Visual finishes only: preserve each screen's dimensions and spacing. */
 export function gameControlFinish(c: ThemeColors, pressed = false) {
   return {
-    borderRadius: 12,
+    borderRadius: radii.medium,
     borderWidth: 1,
-    borderColor: c.tableTrim,
-    backgroundColor: pressed ? c.surfaceRaised : c.tableHeader,
-    boxShadow: pressed
-      ? `inset 0px 1px 3px rgba(0,0,0,0.2)`
-      : `inset 0px 1px 0px rgba(255,248,235,0.12), 0px 2px 4px rgba(0,0,0,0.18)`,
+    borderColor: c.borderSubtle,
+    backgroundColor: pressed ? c.surfaceRaised : c.surface,
+    boxShadow: pressed ? `inset 0px 1px 3px ${c.shadow}` : `0px 2px 4px ${c.shadow}`,
   };
 }
 export function gamePanelFinish(c: ThemeColors) {
-  return { borderWidth: 1, borderColor: c.borderSubtle, boxShadow: `0px 4px 12px rgba(0,0,0,0.18)` };
+  return { borderRadius: radii.large, borderWidth: 1, borderColor: c.borderSubtle, boxShadow: `0px 4px 12px ${c.shadow}` };
 }
 export function gameTabFinish(c: ThemeColors, selected = false, pressed = false) {
-  return { ...gameControlFinish(c, pressed), backgroundColor: selected ? c.coin : pressed ? c.surfaceRaised : c.tableHeader };
+  return { ...gameControlFinish(c, pressed), borderColor: selected ? c.accent : c.borderSubtle, backgroundColor: selected ? c.coin : pressed ? c.surfaceRaised : c.surface };
 }
 export function gameSeparatorFinish(c: ThemeColors) {
-  return { borderColor: c.tableTrim, boxShadow: `0px 2px 0px ${c.background}, 0px 3px 0px ${c.borderSubtle}` };
+  return { borderColor: c.borderSubtle, boxShadow: `0px 2px 0px ${c.background}, 0px 3px 0px ${c.borderSubtle}` };
 }
 export function gameHeadingFinish(c: ThemeColors) {
   return { textShadowColor: c.shadow, textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 };
 }
 
-// Shared card-area controls: maroon primary, felt secondary with a warm gold edge.
+// Shared card-area controls use the active theme action and surface colors.
 export function gameButtonStyle(c: ThemeColors, variant: 'primary' | 'secondary' = 'secondary', pressed = false) {
   return {
-    minHeight: 44, minWidth: 44, borderRadius: 10, borderWidth: 1,
+    minHeight: 44, minWidth: 44, borderRadius: radii.medium, borderWidth: 1,
     paddingHorizontal: 12, paddingVertical: 10,
     backgroundColor: variant === 'primary' ? (pressed ? c.primaryPressed : c.primary) : (pressed ? c.surfaceRaised : c.tableHeader),
-    borderColor: variant === 'primary' ? c.primaryBorder : c.tableTrim,
+    borderColor: variant === 'primary' ? c.primaryBorder : c.borderSubtle,
     boxShadow: gameControlFinish(c, pressed).boxShadow,
   };
 }
+
+/** Shared action finishes; callers retain their existing dimensions and placement. */
+export function actionFinish(c: ThemeColors, variant: 'primary' | 'secondary' | 'tertiary' | 'destructive' | 'selected' = 'secondary', pressed = false, disabled = false) {
+  const backgroundColor = variant === 'primary' ? (pressed ? c.primaryPressed : c.primary)
+    : variant === 'destructive' ? c.dangerSurface : variant === 'selected' ? c.surfaceSelected
+    : variant === 'tertiary' ? (pressed ? c.surfaceRaised : 'transparent') : pressed ? c.surfaceRaised : c.surface;
+  return { borderRadius: radii.medium, borderWidth: 1,
+    borderColor: variant === 'selected' ? c.accent : variant === 'primary' ? c.primaryBorder : variant === 'tertiary' ? 'transparent' : c.borderSubtle,
+    backgroundColor, opacity: disabled ? visualStates.disabledOpacity : pressed && (variant === 'selected' || variant === 'destructive') ? visualStates.pressedOpacity : 1 };
+}
+export const visualStates = { disabledOpacity: 0.55, pressedOpacity: 0.85 } as const;
+export const iconStyle = { inline: 20, navigation: 24, strokeWidth: 1.8 } as const;

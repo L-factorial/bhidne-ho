@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 import {Pressable, ScrollView, View} from 'react-native';
 import { maalChoices, type MaalChoice } from '../multiplayer/maalProgress';
 import type { MarriageCard, MarriageMeld } from '../multiplayer/marriage';
-import { fonts, gameButtonStyle, useTheme } from '../theme';
+import { visualStates, fonts, gameButtonStyle, useTheme } from '../theme';
 import { MarriageMeldCards } from './MarriageMeldCards';
 
 /** Private, non-blocking notice; only the existing Show confirmation sends cards. */
@@ -28,7 +28,7 @@ export function MaalReady({ hand, busy, onReview }: {
   const choice = options[index];
   const button = (label: string, onPress: () => void, disabled = false, selected = false) => <Pressable
     accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled, selected }} disabled={disabled}
-    onPress={onPress} style={({ pressed }) => ({ ...gameButtonStyle(c, selected ? 'primary' : 'secondary', pressed), opacity: disabled ? 0.5 : 1 })}>
+    onPress={onPress} style={({ pressed }) => ({ ...gameButtonStyle(c, selected ? 'primary' : 'secondary', pressed), opacity: disabled ? visualStates.disabledOpacity : 1 })}>
     <Text style={{ color: selected ? c.onPrimary : c.onTableHeader, fontFamily: fonts.medium }}>{label}</Text>
   </Pressable>;
   if (!choice) return null;

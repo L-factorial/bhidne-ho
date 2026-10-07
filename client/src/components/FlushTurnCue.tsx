@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, StyleSheet } from 'react-native';
 import { observeFlushDecision } from '../multiplayer/flushDecision';
-import { useTheme } from '../theme';
+import { radii, useTheme } from '../theme';
 
 /** A transient border; hydration, resync and repeated snapshots remain quiet. */
 export function FlushTurnCue({ scope, decision, personal, ready }: {
@@ -30,6 +30,6 @@ export function FlushTurnCue({ scope, decision, personal, ready }: {
     return () => { animation.stop(); opacity.setValue(0); };
   }, [scope, decision, personal, ready, reduced, opacity]);
   return <Animated.View pointerEvents="none" testID="flush-turn-cue" style={[StyleSheet.absoluteFill, {
-    opacity, borderWidth: 2, borderColor: colors.attention, borderRadius: 10,
+    opacity, borderWidth: 2, borderColor: colors.attention, borderRadius: radii.medium,
   }]} />;
 }

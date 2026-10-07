@@ -2,7 +2,7 @@ import {FormInput} from '../components/FormInput';
 import {AppText as Text} from '../components/AppText';
 import {useEffect,useState} from 'react';
 import {Pressable, TextInput, View} from 'react-native';
-import {useTheme,fonts} from '../theme';
+import { radii, useTheme,fonts} from '../theme';
 import {ui} from '../i18n/copy';
 import {useUiLanguage} from '../i18n/useUiLanguage';
 import {usePush} from './PushProvider';
@@ -24,7 +24,7 @@ export function PushSettings(){
     if(a===null||b===null||a===b){setError(ui('common.push_quiet_invalid'));return;}
     setError('');await push.save({...push.preferences,quiet_start:a,quiet_end:b});
   }
-  return <View testID="push-settings" style={{gap:8,borderWidth:1,borderColor:c.border,borderRadius:14,padding:14}}>
+  return <View testID="push-settings" style={{gap:8,borderWidth:1,borderColor:c.border,borderRadius: radii.medium,padding:14}}>
     <Text style={{fontFamily:fonts.medium,color:c.text}}>{ui('common.push_title')}</Text>
     <Text style={{color:c.textMuted}}>{ui('common.push_help')}</Text>
     <Pressable accessibilityRole="switch" accessibilityState={{checked:push.enabled,disabled:push.busy}} disabled={push.busy} onPress={()=>void (push.enabled?push.disable():push.enable())} style={{minHeight:44,justifyContent:'center'}}>

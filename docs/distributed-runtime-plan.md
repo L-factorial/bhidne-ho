@@ -6946,3 +6946,68 @@ requested stronger drawn/discard card markers. Tap selection remains unchanged.
   manual validation work; browser workflows do not establish UIKit rendering.
 - No dependency change, push or deployment. Exact next step: review local
   typography and pending UI/native changes, release only when requested.
+
+### Direct production release a721e19 (2026-10-07)
+
+- User authorized deployment of all pending changes. Deployed committed revision
+  `a721e19a484023ce4fb203fc390fd6b76535073e` directly to both production app hosts
+  using immutable image
+  `sha256:76b33f2a1671092985f60884d9c2a9aef6cf4d0395b4cedba5e02ea33ee5a1d5`.
+  Retained the installed release lock, dependency/schema preflight, peer-health
+  checks and rollback. Both backends and frontends activated successfully.
+- Production HTTPS verifies API health, APNs availability and exact matching
+  frontend index/JavaScript hashes across hosts. All 251 committed backend Python
+  file hashes match. Public bundle includes both monochrome palettes and the
+  classic font. No database migration or dependency changes; schema remains 39.
+- Before deployment: fresh production build, 395 client tests and six mocked
+  native notification/typography checks passed. Deployment evidence is in
+  `/private/tmp/bhidne-a721e19-direct/verification.json`; build/test logs use
+  `/private/tmp/bhidne-typography-release-*`.
+- Profile punchline removal, monochrome themes, separate Room/Table labels and
+  app-wide typography are live on the web. Native notification-default behavior
+  and native UI require a new signed app build; server deployment cannot update
+  already-installed native bundles. No Git remote push performed.
+- Exact next step: refresh production web and inspect the updated UI; produce a
+  signed native build and validate system text scaling/push on devices when
+  requested.
+
+### 2026-10-07 — App-wide visual consistency refactor
+
+- User explicitly expanded scope to frontend visual consistency. Changes are
+  local only; runtime behavior, APIs, navigation, copy, game rules and spacing
+  tokens are preserved. Existing uncommitted handoff notes are retained.
+- Shared typography now uses the existing Cormorant Garamond package's semibold
+  face for 28px screen headings and 22px section headings, Inter for body/labels,
+  and consistent line-height floors. Available tables, Friends and sheet/rules
+  titles share the screen-heading scale. Branding keeps its larger scale; card
+  ranks keep the original bold face/scale; inline text and OS scaling remain.
+- Consolidated panel/control radii, muted borders, theme-colored elevation,
+  selected tabs, icon stroke/size tokens and disabled opacity across auth,
+  lobby/rooms, social/profile/settings, overlays and all three game screens.
+  FormInput uses semantic surfaces/text, accent focus borders and a web focus
+  ring without changing field dimensions or keyboard behavior.
+- Shared action finishes supply primary/secondary/tertiary/destructive/selected
+  appearances. Lobby Join/Enter uses primary actions and Discard uses destructive
+  styling. Filled account deletion has separate destructive/on-destructive
+  tokens, avoiding unreadable error-text colors on filled backgrounds.
+- Noir uses charcoal layers; Pearl uses warm off-white surroundings. Both retain
+  neutral interface accents and readable red/pink destructive/error feedback.
+  Heritage/Dusk artwork and palettes remain intact. Generic player avatars,
+  empty seats and reaction bubbles now follow semantic theme colors.
+- Verification: TypeScript, all 396 client tests, three mocked native typography
+  tests, web export and iOS/Android exports pass. The new mocked Chrome fixture
+  covers all five themes: lobby/Friends/Profile/theme dialogs at 390/1280px,
+  theme switching/reload persistence, all three game menus, authentication forms,
+  focused fields and disabled social controls. Screenshots were inspected.
+  Logs/screenshots use `/private/tmp/bhidne-visual-*`. A cached initial export
+  did not reach the lobby; rebuilding with explicit local API/legacy mode and
+  a cleared Metro cache resolved fixture setup.
+- Remaining hardcoded color exceptions: provider branding in SignInButton;
+  cultural/felt artwork in TableSurface; the RoomCard photograph scrim; red/green
+  draw/discard markers in MarriageTable. These retain their existing visual
+  meaning. Local font-size declarations and card/badge geometry remain where
+  shared AppText normalization or game-specific rendering governs appearance.
+- Limitations: mocked browser APIs and unsigned native exports do not establish
+  UIKit/Android rendering, large-system-text behavior or live device accessibility.
+  Exact next step: review the local UI, especially native large-text/Devanagari
+  and dense game hands; release or produce signed builds only when requested.

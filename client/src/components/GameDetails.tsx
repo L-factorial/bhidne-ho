@@ -1,7 +1,7 @@
 import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
-import { gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useThemedStyles, type ThemeColors } from '../theme';
+import { radii, gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useThemedStyles, type ThemeColors } from '../theme';
 import { FormScrollView } from './FormInput';
 import { RoomSheet } from './RoomSheet';
 import { FormFooter } from './FormFooter';
@@ -110,11 +110,11 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   panel: { ...gamePanelFinish(colors), paddingHorizontal: 16, borderBottomWidth: 1, borderColor: colors.border }, row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   button: { ...gameControlFinish(colors), minHeight: 44, justifyContent: 'center', paddingHorizontal: 12 }, label: { fontFamily: fonts.medium, fontSize: 12, color: colors.accent },
   details: { maxHeight: 320 }, title: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 23, color: colors.text }, text: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 12, lineHeight: 21, flexShrink: 1 },
-  statsTable: { width: '100%', borderWidth: 1, borderColor: colors.border, borderRadius: 8, overflow: 'hidden' },
+  statsTable: { width: '100%', borderWidth: 1, borderColor: colors.border, borderRadius: radii.medium, overflow: 'hidden' },
   statsRow: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderColor: colors.surfaceSelected },
   playerCell: { flex: 1, minWidth: 0, paddingHorizontal: 2, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', gap: 2 },
   statValue: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 11, lineHeight: 20, textAlign: 'center', fontVariant: ['tabular-nums'], maxWidth: '100%' },
-  columnHeading: { fontFamily: fonts.medium, color: colors.text, fontSize: 12, textAlign: 'center', fontVariant: ['tabular-nums'] }, activeDeal: { backgroundColor: colors.surface, borderRadius: 8 }, activeBid: { color: colors.accent, fontFamily: fonts.medium },
-  result: { alignSelf: 'center', maxWidth: '100%', paddingHorizontal: 3, borderWidth: 1, borderColor: 'transparent', borderRadius: 24 }, missed: { borderColor: colors.danger, backgroundColor: colors.dangerSurface }, negative: { color: colors.danger },
-  cell: { width: 52, flexShrink: 0, color: colors.text, fontFamily: fonts.medium, fontSize: 11, lineHeight: 20, paddingVertical: 8, paddingLeft: 6 }, input: { width: 100, minHeight: 44, padding: 10, color: colors.text, borderWidth: 1, borderColor: colors.textMuted, borderRadius: 8 },
+  columnHeading: { fontFamily: fonts.medium, color: colors.text, fontSize: 12, textAlign: 'center', fontVariant: ['tabular-nums'] }, activeDeal: { backgroundColor: colors.surface, borderRadius: radii.medium }, activeBid: { color: colors.accent, fontFamily: fonts.medium },
+  result: { alignSelf: 'center', maxWidth: '100%', paddingHorizontal: 3, borderWidth: 1, borderColor: 'transparent', borderRadius: radii.large }, missed: { borderColor: colors.danger, backgroundColor: colors.dangerSurface }, negative: { color: colors.danger },
+  cell: { width: 52, flexShrink: 0, color: colors.text, fontFamily: fonts.medium, fontSize: 11, lineHeight: 20, paddingVertical: 8, paddingLeft: 6 }, input: { width: 100, minHeight: 44, padding: 10, color: colors.text, borderWidth: 1, borderColor: colors.textMuted, borderRadius: radii.medium },
 });

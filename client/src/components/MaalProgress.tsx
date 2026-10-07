@@ -6,7 +6,7 @@ import {Pressable, View} from 'react-native';
 import { maalProgress } from '../multiplayer/maalProgress';
 import { marriageFace, physicalLabel, type MarriageCard, type MarriageMeld } from '../multiplayer/marriage';
 import { MarriageMeldCards } from './MarriageMeldCards';
-import { fonts, gameButtonStyle, useTheme } from '../theme';
+import { visualStates, radii, fonts, gameButtonStyle, useTheme } from '../theme';
 
 export function MaalProgress({ hand, topDiscard, canTakeDiscard = false, busy = false, onSelect, onReview }: {
   hand: MarriageCard[]; topDiscard?: MarriageCard | null; canTakeDiscard?: boolean; busy?: boolean;
@@ -20,21 +20,21 @@ export function MaalProgress({ hand, topDiscard, canTakeDiscard = false, busy = 
     ? maalProgress([...hand, topDiscard]) : null, [key, topDiscard?.card_id, uiLanguage]);
   const ready = (['normal', "dublee"] as const).filter(route => progress[route].missing === 0);
   const action = (label: string, onPress: () => void) => <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={busy} accessibilityState={{ disabled: busy }} onPress={onPress}
-    style={({ pressed }) => ({ ...gameButtonStyle(c, 'secondary', pressed), opacity: busy ? 0.5 : 1 })}><Text style={{ color: c.onTableHeader, fontFamily: fonts.medium }}>{label}</Text></Pressable>;
+    style={({ pressed }) => ({ ...gameButtonStyle(c, 'secondary', pressed), opacity: busy ? visualStates.disabledOpacity : 1 })}><Text style={{ color: c.onTableHeader, fontFamily: fonts.medium }}>{label}</Text></Pressable>;
   const nearest = progress.normal.missing === progress.dublee.missing ? ui("marriage.both_routes_need_the_same_number_of_additional_cards")
     : ui("marriage.route_needs_fewer_additional_cards_from_this_hand", { "route": progress.normal.missing < progress.dublee.missing ? 'Three melds' : 'Seven Dublees' });
   return <View testID="marriage-maal-progress" style={{ gap: 12 }}>
     <Text accessibilityRole="header" style={{ fontFamily: fonts.medium, fontSize: 20, color: c.accent }}>{ui("marriage.your_path_to_maal")}</Text>
     <Text style={{ color: c.text, fontFamily: fonts.body }}>{nearest}</Text>
     <Text style={{ color: c.textMuted }}>{ui("marriage.current_hand_progress", { "count": hand.length })}</Text>
-    {!!ready.length && <View accessibilityLiveRegion="polite" style={{ padding: 12, gap: 8, backgroundColor: c.successSurface, borderRadius: 12 }}>
+    {!!ready.length && <View accessibilityLiveRegion="polite" style={{ padding: 12, gap: 8, backgroundColor: c.successSurface, borderRadius: radii.medium }}>
       <Text style={{ color: c.success, fontFamily: fonts.medium }}>{ready.length === 2 ? ui("marriage.both_routes_qualify_your_choice") : ui("marriage.a_qualifying_declaration_is_ready")}</Text>
       {ready.map(route => <View key={route}>{action(route === 'normal' ? ui("marriage.review_3_sequences_tunnelas") : ui("marriage.review_7_dublees"), () => onReview(progress[route].groups.map(g => ({ meld_type: g.kind, card_ids: g.held.map(card => card.card_id) }))))}</View>)}
       <Text style={{ color: c.success }}>{ui("marriage.review_turn_help")}</Text>
     </View>}
     {(['normal', "dublee"] as const).map(route => {
       const plan = progress[route], total = route === 'normal' ? 3 : 7;
-      return <View key={route} testID={`maal-route-${route}`} style={{ gap: 8, padding: 12, backgroundColor: c.tableHeader, borderRadius: 12, borderWidth: 1, borderColor: c.tableTrim }}>
+      return <View key={route} testID={`maal-route-${route}`} style={{ gap: 8, padding: 12, backgroundColor: c.tableHeader, borderRadius: radii.medium, borderWidth: 1, borderColor: c.tableTrim }}>
         <Text style={{ color: c.text, fontFamily: fonts.medium, fontSize: 16 }}>{route === 'normal' ? ui("marriage.three_sequences_tunnelas") : ui("marriage.seven_dublees")}</Text>
         <Text accessibilityLiveRegion="polite" style={{ color: plan.missing ? c.textMuted : c.success }}>{ui("common.progress_groups", { "ready": plan.complete, "total": total, "status": plan.missing ? ui("common.cards_still_needed", {count: plan.missing}) : ui("marriage.ready_to_review_and_show") })}</Text>
         <View accessible accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: total, now: plan.complete }} accessibilityLabel={ui("marriage.route_progress", { "route": route === "normal" ? ui("marriage.three_sequences_tunnelas") : ui("marriage.seven_dublees") })} style={{ flexDirection: 'row', gap: 4 }}>

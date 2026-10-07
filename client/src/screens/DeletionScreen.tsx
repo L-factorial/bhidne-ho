@@ -7,7 +7,7 @@ import { DeletionNavigation } from '../auth/deletion';
 import { readAuthValue, writeAuthValue } from '../auth/storage';
 import { apiUrl, ApiError, sharedRequest } from '../multiplayer/api';
 import { saveSession, type Session } from '../multiplayer/session';
-import { useTheme } from '../theme';
+import { visualStates, useTheme } from '../theme';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { ui } from '../i18n/copy';
 import type { UiKey } from '../i18n/catalogs';
@@ -48,7 +48,7 @@ export function DeletionScreen({session,token,onClose}: {session:Session|null;to
   const confirming=!!session||!!token;
   return <AccountPage footer={<>
     {!statusToken&&!sent&&<Pressable accessibilityRole="button" disabled={!enabled||busy||(confirming?confirmation!=='DELETE':!username.trim()||!email.trim())} onPress={()=>void submit()}
-      style={[styles.button,{backgroundColor:colors.danger},(!enabled||busy)&&{opacity:.5}]}><Text style={[styles.buttonText,{color:colors.onPrimary}]}>{ui(confirming?'deletion.confirm':'deletion.send')}</Text></Pressable>}
+      style={[styles.button,{backgroundColor:colors.destructiveAction},(!enabled||busy)&&{opacity:visualStates.disabledOpacity}]}><Text style={[styles.buttonText,{color:colors.onDestructive}]}>{ui(confirming?'deletion.confirm':'deletion.send')}</Text></Pressable>}
     <Pressable accessibilityRole="button" disabled={busy} onPress={()=>{if(status==='completed'){try{writeAuthValue(statusKey,null);}catch{}}onClose();}} style={styles.button}><Text style={styles.buttonText}>{ui('common.back_label')}</Text></Pressable>
   </>}>
     <Text accessibilityRole="header" style={styles.title}>{ui('deletion.title')}</Text>

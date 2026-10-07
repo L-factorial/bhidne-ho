@@ -4,7 +4,7 @@ import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useState } from 'react';
 import {Pressable, StyleSheet, View} from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
-import { fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { radii, fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { ActionCue } from './ActionCue';
 
 export function LiveBidPrompt({ snapshot, busy, onAction, revealed }: {
@@ -35,8 +35,8 @@ export function LiveBidPrompt({ snapshot, busy, onAction, revealed }: {
   </View>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  panel: { padding: 12, marginVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: colors.accent, backgroundColor: colors.surface, gap: 4 },
+  panel: { padding: 12, marginVertical: 8, borderRadius: radii.large, borderWidth: 1, borderColor: colors.accent, backgroundColor: colors.surface, gap: 4 },
   title: { color: colors.accent, fontFamily: fonts.medium, fontSize: 15 }, text: { color: colors.text, fontFamily: fonts.body, fontSize: 12, lineHeight: 19 },
   controls: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginTop: 6 },
-  button: { padding: 10, ...gameButtonStyle(colors), alignItems: 'center', justifyContent: 'center' }, label: { color: colors.onTableHeader, fontFamily: fonts.medium, fontSize: 12 }, amount: { color: colors.accent, backgroundColor: colors.surfaceSelected, borderWidth: 2, borderColor: colors.accent, borderRadius: 8, padding: 8, fontSize: 24, minWidth: 48, textAlign: 'center' },
+  button: { padding: 10, ...gameButtonStyle(colors), alignItems: 'center', justifyContent: 'center' }, label: { color: colors.onTableHeader, fontFamily: fonts.medium, fontSize: 12 }, amount: { color: colors.accent, backgroundColor: colors.surfaceSelected, borderWidth: 2, borderColor: colors.accent, borderRadius: radii.medium, padding: 8, fontSize: 24, minWidth: 48, textAlign: 'center' },
 });

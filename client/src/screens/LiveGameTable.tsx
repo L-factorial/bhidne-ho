@@ -23,7 +23,7 @@ import { LiveBidPrompt } from '../components/LiveBidPrompt';
 import { GameDetails } from '../components/GameDetails';
 import { RoundSummary } from '../components/RoundSummary';
 import { roundGuidance } from '../multiplayer/roundFlow';
-import { fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { radii, fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import type { ActionAck } from '../multiplayer/PendingGameAction';
 import type { PlayerPhrase } from '../multiplayer/pokes';
 import { PokeComposer } from '../components/PokeComposer';
@@ -225,8 +225,8 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   lastCard: { width: 48, height: 64, borderRadius: 7, borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.cardFace, alignItems: 'center', justifyContent: 'center' },
   lastWinner: { borderWidth: 3, borderColor: colors.cardSelectedBorder, backgroundColor: colors.cardSelected },
   lastFace: { fontFamily: fonts.display, fontSize: 24, color: colors.cardInk },
-  guidance: { padding: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }, yourTurn: { borderColor: colors.accent, backgroundColor: colors.surface },
-  pokeHint: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, borderRadius: 10, padding: 6, marginBottom: 10 },
+  guidance: { padding: 12, borderRadius: radii.medium, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }, yourTurn: { borderColor: colors.accent, backgroundColor: colors.surface },
+  pokeHint: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, borderRadius: radii.medium, padding: 6, marginBottom: 10 },
   newGamePanel: { padding: 16, gap: 8, borderBottomWidth: 1, borderColor: colors.border },
   overlayHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderColor: colors.border, minHeight: 60 },
   overlayTitle: { fontFamily: fonts.display, fontSize: 23, color: colors.text, flexShrink: 1 },

@@ -80,7 +80,7 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
       <KeyboardFrame style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end', paddingTop: Math.max(12, insets.top), paddingBottom: Math.max(12, insets.bottom), paddingRight: Math.max(8, insets.right) }}>
         <Pressable testID={`${game}-menu-backdrop`} accessibilityRole="button" accessibilityLabel={ui("common.close_table_menu_backdrop")}
           onPress={() => setOpen(false)} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: colors.overlay, opacity: 0.6 }} />
-        <View testID={`${game}-menu-drawer`} accessibilityViewIsModal style={{ width: '86%', maxWidth: 360, backgroundColor: colors.surface, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: colors.borderSubtle, boxShadow: `0px 4px 12px ${colors.shadow}` }}>
+        <View testID={`${game}-menu-drawer`} accessibilityViewIsModal style={{ width: '86%', maxWidth: 360, backgroundColor: colors.surface, borderRadius: radii.large, padding: 20, borderWidth: 1, borderColor: colors.borderSubtle, boxShadow: `0px 4px 12px ${colors.shadow}` }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.primarySoft, borderRadius: radii.medium }}>
             <Text accessibilityRole="header" style={{ color: colors.text, fontFamily: fonts.medium, fontSize: typography.sectionTitle, paddingLeft: 10, flexShrink: 1 }}>{tableName || title}</Text>
             <Pressable accessibilityRole="button" accessibilityLabel={ui("common.close_table_menu")} onPress={() => setOpen(false)}

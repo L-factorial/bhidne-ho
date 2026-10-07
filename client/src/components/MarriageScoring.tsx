@@ -3,7 +3,7 @@ import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { MarriageMeldCards } from './MarriageMeldCards';
 import { PlayerAvatar } from './PlayerAvatar';
-import { gameControlFinish, gameHeadingFinish, fonts, useThemedStyles, type ThemeColors } from '../theme';
+import { visualStates, radii, gameControlFinish, gameHeadingFinish, fonts, useThemedStyles, type ThemeColors } from '../theme';
 import { RoundResultsTable } from './RoundResultsTable';
 import { FormScrollView } from './FormInput';
 import { type ReactNode } from 'react';
@@ -35,7 +35,7 @@ export function MarriageScoring({ snapshot, busy, error, onSave, introduction }:
   const changed = JSON.stringify(draft) !== savedKey;
   function button(label: string, onPress: () => void, selected = false, disabled = false) {
     return <Pressable accessibilityRole="button" accessibilityState={{ selected, disabled }} disabled={disabled || busy} onPress={onPress}
-      style={[s.button, selected && s.selected, (disabled || busy) && { opacity: 0.5 }]}><Text style={s.text}>{uiLabel(label, 'marriage')}</Text></Pressable>;
+      style={[s.button, selected && s.selected, (disabled || busy) && { opacity: visualStates.disabledOpacity }]}><Text style={s.text}>{uiLabel(label, 'marriage')}</Text></Pressable>;
   }
   function input(label: string, value: number, update: (n: number) => void) {
     return editable ? <NumericInput accessibilityLabel={uiLabel(label, 'marriage')} keyboardType="number-pad" value={Number.isNaN(value) ? '' : String(value)}
@@ -129,6 +129,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   text: { color: colors.text, fontFamily: fonts.body, fontSize: 13, lineHeight: 21 },
   heading: { ...gameHeadingFinish(colors), color: colors.accent, fontFamily: fonts.medium, fontSize: 16 },
   input: { width: 46, minHeight: 44, color: colors.text, backgroundColor: colors.surfaceRaised, borderRadius: 6, textAlign: 'center' },
-  button: { ...gameControlFinish(colors), padding: 10, minHeight: 44, borderWidth: 1, borderColor: colors.border, borderRadius: 8 }, selected: { backgroundColor: colors.successSurface },
+  button: { ...gameControlFinish(colors), padding: 10, minHeight: 44, borderWidth: 1, borderColor: colors.border, borderRadius: radii.medium }, selected: { backgroundColor: colors.successSurface },
   player: { gap: 5, paddingVertical: 12, borderTopWidth: 1, borderColor: colors.border },
 });

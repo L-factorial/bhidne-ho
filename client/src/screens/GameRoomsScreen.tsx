@@ -1,7 +1,7 @@
 import {AppText as Text} from '../components/AppText';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
-import { gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { radii, gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { AppHeader } from '../components/AppHeader';
 import { GameIcon } from '../components/BrandArt';
 import {Pressable, ScrollView, StyleSheet, useWindowDimensions, View} from 'react-native';
@@ -82,9 +82,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   topbar: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12, paddingBottom: 22, borderBottomWidth: 1, borderColor: colors.border },
   brand: { fontFamily: fonts.display, fontSize: 31, color: colors.accent }, account: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   guest: { fontFamily: fonts.medium, fontSize: 13, color: colors.text }, linkButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 }, link: { fontFamily: fonts.body, fontSize: 12, color: colors.accent },
-  hero: { paddingVertical: 40, gap: 12 }, eyebrow: { fontFamily: fonts.medium, fontSize: 10, letterSpacing: 3, color: colors.accent },
+  hero: { paddingVertical: 40, gap: 12 }, eyebrow: { fontFamily: fonts.medium, fontSize: 10, letterSpacing: 0, color: colors.accent },
   title: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 60, color: colors.text }, subtitle: { fontFamily: fonts.body, fontSize: 14, lineHeight: 23, color: colors.textMuted },
-  grid: { gap: 22 }, wideGrid: { flexDirection: 'row' }, card: { ...gamePanelFinish(colors), backgroundColor: colors.surface, borderRadius: 18, overflow: 'hidden', minWidth: 0 },
+  grid: { gap: 22 }, wideGrid: { flexDirection: 'row' }, card: { ...gamePanelFinish(colors), backgroundColor: colors.surface, borderRadius: radii.large, overflow: 'hidden', minWidth: 0 },
   art: { height: 200, justifyContent: 'center', alignItems: 'center', gap: 12 }, symbol: { fontSize: 80, color: colors.accent },
   cardMotif: { fontFamily: fonts.display, color: colors.text, fontSize: 22, letterSpacing: 3 }, cardBody: { padding: 24, flex: 1 },
   gameName: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 35, color: colors.text }, description: { fontFamily: fonts.body, fontSize: 13, lineHeight: 22, color: colors.textMuted, marginTop: 8, flex: 1 },
@@ -94,7 +94,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   preview: { fontFamily: fonts.body, fontSize: 11, lineHeight: 19, color: colors.textMuted, textAlign: 'center', marginTop: 28 },
   footer: { fontFamily: fonts.display, fontSize: 22, color: colors.textMuted, textAlign: 'center', marginTop: 18 },
   back: { ...gameControlFinish(colors), minHeight: 56, justifyContent: 'center', marginTop: 12, alignSelf: 'flex-start' },
-  emptyRoom: { ...gamePanelFinish(colors), backgroundColor: colors.surface, padding: 30, borderRadius: 18, marginTop: 26, gap: 20, maxWidth: 580 },
+  emptyRoom: { ...gamePanelFinish(colors), backgroundColor: colors.surface, padding: 30, borderRadius: radii.large, marginTop: 26, gap: 20, maxWidth: 580 },
   emptySymbol: { fontSize: 60, color: colors.accent }, emptyTitle: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 34, color: colors.text },
   emptyText: { fontFamily: fonts.body, fontSize: 14, lineHeight: 24, color: colors.textMuted },
 });

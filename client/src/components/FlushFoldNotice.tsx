@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import {} from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { foldText } from '../notifications/gameNotification';
-import { useTheme } from '../theme';
+import { radii, useTheme } from '../theme';
 
 export function FlushFoldNotice({ snapshot }: { snapshot: RoomSnapshot }) {
   const { colors } = useTheme();
@@ -24,5 +24,5 @@ export function FlushFoldNotice({ snapshot }: { snapshot: RoomSnapshot }) {
     return () => clearTimeout(timer);
   }, [notice, sequence]);
   return notice ? <Text accessibilityLiveRegion="polite" testID="flush-fold-notice"
-    style={{ color: colors.text, backgroundColor: colors.surfaceSelected, padding: 10, borderRadius: 8, textAlign: 'center' }}>{notice}</Text> : null;
+    style={{ color: colors.text, backgroundColor: colors.surfaceSelected, padding: 10, borderRadius: radii.medium, textAlign: 'center' }}>{notice}</Text> : null;
 }
