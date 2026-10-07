@@ -15,7 +15,7 @@ from .outbox import append_lane_events
 from .queries import QueryAccessDenied
 
 
-FRIENDSHIP_COMMANDS = frozenset(('request-friend', 'accept-friend', 'remove-friend'))
+FRIENDSHIP_COMMANDS = frozenset(('request-friend', 'accept-friend', 'remove-friend', 'accept-invitation-friend'))
 
 
 class FriendshipPayload(Record):
@@ -45,13 +45,31 @@ async def execute_friendship(claim, inbox, existing):
     try:
         if request.match_id is not None or request.expected_revision is not None:
             raise QueryAccessDenied('Friendship commands cannot target gameplay.')
-        FriendshipPayload.model_validate_json(canonical_json(request.payload))
+        automatic = request.command == 'accept-invitation-friend'
+        if not automatic:
+            FriendshipPayload.model_validate_json(canonical_json(request.payload))
         sender = await authorize_friendship(connection, target, actor)
         from app.player_blocks.service import require_contact
         await require_contact(connection,actor,f'user-{target.user_high if sender==target.user_low else target.user_low}',lane=claim.entry.lane_id,sequence=claim.entry.sequence)
         row = await (await connection.execute('''SELECT status,requested_by FROM friendships
             WHERE user_low=%s AND user_high=%s FOR UPDATE''', (target.user_low, target.user_high))).fetchone()
-        if request.command == 'request-friend':
+        if automatic:
+            from uuid import UUID
+            if set(request.payload) != {'table_id','invitation_id','inviter_id','acceptance_command_id'}:
+                raise QueryAccessDenied('Invalid invitation friendship proof.')
+            table=UUID(request.payload['table_id'])
+            other=f'user-{target.user_high if sender==target.user_low else target.user_low}'
+            # Only the trusted acceptance transaction queues this command. Use
+            # its durable receipt, which survives checkpoint replacement by a
+            # rematch, rather than depending on the current invitation list.
+            proof=await (await connection.execute('''SELECT i.payload FROM command_inbox i
+                JOIN command_lanes l USING(lane_id) WHERE l.kind='table' AND l.table_id=%s
+                  AND i.actor_id=%s AND i.command_id=%s AND i.command='answer-table-invitation'
+                  AND i.status='accepted' ''',(table,actor,request.payload['acceptance_command_id']))).fetchone()
+            if request.payload['inviter_id']!=other or not proof or proof[0].get('accept') is not True or proof[0].get('invitation_id')!=request.payload['invitation_id']:
+                raise QueryAccessDenied('Invitation acceptance does not authorize friendship.')
+            state,requested_by,change='accepted',user_uuid(other),'friend_accepted'
+        elif request.command == 'request-friend':
             if row is not None:
                 raise QueryAccessDenied('A friendship or request already exists.')
             from app.moderation.policy import require_posting
@@ -79,7 +97,11 @@ async def execute_friendship(claim, inbox, existing):
         outcome['detail'] = detail
     else:
         pair = (target.user_low, target.user_high)
-        if request.command == 'request-friend':
+        if automatic:
+            await connection.execute('''INSERT INTO friendships(user_low,user_high,requested_by,status)
+                VALUES (%s,%s,%s,'accepted') ON CONFLICT(user_low,user_high)
+                DO UPDATE SET status='accepted',updated_at=clock_timestamp()''', (*pair,requested_by))
+        elif request.command == 'request-friend':
             await connection.execute('''INSERT INTO friendships(user_low,user_high,requested_by,status)
                 VALUES (%s,%s,%s,'pending')''', (*pair, sender))
         elif request.command == 'accept-friend':

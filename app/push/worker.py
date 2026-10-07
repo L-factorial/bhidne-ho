@@ -60,15 +60,10 @@ class PushWorker:
                 actors={u for u in data['host']['users'] if u}
                 invitations=data.get('invitations',[])
                 actors.update(i['recipient_id'] for i in invitations if i['status']=='pending')
-                rows=await (await c.execute('''SELECT d.id,d.user_id FROM push_devices d
-                    JOIN auth_sessions s ON s.token_hash=d.session_hash
-                    WHERE d.user_id=ANY(%s::uuid[]) AND s.expires_at>now()
-                    ORDER BY d.id LIMIT 257''',([user_uuid(a) for a in sorted(actors)],))).fetchall() if actors else []
-                if len(rows)>256:raise RuntimeError('Push recipient bound exceeded.')
                 host,game=_projection(checkpoint,{})
                 views={}
                 now=datetime.now(timezone.utc)
-                for device,user in rows:
+                async for device,user in self.devices(c,actors):
                     actor=f'user-{user}'
                     if actor in data['host']['users']:
                         if actor not in views:views[actor]=_view(host,game,checkpoint,actor)
@@ -86,6 +81,19 @@ class PushWorker:
                                         'game_invitation:'+invitation['id'],None,expires,invitation['id'])
             await c.execute('UPDATE push_game_jobs SET processed_revision=%s WHERE table_id=%s',(revision,table))
             return True
+
+    async def devices(self,c,actors):
+        if not actors:return
+        cursor=None
+        while True:
+            rows=await (await c.execute('''SELECT d.id,d.user_id FROM push_devices d
+                JOIN auth_sessions s ON s.token_hash=d.session_hash
+                WHERE d.user_id=ANY(%s::uuid[]) AND s.expires_at>now()
+                  AND (%s::uuid IS NULL OR d.id>%s::uuid)
+                ORDER BY d.id LIMIT 256''',([user_uuid(a) for a in sorted(actors)],cursor,cursor))).fetchall()
+            for row in rows:yield row
+            if len(rows)<256:return
+            cursor=rows[-1][0]
 
     async def enqueue(self,c,device,kind,room,match,table,event,key,expires,source=None):
         await c.execute('''INSERT INTO push_deliveries(id,device_id,kind,room_id,match_id,table_id,source_id,event_key,action_key,expires_at)

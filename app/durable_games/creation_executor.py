@@ -32,6 +32,7 @@ class CreateTablePayload(Record):
     capacity: Annotated[int, Field(ge=2, le=10)]
     name: Annotated[str, Field(min_length=1, max_length=60)] = 'Table'
     invitees: list[Identity] = Field(default_factory=list, max_length=20)
+    notify_room: bool = False
     replace_table_id: UUID | None = None
     replace_revision: Nonnegative | None = None
 
@@ -188,7 +189,7 @@ class RoomCreationExecutor:
                     table=TableState(table_id=table_id.hex), commands=CommandSession(match_id=match_id.hex))
                 if game.game_type == 'flush':
                     game.flush_seats[actor] = 1
-                invitations = await hosted_invitations.create(claim, game, payload.invitees)
+                invitations = await hosted_invitations.create(claim, game, payload.invitees, notify_room=payload.notify_room)
                 await self.checkpoints.save_in_transaction(claim.connection,
                     capture_checkpoint(game, table_revision=0, invitations=invitations), expected_revision=None, fence=fence)
                 await self.inbox.ensure_lane_in_transaction(claim.connection, LaneTarget(
@@ -199,7 +200,8 @@ class RoomCreationExecutor:
                 events.append(OutgoingEvent({'type': 'TABLE_CREATED', 'table_id': table_id.hex,
                     'match_id': match_id.hex, 'game_type': payload.game_type, 'name': game.name, 'table_revision': 0}))
                 events.extend(OutgoingEvent(dict(type='TABLE_INVITATION_CREATED', invitation_id=i['id'],
-                    room_id=game.room_id, table_id=table_id.hex, match_id=game.match_id), i['recipient_id']) for i in invitations)
+                    room_id=game.room_id, table_id=table_id.hex, match_id=game.match_id), i['recipient_id'])
+                    for i in invitations if not i.get('room_notification'))
             if actor_id is not None:
                 events.append(OutgoingEvent({'type': 'TABLE_CREATION_ACK', **outcome}, actor))
             await append_lane_events(claim, events, max_events=self.max_events)

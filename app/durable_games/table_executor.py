@@ -98,6 +98,17 @@ class TableLaneExecutor:
                 actor_id = None
                 detail = 'An authenticated player is required.'
             if detail is None:
+                # Pair workers lock their lane before users. Acquire that same
+                # order before acceptance can enqueue an automatic friendship.
+                if request.command == 'answer-table-invitation' and request.payload.get('accept') is True:
+                    invitation = next((item for item in data['invitations']
+                        if item.get('id') == request.payload.get('invitation_id')
+                        and item.get('recipient_id') == claim.entry.actor_id
+                        and item.get('status') == 'pending' and item.get('auto_friend')), None)
+                    if invitation:
+                        low, high = sorted((actor_id, user_uuid(invitation['inviter_id'])))
+                        await self.inbox.ensure_lane_in_transaction(claim.connection,
+                            LaneTarget(kind='conversation', user_low=low, user_high=high))
                 # Lock every potentially changed position in stable order, including
                 # the actor and FIFO promotion candidates, before reservation reads.
                 users = sorted({actor_id, *(user_uuid(p['user_id']) for p in data['positions'])})
@@ -175,7 +186,7 @@ class TableLaneExecutor:
                     except ValidationError:
                         detail = 'Invalid invitation answer.'
                     else:
-                        detail = await hosted_invitations.answer(claim, game, invitations, invitation_answer)
+                        detail = await hosted_invitations.answer(claim, game, invitations, invitation_answer, inbox=self.inbox)
                 elif request.command == 'start':
                     host._sync_proposal(game)
                     detail = start_rejection(game, claim.entry.actor_id, start_payload,

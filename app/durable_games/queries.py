@@ -248,12 +248,13 @@ class PostgresHostedQueries:
                         raise DurableGameNotFound('Match not found in this room.')
                     selected_id = selected[0]
                 room = await (await connection.execute('SELECT name,creator_id,visibility,created_at FROM rooms WHERE id=%s', (room_id,))).fetchone()
-                rows = await (await connection.execute('''SELECT table_id FROM room_tables
+                rows = await (await connection.execute('''SELECT table_id,created_at FROM room_tables
                     WHERE room_id=%s AND status<>'closed' ORDER BY created_at,table_id LIMIT %s''',
                     (room_id, self.max_tables + 1))).fetchall()
                 if len(rows) > self.max_tables:
                     raise DurableGameConflict('Room exceeds the configured query table limit.')
                 table_ids = [row[0] for row in rows]
+                table_times = {str(row[0]).replace('-',''):int(row[1].timestamp()*1000) for row in rows}
                 if selected_id is not None and selected_id not in table_ids:
                     row = await (await connection.execute('''SELECT table_id FROM room_tables
                         WHERE room_id=%s AND table_id=%s''', (room_id, selected_id))).fetchone()
@@ -327,7 +328,7 @@ class PostgresHostedQueries:
                         selected_id = UUID(game.table.table_id)
                 for preview in result['tables']:
                     game = next(g for g in games if g.match_id == preview['match_id'])
-                    preview.update(table_id=game.table.table_id, table_revision=revisions[game.table.table_id])
+                    preview.update(table_id=game.table.table_id, table_revision=revisions[game.table.table_id],created_at=table_times.get(game.table.table_id,0))
                 if selected_id is not None:
                     game = next(g for g in games if UUID(g.table.table_id) == selected_id)
                     result['snapshot'] = host._snapshot(game, actor)
@@ -379,6 +380,14 @@ class PostgresHostedQueries:
                 AND (EXISTS(SELECT 1 FROM room_memberships m WHERE m.room_id=r.id AND m.user_id=%s)
                      OR (%s=false AND (r.visibility='public' OR r.creator_id=%s)))
                 ORDER BY r.id LIMIT %s''', (after_room_id, user, memberships, user, limit + 1))).fetchall()
+            declined=set()
+            if not memberships:
+                declined_rows=await (await connection.execute('''SELECT table_id FROM table_recovery_state JOIN room_tables USING(table_id)
+                    WHERE room_id=ANY(%s::text[]) AND status<>'closed'
+                      AND (state->'data'->'invitations') @> %s''',
+                    ([row[0] for row in rows[:limit]],Jsonb([dict(recipient_id=actor,status='declined')])))).fetchall()
+                declined={str(row[0]).replace('-','') for row in declined_rows}
+
         items = []
         for (room,) in rows[:limit]:
             try:
@@ -388,5 +397,5 @@ class PostgresHostedQueries:
             if memberships:
                 items.append(dict(room_id=room, tables=view['tables'], active_game=view['active_game']))
             else:
-                items.extend(dict(table, room_id=room, room_name=view['name']) for table in view['tables'])
+                items.extend(dict(table, room_id=room, room_name=view['name']) for table in view['tables'] if table['table_id'] not in declined)
         return dict(items=items, next_room_id=rows[limit - 1][0] if len(rows) > limit else None)

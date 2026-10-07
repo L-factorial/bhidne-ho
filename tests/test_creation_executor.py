@@ -167,7 +167,8 @@ async def test_unknown_commit_returns_original_ids_without_second_allocation(cre
     assert await executor.execute_one(lane, fence) is None
     assert (await pool.execute('SELECT open_table_count FROM rooms')).rows == [(1,)]
     assert (await pool.execute('SELECT count(*) FROM notification_outbox WHERE lane_id=%s', (lane,))).rows == [(2,)]
-    assert (await pool.execute("SELECT count(*) FROM notification_outbox WHERE event_type='LOBBY_CHANGED'")).rows == [(len(users),)]
+    # Public creation invalidates the global lobby in addition to member feeds.
+    assert (await pool.execute("SELECT count(*) FROM notification_outbox WHERE event_type='LOBBY_CHANGED'")).rows == [(len(users) + 1,)]
 
 
 async def test_unsupported_options_and_old_owner_do_not_consume_head(creation):
@@ -234,3 +235,79 @@ def test_creation_identity_accepts_equivalent_lane_uuid_forms():
     ids = creation_ids(lane, 'actor', 'request')
     assert ids == creation_ids(lane.hex, 'actor', 'request') == creation_ids(str(lane), 'actor', 'request')
     assert ids[0] != ids[1]
+
+
+async def test_play_creation_notifies_members_decline_hides_only_play_feed(creation):
+    from app.durable_games.queries import PostgresHostedQueries
+    pool, checkpoints, fence, users, inbox, _, _ = creation
+    body = request(game_type='flush', capacity=10)
+    body['payload']['notify_room'] = True
+    result = await create(creation, users[0], body)
+    assert result['status'] == 'accepted'
+    invitations = (await checkpoints.load(result['table_id'])).checkpoint['data']['invitations']
+    assert {i['recipient_id'] for i in invitations} == set(users[1:])
+    assert all(i['room_notification'] and not i['auto_friend'] for i in invitations)
+    item = next(i for i in invitations if i['recipient_id'] == users[1])
+    queries = PostgresHostedQueries(pool)
+    assert len((await queries.activity(users[1]))['items']) == 1
+    lane = await inbox.ensure_lane(LaneTarget(kind='table', room_id='room', table_id=UUID(result['table_id'])))
+    await inbox.enqueue(lane, users[1], dict(command_id=uuid4().hex, command='answer-table-invitation',
+        match_id=result['match_id'], expected_revision=0, payload=dict(invitation_id=item['id'], accept=False)))
+    assert (await TableLaneExecutor(inbox).execute_one(lane, fence)).outcome['status'] == 'accepted'
+    assert (await queries.activity(users[1]))['items'] == []
+    assert len((await queries.activity(users[2]))['items']) == 1
+    assert len((await queries.activity(users[1], memberships=True))['items'][0]['tables']) == 1
+
+
+async def test_invited_nonmember_acceptance_orders_friendship_on_pair_lane(creation):
+    from app.durable_games.social import SocialIngress, SocialLaneExecutor, conversation
+    pool, checkpoints, fence, users, inbox, _, _ = creation
+    await pool.execute('DELETE FROM room_memberships WHERE user_id=%s', (UUID(users[1][5:]),))
+    body = request(game_type='flush', capacity=10)
+    body['payload'].update(notify_room=True, invitees=[users[1]])
+    result = await create(creation, users[0], body)
+    assert result['status'] == 'accepted'
+    item = next(i for i in (await checkpoints.load(result['table_id'])).checkpoint['data']['invitations'] if i['recipient_id'] == users[1])
+    assert item['auto_friend'] and not item['room_notification']
+    lane = await inbox.ensure_lane(LaneTarget(kind='table', room_id='room', table_id=UUID(result['table_id'])))
+    answer = dict(command_id=uuid4().hex, command='answer-table-invitation', match_id=result['match_id'], expected_revision=0,
+        payload=dict(invitation_id=item['id'], accept=True))
+    await inbox.enqueue(lane, users[1], answer)
+    assert (await TableLaneExecutor(inbox).execute_one(lane, fence)).outcome['status'] == 'accepted'
+    assert (await pool.execute('SELECT count(*) FROM room_memberships WHERE user_id=%s', (UUID(users[1][5:]),))).rows == [(1,)]
+    pair = conversation(users[0], users[1])
+    pair_lane = await inbox.ensure_lane(pair)
+    executor = SocialLaneExecutor(inbox)
+    # A later checkpoint may no longer contain the old invitations. The
+    # committed acceptance receipt must still authorize the queued effect.
+    from app.durable_games.checkpoints import capture_checkpoint
+    saved = await checkpoints.load(result['table_id'])
+    game = rebuild_hosted_game(None, saved.checkpoint, receipt_snapshot=saved.receipt_snapshot).game
+    await checkpoints.save(capture_checkpoint(game, table_revision=2), expected_revision=1, fence=fence)
+    assert (await executor.execute_one(pair_lane)).outcome['status'] == 'accepted'
+    assert (await pool.execute('SELECT status FROM friendships')).rows == [('accepted',)]
+    assert await executor.execute_one(pair_lane) is None
+    assert (await inbox.enqueue(lane, users[1], answer)).duplicate
+    # Public callers cannot forge the trusted invitation-to-friendship command.
+    with pytest.raises(ValueError):
+        await SocialIngress(inbox).submit(users[1], pair, dict(command_id=uuid4().hex,
+            command='accept-invitation-friend',payload=dict(table_id=result['table_id'],invitation_id=item['id'])))
+
+
+async def test_room_notification_skips_blocked_member_and_acceptance_does_not_add_friends(creation):
+    from app.player_blocks.service import BlockService
+    pool, checkpoints, fence, users, inbox, _, _ = creation
+    await BlockService(pool).set(users[2], users[0], True)
+    body = request(game_type='flush', capacity=10)
+    body['payload']['notify_room'] = True
+    result = await create(creation, users[0], body)
+    assert result['status'] == 'accepted'
+    invitations = (await checkpoints.load(result['table_id'])).checkpoint['data']['invitations']
+    assert users[2] not in {i['recipient_id'] for i in invitations}
+    item = next(i for i in invitations if i['recipient_id'] == users[1])
+    lane = await inbox.ensure_lane(LaneTarget(kind='table', room_id='room', table_id=UUID(result['table_id'])))
+    await inbox.enqueue(lane, users[1], dict(command_id=uuid4().hex, command='answer-table-invitation',
+        match_id=result['match_id'], expected_revision=0, payload=dict(invitation_id=item['id'], accept=True)))
+    assert (await TableLaneExecutor(inbox).execute_one(lane, fence)).outcome['status'] == 'accepted'
+    assert (await pool.execute("SELECT count(*) FROM command_inbox WHERE command='accept-invitation-friend'")).rows == [(0,)]
+    assert (await pool.execute('SELECT count(*) FROM friendships')).rows == [(0,)]

@@ -60,7 +60,14 @@ async def reserve_rate(connection, actor, count):
     return None
 
 
-async def create(claim, game, recipients):
+async def create(claim, game, recipients, *, notify_room=False):
+    explicit = set(recipients)
+    if notify_room:
+        rows = await (await claim.connection.execute('SELECT user_id FROM room_memberships WHERE room_id=%s ORDER BY user_id LIMIT 1001', (game.room_id,))).fetchall()
+        if len(rows) > 1000:
+            from .store import DurableGameConflict
+            raise DurableGameConflict('Room exceeds the lobby membership limit.')
+        recipients = list(dict.fromkeys([*recipients, *(f'user-{row[0]}' for row in rows if f'user-{row[0]}' != claim.entry.actor_id)]))
     if not recipients:
         return []
     connection, actor = claim.connection, claim.entry.actor_id
@@ -69,13 +76,20 @@ async def create(claim, game, recipients):
     invitations = []
     for recipient in dict.fromkeys(recipients):
         from app.player_blocks.service import require_contact
-        await require_contact(connection,actor,recipient,lane=claim.entry.lane_id,sequence=claim.entry.sequence)
+        from .queries import QueryAccessDenied
+        try:
+            await require_contact(connection,actor,recipient,lane=claim.entry.lane_id,sequence=claim.entry.sequence)
+        except QueryAccessDenied:
+            if recipient in explicit: raise
+            continue
         identity = uuid5(NAMESPACE_URL, canonical_json(['hosted-invite', str(claim.entry.lane_id), actor,
             claim.entry.request.command_id, recipient])).hex
         invitations.append(dict(id=identity, room_id=game.room_id, match_id=game.match_id,
             table_name=game.name, game_type=game.game_type, inviter_id=actor, recipient_id=recipient,
             status='pending', created_at=observed))
-        if room[0] == user_uuid(actor) and room[1] != 'public':
+        if notify_room:
+            invitations[-1].update(room_notification=recipient not in explicit, auto_friend=recipient in explicit)
+        if recipient in explicit and room[0] == user_uuid(actor) and room[1] != 'public':
             prior = await (await connection.execute("SELECT 1 FROM room_invitations WHERE room_id=%s AND recipient_id=%s AND status='pending'", (game.room_id, recipient))).fetchone()
             if not prior:
                 await connection.execute('''INSERT INTO room_invitations(id,room_id,inviter_id,recipient_id,status)
@@ -83,7 +97,7 @@ async def create(claim, game, recipients):
     return invitations
 
 
-async def answer(claim, game, invitations, payload):
+async def answer(claim, game, invitations, payload, *, inbox=None):
     actor = claim.entry.actor_id
     item = next((i for i in invitations if i.get('id') == payload.invitation_id and i.get('recipient_id') == actor), None)
     if item is None or item.get('status') != 'pending':
@@ -94,6 +108,7 @@ async def answer(claim, game, invitations, payload):
     if game.ended:
         return 'This table has ended.'
     if payload.accept:
+        member = await (await claim.connection.execute('SELECT 1 FROM room_memberships WHERE room_id=%s AND user_id=%s', (game.room_id,user_uuid(actor)))).fetchone()
         from .room_commands import can_enter
         room = await (await claim.connection.execute('''SELECT id,creator_id,visibility FROM rooms
             WHERE id=%s AND NOT EXISTS (SELECT 1 FROM deleted_rooms WHERE id=%s)''', (game.room_id, game.room_id))).fetchone()
@@ -101,6 +116,16 @@ async def answer(claim, game, invitations, payload):
             return 'Room access is no longer available.'
         await claim.connection.execute('INSERT INTO room_memberships(room_id,user_id) VALUES (%s,%s) ON CONFLICT DO NOTHING', (game.room_id, user_uuid(actor)))
         await claim.connection.execute("UPDATE room_invitations SET status='accepted' WHERE room_id=%s AND recipient_id=%s AND status='pending'", (game.room_id, actor))
+        if not member and item.get('auto_friend') and inbox is not None:
+            # Queue on the pair lane, preserving ordering with removals and blocks.
+            from .inbox import LaneTarget
+            low,high=sorted((user_uuid(actor),user_uuid(item['inviter_id'])))
+            lane=await inbox.ensure_lane_in_transaction(claim.connection,LaneTarget(kind='conversation',user_low=low,user_high=high))
+            item['accepted_nonmember']=True
+            await inbox.enqueue_in_transaction(claim.connection,lane,actor,dict(
+                command_id=uuid5(NAMESPACE_URL,'invitation-friend:'+item['id']).hex,
+                command='accept-invitation-friend',payload=dict(table_id=game.table.table_id,invitation_id=item['id'],
+                    inviter_id=item['inviter_id'],acceptance_command_id=claim.entry.request.command_id)))
     item['status'] = 'accepted' if payload.accept else 'declined'
     game.table.emit('TABLE_INVITATION_ANSWERED', invitation_id=payload.invitation_id, status=item['status'])
     return None

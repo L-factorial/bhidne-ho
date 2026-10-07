@@ -89,7 +89,7 @@ class SocialIngress:
             raise ValueError('Social commands have no gameplay revision or match.')
         if target.kind == 'conversation' and request.command == 'send-message':
             ChatInput.model_validate(request.payload)
-        elif target.kind == 'conversation' and request.command in FRIENDSHIP_COMMANDS:
+        elif target.kind == 'conversation' and request.command in FRIENDSHIP_COMMANDS and request.command != 'accept-invitation-friend':
             FriendshipPayload.model_validate_json(canonical_json(request.payload))
         elif target.kind == 'recipient' and request.command == 'read-notifications':
             ReadNotifications.model_validate_json(canonical_json(request.payload))

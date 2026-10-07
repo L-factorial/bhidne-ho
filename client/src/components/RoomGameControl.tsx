@@ -370,8 +370,20 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
     if (busy || pending.current) return;
     pending.current = true; const version = ++generation.current; setBusy(true); setError('');
     try {
-      const data = await api(action === 'seat' ? '/join' : action === 'queue' ? '/table/join-queue' : `?match_id=${encodeURIComponent(matchId)}`,
-        action === 'watch' ? undefined : { match_id: matchId });
+      const path=`?match_id=${encodeURIComponent(matchId)}`;
+      let data:Snapshot;
+      try{
+        data = await api(action === 'seat' ? '/join' : action === 'queue' ? '/table/join-queue' : path,
+          action === 'watch' ? undefined : { match_id: matchId });
+      }catch(failure){
+        // A seat can disappear after the feed is read. Only a definitive
+        // capacity rejection may become spectator entry; uncertain commands
+        // and conflicts with another occupied table retain their error flow.
+        if(action!=='seat'||!(failure instanceof GameRequestError)||failure.status!==409||failure.detail?.code==='PLAYER_ALREADY_AT_TABLE')throw failure;
+        const latest=await api(path);
+        if(latest.match_id!==matchId||latest.can_join||latest.status==='ended')throw failure;
+        data=latest;
+      }
       if (!alive.current || generation.current !== version) return;
       selectedMatch.current = data.match_id;
       setSnapshot(data); setLive(true); setOpen(true);

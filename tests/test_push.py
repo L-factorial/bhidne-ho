@@ -196,3 +196,24 @@ async def test_push_http_authentication_preferences_and_capabilities(database):
         assert reply.status_code==200 and reply.json()['sound'] is False
         assert (await client.get('/me/push/preferences',headers=headers)).json()['sound'] is False
         assert (await client.patch('/me/push/preferences',headers=headers,json={'quiet_start':12})).status_code==422
+
+
+async def test_game_invitation_device_fanout_pages_beyond_256(database):
+    pool, store, fence, users = database
+    _, provider, ids = await devices(pool, users[:2])
+    await pool.execute('''INSERT INTO push_devices(id,user_id,session_hash,provider,token,environment)
+        SELECT gen_random_uuid(),user_id,session_hash,provider,lpad(n::text,64,'0'),'production'
+        FROM push_devices CROSS JOIN generate_series(1000,1259) AS n WHERE id=%s''', (ids[1],))
+    host, game = await host_game(users, started=False)
+    try:
+        now = int(datetime.now(timezone.utc).timestamp() * 1000)
+        invitation = dict(id='paged-invite',room_id='room',match_id=game.match_id,inviter_id=users[0],recipient_id=users[1],status='pending',created_at=now)
+        await store.save(capture_checkpoint(game,table_revision=0,invitations=[invitation]),expected_revision=None,fence=fence)
+        worker = PushWorker(pool, provider)
+        assert await worker.generate_one()
+        assert (await pool.execute("SELECT count(*) FROM push_deliveries WHERE kind='game_invitation'")).rows == [(261,)]
+        await pool.execute('UPDATE push_game_jobs SET processed_revision=-1')
+        assert await worker.generate_one()
+        assert (await pool.execute("SELECT count(*) FROM push_deliveries WHERE kind='game_invitation'")).rows == [(261,)]
+    finally:
+        await host.close()

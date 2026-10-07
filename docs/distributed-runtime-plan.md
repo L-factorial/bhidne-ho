@@ -6489,3 +6489,76 @@ requested stronger drawn/discard card markers. Tap selection remains unchanged.
   still needs device verification. No production mutation, commit, push or release.
 - Exact next step: verify drag swaps, scrolling and both card markers in TestFlight
   alongside the previous fixes, then commit/release when requested.
+
+### Direct production release — October 6 fixes (2026-10-06)
+
+- User pushed the accumulated client changes as `c0addf4`, followed by backend,
+  provisioning and handoff changes in `a9342367bfab15818e477b75891ddd2475d27239`,
+  then explicitly requested direct deployment without waiting for GitHub.
+- Built the exact committed backend atop the existing verified production dependency
+  image (dependency manifest unchanged), packaging a fresh production web export.
+  The same image was transferred and verified on both application hosts:
+  `sha256:7c43711e21001f5976672c8bb11d052607d564f82f34f125446a4269d4f4fb3a`,
+  local tag `bhidne-direct:a934236`. Installed release receiver matches the pushed
+  receiver and retains the read-only APNs credential mount.
+- Dependency/schema and frontend preflight passed on both hosts before activation.
+  Used the existing release lock, peer-health gate, graceful shutdown and rollback
+  procedure to activate each backend sequentially. Activated matching frontends
+  only after both backends were healthy. No migration or credential changes.
+- Verification: all 380 client tests, 84 targeted backend/release tests, TypeScript
+  and production web build passed. Both hosts report the exact revision/image and
+  healthy backend, identical frontend index/JS hashes, and APNs enabled. Public HTTPS
+  API health, push capabilities, frontend index and exact JS asset also passed.
+  Verification record: `/private/tmp/bhidne-a934236-direct/verification.json`.
+- Server/web rollout is complete. Existing TestFlight installations still contain
+  their old JavaScript/native bundle: server deployment cannot deliver the client
+  APNs registration, social-ID or UI fixes to them. No native build/submission or
+  physical notification delivery test was performed in this release.
+- Exact next step: rebuild/install the signed TestFlight app from this revision,
+  then verify notification opt-in/background delivery/taps, table chat/poke,
+  simultaneous Leave/End, Marriage dragging and the new hand/card cues on devices.
+
+### 2026-10-06 — Authorized lobby refactor
+
+- User expanded scope to implement the collected lobby changes. Top tabs are
+  Play, Rooms, and Create Room or Join; Rooms contains Your Rooms and Friends’
+  Rooms. Bottom navigation contains Home, Friends, and Chat.
+- Play starts with a theme-aware green glowing create button, followed by the
+  existing game filters. Dedicated Play cards show game, room, then table names;
+  merge active tables and invitations newest first; omit the Open badge and
+  Share footer; and choose Join/Watch from capacity and server permissions.
+  Already seated players reopen their table. A definitive join rejection with
+  a fresh unavailable-seat projection falls back to spectator entry; uncertain
+  commands and occupied-other-table conflicts retain their existing error flow.
+- The create overlay selects game, room, table name, and optional invited
+  players. On submission, players without rooms receive “[player name] room”;
+  cancelling does not create an orphan room. Existing durable room/table command
+  slots preserve retries and session checks.
+- Opt-in `notify_room` creation persists invitations for eligible room members
+  and explicit invitees, reusing durable lobby invalidations and push jobs.
+  Blocked implicit recipients are skipped. Push fanout now pages devices rather
+  than failing above 256. Existing room table creation retains its prior behavior.
+- Discard uses durable invitation decline and suppresses that table from the
+  actor’s Play activity query across refreshes, while preserving room listings.
+  Accepting an explicit invitation as a nonmember adds room membership and queues
+  friendship on the canonical pair lane, ordered with other friendship commands.
+  Pair lane locks precede user locks; the internal command is unavailable at
+  public ingress. Its proof uses the committed acceptance receipt so later
+  checkpoint replacement cannot invalidate delayed processing. Block policy is
+  checked again before friendship effects.
+- Verification: 383 client tests and 81 targeted backend tests passed, including
+  notification fanout, decline persistence, nonmember membership/friendship,
+  delayed friendship processing, public forgery rejection, blocked recipients,
+  and no automatic friendship for implicit member notifications. Production
+  TypeScript/web build and web/iOS/Android exports passed. Four Chrome checks at
+  390/1280px passed for navigation, feed ordering and card actions, persistent
+  discard, separate create/filter rows, overlay invitation payloads, and both
+  existing-room/default-room creation. No schema migration required.
+- Limitations: browser checks use mocked legacy HTTP/WebSocket responses;
+  distributed effects are covered separately by PostgreSQL-compatible PGlite
+  integration tests. Exports are not signed TestFlight builds; physical device
+  notifications and production rollout were not performed for this increment.
+- Exact next step: review and commit this lobby increment, then deploy the
+  backend/web and produce a new signed TestFlight build when requested. Verify
+  room-member and invitee delivery, invitation acceptance, join/spectator entry,
+  and persistent discard with separate accounts on devices.

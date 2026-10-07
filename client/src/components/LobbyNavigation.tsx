@@ -5,13 +5,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fonts, useTheme } from '../theme';
 
-export function LobbyNavigation({ selected, onSelect }: { selected: 'home' | 'games' | 'friends' | 'chat'; onSelect: (tab: 'home' | 'games' | 'friends' | 'chat') => void }) {
+export function LobbyNavigation({ selected, onSelect }: { selected: 'home' | 'friends' | 'chat'; onSelect: (tab: 'home' | 'friends' | 'chat') => void }) {
   useUiLanguage();
   const { colors: c } = useTheme();
   const insets = useSafeAreaInsets();
   const items = [
     { key: 'home', label: ui('common.home'), icon: 'home', outline: 'home-outline' },
-    { key: 'games', label: ui('common.games'), icon: 'layers', outline: 'layers-outline' },
     { key: 'friends', label: ui('common.friends'), icon: 'people', outline: 'people-outline' },
     { key: 'chat', label: ui('social.lobby_chat'), icon: 'chatbubbles', outline: 'chatbubbles-outline' },
   ] as const;

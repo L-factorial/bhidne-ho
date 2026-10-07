@@ -215,3 +215,9 @@ test('a recovered leave rejection after a lost reply recognizes closure without 
  const result=await f.api.request('/test-games/r/leave',account,{match_id:'m'});
  assert.equal(result.status,'ended');assert.deepEqual(f.sent[1],original);f.api.close();
 });
+
+test('Play creation sends room notification intent with selected invitations',async()=>{
+ const f=setup();
+ await f.api.request('/test-games/r',account,{name:'Friday',player_count:10,game_type:'flush',invitees:['user-b'],notify_room:true});
+ assert.deepEqual(f.sent[0].body.payload,{name:'Friday',capacity:10,game_type:'flush',invitees:['user-b'],notify_room:true});
+});

@@ -309,7 +309,7 @@ export class OriginalUiApi {
       return view;
     }
     if(!action) {
-      const payload:Payload={game_type:data.game_type,capacity:data.player_count,name:data.name,invitees:data.invitees??[]};
+      const payload:Payload={game_type:data.game_type,capacity:data.player_count,name:data.name,invitees:data.invitees??[],...(data.notify_room ? {notify_room:true} : {})};
       const saved=this.root.session.command('ui-table-control').request;
       if(saved?.body.command==='create-table'&&saved.target.room_id===room) {
         if(saved.body.payload.replace_table_id) {
