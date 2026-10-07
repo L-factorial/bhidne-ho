@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react';
-import { Modal } from 'react-native';
+import { GameModal as Modal } from './GameModal';
 import { DeletionNavigation } from '../auth/deletion';
 import { PolicyNavigation } from './moderation/PublicPolicies';
 import { useDismissalAction } from './useDismissalAction';

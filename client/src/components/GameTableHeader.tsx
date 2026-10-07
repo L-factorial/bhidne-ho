@@ -1,18 +1,17 @@
 import { GameModal as Modal } from './GameModal';
-import { ui, uiLabel } from '../i18n/copy.ts';
+import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
-import { TableThemePicker } from './TableThemePicker';
 import { Ionicons } from '@expo/vector-icons';
-import { RoomSheet } from './RoomSheet';
-import { useTableTheme } from '../TableThemeProvider';
 import { BrandIcon, headerLogoSize } from './BrandArt';
 import { KeyboardFrame } from './KeyboardFrame';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useContext, useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TableShareSheet } from './ShareLink';
 import { fonts, radii, typography, useTheme } from '../theme';
-import { LanguageToggle } from './LanguageToggle';
+import { HeaderProfileContext } from './AppHeader';
+import { HeaderAction } from './HeaderAction';
+import { ProfileModal } from './ProfileModal';
 import { useTranslation } from 'react-i18next';
 
 export function GameTableHeader({ title, tableName, path, game, roomId, matchId, onBack, endControl, children, mobileTestIds = false, compact = false, drawerMetadata, showShare = false }: {
@@ -27,18 +26,10 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
   const mobile = useWindowDimensions().width < 900;
   const small = mobile || compact;
   const [open, setOpen] = useState(false);
-  const [themesOpen, setThemesOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const renderProfile = useContext(HeaderProfileContext);
   const [sharing, setSharing] = useState(false);
   useEffect(() => { if (!showShare) setSharing(false); }, [showShare]);
-  const { theme } = useTableTheme();
-  const openThemes = () => { setOpen(false); setThemesOpen(true); };
-  const themeMenuEntry = <Pressable accessibilityRole="button" accessibilityLabel={ui("common.table_theme_name", {name: uiLabel(theme.name)})} onPress={openThemes}
-    style={({ pressed }) => ({ minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 8, borderRadius: radii.medium, backgroundColor: pressed ? colors.surfaceRaised : 'transparent' })}>
-    <Ionicons name="color-palette-outline" size={20} color={colors.textMuted} />
-    <View style={{ flex: 1, gap: 2 }}><Text style={{ color: colors.text, fontFamily: fonts.medium }}>{ui("common.table_theme")}</Text>
-      <Text style={{ color: colors.textMuted, fontFamily: fonts.body, fontSize: 12 }}>{theme.name}</Text></View>
-    <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-  </Pressable>;
   useEffect(() => {
     if (!open || !drawerMetadata || Platform.OS !== 'web') return;
     // A child sheet captures at window first; otherwise consume Escape before the game modal.
@@ -57,12 +48,7 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
         {!tableName && !!path && !compact && <Text numberOfLines={1} style={{ fontFamily: fonts.body, fontSize: 11, color: colors.textMuted }}>{path}</Text>}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-      <LanguageToggle />
-      <Pressable testID={`${game}-theme-button`} accessibilityRole="button" accessibilityLabel={ui("common.choose_table_theme")} accessibilityHint={ui("common.current_theme_theme", { "theme": uiLabel(theme.name) })} accessibilityState={{ expanded: themesOpen }} onPress={openThemes}
-        style={({ pressed }) => ({ flexDirection: 'row', flexShrink: 0, gap: 6, minWidth: 44, minHeight: 44, paddingHorizontal: mobile ? 8 : 12, alignItems: 'center', justifyContent: 'center', backgroundColor: pressed ? colors.surfaceRaised : 'transparent', borderRadius: radii.medium })}>
-        <Ionicons name="color-palette-outline" size={22} color={colors.text} />
-        {!mobile && <Text style={{ color: colors.text, fontFamily: fonts.medium }}>{ui("common.theme")}</Text>}
-      </Pressable>
+      {renderProfile && <HeaderAction icon="profile" label={t('common.profile')} compact={small} onPress={() => setProfileOpen(true)} />}
       <Pressable accessibilityRole="button" accessibilityLabel={t('common.backToLobby')} onPress={onBack}
         style={({ pressed }) => ({ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radii.medium, backgroundColor: pressed ? colors.surfaceRaised : 'transparent' })}>
         <Ionicons name="arrow-back" size={22} color={colors.text} />
@@ -92,26 +78,20 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
           </View>
           {drawerMetadata}
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 8, marginHorizontal: -8, paddingBottom: 8 }}>
-            <View style={{ alignItems: 'flex-start', paddingVertical: 8 }}><LanguageToggle /></View>
-            {themeMenuEntry}
             {typeof children === 'function' ? children(() => setOpen(false)) : children}
           </ScrollView>
         </View>
       </KeyboardFrame>
     </Modal>}
     {open && !drawerMetadata && <ScrollView keyboardShouldPersistTaps="handled" testID={`${game}-${mobile && mobileTestIds ? 'mobile-' : ''}menu`} style={{ maxHeight: '40%', flexGrow: 0 }} contentContainerStyle={{ padding: 8, gap: 8 }} nestedScrollEnabled>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <LanguageToggle />
-      </View>
       {compact && !!path && <Text style={{ color: colors.textMuted }}>{path}</Text>}
       {!!roomId && !!matchId && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.share_table")} onPress={() => { setOpen(false); setSharing(true); }} style={{ minHeight: 48, justifyContent: 'center' }}><Text style={{ color: colors.text, fontFamily: fonts.medium }}>{ui("rooms.share_table")}</Text></Pressable>}
-      {themeMenuEntry}
       {typeof children === 'function' ? children(() => setOpen(false)) : children}
       <View style={{ borderTopWidth: 1, borderColor: colors.border, paddingTop: 4 }}>{endControl}</View>
     </ScrollView>}
     {!!roomId && !!matchId && <TableShareSheet roomId={roomId} matchId={matchId} visible={sharing} onClose={() => setSharing(false)} />}
-    <RoomSheet visible={themesOpen} title={ui("common.table_theme")} closeLabel={ui("common.close_table_themes")} testID="table-theme-sheet" presentation="dialog" onClose={() => setThemesOpen(false)}>
-      <TableThemePicker showTitle={false} />
-    </RoomSheet>
+    {renderProfile && <ProfileModal visible={profileOpen} onClose={() => setProfileOpen(false)}>
+      {renderProfile(() => setProfileOpen(false))}
+    </ProfileModal>}
   </>;
 }

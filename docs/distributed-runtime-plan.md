@@ -6733,3 +6733,58 @@ requested stronger drawn/discard card markers. Tap selection remains unchanged.
   the matching backend/web release and produce a signed native build. Verify
   verified-email login, ordinary/invited card discard, and chat/poke bell and push
   delivery using separate accounts/devices, including foreground/background cases.
+
+
+### 2026-10-07 — Direct production deployment of social/login/UI increment
+
+- User explicitly requested direct app-server deployment. Built committed revision
+  `72a1e2eb3ac07556df13fcd12a4ac4d97fdf428b` with a fresh production web export.
+  Python dependencies are unchanged; built on the existing pinned production base.
+- Strict SSH host keys match the previously console-verified fingerprints for both
+  app hosts. The installed release receiver hash matches the repository. Used the
+  existing administrator sideload adapter with immutable local image verification;
+  retained receiver locking, container sandbox, schema/dependency preflight,
+  peer-health checks and frontend activation checks.
+- Applied append-only migration 39 explicitly through the receiver migration phase.
+  Both hosts passed schema/database/Redis preflight before backend activation.
+  Activated both backends sequentially, then both matching Nginx frontend bundles.
+- Both app hosts run image
+  `sha256:6f752bb6ce60bf7993faeb87e9f07d267522e7c2eede8b30563439b4821ee43d`.
+  Both report API health `ok` and APNs provider availability. Matching index and JS
+  hashes were verified on both hosts and public HTTPS; deployed backend Python
+  sources match the committed source hashes. Public JS contains username/email
+  login, specific duplicate-name feedback and ordinary-card discard.
+- Evidence: `/private/tmp/bhidne-72a1e2e-direct/verification.json`; production build
+  log `/private/tmp/bhidne-72a1e2e-production-build.log`. Previous release containers
+  and frontend assets remain on the hosts. Previous backend requires schema 38 on
+  startup: rollback across this migration requires reversing migration 39 before
+  restarting it, rather than an application-only rollback. Prepared an emergency
+  schema reversal script preserving dismissal records; it was not executed.
+- Backend/web deployment complete. No signed native build was produced. Existing
+  TestFlight installs need a new app build for the bundled UI changes. Provider
+  availability does not establish end-to-end notification delivery; no live player
+  chat/poke or credential tests were sent during deployment.
+- Exact next step: produce a signed native build when requested, then verify
+  username/verified-email login, table discard, and chat/poke bell and APNs delivery
+  using separate accounts/devices in foreground/background states.
+
+
+### 2026-10-07 — Profile-owned theme/language controls
+
+- User requested theme and language controls inside Profile instead of lobby,
+  room and game table headers, and removal of the lobby welcome/name line.
+- Removed both controls from AppHeader and game table header/menu. Profile now
+  contains labeled theme/language controls using the existing persisted pickers.
+  Added Profile access to each game table header. ProfileModal uses the shared
+  GameModal wrapper so native game overlays stay in the game's presentation;
+  outside a game it retains the existing native modal/dismissal behavior.
+- Removed the signed-in lobby welcome/name heading; retained the Play/Rooms tabs.
+  Welcome-screen controls remain available before login.
+- Verification: production web export and TypeScript passed. Four Chrome lobby
+  checks at 390/1280px passed, including Profile settings and the removed heading;
+  all three game table fixtures passed at mobile/desktop sizes with Profile
+  settings and return-to-game interactions. Ten React native-shaped modal and
+  dismissal checks and four modal-layer unit checks passed. These are simulated
+  native checks, not UIKit/device validation.
+- Exact next step: deploy the matching frontend release using the authorized
+  direct app-server workflow; native UI requires a new signed app build.

@@ -29,6 +29,8 @@ function load(name) {
   const imported = name => {
     if (name === 'react-native') return native;
     if (name.startsWith('react')) return testRequire(name);
+    if (name === './GameModal') return load('GameModal.tsx');
+    if (name === './GameModalLayers') return load('GameModalLayers.ts');
     if (name === './useDismissalAction') return load('useDismissalAction.ts');
     if (name === '../auth/deletion') return { DeletionNavigation };
     if (name === './moderation/PublicPolicies') return { PolicyNavigation };

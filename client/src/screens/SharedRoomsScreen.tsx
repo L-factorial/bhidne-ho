@@ -397,7 +397,6 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
         </RoomSheet>}
       </> : <>
         {session && !expired && lobbyTab !== 'players' && lobbyTab !== 'chat' && <View style={styles.hero}>
-          <Text accessibilityRole="header" style={[styles.title, !wide && styles.mobileTitle]}>{greetingName ? ui("common.welcome_player", { "player": greetingName }) : ui("common.welcome")}</Text>
           <View accessibilityRole="tablist" style={styles.lobbyTabs}>
             {([["games", ui("rooms.play")], ['rooms', ui("rooms.rooms")], ["createJoin", ui("rooms.create_or_join")]] as const).map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: lobbyTab === value }} onPress={() => setLobbyTab(value)} style={styles.lobbyTab}><Text style={[styles.lobbyTabText, lobbyTab === value && styles.activeLobbyTabText]}>{label}</Text>{lobbyTab === value && <View style={styles.activeLobbyTab} />}</Pressable>)}
           </View>

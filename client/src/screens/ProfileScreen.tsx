@@ -1,3 +1,5 @@
+import { LanguageToggle } from '../components/LanguageToggle';
+import { ThemeAction } from '../components/ThemeAction';
 import {PushSettings} from '../notifications/PushSettings';
 import { PolicyLinks } from '../components/moderation/PublicPolicies';
 import { CommunityRulesEntry } from '../components/moderation/CommunityRules';
@@ -49,6 +51,10 @@ export function ProfileScreen({ session, personal, onBack, onSignOut }: {
         {!!identity?.username && <Text style={styles.description}>@{identity.username}</Text>}
         <Text selectable accessibilityLabel={ui("common.profile_id", {id: userId})} style={styles.description}>{ui("common.profile_id", {id: userId})}</Text>
         {!!identityError && <Text accessibilityRole="alert" style={styles.description}>{identityError}</Text>}
+      </View>
+      <View testID="profile-preferences" style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 20 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Text style={styles.description}>{ui("common.theme")}</Text><ThemeAction /></View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Text style={styles.description}>{ui("common.language_label")}</Text><LanguageToggle /></View>
       </View>
       <PushSettings />
       <DisplayNameField session={session} onSaved={display_name => setIdentity(current => current ? { ...current, display_name } : { user_id: userId, display_name })} />
