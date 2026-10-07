@@ -7,7 +7,7 @@ export class ApiError extends Error {
   }
 }
 
-export function decodeApiResponse<T>(raw: string, status: number): T {
+export function decodeApiResponse<T>(raw: string, status: number, signingIn = false): T {
   if (status === 204) return undefined as T;
   let data: any;
   let invalidJson = false;
@@ -16,7 +16,9 @@ export function decodeApiResponse<T>(raw: string, status: number): T {
   }
   if (status < 200 || status >= 300) {
     const detail = data?.detail;
-    const message = status === 401
+    const message = signingIn && (status === 401 || status === 422)
+      ? ui('feedback.credentials_incorrect')
+      : status === 401
       ? ui("common.session_expired_the_server_may_have_restarted_sign_out_to_start_a_new_session")
       : typeof detail === 'string' ? detail
       : typeof detail?.detail === 'string' ? detail.detail

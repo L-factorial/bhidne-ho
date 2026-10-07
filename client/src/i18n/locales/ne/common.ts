@@ -1,5 +1,6 @@
 // Editable Nepali common copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "username_or_email": "प्रयोगकर्ता नाम वा इमेल",
   "message_actions": "सन्देश विकल्प",
   "player_actions": "खेलाडी विकल्प",
   "search_results": "खोज नतिजा",
@@ -498,8 +499,8 @@ export default {
   "attention_expand_click": "खोल्न क्लिक गर्नुहोस्",
   attention_in_progress: "खेल चलिरहेको छ",
   push_title: "एपका सूचनाहरू",
-  push_help: "खेलका कार्य र निमन्त्रणाको सूचना पाउनुहोस्। थिच्दा खेलको पछिल्लो अवस्था खुल्छ।",
-  push_actions: "खेलका कार्यहरू",
+  push_help: "खेलका कार्य, निमन्त्रणा, च्याट र पोकको सूचना पाउनुहोस्। थिच्दा खेल, कोठा वा कुराकानी खुल्छ।",
+  push_actions: "खेलका कार्य, च्याट र पोक",
   push_invitations: "निमन्त्रणाहरू",
   push_sound: "ध्वनि",
   push_on: "खुला",

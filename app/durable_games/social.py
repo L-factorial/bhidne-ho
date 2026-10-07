@@ -41,6 +41,11 @@ class ReadNotifications(Record):
     ids: list[UUID] = Field(min_length=1, max_length=100)
 
 
+class DiscardTable(Record):
+    table_id: UUID
+    match_id: str = Field(min_length=1, max_length=128)
+
+
 def conversation(actor, other):
     pair = sorted((user_uuid(actor), user_uuid(other)))
     return LaneTarget(kind='conversation', user_low=pair[0], user_high=pair[1])
@@ -93,6 +98,8 @@ class SocialIngress:
             FriendshipPayload.model_validate_json(canonical_json(request.payload))
         elif target.kind == 'recipient' and request.command == 'read-notifications':
             ReadNotifications.model_validate_json(canonical_json(request.payload))
+        elif target.kind == 'recipient' and request.command == 'discard-table':
+            DiscardTable.model_validate_json(canonical_json(request.payload))
         else:
             raise ValueError('Unsupported public social command.')
         if (target.kind == 'conversation' and user_uuid(actor) not in (target.user_low,target.user_high)
@@ -207,6 +214,9 @@ class SocialLaneExecutor:
                         (id,sender_id,recipient_id,text,sent_at,lane_id,sequence,command_id)
                         VALUES (%s,%s,%s,%s,%s,%s,%s,%s)''',
                         (identity,sender,other,text,now.isoformat(),lane_id,seq,request.command_id))
+                    from .social_notices import notify
+                    await notify(claim.connection,self.inbox,actor=actor,recipients=[f'user-{other}'],
+                        key=str(identity),kind='chat',payload=dict(scope='direct',other_user_id=actor,source_id=str(identity)))
                 elif target.kind == 'recipient' and request.command == 'create-notification' and actor == SYSTEM:
                     data = NotificationInput.model_validate_json(canonical_json(request.payload))
                     if len(canonical_json(request.payload).encode()) > 8192 or target.recipient_id not in existing:
@@ -233,6 +243,20 @@ class SocialLaneExecutor:
                         (id,user_id,source_actor_id,kind,payload,created_at,lane_id,sequence,deduplication_key)
                         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)''',
                         (identity,target.recipient_id,origin,data.kind,Jsonb(data.payload),now.isoformat(),lane_id,seq,data.key))
+                elif target.kind == 'recipient' and request.command == 'discard-table' and actor != SYSTEM:
+                    data = DiscardTable.model_validate_json(canonical_json(request.payload))
+                    visible = await (await claim.connection.execute('''SELECT 1 FROM room_tables t
+                        JOIN rooms r ON r.id=t.room_id JOIN table_recovery_state s USING(table_id)
+                        WHERE t.table_id=%s AND t.status<>'closed' AND s.state->'data'->>'match_id'=%s
+                        AND NOT EXISTS(SELECT 1 FROM deleted_rooms WHERE id=r.id)
+                        AND (r.visibility='public' OR EXISTS(SELECT 1 FROM room_memberships
+                            WHERE room_id=r.id AND user_id=%s))''',
+                        (data.table_id,data.match_id,sender))).fetchone()
+                    if not visible:
+                        raise QueryAccessDenied('This table is no longer available.')
+                    await claim.connection.execute('''INSERT INTO table_dismissals(user_id,table_id,match_id)
+                        VALUES (%s,%s,%s) ON CONFLICT DO NOTHING''',(sender,data.table_id,data.match_id))
+                    output.append(OutgoingEvent(dict(type='LOBBY_CHANGED'),actor))
                 elif target.kind == 'recipient' and request.command == 'read-notifications' and actor != SYSTEM:
                     data = ReadNotifications.model_validate_json(canonical_json(request.payload))
                     wanted = sorted(set(data.ids))

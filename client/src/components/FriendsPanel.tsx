@@ -32,7 +32,7 @@ export type FriendsTransport = {
   send(other: string, text: string): Promise<void>; busy: boolean; error: string;
   sent?: {id:string;recipient:string;text:string};
 };
-export function FriendsPanel({ session, transport, onlineOnly = false }: { session: Session; transport?: FriendsTransport; onlineOnly?: boolean }) {
+export function FriendsPanel({ session, transport, onlineOnly = false, initialPlayerId }: { initialPlayerId?:string; session: Session; transport?: FriendsTransport; onlineOnly?: boolean }) {
   useUiLanguage();
   const blocking = useBlocking(session);
   const { colors } = useTheme();
@@ -53,6 +53,14 @@ export function FriendsPanel({ session, transport, onlineOnly = false }: { sessi
     if(sent)setDrafts(current=>current[sent.recipient]===sent.text?{...current,[sent.recipient]:''}:current);
   },[transport?.sent?.id]);
 
+  useEffect(()=>{
+    if(!initialPlayerId)return;
+    const controller=new AbortController();
+    void request<Snapshot>('/friends?include_presence=true',session,undefined,controller.signal).then(value=>{
+      if(!controller.signal.aborted)setSelected(value.friends.find(friend=>friend.user_id===initialPlayerId)??null);
+    }).catch(failure=>{if(!controller.signal.aborted)setError(playerError(failure));});
+    return()=>controller.abort();
+  },[initialPlayerId,session.token]);
   async function refresh(signal?: AbortSignal) {
     const value = await request<Snapshot>('/friends?include_presence=true', session, undefined, signal);
     if (!signal?.aborted) {

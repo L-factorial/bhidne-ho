@@ -57,3 +57,10 @@ test('registration validation errors are specific while authentication and uncer
   await assert.rejects(registerIosDevice(f.api),error=>status===422?error instanceof PushSetupError&&error.code==='PUSH_REGISTRATION_FAILED':error===failure);
  }
 });
+
+test('direct chat notification routes are bound to the recipient and validated sender',()=>{
+ const data={type:'bhidne_notification',kind:'chat',room_id:'',user_id:'user-me',other_user_id:'user-00000000-0000-0000-0000-000000000001'};
+ assert.deepEqual(notificationTarget(data,'user-me'),{roomId:'',otherUserId:data.other_user_id});
+ assert.equal(notificationTarget(data,'user-other'),null);
+ assert.equal(notificationTarget({...data,other_user_id:'bad'},'user-me'),null);
+});

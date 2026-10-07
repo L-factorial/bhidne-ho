@@ -95,16 +95,27 @@ class PostgresAuthService:
             # Serialize proof and session creation with password reset. A login
             # verified against the old hash must not create a post-reset session.
             async with connection.transaction():
-                result = await connection.execute(
-                    "SELECT user_id, password_salt, password_hash FROM account_credentials WHERE username = %s FOR UPDATE",
-                    (username,),
-                )
-                row = await result.fetchone()
+                identifier = username.strip()
+                if '@' in identifier:
+                    # Only verified contacts can identify a password account.
+                    # Shared recovery addresses remain supported, but cannot
+                    # ambiguously choose which account is being signed into.
+                    result = await connection.execute('''SELECT a.user_id,a.password_salt,a.password_hash,a.username
+                        FROM account_credentials a JOIN account_recovery_contacts r ON r.user_id=a.user_id
+                        WHERE lower(r.email)=lower(%s) ORDER BY a.user_id LIMIT 2 FOR UPDATE OF a,r''',
+                        (normalize_recovery_email(identifier),))
+                    rows = await result.fetchall()
+                    row = rows[0] if len(rows) == 1 else None
+                else:
+                    result = await connection.execute(
+                        'SELECT user_id,password_salt,password_hash,username FROM account_credentials WHERE username=%s FOR UPDATE',
+                        (identifier.lower(),))
+                    row = await result.fetchone()
                 salt = bytes(row[1]) if row else bytes(16)
                 candidate = await asyncio.to_thread(self._password_hash, password, salt)
                 if row is None or not hmac.compare_digest(bytes(row[2]), candidate):
                     raise AuthenticationError("Invalid username or password")
-                return await self._session(connection, row[0], username)
+                return await self._session(connection, row[0], row[3])
 
     async def revoke(self, token: str) -> None:
         async with self.pool.connection() as connection:

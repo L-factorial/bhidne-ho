@@ -109,7 +109,7 @@ async function checkAccountHeader(page, nepaliTitle) {
     assert.equal((await fetch(site+'/auth/me',{headers})).status,401);
     await verify.getByRole('button',{name:'Continue to sign in',exact:true}).click();
     await verify.getByRole('button',{name:'Continue with username or email',exact:true}).click();
-    await verify.getByLabel('Username',{exact:true}).fill(username);
+    await verify.getByLabel('Username or email',{exact:true}).fill(username);
     await verify.getByLabel('Password',{exact:true}).fill('Replacement-pass-123');
     await verify.getByLabel('Password',{exact:true}).press('Enter');
     await verify.getByRole('button',{name:'Open profile',exact:true}).click();

@@ -60,10 +60,11 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable
   }, [session.token, refresh, activity]);
   const visible = tables.filter(table => filter === 'all' || table.game_type === filter);
   async function discard(table:ActiveTable){
-    if(!table.invitation_id||discarding||busy)return;
+    if(discarding||busy)return;
     setDiscarding(true);setActionError('');
     try{
-      await request(`/test-games/invitations/${encodeURIComponent(table.invitation_id)}/decline`,session,{});
+      if(table.invitation_id)await request(`/test-games/invitations/${encodeURIComponent(table.invitation_id)}/decline`,session,{});
+      else await request('/active-tables/discard',session,{room_id:table.room_id,table_id:table.table_id,match_id:table.match_id});
       requestVersion.current++;
       setTables(current=>current.filter(item=>item.room_id!==table.room_id||item.match_id!==table.match_id));
       setRefresh(value=>value+1);

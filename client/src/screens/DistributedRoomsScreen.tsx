@@ -194,7 +194,7 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
     <Text accessibilityRole="header" style={authStyles.title}>{ui(signupMode ? 'common.create_your_account' : 'common.welcome_back')}</Text>
     {button(ui(signupMode ? 'common.sign_in' : 'common.sign_up'),()=>{setSignupMode(!signupMode);setAccountFormOpen(false);setConfirmPassword('');setError('');},authBusy)}
     {!accountFormOpen ? <AuthMethodChoices signup={signupMode} disabled={authBusy} onContinue={() => setAccountFormOpen(true)} /> : <>
-    <FormInput accessibilityLabel={ui('common.username')} placeholder={ui('common.username')} value={username} onChangeText={setUsername} autoCapitalize="none" autoCorrect={false} editable={!authBusy} style={authStyles.input} />
+    <FormInput accessibilityLabel={ui(signupMode?'common.username':'common.username_or_email')} placeholder={ui(signupMode?'common.username':'common.username_or_email')} maxLength={signupMode?32:254} value={username} onChangeText={setUsername} autoCapitalize="none" autoCorrect={false} editable={!authBusy} style={authStyles.input} />
     {signupMode && <>
       <FormInput accessibilityLabel={ui('common.email')} aria-required placeholder={ui('common.email')} value={email}
         onChangeText={setEmail} maxLength={254} keyboardType="email-address" textContentType="emailAddress"

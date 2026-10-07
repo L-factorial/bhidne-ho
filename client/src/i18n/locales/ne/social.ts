@@ -1,5 +1,7 @@
 // Editable social copy. Keep keys and placeholders in sync with the other locale.
 export default {
+  "sent_you_a_chat_message": "ले तपाईंलाई च्याट सन्देश पठाए",
+  "poked_you": "ले तपाईंलाई पोक गरे",
   "lobby_chat": "च्याट",
   "online_chat_help": "अनलाइन साथीहरूसँग निजी कुराकानी गर्नुहोस्।",
   "online_friends": "अनलाइन साथीहरू",

@@ -7,7 +7,7 @@ export const tableReactions = {
   hammer: { label: 'Playful hammer', emoji: '🔨' },
 };
 export type ReactionId = keyof typeof tableReactions;
-export const PUNCHLINE_LIMIT = 60;
+export const PUNCHLINE_LIMIT = 30;
 export const punchlinePresets = ['nice_move', 'your_move', 'lucky_cards', 'well_played'] as const;
 export type TableReaction = {
   type: 'TABLE_REACTION'; id: string; room_id: string; match_id: string;

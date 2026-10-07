@@ -7,16 +7,17 @@ import Svg, { Path } from 'react-native-svg';
 import { request } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import type {Invitation} from '../multiplayer/invitations';
 
 type Player = { user_id: string; display_name: string; username?: string | null };
-type Notification = { id: string; kind: 'friend_request' | 'friend_accepted' | 'friend_rejected'; actor: Player; created_at: number; read: boolean };
+type Notification = { id: string; kind: 'friend_request' | 'friend_accepted' | 'friend_rejected' | 'chat' | 'poke'; payload?: {room_id?:string;match_id?:string;scope?:string}; actor: Player; created_at: number; read: boolean };
 type FriendSnapshot = { incoming: Player[] };
 type TableInvitation = { id: string; room_id: string; room_name: string; match_id: string; table_name: string; game_type: 'callbreak' | 'marriage' | 'flush'; inviter_id: string; inviter?: Player; created_at: number; seated: number; capacity: number; seat_available: boolean };
 type RoomInvitation = { id: string; room_id: string; room_name: string; inviter_id: string; inviter?: Player };
 
 const playerName = (player: Player) => player.display_name || player.username || player.user_id;
 
-export function NotificationBell({ session, onOpenTable, onOpenRoom }: { session: Session; onOpenTable?: (invitation: TableInvitation) => void; onOpenRoom?: (invitation: RoomInvitation) => void }) {
+export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActivity }: { session: Session; onOpenActivity?: (target:Invitation)=>void; onOpenTable?: (invitation: TableInvitation) => void; onOpenRoom?: (invitation: RoomInvitation) => void }) {
   useUiLanguage();
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
@@ -115,12 +116,17 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom }: { session
             </View>)}
             {items.map(item => <View key={item.id} style={[styles.notice, !item.read && styles.unread]}>
               <View style={styles.avatar}><Text style={styles.avatarText}>{playerName(item.actor).slice(0, 1).toUpperCase()}</Text></View>
-              <View style={{ flex: 1 }}><Text style={styles.name}>{playerName(item.actor)} {item.kind === 'friend_request' ? ui("social.sent_you_a_connection_request") : item.kind === 'friend_accepted' ? ui("social.accepted_your_connection_request") : ui("social.declined_your_connection_request")}</Text>
+              <View style={{ flex: 1 }}><Text style={styles.name}>{playerName(item.actor)} {item.kind === 'friend_request' ? ui("social.sent_you_a_connection_request") : item.kind === 'friend_accepted' ? ui("social.accepted_your_connection_request") : item.kind === 'chat' ? ui("social.sent_you_a_chat_message") : item.kind === 'poke' ? ui("social.poked_you") : ui("social.declined_your_connection_request")}</Text>
                 <Text style={styles.detail}>{new Date(item.created_at).toLocaleString()}</Text></View>
               {item.kind === 'friend_request' && <View style={styles.requestActions}>
                 <Pressable accessibilityRole="button" onPress={() => void answerRequest(item.actor, true)} style={styles.accept}><Text style={styles.acceptText}>{ui("common.accept")}</Text></Pressable>
                 <Pressable accessibilityRole="button" onPress={() => void answerRequest(item.actor, false)} style={styles.decline}><Text style={styles.link}>{ui("common.decline")}</Text></Pressable>
               </View>}
+              {(item.kind==='chat'||item.kind==='poke')&&onOpenActivity&&<Pressable accessibilityRole="button"
+                onPress={()=>{setOpen(false);onOpenActivity(item.payload?.scope==='direct'
+                  ? {roomId:'',otherUserId:item.actor.user_id}
+                  : {roomId:item.payload?.room_id??'',matchId:item.payload?.match_id});}}
+                style={styles.accept}><Text style={styles.acceptText}>{ui(item.payload?.scope==='direct'?'social.chat':item.payload?.match_id?'common.open_table':'common.open_room')}</Text></Pressable>}
             </View>)}
           </ScrollView>
           {!!error && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}

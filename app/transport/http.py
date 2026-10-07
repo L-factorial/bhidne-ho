@@ -3,7 +3,7 @@ from inspect import isawaitable
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.auth.models import AccountCredentials, AccountInput, GuestCredentials, GuestInput, SignUpInput
+from app.auth.models import AccountCredentials, SignInInput, GuestCredentials, GuestInput, SignUpInput
 from app.auth.service import AuthenticationError, UsernameTakenError
 from app.models.room import CreateRoom, RoomSummary, UpdateRoom, InviteRoom
 from app.models.user import UserIdentity
@@ -70,7 +70,7 @@ async def sign_up(body: SignUpInput, request: Request, response: Response):
 
 
 @router.post("/auth/signin", response_model=AccountCredentials)
-async def sign_in(body: AccountInput, request: Request, response: Response):
+async def sign_in(body: SignInInput, request: Request, response: Response):
     response.headers["Cache-Control"] = "no-store"
     try:
         credentials = await request.app.state.auth.sign_in(body.username, body.password)

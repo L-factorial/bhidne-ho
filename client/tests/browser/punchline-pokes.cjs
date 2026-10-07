@@ -42,7 +42,7 @@ const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8099';
             const ack = { type: 'TABLE_SOCIAL_ACK', room_id: 'room', match_id: base.match_id, command_id: command.command_id, status: 'accepted', messages: [] };
             if (command.type === 'TABLE_POKE_SEND') {
               commands.push(command);
-              if (rejectNext) { rejectNext = false; ack.status = 'rejected'; ack.detail = 'Try again'; }
+              if (rejectNext) { rejectNext = false; ack.status = 'rejected'; ack.detail = 'Give that poke a moment before sending another.'; }
               else {
                 const event = { type: 'TABLE_REACTION', id: command.command_id, room_id: 'room', match_id: base.match_id, sender_id: 'u0', sender_name: 'Player 1', sender_player_id: 1,
                   recipient_id: 'u1', recipient_player_id: 2, reaction: command.payload.reaction, text: command.payload.text, expires_at: Date.now() + 5000 };
@@ -61,14 +61,12 @@ const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8099';
       const page = pages[0], button = name => page.getByRole('button', { name, exact: true });
       await button('Poke a player').tap();
       await page.getByTestId('poke-tools').getByRole('button', { name: 'Poke Player 2', exact: true }).tap();
-      await page.getByRole('tab', { name: 'Punchlines', exact: true }).tap();
+      assert.equal(await page.getByTestId('poke-tools').getByRole('tab').count(),0);
+      const emoji=page.getByTestId('poke-tools').getByRole('button',{name:'Send Love',exact:true});
+      assert.equal(await emoji.evaluate(node=>getComputedStyle(node).borderTopWidth),'0px');
       const input = page.getByRole('textbox', { name: 'Punchline', exact: true }), send = button('Send punchline');
       assert.ok(await send.isDisabled());
-      await button('My lucky table!').tap();
-      assert.equal(await input.inputValue(), 'My lucky table!');
-      await button('Nice move!').tap();
-      assert.equal(await input.inputValue(), 'Nice move!');
-      await input.fill('x'.repeat(65)); assert.equal((await input.inputValue()).length, 60);
+      await input.fill('x'.repeat(35)); assert.equal((await input.inputValue()).length, 30);
       await input.fill('Nice move, my friend!');
       const a = await input.boundingBox(), b = await send.boundingBox();
       assert.ok(a.x + a.width <= b.x && Math.abs(a.y + a.height - b.y - b.height) < 2, 'send arrow sits beside input');
@@ -83,7 +81,7 @@ const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8099';
         Object.defineProperty(window.visualViewport, 'height', { configurable: true, get: () => 844 });
         window.visualViewport.dispatchEvent(new Event('resize'));
       });
-      await send.tap(); await page.getByTestId('poke-tools').getByText('Try again', { exact: true }).waitFor();
+      await send.tap(); await page.getByTestId('poke-tools').getByText('Wait a moment before sending another poke.', { exact: true }).waitFor();
       assert.equal(await input.inputValue(), 'Nice move, my friend!', 'failed send preserves draft');
       await send.tap(); await page.getByTestId('poke-tools').waitFor({ state: 'hidden' });
       for (const viewer of pages) {

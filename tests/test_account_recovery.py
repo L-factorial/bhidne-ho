@@ -36,6 +36,36 @@ async def verified(pool, name='recovery_player'):
     return auth, credentials, recovery
 
 
+async def test_login_accepts_only_unambiguous_verified_email(recovery_database):
+    pool = recovery_database
+    auth, credentials, recovery = await account(pool)
+    with pytest.raises(AuthenticationError):
+        await auth.sign_in('Player@example.com', 'original-password')
+    challenge = await recovery.enroll_email(credentials.user_id, 'original-password', 'Player@example.com')
+    await recovery.verify_email(challenge.token)
+    signed = await auth.sign_in(' PLAYER@EXAMPLE.COM ', 'original-password')
+    assert signed.user_id == credentials.user_id
+    assert signed.username == credentials.username
+    with pytest.raises(AuthenticationError):
+        await auth.sign_in('Player@example.com', 'wrong-password')
+    assert (await auth.sign_in(credentials.username.upper(), 'original-password')).user_id == credentials.user_id
+    other_auth, other, other_recovery = await account(pool, 'second_player')
+    other_challenge = await other_recovery.enroll_email(other.user_id, 'original-password', 'player@example.com')
+    await other_recovery.verify_email(other_challenge.token)
+    with pytest.raises(AuthenticationError):
+        await auth.sign_in('Player@example.com', 'original-password')
+    assert (await auth.sign_in(credentials.username, 'original-password')).user_id == credentials.user_id
+
+
+def test_signin_identifier_does_not_relax_signup_username_rules():
+    from app.auth.models import SignInInput, SignUpInput
+    from pydantic import ValidationError
+    assert SignInInput(username=' Player@EXAMPLE.COM ', password='password123').username == 'Player@example.com'
+    assert SignInInput(username=' PLAYER ', password='password123').username == 'player'
+    with pytest.raises(ValidationError):
+        SignUpInput(username='player@example.com', email='player@example.com', password='password123')
+
+
 async def allow_next(pool, purpose):
     await pool.execute('''UPDATE account_recovery_limits SET next_allowed_at=clock_timestamp()-interval '1 second'
         WHERE purpose=%s''', (purpose,))

@@ -9,14 +9,14 @@ TEXT = {
   'declare':'Declare your initial Tunnelas','bet':'Your turn — choose your bet',
   'side_show':'A side-show needs your response','review':'Review and accept your hand',
   'ready':'Your game is ready to start','game_invitation':'You have a game invitation',
-  'room_invitation':'You have a room invitation'},
+  'room_invitation':'You have a room invitation','chat':'You have a new chat message','poke':'A player poked you'},
  'ne': {'title':'भिड्ने हो','bid':'बोली लगाउने तपाईंको पालो','play':'तपाईंको पालो — तास खेल्नुहोस्',
   'shuffle':'तपाईंको पालो — तास फिट्नुहोस्','cut':'तपाईंको पालो — तास काट्नुहोस्','deal':'तपाईंको पालो — तास बाँड्नुहोस्',
   'draw':'तपाईंको पालो — तास तान्नुहोस्','discard':'तपाईंको पालो — तास फाल्नुहोस्','finish':'तपाईंको पालो — हात पूरा गर्नुहोस्',
   'declare':'सुरुका टनेला घोषणा गर्नुहोस्','bet':'तपाईंको पालो — बाजी रोज्नुहोस्',
   'side_show':'साइड शोको जवाफ दिनुहोस्','review':'आफ्नो हात जाँचेर स्वीकार गर्नुहोस्',
   'ready':'खेल सुरु गर्न तयार छ','game_invitation':'तपाईंलाई खेलको निमन्त्रणा आएको छ',
-  'room_invitation':'तपाईंलाई कोठाको निमन्त्रणा आएको छ'},
+  'room_invitation':'तपाईंलाई कोठाको निमन्त्रणा आएको छ','chat':'तपाईंलाई नयाँ च्याट सन्देश आएको छ','poke':'एक खेलाडीले तपाईंलाई पोक गरेका छन्'},
 }
 
 def action(view):

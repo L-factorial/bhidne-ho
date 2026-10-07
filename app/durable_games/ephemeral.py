@@ -91,9 +91,9 @@ class EphemeralService:
         if target.kind != 'table' or request.command not in ('send-chat','send-poke','send-reaction'):
             raise ValueError('Live social messages require a table scope.')
         async with self.pool.connection() as c, c.transaction():
-            # Authorization/reconstruction shares a read-only snapshot. No SQL
-            # inbox, receipt, message, counter or outbox mutation is performed.
-            await c.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
+            # Message text remains ephemeral. Persist only deduplicated recipient
+            # notification intents in the authorization snapshot.
+            await c.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ')
             await require_member(c, target.room_id, actor)
             stored = await self.checkpoints.load_in_snapshot(c, target.table_id)
             host = _ProjectionHost(None, None)
@@ -124,7 +124,14 @@ class EphemeralService:
             row = await (await c.execute('''SELECT COALESCE(NULLIF(p.display_name,''),a.username)
                 FROM users u LEFT JOIN user_profiles p ON p.user_id=u.id
                 LEFT JOIN account_credentials a ON a.user_id=u.id WHERE u.id=%s''', (user_uuid(actor),))).fetchone()
-        duplicate = await self.limits.consume(actor, request, poke=not chat)
+            duplicate = await self.limits.consume(actor, request, poke=not chat, connection=c)
+            from .inbox import PostgresInboxStore
+            from .social_notices import notify
+            await notify(c,PostgresInboxStore(self.pool),actor=actor,
+                recipients=list(seats) if chat or recipient is None else [recipient],
+                key=f'{target.table_id}:{actor}:{request.command_id}',kind='chat' if chat else 'poke',
+                payload=dict(room_id=target.room_id,table_id=str(target.table_id),match_id=game.match_id,
+                    scope='table',ephemeral=True))
         now = int(time.time()*1000)
         payload = dict(type='TABLE_CHAT_MESSAGE' if chat else 'ROOM_POKE',id=request.command_id,
             room_id=target.room_id,table_id=str(target.table_id),match_id=game.match_id,

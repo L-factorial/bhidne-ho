@@ -7,6 +7,7 @@ application starts cannot race schema installation.
 
 from psycopg_pool import AsyncConnectionPool
 from app.push.schema import PUSH_SCHEMA
+from app.push.social_schema import SOCIAL_PUSH_SCHEMA
 from app.account_deletion.schema import DELETION_SCHEMA
 from app.player_blocks.schema import BLOCK_SCHEMA
 from app.moderation.schema import MODERATION_SCHEMA
@@ -716,6 +717,7 @@ MIGRATIONS = (
             FOR EACH ROW EXECUTE FUNCTION rooms_public_visibility();
     """),
     (38, PUSH_SCHEMA),
+    (39, SOCIAL_PUSH_SCHEMA),
 )
 
 

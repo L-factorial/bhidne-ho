@@ -1,5 +1,7 @@
 // Editable social copy. Keep keys and placeholders in sync with the other locale.
 export default {
+  "sent_you_a_chat_message": "sent you a chat message",
+  "poked_you": "poked you",
   "lobby_chat": "Chat",
   "online_chat_help": "Chat privately with your online friends.",
   "online_friends": "Online friends",

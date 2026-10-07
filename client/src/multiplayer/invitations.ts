@@ -1,4 +1,4 @@
-export type Invitation = { roomId: string; matchId?: string };
+export type Invitation = { roomId: string; matchId?: string; otherUserId?: string };
 const roomIdPattern = /^[A-Za-z0-9_-]{1,64}$/;
 const matchIdPattern = /^[A-Za-z0-9_-]{1,128}$/;
 export function readInvitation(value: string): Invitation | null {

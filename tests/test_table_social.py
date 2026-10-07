@@ -182,7 +182,7 @@ async def test_punchline_broadcast_dedup_cooldown_and_game_isolation(kind):
         await host.close()
 
 
-@pytest.mark.parametrize('text', [None, '', '   ', 'x' * 61, '\x00hello', 'hello\x7f'])
+@pytest.mark.parametrize('text', [None, '', '   ', 'x' * 31, '\x00hello', 'hello\x7f'])
 async def test_punchline_rejects_missing_empty_long_or_control_text(text):
     host, service, game, sockets, _, _ = await fixture()
     try:

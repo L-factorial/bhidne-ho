@@ -6654,3 +6654,82 @@ requested stronger drawn/discard card markers. Tap selection remains unchanged.
 - Exact next step: review/commit the combined pending capacity and UI refinements
   when requested; deploy the server capacity defaults before distributing their
   matching web/native release. No database migration is required.
+
+### 2026-10-06 — Direct production deployment of Create Table refinements
+
+- User authorized direct deployment; deployed committed release
+  `e790b9545a5d53fec78c84da6a0ff7661171ddd6` to both application hosts.
+  Fresh production web build/TypeScript passed. Backend dependencies, schema and
+  installed release receiver are unchanged from the previous production release.
+- Built once atop the verified previous production image, transferred and hash
+  checked the same image on both hosts: `bhidne-direct:e790b95`, image ID
+  `sha256:65fa562b5ae87f7f6cb39eba70286e19e7b0eff319eb007097c80de868e62fa5`.
+  Used installed release locking, dependency/schema preflight, peer-health gates,
+  graceful shutdown and rollback. Activated both backends sequentially before
+  switching their matching frontends.
+- Both hosts report the exact revision/image, healthy backend and APNs capability.
+  Capacity-default backend files match committed hashes; identical frontend index
+  and JavaScript hashes are served by both hosts and public HTTPS. Public bundle
+  includes restored player circles and shared invitation controls.
+  Evidence: `/private/tmp/bhidne-e790b95-direct/verification.json`.
+- Backend/web deployment complete; no database migration or credential changes.
+  No signed native build was produced. Existing TestFlight installations need a
+  new signed app build to receive bundled UI changes.
+- Exact next step: generate/install that native build when requested and verify
+  the shared creation forms, keyboard and invitations on physical devices.
+
+### 2026-10-07 — Cause-specific feedback, Play cards, social notices and email sign-in
+
+- User explicitly authorized the collected changes after the invitation incident.
+  Known player-facing rejections now retain their cause before generic HTTP status
+  handling, with English/Nepali guidance for duplicate table names, limits, seats,
+  invitations, host permissions, rules, stale state, chat and pokes. Unknown technical
+  messages remain sanitized; pending-command feedback and durable receipts remain
+  unchanged. Sign-in failures show incorrect credentials rather than session expiry.
+- Available Tables uses each game's existing logo beside two lines: game name and
+  distinctly styled room name → table name. Join/Watch and Discard stack at the
+  right with yellow borders. Regular cards now also expose Discard: an actor-owned,
+  durable recipient command hides that match from Play without leaving its seat,
+  closing the table or hiding it from room listings/other players. Invitation cards
+  retain their existing durable decline behavior.
+- Poke tools show a horizontal player strip with thumbnails above names, then
+  unboxed emoji choices and a message composer. Punchlines are limited to 30 Unicode
+  code points in client/server validation; removed the tabbed preset/boxed picker.
+- Room/table/game chat, direct messages and pokes enqueue idempotent recipient
+  notification intents with the authorized source transaction. Production's
+  ephemeral table chat/reaction path now persists only notification metadata;
+  message text and reaction visuals retain their existing ephemeral delivery.
+  Bell lists display chat/poke notices and can open their room/table/conversation.
+  Native push jobs are generated only after notification commit. Sending rechecks
+  contact/block history, membership/table access, direct friendship, source/session
+  validity, read status, preferences and quiet hours. Current-game foreground
+  suppression remains; pokes expire after five minutes. The existing Actions
+  preference now explicitly covers game actions, chat and pokes. No message text
+  is copied into notification records or provider payloads.
+- Login accepts username or a uniquely matched verified email, case-insensitively,
+  while preserving the canonical username in the session. Unverified email and
+  ambiguous shared recovery addresses cannot select an account; username login
+  remains available. Password verification/session creation locks both credentials
+  and the matched verified contact. Signup username validation remains unchanged.
+  Both login forms say “Username or email” and allow the email field length.
+- Migration 39 adds personal table dismissals, an index on lower(verified email),
+  and transactional chat/poke push fanout from recipient notifications. No deployed
+  schema or application was changed during this implementation.
+- Verification: TypeScript and all 393 client tests passed. 126 targeted backend
+  tests passed against PostgreSQL-compatible PGlite 0.5.8, with one optional live
+  Redis test skipped. Coverage includes verified/unverified/ambiguous email login,
+  unchanged signup validation, source rollback, durable/ephemeral notices,
+  deduplication, block rechecks, and personal discard with seats/room listings
+  preserved. Four Chrome checks at 390/1280px passed for cards, logos, stacked
+  yellow borders and create forms; three game checks passed for the poke picker,
+  30-character limit, keyboard positioning, preserved rejected drafts and reaction
+  delivery. Production web build and web/iOS/Android exports passed.
+- Limitations: browser transport and push providers are mocked in these checks;
+  native exports are unsigned bundles, not TestFlight builds. Real device/APNs
+  behavior and rollout remain unverified. The PGlite harness serializes database
+  connections and does not establish PostgreSQL lock-race or capacity guarantees.
+- Exact next step: review/commit this increment, then, when release is requested,
+  apply migration 39 using the existing distributed migration workflow, deploy
+  the matching backend/web release and produce a signed native build. Verify
+  verified-email login, ordinary/invited card discard, and chat/poke bell and push
+  delivery using separate accounts/devices, including foreground/background cases.

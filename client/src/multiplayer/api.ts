@@ -37,7 +37,7 @@ export async function sharedRequest<T>(path: string, session: Session | null, bo
       status: response.status,
       contentType: response.headers.get('content-type'),
     });
-    return decodeApiResponse<T>(raw, response.status);
+    return decodeApiResponse<T>(raw, response.status, path === '/auth/signin');
   } finally { clearTimeout(timeout); signal?.removeEventListener('abort', abort); }
 }
 

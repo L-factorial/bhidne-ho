@@ -179,7 +179,7 @@ export class OriginalUiApi {
   private async notificationRows(signal:AbortSignal) {
     const recipient=await this.root.reads.recipient(signal);
     const [native,legacy]=await Promise.all([this.root.reads.history('social',recipient.lane_id,signal),this.root.reads.legacy('notifications',null,null,signal)]);
-    return [...legacy.items,...native].filter(row=>['friend_accepted','friend_rejected'].includes(String(row.kind)));
+    return [...legacy.items,...native].filter(row=>['friend_accepted','friend_rejected','chat','poke'].includes(String(row.kind)));
   }
   async messages(target:CommandTarget,signal:AbortSignal) {
     const lane=await this.root.reads.open(target,signal);
@@ -229,6 +229,11 @@ export class OriginalUiApi {
       if(parts[0]==='rooms'&&parts[2]==='members')return reads.memberProfiles(parts[1],signal);
       if(parts[0]==='rooms'&&parts[2]==='ledger')return reads.ledger(parts[1],signal);
       if(parts[0]==='test-games'&&parts.length===2&&parts[1]!=='invitations')return this.game(parts[1],url.searchParams.get('match_id'),signal,false);
+    }
+    if(path==='/active-tables/discard'&&body) {
+      const table=data.table_id??(await this.game(String(data.room_id),String(data.match_id),signal)).table_id;
+      return this.command('ui-notifications',{kind:'recipient',recipient_id:this.account.user_id.replace(/^user-/,'')},
+        'discard-table',{table_id:table,match_id:data.match_id},signal);
     }
     if(path==='/notifications/read'&&body) {
       const ids=(await this.notificationRows(signal)).filter(r=>r.read!==true).map(r=>String(r.id));

@@ -16,7 +16,7 @@ class TablePokePayload(PlayerPhraseInput):
     model_config = ConfigDict(extra='forbid')
     recipient_player_id: int = Field(strict=True, ge=1)
     reaction: Literal['love', 'pinch', 'clap', 'cheers', 'laugh', 'hammer', 'punchline'] | None = None
-    text: str = Field(default='👋', min_length=1, max_length=60)
+    text: str = Field(default='👋', min_length=1, max_length=30)
 
     @model_validator(mode='after')
     def validate_punchline(self):

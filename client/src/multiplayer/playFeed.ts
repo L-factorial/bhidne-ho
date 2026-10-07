@@ -1,5 +1,5 @@
 import type { TableSummary, TableEntry } from './tableNavigation';
-export type PlayTable = TableSummary & {room_id:string;room_name:string;created_at?:number;invitation_id?:string};
+export type PlayTable = TableSummary & {table_id?:string;room_id:string;room_name:string;created_at?:number;invitation_id?:string};
 export type PlayInvitation = {id:string;room_id:string;room_name:string;match_id:string;table_name:string;game_type:PlayTable['game_type'];created_at:number;seated:number;capacity:number;seat_available:boolean};
 
 export function playEntry(table:PlayTable):TableEntry {

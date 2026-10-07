@@ -229,3 +229,23 @@ test('automatic Marriage capacity is left to the server and Call Break preserves
  await f.api.request('/test-games/r',account,{name:'Call Break',game_type:'callbreak',player_count:5,notify_room:true});
  assert.equal(f.sent[1].body.payload.capacity,5);
 });
+
+test('ordinary table discard uses a durable personal command without seat departure',async()=>{
+ const f=setup();
+ await f.api.request('/active-tables/discard',account,{room_id:'r',table_id:'t',match_id:'m'});
+ assert.equal(f.sent.length,1);
+ assert.deepEqual(f.sent[0].target,{kind:'recipient',recipient_id:account.user_id.slice(5)});
+ assert.equal(f.sent[0].body.command,'discard-table');
+ assert.deepEqual(f.sent[0].body.payload,{table_id:'t',match_id:'m'});
+});
+test('chat and poke notices reach the original bell and its mark-read command',async()=>{
+ const f=setup();
+ f.root.reads.recipient=async()=>({lane_id:'recipient'});
+ f.root.reads.history=async()=>['chat','poke'].map((kind,index)=>({id:String(index),kind,actor_id:account.user_id,created_at:'2026-10-07T11:00:00Z',read:false,payload:{room_id:'r'}}));
+ f.root.reads.legacy=async()=>({items:[]});
+ const notifications=await f.api.request('/notifications',account);
+ assert.deepEqual(notifications.map(row=>row.kind),['chat','poke']);
+ await f.api.request('/notifications/read',account,{});
+ assert.equal(f.sent[0].body.command,'read-notifications');
+ assert.deepEqual(f.sent[0].body.payload.ids,['0','1']);
+});

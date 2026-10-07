@@ -21,6 +21,24 @@ class AccountInput(BaseModel):
         return value.strip().lower() if isinstance(value, str) else value
 
 
+class SignInInput(BaseModel):
+    username: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=8, max_length=128)
+
+    @field_validator('username', mode='before')
+    @classmethod
+    def normalize_identifier(cls, value):
+        if not isinstance(value, str):
+            return value
+        value = value.strip()
+        if '@' in value:
+            return normalize_recovery_email(value)
+        import re
+        if not re.fullmatch(r'[a-zA-Z0-9_-]{3,32}', value):
+            raise ValueError('Enter your username or verified email address.')
+        return value.lower()
+
+
 class GuestInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     # Empty legacy requests remain supported for scripts; supplied names cannot be blank.

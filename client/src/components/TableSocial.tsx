@@ -9,7 +9,7 @@ import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { Ionicons } from '@expo/vector-icons';
 import { TableReactionFlight, type ReactionFlight } from './TableReactionFlight';
-import { readTableReaction, tableReactions, punchlinePresets, PUNCHLINE_LIMIT, type ReactionId } from '../multiplayer/tableReactions';
+import { readTableReaction, tableReactions, PUNCHLINE_LIMIT, type ReactionId } from '../multiplayer/tableReactions';
 import type { PlayerPhrase } from '../multiplayer/pokes';
 import { FormFooter } from './FormFooter';
 import { PlayerAvatar } from './PlayerAvatar';
@@ -65,7 +65,6 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
   const [registerSeat] = useState(() => (id: number, node: View | null) => { if (node) seats.current.set(id, node); else seats.current.delete(id); });
   const [targetPlayer, setTargetPlayer] = useState<number | null>(null);
   const [sendingPoke, setSendingPoke] = useState(false);
-  const [pokeTab, setPokeTab] = useState<'emoji' | 'punchline'>('emoji');
   const [punchline, setPunchline] = useState('');
   const [flights, setFlights] = useState<ReactionFlight[]>([]);
   const reactionIds = useRef(new Set<string>());
@@ -222,45 +221,28 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
       {content}
       {flights.map(flight => <TableReactionFlight key={flight.event.id} flight={flight} recipient={flight.event.recipient_id === userId}
         onComplete={() => setFlights(current => current.filter(item => item.event.id !== flight.event.id))} />)}
-      <RoomSheet visible={pokeMode || targetPlayer !== null} title={ui("social.poke_player_2", { "player": players.find(p => p.player_id === targetPlayer)?.display_name || 'player' })} closeLabel={ui("common.close_poke_tools")} testID="poke-tools" presentation="dialog" onClose={() => { setPokeMode(false); setTargetPlayer(null); }}
-        footer={pokeTab === 'punchline' ? <FormFooter><ChatComposer value={punchline} onChange={setPunchline} onSend={() => void sendReaction('punchline')}
+      <RoomSheet visible={pokeMode || targetPlayer !== null} title={ui("social.poke_a_player")} closeLabel={ui("common.close_poke_tools")} testID="poke-tools" presentation="dialog" onClose={() => { setPokeMode(false); setTargetPlayer(null); }}
+        footer={<FormFooter><ChatComposer value={punchline} onChange={value=>setPunchline(Array.from(value).slice(0,PUNCHLINE_LIMIT).join(''))} onSend={() => void sendReaction('punchline')}
           disabled={sendingPoke || targetPlayer === null || !enabled} editable={!sendingPoke} maxLength={PUNCHLINE_LIMIT}
           label={ui('social.punchline_message')} sendLabel={ui('social.send_punchline')} placeholder={ui('social.your_own_little_punchline')} />
           {!!error && <Text accessibilityRole="alert" style={{ color: c.danger }}>{uiLabel(error, 'feedback')}</Text>}
-        </FormFooter> : undefined}>
+        </FormFooter>}>
         <Text style={{ color: c.textMuted, fontFamily: fonts.body }}>{ui("social.choose_a_player")}</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8}}>
           {players.filter(player => eligible(player.player_id)).map(player => <Pressable key={player.player_id}
             accessibilityRole="button" accessibilityLabel={ui("social.poke_player_2", { "player": player.display_name })} accessibilityState={{ selected: targetPlayer === player.player_id, disabled: sendingPoke }} disabled={sendingPoke}
-            onPress={() => poke(player.player_id)} style={{ minHeight: 48, padding: 12, gap: 8, flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1,
-              borderColor: targetPlayer === player.player_id ? c.accent : c.border, backgroundColor: targetPlayer === player.player_id ? c.surfaceSelected : c.surfaceRaised }}>
-            <PlayerAvatar uri={player.avatar_url} /><Text style={{ color: c.text, fontFamily: fonts.medium, flexShrink: 1 }}>{player.display_name}</Text>
+            onPress={() => poke(player.player_id)} style={{width:76,minHeight:76,padding:6,gap:6,alignItems:'center',borderRadius:12,borderWidth:1,
+              borderColor:targetPlayer===player.player_id?c.accent:'transparent',backgroundColor:targetPlayer===player.player_id?c.surfaceSelected:'transparent'}}>
+            <PlayerAvatar uri={player.avatar_url}/><Text numberOfLines={2} style={{color:c.text,fontFamily:fonts.medium,fontSize:12,textAlign:'center'}}>{player.display_name}</Text>
           </Pressable>)}
-        </View>
+        </ScrollView>
         {!players.some(player => eligible(player.player_id)) && <Text style={{ color: c.textMuted }}>{ui("social.no_other_seated_players_to_poke_yet")}</Text>}
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          {(['emoji', 'punchline'] as const).map(tab => <Pressable key={tab} accessibilityRole="tab" accessibilityState={{ selected: pokeTab === tab, disabled: sendingPoke }} disabled={sendingPoke} onPress={() => setPokeTab(tab)}
-            style={{ flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 14, borderWidth: 1, borderColor: pokeTab === tab ? c.tableTrim : c.border, backgroundColor: pokeTab === tab ? c.surfaceSelected : c.surfaceRaised }}>
-            <Text style={{ color: c.text, fontFamily: fonts.medium }}>{ui(tab === 'emoji' ? 'social.emoji_tab' : 'social.punchlines_tab')}</Text>
+        <View style={{flexDirection:'row',flexWrap:'wrap',gap:4}}>
+          {(Object.keys(tableReactions) as ReactionId[]).map(id => <Pressable key={id} accessibilityRole="button" accessibilityLabel={ui("social.send_reaction", { "reaction": uiLabel(tableReactions[id].label, 'social') })} disabled={sendingPoke || targetPlayer === null || !enabled} accessibilityState={{ disabled: sendingPoke || targetPlayer === null || !enabled }} onPress={() => void sendReaction(id)}
+            style={({pressed})=>({minWidth:44,minHeight:48,alignItems:'center',justifyContent:'center',opacity:sendingPoke||targetPlayer===null?0.5:pressed?0.7:1})}>
+            <Text style={{fontSize:30}}>{tableReactions[id].emoji}</Text>
           </Pressable>)}
         </View>
-        {pokeTab === 'punchline' ? <>
-          <Text style={{ color: c.textMuted, fontFamily: fonts.body }}>{ui('social.punchline_public')}</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {[...new Set([...punchlinePresets.map(key => ui(`social.preset_${key}`)), ...phrases.map(p => p.text)])].map(text => <Pressable key={text} accessibilityRole="button" disabled={sendingPoke}
-              accessibilityState={{ selected: punchline === text }} onPress={() => setPunchline(text)}
-              style={{ minHeight: 44, padding: 12, borderRadius: 18, borderWidth: 1, borderColor: punchline === text ? c.tableTrim : c.border, backgroundColor: c.surfaceRaised, maxWidth: '100%' }}>
-              <Text style={{ color: c.text, fontFamily: fonts.body }}>{text}</Text>
-            </Pressable>)}
-          </View>
-        </> : <><Text style={{ color: c.textMuted, fontFamily: fonts.body }}>{ui("social.choose_a_reaction_everyone_at_this_table_can_see_it")}</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {(Object.keys(tableReactions) as ReactionId[]).map(id => <Pressable key={id} accessibilityRole="button" accessibilityLabel={ui("social.send_reaction", { "reaction": uiLabel(tableReactions[id].label, 'social') })} disabled={sendingPoke || targetPlayer === null} accessibilityState={{ disabled: sendingPoke || targetPlayer === null }} onPress={() => void sendReaction(id)}
-            style={({ pressed }) => ({ width: '30%', flexGrow: 1, minHeight: 88, gap: 6, alignItems: 'center', justifyContent: 'center', borderRadius: 14, borderWidth: 1, borderColor: c.tableTrim, backgroundColor: pressed ? c.surfaceSelected : c.surfaceRaised, opacity: sendingPoke || targetPlayer === null ? 0.5 : 1 })}>
-            <Text style={{ fontSize: 32 }}>{tableReactions[id].emoji}</Text><Text style={{ fontFamily: fonts.medium, color: c.text, fontSize: 12 }}>{uiLabel(tableReactions[id].label, 'social')}</Text>
-          </Pressable>)}
-        </View>
-        {!!error && <Text accessibilityRole="alert" style={{ color: c.danger }}>{uiLabel(error, 'feedback')}</Text>}</>}
       </RoomSheet>
       {presentationExpanded && canRead && (!handCollapsed || !!error) && <View testID="game-social-controls" onTouchStart={event => event.stopPropagation()} onPointerDown={event => event.stopPropagation()} style={{position:'absolute',right:14,bottom,zIndex:45,alignItems:'flex-end',maxWidth:240}}>
         {!!error && !open && <Pressable accessibilityRole="button" accessibilityLabel={ui("common.dismiss_social_error")} onPress={() => setError('')}><Text style={{color:c.danger,backgroundColor:c.surface,padding:6}}>{uiLabel(error, 'feedback')}</Text></Pressable>}

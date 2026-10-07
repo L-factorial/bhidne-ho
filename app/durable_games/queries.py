@@ -381,7 +381,12 @@ class PostgresHostedQueries:
                      OR (%s=false AND (r.visibility='public' OR r.creator_id=%s)))
                 ORDER BY r.id LIMIT %s''', (after_room_id, user, memberships, user, limit + 1))).fetchall()
             declined=set()
+            dismissed=set()
             if not memberships:
+                dismissals=await (await connection.execute('''SELECT d.table_id,d.match_id FROM table_dismissals d
+                    JOIN room_tables t USING(table_id) WHERE d.user_id=%s AND t.room_id=ANY(%s::text[])''',
+                    (user,[row[0] for row in rows[:limit]]))).fetchall()
+                dismissed={(str(row[0]).replace('-',''),row[1]) for row in dismissals}
                 declined_rows=await (await connection.execute('''SELECT table_id FROM table_recovery_state JOIN room_tables USING(table_id)
                     WHERE room_id=ANY(%s::text[]) AND status<>'closed'
                       AND (state->'data'->'invitations') @> %s''',
@@ -397,5 +402,6 @@ class PostgresHostedQueries:
             if memberships:
                 items.append(dict(room_id=room, tables=view['tables'], active_game=view['active_game']))
             else:
-                items.extend(dict(table, room_id=room, room_name=view['name']) for table in view['tables'] if table['table_id'] not in declined)
+                items.extend(dict(table, room_id=room, room_name=view['name']) for table in view['tables']
+                    if table['table_id'] not in declined and (table['table_id'],table['match_id']) not in dismissed)
         return dict(items=items, next_room_id=rows[limit - 1][0] if len(rows) > limit else None)

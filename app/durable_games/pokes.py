@@ -77,6 +77,10 @@ async def execute(claim, checkpoints):
             events.append(OutgoingEvent(event, None))
         else:
             events.append(OutgoingEvent(event,recipient))
+        from .social_notices import notify
+        await notify(connection,claim._store,actor=actor,recipients=[recipient] if recipient else list(seats),
+            key=event['id'],kind='poke',payload=dict(room_id=game.room_id,table_id=str(claim.target.table_id),
+                match_id=game.match_id,source_id=event['id']))
     events.append(OutgoingEvent(dict(type='TABLE_COMMAND_ACK',**outcome),actor))
     await append_lane_events(claim,events)
     await claim.complete(outcome)

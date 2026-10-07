@@ -126,6 +126,7 @@ async def test_message_effects_and_notification_enqueue_roll_back(database,monke
     with pytest.raises(RuntimeError): await executor.execute_one(UUID(pending['lane_id']))
     assert await sql(pool,'SELECT count(*) FROM direct_messages')==[(0,)]
     assert await sql(pool,'SELECT count(*) FROM notification_outbox')==[(0,)]
+    assert await sql(pool,"SELECT count(*) FROM command_inbox WHERE actor_id='system:notification'")==[(0,)]
     monkeypatch.setattr(inbox,'_complete',original)
     assert (await executor.execute_one(UUID(pending['lane_id']))).outcome['status']=='accepted'
     with pytest.raises(RuntimeError):
@@ -133,7 +134,8 @@ async def test_message_effects_and_notification_enqueue_roll_back(database,monke
             async with connection.transaction():
                 await NotificationProducer(inbox).enqueue_in_transaction(connection,users[0],key='rollback',kind='test')
                 raise RuntimeError('business operation rolled back')
-    assert await sql(pool,"SELECT count(*) FROM command_inbox WHERE actor_id='system:notification'")==[(0,)]
+    assert await sql(pool,"SELECT count(*) FROM command_inbox WHERE actor_id='system:notification'")==[(1,)]
+    assert await sql(pool,"SELECT count(*) FROM command_inbox WHERE payload->>'key'='rollback'")==[(0,)]
 
 
 async def test_platform_runtime_resumes_pending_work_without_room_owner(database):
@@ -153,7 +155,7 @@ async def test_platform_runtime_resumes_pending_work_without_room_owner(database
     again=SocialRuntime(inbox,interval=.01)
     await again.sweep_once()
     assert await sql(pool,'SELECT count(*) FROM direct_messages')==[(1,)]
-    assert await sql(pool,'SELECT count(*) FROM friend_notifications')==[(1,)]
+    assert await sql(pool,"SELECT kind FROM friend_notifications ORDER BY kind")==[('chat',),('test',)]
     await again.stop()
 
 

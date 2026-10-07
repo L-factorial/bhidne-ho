@@ -42,7 +42,7 @@ assert.ok(['localhost','127.0.0.1'].includes(new URL(site).hostname));
   await page.getByRole('button',{name:'Continue with username or email',exact:true}).click();
   await page.getByRole('button',{name:'Forgot username or password?',exact:true}).waitFor();
   assert.equal(await page.getByRole('button',{name:'Delete account',exact:true}).count(),0);
-  await page.getByLabel('Username',{exact:true}).fill('review');await page.getByLabel('Password',{exact:true}).fill('Fixture-password-123');await page.getByRole('button',{name:'Sign in',exact:true}).last().click();
+  await page.getByLabel('Username or email',{exact:true}).fill('review');await page.getByLabel('Password',{exact:true}).fill('Fixture-password-123');await page.getByRole('button',{name:'Sign in',exact:true}).last().click();
   await page.getByRole('tab',{name:'Friends',exact:true}).click();
   await page.getByText('Ekraj',{exact:true}).waitFor();
   await page.getByLabel('Find players').fill('prajwal');await page.getByRole('button',{name:'Search',exact:true}).click();await page.getByText('Prajwal',{exact:true}).waitFor();

@@ -10,7 +10,7 @@ const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8197';
   const create=await fetch(site+'/auth/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password,email:'session@example.test',display_name:'Session Player'})});assert.equal(create.status,201);
   await page.goto(site);await page.getByRole('button',{name:'Sign in or sign up',exact:true}).click();await page.getByRole('button',{name:'Continue with username or email',exact:true}).click();
   async function login(accountName=username) {
-   await page.getByLabel('Username',{exact:true}).fill(accountName);await page.getByLabel('Password',{exact:true}).fill(password);
+   await page.getByLabel('Username or email',{exact:true}).fill(accountName);await page.getByLabel('Password',{exact:true}).fill(password);
    const response=page.waitForResponse(r=>r.url().endsWith('/auth/signin')&&r.status()===200);
    await page.getByRole('button',{name:'Sign in',exact:true}).last().click();const session=await(await response).json();
    await page.getByRole('button',{name:'Open profile',exact:true}).waitFor();return session;

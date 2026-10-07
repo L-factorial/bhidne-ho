@@ -1,5 +1,6 @@
 // Editable English common copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "username_or_email": "Username or email",
   "message_actions": "Message actions",
   "player_actions": "Player actions",
   "search_results": "Search results",
@@ -498,8 +499,8 @@ export default {
   "attention_expand_click": "Click to expand",
   attention_in_progress: "GAME IN PROGRESS",
   push_title: "App notifications",
-  push_help: "Get reminders for game actions and invitations. Tapping opens the latest game state.",
-  push_actions: "Game actions",
+  push_help: "Get notifications for game actions, invitations, chat and pokes. Tap to open the game, room or conversation.",
+  push_actions: "Game actions, chat and pokes",
   push_invitations: "Invitations",
   push_sound: "Sound",
   push_on: "On",

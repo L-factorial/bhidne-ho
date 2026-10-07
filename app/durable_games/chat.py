@@ -182,6 +182,16 @@ class ChatLaneExecutor:
                     VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)''',
                     (identity,target.room_id,target.table_id,target.game_id,user_uuid(actor),lane_id,
                      before+1,request.command_id,text,now.isoformat()))
+                from .social_notices import notify, chat_recipients
+                match = None
+                if target.table_id:
+                    match = (await (await claim.connection.execute("SELECT state->'data'->>'match_id' FROM table_recovery_state WHERE table_id=%s",
+                        (target.table_id,))).fetchone())[0]
+                await notify(claim.connection,self.inbox,actor=actor,
+                    recipients=await chat_recipients(claim.connection,target),key=str(identity),kind='chat',
+                    payload=dict(room_id=target.room_id,table_id=str(target.table_id) if target.table_id else None,
+                        match_id=match,game_id=str(target.game_id) if target.game_id else None,
+                        scope=target.kind.removesuffix('_chat'),source_id=str(identity)))
             if sender is not None:
                 await append_lane_events(claim, [OutgoingEvent(dict(type='CHAT_COMMAND_ACK', **outcome), actor)])
             await claim.complete(outcome)

@@ -21,3 +21,8 @@ test('successful deletes and JSON responses decode; malformed successes remain e
   assert.deepEqual(decodeApiResponse('{"room_id":"room"}', 200), { room_id: 'room' });
   assert.throws(() => decodeApiResponse('<html>Proxy page</html>', 200), /unexpected response/);
 });
+
+test('sign-in credential failures remain specific rather than claiming session expiry',()=>{
+ for(const status of [401,422])assert.throws(()=>decodeApiResponse('{"detail":"Invalid username or password"}',status,true),
+   error=>error.message==='The username, email, or password is incorrect. Please check and try again.');
+});

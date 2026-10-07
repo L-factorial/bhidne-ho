@@ -2,7 +2,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const assert=require('node:assert/strict');
 const site=process.env.TEST_WEB_URL||'http://127.0.0.1:8197';
 async function api(path,body,token){const r=await fetch(site+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},...(body?{body:JSON.stringify(body)}:{})});assert.ok(r.ok,`${path}: ${r.status}`);return r.json();}
-async function login(page,username){await page.goto(site);await page.getByRole('button',{name:'Sign in or sign up',exact:true}).click();await page.getByRole('button',{name:'Continue with username or email',exact:true}).click();await page.getByLabel('Username',{exact:true}).fill(username);await page.getByLabel('Password',{exact:true}).fill('Moderation-test-123');await page.getByRole('button',{name:'Sign in',exact:true}).last().click();await page.getByRole('button',{name:'Open profile',exact:true}).click();}
+async function login(page,username){await page.goto(site);await page.getByRole('button',{name:'Sign in or sign up',exact:true}).click();await page.getByRole('button',{name:'Continue with username or email',exact:true}).click();await page.getByLabel('Username or email',{exact:true}).fill(username);await page.getByLabel('Password',{exact:true}).fill('Moderation-test-123');await page.getByRole('button',{name:'Sign in',exact:true}).last().click();await page.getByRole('button',{name:'Open profile',exact:true}).click();}
 (async()=>{
  const browser=await chromium.launch({channel:'chrome',headless:true});
  try{

@@ -130,7 +130,41 @@ class PushWorker:
             if not prefs[category] or quiet(prefs,result['offset'],now):return None
             if await (await c.execute('SELECT 1 FROM deleted_rooms WHERE id=%s',(result['room'],))).fetchone():return None
             actor=f"user-{result['user']}"
-            if result['table']:
+            if result['kind'] in ('chat','poke'):
+                notice = await (await c.execute('''SELECT source_actor_id,payload,read_at FROM friend_notifications
+                    WHERE id=%s AND user_id=%s AND kind=%s
+                    AND social_notification_allowed(%s,source_actor_id,kind,payload,created_at)''',
+                    (result['source'],result['user'],result['kind'],result['user']))).fetchone()
+                if not notice or notice[0] is None or notice[2] is not None:return None
+                sender=f'user-{notice[0]}'
+                from app.player_blocks.service import require_contact
+                from app.durable_games.queries import QueryAccessDenied
+                try:
+                    await require_contact(c,sender,actor)
+                    scope=notice[1].get('scope')
+                    if scope=='direct':
+                        from app.durable_games.social import authorize_social,conversation
+                        await authorize_social(c,conversation(sender,actor),actor)
+                        result['other_user_id']=sender
+                    elif result['table']:
+                        saved=await PostgresCheckpointStore(None)._load(c,result['table'],missing_ok=True)
+                        if not saved or saved.checkpoint['data']['match_id']!=result['match'] or saved.checkpoint['data']['host']['ended']:return None
+                        from app.durable_games.chat import authorize_chat
+                        from app.durable_games.inbox import LaneTarget
+                        await authorize_chat(c,LaneTarget(kind='game_chat' if scope=='game' else 'table_chat',
+                            room_id=result['room'],table_id=result['table'],
+                            game_id=notice[1].get('game_id') if scope=='game' else None),actor,checkpoints=PostgresCheckpointStore(None))
+                        if notice[1].get('ephemeral') or result['kind']=='poke':
+                            seat=await (await c.execute('SELECT seat FROM table_positions WHERE table_id=%s AND user_id=%s',
+                                (result['table'],result['user']))).fetchone()
+                            if not seat or seat[0] is None:return None
+                    else:
+                        from app.durable_games.queries import require_member
+                        await require_member(c,result['room'],actor)
+                except QueryAccessDenied:return None
+                if not await (await c.execute('''SELECT 1 FROM users WHERE id=%s AND NOT erased AND NOT deletion_pending
+                    AND (suspended_until IS NULL OR suspended_until<=now())''',(notice[0],))).fetchone():return None
+            elif result['table']:
                 saved=await PostgresCheckpointStore(None)._load(c,result['table'],missing_ok=True)
                 if not saved or saved.checkpoint['data']['match_id']!=result['match']:return None
                 data=saved.checkpoint['data']
@@ -170,6 +204,7 @@ class PushWorker:
         elif row:
             data=dict(type='bhidne_notification',notification_id=str(identity),user_id=f"user-{row['user']}",room_id=row['room'],kind=row['kind'])
             if row['match']:data['match_id']=row['match']
+            if row.get('other_user_id'):data['other_user_id']=row['other_user_id']
             collapse=hashlib.sha256(f"{row['device']}:{row['table'] or row['source']}".encode()).hexdigest()[:48]
             result=await self.providers.send((row['provider'],row['token'],row['environment']),message(row['kind'],row['locale'],data),
                 expires_at=row['expires'].timestamp(),collapse_id=collapse,sound=row['sound'])

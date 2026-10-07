@@ -41,7 +41,7 @@ async def setup(database):
     return host,game,target,service,frames,signals
 
 
-async def test_live_chat_and_pokes_do_no_database_writes_or_game_changes(database):
+async def test_live_chat_and_pokes_persist_only_notification_intents_without_game_changes(database):
     pool,_,_,users=database
     host,game,target,service,frames,signals=await setup(database)
     original=pool.execute
@@ -68,8 +68,12 @@ async def test_live_chat_and_pokes_do_no_database_writes_or_game_changes(databas
         assert [len(frames[u]) for u in users[:3]]==[2,3,1]
         reaction=frames[users[2]][-1]['payload']
         assert reaction['type']=='TABLE_REACTION' and reaction['recipient_id']==users[1]
-        assert not any(s.lstrip().split()[0].upper() in ('INSERT','UPDATE','DELETE') for s in statements)
-        for table in ('command_inbox','notification_outbox','room_chat_messages','social_abuse_limits'):
+        notices=(await pool.execute("SELECT payload FROM command_inbox WHERE command='create-notification'")).rows
+        assert len(notices)==3
+        assert [notice[0]['kind'] for notice in notices].count('chat')==1
+        assert [notice[0]['kind'] for notice in notices].count('poke')==2
+        assert all('text' not in notice[0]['payload'] for notice in notices)
+        for table in ('notification_outbox','room_chat_messages','social_abuse_limits'):
             assert (await pool.execute(f'SELECT count(*) FROM {table}')).rows==[(0,)]
         assert (await service.checkpoints.load(game.table.table_id)).checkpoint['data']['table_revision']==0
     finally:

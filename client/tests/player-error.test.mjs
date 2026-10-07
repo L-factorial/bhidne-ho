@@ -84,3 +84,10 @@ test('native setup failures provide specific localized guidance without native e
   }
  }finally{await i18n.changeLanguage('en');}
 });
+
+test('table creation rejections show the exact cause before the HTTP conflict fallback',()=>{
+  assert.equal(playerError(new ApiError(409,'An open table with that name already exists in this room.')),
+    'A table with this name already exists in this room. Try a different name.');
+  assert.match(playerError(new ApiError(409,'Already seated at another active table.')),/invited player.*another table/);
+  assert.match(playerError(new ApiError(409,'This room has reached its open-table limit.')),/table limit/);
+});

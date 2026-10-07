@@ -61,6 +61,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const wide = useWindowDimensions().width >= 900;
   const [roomToolsOpen, setRoomToolsOpen] = useState(false);
   const [lobbyTab, setLobbyTab] = useState<'rooms' | 'players' | 'createJoin' | 'games' | 'chat'>("games");
+  const [chatPlayer,setChatPlayer]=useState<string>();
   const [roomTab,setRoomTab]=useState<'own'|'friends'>('own');
   const [createTableOpen,setCreateTableOpen]=useState(false);
   const [greetingIdentity, setGreetingIdentity] = useState<InvitePlayer | null>(null);
@@ -88,6 +89,12 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
     if (!authDisabled) void shared.loginAccount(username, password, authMode === 'signup', email);
   }
   const { session, rooms, room, game, setGame, expired } = shared;
+  useEffect(()=>{
+    if(externalInvitation?.otherUserId&&session){
+      setChatPlayer(externalInvitation.otherUserId);setLobbyTab('chat');shared.exitRoom();dismissInvitation?.();
+    }
+  },[externalInvitation?.otherUserId,session?.user_id]);
+
   const reconnecting = usePersistentNotice(!!room && !expired && shared.status !== 'connected');
   useEffect(() => {
     if (!session || expired) { setGreetingIdentity(null); return; }
@@ -278,13 +285,16 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
     paddingTop: Math.max(insets.top, 16), paddingBottom: (room ? Math.max(insets.bottom, 28) + 64 : 24),
   }]}>
     <View style={[styles.content, !session && {maxWidth: 460}, room && { flexGrow: 1, maxWidth: 760 }]}>
-      <AppHeader lobby={!room && !!session} onOpenProfile={!room ? () => setLobbyProfileOpen(true) : undefined} inlineActions={session && !expired ? <NotificationBell session={session} onOpenTable={invited => {
+      <AppHeader lobby={!room && !!session} onOpenProfile={!room ? () => setLobbyProfileOpen(true) : undefined} inlineActions={session && !expired ? <NotificationBell session={session} onOpenActivity={target=>{
+        if(target.otherUserId){setChatPlayer(target.otherUserId);setLobbyTab('chat');shared.exitRoom();}
+        else if(target.roomId)setCodeInvitation(target);
+      }} onOpenTable={invited => {
         setLinkedMatch(invited.match_id);
         enterRoom({ room_id: invited.room_id, name: invited.table_name, members: [] }, invited.game_type);
       }} onOpenRoom={invited => enterRoom({ room_id: invited.room_id, name: invited.room_name, members: [] })} /> : null} />
       {session && !roomToolsOpen && !!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error || shared.error, 'feedback')}</Text>}
       {!expired && (reconnecting || shared.connectionNotice || shared.recoveryKind) && <Text accessibilityLiveRegion="polite" style={styles.subtitle}>{ui(shared.status !== 'connected' ? (room ? "feedback.reconnecting_to_your_room" : "feedback.connection_interrupted_retrying") : shared.recoveryKind === 'chat' ? "feedback.updating_chat" : "feedback.updating_game")}</Text>}
-      {invitation && session ? <InvitationPreview key={`${invitation.roomId}:${invitation.matchId}`} invitation={invitation} session={session} ready={process.env.EXPO_PUBLIC_RUNTIME_MODE !== 'distributed-original' || !!shared.runtime}
+      {invitation && !invitation.otherUserId && session ? <InvitationPreview key={`${invitation.roomId}:${invitation.matchId}`} invitation={invitation} session={session} ready={process.env.EXPO_PUBLIC_RUNTIME_MODE !== 'distributed-original' || !!shared.runtime}
         startupError={shared.startupError} retrySession={shared.retry}
         dismiss={clearInvitation} join={async (target, gameType, matchId) => {
           const joined = await shared.joinRoom(target, gameType);
@@ -406,8 +416,8 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
             <Text style={styles.subtitle}>{authMode === 'signup'
               ? ui("common.signup_description")
               : ui("common.signin_description")}</Text>
-            <FormInput ref={usernameInput} returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => (authMode === 'signup' ? emailInput : passwordInput).current?.focus()} accessibilityLabel={ui("common.username")} placeholder={ui("common.username")} placeholderTextColor={colors.textMuted}
-              value={username} onChangeText={setUsername} maxLength={32} editable={!shared.loggingIn}
+            <FormInput ref={usernameInput} returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => (authMode === 'signup' ? emailInput : passwordInput).current?.focus()} accessibilityLabel={ui(authMode === 'signup' ? "common.username" : "common.username_or_email")} placeholder={ui(authMode === 'signup' ? "common.username" : "common.username_or_email")} placeholderTextColor={colors.textMuted}
+              value={username} onChangeText={setUsername} maxLength={authMode === 'signup' ? 32 : 254} editable={!shared.loggingIn}
               autoCapitalize="none" autoCorrect={false} textContentType="username" style={styles.input} />
             {authMode === 'signup' && <>
               <FormInput ref={emailInput} accessibilityLabel={ui('common.email')} aria-required
@@ -500,7 +510,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
           <View style={styles.roomGrid}>{publicRooms.map(roomCard)}</View>
           {!publicRooms.length && <Text style={styles.description}>{ui("rooms.no_public_rooms_yet")}</Text>}
         </RoomSheet>
-        {session && !expired && lobbyTab === 'chat' && <FriendsPanel key={session.user_id + '-chat'} session={session} onlineOnly />}
+        {session && !expired && lobbyTab === 'chat' && <FriendsPanel key={session.user_id + '-chat'} session={session} initialPlayerId={chatPlayer} />}
         {session && !expired && lobbyTab === 'players' && <View style={styles.playersArea}>
           <FriendsPanel session={session} />
         </View>}
