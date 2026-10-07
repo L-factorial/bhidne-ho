@@ -1,10 +1,11 @@
+import {AppText as Text} from './AppText';
 import { gameLabel } from '../i18n/display';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { gameControlFinish, gamePanelFinish, fonts, radii, space, typography, useTheme } from '../theme';
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, Text, View } from 'react-native';
+import {Pressable, View} from 'react-native';
 import { TableShareSheet } from './ShareLink';
 import { tableEntry, tablePhase, type TableEntry, type TableSummary } from '../multiplayer/tableNavigation';
 

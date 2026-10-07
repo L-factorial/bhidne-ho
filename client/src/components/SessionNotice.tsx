@@ -1,6 +1,7 @@
+import {AppText as Text} from './AppText';
 import { retrySessionStorage } from '../multiplayer/session';
 import { useSyncExternalStore } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import {Pressable, View} from 'react-native';
 import { sessionNotice, subscribeSessionNotice } from '../auth/sessionNotice';
 import { apiUrl } from '../multiplayer/api';
 import { ui } from '../i18n/copy';

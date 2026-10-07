@@ -1,7 +1,8 @@
+import {AppText as Text} from '../components/AppText';
 import { RoomSheet } from '../components/RoomSheet';
 import { AccountPage, accountStyles } from '../components/AccountPage';
 import { useEffect, useRef, useState } from 'react';
-import { Modal, Pressable, Text, View, type TextInput } from 'react-native';
+import {Modal, Pressable, View, type TextInput} from 'react-native';
 import { FormInput } from '../components/FormInput';
 import { sharedRequest, ApiError } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';

@@ -1,7 +1,8 @@
+import {AppText as Text} from './AppText';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useState } from 'react';
-import { Pressable, Text, useWindowDimensions } from 'react-native';
+import {Pressable, useWindowDimensions} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fonts, gameControlFinish, useTheme } from '../theme';
 import { useTableTheme } from '../TableThemeProvider';

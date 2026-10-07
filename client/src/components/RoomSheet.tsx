@@ -1,3 +1,4 @@
+import {AppText as Text} from './AppText';
 import { GameModal as Modal } from './GameModal';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -6,7 +7,7 @@ import { FormScrollView } from './FormInput';
 import { KeyboardFrame } from './KeyboardFrame';
 import { KeyboardFocusBoundary } from './KeyboardFocusBoundary';
 import { type ReactNode, useCallback, useEffect, useRef } from 'react';
-import { Keyboard, Platform, Pressable, Text, useWindowDimensions, View } from 'react-native';
+import {Keyboard, Platform, Pressable, useWindowDimensions, View} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export function RoomSheet({ visible, title, onClose, onDismiss, children, scrollable = true, footer, testID = 'room-sheet', closeLabel = ui("common.close_room_panel"), contentHandlesBottomInset = false, presentation = 'sheet', tableStyle = false, headerActions, isolateKeyboard = false }: { isolateKeyboard?: boolean; headerActions?: ReactNode; tableStyle?: boolean; visible: boolean; title: string; onClose: () => void; onDismiss?: () => void; children: ReactNode; scrollable?: boolean; footer?: ReactNode; testID?: string; closeLabel?: string; contentHandlesBottomInset?: boolean; presentation?: 'sheet' | 'dialog' }) {

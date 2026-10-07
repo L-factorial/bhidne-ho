@@ -1,3 +1,4 @@
+import {AppText as Text} from '../components/AppText';
 import { gameAttention } from '../notifications/gameAttention';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -18,7 +19,7 @@ import { MarriageHandSheet } from '../components/MarriageHandSheet';
 import { marriageDecision, marriageHandSnap, type HandSnap } from '../multiplayer/marriageWorkspace';
 import { TableStartCue } from '../components/TableStartCue';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import {Pressable, ScrollView, StyleSheet, View, useWindowDimensions} from 'react-native';
 import { fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { useMarriageReveal } from '../multiplayer/useMarriageReveal';
 import { MarriageCardArea } from '../components/MarriageCardArea';

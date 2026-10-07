@@ -1,3 +1,4 @@
+import {AppText as Text} from './AppText';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { MarriageMeldCards } from './MarriageMeldCards';
@@ -9,7 +10,7 @@ import { type ReactNode } from 'react';
 import { FormFooter } from './FormFooter';
 import { NumericInput } from './NumericInput';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {Pressable, StyleSheet, View} from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import type { MarriageScoringRules } from '../multiplayer/marriage';
 

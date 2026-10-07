@@ -1,3 +1,4 @@
+import {AppText as Text} from './AppText';
 import { GameModal as Modal } from './GameModal';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -5,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BrandIcon, headerLogoSize } from './BrandArt';
 import { KeyboardFrame } from './KeyboardFrame';
 import { type ReactNode, createContext, useContext, useEffect, useState } from 'react';
-import { Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import {Platform, Pressable, ScrollView, View, useWindowDimensions} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TableShareSheet } from './ShareLink';
 import { fonts, radii, typography, useTheme } from '../theme';

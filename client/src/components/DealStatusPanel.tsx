@@ -1,7 +1,8 @@
+import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {Pressable, ScrollView, StyleSheet, View} from 'react-native';
 import { TablePlayer } from './CardTable';
 import { fonts, useThemedStyles, type ThemeColors } from '../theme';
 

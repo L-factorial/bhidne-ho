@@ -1,8 +1,9 @@
+import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { ActionCue } from './ActionCue';
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import {AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, View} from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { marriageFace, type MarriageMove } from '../multiplayer/marriage';
 import { MarriagePlayers } from './MarriagePlayers';

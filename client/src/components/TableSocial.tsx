@@ -1,3 +1,4 @@
+import {AppText as Text} from './AppText';
 import { preserveRemovals } from './moderation/messages';
 import { CommunityRulesEntry, useCommunityRulesGate } from './moderation/CommunityRules';
 import { ReportButton } from './Moderation';
@@ -20,7 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { ChatComposer } from './ChatComposer';
 import { ChatInputDiagnostics } from './ChatInputDiagnostics';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { AccessibilityInfo, Animated, Keyboard, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import {AccessibilityInfo, Animated, Keyboard, Platform, Pressable, ScrollView, View, useWindowDimensions} from 'react-native';
 import { fonts, useTheme, type ThemeColors } from '../theme';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { TableSocialChannel, mergeTableMessages, type TableMessage } from '../multiplayer/TableSocialChannel';

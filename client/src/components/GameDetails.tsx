@@ -1,3 +1,4 @@
+import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useThemedStyles, type ThemeColors } from '../theme';
@@ -6,7 +7,7 @@ import { RoomSheet } from './RoomSheet';
 import { FormFooter } from './FormFooter';
 import { NumericInput } from './NumericInput';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import {Pressable, StyleSheet, Switch, View} from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 
 export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = false }: {

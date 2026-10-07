@@ -1,3 +1,4 @@
+import {AppText as Text} from '../components/AppText';
 import {PushProvider} from '../notifications/PushProvider';
 import {PushSettings} from '../notifications/PushSettings';
 import type {Invitation} from '../multiplayer/invitations';
@@ -17,7 +18,7 @@ import { validSignupEmail } from '../auth/email';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { playerError } from '../multiplayer/playerError.ts';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import {Pressable, ScrollView, TextInput, View} from 'react-native';
 import { apiUrl, request } from '../multiplayer/api';
 import { readSession, saveSession, signOutSession, isCurrentSession, type Session } from '../multiplayer/session';
 import { acquireJournal } from '../multiplayer/journalPlatform';
@@ -169,7 +170,7 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
 
   const button=(label:string,run:()=>void,disabled=false)=><Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled}
     onPress={run} style={{padding:12,minHeight:44,borderRadius:8,backgroundColor:colors.surface,opacity:disabled?0.45:1}}><Text style={{color:colors.text}}>{label}</Text></Pressable>;
-  const input=(label:string,value:string,change:(s:string)=>void,secure=false)=><TextInput accessibilityLabel={label} placeholder={label} placeholderTextColor={colors.textMuted}
+  const input=(label:string,value:string,change:(s:string)=>void,secure=false)=><FormInput accessibilityLabel={label} placeholder={label} placeholderTextColor={colors.textMuted}
     value={value} onChangeText={change} secureTextEntry={secure} autoCapitalize="none" style={{color:colors.text,borderColor:colors.textMuted,borderWidth:1,padding:12,borderRadius:8}}/>;
   async function login(signup: boolean) {
     if (authBusy || (signup && (!confirmPassword || password !== confirmPassword || !validSignupEmail(email)))) return;

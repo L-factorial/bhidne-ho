@@ -1,8 +1,9 @@
+import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { FormInput } from './FormInput';
 import { useCallback, useRef, useState } from 'react';
-import { Keyboard, Pressable, Text, TextInput, View, type TextInputProps } from 'react-native';
+import {Keyboard, Pressable, TextInput, View, type TextInputProps} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fonts, useTheme } from '../theme';
 

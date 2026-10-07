@@ -1,7 +1,8 @@
+import {AppText as Text} from './AppText';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, Text, View } from 'react-native';
+import {Platform, Pressable, View} from 'react-native';
 
 // Explicit, local-only troubleshooting. Never read values, messages, URLs, or identities.
 export function ChatInputDiagnostics() {

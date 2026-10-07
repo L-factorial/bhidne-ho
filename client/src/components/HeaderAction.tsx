@@ -1,7 +1,8 @@
+import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { gameControlFinish, fonts, useTheme } from '../theme';
-import { Pressable, Text } from 'react-native';
+import {Pressable} from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 export function HeaderAction({ icon, label, onPress, compact = false }: {

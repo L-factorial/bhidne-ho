@@ -1,9 +1,10 @@
+import {AppText as Text} from './AppText';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { PlayerAvatar } from './PlayerAvatar';
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { ScrollView, Text, View } from 'react-native';
+import {ScrollView, View} from 'react-native';
 import { fonts, useTheme } from '../theme';
 
 export type ResultRow = { id: string; name: string; avatarUrl?: string; own?: boolean; winner?: boolean; values: { text: string; amount?: number }[] };

@@ -1,8 +1,9 @@
+import {AppText as Text} from './AppText';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { playerError } from '../multiplayer/playerError.ts';
 import {useEffect,useState} from 'react';
-import {Pressable,Text,View} from 'react-native';
+import {Pressable, View} from 'react-native';
 import {request} from '../multiplayer/api';
 import type {Session} from '../multiplayer/session';
 import {useTheme} from '../theme';

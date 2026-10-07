@@ -1,8 +1,9 @@
+import {AppText as Text} from './AppText';
 import { playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import {Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions} from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { request } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';

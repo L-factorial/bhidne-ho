@@ -1,7 +1,8 @@
+import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import {AccessibilityInfo, Animated, Pressable, StyleSheet, View} from 'react-native';
 import { CardBack } from './CardBack';
 import { useTheme } from '../theme';
 

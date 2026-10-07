@@ -1,7 +1,8 @@
+import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Pressable, Text, View } from 'react-native';
+import {AccessibilityInfo, Animated, Pressable, View} from 'react-native';
 import { RoomSheet } from './RoomSheet';
 import { useTableSocial } from './TableSocial';
 import { PlayerAvatar } from './PlayerAvatar';

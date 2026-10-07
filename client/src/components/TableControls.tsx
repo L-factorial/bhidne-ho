@@ -1,9 +1,10 @@
+import {AppText as Text} from './AppText';
 import { phaseLabel } from '../i18n/display';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { ActionCue } from './ActionCue';
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import {Pressable, View} from 'react-native';
 import { fonts, primaryAction, useTheme } from '../theme';
 
 export type TableView = {

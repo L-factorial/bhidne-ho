@@ -1,4 +1,5 @@
-import { Keyboard, Pressable, Text, View } from 'react-native';
+import {AppText as Text} from './AppText';
+import {Keyboard, Pressable, View} from 'react-native';
 import { ui } from '../i18n/copy';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { fonts, useTheme } from '../theme';

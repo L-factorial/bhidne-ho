@@ -1,8 +1,9 @@
+import {AppText as Text} from './AppText';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, Text, View } from 'react-native';
+import {Pressable, View} from 'react-native';
 import { maalChoices, type MaalChoice } from '../multiplayer/maalProgress';
 import { canSubmitMarriage, marriageFace, type MarriageCard, type MarriageMeld, type MarriageView } from '../multiplayer/marriage';
 import { arrangeMarriageHand, type MarriageArrangement } from '../multiplayer/marriageArrangement';

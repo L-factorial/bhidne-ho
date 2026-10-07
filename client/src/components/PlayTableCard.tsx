@@ -1,4 +1,5 @@
-import {Pressable,Text,View} from 'react-native';
+import {AppText as Text} from './AppText';
+import {Pressable, View} from 'react-native';
 import {gameLabel} from '../i18n/display';
 import {ui} from '../i18n/copy';
 import {fonts,useTheme} from '../theme';
@@ -16,8 +17,9 @@ export function PlayTableCard({table,busy,enter,discard}:{table:PlayTable;busy:b
       <View style={{flexDirection:'row',alignItems:'center',gap:10}}>
         <GameIcon game={table.game_type} size={48}/>
         <View style={{flex:1,minWidth:0,gap:4}}>
-          <Text style={{color:c.accent,fontFamily:fonts.medium,fontSize:17}}>{gameLabel(table.game_type)}</Text>
-          <Text style={{fontSize:13,lineHeight:18}}><Text style={{color:c.textMuted,fontFamily:fonts.medium,fontStyle:'italic'}}>{table.room_name}</Text><Text style={{color:c.textMuted}}> → </Text><Text style={{color:c.accent,fontFamily:fonts.body,fontStyle:'italic'}}>{table.name}</Text></Text>
+          <Text accessibilityRole="header" style={{color:c.accent,fontFamily:fonts.editorial,fontSize:26,lineHeight:32}}>{gameLabel(table.game_type)}</Text>
+          <Text style={{color:c.textMuted,fontFamily:fonts.body,fontSize:15,lineHeight:22}}>{ui('common.room')} : {table.room_name}</Text>
+          <Text style={{color:c.text,fontFamily:fonts.body,fontSize:15,lineHeight:22}}>{ui('common.table')} : {table.name}</Text>
         </View>
       </View>
       {!!players.length&&<View testID={`play-players-${table.match_id}`} style={{flexDirection:'row',flexWrap:'wrap',gap:6}}>

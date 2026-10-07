@@ -1,5 +1,6 @@
+import {AppText as Text} from '../components/AppText';
 import { useContext, useEffect, useState } from 'react';
-import { Pressable, Text } from 'react-native';
+import {Pressable} from 'react-native';
 import { AccountPage, accountStyles } from '../components/AccountPage';
 import { FormInput } from '../components/FormInput';
 import { DeletionNavigation } from '../auth/deletion';

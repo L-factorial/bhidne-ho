@@ -1,3 +1,4 @@
+import {AppText as Text} from '../components/AppText';
 import { LanguageToggle } from '../components/LanguageToggle';
 import { ThemeAction } from '../components/ThemeAction';
 import {PushSettings} from '../notifications/PushSettings';
@@ -17,15 +18,14 @@ import { ProfileDismissal } from '../components/ProfileModal';
 import { request } from '../multiplayer/api';
 import { AppHeader } from '../components/AppHeader';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {Pressable, StyleSheet, View} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DisplayNameField } from '../components/DisplayNameField';
 import type { Session } from '../multiplayer/session';
-import { PlayerPhrases } from '../components/PlayerPhrases';
 import type { usePlayerPhrases } from '../multiplayer/usePlayerPhrases';
 import { FriendsPanel } from '../components/FriendsPanel';
 
-export function ProfileScreen({ session, personal, onBack, onSignOut }: {
+export function ProfileScreen({ session, onBack, onSignOut }: {
   session: Session; personal: ReturnType<typeof usePlayerPhrases>; onBack: () => void; onSignOut?: () => void;
 }) {
   useUiLanguage();
@@ -62,9 +62,6 @@ export function ProfileScreen({ session, personal, onBack, onSignOut }: {
       <CommunityRulesEntry session={session} /><ModerationEntry session={session} /><RecoveryEmailSettings session={session} /><BlockedPlayers session={session} />
       <><PolicyLinks /><DeleteAccountLink /></>
       <FriendsPanel session={session} friendLimit={6} />
-      <PlayerPhrases key={userId} userId={userId} phrases={personal.phrases} connected={true}
-        loadError={personal.error} onSave={personal.save} onRemove={personal.remove} onUpdate={personal.update} />
-      <Text style={styles.description}>{ui("social.phrase_edit_help")}</Text>
       {onSignOut && <Pressable accessibilityRole="button" onPress={() => afterDismiss(onSignOut)} style={styles.signOut}><Text style={styles.signOutText}>{ui("common.sign_out_label")}</Text></Pressable>}
     </View>
   </FormScrollView></KeyboardFrame>;

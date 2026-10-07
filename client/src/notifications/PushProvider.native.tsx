@@ -70,13 +70,19 @@ export function PushProvider({session,viewedMatch,children}:PushProviderProps){
       if(!supported)return;
       const prefs=await request<PushPreferences>('/me/push/preferences',session,undefined,abort.signal);
       if(abort.signal.aborted)return;setPreferences(prefs);
-      if(readAuthValue(optedKey)!=='1')return;
-      const permission=await Notifications.getPermissionsAsync();
-      if(abort.signal.aborted)return;
-      if(permission.status!=='granted'){
-        await request(`/me/push/devices/${deviceId()}`,session,undefined,abort.signal,'DELETE');writeAuthValue(optedKey,null);return;
-      }
-      await register(undefined,session,abort.signal);if(!abort.signal.aborted){setEnabled(true);await activity();}
+      if(readAuthValue(optedKey)==='0')return;
+      await run(async active=>{
+        const live=()=>!abort.signal.aborted&&active();
+        const granted=await permissionForDevice(live);
+        if(!live())return;
+        if(!granted){
+          await request(`/me/push/devices/${deviceId()}`,session,undefined,abort.signal,'DELETE');
+          if(live())throw new PushSetupError('PUSH_PERMISSION_REQUIRED');
+          return;
+        }
+        await register(undefined,session,abort.signal);
+        if(live()){writeAuthValue(optedKey,'1');setEnabled(true);await activity();}
+      });
     })().catch(failure=>{if(!abort.signal.aborted)setError(playerError(failure));});
     return()=>{generation.current++;abort.abort();foreground=null;};
   },[session?.user_id,session?.token]);
@@ -90,7 +96,7 @@ export function PushProvider({session,viewedMatch,children}:PushProviderProps){
       void activity(state==='active').catch(()=>{});
       if(state==='active')void Notifications.getPermissionsAsync().then(permission=>{
         if(abort.signal.aborted)return;
-        if(permission.status!=='granted')void disable();
+        if(permission.status!=='granted')void disable(false);
         else if(!abort.signal.aborted)void register(undefined,session,abort.signal).catch(()=>{});
       }).catch(()=>{});
     });
@@ -105,23 +111,34 @@ export function PushProvider({session,viewedMatch,children}:PushProviderProps){
     try{await task(active);}catch(failure){if(active())setError(playerError(failure));}
     finally{if(operation.current===marker){operation.current=null;if(active())setBusy(false);}}
   }
-  async function enable(){await run(async active=>{
-    if(!session||!available)return;
+  async function permissionForDevice(active:()=>boolean){
     if(Platform.OS==='android'){
       await Notifications.setNotificationChannelAsync('game-actions',{name:'Game actions',importance:Notifications.AndroidImportance.HIGH,sound:'default'});
+      if(!active())return false;
       await Notifications.setNotificationChannelAsync('game-actions-silent',{name:'Silent game actions',importance:Notifications.AndroidImportance.HIGH,sound:null,enableVibrate:false});
     }
+    if(!active())return false;
     let permission:Notifications.NotificationPermissionsStatus;
-    try{permission=await Notifications.requestPermissionsAsync({ios:{allowAlert:true,allowSound:true,allowBadge:false}});}
-    catch{throw new PushSetupError('PUSH_PERMISSION_FAILED');}
-    if(!active())return;
-    if(permission.status!=='granted')throw new PushSetupError('PUSH_PERMISSION_REQUIRED');
+    try{
+      permission=await Notifications.getPermissionsAsync();
+      if(!active())return false;
+      // An OS denial is not an app opt-out. Do not repeatedly prompt on sign-in.
+      if(permission.status==='undetermined')permission=await Notifications.requestPermissionsAsync({ios:{allowAlert:true,allowSound:true,allowBadge:false}});
+    }catch{throw new PushSetupError('PUSH_PERMISSION_FAILED');}
+    return active()&&permission.status==='granted';
+  }
+  async function enable(){await run(async active=>{
+    if(!session||!available)return;
+    if(!await permissionForDevice(active)){
+      if(active())throw new PushSetupError('PUSH_PERMISSION_REQUIRED');
+      return;
+    }
     await register(undefined,session);if(!active())return;writeAuthValue(optedKey,'1');setEnabled(true);await activity();
   });}
-  async function disable(){await run(async active=>{
+  async function disable(explicit=true){await run(async active=>{
     if(!session)return;
     await request(`/me/push/devices/${deviceId()}`,session,undefined,undefined,'DELETE');
-    if(!active())return;writeAuthValue(optedKey,null);setEnabled(false);await Notifications.dismissAllNotificationsAsync();
+    if(!active())return;if(explicit)writeAuthValue(optedKey,'0');setEnabled(false);await Notifications.dismissAllNotificationsAsync();
   });}
   async function save(value:PushPreferences){await run(async active=>{
     if(!session)return;

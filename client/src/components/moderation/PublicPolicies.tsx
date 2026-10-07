@@ -1,5 +1,6 @@
+import {AppText as Text} from '../AppText';
 import { createContext, useContext, useEffect, useState } from 'react';
-import { Linking, Pressable, Text, View } from 'react-native';
+import {Linking, Pressable, View} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ui } from '../../i18n/copy.ts';
 import { useUiLanguage } from '../../i18n/useUiLanguage';

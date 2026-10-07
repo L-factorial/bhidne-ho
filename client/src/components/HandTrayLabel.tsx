@@ -1,6 +1,7 @@
+import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
-import { Text, View } from 'react-native';
+import {View} from 'react-native';
 import { fonts, useTheme } from '../theme';
 
 export function HandTrayLabel({ count }: { count?: number }) {

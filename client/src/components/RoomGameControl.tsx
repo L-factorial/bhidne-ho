@@ -1,3 +1,4 @@
+import {AppText as Text} from './AppText';
 import { usePersistentNotice } from '../multiplayer/usePersistentNotice';
 import { playerPresence } from '../multiplayer/playerPresence';
 import { isActiveTable } from '../multiplayer/tableNavigation';
@@ -20,7 +21,7 @@ import type { TableEntry } from '../multiplayer/tableNavigation';
 import { RuleProposal } from './RuleProposal';
 import { TableControls } from './TableControls';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import {AppState, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions} from 'react-native';
 import { useGameNotification } from '../notifications/useGameNotification';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LiveGameTable, RoomSnapshot as Snapshot } from '../screens/LiveGameTable';

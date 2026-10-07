@@ -1,3 +1,4 @@
+import {AppText as Text} from './src/components/AppText';
 import {usePushNavigation} from './src/notifications/usePushNavigation';
 import { PolicyNavigation, PublicPolicyPage, type PolicyPage } from './src/components/moderation/PublicPolicies';
 import { DeletionNavigation, deletionLink } from './src/auth/deletion';
@@ -9,11 +10,10 @@ import { playerError } from './src/multiplayer/playerError.ts';
 import './src/auth/installStorage';
 import { ui, uiLabel } from './src/i18n/copy';
 import { readInvitation, type Invitation } from './src/multiplayer/invitations';
-import { Image, Linking, Platform, Text, View } from 'react-native';
+import {Image, Linking, Platform, View} from 'react-native';
 import { branding } from './src/branding';
 import { ThemeProvider } from './src/ThemeProvider';
 import { useTheme } from './src/theme';
-import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { useFonts } from 'expo-font';
 import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
@@ -108,7 +108,6 @@ function AppContent() {
   </View>;
   return (
     <SafeAreaProvider><PolicyNavigation.Provider value={openPolicy}><DeletionNavigation.Provider value={()=>setDeletionOpen(true)}>
-      <StatusBar style="light" />
       <SessionNotice />
       {!!authError && <Text accessibilityRole="alert" style={{ padding: 16, color: colors.danger }}>{uiLabel(authError, 'feedback')}</Text>}
       {policy ? <PublicPolicyPage page={policy} onBack={closePolicy} /> : deletionOpen ? <DeletionScreen key={deletionToken || 'account-deletion'} session={readSession(apiUrl)?.session || null} token={deletionToken} onClose={()=>{setDeletionOpen(false);setDeletionToken(null);setInRooms(true);if(Platform.OS==='web'&&globalThis.location.pathname.startsWith('/delete-account'))globalThis.history.replaceState(null,'','/');}} /> : recovery ? <RecoveryScreen key={recovery.token} link={recovery} onDone={reset => {

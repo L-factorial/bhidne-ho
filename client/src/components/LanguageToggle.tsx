@@ -1,6 +1,7 @@
+import {AppText as Text} from './AppText';
 import { GameModal as Modal } from './GameModal';
 import { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import {Platform, Pressable, View, useWindowDimensions} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';

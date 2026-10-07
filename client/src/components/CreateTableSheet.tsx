@@ -1,6 +1,7 @@
+import {AppText as Text} from './AppText';
 import {useRef,useState} from 'react';
 import {Ionicons} from '@expo/vector-icons';
-import {Pressable,Text,View} from 'react-native';
+import {Pressable, View} from 'react-native';
 import {RoomSheet} from './RoomSheet';
 import {CreateTableForm} from './CreateTableForm';
 import {fonts,useTheme} from '../theme';

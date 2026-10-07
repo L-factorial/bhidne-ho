@@ -6841,3 +6841,108 @@ requested stronger drawn/discard card markers. Tap selection remains unchanged.
 - Exact next step: deploy this committed backend/web release directly to both
   app hosts, verify health/source/assets, then produce a signed native build and
   perform separate-account/device checks when requested.
+
+- Direct production deployment completed for commit
+  `eedf0124d1ffad5995337c51d7f9326bc96f0d1c` on both app hosts with image
+  `sha256:c51f8eb8737a6fbfb4c719d4dfb88cb4b4633e7911d4aab052d12dddead91c85`.
+  Schema remains 39; no migration/credential/dependency changes. Restored local
+  SSH-agent access from the existing macOS keychain before upload. Both hosts
+  passed preflight and API health, and public HTTPS serves matching frontend
+  index/JavaScript hashes. APNs provider availability is confirmed.
+- Release evidence: `/private/tmp/bhidne-eedf012-direct/verification.json`;
+  checks: `/private/tmp/bhidne-lobby-followup-{client,backend,browser,native}.log`.
+  Backend/web live; a signed native build and real-device notification/keyboard
+  validation remain separate work. Exact next step: refresh and verify web flows,
+  then produce/install a native build and exercise separate-account foreground/
+  background chat/poke notifications when requested.
+
+### Device notification defaults (2026-10-07)
+
+- Native push now requests OS permission and registers automatically after
+  authenticated sign-in when the production provider is available. Existing
+  account notification categories, sound and quiet-hour preferences are kept.
+- Profile Disable stores an explicit local `0` for this device/account and
+  removes its server registration; it survives remount and sign-in. Enable
+  restores `1`. OS denial/revocation does not create a user opt-out or repeatedly
+  prompt. Android channels are created before permissions/token acquisition.
+- Startup/manual operations are serialized and session/abort checks prevent a
+  permission prompt completing after logout from registering the previous user.
+- Migration limitation: previous Disable removed the preference entirely, so
+  historical opt-outs cannot be distinguished from never-configured devices.
+  Missing preferences now default on, subject to OS permission; explicit opt-outs
+  made with this version are persistent. The web in-app bell remains available.
+- Verification: TypeScript, targeted notification tests and four mocked native
+  lifecycle checks pass. iOS/Android exports also pass. No server,
+  schema or dependency changes are needed. OS prompts/APNs delivery require
+  validation on signed native builds; simulated checks do not establish delivery.
+- Exact next step: produce/install a signed native build and verify default
+  registration, Profile opt-out persistence and chat/poke delivery on devices.
+
+### Profile punchline section removal (2026-10-07)
+
+- Removed the saved punchline editor and its edit-help text from Profile.
+- Verification: client TypeScript and diff whitespace checks pass. This is a
+  presentation-only removal; no schema or dependency change is needed.
+- User requested local changes only: no push or deployment performed.
+- Exact next step: review the local Profile and notification-default changes;
+  release only when requested.
+
+### Monochrome app themes (2026-10-07)
+
+- Added Monochrome Noir and Monochrome Pearl to the existing theme picker and
+  device persistence. Neutral surfaces, primary actions, text, selected states,
+  borders, table surrounds and card backs use layered charcoal/silver or white/
+  graphite. Brand artwork and playing-card faces/suit colors stay recognizable.
+- Pearl sets the browser light color scheme and dark native status-bar icons;
+  dark themes retain light icons. Primary button borders now use a semantic
+  palette token, preserving the existing colored themes' border appearance.
+- Verification: TypeScript, all 395 client tests (including monochrome contrast
+  and neutral-token checks), and production web export pass. Chrome checks at
+  390px and 1280px cover both palettes, reload persistence and color scheme with
+  no page errors; mobile screenshots were inspected. Browser checks cover the
+  landing view; real native status bars remain device validation work.
+- User requested local changes only. No push or deployment performed.
+- Exact next step: review the local theme/Profile/notification-default changes
+  and release only when requested.
+
+### Available-table card location lines (2026-10-07)
+
+- Play available-table cards now show localized Room : <name> and Table : <name>
+  on separate lines beneath the game type. Room uses muted text; Table uses
+  normal text; the game heading keeps its accent color, following each palette.
+- Verification: TypeScript and diff whitespace checks pass. No data/API changes.
+- Changes remain local; no push or deployment. Exact next step: review the local
+  card layout with the other pending UI changes and release only when requested.
+
+### Available-table typography (2026-10-07)
+
+- Game-type headings use the already bundled Cormorant Garamond Bold at 26px
+  with 32px line height for a classic card-room character. Room/Table details
+  keep Inter and increase to 15px/22px for readability. Text retains native font
+  scaling and unrestricted wrapping; headings have the accessibility header role.
+- Verification: TypeScript and diff whitespace checks pass; no new font/dependency.
+- Changes remain local; no push/deployment. Exact next step: review the available
+  table cards on a phone, including larger system text, before requested release.
+
+### App-wide readable typography (2026-10-07)
+
+- User clarified that the typography request covers all pages, text and labels.
+  Added shared AppText across 100 screen/component imports, with Cormorant
+  Garamond Bold for prominent headings and Inter for body, buttons and labels.
+  The display font token now differs from the medium label token, so buttons
+  retain modern type. Metadata starts at 14px; body defaults to 16px; headings
+  start at 22px. Existing larger sizes remain. Line spacing grows with the text.
+- Inline nested text keeps parent typography and its own color/emphasis. OS font
+  scaling remains enabled and uncapped. Animated turn/transfer text uses the same
+  component. Form inputs use Inter with at least 16px type and 24px line height;
+  remaining direct input surfaces now use the shared FormInput.
+- Verification: TypeScript, all 395 client tests and two mocked native typography
+  checks pass. Production web and iOS/Android exports pass. Refreshed legacy
+  preview Chrome fixtures pass lobby Chat/Friends and Profile at 390/1280px,
+  all three game headers/menus/chat gates, room chat, and table transfer success/
+  failure. An initial browser attempt used a cached export and did not reach the
+  lobby; clearing/re-exporting resolved the fixture setup. No live writes made.
+- Real-device large-system-text/Devanagari and dense game-layout inspection remain
+  manual validation work; browser workflows do not establish UIKit rendering.
+- No dependency change, push or deployment. Exact next step: review local
+  typography and pending UI/native changes, release only when requested.

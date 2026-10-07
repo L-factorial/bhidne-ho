@@ -1,3 +1,4 @@
+import {AppText as Text} from './AppText';
 import { preserveRemovals } from './moderation/messages';
 import { CommunityRulesEntry, useCommunityRulesGate } from './moderation/CommunityRules';
 import { ReportButton } from './Moderation';
@@ -10,7 +11,7 @@ import { ChatMessage } from './ChatMessage';
 import { RoomSheet } from './RoomSheet';
 import { ChatComposer } from './ChatComposer';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { Keyboard, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {Keyboard, Pressable, ScrollView, StyleSheet, View} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePong } from '../notifications/usePong';
 import { ApiError, request } from '../multiplayer/api';

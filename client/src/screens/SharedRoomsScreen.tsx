@@ -1,3 +1,4 @@
+import {AppText as Text} from '../components/AppText';
 import {PushProvider} from '../notifications/PushProvider';
 import { PolicyLinks } from '../components/moderation/PublicPolicies';
 import { isCurrentSession } from '../multiplayer/session';
@@ -34,7 +35,7 @@ import { AppHeader, HeaderProfileContext } from '../components/AppHeader';
 import { HeaderAction } from '../components/HeaderAction';
 import { NotificationBell } from '../components/NotificationBell';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import {Pressable, StyleSheet, TextInput, useWindowDimensions, View} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ProfileScreen } from './ProfileScreen';
 import { usePlayerPhrases } from '../multiplayer/usePlayerPhrases';

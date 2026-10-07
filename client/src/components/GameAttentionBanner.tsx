@@ -1,5 +1,6 @@
+import {AppText as Text} from './AppText';
 import {useEffect, useRef, useState, type ReactNode} from 'react';
-import {AccessibilityInfo, Animated, Pressable, Text, View} from 'react-native';
+import {AccessibilityInfo, Animated, Pressable, View} from 'react-native';
 import {fonts, useTheme} from '../theme';
 import {ui} from '../i18n/copy';
 import {useUiLanguage} from '../i18n/useUiLanguage';

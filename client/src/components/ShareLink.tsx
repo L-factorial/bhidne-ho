@@ -1,9 +1,10 @@
+import {AppText as Text} from './AppText';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { Ionicons } from '@expo/vector-icons';
 import { RoomSheet } from './RoomSheet';
 import { useState } from 'react';
-import { Platform, Share, Pressable, Text, View } from 'react-native';
+import {Platform, Share, Pressable, View} from 'react-native';
 import Svg, { Rect, Path } from 'react-native-svg';
 import * as Clipboard from 'expo-clipboard';
 import { invitationLink, roomInvitationCode, tableInvitationCode } from '../multiplayer/invitations';

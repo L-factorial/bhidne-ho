@@ -1,3 +1,4 @@
+import {AppText as Text} from './AppText';
 import { playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -6,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { PlayerAvatar } from './PlayerAvatar';
 import { RoundResultsTable } from './RoundResultsTable';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {Pressable, StyleSheet, View} from 'react-native';
 import { request } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 import { useTranslation } from 'react-i18next';

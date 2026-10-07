@@ -1,3 +1,4 @@
+import {AppText as Text} from '../components/AppText';
 import { gameAttention } from '../notifications/gameAttention';
 import { playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
@@ -14,7 +15,7 @@ import { MobileGameHand } from '../components/MobileGameHand';
 import { TableStartCue } from '../components/TableStartCue';
 import { useCallBreakHand } from '../multiplayer/useCallBreakHand';
 import { type ReactNode, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import {Pressable, ScrollView, StyleSheet, View, useWindowDimensions} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardTable } from '../components/CardTable';
 import { PlayerHand, type HandView } from '../components/PlayerHand';

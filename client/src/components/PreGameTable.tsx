@@ -1,7 +1,8 @@
+import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import type { ReactNode } from 'react';
-import { Text } from 'react-native';
+import {} from 'react-native';
 import { TableSeatLayout } from './TableSeatLayout';
 import { PlayerSeat } from './PlayerSeat';
 import type { RoomSnapshot } from '../screens/LiveGameTable';

@@ -1,9 +1,10 @@
+import {AppText as Text} from './AppText';
 import { ContextMenu, MenuAction } from './ContextMenu';
 import type { ReactNode } from 'react';
 import { Button, Copy, copy } from './moderation/Controls';
 import { EnforcementActions } from './moderation/EnforcementActions';
 import { useEffect, useRef, useState } from 'react';
-import { Modal, Pressable, Text, View } from 'react-native';
+import {Modal, Pressable, View} from 'react-native';
 import { sharedRequest, ApiError } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 import { ui } from '../i18n/copy';

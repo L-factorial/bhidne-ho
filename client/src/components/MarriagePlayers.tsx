@@ -1,3 +1,4 @@
+import {AppText as Text} from './AppText';
 import { GameModal as Modal } from './GameModal';
 import { meldLabel, gameLabel, phaseLabel } from '../i18n/display';
 import { ui, uiLabel } from '../i18n/copy.ts';
@@ -8,7 +9,7 @@ import { RoomSheet } from './RoomSheet';
 import { PlayerSeat } from './PlayerSeat';
 import { TableSeatLayout } from './TableSeatLayout';
 import { useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {Pressable, ScrollView, StyleSheet, View} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import type { MarriagePublic } from '../multiplayer/marriage';

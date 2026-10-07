@@ -1,10 +1,11 @@
+import {AppText as Text} from './AppText';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { playerError } from '../multiplayer/playerError.ts';
 import { gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { FormInput } from './FormInput';
 import { useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {Pressable, StyleSheet, View} from 'react-native';
 import { limitPokeText, PLAYER_PHRASE_LIMIT, POKE_TEXT_LIMIT, pokeTextLength, type PlayerPhrase } from '../multiplayer/pokes';
 
 export function PlayerPhrases({ phrases, userId, connected, loadError, onSave, onRemove, onUpdate }: {

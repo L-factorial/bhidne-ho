@@ -1,3 +1,4 @@
+import {AppText as Text} from '../components/AppText';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
@@ -5,7 +6,7 @@ import { FormInput, FormScrollView } from '../components/FormInput';
 import { KeyboardFrame } from '../components/KeyboardFrame';
 import { AppHeader } from '../components/AppHeader';
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import {Modal, Pressable, StyleSheet, useWindowDimensions, View} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CallBreakTableScreen } from './CallBreakTableScreen';

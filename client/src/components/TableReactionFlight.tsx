@@ -1,7 +1,8 @@
+import {AppText as Text} from './AppText';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useEffect, useId, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Text, View, useWindowDimensions } from 'react-native';
+import {AccessibilityInfo, Animated, View, useWindowDimensions} from 'react-native';
 import Svg, { Defs, Ellipse, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { fonts, useTheme } from '../theme';
 import { tableReactions, type TableReaction } from '../multiplayer/tableReactions';

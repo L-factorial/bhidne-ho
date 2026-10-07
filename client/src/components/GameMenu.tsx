@@ -1,10 +1,11 @@
+import {AppText as Text} from './AppText';
 import { meldLabel, gameLabel, phaseLabel } from '../i18n/display';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { Ionicons } from '@expo/vector-icons';
 import { useTableSocial } from './TableSocial';
 import { type ReactNode, type ComponentProps, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import {Pressable, View} from 'react-native';
 import { fonts, useTheme } from '../theme';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { TableShareSheet } from './ShareLink';

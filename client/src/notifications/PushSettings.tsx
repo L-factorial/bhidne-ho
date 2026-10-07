@@ -1,5 +1,7 @@
+import {FormInput} from '../components/FormInput';
+import {AppText as Text} from '../components/AppText';
 import {useEffect,useState} from 'react';
-import {Pressable,Text,TextInput,View} from 'react-native';
+import {Pressable, TextInput, View} from 'react-native';
 import {useTheme,fonts} from '../theme';
 import {ui} from '../i18n/copy';
 import {useUiLanguage} from '../i18n/useUiLanguage';
@@ -30,7 +32,7 @@ export function PushSettings(){
     </Pressable>
     {push.enabled&&<>{(['actions','invitations','sound'] as const).map(toggle)}
       <Text style={{color:c.text}}>{ui('common.push_quiet')}</Text>
-      <View style={{flexDirection:'row',gap:8}}>{([['start',start,setStart],['end',end,setEnd]] as const).map(([key,value,set])=><TextInput key={key} accessibilityLabel={ui(key==='start'?'common.push_quiet_start':'common.push_quiet_end')} value={value} onChangeText={set} placeholder="HH:MM" maxLength={5} editable={!push.busy} style={{color:c.text,borderColor:c.border,borderWidth:1,padding:10,minHeight:44,flex:1}} />)}</View>
+      <View style={{flexDirection:'row',gap:8}}>{([['start',start,setStart],['end',end,setEnd]] as const).map(([key,value,set])=><FormInput key={key} accessibilityLabel={ui(key==='start'?'common.push_quiet_start':'common.push_quiet_end')} value={value} onChangeText={set} placeholder="HH:MM" maxLength={5} editable={!push.busy} style={{color:c.text,borderColor:c.border,borderWidth:1,padding:10,minHeight:44,flex:1}} />)}</View>
       <Pressable accessibilityRole="button" disabled={push.busy} onPress={()=>void quiet()} style={{minHeight:44,justifyContent:'center'}}><Text style={{color:c.accent}}>{ui('common.push_quiet_save')}</Text></Pressable>
       {push.preferences.quiet_start!==null&&<Pressable accessibilityRole="button" disabled={push.busy} onPress={()=>void push.save({...push.preferences,quiet_start:null,quiet_end:null})} style={{minHeight:44,justifyContent:'center'}}><Text style={{color:c.accent}}>{ui('common.push_quiet_disable')}</Text></Pressable>}
     </>}

@@ -1,8 +1,9 @@
+import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useEffect, useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, Text, View } from 'react-native';
+import {Pressable, View} from 'react-native';
 import { MarriageMeldCards } from './MarriageMeldCards';
 import { TurnGlow } from './TurnGlow';
 import { fonts, gameButtonStyle, useTheme } from '../theme';

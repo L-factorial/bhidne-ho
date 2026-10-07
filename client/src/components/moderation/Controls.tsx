@@ -1,4 +1,5 @@
-import { Pressable, Text } from 'react-native';
+import {AppText as Text} from '../AppText';
+import {Pressable} from 'react-native';
 import { fonts, useTheme } from '../../theme';
 import { ui } from '../../i18n/copy';
 import type { UiKey } from '../../i18n/catalogs';

@@ -1,8 +1,9 @@
+import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { type ReactNode, useState } from 'react';
 import { TableSurface } from './TableSurface';
-import { Text, View } from 'react-native';
+import {View} from 'react-native';
 import { seatedOrder, tableSeatGeometry } from '../multiplayer/tableSeats';
 
 export function TableSeatLayout<T extends { id: string }>({ players, viewerId, compact = false, fill = false, renderSeat, children, testID, game = 'callbreak', capacity }: {

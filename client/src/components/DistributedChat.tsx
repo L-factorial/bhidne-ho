@@ -1,8 +1,9 @@
+import {AppText as Text} from './AppText';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { playerError } from '../multiplayer/playerError.ts';
 import {useEffect,useState} from 'react';
-import {Pressable,Text,TextInput,View} from 'react-native';
+import {Pressable, TextInput, View} from 'react-native';
 import type {DistributedRootRuntime} from '../multiplayer/DistributedRoot';
 import type {SelectedTable} from '../multiplayer/DistributedControls';
 import type {CommandTarget} from '../multiplayer/DurableCommandClient';

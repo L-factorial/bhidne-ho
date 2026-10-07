@@ -1,9 +1,10 @@
+import {AppText as Text} from './AppText';
 import { playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { gameControlFinish, gamePanelFinish, fonts, radii, typography, useTheme } from '../theme';
 import { useEffect, useRef, useState } from 'react';
-import { ImageBackground, Pressable, Text, View } from 'react-native';
+import {ImageBackground, Pressable, View} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { RoomShareActions } from './ShareLink';

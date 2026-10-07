@@ -1,8 +1,9 @@
+import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { fonts, useTheme } from '../theme';
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, Text, View, useWindowDimensions } from 'react-native';
+import {Pressable, View, useWindowDimensions} from 'react-native';
 import { ProfileModal } from './ProfileModal';
 import { BrandIcon, headerLogoSize } from './BrandArt';
 import { HeaderAction } from './HeaderAction';

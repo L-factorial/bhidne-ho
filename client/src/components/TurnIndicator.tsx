@@ -1,4 +1,5 @@
-import { Text } from 'react-native';
+import {AppText as Text} from './AppText';
+import {} from 'react-native';
 import { fonts, useTheme } from '../theme';
 
 export function TurnIndicator({ text, personal = false, testID }: { text: string; personal?: boolean; testID?: string }) {

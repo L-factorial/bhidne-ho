@@ -1,10 +1,11 @@
+import {AppText as Text} from './AppText';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { PlayerAvatar } from './PlayerAvatar';
 import { TableSurface } from './TableSurface';
 import { PlayerSocialEffect, useTableSocial } from './TableSocial';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import {AccessibilityInfo, Animated, Pressable, StyleSheet, View} from 'react-native';
 import { flushDecision } from '../multiplayer/flushDecision';
 import Svg, { Circle } from 'react-native-svg';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';

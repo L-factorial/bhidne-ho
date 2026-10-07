@@ -1,7 +1,8 @@
+import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, StyleSheet, Text, View } from 'react-native';
+import {AccessibilityInfo, Animated, StyleSheet, View} from 'react-native';
 import { PlayerSeat } from './PlayerSeat';
 import { TableSeatLayout } from './TableSeatLayout';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';

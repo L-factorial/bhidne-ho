@@ -1,8 +1,9 @@
+import {AppText as Text} from './AppText';
 import { GameModal as Modal } from './GameModal';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import {Pressable, ScrollView, View} from 'react-native';
 import { maalChoices, type MaalChoice } from '../multiplayer/maalProgress';
 import type { MarriageCard, MarriageMeld } from '../multiplayer/marriage';
 import { fonts, gameButtonStyle, useTheme } from '../theme';

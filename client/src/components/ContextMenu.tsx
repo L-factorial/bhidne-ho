@@ -1,6 +1,7 @@
+import {AppText as Text} from './AppText';
 import { GameModal as Modal } from './GameModal';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Platform, Pressable, Text, useWindowDimensions, View } from 'react-native';
+import {Platform, Pressable, useWindowDimensions, View} from 'react-native';
 import { fonts, useTheme } from '../theme';
 import { ui } from '../i18n/copy';
 

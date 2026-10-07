@@ -1,5 +1,6 @@
+import {AppText as Text} from './AppText';
 import { useEffect, useRef, useState } from 'react';
-import { Text } from 'react-native';
+import {} from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { foldText } from '../notifications/gameNotification';
 import { useTheme } from '../theme';

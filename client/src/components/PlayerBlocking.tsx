@@ -1,6 +1,7 @@
+import {AppText as Text} from './AppText';
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import {Pressable, View} from 'react-native';
 import { sharedRequest } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 import { ui } from '../i18n/copy';

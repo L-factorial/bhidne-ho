@@ -1,7 +1,8 @@
+import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useMemo } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import {Pressable, View} from 'react-native';
 import { maalProgress } from '../multiplayer/maalProgress';
 import { marriageFace, physicalLabel, type MarriageCard, type MarriageMeld } from '../multiplayer/marriage';
 import { MarriageMeldCards } from './MarriageMeldCards';

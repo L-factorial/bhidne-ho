@@ -1,6 +1,7 @@
+import {AppText as Text} from './AppText';
 import {useState,type ReactNode} from 'react';
 import {Ionicons} from '@expo/vector-icons';
-import {Pressable,Text,View} from 'react-native';
+import {Pressable, View} from 'react-native';
 import {FormInput} from './FormInput';
 import {GameIcon} from './BrandArt';
 import {fonts,useTheme} from '../theme';

@@ -1,3 +1,4 @@
+import {AppText as Text} from './AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { PlayerAvatar } from './PlayerAvatar';
 import { ContextMenu, MenuAction } from './ContextMenu';
@@ -16,7 +17,7 @@ import { ChatComposer } from './ChatComposer';
 import { FormFooter } from './FormFooter';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {Pressable, ScrollView, StyleSheet, View} from 'react-native';
 import { request } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 

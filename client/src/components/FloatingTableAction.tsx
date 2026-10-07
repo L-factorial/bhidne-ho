@@ -1,5 +1,6 @@
+import {AppText as Text} from './AppText';
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Pressable, Text } from 'react-native';
+import {AccessibilityInfo, Animated, Pressable} from 'react-native';
 import { fonts, gameButtonStyle, useTheme } from '../theme';
 
 /** Visual emphasis only. Eligibility and commands remain owned by each game. */

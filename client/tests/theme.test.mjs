@@ -14,7 +14,7 @@ test('all table choices retain readable text and recognizable cards', () => {
     for (const bg of [c.background, c.surface, c.surfaceRaised, c.surfaceSelected, c.table, c.resultOwnSurface, c.ownMessage]) {
       for (const fg of [c.text, c.textMuted, c.accent]) assert.ok(contrast(fg, bg) >= 4.5, `${theme.name}: ${fg} on ${bg}`);
     }
-    for (const key of ['cardFace', 'cardInk', 'cardRed', 'cardBack']) assert.equal(c[key], colors[key]);
+    for (const key of ['cardFace', 'cardInk', 'cardRed']) assert.equal(c[key], colors[key]);
   }
 });
 test('stored table choices reject unknown values and inherited object keys', () => {
@@ -44,6 +44,24 @@ test('highlighted result names and scores remain readable in games and ledgers',
   for (const c of [colors, gameColors]) {
     for (const fg of [c.text, c.success, c.danger]) {
       assert.ok(contrast(fg, c.resultOwnSurface) >= 4.5, `${fg} on highlighted result ${c.resultOwnSurface}`);
+    }
+  }
+});
+
+
+test('monochrome controls, status text and table surfaces retain contrast', () => {
+  for (const id of ['noir', 'pearl']) {
+    const c = tableThemes[id].colors;
+    for (const [fg,bg] of [[c.onPrimary,c.primary],[c.onPrimary,c.primaryPressed],[c.onCoin,c.coin],
+      [c.onTableHeader,c.tableHeader],[c.turnText,c.turnSurface],[c.success,c.successSurface],
+      [c.danger,c.dangerSurface],[c.warning,c.warningSoft]]) {
+      assert.ok(contrast(fg,bg)>=4.5, `${id}: ${fg} on ${bg}`);
+    }
+    for (const bg of [c.background,c.surface]) assert.ok(contrast(c.border,bg)>=3);
+    for (const [key,value] of Object.entries(c)) {
+      if (!value.startsWith('#') || ['cardFace','cardInk','cardRed','cardClub','cardBorder','cardSelected'].includes(key)) continue;
+      const rgb=value.slice(1,7).match(/../g);
+      assert.equal(rgb[0],rgb[1],`${id}: ${key}`);assert.equal(rgb[1],rgb[2],`${id}: ${key}`);
     }
   }
 });

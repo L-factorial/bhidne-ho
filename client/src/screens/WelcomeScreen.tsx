@@ -1,10 +1,11 @@
+import {AppText as Text} from '../components/AppText';
 import { PolicyLinks } from '../components/moderation/PublicPolicies';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { ui } from '../i18n/copy.ts';
 import { gameHeadingFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { ThemeAction } from '../components/ThemeAction';
 import { useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import {Image, Pressable, ScrollView, StyleSheet, useWindowDimensions, View} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { branding } from '../branding';

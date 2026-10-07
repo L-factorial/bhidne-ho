@@ -1,8 +1,9 @@
+import {AppText as Text} from '../components/AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { AppHeader } from '../components/AppHeader';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import {Pressable, ScrollView, StyleSheet, useWindowDimensions, View} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardTable, TablePlayer } from '../components/CardTable';

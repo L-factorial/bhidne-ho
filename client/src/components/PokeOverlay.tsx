@@ -1,7 +1,8 @@
+import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import {AccessibilityInfo, Animated, StyleSheet, View, useWindowDimensions} from 'react-native';
 import type { RoomPoke } from '../multiplayer/pokes';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 

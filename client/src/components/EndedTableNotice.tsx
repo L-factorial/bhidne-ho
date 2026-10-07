@@ -1,6 +1,7 @@
+import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
-import { Pressable, Text, View } from 'react-native';
+import {Pressable, View} from 'react-native';
 import { fonts, useTheme } from '../theme';
 
 export function EndedTableNotice({ onBack, onNewGame }: { onBack: () => void; onNewGame: () => void }) {

@@ -9,7 +9,8 @@ export function TableSurface({ game = 'callbreak', themeId }: { game?: 'callbrea
   const id = useId().replace(/:/g, '');
   const preference = useTableTheme();
   const selected = themeId || preference.id;
-  const { felt, trim } = tableThemes[selected];
+  const { felt, trim, colors } = tableThemes[selected];
+  const monochrome = selected === 'noir' || selected === 'pearl';
   return <View pointerEvents="none" accessible={false} style={StyleSheet.absoluteFill} testID={`table-surface-${game}`}>
     <Svg width="100%" height="100%" viewBox="0 0 360 460" preserveAspectRatio="none">
       <Defs>
@@ -24,17 +25,17 @@ export function TableSurface({ game = 'callbreak', themeId }: { game?: 'callbrea
           <Path d="M0 3 Q18 8 36 3 M0 12 Q18 16 36 12" stroke="#D4A571" strokeWidth="0.6" opacity="0.2" fill="none" />
         </Pattern>
         <Pattern id={`${id}weave`} width="6" height="6" patternUnits="userSpaceOnUse">
-          <Path d="M0 1 L2 1 M3 4 L5 4" stroke="#D8F0D5" strokeWidth="0.5" opacity="0.09" />
+          <Path d="M0 1 L2 1 M3 4 L5 4" stroke={monochrome ? colors.text : "#D8F0D5"} strokeWidth="0.5" opacity="0.09" />
         </Pattern>
         <Pattern id={`${id}straw`} width="18" height="18" patternUnits="userSpaceOnUse">
           <Path d="M1 0 L4 18 M8 0 L6 18 M12 0 L16 18 M0 7 L18 9 M0 14 L18 12" stroke="#E3C18A" strokeWidth="0.7" opacity="0.13" />
         </Pattern>
       </Defs>
-      <Rect x="3" y="3" width="354" height="454" rx="164" fill={`url(#${id}wood)`} stroke="#38291D" strokeWidth="3" />
-      <Rect x="5" y="5" width="350" height="450" rx="162" fill={`url(#${id}grain)`} />
+      <Rect x="3" y="3" width="354" height="454" rx="164" fill={monochrome ? colors.surfaceRaised : `url(#${id}wood)`} stroke={monochrome ? trim : "#38291D"} strokeWidth="3" />
+      <Rect x="5" y="5" width="350" height="450" rx="162" fill={monochrome ? "none" : `url(#${id}grain)`} />
       <Rect x="15" y="15" width="330" height="430" rx="152" fill={`url(#${id}felt)`} stroke={trim} strokeWidth="2" />
-      <Rect x="19" y="19" width="322" height="422" rx="148" fill={`url(#${id}weave)`} stroke="#071F17" strokeWidth="3" />
-      <Rect x="24" y="24" width="312" height="412" rx="143" fill="none" stroke="#B9D2AC" strokeOpacity="0.18" strokeWidth="1" />
+      <Rect x="19" y="19" width="322" height="422" rx="148" fill={`url(#${id}weave)`} stroke={monochrome ? colors.borderSubtle : "#071F17"} strokeWidth="3" />
+      <Rect x="24" y="24" width="312" height="412" rx="143" fill="none" stroke={monochrome ? colors.text : "#B9D2AC"} strokeOpacity="0.18" strokeWidth="1" />
       {selected === 'heritage' && <>
         <Rect x="24" y="24" width="312" height="412" rx="143" fill={`url(#${id}straw)`} />
         <G opacity="0.55" transform="translate(70 310)">

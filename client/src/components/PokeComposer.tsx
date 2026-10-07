@@ -1,3 +1,4 @@
+import {AppText as Text} from './AppText';
 import { playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -5,7 +6,7 @@ import { RoomSheet } from './RoomSheet';
 import { ChatComposer } from './ChatComposer';
 import { FormFooter } from './FormFooter';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {Pressable, StyleSheet, View} from 'react-native';
 import { limitPokeText, PLAYER_PHRASE_LIMIT, POKE_TEXT_LIMIT, type PlayerPhrase } from '../multiplayer/pokes';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 

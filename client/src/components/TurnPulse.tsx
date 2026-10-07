@@ -1,7 +1,9 @@
+import {AppText} from './AppText';
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, StyleSheet, type TextProps } from 'react-native';
 import { fonts, useThemedStyles, type ThemeColors } from '../theme';
 
+const AnimatedText=Animated.createAnimatedComponent(AppText);
 export function TurnPulse({ text, personal = false, active = true, children, style, ...props }: TextProps & { text?: string; personal?: boolean; active?: boolean }) {
   const styles = useThemedStyles(createStyles);
   const opacity = useRef(new Animated.Value(1)).current;
@@ -22,8 +24,8 @@ export function TurnPulse({ text, personal = false, active = true, children, sty
     animation.start();
     return () => { animation.stop(); opacity.setValue(1); };
   }, [opacity, reduceMotion, text, active]);
-  return <Animated.Text testID={personal ? 'your-turn-pulse' : 'table-turn-pulse'}
-    accessibilityLiveRegion="polite" {...props} style={[style ?? styles.text, personal && styles.personal, { opacity }]}>{text ?? children}</Animated.Text>;
+  return <AnimatedText testID={personal ? 'your-turn-pulse' : 'table-turn-pulse'}
+    accessibilityLiveRegion="polite" {...props} style={[style ?? styles.text, personal && styles.personal, { opacity }]}>{text ?? children}</AnimatedText>;
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({

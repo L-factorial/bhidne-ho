@@ -1,8 +1,9 @@
+import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { FormInput } from './FormInput';
 import { useId } from 'react';
-import { InputAccessoryView, Keyboard, Platform, Pressable, Text, type TextInputProps, View } from 'react-native';
+import {InputAccessoryView, Keyboard, Platform, Pressable, type TextInputProps, View} from 'react-native';
 import { fonts, useTheme } from '../theme';
 
 /** iOS number pads have no return key; always provide an explicit dismissal action. */

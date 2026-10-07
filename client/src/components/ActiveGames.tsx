@@ -1,10 +1,11 @@
+import {AppText as Text} from './AppText';
 import { isActiveTable } from '../multiplayer/tableNavigation';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { gameTabFinish, fonts, useTheme } from '../theme';
 import { useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { AppState, Pressable, ScrollView, Text, View } from 'react-native';
+import {AppState, Pressable, ScrollView, View} from 'react-native';
 import { request } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 import type { TableEntry } from '../multiplayer/tableNavigation';

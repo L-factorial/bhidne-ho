@@ -1,8 +1,9 @@
+import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { RoomSheet } from './RoomSheet';
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import {Pressable, View} from 'react-native';
 import { fonts, useTheme } from '../theme';
 
 export function EndGameControl({ busy, onEnd, compact = false, table = false }: { table?: boolean; compact?: boolean; busy: boolean; onEnd: () => Promise<void> }) {

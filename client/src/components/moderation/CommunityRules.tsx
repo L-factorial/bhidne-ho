@@ -1,7 +1,8 @@
+import {AppText as Text} from '../AppText';
 import { GameModal as Modal } from '../GameModal';
 import { useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, Text, View } from 'react-native';
+import {Pressable, View} from 'react-native';
 import type { Session } from '../../multiplayer/session';
 import { sharedRequest } from '../../multiplayer/api';
 import { useUiLanguage } from '../../i18n/useUiLanguage';

@@ -1,6 +1,7 @@
+import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
-import { StyleSheet, Text, View } from 'react-native';
+import {StyleSheet, View} from 'react-native';
 import { physicalLabel, type MarriageWinningMeld } from '../multiplayer/marriage';
 import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
