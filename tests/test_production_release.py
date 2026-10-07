@@ -287,3 +287,15 @@ def test_frontend_phase_refuses_an_old_backend(monkeypatch,tmp_path):
     with pytest.raises(RuntimeError,match='only after'):
         release.release(CONFIG | {'frontend':True},'frontend',DIGEST)
     switch.assert_not_called()
+
+
+def test_apns_credentials_are_mounted_read_only_when_present(monkeypatch):
+    monkeypatch.setattr(release.Path, 'is_dir', lambda _: True)
+    args = release.sandbox()
+    assert args[:2] == ['--mount', 'type=bind,src=/etc/bhidne-prod/apns,dst=/run/bhidne-apns,readonly']
+    assert args[args.index('--user')+1] == '10001:10001'
+
+
+def test_apns_mount_is_optional_for_existing_hosts(monkeypatch):
+    monkeypatch.setattr(release.Path, 'is_dir', lambda _: False)
+    assert '--mount' not in release.sandbox()

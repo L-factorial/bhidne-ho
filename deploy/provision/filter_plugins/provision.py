@@ -36,7 +36,7 @@ def recovery_env_text(existing, updates=None):
 
 class FilterModule:
     def filters(self):
-        return {"private_ipv4": private_ipv4, "recovery_env_text": recovery_env_text, "moderation_env_text": moderation_env_text, "policy_env_text": policy_env_text}
+        return {"private_ipv4": private_ipv4, "recovery_env_text": recovery_env_text, "moderation_env_text": moderation_env_text, "policy_env_text": policy_env_text, "push_env_text": push_env_text}
 
 
 def moderation_env_text(existing, updates=None):
@@ -71,3 +71,16 @@ def policy_env_text(existing, updates=None):
     if any(not isinstance(v, str) or v != v.strip() or any(c in v for c in '\r\n\0') for v in values.values()):
         raise ValueError('Public policy values must be single-line strings.')
     return '\n'.join(key + '=' + value for key, value in sorted(values.items()))
+
+
+def push_env_text(existing, updates=None):
+    allowed = {'BHIDNE_APNS_KEY_FILE','BHIDNE_APNS_TEAM_ID','BHIDNE_APNS_KEY_ID','BHIDNE_APNS_TOPIC'}
+    values = dict(line.split('=',1) for line in existing.splitlines()
+                  if '=' in line and line.split('=',1)[0] in allowed)
+    if updates is not None:
+        if not isinstance(updates,dict) or set(updates)-allowed:
+            raise ValueError('Invalid APNs settings.')
+        values.update(updates)
+    if any(not isinstance(v,str) or v!=v.strip() or any(c in v for c in '\r\n\0') for v in values.values()):
+        raise ValueError('APNs values must be single-line strings.')
+    return '\n'.join(key+'='+value for key,value in sorted(values.items()))

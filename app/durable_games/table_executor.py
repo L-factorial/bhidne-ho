@@ -257,6 +257,11 @@ class TableLaneExecutor:
         """Shared state-dependent capability gate for execution and activation."""
         if command in ('send-poke', 'send-reaction'):
             return False, False, False, False, False
+        if command == 'leave-seat' and data['host']['ended']:
+            # A concurrent End may win before leave ingress. Queue the original
+            # request so execution records a durable no-effect rejection; an
+            # ingress conflict would leave the client with an uncertain outcome.
+            return False, False, False, False, False
         closing = command in ('end', 'abandon')
         rematching = command == 'next-match'
         offer_command = command in OFFER_COMMANDS

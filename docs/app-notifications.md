@@ -33,6 +33,12 @@ Rebuild the native app with the `expo-notifications` config plugin. Remote push
 requires a development or production native build, not Expo Go. Enable Push
 Notifications for the Apple application identifier and provisioning profile.
 The app reads its APNs entitlement to register the sandbox or production token.
+When the embedded provisioning profile is unavailable, registration uses the
+production environment only after obtaining a valid native APNs token and
+identifying the application release type as App Store (including TestFlight).
+Development environments remain explicit; unknown builds fail with setup guidance.
+Permission, token, environment and registration validation failures have separate
+English/Nepali messages instead of the generic game-action error.
 See [Expo notifications](https://docs.expo.dev/versions/v57.0.0/sdk/notifications/)
 and [Apple token authentication](https://developer.apple.com/documentation/usernotifications/establishing-a-token-based-connection-to-apns).
 

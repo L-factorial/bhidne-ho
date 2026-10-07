@@ -263,3 +263,32 @@ async def test_rotation_roster_is_not_treated_as_an_ordinary_lobby(lobby):
     await inbox.enqueue(lane, users[0], body)
     with pytest.raises(DurableGameConflict): await executor.execute_one(lane, fence)
     assert (await inbox.lookup(lane, users[0], body['command_id'])).status == 'pending'
+
+
+async def test_leave_ingress_after_flush_closure_records_original_receipt(database):
+    from app.durable_games.ingress import HostedCommandIngress
+    pool, checkpoints, fence, users = database
+    host, game = await host_game(users, kind='flush')
+    try:
+        await checkpoints.save(capture_checkpoint(game, table_revision=0), expected_revision=None, fence=fence)
+        inbox = PostgresInboxStore(pool)
+        target = LaneTarget(kind='table', room_id='room', table_id=UUID(game.table.table_id))
+        lane = await inbox.ensure_lane(target)
+        executor = TableLaneExecutor(inbox)
+        close = request(game, 'end', 0)
+        await inbox.enqueue(lane, users[0], close)
+        assert (await executor.execute_one(lane, fence)).outcome['status'] == 'accepted'
+        before = (await checkpoints.load(game.table.table_id)).checkpoint
+        leave = request(game, 'leave-seat', 0)
+        ingress = HostedCommandIngress(inbox)
+        queued = await ingress.submit(users[1], target, leave)
+        assert queued['status'] == 'pending'
+        result = await executor.execute_one(lane, fence)
+        assert result.outcome['status'] == 'rejected'
+        retry = await ingress.submit(users[1], target, leave)
+        assert retry['status'] == 'rejected' and retry['sequence'] == queued['sequence']
+        assert (await checkpoints.load(game.table.table_id)).checkpoint == before
+        assert (await pool.execute('SELECT count(*) FROM active_table_players')).rows == [(0,)]
+        assert (await pool.execute('SELECT count(*) FROM active_game_players')).rows == [(0,)]
+    finally:
+        await host.close()

@@ -105,7 +105,9 @@ def wait_ready(address):
 
 
 def sandbox():
-    return ['--user', '10001:10001', '--read-only', '--cap-drop', 'ALL',
+    credentials = Path('/etc/bhidne-prod/apns')
+    mounts = ['--mount', f'type=bind,src={credentials},dst=/run/bhidne-apns,readonly'] if credentials.is_dir() else []
+    return mounts + ['--user', '10001:10001', '--read-only', '--cap-drop', 'ALL',
             '--security-opt', 'no-new-privileges:true', '--pids-limit', '256',
             '--memory', '2g', '--tmpfs', '/tmp:rw,noexec,nosuid,size=64m',
             '--env-file', ENVIRONMENT, '--log-driver', 'json-file',

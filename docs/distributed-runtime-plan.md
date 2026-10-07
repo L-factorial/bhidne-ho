@@ -6341,3 +6341,151 @@ Browser push, chat push and poke push are outside this first release.
   rebuild and test signed apps on physical devices before release. User approval
   is still required before committing/pushing accumulated changes. Capacity,
   observability, database HA and operational readiness remain the next task set.
+
+### Production API rollout — APNs configuration pending (2026-10-05)
+
+- User authorized server configuration and restart after pushing backend commit
+  `3cc1a90b66ffa9162ed12a89347c8d2c6bbd9af8`. SSH agent access restored.
+- Existing CI was queued behind an older release. Built the exact committed backend
+  atop the deployed production image, preserving its existing web frontend, and
+  loaded the same image on both hosts: `bhidne-direct:3cc1a90-apns`, image ID
+  `sha256:518ba84b014754895efd5af3f9259c3bb8a865bed1c06dbb5e11ec003e9ef65d`.
+- Applied additive migrations through 38 using the normal bootstrap migration
+  entrypoint. Database/Redis preflight passed on both hosts. Restarted app1, checked
+  health, then restarted app2 using the existing guarded rollback/peer-health
+  procedure under the release lock. Public health and push-capabilities route pass.
+- Added optional read-only `/etc/bhidne-prod/apns` -> `/run/bhidne-apns` credential
+  mount to the release receiver and APNs environment preservation to the provisioning
+  template/filter. 41 release receiver tests pass. These local provisioning changes
+  remain uncommitted/unpushed. Updated receiver installed on both hosts; existing
+  runtime environment and hosted frontend preserved.
+- APNs is not enabled: macOS privacy denies reading the key in Downloads even with
+  escalated execution. Requested user copy to
+  `~/.ssh/bhidne-apns/AuthKey_78JRYU2GBN.p8`, outside Git. Public capabilities currently
+  reports `providers: []`. No real push has been sent.
+- Exact next step: after the user copies the key, transfer it to both protected
+  host directories (directory root:10001 mode 750, key root:10001 mode 640), configure
+  key path `/run/bhidne-apns/AuthKey_78JRYU2GBN.p8`, team `ATLDYPD4ZQ`, key ID
+  `78JRYU2GBN`, topic `com.lfactorial.bhidne-ho`, validate signing as UID10001 and
+  restart sequentially again. Verify capabilities lists `apns`, then physical
+  TestFlight delivery. Monitor latest CI (3cc1a90) which may replace the manual image
+  while retaining the receiver's credential mount and runtime environment.
+
+### APNs activation (2026-10-05)
+
+- User moved the Apple signing key out of macOS-protected Downloads. Uploaded it
+  securely to both hosts, outside source/images, with root:10001 ownership,
+  directory mode 750 and key mode 640. Containers mount it read-only.
+- Configured `/run/bhidne-apns/AuthKey_78JRYU2GBN.p8`, team `ATLDYPD4ZQ`, key ID
+  `78JRYU2GBN`, topic `com.lfactorial.bhidne-ho` in protected runtime environments.
+  Saved protected pre-APNs environment backups. ES256 signing preflight passes
+  as the actual UID10001 container user on both hosts.
+- Both hosts restarted sequentially and passed health checks. Direct host checks
+  and the public API advertise `providers: ["apns"]`. No native-device push sent
+  yet. Exact next step: build/install the signed iOS app and verify opt-in,
+  background delivery and notification taps on a physical device. Local receiver,
+  provisioning and handoff edits remain uncommitted/unpushed.
+
+### Production bug increment — table social, departure and iOS push (2026-10-06)
+
+User authorized fixes after read-only investigation of ekraj/sigma's Flush session
+in `chal chal bhai room`, approximately 7:11–7:16 PM Pacific on October 6.
+
+- Production evidence: both application hosts run `bhidne-direct:3cc1a90-apns`.
+  The production API advertises APNs, but no push devices, preferences or deliveries
+  existed when inspected. Enable attempts had not reached device registration.
+  Live-social HTTP counters showed 17 rejected POSTs and no accepted POSTs since
+  container startup. The End command completed at 7:15:51 PM; no leave command was
+  queued for sigma. Both accounts had accepted the community rules.
+- Table chat, reactions and poke now share the durable client's existing command-ID
+  generator. Its native fallback uses only backend-accepted characters. The former
+  decimal-containing fallback was reproduced as a deployed-schema validation failure.
+  Room chat and direct-message behavior are unchanged.
+- A fresh authorized ended-table view completes departure locally because closure
+  already releases seats. A durably rejected leave racing closure reconciles to
+  that view. Pending/uncertain requests still resolve the original ID and receipt;
+  an ended snapshot never discards an unresolved command. Backend leave-seat ingress
+  after closure now queues the original request for a durable no-effect rejection,
+  avoiding an ambiguous pre-queue conflict while preserving terminal state.
+- Native notification registration obtains and validates a real APNs token before
+  selecting an environment. If Expo's embedded-profile lookup returns null, only a
+  positively identified App Store release (including TestFlight) uses production.
+  Explicit development environments remain development; unknown release types fail
+  closed. Permission, token, environment and registration-validation errors now have
+  distinct English/Nepali guidance. Authentication and uncertain network errors keep
+  their existing semantics. No token or native exception text is exposed in UI/logs.
+- Verification: all 373 client tests passed, including 13 added regressions for
+  social IDs without browser crypto, ended-table and concurrent/recovered departure,
+  unresolved-command preservation, APNs environments, cancellation/account changes,
+  registration failures and localized error handling. TypeScript, production web
+  build and iOS/Android bundle exports passed. All 43 targeted backend regressions
+  passed against PostgreSQL/WASM, including original-ID receipt recovery after
+  closure and unchanged closed-table reservations/state. Python compilation and
+  whitespace checks passed.
+- Limitations: the device's exact native exception was not captured; the null-APNs-
+  environment failure path was reproduced with injected native API results. Bundle
+  exports do not establish physical TestFlight permission, registration or delivery.
+  No production settings, data, service restart, commit, push or deployment changed.
+- Exact next step: review these changes, then rebuild/install a signed TestFlight
+  app and verify notification registration,
+  background delivery/taps, table chat/poke and simultaneous Leave/End on devices.
+  Commit/push/deployment remain pending user approval.
+
+### UI increment — hand header and local Marriage cues (2026-10-06)
+
+User explicitly authorized these UI changes after collecting the requirements.
+
+- Removed the room-page bottom return-to-game/chat/poke bar and the separate
+  top-of-game attention banner. Table-card navigation remains available.
+- The Your cards header now uses the rounded cue shape in both collapsed and
+  expanded views, with three glowing rays on each side when a cue is active.
+  Idle headers retain the normal card label/count. Collapsed headers carry chat
+  and poke on either side; duplicate floating buttons are suppressed, while
+  social errors remain visible. Expanded cards retain the existing social dock.
+- Marriage's existing Maal, Marriage and Tunnela detectors report their actual
+  eligibility results to the header. Existing inner buttons, bulbs and action
+  authorization are unchanged. Required server cues retain priority and include
+  local opportunities. Detection results are scoped to the current hand, route,
+  visibility and declaration state to avoid carrying stale eligibility forward.
+- Verification: all 376 client tests passed, including local detector cue priority,
+  heuristic suppression, and spectator/folded/ended suppression regressions.
+  TypeScript, production web build, and final web/iOS/Android bundle exports passed.
+  Whitespace checks passed. No backend behavior changed in this UI increment.
+- Limitations: bundle checks do not establish physical-device layout or animation
+  behavior. No interactive browser or physical TestFlight session was run for this
+  increment. Changes remain local; no commit, push or deployment performed.
+- Exact next step: review the header at narrow phone widths in TestFlight, with
+  collapsed/expanded hands, incoming server cues and local Marriage eligibility;
+  then commit/release when requested.
+
+### Marriage hand increment — drag swaps and card markers (2026-10-06)
+
+User requested drag-only swapping in both Dublee and Sequence/Tunnela views, then
+requested stronger drawn/discard card markers. Tap selection remains unchanged.
+
+- Cards can be dragged onto another revealed card to exchange their displayed
+  positions, including across rows. Movement takes over after an 8-point threshold;
+  taps retain single-card selection/deselection and the discard confirmation.
+  The hand scroll pauses during dragging, and a drag release cannot become a tap.
+  Drops outside another card do nothing. Busy, hidden and declaration cards cannot
+  be dragged, and measurements from a changed hand/session are discarded.
+- Manual ordering is local, scoped to match/player, and survives snapshot refreshes.
+  Removed/shown cards are filtered out and new cards append to the manual order.
+  Pressing either arrangement button restores that mode's automatic ordering,
+  including pressing the currently selected mode. Physical IDs, eligibility solvers,
+  private receipt order and game commands are unchanged.
+- The newly drawn card now has a 4-point green border and a small downward green
+  arrow above it. A selected card uses a 4-point red border and red arrow; selection
+  takes priority on the drawn card and deselection restores the green marker.
+  Each card reserves arrow space so markers do not overlap the preceding row.
+- Verification: all 380 client tests passed. New regressions cover both arrangements,
+  refresh/removal/draw reconciliation, invalid/self/cross-row drops, and marker
+  precedence. Mocked browser regressions passed at 390px (touch, cross-row swaps)
+  and 1280px (mouse), including automatic arrangement reset, unchanged taps, marker
+  colors/arrows and no game commands from swaps. Phone screenshots were inspected.
+  TypeScript, production web build, final web/iOS/Android exports and whitespace
+  checks passed.
+- Limitations: touch checks ran in Chrome; physical iOS/Android gesture behavior
+  still needs device verification. No production mutation, commit, push or release.
+- Exact next step: verify drag swaps, scrolling and both card markers in TestFlight
+  alongside the previous fixes, then commit/release when requested.
