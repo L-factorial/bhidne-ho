@@ -186,6 +186,20 @@ class PushWorker:
             if result['source']:
                 permitted=await (await c.execute('SELECT 1 FROM users WHERE id=%s AND NOT erased AND NOT deletion_pending AND (suspended_until IS NULL OR suspended_until<=now())',(user_uuid(sender),))).fetchone()
                 if not permitted:return None
+            context={}
+            if result['source']:
+                person=await (await c.execute("""SELECT COALESCE(NULLIF(p.display_name,''),a.username,'A player')
+                    FROM users u LEFT JOIN user_profiles p ON p.user_id=u.id
+                    LEFT JOIN account_credentials a ON a.user_id=u.id WHERE u.id=%s""",(user_uuid(sender),))).fetchone()
+                if person:context['actor']=person[0][:128]
+            if result['room']:
+                room_name=await (await c.execute('SELECT name FROM rooms WHERE id=%s',(result['room'],))).fetchone()
+                if room_name:context['room']=room_name[0][:160]
+            if result['table']:
+                table_name=await (await c.execute('SELECT name,game_type FROM room_tables WHERE table_id=%s',(result['table'],))).fetchone()
+                if table_name:context.update(table=table_name[0][:160],game=table_name[1])
+                if result['kind']=='game_invitation':context['created']=bool(invitation.get('room_notification'))
+            result['context']=context
             # Heartbeats expire, so a crashed foreground client cannot suppress
             # notifications indefinitely. Foreground elsewhere receives a banner.
             if result['foreground_until'] and result['foreground_until']>now and result['match'] and result['viewed_match']==result['match']:
@@ -206,7 +220,7 @@ class PushWorker:
             if row['match']:data['match_id']=row['match']
             if row.get('other_user_id'):data['other_user_id']=row['other_user_id']
             collapse=hashlib.sha256(f"{row['device']}:{row['table'] or row['source']}".encode()).hexdigest()[:48]
-            result=await self.providers.send((row['provider'],row['token'],row['environment']),message(row['kind'],row['locale'],data),
+            result=await self.providers.send((row['provider'],row['token'],row['environment']),message(row['kind'],row['locale'],data,row.get('context')),
                 expires_at=row['expires'].timestamp(),collapse_id=collapse,sound=row['sound'])
             status=result.status
             if status=='retry':

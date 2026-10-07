@@ -3,7 +3,7 @@ import { PlayerAvatar } from './PlayerAvatar';
 import { ContextMenu, MenuAction } from './ContextMenu';
 import { ChatMessage } from './ChatMessage';
 import { preserveRemovals } from './moderation/messages';
-import { CommunityRulesEntry } from './moderation/CommunityRules';
+import { CommunityRulesEntry, useCommunityRulesGate } from './moderation/CommunityRules';
 import { ReportButton } from './Moderation';
 import { BlockPlayerButton, useBlocking } from './PlayerBlocking';
 import { playerError } from '../multiplayer/playerError.ts';
@@ -32,9 +32,12 @@ export type FriendsTransport = {
   send(other: string, text: string): Promise<void>; busy: boolean; error: string;
   sent?: {id:string;recipient:string;text:string};
 };
-export function FriendsPanel({ session, transport, onlineOnly = false, initialPlayerId }: { initialPlayerId?:string; session: Session; transport?: FriendsTransport; onlineOnly?: boolean }) {
+export function FriendsPanel({ session, transport, onlineOnly = false, initialPlayerId, friendLimit }: { friendLimit?:number; initialPlayerId?:string; session: Session; transport?: FriendsTransport; onlineOnly?: boolean }) {
   useUiLanguage();
   const blocking = useBlocking(session);
+  const rules = useCommunityRulesGate(session);
+  const [expandedFriends,setExpandedFriends]=useState(false);
+  useEffect(()=>setExpandedFriends(false),[session.token,onlineOnly]);
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const [snapshot, setSnapshot] = useState<Snapshot>(empty);
@@ -57,7 +60,7 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
     if(!initialPlayerId)return;
     const controller=new AbortController();
     void request<Snapshot>('/friends?include_presence=true',session,undefined,controller.signal).then(value=>{
-      if(!controller.signal.aborted)setSelected(value.friends.find(friend=>friend.user_id===initialPlayerId)??null);
+      if(!controller.signal.aborted)void rules.run(()=>setSelected(value.friends.find(friend=>friend.user_id===initialPlayerId)??null));
     }).catch(failure=>{if(!controller.signal.aborted)setError(playerError(failure));});
     return()=>controller.abort();
   },[initialPlayerId,session.token]);
@@ -168,11 +171,15 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
     </>}
     <View style={styles.sectionHeading}><Text style={styles.heading}>{onlineOnly ? ui("social.online_friends") : ui("social.your_friends")}</Text><Text style={styles.count}>{visibleFriends.length}</Text></View>
     {!visibleFriends.length && <Text style={styles.detail}>{onlineOnly ? ui("social.no_online_friends") : ui("social.no_friends_yet")}</Text>}
-    {visibleFriends.map(player => row(player, <View style={styles.actions}>
-      <Pressable accessibilityRole="button" accessibilityLabel={ui('social.message')} onPress={() => { setMessages([]); setError(''); setSendError(''); setSelected(player); }} style={styles.linkButton}><View style={{flexDirection:'row',alignItems:'center',gap:6}}><Ionicons name="chatbubble-outline" size={18} color={colors.accent}/><Text style={styles.link}>{ui("social.message")}</Text></View></Pressable>
+    <ScrollView testID="friends-list" nestedScrollEnabled style={expandedFriends ? {maxHeight:420} : undefined} scrollEnabled={expandedFriends}>
+    {(friendLimit && !expandedFriends ? visibleFriends.slice(0,friendLimit) : visibleFriends).map(player => row(player, <View style={styles.actions}>
+      <Pressable accessibilityRole="button" accessibilityLabel={ui('social.message')} onPress={() => void rules.run(() => { setMessages([]); setError(''); setSendError(''); setSelected(player); })} style={styles.linkButton}><View style={{flexDirection:'row',alignItems:'center',gap:6}}><Ionicons name="chatbubble-outline" size={18} color={colors.accent}/><Text style={styles.link}>{ui("social.message")}</Text></View></Pressable>
 
     </View>))}
 
+    </ScrollView>
+    {!!friendLimit && visibleFriends.length>friendLimit && !expandedFriends && <Pressable accessibilityRole="button" onPress={()=>setExpandedFriends(true)} style={styles.linkButton}><Text style={styles.link}>{ui("common.more")}</Text></Pressable>}
+    {rules.view}
     {selected && <RoomSheet visible title={ui("social.chat_with_player", { "player": label(selected) })} closeLabel={ui("common.close_private_chat")} onClose={() => setSelected(null)} scrollable={false}
       footer={<FormFooter>
         {!!(sendError || error) && <Text accessibilityRole="alert" style={styles.error}>{sendError || error}</Text>}

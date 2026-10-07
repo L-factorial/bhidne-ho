@@ -1,5 +1,7 @@
-// Editable Nepali feedback copy. Keep keys and {{placeholders}} in sync with the other locale.
+// Editable feedback copy. Keep keys and placeholders in sync with the other locale.
 export default {
+  "taking_you_to_table": "तपाईंलाई खेल टेबलमा लगिँदैछ…",
+  "community_rules_required": "च्याट प्रयोग गर्न समुदाय नियम खोल्नुहोस् र स्वीकार गर्नुहोस्।",
   "host_start": "यो खेल टेबलको होस्टले मात्र सुरु गर्न सक्छन्। होस्टलाई सुरु गर्न भन्नुहोस्।",
   "host_lock": "सिटहरू होस्टले मात्र लक गर्न सक्छन्। होस्टलाई जारी राख्न भन्नुहोस्।",
   "owner_only": "यो कार्य कोठाको मालिकले मात्र गर्न सक्छन्। मालिकलाई भन्नुहोस्।",

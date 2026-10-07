@@ -4,15 +4,19 @@ import { useUiLanguage } from '../i18n/useUiLanguage';
 import { Ionicons } from '@expo/vector-icons';
 import { BrandIcon, headerLogoSize } from './BrandArt';
 import { KeyboardFrame } from './KeyboardFrame';
-import { type ReactNode, useContext, useEffect, useState } from 'react';
+import { type ReactNode, createContext, useContext, useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TableShareSheet } from './ShareLink';
 import { fonts, radii, typography, useTheme } from '../theme';
 import { HeaderProfileContext } from './AppHeader';
+import { ThemeAction } from './ThemeAction';
+import { LanguageToggle } from './LanguageToggle';
 import { HeaderAction } from './HeaderAction';
 import { ProfileModal } from './ProfileModal';
 import { useTranslation } from 'react-i18next';
+
+export const GameRoomNameContext = createContext('');
 
 export function GameTableHeader({ title, tableName, path, game, roomId, matchId, onBack, endControl, children, mobileTestIds = false, compact = false, drawerMetadata, showShare = false }: {
   tableName?: string; title: string; path?: string; game: string; roomId?: string; matchId?: string; onBack: () => void; endControl?: ReactNode;
@@ -21,6 +25,7 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
 }) {
   useUiLanguage();
   const { colors } = useTheme();
+  const roomName=useContext(GameRoomNameContext);
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const mobile = useWindowDimensions().width < 900;
@@ -40,23 +45,27 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
     document.addEventListener('keyup', escape, true);
     return () => document.removeEventListener('keyup', escape, true);
   }, [open, !!drawerMetadata]);
+  const menuControls=<View testID={`${game}-menu-settings`} style={{gap:10,paddingVertical:8}}>
+    {!!roomId && !!matchId && <Pressable accessibilityRole="button" accessibilityLabel={ui('rooms.share_table_link_or_code')} onPress={()=>{setOpen(false);setSharing(true);}} style={{minHeight:44,flexDirection:'row',alignItems:'center',gap:8}}><Ionicons name="share-outline" size={22} color={colors.accent}/><Text style={{color:colors.text,fontFamily:fonts.medium}}>{ui('rooms.share_table')}</Text></Pressable>}
+    {renderProfile && <HeaderAction icon="profile" label={t('common.profile')} compact={false} onPress={()=>{setOpen(false);setProfileOpen(true);}} />}
+    <View style={{flexDirection:'row',alignItems:'center',gap:8}}><Text style={{color:colors.text}}>{ui('common.theme')}</Text><ThemeAction /></View>
+    <View style={{flexDirection:'row',alignItems:'center',gap:8}}><Text style={{color:colors.text}}>{ui('common.language_label')}</Text><LanguageToggle /></View>
+  </View>;
   return <>
     <View testID={`${game}-${mobile && mobileTestIds ? 'mobile-' : ''}header`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 8, backgroundColor: colors.surface, borderBottomWidth: 1, borderColor: colors.borderSubtle }}>
-      <BrandIcon size={mobile ? headerLogoSize.compact : headerLogoSize.regular} />
-      <View style={{ flex: 1, minWidth: 0 }}><Text numberOfLines={1} accessibilityRole="header" style={{ fontFamily: fonts.medium, fontSize: small ? 17 : 20, color: colors.text }}>{tableName || title}</Text>
-        {!!tableName && <Text numberOfLines={1} style={{ fontFamily: fonts.body, fontSize: typography.caption, color: colors.textMuted }}>{title}</Text>}
-        {!tableName && !!path && !compact && <Text numberOfLines={1} style={{ fontFamily: fonts.body, fontSize: 11, color: colors.textMuted }}>{path}</Text>}
+      <View style={{flexDirection:'row',alignItems:'center',gap:8,flex:1,minWidth:0}}>
+        <BrandIcon size={mobile ? 36 : headerLogoSize.regular} />
+        <Text numberOfLines={1} style={{color:colors.text,fontFamily:fonts.editorial,fontSize:mobile?14:24,flexShrink:1}}>{ui('common.brand_name')}</Text>
       </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-      {renderProfile && <HeaderAction icon="profile" label={t('common.profile')} compact={small} onPress={() => setProfileOpen(true)} />}
+      <View testID={`${game}-header-location`} style={{flex:1,minWidth:0,alignItems:'center'}}>
+        <Text numberOfLines={1} accessibilityRole="header" style={{fontFamily:fonts.medium,fontSize:small?16:20,color:colors.text}}>{title}</Text>
+        <Text numberOfLines={1} style={{fontFamily:fonts.body,fontSize:11,color:colors.textMuted}}>{roomName ? `${roomName} → ${tableName || title}` : path || tableName || ''}</Text>
+      </View>
+      <View style={{flex:1,flexDirection:'row',alignItems:'center',justifyContent:'flex-end',gap:4,minWidth:88}}>
       <Pressable accessibilityRole="button" accessibilityLabel={t('common.backToLobby')} onPress={onBack}
         style={({ pressed }) => ({ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radii.medium, backgroundColor: pressed ? colors.surfaceRaised : 'transparent' })}>
         <Ionicons name="arrow-back" size={22} color={colors.text} />
       </Pressable>
-      {showShare && !!roomId && !!matchId && <Pressable testID={`${game}-header-share`} accessibilityRole="button" accessibilityLabel={ui("rooms.share_table_link_or_code")} onPress={() => setSharing(true)}
-        style={({pressed}) => ({width:44,height:44,alignItems:'center',justifyContent:'center',borderRadius:radii.medium,backgroundColor:pressed?colors.surfaceRaised:'transparent'})}>
-        <Ionicons name="share-outline" size={22} color={colors.accent}/>
-      </Pressable>}
       <Pressable accessibilityRole="button" accessibilityLabel={t('common.tableMenu')} accessibilityState={{ expanded: open }} onPress={() => setOpen(v => !v)}
         style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primarySoft, borderRadius: radii.medium }}>
         <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ gap: 5 }}>
@@ -78,6 +87,7 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
           </View>
           {drawerMetadata}
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 8, marginHorizontal: -8, paddingBottom: 8 }}>
+            {menuControls}
             {typeof children === 'function' ? children(() => setOpen(false)) : children}
           </ScrollView>
         </View>
@@ -85,7 +95,7 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
     </Modal>}
     {open && !drawerMetadata && <ScrollView keyboardShouldPersistTaps="handled" testID={`${game}-${mobile && mobileTestIds ? 'mobile-' : ''}menu`} style={{ maxHeight: '40%', flexGrow: 0 }} contentContainerStyle={{ padding: 8, gap: 8 }} nestedScrollEnabled>
       {compact && !!path && <Text style={{ color: colors.textMuted }}>{path}</Text>}
-      {!!roomId && !!matchId && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.share_table")} onPress={() => { setOpen(false); setSharing(true); }} style={{ minHeight: 48, justifyContent: 'center' }}><Text style={{ color: colors.text, fontFamily: fonts.medium }}>{ui("rooms.share_table")}</Text></Pressable>}
+      {menuControls}
       {typeof children === 'function' ? children(() => setOpen(false)) : children}
       <View style={{ borderTopWidth: 1, borderColor: colors.border, paddingTop: 4 }}>{endControl}</View>
     </ScrollView>}

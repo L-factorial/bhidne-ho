@@ -1,5 +1,6 @@
 // Editable social copy. Keep keys and placeholders in sync with the other locale.
 export default {
+  "player_created_table": '{{player}} created “{{tableName}}” in room “{{roomName}}”.',
   "sent_you_a_chat_message": "sent you a chat message",
   "poked_you": "poked you",
   "lobby_chat": "Chat",

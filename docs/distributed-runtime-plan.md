@@ -6788,3 +6788,56 @@ requested stronger drawn/discard card markers. Tap selection remains unchanged.
   native checks, not UIKit/device validation.
 - Exact next step: deploy the matching frontend release using the authorized
   direct app-server workflow; native UI requires a new signed app build.
+
+- Direct deployment completed for commit
+  `1760eb085583a76c97305b56a5c82ab6483f3d4c` on both app hosts, with image
+  `sha256:4a4fa552a4550ecc0651ac6a3e2bd9cd75284fed7107f5a7824da66990449698`.
+  No database migration was needed; schema remains 39. Both API health checks and
+  public HTTPS passed, and frontend index/JavaScript hashes match across hosts.
+  Evidence: `/private/tmp/bhidne-1760eb0-direct/verification.json`.
+- Additional Chrome checks confirmed settings and dismissal from both room and
+  lobby Profile. A broader legacy room-deletion browser fixture failed on an
+  unrelated room-card selector; focused Profile checks passed. Native dismissal
+  tests passed using temporary React 19.2.3 test tools outside the repository.
+- Exact next step: verify the deployed web UI after refresh; produce a signed
+  native build when requested and validate nested Profile settings on devices.
+
+
+### 2026-10-07 — Lobby chat, community-rules onboarding and table navigation
+
+- User explicitly authorized the accumulated UI/notification changes and retained
+  the direct production app-server release preference.
+- Lobby Chat uses the existing online-friends chat mode; Friends retains search,
+  requests and the full friends view. Profile and lobby Friends initially show
+  six friends; More expands the full list within a bounded scrollable area.
+- Chat entry checks current community-rules acceptance. Missing acceptance opens
+  rules automatically and preserves the selected tab/conversation; accepting
+  restores that intended chat. Applied to lobby/direct, room and all game chat.
+  Rules load/acceptance failures remain visible and server posting enforcement is
+  unchanged. Known posting rejection now points to opening/accepting Community
+  Rules instead of generic forbidden feedback.
+- Push validation resolves the authorized sender display name plus room/table
+  context before building localized chat, poke and invitation/creation text.
+  Recipient authorization, contact/block checks, preferences, quiet hours, expiry
+  and metadata-only notification storage remain unchanged. Bell notices include
+  room → table context; room-wide creation invitations say who created the table.
+- Game headers show brand beside the logo, game type centered above room → table,
+  and only back arrow followed by burger at right. Share/Profile/Theme/Language
+  live in the burger; preferences remain in Profile too. Profile Back uses an
+  arrow. Header room names come from the room context rather than table identity.
+- Lobby table entry shows a gently pulsing Taking-you-to-table overlay while room
+  navigation, snapshots and command confirmation proceed. It respects reduced
+  motion and hides the intermediate room controls from interaction/accessibility.
+  Success, request failure or expired session dismisses the overlay. Game Back
+  remains view navigation, without a leave-seat command.
+- Verification: production web export/TypeScript and all 394 client tests passed;
+  21 targeted backend checks passed against PGlite 0.5.8. Ten simulated native
+  modal/dismissal checks passed. Chrome fixtures cover separate Chat/Friends,
+  missing-rules acceptance/resume, six-friend More in Profile/lobby, named bell
+  notices, all three game headers/menus/chat gates, room chat, and successful and
+  failed table transfer with back navigation preserving seats. API/provider data
+  in browser checks is mocked; these checks do not establish live device/APNs or
+  UIKit behavior. No database migration or dependency change is required.
+- Exact next step: deploy this committed backend/web release directly to both
+  app hosts, verify health/source/assets, then produce a signed native build and
+  perform separate-account/device checks when requested.

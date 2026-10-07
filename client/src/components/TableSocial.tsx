@@ -1,5 +1,5 @@
 import { preserveRemovals } from './moderation/messages';
-import { CommunityRulesEntry } from './moderation/CommunityRules';
+import { CommunityRulesEntry, useCommunityRulesGate } from './moderation/CommunityRules';
 import { ReportButton } from './Moderation';
 import type { Session } from '../multiplayer/session';
 import { useBlocking } from './PlayerBlocking';
@@ -71,6 +71,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
   const { t } = useTranslation();
   const [bottom, setBottom] = useState(16);
   const [handCollapsed,setHandCollapsed]=useState(false);
+  const rules = useCommunityRulesGate(session);
   const [open, setOpen] = useState(false), [pokeMode, setPokeMode] = useState(false);
   const [messages, setMessages] = useState<TableMessage[]>([]), [unread, setUnread] = useState(0);
   const [effects, setEffects] = useState<Effect[]>([]), [draft, setDraft] = useState('');
@@ -186,7 +187,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
   function measureRoot() {
     measure.current(anchorNode.current);
   }
-  function openChat() { if (canRead) { setPokeMode(false); openRef.current = true; setOpen(true); setUnread(0); follow.current = true; } }
+  function openChat() { if (canRead) void rules.run(()=>{ setPokeMode(false); openRef.current = true; setOpen(true); setUnread(0); follow.current = true; }); }
   function poke(id: number) {
     setPokeMode(false);
     if (eligible(id)) { setError(''); setTargetPlayer(id); }
@@ -274,7 +275,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
       </GameModalContent>
     </View>
   );
-  return <Context.Provider value={{pokeMode,eligible,poke,effects,anchor,openChat,canRead,chatOpen:open&&canRead,overlayOpen:(open&&canRead)||pokeMode||targetPlayer!==null,registerSeat,presentation,openPoke,unread,enabled,pokeSent,setHandCollapsed}}>{children}</Context.Provider>;
+  return <Context.Provider value={{pokeMode,eligible,poke,effects,anchor,openChat,canRead,chatOpen:open&&canRead,overlayOpen:(open&&canRead)||pokeMode||targetPlayer!==null,registerSeat,presentation,openPoke,unread,enabled,pokeSent,setHandCollapsed}}>{children}{rules.view}</Context.Provider>;
 }
 
 export function TableSocialPresentation({children, expanded = true}: {children: ReactNode; expanded?: boolean}) {

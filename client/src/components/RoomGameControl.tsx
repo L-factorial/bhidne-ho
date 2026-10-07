@@ -39,11 +39,11 @@ import { request } from '../multiplayer/api';
 
 type InvitePlayer = { user_id: string; display_name: string; username?: string | null; eligible?: boolean; reason?: string | null };
 
-export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, onViewChange, requestedMatchId, requestedEntry, roomId, apiUrl, token, connected, sessionActive = true, members, presenceKnown = true, roomMembers = members, connectionMessage, userId, pokes, personal, onGameTypeChange, creationEnabled = true, gameType = 'callbreak' }: {
+export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, onViewChange, requestedMatchId, requestedEntry, onEntryError, roomId, apiUrl, token, connected, sessionActive = true, members, presenceKnown = true, roomMembers = members, connectionMessage, userId, pokes, personal, onGameTypeChange, creationEnabled = true, gameType = 'callbreak' }: {
   runtime?: OriginalDistributedRuntime | null;
   presenceKnown?: boolean;
   socialChannel?: TableSocialChannel; chat?: ReactNode; onOpenChange?: (open: boolean) => void; onViewChange?: (match:string|null)=>void;
-  requestedMatchId?: string; requestedEntry?: TableEntry;
+  requestedMatchId?: string; requestedEntry?: TableEntry; onEntryError?:()=>void;
   gameType?: 'callbreak' | 'marriage' | 'flush';
   onGameTypeChange?: (game:'callbreak'|'marriage'|'flush')=>void; creationEnabled?: boolean;
   userId: string; pokes: RoomPoke[]; personal: ReturnType<typeof usePlayerPhrases>;
@@ -98,6 +98,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
   const [actionTick, setActionTick] = useState(0);
   const [actionNotice, setActionNotice] = useState('');
   const [synced, setSynced] = useState(false);
+
   // HTTP table operations use durable room membership. Chat/presence socket
   // readiness must not prevent the first snapshot or freeze table creation.
   const busy = pendingAction || !sessionActive || !synced;
@@ -105,6 +106,8 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
   const [refreshError, setRefreshError] = useState('');
   const showRefreshError = usePersistentNotice(!!refreshError);
   const error = actionError || (showRefreshError ? refreshError : '');
+  useEffect(()=>{if(requestedMatchId && (error || refreshError || snapshot?.status==='ended'))onEntryError?.();},[requestedMatchId,error,refreshError,snapshot?.status,onEntryError]);
+
   useEffect(() => {
     if (seatConflict?.room_id === roomId && snapshot?.tables && !snapshot.tables.some(table =>
       table.match_id === seatConflict.match_id && table.status !== 'ended' && table.phase !== 'ENDED')) {

@@ -218,8 +218,19 @@ export class OriginalUiApi {
     if(!body&&!method) {
       if(path==='/room-invitations')return this.invitations(false,signal);
       if(path==='/test-games/invitations')return this.invitations(true,signal);
-      if(path==='/notifications')return Promise.all((await this.notificationRows(signal)).map(async row=>({...row,
-        actor:await this.player(String(row.actor_id),signal),created_at:Date.parse(String(row.created_at))})));
+      if(path==='/notifications'){
+        const previews=new Map<string,Promise<any>>();
+        return Promise.all((await this.notificationRows(signal)).map(async row=>{
+          const payload:Record<string,any>={...(row.payload && typeof row.payload==='object' && !Array.isArray(row.payload) ? row.payload : {})};
+          if(payload.room_id){
+            const room=String(payload.room_id);
+            if(!previews.has(room))previews.set(room,this.root.reads.preview(room,signal).catch(()=>null));
+            const preview=await previews.get(room);
+            if(preview){payload.room_name=preview.name;payload.table_name=preview.tables?.find((table:any)=>table.match_id===payload.match_id)?.name;}
+          }
+          return {...row,payload,actor:await this.player(String(row.actor_id),signal),created_at:Date.parse(String(row.created_at))};
+        }));
+      }
       if(parts[0]==='friends'&&parts[2]==='messages')return this.messages(this.pair(parts[1]),signal);
       if(parts[0]==='rooms'&&parts[2]==='chat')return this.messages({kind:'room_chat',room_id:parts[1]},signal);
       if(path==='/rooms')return reads.lobby(signal);

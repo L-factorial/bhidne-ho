@@ -57,6 +57,17 @@ def action(view):
     return kind,hashlib.sha256(encoded.encode()).hexdigest()
 
 
-def message(kind,locale,data):
+def message(kind,locale,data,context=None):
     text=TEXT.get(locale,TEXT['en'])
-    return dict(title=text['title'],body=text[kind],data=data)
+    context=context or {};actor=context.get('actor');body=text[kind]
+    ne=locale=='ne'
+    if actor:
+        if kind=='chat':body=f'{actor} ले तपाईंलाई सन्देश पठाए।' if ne else f'{actor} sent you a message.'
+        elif kind=='poke':body=f'{actor} ले तपाईंलाई पोक गरे।' if ne else f'{actor} poked you.'
+        elif kind=='game_invitation':body=f'{actor} ले तपाईंलाई «{context.get("table", "खेल") }» मा निमन्त्रणा गरे।' if ne else f'{actor} invited you to “{context.get("table", "a game")}”.'
+        elif kind=='room_invitation':body=f'{actor} ले तपाईंलाई कोठामा निमन्त्रणा गरे।' if ne else f'{actor} invited you to a room.'
+    if actor and kind=='game_invitation' and context.get('created'):
+        body=f'{actor} ले «{context.get("table", "खेल") }» टेबल बनाए।' if ne else f'{actor} created “{context.get("table", "a game")}”.'
+    location=' → '.join(str(context[key]) for key in ('room','table') if context.get(key))
+    if location:body+=' '+location
+    return dict(title=text['title'],body=body,data=data)

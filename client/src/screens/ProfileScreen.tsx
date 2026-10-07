@@ -16,6 +16,7 @@ import { useContext, useEffect, useState } from 'react';
 import { ProfileDismissal } from '../components/ProfileModal';
 import { request } from '../multiplayer/api';
 import { AppHeader } from '../components/AppHeader';
+import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DisplayNameField } from '../components/DisplayNameField';
@@ -45,7 +46,7 @@ export function ProfileScreen({ session, personal, onBack, onSignOut }: {
   return <KeyboardFrame><FormScrollView testID="profile-screen" accessibilityViewIsModal style={styles.page} keyboardShouldPersistTaps="handled"
     contentContainerStyle={{ padding: 20, paddingTop: Math.max(insets.top, 24), paddingBottom: Math.max(insets.bottom, 24) }}>
     <View style={styles.content}>
-      <AppHeader title={ui("common.your_profile_title")} hideProfile inlineActions={<Pressable accessibilityRole="button" accessibilityLabel={ui("common.back_from_profile")} onPress={onBack} style={styles.back}><Text style={styles.link}>{ui("common.back_label")}</Text></Pressable>} />
+      <AppHeader title={ui("common.your_profile_title")} hideProfile inlineActions={<Pressable accessibilityRole="button" accessibilityLabel={ui("common.back_from_profile")} onPress={onBack} style={styles.back}><Ionicons name="arrow-back" size={22} color={styles.link.color} /></Pressable>} />
       <View testID="profile-identity" style={{ gap: 6, paddingVertical: 12 }}>
         <Text accessibilityRole="header" style={styles.title}>{identity?.display_name || identity?.username || (identityError ? ui("common.account_label") : ui("common.loading_profile"))}</Text>
         {!!identity?.username && <Text style={styles.description}>@{identity.username}</Text>}
@@ -60,7 +61,7 @@ export function ProfileScreen({ session, personal, onBack, onSignOut }: {
       <DisplayNameField session={session} onSaved={display_name => setIdentity(current => current ? { ...current, display_name } : { user_id: userId, display_name })} />
       <CommunityRulesEntry session={session} /><ModerationEntry session={session} /><RecoveryEmailSettings session={session} /><BlockedPlayers session={session} />
       <><PolicyLinks /><DeleteAccountLink /></>
-      <FriendsPanel session={session} />
+      <FriendsPanel session={session} friendLimit={6} />
       <PlayerPhrases key={userId} userId={userId} phrases={personal.phrases} connected={true}
         loadError={personal.error} onSave={personal.save} onRemove={personal.remove} onUpdate={personal.update} />
       <Text style={styles.description}>{ui("social.phrase_edit_help")}</Text>

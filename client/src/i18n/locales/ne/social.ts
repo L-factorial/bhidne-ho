@@ -1,5 +1,6 @@
 // Editable social copy. Keep keys and placeholders in sync with the other locale.
 export default {
+  "player_created_table": '{{player}} ले “{{roomName}}” कोठामा “{{tableName}}” टेबल बनाए।',
   "sent_you_a_chat_message": "ले तपाईंलाई च्याट सन्देश पठाए",
   "poked_you": "ले तपाईंलाई पोक गरे",
   "lobby_chat": "च्याट",

@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from app.push.http import Device,Preferences,Activity
 from app.push.service import PushService,quiet,DEFAULTS
 from app.push.worker import PushWorker
-from app.push.events import action
+from app.push.events import action, message
 from app.push.providers import SendResult
 from app.durable_games.checkpoints import capture_checkpoint
 from test_checkpoint_store import database,host_game
@@ -217,3 +217,16 @@ async def test_game_invitation_device_fanout_pages_beyond_256(database):
         assert (await pool.execute("SELECT count(*) FROM push_deliveries WHERE kind='game_invitation'")).rows == [(261,)]
     finally:
         await host.close()
+
+
+def test_social_notification_names_and_location_do_not_change_routing():
+    route={'kind':'chat','room_id':'room'}
+    context={'actor':'Ekraj','room':'Abc','table':'Friday Flush'}
+    chat=message('chat','en',route,context)
+    assert chat['body']=='Ekraj sent you a message. Abc → Friday Flush'
+    assert chat['data']==route
+    assert message('poke','en',route,context)['body'].startswith('Ekraj poked you.')
+    assert 'Ekraj' in message('chat','ne',route,context)['body']
+    assert message('game_invitation','en',route,{**context,'created':True})['body'].startswith('Ekraj created “Friday Flush”.')
+    assert message('game_invitation','en',route,context)['body'].startswith('Ekraj invited you to “Friday Flush”.')
+    assert message('chat','en',route)['body']=='You have a new chat message'

@@ -17,6 +17,7 @@ const messages: Record<string, UiKey> = {
   'Only the table host can start the match.': 'feedback.host_start',
   'Only the table host can lock the roster.': 'feedback.host_lock',
   'Only the room owner may perform this command.': 'feedback.owner_only',
+  'Accept the community rules in Profile before posting.': 'feedback.community_rules_required',
   'Only the game creator can propose rules.': 'feedback.rules_host',
   'Only seated players may vote.': 'feedback.vote_seated',
   'All seated players must accept the proposed rules before starting.': 'feedback.rules_accept',

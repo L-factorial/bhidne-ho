@@ -1,5 +1,7 @@
-// Editable English feedback copy. Keep keys and {{placeholders}} in sync with the other locale.
+// Editable feedback copy. Keep keys and placeholders in sync with the other locale.
 export default {
+  "taking_you_to_table": "Taking you to your game table…",
+  "community_rules_required": "Open Community Rules and accept them to use chat.",
   "host_start": "Only the table host can start this game. Ask the host to start it.",
   "host_lock": "Only the table host can lock the seats. Ask the host to continue.",
   "owner_only": "Only the room owner can do this. Ask the owner to continue.",

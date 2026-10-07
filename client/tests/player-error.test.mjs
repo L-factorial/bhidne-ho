@@ -91,3 +91,9 @@ test('table creation rejections show the exact cause before the HTTP conflict fa
   assert.match(playerError(new ApiError(409,'Already seated at another active table.')),/invited player.*another table/);
   assert.match(playerError(new ApiError(409,'This room has reached its open-table limit.')),/table limit/);
 });
+
+
+test('community acceptance errors point to the rules instead of generic forbidden feedback',()=>{
+  assert.equal(playerError(new ApiError(403,'Accept the community rules in Profile before posting.')),
+    'Open Community Rules and accept them to use chat.');
+});

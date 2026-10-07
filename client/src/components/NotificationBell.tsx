@@ -10,9 +10,9 @@ import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import type {Invitation} from '../multiplayer/invitations';
 
 type Player = { user_id: string; display_name: string; username?: string | null };
-type Notification = { id: string; kind: 'friend_request' | 'friend_accepted' | 'friend_rejected' | 'chat' | 'poke'; payload?: {room_id?:string;match_id?:string;scope?:string}; actor: Player; created_at: number; read: boolean };
+type Notification = { id: string; kind: 'friend_request' | 'friend_accepted' | 'friend_rejected' | 'chat' | 'poke'; payload?: {room_id?:string;match_id?:string;scope?:string;room_name?:string;table_name?:string}; actor: Player; created_at: number; read: boolean };
 type FriendSnapshot = { incoming: Player[] };
-type TableInvitation = { id: string; room_id: string; room_name: string; match_id: string; table_name: string; game_type: 'callbreak' | 'marriage' | 'flush'; inviter_id: string; inviter?: Player; created_at: number; seated: number; capacity: number; seat_available: boolean };
+type TableInvitation = { room_notification?:boolean; id: string; room_id: string; room_name: string; match_id: string; table_name: string; game_type: 'callbreak' | 'marriage' | 'flush'; inviter_id: string; inviter?: Player; created_at: number; seated: number; capacity: number; seat_available: boolean };
 type RoomInvitation = { id: string; room_id: string; room_name: string; inviter_id: string; inviter?: Player };
 
 const playerName = (player: Player) => player.display_name || player.username || player.user_id;
@@ -108,7 +108,7 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
             </View>)}
             {tableInvitations.map(invitation => <View key={invitation.id} style={[styles.notice, styles.unread]}>
               <View style={styles.avatar}><Text style={styles.avatarText}>♠</Text></View>
-              <View style={{ flex: 1 }}><Text style={styles.name}>{ui("social.player_invited_you_to_tablename", { "player": invitation.inviter ? playerName(invitation.inviter) : 'A player', "tableName": invitation.table_name })}</Text><Text style={styles.detail}>{ui("rooms.invitation_summary", { "game": invitation.room_name, "phase": invitation.game_type, "seated": invitation.seated, "capacity": invitation.capacity, "players": invitation.seat_available ? ui("rooms.seat_available") : ui("rooms.watch_or_join_the_waitlist") })}</Text></View>
+              <View style={{ flex: 1 }}><Text style={styles.name}>{ui(invitation.room_notification ? "social.player_created_table" : "social.player_invited_you_to_tablename", { "player": invitation.inviter ? playerName(invitation.inviter) : ui("common.player"), "tableName": invitation.table_name, "roomName": invitation.room_name })}</Text><Text style={styles.detail}>{ui("rooms.invitation_summary", { "game": invitation.room_name, "phase": invitation.game_type, "seated": invitation.seated, "capacity": invitation.capacity, "players": invitation.seat_available ? ui("rooms.seat_available") : ui("rooms.watch_or_join_the_waitlist") })}</Text></View>
               <View style={styles.requestActions}>
                 <Pressable accessibilityRole="button" onPress={() => void answerTable(invitation, true)} style={styles.accept}><Text style={styles.acceptText}>{ui("common.open_table")}</Text></Pressable>
                 <Pressable accessibilityRole="button" onPress={() => void answerTable(invitation, false)} style={styles.decline}><Text style={styles.link}>{ui("common.decline")}</Text></Pressable>
@@ -117,7 +117,7 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
             {items.map(item => <View key={item.id} style={[styles.notice, !item.read && styles.unread]}>
               <View style={styles.avatar}><Text style={styles.avatarText}>{playerName(item.actor).slice(0, 1).toUpperCase()}</Text></View>
               <View style={{ flex: 1 }}><Text style={styles.name}>{playerName(item.actor)} {item.kind === 'friend_request' ? ui("social.sent_you_a_connection_request") : item.kind === 'friend_accepted' ? ui("social.accepted_your_connection_request") : item.kind === 'chat' ? ui("social.sent_you_a_chat_message") : item.kind === 'poke' ? ui("social.poked_you") : ui("social.declined_your_connection_request")}</Text>
-                <Text style={styles.detail}>{new Date(item.created_at).toLocaleString()}</Text></View>
+                <Text style={styles.detail}>{[item.payload?.room_name,item.payload?.table_name].filter(Boolean).join(" → ")}</Text><Text style={styles.detail}>{new Date(item.created_at).toLocaleString()}</Text></View>
               {item.kind === 'friend_request' && <View style={styles.requestActions}>
                 <Pressable accessibilityRole="button" onPress={() => void answerRequest(item.actor, true)} style={styles.accept}><Text style={styles.acceptText}>{ui("common.accept")}</Text></Pressable>
                 <Pressable accessibilityRole="button" onPress={() => void answerRequest(item.actor, false)} style={styles.decline}><Text style={styles.link}>{ui("common.decline")}</Text></Pressable>

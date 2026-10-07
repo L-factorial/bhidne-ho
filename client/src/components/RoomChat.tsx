@@ -1,5 +1,5 @@
 import { preserveRemovals } from './moderation/messages';
-import { CommunityRulesEntry } from './moderation/CommunityRules';
+import { CommunityRulesEntry, useCommunityRulesGate } from './moderation/CommunityRules';
 import { ReportButton } from './Moderation';
 import { useBlocking } from './PlayerBlocking';
 import { usePersistentNotice } from '../multiplayer/usePersistentNotice';
@@ -23,6 +23,7 @@ type Message = { id: string; sender_id: string; sender_name: string; text: strin
 
 export function useRoomChat({ roomId, session, connected, hideWhenBlocked = false, expanded, onExpandedChange, renderLauncher, bottomOffset = 0, launcherVisible = true }: { launcherVisible?: boolean; expanded?: boolean; onExpandedChange?: (open: boolean) => void; renderLauncher?: (state: { open: boolean; unread: number; blocked: boolean; toggle: () => void }) => ReactNode; bottomOffset?: number; hideWhenBlocked?: boolean; roomId: string; session: Session; connected: boolean }) {
   const blocking = useBlocking(session);
+  const rules = useCommunityRulesGate(session);
   const { colors } = useTheme();
   const { t } = useTranslation();
   const styles = useThemedStyles(createStyles);
@@ -39,7 +40,7 @@ export function useRoomChat({ roomId, session, connected, hideWhenBlocked = fals
   const notification = useRef({ open, muted, play });
   notification.current = { open, muted, play };
   const previousIds = useRef<Set<string> | null>(null);
-  function openChat() { prepare(); setUnread(0); followLatest.current = true; setOpen(true); }
+  function openChat() { prepare(); void rules.run(()=>{setUnread(0); followLatest.current = true; setOpen(true);}); }
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState('');
@@ -105,7 +106,7 @@ export function useRoomChat({ roomId, session, connected, hideWhenBlocked = fals
   }
   if (blocked && hideWhenBlocked) return { view: null, navigation: null };
   const launcher = renderLauncher?.({ open, unread, blocked, toggle: () => { if (open) setOpen(false); else if (!blocked) openChat(); } });
-  return { navigation: launcher, view: <>{!open && launcherVisible && launcher}
+  return { navigation: launcher, view: <>{rules.view}{!open && launcherVisible && launcher}
     {!renderLauncher && <Pressable onPress={openChat} accessibilityRole="button" accessibilityLabel={t('chat.title')} style={[styles.dock, { bottom: bottomOffset + insets.bottom, right: 12, padding: 16, backgroundColor: colors.surface }]}><Text style={styles.heading}>{t('chat.title')}{unread ? ` · ${unread}` : ''}</Text></Pressable>}
     {open && !blocked && <RoomSheet visible title={t('chat.title')} onClose={() => setOpen(false)} scrollable={false}
       headerActions={<Pressable accessibilityRole="button" accessibilityLabel={t(muted ? 'chat.soundOff' : 'chat.soundOn')} accessibilityState={{ selected: !muted }} onPress={() => { prepare(); setMuted(value => !value); }} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Ionicons name={muted ? 'volume-mute-outline' : 'volume-high-outline'} size={20} color={colors.textMuted} /></Pressable>}
