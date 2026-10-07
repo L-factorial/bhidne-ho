@@ -164,3 +164,54 @@ test('room chat push uses committed names without profile or history fetch',asyn
  assert.equal(f.shared.length,0);assert.equal(f.sent.length,0);
  stop();await f.api.deliverChat('room-chat',[row]);assert.equal(received.length,1);f.api.close();
 });
+
+test('native fallback IDs satisfy the server contract for table chat and every poke route',async()=>{
+ const descriptor=Object.getOwnPropertyDescriptor(globalThis,'crypto');
+ Object.defineProperty(globalThis,'crypto',{value:undefined,configurable:true});
+ try{
+  const f=setup(),bodies=[];f.root.ephemeralEnabled=true;f.root.cachedGameView=()=>structuredClone(view);
+  f.root.reads.ephemeral=async(_target,body)=>{bodies.push(body);return {message:null};};
+  const channel={};f.api.attachSocial(channel);f.api.selectedRoom='r';
+  await channel.transport('TABLE_CHAT_SEND','m',{text:'hello'},signal());
+  await channel.transport('TABLE_POKE_SEND','m',{recipient_player_id:2,reaction:'love'},signal());
+  await f.api.request('/test-games/r/poke',account,{match_id:'m',text:'hello',recipient_player_id:2});
+  assert.equal(bodies.length,3);
+  assert.equal(new Set(bodies.map(b=>b.command_id)).size,3);
+  for(const body of bodies){assert.match(body.command_id,/^[A-Za-z0-9_-]{1,128}$/);assert.equal(body.expected_revision,7);}
+  f.api.close();
+ }finally{if(descriptor)Object.defineProperty(globalThis,'crypto',descriptor);else delete globalThis.crypto;}
+});
+const endedView=()=>({...structuredClone(view),status:'ended',table:{phase:'ENDED',current_user:{can_leave_seat:false,can_abandon_match:false,is_in_active_match:false}}});
+test('leaving an already closed table succeeds without another mutation',async()=>{
+ for(const suffix of ['leave','table/leave-seat','table/abandon']){
+  const f=setup();f.root.reads.gameView=async()=>endedView();
+  const result=await f.api.request('/test-games/r/'+suffix,account,{match_id:'m'});
+  assert.equal(result.status,'ended');assert.equal(f.sent.length,0);f.api.close();
+ }
+});
+test('a definitive leave rejection racing closure reconciles to the ended table',async()=>{
+ const f=setup(r=>receipt(r,'rejected'));let reads=0;
+ f.root.reads.gameView=async()=>++reads===1?structuredClone(view):endedView();
+ const result=await f.api.request('/test-games/r/leave',account,{match_id:'m'});
+ assert.equal(result.status,'ended');assert.equal(f.sent.length,1);f.api.close();
+});
+test('a leave rejection while the table is still active remains an error',async()=>{
+ const f=setup(r=>receipt(r,'rejected'));
+ await assert.rejects(f.api.request('/test-games/r/leave',account,{match_id:'m'}),{status:409});f.api.close();
+});
+test('closure does not discard or resubmit an unresolved leave intention',async()=>{
+ const f=setup(()=>{throw Error('lost reply');});
+ await assert.rejects(f.api.request('/test-games/r/leave',account,{match_id:'m'}),/lost reply/);
+ const original=f.root.session.command('ui-table-control').request;
+ f.root.reads.gameView=async()=>endedView();
+ await assert.rejects(f.api.request('/test-games/r/leave',account,{match_id:'m'}),/lost reply/);
+ assert.deepEqual(f.sent[1],original);assert.equal(f.root.session.command('ui-table-control').pending,true);f.api.close();
+});
+
+test('a recovered leave rejection after a lost reply recognizes closure without a new ID',async()=>{
+ let attempts=0;const f=setup(r=>{if(++attempts===1)throw Error('lost reply');return receipt(r,'rejected');});
+ await assert.rejects(f.api.request('/test-games/r/leave',account,{match_id:'m'}),/lost reply/);
+ const original=f.sent[0];f.root.reads.gameView=async()=>endedView();
+ const result=await f.api.request('/test-games/r/leave',account,{match_id:'m'});
+ assert.equal(result.status,'ended');assert.deepEqual(f.sent[1],original);f.api.close();
+});

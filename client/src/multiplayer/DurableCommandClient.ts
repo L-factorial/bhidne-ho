@@ -24,7 +24,7 @@ export type DurableCommandTransport = {
   status(reference: StatusReference, signal: AbortSignal): Promise<unknown>;
 };
 let idSequence = 0;
-function newCommandId() {
+export function newCommandId() {
   // Non-secret deduplication key; authentication supplies the actor identity.
   return globalThis.crypto?.randomUUID?.() ??
     `${Date.now().toString(36)}-${(++idSequence).toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;

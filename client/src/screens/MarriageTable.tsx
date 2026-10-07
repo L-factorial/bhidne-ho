@@ -1,3 +1,4 @@
+import { gameAttention } from '../notifications/gameAttention';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { MarriageTunnelaPanel } from '../components/MarriageTunnelaPanel';
@@ -16,12 +17,14 @@ import { GameTableHeader } from '../components/GameTableHeader';
 import { MarriageHandSheet } from '../components/MarriageHandSheet';
 import { marriageDecision, marriageHandSnap, type HandSnap } from '../multiplayer/marriageWorkspace';
 import { TableStartCue } from '../components/TableStartCue';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { useMarriageReveal } from '../multiplayer/useMarriageReveal';
 import { MarriageCardArea } from '../components/MarriageCardArea';
 import { MarriageCardBack } from '../components/MarriageCardBack';
+import { MarriageHandCard } from '../components/MarriageHandCard';
+import { cardDropTarget, marriageCardMarker, reconcileHandOrder, swapHandCards, type CardBounds } from '../multiplayer/marriageHandOrder';
 import { MarriageDetails } from '../components/MarriagePlayers';
 import { PokeComposer } from '../components/PokeComposer';
 import type { PlayerPhrase } from '../multiplayer/pokes';
@@ -42,6 +45,12 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const s = useThemedStyles(createStyles);
   const mobile = useWindowDimensions().width < 900;
   const [arrangement, setArrangement] = useState<MarriageArrangement>("sequence");
+  const [manualOrder,setManualOrder] = useState<{key:string;ids:string[]}>({key:'',ids:[]});
+  const [draggingCard,setDraggingCard] = useState(false);
+  const cardNodes = useRef(new Map<string,View>());
+  const registerCard = useCallback((id:string,node:View|null)=>{
+    if(node)cardNodes.current.set(id,node);else cardNodes.current.delete(id);
+  },[]);
   const [confirmFold, setConfirmFold] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
@@ -80,6 +89,18 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const drawnCard = isTurn && pub?.phase === 'must_discard' ? hand.at(-1) : undefined;
   const activeGame = snapshot.status === 'playing';
   const decision = marriageDecision(snapshot.marriage, activeGame);
+  const detectionKey=JSON.stringify([snapshot.match_id,hand.map(c=>c.card_id),own?.shown_melds,own?.route,mine?.maal,declaring,own?.folded,own?.has_seen_maal,allRevealed,hidden]);
+  const [localMarriage,setLocalMarriage]=useState({key:'',ready:false});
+  const [localMaal,setLocalMaal]=useState({key:'',ready:false});
+  const [localTunnela,setLocalTunnela]=useState({key:'',ready:false});
+  const reportMarriage=useCallback((ready:boolean)=>setLocalMarriage({key:detectionKey,ready}),[detectionKey]);
+  const reportMaal=useCallback((ready:boolean)=>setLocalMaal({key:detectionKey,ready}),[detectionKey]);
+  const reportTunnela=useCallback((ready:boolean)=>setLocalTunnela({key:detectionKey,ready}),[detectionKey]);
+  const handCue=gameAttention(snapshot,{
+    marriage:localMarriage.key===detectionKey&&localMarriage.ready,
+    maal:localMaal.key===detectionKey&&localMaal.ready,
+    tunnela:localTunnela.key===detectionKey&&localTunnela.ready,
+  });
   const [snap, setSnap] = useState<HandSnap>(() => marriageHandSnap(decision));
   // Only a new decision changes the sheet; polling, selecting and showing melds do not.
   useEffect(() => {
@@ -99,6 +120,21 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       <Text style={[s.buttonText, primary && { color: colors.onPrimary }]}>{label}</Text></Pressable>;
   }
   const handGroups = allRevealed && !hidden ? arrangeMarriageHand(availableHand, arrangement) : [{label:'', cards:availableHand}];
+  const orderKey = JSON.stringify([snapshot.match_id,mine?.player_id]);
+  const dragStateKey = JSON.stringify([orderKey,handKey,hidden,allRevealed,declaring,busy]);
+  const currentDragState = useRef(dragStateKey);
+  currentDragState.current = dragStateKey;
+  const displayedHand = reconcileHandOrder(handGroups.flatMap(group=>group.cards),
+    allRevealed && !hidden && manualOrder.key===orderKey ? manualOrder.ids : []);
+  async function dropCard(source:string,x:number,y:number) {
+    if(busy || hidden || !allRevealed || declaring)return;
+    const bounds = await Promise.all([...cardNodes.current].map(([id,node])=>new Promise<CardBounds>(resolve=>
+      node.measureInWindow((x,y,width,height)=>resolve({id,x,y,width,height})))));
+    if(currentDragState.current!==dragStateKey)return;
+    const target=cardDropTarget(bounds,source,x,y);
+    if(target)setManualOrder(current=>({key:orderKey,ids:swapHandCards(
+      reconcileHandOrder(displayedHand,current.key===orderKey?current.ids:[]).map(card=>card.card_id),source,target)}));
+  }
   const drawnId = drawnCard?.card_id;
   const startCue = ended ? endedNotice : <TableStartCue snapshot={snapshot} busy={busy} onStart={onStart} onTableAction={onTableAction} onNewGame={onNewGame} />;
   const canDiscard = canAct && isTurn && social.connected && !!actions?.kinds.includes('discard');
@@ -152,7 +188,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       </>}
       {!!error && (!mine || !activeGame || (mobile && snap === 'collapsed')) && <Text accessibilityRole="alert" style={s.error}>{uiLabel(error, 'feedback')}</Text>}
     </View>
-    {pub && mine && activeGame && <MarriageHandSheet cardCount={hand.length} anchor={handAnchor} mobile={mobile} snap={snap} onSnap={setSnap} instruction={turnInstruction} attention={declaring || isTurn && !declarationsPending} header={mobileHandHeader} footer={own?.folded || preview || finishPreview ? null : discardFooter}>
+    {pub && mine && activeGame && <MarriageHandSheet draggingCard={draggingCard} cue={handCue} cardCount={hand.length} anchor={handAnchor} mobile={mobile} snap={snap} onSnap={setSnap} instruction={turnInstruction} attention={declaring || isTurn && !declarationsPending} header={mobileHandHeader} footer={own?.folded || preview || finishPreview ? null : discardFooter}>
     <View testID="marriage-hand-dock" style={[s.handDock, mobile && { backgroundColor: 'transparent', borderTopWidth: 0, padding: 4 }]}>
       <View style={[s.row, { backgroundColor: colors.tableHeader, borderRadius: 8 }]}><Text style={[s.small, { color: colors.onTableHeader }]}>{ui("common.your_cards_status", { "status": hand.length })}</Text>
         {!own?.folded && button(ui("marriage.fold"), () => setConfirmFold(true), busy || !social.connected || !actions?.kinds.includes('fold'))}
@@ -183,12 +219,12 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         <View style={s.row}>{button(ui("marriage.confirm_fold"), () => { onAction('FOLD'); }, busy || !social.connected || !actions?.kinds.includes('fold'))}
           {button(ui("common.keep_playing"), () => setConfirmFold(false), busy)}</View>
       </View>}
-      {declaring && <MarriageTunnelaPanel hand={hand} visible={allRevealed&&!hidden} busy={busy} connected={social.connected} submit={onAction}/>}
+      {declaring && <MarriageTunnelaPanel onEligibility={reportTunnela} hand={hand} visible={allRevealed&&!hidden} busy={busy} connected={social.connected} submit={onAction}/>}
       {declarationsPending && !declaring && <Text style={s.text}>{ui("marriage.declaration_recorded_waiting_for_other_players")}</Text>}
-      {!declaring && !own?.folded && (own?.has_seen_maal && mine.maal ? <MarriageWinPanel hand={hand} shown={own.shown_melds} initialTunnelas={own.initial_tunnelas} maal={mine.maal} route={own.route}
+      {!declaring && !own?.folded && (own?.has_seen_maal && mine.maal ? <MarriageWinPanel onEligibility={reportMarriage} hand={hand} shown={own.shown_melds} initialTunnelas={own.initial_tunnelas} maal={mine.maal} route={own.route}
         visible={allRevealed && !hidden} enabled={canAct && isTurn && social.connected} busy={busy} canFinish={!!actions?.kinds.includes('finish')}
         preview={finishPreview && !hidden} setPreview={setFinishPreview} error={uiLabel(error, 'feedback')} submit={onAction} /> :
-      <MarriageMaalPanel hand={availableHand} shown={own?.shown_melds || []} unlocked={false} maal={mine.maal}
+      <MarriageMaalPanel onEligibility={reportMaal} hand={availableHand} shown={own?.shown_melds || []} unlocked={false} maal={mine.maal}
         enabled={canAct && isTurn && social.connected} visible={allRevealed && !hidden} busy={busy} actions={actions?.kinds || []}
         preview={preview && !hidden} setPreview={setPreview} arrangement={arrangement} error={uiLabel(error, 'feedback')} submit={onAction} />)}
       {!preview && !finishPreview && <>
@@ -196,7 +232,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
 
         {!declaring && allRevealed && !own?.has_seen_maal && <View accessibilityRole="tablist" style={s.row}>
           {(["sequence","dublee"] as const).map(value=><Pressable key={value} accessibilityRole="tab" accessibilityLabel={value==='sequence'?ui("marriage.sequence_tunnela"):ui("marriage.dublee")}
-            accessibilityState={{selected:arrangement===value}} onPress={()=>setArrangement(value)} style={[s.button,arrangement===value&&s.chosen]}>
+            accessibilityState={{selected:arrangement===value}} onPress={()=>{setArrangement(value);setManualOrder({key:orderKey,ids:[]});}} style={[s.button,arrangement===value&&s.chosen]}>
             <Text style={s.buttonText}>{value==='sequence'?ui("marriage.sequence_tunnela"):ui("marriage.dublee")}</Text>
           </Pressable>)}
         </View>}
@@ -204,17 +240,19 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         {canDiscard && <Text testID="marriage-discard-prompt" accessibilityLiveRegion="polite" style={s.heading}>{selectedCard ? ui("marriage.confirm_your_discard_below") : ui("marriage.select_a_card_to_discard")}</Text>}
         <View style={{position:'relative',borderRadius:8}}>
         <View testID="marriage-hand" style={{flexDirection:'row',flexWrap:'wrap',gap:5}}>
-              {handGroups.flatMap(group=>group.cards).map((card,index)=>{
+              {displayedHand.map((card,index)=>{
                 const back=hidden||(!allRevealed&&index>=revealed), checked=selected.includes(card.card_id);
-                return <Pressable key={card.card_id} accessibilityRole="button" accessibilityLabel={back?ui("common.hidden_card"):physicalLabel(card.card_id)}
-                  accessibilityHint={!back&&card.card_id===drawnId?ui("marriage.just_drawn"):undefined} aria-pressed={checked}
-                  accessibilityState={{selected:checked,disabled:busy||back||declaring}} disabled={busy||back||declaring}
+                const marker=back?null:marriageCardMarker(card.card_id===drawnId,checked);
+                return <MarriageHandCard key={card.card_id} id={card.card_id} label={back?ui("common.hidden_card"):physicalLabel(card.card_id)}
+                  hint={!back&&card.card_id===drawnId?ui("marriage.just_drawn"):undefined} selected={checked}
+                  disabled={busy||back||declaring} dragDisabled={!allRevealed} register={registerCard} onDragChange={setDraggingCard} onDrop={(id,x,y)=>void dropCard(id,x,y)}
                   onPress={()=>setSelected(ids=>ids.length===1&&ids[0]===card.card_id?[]:[card.card_id])}
                   style={[s.card, {width:48,height:76},back&&s.cardBack,!back&&card.card_id===drawnId&&s.drawnCard,checked&&s.selectedCard]}>
+                  {!!marker&&<Text pointerEvents="none" testID={`marriage-card-marker-${marker}`} style={{position:'absolute',top:-17,fontSize:18,lineHeight:18,fontWeight:'bold',color:marker==='discard'?'#DC2626':'#15803D'}}>▼</Text>}
                   {back?<MarriageCardBack/>:<Text style={[s.face,{fontSize:21,color:card.suit==='H'||card.suit==='D'?colors.cardRed:colors.cardInk}]}>{marriageFace(card)}</Text>}
                   {!back&&card.card_id===drawnId&&<Text style={{fontSize:9,color:colors.cardInk}}>{ui("marriage.new")}</Text>}
                   {!back&&<Text style={s.copy}>{card.card_type==='man'?ui("common.man"):ui("common.copy_copynumber", { "copyNumber": (card.deck_index??0)+1 })}</Text>}
-                </Pressable>;
+                </MarriageHandCard>;
               })}
         </View>
         <TurnGlow active={canDiscard} radius={8}/>
@@ -245,8 +283,8 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   drawSource: { flex:1, alignItems:'center', gap:6 },
   piles: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 24, minHeight: 130 }, pileFace: { fontSize: 32, backgroundColor: colors.cardFace, color: colors.cardRed, borderRadius: 8, padding: 14 },
   hand: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, position: 'relative', paddingVertical: 6 }, card: { width: 49, height: 78, borderRadius: 7, borderWidth: 2, borderColor: colors.cardBorder, backgroundColor: colors.cardFace, alignItems: 'center', justifyContent: 'center', gap: 3 },
-  drawnCard: { borderColor: colors.accent, borderWidth: 3 },
-  cardBack: { backgroundColor: colors.cardBack, borderColor: colors.cardBorder }, selectedCard: { borderColor: colors.cardSelectedBorder, borderWidth: 3, backgroundColor: colors.cardSelected }, face: { fontFamily: fonts.medium, fontSize: 23, fontWeight: 'bold' }, copy: { color: colors.cardInk, textAlign: 'center', fontSize: 8 },
+  drawnCard: { borderColor: '#15803D', borderWidth: 4 },
+  cardBack: { backgroundColor: colors.cardBack, borderColor: colors.cardBorder }, selectedCard: { borderColor: '#DC2626', borderWidth: 4, backgroundColor: colors.cardSelected }, face: { fontFamily: fonts.medium, fontSize: 23, fontWeight: 'bold' }, copy: { color: colors.cardInk, textAlign: 'center', fontSize: 8 },
   builder: { gap: 10, paddingTop: 12, borderTopWidth: 1, borderColor: colors.border }, maal: { backgroundColor: colors.surface, padding: 12, gap: 8, borderRadius: 8 },
   error: { color: colors.danger, backgroundColor: colors.dangerSurface, padding: 14, borderRadius: 10 }, success: { color: colors.success, fontSize: 13 },
 });

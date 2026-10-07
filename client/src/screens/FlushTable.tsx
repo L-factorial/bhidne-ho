@@ -1,3 +1,4 @@
+import { gameAttention } from '../notifications/gameAttention';
 import { GameModal as Modal } from '../components/GameModal';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -194,7 +195,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
       </ScrollView>
       {pub && <View pointerEvents="none" style={s.notice}><FlushFoldNotice key={`folds:${snapshot.match_id}`} snapshot={snapshot} /></View>}
       <View ref={socialAnchor.ref} onLayout={socialAnchor.onLayout} style={s.handDock} testID="flush-hand-dock">
-        {!!mine && <HandAreaBar open={handOpen} onToggle={() => setHandOpen(value=>!value)} attention={myTurn && connectionReady && !ended}
+        {!!mine && <HandAreaBar cue={gameAttention(snapshot)} open={handOpen} onToggle={() => setHandOpen(value=>!value)} attention={myTurn && connectionReady && !ended}
           instruction={ui("common.your_turn_action", { "action": turnText })}/>}
         <View style={{display:!mine || handOpen?'flex':'none',alignItems:'center',gap:6,alignSelf:'stretch'}} accessibilityElementsHidden={!!mine&&!handOpen} importantForAccessibility={mine&&!handOpen?'no-hide-descendants':'auto'}>
         {!ended && mine && !preparing && !pub?.settlement && <View style={s.cards} testID="flush-own-cards">

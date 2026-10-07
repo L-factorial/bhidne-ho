@@ -4,7 +4,7 @@ import type { UiKey } from '../i18n/catalogs.ts';
 
 export type GameAttention = { key:string; title:UiKey; detail:UiKey; required:boolean; opportunities:UiKey[] };
 // Presentation uses authorized snapshots only. Suggestions never grant actions.
-export function gameAttention(snapshot:RoomSnapshot|null):GameAttention|null {
+export function gameAttention(snapshot:RoomSnapshot|null, local?:{marriage:boolean;maal:boolean;tunnela:boolean}):GameAttention|null {
   if(!snapshot?.match_id || snapshot.status==='ended')return null;
   const s=snapshot, mine=s.marriage?.private;
   const opportunities:UiKey[]=[];
@@ -14,15 +14,19 @@ export function gameAttention(snapshot:RoomSnapshot|null):GameAttention|null {
   if(s.game_type==='marriage' && mine && s.status==='playing'){
     const own=s.marriage!.public.players.find(p=>p.player_id===mine.player_id);
     if(own?.folded)return null;
+    if(local?.tunnela)opportunities.push('common.attention_tunnela');
     if(mine.actions.kinds.includes('declare_tunnelas'))return cue('declare','common.attention_declare','common.attention_declare_detail',true);
     if(!s.marriage!.public.tunnela_declaration_pending){
       const committed=new Set(own?.shown_melds.flatMap(m=>m.card_ids));
       const suggestion=marriageSuggestions(mine.hand.filter(c=>!committed.has(c.card_id)));
-      if(!own?.has_seen_maal && own?.route==='unqualified'){
+      if(local){
+        if(local.maal)opportunities.push('common.attention_maal');
+        if(local.marriage)opportunities.unshift('common.attention_marriage');
+      }else if(!own?.has_seen_maal && own?.route==='unqualified'){
         if(suggestion.dublees.length)opportunities.push('common.attention_dublee');
         if(suggestion.normal.length || suggestion.dublees.length)opportunities.push('common.attention_maal');
       }
-      if(mine.maal){
+      if(!local && mine.maal){
         const rank=(n:number|null)=>n===14?1:n;
         if([mine.maal.tiplu,mine.maal.jhiplu,mine.maal.poplu].every(face=>mine.hand.some(c=>
           c.card_type==='standard'&&c.suit===face.suit&&rank(c.rank)===rank(face.rank))))

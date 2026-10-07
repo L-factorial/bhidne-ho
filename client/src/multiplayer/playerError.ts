@@ -32,6 +32,12 @@ const messages: Record<string, UiKey> = {
   'Session is disconnected.': 'feedback.connection_lost',
 };
 const codes: Record<string, UiKey> = {
+  PUSH_PERMISSION_REQUIRED: 'feedback.push_permission_required',
+  PUSH_PERMISSION_FAILED: 'feedback.push_permission_failed',
+  PUSH_TOKEN_FAILED: 'feedback.push_token_failed',
+  PUSH_ENVIRONMENT_FAILED: 'feedback.push_environment_failed',
+  PUSH_BUILD_REQUIRED: 'feedback.push_build_required',
+  PUSH_REGISTRATION_FAILED: 'feedback.push_registration_failed',
   NOT_YOUR_TURN: 'feedback.not_your_turn',
   PLAYER_ALREADY_AT_TABLE: 'feedback.leave_first',
   TABLE_FULL: 'feedback.that_table_is_full_choose_a_table_with_an_open_seat',

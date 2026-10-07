@@ -49,3 +49,36 @@ test('round settlement takes precedence over stale turn fields',()=>{
   assert.equal(gameAttention(s).required,false);
   assert.notEqual(gameAttention(s).key,gameAttention({...s,flush:{...s.flush,public:{...s.flush.public,round_number:3}}}).key);
 });
+
+test('local eligibility results drive header cues without heuristic false positives',()=>{
+  const s=marriage([card(4),card(5),card(6)]);
+  const none={marriage:false,maal:false,tunnela:false};
+  assert.equal(gameAttention(s,{...none,marriage:true}).title,'common.attention_marriage');
+  assert.equal(gameAttention(s,{...none,maal:true}).title,'common.attention_maal');
+  s.marriage.private.maal={tiplu:{rank:5,suit:'S'},jhiplu:{rank:4,suit:'S'},poplu:{rank:6,suit:'S'}};
+  assert.equal(gameAttention(s,none),null,'the existing eligibility solver takes precedence over face heuristics');
+});
+
+test('local tunnela detection accompanies declaration and required turns retain priority',()=>{
+  const local={marriage:false,maal:false,tunnela:true};
+  const s=marriage([],['declare_tunnelas'],{tunnela_declaration_pending:true});
+  const declaration=gameAttention(s,local);
+  assert.equal(declaration.required,true);
+  assert.ok(declaration.opportunities.includes('common.attention_tunnela'));
+  s.marriage.public.tunnela_declaration_pending=false;
+  s.marriage.private.actions.kinds=['draw'];
+  s.marriage.public.current_player_id='1';
+  const turn=gameAttention(s,{marriage:true,maal:true,tunnela:false});
+  assert.equal(turn.detail,'common.attention_draw');
+  assert.deepEqual(turn.opportunities,['common.attention_marriage','common.attention_maal']);
+});
+
+test('local detection cannot expose cues for spectators, folded players or ended tables',()=>{
+  const local={marriage:true,maal:true,tunnela:true};
+  const s=marriage([]);
+  s.marriage.public.players[0].folded=true;
+  assert.equal(gameAttention(s,local),null);
+  s.marriage.public.players[0].folded=false;
+  assert.equal(gameAttention({...s,status:'ended'},local),null);
+  assert.equal(gameAttention({...s,marriage:{...s.marriage,private:null}},local),null);
+});

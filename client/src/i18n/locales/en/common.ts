@@ -512,4 +512,5 @@ export default {
   push_quiet_save: "Save quiet hours",
   push_quiet_disable: "Turn off quiet hours",
   push_quiet_invalid: "Enter different start and end times in HH:MM format.",
+  "attention_tunnela": "TUNNELA DETECTED",
 } as const;

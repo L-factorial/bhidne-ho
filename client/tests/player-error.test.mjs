@@ -70,3 +70,17 @@ test('session startup failures explain recovery without exposing journal termino
   assert.equal(playerError(busy), busy);
   assert.match(playerError(Error('Persistent storage and Web Locks are required.')), /Allow site storage/);
 });
+
+test('native setup failures provide specific localized guidance without native error text',async()=>{
+ const {PushSetupError}=await import('../src/notifications/nativeRegistration.ts');
+ const codes=['PUSH_PERMISSION_REQUIRED','PUSH_PERMISSION_FAILED','PUSH_TOKEN_FAILED','PUSH_ENVIRONMENT_FAILED','PUSH_BUILD_REQUIRED','PUSH_REGISTRATION_FAILED'];
+ try{
+  for(const language of ['en','ne']){
+   await i18n.changeLanguage(language);
+   for(const code of codes){
+    const text=playerError(new PushSetupError(code));
+    assert.notEqual(text,playerError(Error('unknown error')));assert.doesNotMatch(text,/PUSH_|synthetic-token|native failure/);
+   }
+  }
+ }finally{await i18n.changeLanguage('en');}
+});

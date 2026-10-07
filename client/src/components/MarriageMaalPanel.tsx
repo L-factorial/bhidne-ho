@@ -10,8 +10,8 @@ import { MarriageMeldCards } from './MarriageMeldCards';
 import { TurnGlow } from './TurnGlow';
 import { fonts, gameButtonStyle, useTheme } from '../theme';
 
-export function MarriageMaalPanel({ hand, shown, unlocked, maal, enabled, visible, busy, actions, preview, setPreview, arrangement, error, submit }: {
-  hand: MarriageCard[]; shown: MarriageMeld[]; unlocked: boolean; maal: NonNullable<MarriageView['private']>['maal'];
+export function MarriageMaalPanel({ hand, shown, unlocked, maal, enabled, visible, busy, actions, preview, setPreview, arrangement, error, submit, onEligibility }: {
+  onEligibility?: (ready:boolean)=>void; hand: MarriageCard[]; shown: MarriageMeld[]; unlocked: boolean; maal: NonNullable<MarriageView['private']>['maal'];
   enabled: boolean; visible: boolean; busy: boolean; actions: string[]; preview: boolean; setPreview: (value:boolean)=>void;
   arrangement: MarriageArrangement; error: string; submit:(command:string,payload:object)=>void;
 }) {
@@ -34,6 +34,7 @@ export function MarriageMaalPanel({ hand, shown, unlocked, maal, enabled, visibl
   const canShow=!!command && enabled && !busy && visible && actions.includes(command.toLowerCase());
   const eligible=visible && options.length>0;
   const canPreview=eligible && !checking && !busy;
+  useEffect(()=>{onEligibility?.(eligible && !unlocked);},[eligible,unlocked,onEligibility]);
   const text={color:c.text,fontFamily:fonts.body};
   const button=(label:string,onPress:()=>void,disabled=false,primary=false)=><Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled}} disabled={disabled} onPress={onPress}
     style={({pressed})=>({...gameButtonStyle(c,primary?'primary':'secondary',pressed),minHeight:44,justifyContent:'center',opacity:disabled?0.45:1})}><Text style={{color:primary?c.onPrimary:c.onTableHeader,fontFamily:fonts.medium}}>{label}</Text></Pressable>;

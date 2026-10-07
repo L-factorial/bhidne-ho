@@ -13,7 +13,7 @@ import { useTableTheme } from '../TableThemeProvider';
 import { FormInput, FormScrollView } from './FormInput';
 import { KeyboardFrame } from './KeyboardFrame';
 import { FormFooter } from './FormFooter';
-import { TableSocialProvider, TableSocialPresentation, TableSocialButton } from './TableSocial';
+import { TableSocialProvider, TableSocialPresentation } from './TableSocial';
 import type { TableSocialChannel } from '../multiplayer/TableSocialChannel';
 import { TableCard } from './TableCard';
 import type { TableEntry } from '../multiplayer/tableNavigation';
@@ -21,8 +21,6 @@ import { RuleProposal } from './RuleProposal';
 import { TableControls } from './TableControls';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { GameAttentionBanner } from './GameAttentionBanner';
-import { gameAttention } from '../notifications/gameAttention';
 import { useGameNotification } from '../notifications/useGameNotification';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LiveGameTable, RoomSnapshot as Snapshot } from '../screens/LiveGameTable';
@@ -394,7 +392,6 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
     enteredFromLobby.current = key;
     void enterTable(requestedMatchId, requestedEntry);
   }, [requestedMatchId, requestedEntry, busy, snapshot?.match_id]);
-  const attention = gameAttention(visibleSnapshot || snapshot);
   const content = <>
     {!snapshot && !refreshError && <Text accessibilityLiveRegion="polite" style={styles.text}>{sessionActive ? ui("rooms.loading_tables") : ui("feedback.sign_in_again_to_load_tables")}</Text>}
     {refreshError && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.retry_loading_tables")} disabled={pendingAction || !sessionActive}
@@ -413,11 +410,6 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
       {!!visibleTables.length && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_table")} disabled={pendingAction || !sessionActive || !creationEnabled} onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 52, marginBottom: 16 }]}>
         <Text style={[styles.buttonText, { color: colors.onPrimary }]}>{ui("rooms.create_new_table")}</Text>
       </Pressable>}
-    {collapsed && <ThemeContext.Provider value={gameTheme}><TableSocialPresentation expanded={false}>
-      <View testID="collapsed-game-controls" style={{flexDirection:'row',alignItems:'center',gap:4,backgroundColor:gameTheme.colors.tableHeader,borderRadius:20,padding:4}}>
-        <TableSocialButton kind="chat" /><GameAttentionBanner attention={attention} onPress={() => void returnToGame()} /><TableSocialButton kind="poke" />
-      </View>
-    </TableSocialPresentation></ThemeContext.Provider>}
     {!!actionNotice && !open && <Text accessibilityLiveRegion="polite" style={styles.note}>{actionNotice}</Text>}
     {!!error && !open && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
     {!open && snapshot?.status !== 'ended' && snapshot?.rule_proposal?.status === 'PENDING' && ruleReview}
@@ -443,7 +435,6 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
         backgroundColor: gameTheme.colors.background, paddingTop: insets.top, paddingBottom: insets.bottom,
         paddingLeft: insets.left, paddingRight: insets.right,
       }]}><View accessibilityViewIsModal testID="live-game-overlay" style={[styles.liveOverlay, (mobileGame || snapshot.game_type === 'flush') && !chat && { paddingBottom: 0 }]}>
-        <GameAttentionBanner attention={attention} />
         {snapshot.game_type === 'flush' ? <FlushTable connectionReady={connected && synced} onLock={() => void lobbyAction('/table/lock')} tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onFormationBlocked={setFormationBlocked} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={uiLabel(error, 'feedback')}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: text => social.send(snapshot.match_id!, null, text) }}
           onSave={payload => lobbyAction('/flush-settings', payload)} onStart={rules_revision => lobbyAction('/start', { rules_revision })}

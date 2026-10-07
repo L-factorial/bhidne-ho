@@ -1,7 +1,8 @@
 import {createContext,useContext,useEffect,useRef,useState} from 'react';
 import {AppState,Platform} from 'react-native';
 import * as Notifications from 'expo-notifications';
-import {getIosPushNotificationServiceEnvironmentAsync} from 'expo-application';
+import {getIosPushNotificationServiceEnvironmentAsync,getIosApplicationReleaseTypeAsync,ApplicationReleaseType} from 'expo-application';
+import {registerIosDevice,PushSetupError} from './nativeRegistration';
 import {request} from '../multiplayer/api';
 import {readAuthValue,writeAuthValue} from '../auth/storage';
 import {isCurrentSession} from '../multiplayer/session';
@@ -35,13 +36,22 @@ export function PushProvider({session,viewedMatch,children}:PushProviderProps){
   const optedKey=session?`bhidne.push.enabled.v1:${apiUrl}:${session.user_id}`:'';
   async function register(token?:string,actor=current.current.session,signal?:AbortSignal){
     if(!actor)return;
-    const native=token??String((await Notifications.getDevicePushTokenAsync()).data);
-    if(signal?.aborted||!isCurrentSession(apiUrl,actor))return;
-    const environment=Platform.OS==='ios'?await getIosPushNotificationServiceEnvironmentAsync():'production';
-    if(!environment)throw Error('A notification-enabled native build is required.');
-    if(signal?.aborted||!isCurrentSession(apiUrl,actor))return;
-    await request(`/me/push/devices/${deviceId()}`,actor,{provider,token:native,environment,
-      locale:i18n.resolvedLanguage==='ne'?'ne':'en',timezone_offset:new Date().getTimezoneOffset()},signal);
+    const active=()=>!signal?.aborted&&isCurrentSession(apiUrl,actor);
+    const send=async(native:string,environment:'development'|'production')=>{
+      if(!active())return;
+      await request(`/me/push/devices/${deviceId()}`,actor,{provider,token:native,environment,
+        locale:i18n.resolvedLanguage==='ne'?'ne':'en',timezone_offset:new Date().getTimezoneOffset()},signal);
+    };
+    if(Platform.OS==='ios')return registerIosDevice({
+      token:async()=>token??String((await Notifications.getDevicePushTokenAsync()).data),
+      environment:getIosPushNotificationServiceEnvironmentAsync,
+      isStoreBuild:async()=>await getIosApplicationReleaseTypeAsync()===ApplicationReleaseType.APP_STORE,
+      active,register:send,
+    });
+    let native:string;
+    try{native=token??String((await Notifications.getDevicePushTokenAsync()).data);}
+    catch{throw new PushSetupError('PUSH_TOKEN_FAILED');}
+    await send(native,'production');
   }
   async function activity(active=AppState.currentState==='active'){
     const value=current.current;if(!value.session)return;
@@ -101,9 +111,11 @@ export function PushProvider({session,viewedMatch,children}:PushProviderProps){
       await Notifications.setNotificationChannelAsync('game-actions',{name:'Game actions',importance:Notifications.AndroidImportance.HIGH,sound:'default'});
       await Notifications.setNotificationChannelAsync('game-actions-silent',{name:'Silent game actions',importance:Notifications.AndroidImportance.HIGH,sound:null,enableVibrate:false});
     }
-    const permission=await Notifications.requestPermissionsAsync({ios:{allowAlert:true,allowSound:true,allowBadge:false}});
+    let permission:Notifications.NotificationPermissionsStatus;
+    try{permission=await Notifications.requestPermissionsAsync({ios:{allowAlert:true,allowSound:true,allowBadge:false}});}
+    catch{throw new PushSetupError('PUSH_PERMISSION_FAILED');}
     if(!active())return;
-    if(permission.status!=='granted')throw Error(i18n.resolvedLanguage==='ne'?'सूचना अनुमति दिन उपकरणको सेटिङ खोल्नुहोस्।':'Enable notification permission in your device settings.');
+    if(permission.status!=='granted')throw new PushSetupError('PUSH_PERMISSION_REQUIRED');
     await register(undefined,session);if(!active())return;writeAuthValue(optedKey,'1');setEnabled(true);await activity();
   });}
   async function disable(){await run(async active=>{

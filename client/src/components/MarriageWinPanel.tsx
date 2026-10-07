@@ -9,8 +9,8 @@ import { MarriageMeldCards } from './MarriageMeldCards';
 import { TurnGlow } from './TurnGlow';
 import { fonts, gameButtonStyle, useTheme } from '../theme';
 
-export function MarriageWinPanel({ hand, shown, initialTunnelas = [], maal, route, visible, enabled, busy, canFinish, preview, setPreview, error, submit }: {
-  hand: MarriageCard[]; shown: MarriageMeld[]; initialTunnelas?: MarriageMeld[]; maal: SeenMaal; route: string; visible: boolean; enabled: boolean;
+export function MarriageWinPanel({ hand, shown, initialTunnelas = [], maal, route, visible, enabled, busy, canFinish, preview, setPreview, error, submit, onEligibility }: {
+  onEligibility?: (ready:boolean)=>void; hand: MarriageCard[]; shown: MarriageMeld[]; initialTunnelas?: MarriageMeld[]; maal: SeenMaal; route: string; visible: boolean; enabled: boolean;
   busy: boolean; canFinish: boolean; preview: boolean; setPreview: (value: boolean) => void; error: string;
   submit: (command: string, payload: object) => void;
 }) {
@@ -30,6 +30,7 @@ export function MarriageWinPanel({ hand, shown, initialTunnelas = [], maal, rout
   const index = Math.min(page, Math.max(0, choices.length - 1)), choice = choices[index];
   const ready = !!choice, allowed = ready && enabled && canFinish && !checking;
   const canPreview = ready && !checking;
+  useEffect(()=>{onEligibility?.(ready);},[ready,onEligibility]);
   const text = { color: c.text, fontFamily: fonts.body };
   const button = (label: string, onPress: () => void, disabled = false, primary = false) => <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
     style={({ pressed }) => ({ ...gameButtonStyle(c, primary ? 'primary' : 'secondary', pressed), minHeight: 44, justifyContent: 'center', opacity: disabled ? 0.45 : 1 })}><Text style={{ color: primary ? c.onPrimary : c.onTableHeader, fontFamily: fonts.medium }}>{label}</Text></Pressable>;

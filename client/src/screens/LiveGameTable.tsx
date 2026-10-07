@@ -1,3 +1,4 @@
+import { gameAttention } from '../notifications/gameAttention';
 import { playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -193,7 +194,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
         </View>)}
       </View>}
     </View>}
-    {handAvailable && <MobileGameHand docked desktopDrawer mobile={mobile} game="callbreak" keepMounted cardCount={mine?.hand.length || 0}
+    {handAvailable && <MobileGameHand cue={gameAttention(snapshot)} docked desktopDrawer mobile={mobile} game="callbreak" keepMounted cardCount={mine?.hand.length || 0}
       open={cards.open} onToggle={cards.toggle} myTurn={isTurn}
       attention={isTurn || !!mine?.can_accept_hand || !!mine?.can_claim_redeal}
       attentionText={mine?.can_accept_hand || mine?.can_claim_redeal ? ui("callbreak.review_your_cards_accept_or_request_redeal") : isTurn ? game.phase === 'BIDDING' ? ui("callbreak.make_your_call") : ui("callbreak.play_a_card") : ui("common.your_cards_count", {count: mine?.hand.length || 0})}>

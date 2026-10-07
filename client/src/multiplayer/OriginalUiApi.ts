@@ -7,6 +7,7 @@ import { sharedPlatformPath } from './RuntimeRequests.ts';
 import type { DistributedRootRuntime } from './DistributedRoot.ts';
 import { DistributedUiIntent } from './DistributedUiIntent.ts';
 import type { CommandTarget, Json } from './DurableCommandClient.ts';
+import { newCommandId } from './DurableCommandClient.ts';
 import { gameTarget, tableTarget } from './DistributedControls.ts';
 import type { LeaveView } from './DistributedScreenController.ts';
 import { GameRequestError } from './PendingGameAction.ts';
@@ -97,7 +98,7 @@ export class OriginalUiApi {
         const view=this.root.cachedGameView<LeaveView>(room,match)??await this.game(room,match,signal);
         const result:SocialAck={type:'TABLE_SOCIAL_ACK',room_id:room,match_id:match,command_id:'ephemeral',status:'accepted'};
         if(type==='TABLE_CHAT_HISTORY'){result.messages=this.ephemeralHistory.get(match)??[];return result;}
-        const command_id=globalThis.crypto?.randomUUID?.()??`${Date.now()}-${Math.random()}`;
+        const command_id=newCommandId();
         const response=await this.root.reads.ephemeral<{message:TableMessage|null}>({kind:'table',room_id:room,table_id:view.table_id},
           {command_id,command:type==='TABLE_POKE_SEND'?'send-reaction':'send-chat',match_id:match,
             expected_revision:view.table_revision,payload},signal);
@@ -282,13 +283,27 @@ export class OriginalUiApi {
       throw error;
     }
   }
+  private async finishDeparture(room:string,match:string|null|undefined,departing:boolean,signal:AbortSignal,result:Promise<unknown>) {
+    try{return await result;}
+    catch(error){
+      // Only a definitive rejection may be reconciled with closure. Unknown
+      // outcomes retain the original request, ID and receipt lookup.
+      if(departing&&error instanceof GameRequestError&&error.status===409
+        &&!this.root.session.command('ui-table-control').pending){
+        const latest=await this.game(room,match??null,signal);
+        if(latest.table.phase==='ENDED')return latest;
+      }
+      throw error;
+    }
+  }
   async tableRequest(room:string,action:string,data:Payload,signal:AbortSignal):Promise<unknown> {
+    const departing=['leave','table/leave-seat','table/abandon'].includes(action);
     if(['poke','send-poke','send-reaction'].includes(action)&&this.root.ephemeralEnabled){
       const match=typeof data.match_id==='string'?data.match_id:null;
       const view=this.root.cachedGameView<LeaveView>(room,match)??await this.game(room,match,signal);
       const {match_id,...payload}=data;
       await this.root.reads.ephemeral({kind:'table',room_id:room,table_id:view.table_id},
-        {command_id:globalThis.crypto?.randomUUID?.()??`${Date.now()}-${Math.random()}`,
+        {command_id:newCommandId(),
           command:action==='send-reaction'?'send-reaction':'send-poke',match_id:view.match_id,
           expected_revision:view.table_revision,payload},signal);
       return view;
@@ -319,9 +334,13 @@ export class OriginalUiApi {
     if(saved&&saved.target.room_id===room&&saved.body.match_id===data.match_id&&saved.body.command===intended) {
       const {match_id,...payload}=data;
       const {command_id,...body}=saved.body;
-      return this.intents.run('ui-table-control',saved.target,{...body,payload},signal,async()=>this.afterTable(room,saved.body.match_id,saved.body.command,signal));
+      return this.finishDeparture(room,saved.body.match_id,departing,signal,
+        this.intents.run('ui-table-control',saved.target,{...body,payload},signal,async()=>this.afterTable(room,saved.body.match_id,saved.body.command,signal)));
     }
     const view=await this.game(room,typeof data.match_id==='string'?data.match_id:null,signal);
+    // Closure has already released the seats. An unresolved original request
+    // must still resolve its receipt before departure can be considered done.
+    if(departing&&!saved&&view.table.phase==='ENDED')return view;
     const {match_id,...payload}=data;
     let command=action.replace(/^table\//,''), game=false;
     const aliases:Record<string,string>={join:'join-seat',poke:'send-poke'};
@@ -334,8 +353,8 @@ export class OriginalUiApi {
       else throw new GameRequestError(409,'Leaving is unavailable in the current table state.');
     }
     if(action==='next-deal'){command='NEXT_DEAL';game=true;}
-    return this.intents.run('ui-table-control',game?gameTarget(view):tableTarget(view),
+    return this.finishDeparture(room,view.match_id,departing,signal,this.intents.run('ui-table-control',game?gameTarget(view):tableTarget(view),
       {command,payload,match_id:view.match_id,expected_revision:game?view.game?.revision:view.table_revision},signal,
-      async()=>this.afterTable(room,view.match_id,command,signal));
+      async()=>this.afterTable(room,view.match_id,command,signal)));
   }
 }

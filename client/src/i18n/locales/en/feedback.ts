@@ -117,4 +117,10 @@ export default {
   "rule_message_21": "You no longer hold a seat in this game.",
   "rule_message_22": "Use a name without control characters.",
   "rule_message_23": "Enter your display name.",
+  "push_permission_required": "Allow notifications for Bhidne Ho in device Settings, then enable them here.",
+  "push_permission_failed": "Could not check notification permission. Restart the app and try again.",
+  "push_token_failed": "Could not register this device with the notification service. Check your connection and restart the app before trying again.",
+  "push_environment_failed": "Could not identify this app’s notification setup. Restart the app or install the latest build.",
+  "push_build_required": "This build does not support notification registration. Install the latest TestFlight build.",
+  "push_registration_failed": "The server could not register this notification device. Install the latest app build and try again.",
 } as const;

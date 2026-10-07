@@ -33,6 +33,7 @@ type SocialContext = {
   registerSeat: (id: number, node: View | null) => void; overlayOpen: boolean;
   presentation: (children: ReactNode, expanded: boolean) => ReactNode;
   openPoke: () => void; unread: number; enabled: boolean; pokeSent: boolean;
+  setHandCollapsed: (collapsed: boolean) => void;
 };
 const Context = createContext<SocialContext | null>(null);
 export const useTableSocial = () => useContext(Context);
@@ -70,6 +71,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
   const reactionIds = useRef(new Set<string>());
   const { t } = useTranslation();
   const [bottom, setBottom] = useState(16);
+  const [handCollapsed,setHandCollapsed]=useState(false);
   const [open, setOpen] = useState(false), [pokeMode, setPokeMode] = useState(false);
   const [messages, setMessages] = useState<TableMessage[]>([]), [unread, setUnread] = useState(0);
   const [effects, setEffects] = useState<Effect[]>([]), [draft, setDraft] = useState('');
@@ -260,14 +262,14 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
         </View>
         {!!error && <Text accessibilityRole="alert" style={{ color: c.danger }}>{uiLabel(error, 'feedback')}</Text>}</>}
       </RoomSheet>
-      {presentationExpanded && canRead && <View testID="game-social-controls" onTouchStart={event => event.stopPropagation()} onPointerDown={event => event.stopPropagation()} style={{position:'absolute',right:14,bottom,zIndex:45,alignItems:'flex-end',maxWidth:240}}>
+      {presentationExpanded && canRead && (!handCollapsed || !!error) && <View testID="game-social-controls" onTouchStart={event => event.stopPropagation()} onPointerDown={event => event.stopPropagation()} style={{position:'absolute',right:14,bottom,zIndex:45,alignItems:'flex-end',maxWidth:240}}>
         {!!error && !open && <Pressable accessibilityRole="button" accessibilityLabel={ui("common.dismiss_social_error")} onPress={() => setError('')}><Text style={{color:c.danger,backgroundColor:c.surface,padding:6}}>{uiLabel(error, 'feedback')}</Text></Pressable>}
-        <View style={{flexDirection:'row',backgroundColor:c.tableHeader,borderColor:c.tableTrim,borderWidth:1,borderRadius:24}}>
+        {!handCollapsed && <View style={{flexDirection:'row',backgroundColor:c.tableHeader,borderColor:c.tableTrim,borderWidth:1,borderRadius:24}}>
           <Pressable accessibilityRole="button" accessibilityLabel={unread ? ui('common.chat_unread', { count: unread }) : ui('common.table_chat')} onPress={openChat} style={[iconStyle,{flexDirection:'row',paddingHorizontal:8}]}>
             <Ionicons name="chatbubble-outline" size={22} color={c.onTableHeader} />{unread > 0 && <Text testID="table-chat-unread" style={{color:c.onPrimary,backgroundColor:c.primary,borderRadius:10,fontSize:11,paddingHorizontal:5}}>{unread > 99 ? '99+' : unread}</Text>}
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel={ui("social.poke_a_player")} accessibilityState={{selected:pokeMode,disabled:!enabled}} disabled={!enabled} onPress={() => { closeChat(); setError(''); setTargetPlayer(null); setPokeMode(true); }} style={[iconStyle,{opacity:enabled?1:0.4,backgroundColor:pokeMode?c.surfaceSelected:undefined,borderRadius:24}]}><Text accessibilityLiveRegion="polite" accessibilityLabel={pokeSent ? ui("social.poke_sent") : undefined} style={{fontSize:20,color:c.onTableHeader}}>{pokeSent ? '✓' : '👋'}</Text></Pressable>
-        </View>
+        </View>}
       </View>}
       {open && canRead && <RoomSheet visible tableStyle isolateKeyboard title={ui("common.table_chat")} testID="table-chat-panel" closeLabel={ui("common.close_table_chat")} onClose={closeChat} scrollable={false}>
         <View style={{flex:1,minHeight:0,gap:8,overflow:'hidden',padding:12,backgroundColor:c.background}}>
@@ -290,7 +292,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
       </GameModalContent>
     </View>
   );
-  return <Context.Provider value={{pokeMode,eligible,poke,effects,anchor,openChat,canRead,chatOpen:open&&canRead,overlayOpen:(open&&canRead)||pokeMode||targetPlayer!==null,registerSeat,presentation,openPoke,unread,enabled,pokeSent}}>{children}</Context.Provider>;
+  return <Context.Provider value={{pokeMode,eligible,poke,effects,anchor,openChat,canRead,chatOpen:open&&canRead,overlayOpen:(open&&canRead)||pokeMode||targetPlayer!==null,registerSeat,presentation,openPoke,unread,enabled,pokeSent,setHandCollapsed}}>{children}</Context.Provider>;
 }
 
 export function TableSocialPresentation({children, expanded = true}: {children: ReactNode; expanded?: boolean}) {

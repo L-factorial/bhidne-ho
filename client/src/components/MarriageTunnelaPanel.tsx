@@ -1,6 +1,6 @@
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
 import { MarriageMeldCards } from './MarriageMeldCards';
@@ -8,8 +8,8 @@ import { TurnGlow } from './TurnGlow';
 import { fonts, gameButtonStyle, useTheme } from '../theme';
 import type { MarriageCard, MarriageMeld } from '../multiplayer/marriage';
 
-export function MarriageTunnelaPanel({hand,visible,busy,connected,submit}: {
-  hand:MarriageCard[];visible:boolean;busy:boolean;connected:boolean;
+export function MarriageTunnelaPanel({hand,visible,busy,connected,submit,onEligibility}: {
+  onEligibility?: (ready:boolean)=>void; hand:MarriageCard[];visible:boolean;busy:boolean;connected:boolean;
   submit:(command:string,payload:object)=>void;
 }) {
   const uiLanguage = useUiLanguage();
@@ -25,6 +25,7 @@ export function MarriageTunnelaPanel({hand,visible,busy,connected,submit}: {
   const [preview,setPreview]=useState(false);
   const [selected,setSelected]=useState<string[]>([]);
   const enabled=visible&&!busy&&connected;
+  useEffect(()=>{onEligibility?.(visible && groups.length>0);},[visible,groups,onEligibility]);
   const send=(melds:MarriageMeld[])=>submit('DECLARE_TUNNELAS',{melds});
   const button=(label:string,action:()=>void,disabled=false,primary=false)=><Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled}} disabled={disabled} onPress={action}
     style={({pressed})=>({...gameButtonStyle(c,primary?'primary':'secondary',pressed),minHeight:44,justifyContent:'center',opacity:disabled?0.45:1})}><Text style={{color:primary?c.onPrimary:c.onTableHeader,fontFamily:fonts.medium}}>{label}</Text></Pressable>;

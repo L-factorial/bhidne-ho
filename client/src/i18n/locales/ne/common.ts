@@ -512,4 +512,5 @@ export default {
   push_quiet_save: "शान्त समय सुरक्षित गर्ने",
   push_quiet_disable: "शान्त समय बन्द गर्ने",
   push_quiet_invalid: "HH:MM ढाँचामा फरक सुरु र अन्त्य समय दिनुहोस्।",
+  "attention_tunnela": "टनेला भेटियो",
 } as const;

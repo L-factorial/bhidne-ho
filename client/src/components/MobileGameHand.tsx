@@ -1,3 +1,4 @@
+import type { GameAttention } from '../notifications/gameAttention';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { HandAreaBar } from './HandAreaBar';
@@ -6,8 +7,8 @@ import { type ReactNode, useEffect, useRef } from 'react';
 import { AccessibilityInfo, Animated, Pressable, ScrollView, View } from 'react-native';
 import { useTheme } from '../theme';
 
-export function MobileGameHand({ mobile, open, onToggle, docked = false, desktopDrawer = false, myTurn, attention = myTurn, attentionText, children, game = 'flush', keepMounted = false, header, cardCount }: {
-  cardCount?: number; header?: ReactNode; docked?: boolean; desktopDrawer?: boolean;
+export function MobileGameHand({ mobile, open, onToggle, docked = false, desktopDrawer = false, myTurn, attention = myTurn, attentionText, children, game = 'flush', keepMounted = false, header, cardCount, cue }: {
+  cue?: GameAttention|null; cardCount?: number; header?: ReactNode; docked?: boolean; desktopDrawer?: boolean;
   attention?: boolean; attentionText?: string;
   game?: string; keepMounted?: boolean;
   mobile: boolean; open: boolean; onToggle: () => void; myTurn: boolean; children: ReactNode;
@@ -37,7 +38,7 @@ export function MobileGameHand({ mobile, open, onToggle, docked = false, desktop
       <View style={{ width: 38, height: 4, borderRadius: 2, backgroundColor: colors.tableTrim }} />
     </View>
     <Animated.View testID={`${game}-hand-attention`} style={{ position: 'relative' }}>
-    <HandAreaBar open={open} onToggle={onToggle} count={cardCount} attention={attention}
+    <HandAreaBar cue={cue} open={open} onToggle={onToggle} count={cardCount} attention={attention}
       instruction={myTurn ? ui("common.your_turn_action", { "action": attentionText || 'Choose an action' }) : attentionText}/>
     </Animated.View>
     {(open || keepMounted) && <ScrollView ref={content} style={!open && { display: 'none' }} accessibilityElementsHidden={!open} importantForAccessibility={open ? 'auto' : 'no-hide-descendants'} testID={`${game}-hand-content`} contentContainerStyle={{ padding: 8, paddingBottom: 18 }} nestedScrollEnabled>
