@@ -60,12 +60,11 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable
     return () => { controller.abort(); unsubscribe?.(); clearInterval(timer); clearTimeout(retryTimer); cancelDelay?.(); subscription.remove(); };
   }, [session.token, refresh, activity]);
   const visible = tables.filter(table => filter === 'all' || table.game_type === filter);
-  async function discard(table:ActiveTable){
-    if(discarding||busy)return;
+  async function declineInvitation(table:ActiveTable){
+    if(discarding||busy||!table.invitation_id||table.current_user?.is_seated)return;
     setDiscarding(true);setActionError('');
     try{
-      if(table.invitation_id)await request(`/test-games/invitations/${encodeURIComponent(table.invitation_id)}/decline`,session,{});
-      else await request('/active-tables/discard',session,{room_id:table.room_id,table_id:table.table_id,match_id:table.match_id});
+      await request(`/test-games/invitations/${encodeURIComponent(table.invitation_id)}/decline`,session,{});
       requestVersion.current++;
       setTables(current=>current.filter(item=>item.room_id!==table.room_id||item.match_id!==table.match_id));
       setRefresh(value=>value+1);
@@ -101,6 +100,6 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable
       <Pressable accessibilityRole="button" onPress={onCreateTable} style={{minHeight:44,paddingHorizontal:16,borderRadius: radii.medium,backgroundColor:c.primary,justifyContent:'center'}}><Text style={{color:c.onPrimary,fontFamily:fonts.medium}}>{ui("rooms.create_table")}</Text></Pressable>
       <Pressable accessibilityRole="button" onPress={() => filter === 'all' ? onBrowseRooms() : setFilter('all')} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: c.accent, fontFamily: fonts.medium }}>{filter === 'all' ? ui("rooms.browse_rooms") : ui("rooms.view_all_games")}</Text></Pressable>
     </View>}
-    {visible.map(table => <PlayTableCard key={`${table.room_id}:${table.match_id}`} table={table} busy={busy||discarding} enter={action => enter(table, action)} discard={()=>void discard(table)}/>)}
+    {visible.map(table => <PlayTableCard key={`${table.room_id}:${table.match_id}`} table={table} busy={busy||discarding} enter={action => enter(table, action)} declineInvitation={()=>void declineInvitation(table)}/>)}
   </View>;
 }

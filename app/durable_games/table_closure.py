@@ -7,13 +7,16 @@ from .store import DurableGameConflict
 
 async def closure_rejection(connection, game, actor, command):
     if command == 'end':
+        completed_room_owner = False
+        if game.finished:
+            completed_room_owner = bool(await (await connection.execute(
+                'SELECT 1 FROM rooms WHERE id=%s AND creator_id=%s',
+                (game.room_id, user_uuid(actor)))).fetchone())
         if not game.users or actor != game.users[0]:
             other = await (await connection.execute('''SELECT 1 FROM room_memberships
                 WHERE room_id=%s AND user_id<>%s LIMIT 1''', (game.room_id, user_uuid(actor)))).fetchone()
-            if other:
+            if other and not completed_room_owner:
                 return 'Only the game creator or the sole person in the room can end the game.'
-        if not game.ended and game.finished:
-            return 'This game has already finished.'
     else:
         if game.game_type != 'callbreak' or actor not in game.users:
             return 'You are not playing a match that supports abandonment.'

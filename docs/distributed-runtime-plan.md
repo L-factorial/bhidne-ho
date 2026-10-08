@@ -7285,3 +7285,135 @@ implementation request before changing card rendering or Marriage turn behavior.
   Old-code rollback after new checkpoint writes still requires compatibility review.
 - Exact next step: refresh the production web app and review the dealer draw
   in a new Callbreak table. Installed native apps require a separate signed build.
+
+### 2026-10-07 — Completed Marriage seat blocks Flush join
+
+- Investigated the reported Sigma/Ekraj incident using read-only production logs,
+  table metadata and durable receipts. Marriage table `XYZ` reached COMPLETED;
+  Sigma retained its seat. Flush table `Flu` was OPEN. Seven join-seat requests
+  were received and rejected with PLAYER_ALREADY_AT_TABLE and an explicit leave
+  instruction pointing to the completed Marriage match. This was not a missing
+  tap or an unprocessed command.
+- Fixed RoomGameControl dismissing the authoritative departure prompt merely
+  because the previous table is missing from the lobby list. Distributed lobby
+  projections intentionally hide finished/COMPLETED tables without releasing
+  their roster. The prompt now remains until explicit departure or cancellation.
+  Join conflicts also close an existing game modal so it cannot obscure the
+  departure prompt. Existing roster/rematch policy and server guards are unchanged.
+- Verification: TypeScript and all 399 client tests pass. Added an isolated Chrome
+  regression using synthetic service-generated Flush snapshots and the actual
+  production rejection shape. It fails on the prior build because the prompt
+  disappears, and passes at 390px and 1280px with the fix: prompt persists across
+  polling, no automatic departure, explicit previous-match leave, then Flush join.
+- Evidence: `/private/tmp/bhidne-join-regression/baseline-browser.log`,
+  `/private/tmp/bhidne-join-regression/client-tests.log` and local web export.
+- Limitations: fix is local and not deployed. Browser API calls use isolated
+  fixtures; live investigation wrote no accounts, tables, receipts or player state.
+  No backend changes, migrations or native builds were required.
+- Exact next step: commit and deploy the frontend correction when requested.
+  The current lobby hides Marriage `XYZ`, so the suggested return-and-leave
+  workaround is not reachable through its room table list; addressed below.
+
+### 2026-10-08 — Return to completed tables with reserved seats
+
+- User confirmed Marriage `XYZ` is absent when Sigma opens the room. Updated
+  durable room projections to include a completed table for a viewer who still
+  holds its seat. Closed tables and completed tables without the viewer's seat
+  remain excluded. The active Play feed retains its existing completed-table
+  filter. Versioned room projection cache keys prevent reuse of prior hidden-table
+  responses during rollout.
+- RoomGameControl now displays those completed reserved tables with the existing
+  Return to table action and completion status. Returning opens the established
+  results/table controls, including Leave table; no seat is released automatically.
+  The authoritative departure prompt from the previous increment is retained.
+- Verification: TypeScript and all 400 client tests pass. Four Chrome regression
+  cases pass at 390px and 1280px with both the old omitted-table projection and
+  the new visible completed-table projection. Tests return to Marriage results,
+  close its announcement, preserve the leave prompt across polling, submit an
+  explicit previous-match departure, and join Flush. All 16 backend integration checks pass and
+  cover seated/nonseated projections, active-feed exclusions, departure and cache
+  invalidation, private views and read authorization.
+- Limitations: local changes are not deployed; live production data was not
+  mutated. Browser flows use isolated synthetic snapshots; no native device test.
+- Exact next step: commit and deploy both the backend visibility correction and
+  frontend prompt/room-list changes together when requested.
+
+### 2026-10-08 — Hidden completed tables block Abc room deletion
+
+- Read-only production metadata identified two still-open COMPLETED Marriage
+  tables in Sigma's `Abc` room: `ABC Marriage` and `abc ekraj marriage`. The room
+  deletion guard correctly counts these as unclosed tables, but the old lobby
+  omits them. A separate closure guard rejected End on any finished Marriage or
+  Callbreak game, preventing an owner from cleaning up the blockers.
+- Extended completed-table visibility to the room owner and table creator even
+  without a reserved seat. Actor-specific can_end_table projection metadata shows
+  the existing End table control when viewing completed results. Room cache keys
+  version the new projection. Seated participants retain Return/Leave controls;
+  unrelated viewers and the active Play feed retain prior exclusions.
+- Completed Marriage/Callbreak tables can now be explicitly closed by their
+  table creator or room owner (or the existing sole-room-member rule). Room owner
+  privileges are limited to completed games; another creator's active game remains
+  protected. Closure uses the existing fenced table command, reservation release,
+  timer cancellation, notifications and checkpoints. Engine scores, completed game
+  status and settlement/finalization records remain intact. Legacy creator End also
+  accepts completed games. Room deletion still requires every open table closed.
+- Verification: 49 focused SQL/backend tests pass for closure, room commands,
+  cached projections and query ingress. Three follow-up owner/multiple-blocker/
+  active-game-permission tests pass, as do two legacy creator End tests. All 400
+  client tests and TypeScript pass. Mobile/desktop Chrome checks pass for a
+  nonseated owner opening a completed table, explicitly confirming End table,
+  returning to the empty room and explicitly deleting it. All four prior Join
+  regression cases remain passing. Production inspection made no writes.
+- Evidence: `/private/tmp/bhidne-join-regression/room-delete-backend.log`,
+  `multiple-blockers.log`, `legacy-end.log`, `room-delete-browser-final.log`,
+  `join-browser-final.log` and `client-tests.log` in the same directory.
+- Limitations: changes remain local, not committed or deployed. Browser flows
+  use synthetic checkpoints/HTTP fixtures and do not delete a production room.
+  No migration, infrastructure change or native device test was needed.
+- Exact next step: commit and deploy this combined room/table visibility and
+  closure correction when requested; Sigma can then close both completed Marriage
+  tables in Abc and delete the room through its existing confirmation flow.
+
+### 2026-10-08 — Clear Play card actions instead of Discard
+
+- Reviewed the user's concern about Discard in Play → Available tables. It
+  combined declining invitations and personally hiding ordinary table cards,
+  without releasing seats or closing tables. A seated player could hide the
+  card while remaining blocked from joining elsewhere.
+- Removed ordinary-table Discard from Play cards. Cards now show Join when
+  permitted, Return to table for seated viewers, or Watch otherwise. Only an
+  actual invitation for a nonseated viewer gets the neutral Decline invitation
+  action, using existing English/Nepali strings. Leaving/ending remains inside
+  the table. Returning with a stale merged invitation no longer accepts it again.
+- Old saved dismissals or declined invitations cannot hide a currently seated
+  table from the active feed. Older clients' discard-table commands are rejected
+  for reserved seats without changing membership or game state. The personal
+  dismissal API remains compatible for nonseated viewers; the new card UI does
+  not call it. No migration or production state mutation.
+- Verification: all 401 client tests, TypeScript and clean web export pass.
+  Fourteen focused SQL/backend tests pass for social/dismissal behavior and
+  actor-specific cached projections. Mobile/desktop Chrome checks pass for
+  Join/Return labels, absence of Discard, invitation-only decline, and preserving
+  the other available/seated cards. Prior room/table fixes remain in this checkout.
+- Evidence: `/private/tmp/bhidne-join-regression/play-actions-backend.log`,
+  `play-actions-client.log`, `play-actions-browser.log`, `export-play-actions.log`.
+- Limitations: local and not deployed. Browser API fixtures are synthetic;
+  no native device test or production user interaction was performed.
+- Exact next step: commit and deploy the combined visibility, closure and Play
+  card corrections when requested.
+
+### 2026-10-08 — Marriage drag inserts before the target card
+
+- Changed the requested Marriage hand drag behavior from swapping positions to
+  removing the source card and inserting it immediately before the drop target.
+  Intervening cards shift while every other card retains relative order. The
+  rendered hand list uses the updated local order through the existing drop handler.
+- Existing gesture threshold, card hit-testing, cross-row drops, busy/reveal
+  restrictions and stale-drag guards remain. Physical card IDs and server hand
+  state are unchanged; existing polling/draw/discard order reconciliation remains.
+- Verification: TypeScript and all seven focused hand-order/arrangement tests pass.
+  Coverage includes movement in both directions, adjacent/self/missing targets,
+  Sequence/Dublee ordering, unchanged source hand, polling, draws/removals and
+  cross-row target detection. No new browser or native drag test was run.
+- Limitations: local, not deployed, alongside the pending room/table/Play fixes.
+- Exact next step: include this hand-order correction in the next requested release.

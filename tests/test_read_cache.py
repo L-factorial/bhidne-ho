@@ -119,16 +119,31 @@ async def test_public_cache_remains_public_after_legacy_privacy_request(database
 
 
 @pytest.mark.parametrize('kind', ['callbreak', 'marriage'])
-async def test_completed_games_hidden_from_active_tabs_but_results_selectable(database, kind):
-    from test_rematch import completed
-    pool, _, _, users = database
-    host, game, *_ = await completed(database, kind)
+async def test_completed_games_returnable_for_seated_players_but_hidden_from_active_tabs(database, kind):
+    from test_rematch import completed, execute, request
+    pool, store, fence, users = database
+    host, game, inbox, lane, _ = await completed(database, kind)
     try:
         query = PostgresHostedQueries(pool, cache=ReadCache(Redis()))
         view = await query.room('room', users[0], table_id=game.table.table_id)
-        assert view['tables'] == []
+        assert len(view['tables']) == 1
+        assert view['tables'][0]['phase'] == 'COMPLETED'
+        assert view['tables'][0]['current_user']['is_seated'] is True
+        assert view['tables'][0]['current_user']['can_leave_seat'] is True
+        assert view['tables'][0]['table_id'] == game.table.table_id
+        assert (await query.room('room', users[-1]))['tables'] == []
+        assert (await query.game_view('room', users[0]))['match_id'] == game.match_id
         assert view['active_game'] is None
         assert view['snapshot']['status'] == 'finished'
         assert (await query.activity(users[0]))['items'] == []
+        # Explicit departure releases the reservation and invalidates cached
+        # visibility without closing the other players' completed table.
+        outcome = await execute(inbox, lane, fence, users[0],
+            request(await store.load(game.table.table_id), 'leave-seat'))
+        assert outcome['status'] == 'accepted'
+        owner_view = await query.room('room', users[0])
+        assert owner_view['tables'][0]['current_user']['is_seated'] is False
+        assert owner_view['tables'][0]['can_end_table'] is True
+        assert (await query.room('room', users[1]))['tables'][0]['phase'] == 'COMPLETED'
     finally:
         await host.close()

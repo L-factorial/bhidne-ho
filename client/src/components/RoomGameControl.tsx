@@ -1,7 +1,7 @@
 import {AppText as Text} from './AppText';
 import { usePersistentNotice } from '../multiplayer/usePersistentNotice';
 import { playerPresence } from '../multiplayer/playerPresence';
-import { isActiveTable } from '../multiplayer/tableNavigation';
+import { isVisibleRoomTable } from '../multiplayer/tableNavigation';
 import { playerError } from '../multiplayer/playerError.ts';
 import { committedSnapshot } from '../multiplayer/committedSnapshot';
 import type { OriginalDistributedRuntime } from '../multiplayer/OriginalDistributedRuntime';
@@ -69,7 +69,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
       chat:snapshot.status==='ended'||runtime.root.ephemeralEnabled?['room_chat']:['room_chat','table_chat']}).catch(()=>{});
   },[runtime,roomId,snapshot?.table_id,snapshot?.durable_game_id,snapshot?.status==='ended',runtime?.root.ephemeralEnabled]);
   const [seatConflict, setSeatConflict] = useState<GameRequestDetail | null>(null);
-  const visibleTables = snapshot?.tables?.filter(isActiveTable) || [];
+  const visibleTables = snapshot?.tables?.filter(isVisibleRoomTable) || [];
   useEffect(() => { onOpenChange?.(open); }, [open, onOpenChange]);
   useEffect(() => () => onOpenChange?.(false), [onOpenChange]);
   const [live, setLive] = useState(false);
@@ -111,13 +111,9 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
   const error = actionError || (showRefreshError ? refreshError : '');
   useEffect(()=>{if(requestedMatchId && (error || refreshError || snapshot?.status==='ended'))onEntryError?.();},[requestedMatchId,error,refreshError,snapshot?.status,onEntryError]);
 
-  useEffect(() => {
-    if (seatConflict?.room_id === roomId && snapshot?.tables && !snapshot.tables.some(table =>
-      table.match_id === seatConflict.match_id && table.status !== 'ended' && table.phase !== 'ENDED')) {
-      setSeatConflict(null);
-      setError(ui("common.previous_table_ended"));
-    }
-  }, [snapshot?.tables, seatConflict, roomId]);
+  // The lobby omits completed tables even while their seats remain reserved.
+  // Keep the server's departure prompt until departure is confirmed or cancelled;
+  // absence from this list cannot establish that the previous seat was released.
   const generation = useRef(0), pending = useRef(false);
   const alive = useRef(true);
   const requests = useRef(new Set<AbortController>());
@@ -307,7 +303,8 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
   }
   const mobileGame = mobile;
   const canCreate = snapshot?.status === 'empty' || (snapshot?.status === 'finished' && !snapshot.table?.requires_replacement) || snapshot?.status === 'ended';
-  const canEnd = !canCreate && (snapshot?.is_creator || (connected && roomMembers.length === 1 && roomMembers[0] === userId));
+  const canEnd = !!snapshot?.can_end_table || ((!canCreate || snapshot?.status === 'finished') &&
+    (snapshot?.is_creator || (connected && roomMembers.length === 1 && roomMembers[0] === userId)));
   const gameName = ({ marriage: 'Marriage', callbreak: 'Call Break', flush: 'Flush' })[(canCreate ? gameType : snapshot?.game_type) || 'callbreak'];
   const noun = (canCreate ? gameType : snapshot?.game_type) === 'flush' ? 'table' : 'game';
   async function gameAction(command: string, payload: object = {}) {
@@ -330,7 +327,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
     finally { pending.current = false; if (alive.current) setBusy(false); }
   }
   const endControl = canEnd
-    ? <EndGameControl table={snapshot?.game_type === 'flush'} key={`end-${snapshot?.match_id}`} busy={busy} onEnd={() => lobbyAction('/end')} /> : null;
+    ? <EndGameControl table={snapshot?.game_type === 'flush' || snapshot?.status === 'finished'} key={`end-${snapshot?.match_id}`} busy={busy} onEnd={() => lobbyAction('/end')} /> : null;
   const lifecycleControl = snapshot?.table ? <TableControls menuSection="manage" table={snapshot.table} members={roomMembers} userId={userId} busy={busy} formationBlocked={formationBlocked}
     act={(command, payload) => lobbyAction(`/table/${command}`, payload)}
     start={() => lobbyAction('/start', { play_mode: 'manual', rules_revision: snapshot.flush_settings?.rules_revision })} /> : null;
@@ -363,7 +360,10 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
     } catch (failure) {
       if (!alive.current || generation.current !== version) return;
       setError(playerError(failure, ui("feedback.could_not_enter_this_table")));
-      if (failure instanceof GameRequestError && failure.detail?.code === 'PLAYER_ALREADY_AT_TABLE') setSeatConflict(failure.detail);
+      if (failure instanceof GameRequestError && failure.detail?.code === 'PLAYER_ALREADY_AT_TABLE') {
+        setOpen(false);
+        setSeatConflict(failure.detail);
+      }
     } finally {
       pending.current = false;
       if (alive.current) { setBusy(false); setActionTick(v => v + 1); }
@@ -427,9 +427,9 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
           endControl={canEnd ? <EndGameControl table compact busy={busy} onEnd={() => lobbyAction('/end')} /> : null} />
         : snapshot.game_type === 'marriage' ? <MarriageTable tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onTableAction={command => void lobbyAction(`/table/${command}`)} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={uiLabel(error, 'feedback')} lobbyControl={<>{menuLeaveControl}{leaveControl}</>} onSave={scoring => lobbyAction('/marriage-settings', { scoring })}
           onAction={gameAction} onStart={() => lobbyAction('/start', { play_mode: 'manual' })} onBack={collapseGame}
-          onNewGame={() => { setLive(false); setOpen(true); }} endControl={canEnd ? <EndGameControl compact busy={busy} onEnd={() => lobbyAction('/end')} /> : null}
+          onNewGame={() => { setLive(false); setOpen(true); }} endControl={canEnd ? <EndGameControl table={snapshot.status === 'finished'} compact busy={busy} onEnd={() => lobbyAction('/end')} /> : null}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: (recipient, text) => social.send(snapshot.match_id!, recipient, text) }} />
-        : <LiveGameTable lobbyControl={<>{menuLeaveControl}{leaveControl}</>} tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onTableAction={command => void lobbyAction(`/table/${command}`)} endControl={canEnd ? <EndGameControl compact busy={busy} onEnd={() => lobbyAction('/end')} /> : null} onNextDeal={() => lobbyAction('/next-deal', { deal_number: snapshot.round_review?.deal_number })} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={uiLabel(error, 'feedback')} onAction={gameAction} onNewGame={() => { setCapacity(snapshot.capacity === 5 ? 5 : 4); setLive(false); setOpen(true); }} onStart={() => lobbyAction('/start', { play_mode: 'manual' })} onSave={settings => lobbyAction('/settings', settings)} onBack={collapseGame}
+        : <LiveGameTable lobbyControl={<>{menuLeaveControl}{leaveControl}</>} tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onTableAction={command => void lobbyAction(`/table/${command}`)} endControl={canEnd ? <EndGameControl table={snapshot.status === 'finished'} compact busy={busy} onEnd={() => lobbyAction('/end')} /> : null} onNextDeal={() => lobbyAction('/next-deal', { deal_number: snapshot.round_review?.deal_number })} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={uiLabel(error, 'feedback')} onAction={gameAction} onNewGame={() => { setCapacity(snapshot.capacity === 5 ? 5 : 4); setLive(false); setOpen(true); }} onStart={() => lobbyAction('/start', { play_mode: 'manual' })} onSave={settings => lobbyAction('/settings', settings)} onBack={collapseGame}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: (recipient, text) => social.send(snapshot.match_id!, recipient, text) }} />}
         <ScrollView testID="game-footer" style={[styles.gameFooter, mobileGame && { borderTopWidth: 0 }]} contentContainerStyle={{ gap: 4 }} nestedScrollEnabled>
           {snapshot.can_join && !snapshot.your_player_id && <View testID="in-game-invitation" style={[styles.invitation, { padding: 14, margin: 12, marginBottom: 0 }]}>

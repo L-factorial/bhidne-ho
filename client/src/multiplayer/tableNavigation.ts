@@ -4,12 +4,19 @@ export type TableSummary = {
   match_id: string; name: string; game_type: 'callbreak' | 'marriage' | 'flush';
   status: string; players: number; capacity: number;
   phase?: TableView['phase']; queue_size?: number;
+  can_end_table?: boolean;
   seated_players?: { seat_id: number; display_name: string }[];
   current_user?: TableView['current_user'];
 };
 export function isActiveTable(table: Pick<TableSummary, 'status' | 'phase'>): boolean {
   return !['ended', 'finished', 'completed', 'closed', 'abandoned'].includes(table.status)
     && table.phase !== 'ENDED' && table.phase !== 'COMPLETED';
+}
+export function isVisibleRoomTable(table: Pick<TableSummary, 'status' | 'phase' | 'current_user' | 'can_end_table'>): boolean {
+  if (isActiveTable(table)) return true;
+  return table.status !== 'ended' && table.phase !== 'ENDED'
+    && (table.status === 'finished' || table.phase === 'COMPLETED')
+    && (table.current_user?.is_seated === true || table.can_end_table === true);
 }
 export type TableEntry = 'watch' | 'seat' | 'queue';
 export function tableEntry(table: TableSummary): { label: string; action: TableEntry } {

@@ -1,10 +1,18 @@
 import type { TableSummary, TableEntry } from './tableNavigation';
+import {ui} from '../i18n/copy.ts';
 export type PlayTable = TableSummary & {table_id?:string;room_id:string;room_name:string;created_at?:number;invitation_id?:string};
 export type PlayInvitation = {id:string;room_id:string;room_name:string;match_id:string;table_name:string;game_type:PlayTable['game_type'];created_at:number;seated:number;capacity:number;seat_available:boolean};
 
 export function playEntry(table:PlayTable):TableEntry {
   if(table.current_user?.is_seated)return 'watch';
   return table.players<table.capacity && table.current_user?.can_join ? 'seat' : 'watch';
+}
+export function playCardActions(table:PlayTable) {
+  return {
+    label: table.current_user?.is_seated ? ui('common.return_to_table')
+      : playEntry(table) === 'seat' ? ui('rooms.join') : ui('rooms.watch'),
+    canDeclineInvitation: !!table.invitation_id && !table.current_user?.is_seated,
+  };
 }
 export function playFeed(tables:PlayTable[], invitations:PlayInvitation[]):PlayTable[] {
   const key=(table:{room_id:string;match_id:string})=>`${table.room_id}:${table.match_id}`;

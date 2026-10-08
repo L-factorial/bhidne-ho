@@ -286,7 +286,8 @@ class PostgresHostedQueries:
                             ) ORDER BY u.id) AS profile_versions
                         """, (cache_tables, room_id, cache_tables, room_id, cache_tables, cache_tables))).fetchone()
                     cache_key = self.cache.key('room', [room_id, actor, str(selected_id),
-                        select_default, public_preview, invitation_preview, self.round_summary_seconds],
+                        select_default, public_preview, invitation_preview, self.round_summary_seconds,
+                        'closable-completed-tables-v2'],
                         [room, versions])
                     cached = await self.cache.get(cache_key)
                     if cached is not None:
@@ -307,8 +308,15 @@ class PostgresHostedQueries:
                     LEFT JOIN account_credentials a ON a.user_id=u.id WHERE u.id=ANY(%s::uuid[])''',
                     ([str(user_uuid(u)) for u in sorted(users)],))).fetchall()
                 host.profiles = _Profiles({f'user-{user}': name for user, name in names})
-                result = dict(room_id=room_id, tables=[p for p in host.table_previews(room_id, actor)
-                    if p['status'] not in ('ended', 'finished') and p['phase'] not in ('ENDED', 'COMPLETED')],
+                previews = host.table_previews(room_id, actor)
+                for preview in previews:
+                    game = next(g for g in host._room_games(room_id) if g.match_id == preview['match_id'])
+                    preview['can_end_table'] = bool(game.finished and
+                        (room[1] == user_uuid(actor) or game.users and actor == game.users[0]))
+                result = dict(room_id=room_id, tables=[p for p in previews
+                    if p['status'] != 'ended' and p['phase'] != 'ENDED'
+                    and (p['status'] != 'finished' and p['phase'] != 'COMPLETED'
+                         or p['current_user']['is_seated'] or p['can_end_table'])],
                     active_game=host.membership(room_id, actor), snapshot=None, name=room[0],
                     creator_id=f'user-{room[1]}', visibility=room[2], created_at=room[3].isoformat())
                 if result['active_game'] and not result['active_game']['active']:
@@ -334,6 +342,8 @@ class PostgresHostedQueries:
                     result['snapshot'] = host._snapshot(game, actor)
                     result['snapshot']['tables'] = deepcopy(result['tables'])
                     result['snapshot'].update(table_id=game.table.table_id,
+                        can_end_table=bool(game.finished and
+                            (room[1] == user_uuid(actor) or game.users and actor == game.users[0])),
                         table_revision=revisions[game.table.table_id],
                         durable_game_id=str(game.durable_game_id) if game.durable_game_id else None)
                 # Detached objects are discarded; no close() hook with reservation
@@ -403,5 +413,7 @@ class PostgresHostedQueries:
                 items.append(dict(room_id=room, tables=view['tables'], active_game=view['active_game']))
             else:
                 items.extend(dict(table, room_id=room, room_name=view['name']) for table in view['tables']
-                    if table['table_id'] not in declined and (table['table_id'],table['match_id']) not in dismissed)
+                    if table['status'] != 'finished' and table['phase'] != 'COMPLETED'
+                    and (table['current_user']['is_seated'] or
+                         table['table_id'] not in declined and (table['table_id'],table['match_id']) not in dismissed))
         return dict(items=items, next_room_id=rows[limit - 1][0] if len(rows) > limit else None)

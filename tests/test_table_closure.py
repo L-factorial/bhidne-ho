@@ -34,6 +34,63 @@ async def execute(inbox, lane, fence, actor, body):
     return (await TableLaneExecutor(inbox).execute_one(lane, fence)).outcome
 
 
+@pytest.mark.parametrize('kind', ['marriage', 'callbreak'])
+async def test_completed_table_owner_can_close_hidden_blocker_then_delete_room(database, kind):
+    from test_rematch import completed, request as rematch_request
+    from test_durable_room_commands import run
+    from app.durable_games.queries import PostgresHostedQueries
+    pool, store, fence, users = database
+    host, game, inbox, lane, _ = await completed(database, kind)
+    other_host = None
+    owner = users[-1]  # Room owner is neither the table creator nor a seated player.
+    try:
+        await pool.execute('UPDATE rooms SET creator_id=%s', (UUID(owner[5:]),))
+        query = PostgresHostedQueries(pool)
+        view = await query.room('room', owner)
+        assert view['tables'][0]['can_end_table'] is True
+        assert view['tables'][0]['current_user']['is_seated'] is False
+        assert (await query.game_view('room', owner, match_id=game.match_id))['can_end_table'] is True
+        assert (await run(pool, fence, owner, 'delete-room'))['status'] == 'rejected'
+        before = await store.load(game.table.table_id)
+        jobs = (await pool.execute('SELECT * FROM game_finalization_jobs')).rows
+        assert (await execute(inbox, lane, fence, users[-2],
+            rematch_request(before, 'end')))['status'] == 'rejected'
+        assert await store.load(game.table.table_id) == before
+        outcome = await execute(inbox, lane, fence, owner, rematch_request(before, 'end'))
+        assert outcome['status'] == 'accepted'
+        after = await store.load(game.table.table_id)
+        assert after.checkpoint['data']['phase'] == 'ENDED'
+        assert after.checkpoint['data']['engine'] == before.checkpoint['data']['engine']
+        assert (await pool.execute('SELECT status FROM games')).rows == [('completed',)]
+        assert (await pool.execute('SELECT * FROM game_finalization_jobs')).rows == jobs
+        assert (await pool.execute('SELECT count(*) FROM active_table_players')).rows == [(0,)]
+        assert (await query.room('room', owner))['tables'] == []
+        # Abc had two hidden blockers: closing one must not authorize deleting
+        # a room that still contains another open completed table.
+        other_host, other, other_inbox, other_lane, _ = await completed(
+            (pool, store, fence, [users[-2], users[-1], *users[:-2]]), 'marriage')
+        assert (await run(pool, fence, owner, 'delete-room'))['status'] == 'rejected'
+        assert (await execute(other_inbox, other_lane, fence, owner,
+            rematch_request(await store.load(other.table.table_id), 'end')))['status'] == 'accepted'
+        assert (await run(pool, fence, owner, 'delete-room'))['status'] == 'accepted'
+    finally:
+        await host.close()
+        if other_host:
+            await other_host.close()
+
+
+async def test_room_owner_cannot_close_someone_elses_active_game(database):
+    pool, store, fence, users = database
+    host, game, inbox, lane = await setup(database)
+    try:
+        await pool.execute('UPDATE rooms SET creator_id=%s', (UUID(users[-1][5:]),))
+        before = await store.load(game.table.table_id)
+        assert (await execute(inbox, lane, fence, users[-1], request(game)))['status'] == 'rejected'
+        assert await store.load(game.table.table_id) == before
+    finally:
+        await host.close()
+
+
 @pytest.mark.parametrize('kind', ['callbreak', 'marriage', 'flush'])
 @pytest.mark.parametrize('started', [False, True])
 async def test_end_releases_all_reservations_preserving_engine_and_retry(database, kind, started):
@@ -197,13 +254,13 @@ async def test_finished_game_policy_preserves_settlement_intent(database, kind):
         jobs = (await pool.execute('SELECT * FROM game_finalization_jobs')).rows
         assert len(jobs) == 1
         outcome = await execute(inbox, lane, fence, users[0], request(game, revision=len(names)))
-        assert outcome['status'] == ('rejected' if kind == 'marriage' else 'accepted')
+        assert outcome['status'] == 'accepted'
         after = await store.load(game.table.table_id)
         assert after.checkpoint['data']['engine'] == before.checkpoint['data']['engine']
         assert after.receipt_snapshot == before.receipt_snapshot
         assert (await pool.execute('SELECT * FROM game_finalization_jobs')).rows == jobs
         assert (await pool.execute('SELECT status FROM games')).rows == [('completed',)]
-        assert (await pool.execute('SELECT open_table_count FROM rooms')).rows == [(1 if kind == 'marriage' else 0,)]
+        assert (await pool.execute('SELECT open_table_count FROM rooms')).rows == [(0,)]
     finally:
         await host.close()
 

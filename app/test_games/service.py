@@ -593,8 +593,6 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                     raise HTTPException(403, "Only the game creator or the sole person in the room can end the game.")
                 if game.ended:
                     return self._snapshot(game, user_id)
-                if game.finished:
-                    raise HTTPException(409, "This game has already finished.")
                 # Ending a Flush table must not strand a completed round whose first
                 # ledger projection failed just before the creator pressed End.
                 game.ledger_retry_at = 0

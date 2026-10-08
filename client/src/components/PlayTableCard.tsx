@@ -3,14 +3,14 @@ import {Pressable, View} from 'react-native';
 import {gameLabel} from '../i18n/display';
 import {ui} from '../i18n/copy';
 import { visualStates, actionFinish, radii, fonts,useTheme} from '../theme';
-import {playEntry,type PlayTable} from '../multiplayer/playFeed';
+import {playEntry,playCardActions,type PlayTable} from '../multiplayer/playFeed';
 import type {TableEntry} from '../multiplayer/tableNavigation';
 import {GameIcon} from './BrandArt';
 
-export function PlayTableCard({table,busy,enter,discard}:{table:PlayTable;busy:boolean;enter:(action:TableEntry)=>void;discard:()=>void}){
+export function PlayTableCard({table,busy,enter,declineInvitation}:{table:PlayTable;busy:boolean;enter:(action:TableEntry)=>void;declineInvitation:()=>void}){
   const {colors:c}=useTheme(),action=playEntry(table);
   const players=table.seated_players?.length?table.seated_players:Array.from({length:Math.min(table.players,table.capacity)},(_,seat_id)=>({seat_id,display_name:''}));
-  const label=action==='seat'||table.current_user?.is_seated?ui('rooms.join'):ui('rooms.watch');
+  const {label,canDeclineInvitation}=playCardActions(table);
   const button={minHeight:44,minWidth:80,paddingHorizontal:10,borderRadius: radii.medium,alignItems:'center' as const,justifyContent:'center' as const,opacity:busy?visualStates.disabledOpacity:1};
   return <View testID={`play-table-${table.match_id}`} style={{padding:14,gap:12,borderRadius: radii.large,borderWidth:1,borderColor:c.borderSubtle,backgroundColor:c.surface,flexDirection:'row',alignItems:'center'}}>
     <View style={{flex:1,minWidth:0,gap:10}}>
@@ -31,9 +31,9 @@ export function PlayTableCard({table,busy,enter,discard}:{table:PlayTable;busy:b
       <Pressable accessibilityRole="button" accessibilityLabel={`${label} · ${table.name}`} disabled={busy} accessibilityState={{disabled:busy}} onPress={()=>enter(action)} style={({pressed})=>({...button,...actionFinish(c,'primary',pressed,busy)})}>
         <Text style={{color:c.onPrimary,fontFamily:fonts.medium}}>{label}</Text>
       </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={`${ui('rooms.discard_invitation')} · ${table.name}`} disabled={busy} accessibilityState={{disabled:busy}} onPress={discard} style={({pressed})=>({...button,...actionFinish(c,'destructive',pressed,busy)})}>
-        <Text style={{color:c.danger,fontFamily:fonts.medium}}>{ui('rooms.discard_invitation')}</Text>
-      </Pressable>
+      {canDeclineInvitation && <Pressable accessibilityRole="button" accessibilityLabel={`${ui('common.decline_invitation')} · ${table.name}`} disabled={busy} accessibilityState={{disabled:busy}} onPress={declineInvitation} style={({pressed})=>({...button,maxWidth:124,...actionFinish(c,'secondary',pressed,busy)})}>
+        <Text style={{color:c.textMuted,fontFamily:fonts.medium,textAlign:'center'}}>{ui('common.decline_invitation')}</Text>
+      </Pressable>}
     </View>
   </View>;
 }

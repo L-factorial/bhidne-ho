@@ -209,7 +209,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
     const target = rooms.find(item => item.room_id === table.room_id)??{room_id:table.room_id,name:table.room_name,members:[]};
     roomOperationPending.current = true; setBusy(true); setTransferring(true); setError('');
     try {
-      if(table.invitation_id)await request(`/test-games/invitations/${encodeURIComponent(table.invitation_id)}/accept`,session,{});
+      if(table.invitation_id&&!table.current_user?.is_seated)await request(`/test-games/invitations/${encodeURIComponent(table.invitation_id)}/accept`,session,{});
       if(!isCurrentSession(apiUrl,session))return;
       setLinkedEntry({ matchId: table.match_id, action }); setLinkedMatch(table.match_id);
       if(!await shared.joinRoom(target, table.game_type))setTransferring(false);

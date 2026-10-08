@@ -9,9 +9,12 @@ export function reconcileHandOrder<T extends {card_id:string}>(cards:T[], order:
   return [...ordered, ...remaining.values()];
 }
 
-export function swapHandCards(order:readonly string[], source:string, target:string):string[] {
+export function insertHandCardBefore(order:readonly string[], source:string, target:string):string[] {
   const result = [...order], from = result.indexOf(source), to = result.indexOf(target);
-  if (from >= 0 && to >= 0 && from !== to) [result[from], result[to]] = [result[to], result[from]];
+  if (from >= 0 && to >= 0 && from !== to) {
+    result.splice(from, 1);
+    result.splice(result.indexOf(target), 0, source);
+  }
   return result;
 }
 

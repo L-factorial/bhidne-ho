@@ -26,7 +26,12 @@ game has no settlement. See [scoring](marriage-scoring.md) for exact rules.
 2. Each player receives 21 private cards. Tap to reveal cards in received order
    or reveal all, then choose Grid or Suit groups. Arc is available only with
    15 or fewer uncommitted cards, including during reveal. Shown groups remain
-   in the Stats overlay and leave the main hand. Hide/Show cards provides
+   in the Stats overlay and leave the main hand. Dragging a revealed hand card
+   onto another card inserts it immediately before that card and updates the
+   displayed list, preserving the order of all other cards. This presentation
+   order survives polling; newly drawn cards append and removed cards disappear.
+   Sequence/Dublee arrangement buttons restore automatic ordering.
+   Hide/Show cards provides
    local screen privacy. Physical copy numbers distinguish repeated faces across
    the three packs; they do not change meld rules.
    New tables first open a Tunnela declaration layout. Reveal cards, tap the

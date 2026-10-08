@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {playFeed,playEntry} from '../src/multiplayer/playFeed.ts';
+import {playFeed,playEntry,playCardActions} from '../src/multiplayer/playFeed.ts';
 const table=(match_id,created_at=0,extra={})=>({room_id:'r',room_name:'Room',match_id,name:match_id,game_type:'flush',status:'waiting',players:1,capacity:2,created_at,current_user:{can_join:true},...extra});
 const invitation=(match_id,created_at)=>({id:'invite-'+match_id,room_id:'r',room_name:'Room',match_id,table_name:match_id,game_type:'flush',created_at,seated:1,capacity:2,seat_available:true});
 test('Play merges invitations without duplicating tables and sorts by newest activity',()=>{
@@ -15,6 +15,13 @@ test('Join respects authoritative permission, full tables and existing seats',()
  assert.equal(playEntry(table('a',0,{current_user:{can_join:false}})),'watch');
  assert.equal(playEntry(table('a',0,{current_user:{is_seated:true,can_join:true}})),'watch');
  assert.equal(playEntry(table('a',0,{current_user:undefined})),'watch');
+});
+test('available cards distinguish joining, returning, watching and declining actual invitations',()=>{
+ assert.deepEqual(playCardActions(table('a')), {label:'Join',canDeclineInvitation:false});
+ assert.deepEqual(playCardActions(table('a',0,{players:2})), {label:'Watch',canDeclineInvitation:false});
+ assert.deepEqual(playCardActions(table('a',0,{invitation_id:'invite'})), {label:'Join',canDeclineInvitation:true});
+ assert.deepEqual(playCardActions(table('a',0,{invitation_id:'invite',current_user:{is_seated:true}})),
+  {label:'Return to table',canDeclineInvitation:false});
 });
 
 test('Marriage and both Call Break sizes use the server-computed capacity for Join/Watch',()=>{

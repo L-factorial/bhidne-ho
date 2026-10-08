@@ -52,21 +52,43 @@ async def test_notice_commit_push_dedup_and_block_recheck(database,kind,scope):
 
 async def test_discard_regular_table_is_personal_persistent_and_does_not_leave_seat(database):
     pool,store,fence,users=database
+    viewer=users[-1]
     host,game=await host_game(users,started=False)
     try:
         await store.save(capture_checkpoint(game,table_revision=0),expected_revision=None,fence=fence)
         inbox=PostgresInboxStore(pool)
         query=PostgresHostedQueries(pool)
-        assert len((await query.activity(users[1]))['items'])==1
+        assert len((await query.activity(viewer))['items'])==1
         body=dict(command_id=uuid4().hex,command='discard-table',payload=dict(table_id=game.table.table_id,match_id=game.match_id))
-        target=LaneTarget(kind='recipient',recipient_id=UUID(users[1][5:]))
-        accepted=await SocialIngress(inbox).submit(users[1],target,body)
+        target=LaneTarget(kind='recipient',recipient_id=UUID(viewer[5:]))
+        accepted=await SocialIngress(inbox).submit(viewer,target,body)
         result=await SocialLaneExecutor(inbox).execute_one(accepted['lane_id'])
         assert result.outcome['status']=='accepted'
-        assert (await query.activity(users[1]))['items']==[]
+        assert (await query.activity(viewer))['items']==[]
         assert len((await query.activity(users[0]))['items'])==1
-        assert len((await query.activity(users[1],memberships=True))['items'][0]['tables'])==1
+        assert len((await query.activity(viewer,memberships=True))['items'][0]['tables'])==1
         assert (await store.load(game.table.table_id)).checkpoint['data']['table_revision']==0
-        assert (await SocialIngress(inbox).submit(users[1],target,body))['status']=='accepted'
+        assert (await SocialIngress(inbox).submit(viewer,target,body))['status']=='accepted'
         assert (await pool.execute('SELECT count(*) FROM table_dismissals')).rows==[(1,)]
+    finally:await host.close()
+
+async def test_previous_dismissal_cannot_hide_reserved_seat_and_stale_discard_is_rejected(database):
+    pool,store,fence,users=database
+    host,game=await host_game(users,started=False)
+    try:
+        await store.save(capture_checkpoint(game,table_revision=0),expected_revision=None,fence=fence)
+        actor=users[1]
+        await pool.execute('INSERT INTO table_dismissals(user_id,table_id,match_id) VALUES (%s,%s,%s)',
+            (UUID(actor[5:]),UUID(game.table.table_id),game.match_id))
+        query=PostgresHostedQueries(pool)
+        assert (await query.activity(actor))['items'][0]['current_user']['is_seated'] is True
+        before=await store.load(game.table.table_id)
+        inbox=PostgresInboxStore(pool)
+        target=LaneTarget(kind='recipient',recipient_id=UUID(actor[5:]))
+        body=dict(command_id=uuid4().hex,command='discard-table',payload=dict(table_id=game.table.table_id,match_id=game.match_id))
+        pending=await SocialIngress(inbox).submit(actor,target,body)
+        outcome=(await SocialLaneExecutor(inbox).execute_one(pending['lane_id'])).outcome
+        assert outcome['status']=='rejected'
+        assert await store.load(game.table.table_id)==before
+        assert len((await query.activity(actor))['items'])==1
     finally:await host.close()

@@ -254,6 +254,11 @@ class SocialLaneExecutor:
                         (data.table_id,data.match_id,sender))).fetchone()
                     if not visible:
                         raise QueryAccessDenied('This table is no longer available.')
+                    seated = await (await claim.connection.execute(
+                        'SELECT 1 FROM active_table_players WHERE user_id=%s AND table_id=%s',
+                        (sender, data.table_id))).fetchone()
+                    if seated:
+                        raise QueryAccessDenied('Return to your table to leave it. A seated table cannot be hidden.')
                     await claim.connection.execute('''INSERT INTO table_dismissals(user_id,table_id,match_id)
                         VALUES (%s,%s,%s) ON CONFLICT DO NOTHING''',(sender,data.table_id,data.match_id))
                     output.append(OutgoingEvent(dict(type='LOBBY_CHANGED'),actor))

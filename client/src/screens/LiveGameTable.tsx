@@ -37,7 +37,7 @@ export type RoomSnapshot = {
   rule_proposal?: RuleProposalView | null; chat_enabled?: boolean;
   room_id?: string; table_name?: string; path?: string;
   tables?: import('../multiplayer/tableNavigation').TableSummary[];
-  can_create_new_game?: boolean;
+  can_create_new_game?: boolean; can_end_table?: boolean;
   roster_open?: boolean;
   table?: import('../components/TableControls').TableView;
   marriage_scoring?: import('../multiplayer/marriage').MarriageScoringRules;

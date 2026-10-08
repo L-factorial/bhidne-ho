@@ -26,7 +26,7 @@ import { useMarriageReveal } from '../multiplayer/useMarriageReveal';
 import { MarriageCardArea } from '../components/MarriageCardArea';
 import { MarriageCardBack } from '../components/MarriageCardBack';
 import { MarriageHandCard } from '../components/MarriageHandCard';
-import { cardDropTarget, marriageCardMarker, reconcileHandOrder, swapHandCards, type CardBounds } from '../multiplayer/marriageHandOrder';
+import { cardDropTarget, marriageCardMarker, reconcileHandOrder, insertHandCardBefore, type CardBounds } from '../multiplayer/marriageHandOrder';
 import { MarriageDetails } from '../components/MarriagePlayers';
 import { PokeComposer } from '../components/PokeComposer';
 import type { PlayerPhrase } from '../multiplayer/pokes';
@@ -134,7 +134,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       node.measureInWindow((x,y,width,height)=>resolve({id,x,y,width,height})))));
     if(currentDragState.current!==dragStateKey)return;
     const target=cardDropTarget(bounds,source,x,y);
-    if(target)setManualOrder(current=>({key:orderKey,ids:swapHandCards(
+    if(target)setManualOrder(current=>({key:orderKey,ids:insertHandCardBefore(
       reconcileHandOrder(displayedHand,current.key===orderKey?current.ids:[]).map(card=>card.card_id),source,target)}));
   }
   const drawnId = drawnCard?.card_id;
