@@ -3,6 +3,7 @@ import {useState,type ReactNode} from 'react';
 import {Ionicons} from '@expo/vector-icons';
 import {Pressable, View} from 'react-native';
 import {FormInput} from './FormInput';
+import {CreateCardThemeSelector} from './CardThemePicker';
 import {GameIcon} from './BrandArt';
 import { radii, fonts,useTheme} from '../theme';
 import {ui} from '../i18n/copy';
@@ -25,6 +26,7 @@ export function CreateTableForm({session,game,setGame,callbreakPlayers,setCallbr
         <Text style={{...text,fontFamily:fonts.medium}}>{ui('rooms.player_count')}</Text>
         <View style={{flexDirection:'row',gap:8}}>{([4,5] as const).map(count=><Pressable key={count} accessibilityRole="radio" accessibilityLabel={ui('rooms.players_option',{count})} accessibilityState={{checked:callbreakPlayers===count,disabled:busy}} aria-checked={callbreakPlayers===count} disabled={busy} onPress={()=>setCallbreakPlayers(count)} style={{minHeight:44,paddingHorizontal:16,justifyContent:'center',borderRadius: radii.medium,borderWidth:1,borderColor:callbreakPlayers===count?c.accent:c.border,backgroundColor:callbreakPlayers===count?c.surfaceSelected:c.surface}}><Text style={{...text,color:callbreakPlayers===count?c.accent:c.text}}>{ui('rooms.players_option',{count})}</Text></Pressable>)}</View>
       </View>}
+<CreateCardThemeSelector disabled={busy}/>
 {roomSelector}
       <FormInput accessibilityLabel={ui('rooms.table_name')} placeholder={ui('rooms.table_name')} placeholderTextColor={c.textMuted} value={name} onChangeText={setName} maxLength={60} editable={!busy} style={input}/>
       <Text style={{...text,fontFamily:fonts.medium}}>{ui('rooms.invite_people_optional')}</Text>

@@ -1,10 +1,11 @@
 import { TableThemeProvider, useTableTheme } from './TableThemeProvider';
 import { useEffect, type ReactNode } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import { CardThemeProvider } from './CardThemeProvider';
 import { ThemeContext } from './theme';
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  return <TableThemeProvider><SelectedTheme>{children}</SelectedTheme></TableThemeProvider>;
+  return <TableThemeProvider><CardThemeProvider><SelectedTheme>{children}</SelectedTheme></CardThemeProvider></TableThemeProvider>;
 }
 
 function SelectedTheme({ children }: { children: ReactNode }) {

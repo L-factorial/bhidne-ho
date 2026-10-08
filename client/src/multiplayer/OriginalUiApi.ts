@@ -325,7 +325,7 @@ export class OriginalUiApi {
       return view;
     }
     if(!action) {
-      const payload:Payload={game_type:data.game_type,...(data.player_count===undefined?{}:{capacity:data.player_count}),name:data.name,invitees:data.invitees??[],...(data.notify_room ? {notify_room:true} : {})};
+      const payload:Payload={game_type:data.game_type,...(data.player_count===undefined?{}:{capacity:data.player_count}),name:data.name,...(data.card_theme===undefined?{}:{card_theme:data.card_theme}),invitees:data.invitees??[],...(data.notify_room ? {notify_room:true} : {})};
       const saved=this.root.session.command('ui-table-control').request;
       if(saved?.body.command==='create-table'&&saved.target.room_id===room) {
         if(saved.body.payload.replace_table_id) {

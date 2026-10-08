@@ -11,6 +11,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TableShareSheet } from './ShareLink';
 import { fonts, radii, typography, useTheme } from '../theme';
 import { HeaderProfileContext } from './AppHeader';
+import { CardThemePicker } from './CardThemePicker';
+import { RoomSheet } from './RoomSheet';
 import { ThemeAction } from './ThemeAction';
 import { LanguageToggle } from './LanguageToggle';
 import { HeaderAction } from './HeaderAction';
@@ -34,6 +36,7 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
   const [open, setOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const renderProfile = useContext(HeaderProfileContext);
+  const [cardThemesOpen, setCardThemesOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
   useEffect(() => { if (!showShare) setSharing(false); }, [showShare]);
   useEffect(() => {
@@ -50,13 +53,16 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
     {!!roomId && !!matchId && <Pressable accessibilityRole="button" accessibilityLabel={ui('rooms.share_table_link_or_code')} onPress={()=>{setOpen(false);setSharing(true);}} style={{minHeight:44,flexDirection:'row',alignItems:'center',gap:8}}><Ionicons name="share-outline" size={22} color={colors.accent}/><Text style={{color:colors.text,fontFamily:fonts.medium}}>{ui('rooms.share_table')}</Text></Pressable>}
     {renderProfile && <HeaderAction icon="profile" label={t('common.profile')} compact={false} onPress={()=>{setOpen(false);setProfileOpen(true);}} />}
     <View style={{flexDirection:'row',alignItems:'center',gap:8}}><Text style={{color:colors.text}}>{ui('common.theme')}</Text><ThemeAction /></View>
+    <Pressable accessibilityRole="button" accessibilityLabel={ui('common.choose_card_theme')} onPress={()=>{setOpen(false);setCardThemesOpen(true);}} style={{minHeight:44,flexDirection:'row',alignItems:'center',gap:8}}><Ionicons name="albums-outline" size={22} color={colors.accent}/><Text style={{color:colors.text,fontFamily:fonts.medium}}>{ui('common.card_theme')}</Text></Pressable>
     <View style={{flexDirection:'row',alignItems:'center',gap:8}}><Text style={{color:colors.text}}>{ui('common.language_label')}</Text><LanguageToggle /></View>
   </View>;
   return <>
+    <RoomSheet visible={cardThemesOpen} title={ui('common.card_theme')} closeLabel={ui('common.close_card_themes')} testID="game-card-theme-sheet" presentation="dialog" onClose={()=>setCardThemesOpen(false)}>
+      <CardThemePicker />
+    </RoomSheet>
     <View testID={`${game}-${mobile && mobileTestIds ? 'mobile-' : ''}header`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 8, backgroundColor: colors.surface, borderBottomWidth: 1, borderColor: colors.borderSubtle }}>
       <View style={{flexDirection:'row',alignItems:'center',gap:8,flex:1,minWidth:0}}>
         <BrandIcon size={mobile ? 36 : headerLogoSize.regular} />
-        <Text numberOfLines={1} style={{color:colors.text,fontFamily:fonts.editorial,fontSize:mobile?14:24,flexShrink:1}}>{ui('common.brand_name')}</Text>
       </View>
       <View testID={`${game}-header-location`} style={{flex:1,minWidth:0,alignItems:'center'}}>
         <Text numberOfLines={1} accessibilityRole="header" style={{fontFamily:fonts.medium,fontSize:small?16:20,color:colors.text}}>{title}</Text>

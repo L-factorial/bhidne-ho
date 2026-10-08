@@ -53,7 +53,7 @@ async def build_rematch(claim, game, stored):
     # Resolved offers and invitations are retained in the archived checkpoint;
     # they must not refer to the old match in the new lobby.
     table.offers.clear()
-    new = HostedGame(game.room_id, game.capacity, roster, name=game.name, game_type=game.game_type,
+    new = HostedGame(game.room_id, game.capacity, roster, name=game.name, game_type=game.game_type, card_theme=game.card_theme,
         table=table, previous_match_id=game.match_id, settings=deepcopy(game.settings),
         marriage_scoring=game.marriage_scoring,
         commands=CommandSession(match_id=new_id.hex, receipt_limit=stored.receipt_snapshot['receipt_limit']))

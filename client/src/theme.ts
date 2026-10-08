@@ -2,12 +2,12 @@ import { createContext, useContext, useMemo } from 'react';
 
 // Semantic UI colors. Brand artwork and provider logos retain their original colors.
 export const colors = {
-  background: '#FAF7F1', header: '#FAF7F1', table: '#DCEBE5',
-  surface: '#FFFFFF', surfaceRaised: '#F5F0E8', surfaceSelected: '#F6E5B5',
-  primaryBorder: '#D96878', primary: '#9B1F36', primaryPressed: '#7A182B', onPrimary: '#FAF7F1',
+  background: '#F8F6F2', header: '#F8F6F2', table: '#DCEBE5',
+  surface: '#FFFFFF', surfaceRaised: '#F5F0E8', surfaceSelected: '#E6E6E6',
+  primaryBorder: '#1A1A1A', primary: '#1A1A1A', primaryPressed: '#333333', onPrimary: '#FFFFFF',
   // `accent` is used by existing links/headings; keep it readable on neutral surfaces.
-  accent: '#7A1F2B', attention: '#D5A12A', turnText: '#6B1924', turnSurface: '#F6E5B5',
-  text: '#211D1B', textMuted: '#6F655F', border: '#99867A', borderSubtle: '#E5DDD3', disabled: '#B7AAA0',
+  accent: '#222222', attention: '#D5A12A', turnText: '#6B1924', turnSurface: '#F6E5B5',
+  text: '#1A1A1A', textMuted: '#686868', border: '#99867A', borderSubtle: '#E5DDD3', disabled: '#B7AAA0',
   gain: '#167344', loss: '#B42335', destructiveAction: '#AD2440', onDestructive: '#FFFFFF',
   success: '#167344', successSurface: '#E5F4EC', danger: '#B42335', dangerSurface: '#FBE8EA', overlay: '#17111399',
   maalSeen: '#167344', maalUnseen: '#6F655F',
@@ -24,11 +24,11 @@ export type ThemeColors = typeof colors;
 export const gameColors: ThemeColors = {
   ...colors,
   background: '#062B23', header: '#062B23', table: '#07382B',
-  surface: '#0B3027', surfaceRaised: '#164638', surfaceSelected: '#28513C',
-  resultOwnSurface: '#164638', ownMessage: '#28513C',
-  text: '#FFF3DC', textMuted: '#C6D2C8', accent: '#F0C96A',
-  border: '#7E947F', borderSubtle: '#315347', primarySoft: '#173E32',
-  primary: '#AA2039', primaryPressed: '#83182D',
+  surface: '#0E3A2E', surfaceRaised: '#164638', surfaceSelected: '#173E32',
+  resultOwnSurface: '#164638', ownMessage: '#173E32',
+  text: '#FAF0E4', textMuted: '#A9C2B7', accent: '#D4A62C',
+  border: '#7E947F', borderSubtle: '#265445', primarySoft: '#173E32',
+  primaryBorder: '#DB5670', primary: '#B32643', primaryPressed: '#8D1C35', onPrimary: '#FFFFFF',
   gain: '#7DE0A5', loss: '#FF9DAB',
   success: '#7DE0A5', successSurface: '#123E2B', danger: '#FF9DAB', dangerSurface: '#492630',
   warning: '#F0C96A', warningSoft: '#493A20',
@@ -46,11 +46,11 @@ export function useThemedStyles<T>(factory: (colors: ThemeColors) => T): T {
 export function primaryAction(colors: ThemeColors, pressed = false) {
   return { backgroundColor: pressed ? colors.primaryPressed : colors.primary, borderColor: colors.primary };
 }
-export const fonts = { card: 'CormorantGaramond_700Bold', editorial: 'CormorantGaramond_600SemiBold', display: 'CormorantGaramond_600SemiBold', body: 'Inter_400Regular', medium: 'Inter_500Medium' };
+export const fonts = { card: 'CormorantGaramond_700Bold', editorial: 'LibreBaskerville_700Bold', display: 'LibreBaskerville_700Bold', body: 'Inter_400Regular', medium: 'Inter_500Medium' };
 
 export const space = { xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, section: 32 } as const;
 export const radii = { small: 8, medium: 12, large: 18, xl: 20 } as const;
-export const typography = { display: 42, pageTitle: 28, sectionTitle: 22, cardTitle: 20, body: 16, metadata: 14, caption: 14 } as const;
+export const typography = { display: 42, brand: 26, pageTitle: 22, sectionTitle: 22, cardTitle: 20, body: 16, metadata: 14, caption: 14, tab: 15, navigation: 14 } as const;
 
 /** Visual finishes only: preserve each screen's dimensions and spacing. */
 export function gameControlFinish(c: ThemeColors, pressed = false) {

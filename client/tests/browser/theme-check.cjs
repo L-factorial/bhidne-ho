@@ -10,6 +10,6 @@ exports.checkThemes = async (page, name) => {
     await page.getByRole('button', { name: 'Close table menu', exact: true }).click();
     await menu.waitFor({ state: 'hidden' });
     const backs = page.getByTestId('card-back');
-    if (await backs.count()) assert.equal(await backs.first().evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(116, 27, 37)');
+    if (await backs.count()) assert.ok(await backs.first().locator('[data-testid^="card-back-art-"]').count(), 'hidden cards retain selected artwork');
   }
 };

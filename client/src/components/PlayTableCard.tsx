@@ -17,7 +17,7 @@ export function PlayTableCard({table,busy,enter,discard}:{table:PlayTable;busy:b
       <View style={{flexDirection:'row',alignItems:'center',gap:10}}>
         <GameIcon game={table.game_type} size={48}/>
         <View style={{flex:1,minWidth:0,gap:4}}>
-          <Text accessibilityRole="header" style={{color:c.accent,fontFamily:fonts.editorial,fontSize:26,lineHeight:32}}>{gameLabel(table.game_type)}</Text>
+          <Text accessibilityRole="header" style={{color:c.accent,fontFamily:fonts.editorial,fontSize:20,lineHeight:26}}>{gameLabel(table.game_type)}</Text>
           <Text style={{color:c.textMuted,fontFamily:fonts.body,fontSize:15,lineHeight:22}}>{ui('common.room')} : {table.room_name}</Text>
           <Text style={{color:c.text,fontFamily:fonts.body,fontSize:15,lineHeight:22}}>{ui('common.table')} : {table.name}</Text>
         </View>

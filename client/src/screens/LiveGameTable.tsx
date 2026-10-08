@@ -32,6 +32,7 @@ export type PlayMode = 'manual';
 
 type Trick = { trick_number: number; plays: { player_id: number; card: string }[]; complete: boolean; winner?: number };
 export type RoomSnapshot = {
+  card_theme?: string; can_change_card_theme?: boolean; card_theme_controller_id?: string | null;
   rule_proposal?: RuleProposalView | null; chat_enabled?: boolean;
   room_id?: string; table_name?: string; path?: string;
   tables?: import('../multiplayer/tableNavigation').TableSummary[];

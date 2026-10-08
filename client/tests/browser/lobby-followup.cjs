@@ -31,6 +31,7 @@ async function agree(page){await page.getByRole('heading',{name:'Community rules
 (async()=>{const browser=await chromium.launch({channel:'chrome',headless:true});try{
  for(const width of [390,1280]){
   const f=await fixture(browser,{width}),{page}=f;
+  await page.getByText('Bhidne Ho ?',{exact:true}).waitFor();
   await page.getByTestId('lobby-navigation').getByRole('tab',{name:'Chat',exact:true}).click();await agree(page);
   await page.getByText('Online friends',{exact:true}).waitFor();
   assert.equal(await page.getByTestId('friends-list').getByRole('button',{name:'Message',exact:true}).count(),2);
@@ -45,7 +46,7 @@ async function agree(page){await page.getByRole('heading',{name:'Community rules
  for(const kind of ['flush','callbreak','marriage']){
   const f=await fixture(browser,{kind,width:kind==='callbreak'?1280:390}),{page}=f;
   await page.getByRole('button',{name:/Return to table/}).first().click();const header=page.getByTestId(new RegExp('^'+kind+'-(mobile-)?header$'));await header.waitFor();
-  assert.equal(await header.getByRole('button').count(),2);await header.getByText('Bhidne Ho ?',{exact:true}).waitFor();await header.getByTestId(kind+'-header-location').getByText(/Chat room →/).waitFor();
+  assert.equal(await header.getByRole('button').count(),2);assert.equal(await header.getByText('Bhidne Ho ?',{exact:true}).count(),0);await header.getByTestId(kind+'-header-location').getByText(/Chat room →/).waitFor();
   const buttons=await header.getByRole('button').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('aria-label')));assert.deepEqual(buttons,['Back to lobby','Table menu']);
   await header.getByRole('button',{name:'Table menu',exact:true}).click();const menu=page.getByTestId(kind+'-menu-settings');await menu.getByRole('button',{name:'Choose theme',exact:true}).waitFor();await menu.getByRole('button',{name:'Choose language',exact:true}).waitFor();await menu.getByRole('button',{name:'Share table link or code',exact:true}).waitFor();await menu.getByRole('button',{name:'Open profile',exact:true}).click();await page.getByTestId('profile-screen').waitFor();await page.getByRole('button',{name:'Back from profile',exact:true}).click();
   await page.getByTestId('game-social-controls').getByRole('button',{name:'Table Chat',exact:true}).click();await agree(page);await page.getByTestId('table-chat-panel').waitFor();assert.deepEqual(f.errors,[]);console.log('PASS '+kind+' header/menu and rules return to game chat');await f.context.close();

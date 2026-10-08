@@ -3,6 +3,7 @@ import {useRef,useState} from 'react';
 import {Ionicons} from '@expo/vector-icons';
 import {Pressable, View} from 'react-native';
 import {RoomSheet} from './RoomSheet';
+import {useCardTheme} from '../CardThemeProvider';
 import {CreateTableForm} from './CreateTableForm';
 import { visualStates, radii, fonts,useTheme} from '../theme';
 import {ui} from '../i18n/copy';
@@ -18,6 +19,7 @@ export function CreateTableSheet({session,rooms,playerName,roomActions,onClose,o
   onCreated:(room:Room,game:Game,match:string)=>void;
 }){
   const {colors:c}=useTheme();
+  const {id:cardTheme}=useCardTheme();
   const [game,setGame]=useState<Game>('flush'),[roomId,setRoomId]=useState(rooms[0]?.room_id??'');
   const [callbreakPlayers,setCallbreakPlayers]=useState<4|5>(4);
   const [dropdown,setDropdown]=useState(false),[name,setName]=useState('');
@@ -42,7 +44,7 @@ export function CreateTableSheet({session,rooms,playerName,roomActions,onClose,o
       // Membership and table creation retain the runtime's durable command slots.
       await roomActions.enter(session,room.room_id);
       const result=await request<{match_id:string}>(`/test-games/${encodeURIComponent(room.room_id)}`,session,
-        {game_type:game,...(game==='callbreak'?{player_count:callbreakPlayers}:{}),name:name.trim(),invitees:invitees.map(player=>player.user_id),notify_room:true});
+        {game_type:game,card_theme:cardTheme,...(game==='callbreak'?{player_count:callbreakPlayers}:{}),name:name.trim(),invitees:invitees.map(player=>player.user_id),notify_room:true});
       if(isCurrentSession(apiUrl,session))onCreated(room,game,result.match_id);
     }catch(error){setError(playerError(error,ui('rooms.create_failed')));}
     finally{creating.current=false;setBusy(false);}

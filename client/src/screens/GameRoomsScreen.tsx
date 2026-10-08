@@ -35,7 +35,7 @@ export function GameRoomsScreen({ selected, onSelect, onBack, onLeave }: {
       paddingLeft: Math.max(insets.left, wide ? 40 : 20), paddingRight: Math.max(insets.right, wide ? 40 : 20),
     }]}>
       <View style={styles.content}>
-        <AppHeader actions={<Pressable accessibilityRole="button" onPress={onLeave} style={styles.linkButton}><Text style={{ color: colors.accent }}>{ui("common.exit_preview")}</Text></Pressable>} />
+        <AppHeader lobby actions={<Pressable accessibilityRole="button" onPress={onLeave} style={styles.linkButton}><Text style={{ color: colors.accent }}>{ui("common.exit_preview")}</Text></Pressable>} />
         {game ? <>
           <Pressable accessibilityRole="button" onPress={onBack} style={styles.back}><Text style={styles.link}>{ui("common.all_games_arrow")}</Text></Pressable>
           <Text style={styles.eyebrow}>{ui("rooms.game_room")}</Text>

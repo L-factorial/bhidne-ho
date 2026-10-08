@@ -36,6 +36,7 @@ import { MarriageTable } from '../screens/MarriageTable';
 import { GameRequestError, type GameRequestDetail } from '../multiplayer/PendingGameAction';
 import { GameModalContent, GameModalRoot } from './GameModal';
 import {CreateTableForm} from './CreateTableForm';
+import { useCardTheme, TableCardThemeProvider } from '../CardThemeProvider';
 import { request } from '../multiplayer/api';
 
 type InvitePlayer = { user_id: string; display_name: string; username?: string | null; eligible?: boolean; reason?: string | null };
@@ -52,6 +53,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
 }) {
   useUiLanguage();
   const { colors } = useTheme();
+  const { id: cardTheme } = useCardTheme();
   const { theme: gameTheme } = useTableTheme();
   const styles = useThemedStyles(createStyles);
   const mobile = useWindowDimensions().width < 900;
@@ -263,7 +265,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
     if (!join && !tableName.trim()) { setError(ui("feedback.enter_a_table_name")); return; }
     pending.current = true; const version = ++generation.current; setBusy(true); setError('');
     try {
-      const data = await api(join ? '/join' : '', join ? { match_id: snapshot?.match_id } : { ...(gameType === 'callbreak' ? {player_count:capacity} : {}), notify_room:true, game_type: gameType, name: tableName.trim(), invitees: selectedInvitees.map(player => player.user_id) });
+      const data = await api(join ? '/join' : '', join ? { match_id: snapshot?.match_id } : { ...(gameType === 'callbreak' ? {player_count:capacity} : {}), notify_room:true, game_type: gameType, card_theme: cardTheme, name: tableName.trim(), invitees: selectedInvitees.map(player => player.user_id) });
       if (alive.current && generation.current === version) {
         selectedMatch.current = data.match_id;
         setSnapshot(data); setLive(true); setOpen(true);
@@ -457,7 +459,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
       </View></KeyboardFrame></GameModalContent>}
     </GameModalRoot>
   </>;
-  return live && snapshot ? <TableSocialProvider key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} channel={socialChannel} connected={connected} userId={userId} session={{user_id:userId,token}} pokes={pokes} phrases={personal.phrases} expanded={open} colors={gameTheme.colors}>{content}</TableSocialProvider> : content;
+  return live && snapshot ? <TableCardThemeProvider id={snapshot.card_theme} canChange={snapshot.can_change_card_theme === true} pending={busy || !connected || !synced} select={theme => void lobbyAction('/card-theme', {card_theme:theme})}><TableSocialProvider key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} channel={socialChannel} connected={connected} userId={userId} session={{user_id:userId,token}} pokes={pokes} phrases={personal.phrases} expanded={open} colors={gameTheme.colors}>{content}</TableSocialProvider></TableCardThemeProvider> : content;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   invitation: { backgroundColor: colors.surfaceSelected, borderWidth: 1, borderColor: colors.accent, borderRadius: 16, padding: 20, gap: 12, marginBottom: 20 },

@@ -7139,3 +7139,48 @@ implementation request before changing card rendering or Marriage turn behavior.
   Address the baseline test failures or produce signed native builds if requested.
   Capacity testing, observability, database HA and operational readiness remain
   the distributed-runtime follow-up task set.
+
+### 2026-10-07 — Shared card themes (local implementation)
+
+- Implemented the explicitly requested typography/palette consistency, lobby-only
+  header wordmark, and ten Nepal-inspired card backs. Creation selects a shared
+  table theme; the in-game hamburger menu changes it for every player.
+- Control comes from authoritative game state: current dealer in Callbreak and
+  Flush; creator/first remaining seated player before a dealer is available and
+  in Marriage, which has no dealer role. Permissions follow dealer rotation and
+  departures. Server checks reject unauthorized changes, invalid IDs, stale
+  revisions, and ended-table changes without advancing gameplay.
+- Durable creation, fenced commands, private views, recovery and rematches retain
+  the theme. Existing checkpoints default to Kathmandu only after their original
+  digest verifies. Device preferences remain independent next-table defaults.
+  Added the shared_card_themes activation capability; no database migration.
+- Verification: 117 focused backend tests passed; an additional activation,
+  rematch, shared-theme and view-generation run had 39 passes and three known
+  baseline failures (missing created_at in generated table previews, already
+  documented in the previous release). All 36 selected client tests, TypeScript,
+  web and unsigned iOS exports passed. Browser checks passed for creation,
+  mobile/desktop layouts, all games, two-player synchronization, readonly
+  permissions and control handoff. Git whitespace checks passed.
+- Limitations: browser interaction uses isolated fixtures; native exports do not
+  establish device rendering. New checkpoint fields require both backends to be
+  upgraded before enabling the new frontend; old-code rollback needs checkpoint
+  compatibility review. Changes are local, uncommitted and not deployed.
+- Exact next step: review the shared-theme UI and dealer behavior, then commit
+  and deploy only if requested. Capacity testing, observability, database HA and
+  operational readiness remain the separate distributed-runtime follow-up set.
+
+### 2026-10-07 — Generated table-preview metadata correction
+
+- Fixed the three current backend failures across Callbreak, Marriage and Flush:
+  generated VIEW_DELTA previews now include the authoritative room_tables
+  creation timestamp in milliseconds, matching snapshot previews. The preview
+  checksum includes that metadata. Missing table metadata fails generation for
+  retry rather than publishing an inconsistent preview.
+- Verification: all 42 shared-theme, activation, rematch and view-generation
+  tests passed, including the three formerly failing snapshot/delta parity
+  assertions. All 30 view-delta and transition tests passed. Git whitespace
+  checks passed. No schema changes or deployment were performed.
+- Limitations: these are focused PGLite-backed checks, not a full backend suite
+  or production verification. Other historical failures have not been assessed
+  in this increment.
+- Exact next step: review and commit the local changes, then deploy if requested.

@@ -97,6 +97,12 @@ class ViewGenerationWorker:
             raise RuntimeError('Too many view recipients.')
         from .checkpoint_store import user_uuid
         async with self.pool.connection() as c:
+            table = await (await c.execute('''SELECT created_at FROM room_tables
+                WHERE room_id=%s AND table_id=%s''',
+                (data['room_id'], claim.table_id))).fetchone()
+            if table is None:
+                raise RuntimeError('View table metadata unavailable.')
+            created_at = int(table[0].timestamp() * 1000)
             members = await (await c.execute('''SELECT user_id FROM room_memberships
                 WHERE room_id=%s AND user_id=ANY(%s::uuid[])
                 AND NOT EXISTS(SELECT 1 FROM deleted_rooms WHERE id=%s)''',
@@ -129,7 +135,8 @@ class ViewGenerationWorker:
                 preview = next((p for p in previews if p['match_id']==after_game.match_id
                     and p['status'] not in ('ended','finished') and p['phase'] not in ('ENDED','COMPLETED')), None)
                 if preview is not None:
-                    preview.update(table_id=after_game.table.table_id, table_revision=claim.revision)
+                    preview.update(table_id=after_game.table.table_id, table_revision=claim.revision,
+                                   created_at=created_at)
                     preview = jsonable_encoder(preview)
                 message = dict(type='VIEW_DELTA', table_id=str(claim.table_id), match_id=data['match_id'],
                     viewer_seat=after['your_player_id'], delta=delta, table_preview=preview,

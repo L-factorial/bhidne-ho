@@ -15,6 +15,7 @@ from .settlements import MODELS as SETTLEMENT_MODELS
 # Advertised by the explicitly assembled runtime, not inferred from installed code.
 ACTIVATION_CAPABILITIES = {
     'manual_settlement': 1,
+    'shared_card_themes': 1,
     'table_pokes': 1,
     'durable_scoped_chat': 1,
     'durable_room_creation': 2, 'durable_table_commands': 2, 'durable_game_commands': 1,

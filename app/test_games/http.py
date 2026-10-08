@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from app.adapters.callbreak.contracts import COMMAND_SPECS, CommandName
 from app.adapters.marriage.contracts import COMMAND_SPECS as MARRIAGE_COMMANDS, CommandName as MarriageCommandName
 from app.adapters.flush.contracts import COMMAND_SPECS as FLUSH_COMMANDS, CommandName as FlushCommandName
+from app.multiplayer.card_themes import CardThemeId
 from app.models.user import UserIdentity
 from app.models.action import ActionCommand
 from app.transport.http import current_user
@@ -20,6 +21,7 @@ class CreateGame(BaseModel):
     player_count: Annotated[int, Field(strict=True, ge=2, le=10)] | None = None
     game_type: Literal["callbreak", "marriage", "flush"] = "callbreak"
     name: Annotated[str, Field(min_length=1, max_length=60)] = "Table"
+    card_theme: CardThemeId = "kathmandu"
     invitees: list[str] = Field(default_factory=list, max_length=20)
 
     @model_validator(mode="after")
@@ -32,6 +34,16 @@ class CreateGame(BaseModel):
 class JoinGame(BaseModel):
     model_config = ConfigDict(extra="forbid")
     match_id: Annotated[str, Field(min_length=1, max_length=128)]
+
+
+class CardThemeChange(JoinGame):
+    card_theme: CardThemeId
+
+
+@router.post("/{room_id}/card-theme")
+async def card_theme(room_id: str, body: CardThemeChange, request: Request,
+                     user: UserIdentity = Depends(current_user)):
+    return await request.app.state.test_games.change_card_theme(room_id, user.user_id, body)
 
 
 class InvitationCandidates(BaseModel):
@@ -86,7 +98,7 @@ async def state(room_id: str, request: Request, response: Response, match_id: st
 @router.post("/{room_id}", status_code=201)
 async def create(room_id: str, body: CreateGame, request: Request, response: Response, user: UserIdentity = Depends(current_user)):
     response.headers["Cache-Control"] = "no-store"
-    return await request.app.state.test_games.create(room_id, user.user_id, body.player_count, body.game_type, body.name, body.invitees)
+    return await request.app.state.test_games.create(room_id, user.user_id, body.player_count, body.game_type, body.name, body.invitees, body.card_theme)
 
 
 @router.post("/{room_id}/join")

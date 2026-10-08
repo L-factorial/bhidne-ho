@@ -24,6 +24,7 @@ from marriage.events import DomainEvent as MarriageEvent
 from marriage.invariants import validate_game_state as validate_marriage
 from marriage.errors import MarriageError
 from marriage.scoring_rules import ScoringRules
+from app.multiplayer.card_themes import CardThemeId
 from app.multiplayer.table import SeatOffer, TableState
 
 
@@ -89,6 +90,7 @@ class TableDetails(Record):
 
 
 class HostDetails(Record):
+    card_theme: CardThemeId = "kathmandu"
     users: tuple[Identity, ...]
     previous_match_id: str | None
     departed: tuple[Identity, ...]
@@ -327,9 +329,17 @@ def decode_checkpoint(value: dict) -> DecodedCheckpoint:
         if not isinstance(value, dict) or type(value.get('schema_version')) is not int or value['schema_version'] != 1:
             raise CheckpointError('Unsupported checkpoint schema version.')
         record = Checkpoint.model_validate_json(canonical_json(value))
-        digest = hashlib.sha256(canonical_json(record.data.model_dump(mode='json')).encode()).hexdigest()
+        digest_data = record.data.model_dump(mode='json')
+        legacy_theme = 'card_theme' not in value['data']['host']
+        if legacy_theme:
+            del digest_data['host']['card_theme']
+        digest = hashlib.sha256(canonical_json(digest_data).encode()).hexdigest()
         if digest != record.digest:
             raise CheckpointError('Checkpoint digest mismatch.')
+        if legacy_theme:
+            # Verify old bytes first, then normalize the additive cosmetic default.
+            normalized_digest = hashlib.sha256(canonical_json(record.data.model_dump(mode='json')).encode()).hexdigest()
+            record = record.model_copy(update={'digest': normalized_digest})
         return DecodedCheckpoint(record, _decode_engine(record.data))
     except CheckpointError:
         raise

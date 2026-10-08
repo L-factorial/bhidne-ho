@@ -249,3 +249,13 @@ test('chat and poke notices reach the original bell and its mark-read command',a
  assert.equal(f.sent[0].body.command,'read-notifications');
  assert.deepEqual(f.sent[0].body.payload.ids,['0','1']);
 });
+
+test('card theme creation and updates use durable room/table commands',async()=>{
+ const f=setup();
+ await f.api.request('/test-games/r',account,{game_type:'flush',name:'Cards',card_theme:'annapurna'});
+ assert.equal(f.sent[0].body.command,'create-table');assert.equal(f.sent[0].body.payload.card_theme,'annapurna');
+ await f.api.request('/test-games/r/card-theme',account,{match_id:'m',card_theme:'lumbini'});
+ assert.equal(f.sent[1].body.command,'card-theme');assert.equal(f.sent[1].body.expected_revision,7);
+ assert.equal(f.sent[1].target.kind,'table');assert.deepEqual(f.sent[1].body.payload,{card_theme:'lumbini'});
+ assert.equal(f.shared.length,0);
+});

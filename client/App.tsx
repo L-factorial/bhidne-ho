@@ -17,7 +17,7 @@ import { useTheme } from './src/theme';
 import { useEffect, useState } from 'react';
 import { useFonts } from 'expo-font';
 import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
-import { CormorantGaramond_600SemiBold } from '@expo-google-fonts/cormorant-garamond/600SemiBold';
+import { LibreBaskerville_700Bold } from '@expo-google-fonts/libre-baskerville/700Bold';
 import { CormorantGaramond_700Bold } from '@expo-google-fonts/cormorant-garamond/700Bold';
 import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -103,7 +103,7 @@ function AppContent() {
     const hash=()=>accept(globalThis.location.href);if(Platform.OS==='web')globalThis.addEventListener('hashchange',hash);
     return()=>{subscription.remove();if(Platform.OS==='web')globalThis.removeEventListener('hashchange',hash);};
   },[]);
-  const [loaded, error] = useFonts({ Inter_400Regular, Inter_500Medium, CormorantGaramond_600SemiBold, CormorantGaramond_700Bold });
+  const [loaded, error] = useFonts({ Inter_400Regular, Inter_500Medium, LibreBaskerville_700Bold, CormorantGaramond_700Bold });
   if (!loaded && !error) return <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
     <Image source={branding.icon} accessibilityLabel={t('common.loading')} resizeMode="contain" style={{ width: 160, height: 160, borderRadius: 24 }} />
   </View>;

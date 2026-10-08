@@ -63,7 +63,7 @@ export function LobbyScreen({ onLeave, onBack, roomCode }: { onLeave: () => void
       paddingLeft: Math.max(insets.left, wide ? 40 : 20), paddingRight: Math.max(insets.right, wide ? 40 : 20),
     }]}>
       <View style={styles.content}>
-        <AppHeader actions={<Pressable accessibilityRole="button" onPress={onLeave} style={styles.exit}><Text style={{ color: colors.accent }}>{ui("common.exit_preview")}</Text></Pressable>} />
+        <AppHeader lobby actions={<Pressable accessibilityRole="button" onPress={onLeave} style={styles.exit}><Text style={{ color: colors.accent }}>{ui("common.exit_preview")}</Text></Pressable>} />
         <View style={styles.hero}>
           <Pressable accessibilityRole="button" onPress={onBack} style={styles.exit}><Text style={styles.lightLink}>{ui("common.all_games_arrow")}</Text></Pressable>
           <Text style={styles.eyebrow}>{ui("common.callbreak_room")}</Text>

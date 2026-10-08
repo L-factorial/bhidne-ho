@@ -11,6 +11,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 
 from pydantic import Field, ValidationError, model_validator
 
+from app.multiplayer.card_themes import CardThemeId
 from app.multiplayer.table import TableState
 from app.runtime.command_runtime import CommandSession, OutgoingEvent
 from app.test_games.service import HostedGame
@@ -33,6 +34,7 @@ class CreateTablePayload(Record):
     name: Annotated[str, Field(min_length=1, max_length=60)] = 'Table'
     invitees: list[Identity] = Field(default_factory=list, max_length=20)
     notify_room: bool = False
+    card_theme: CardThemeId = "kathmandu"
     replace_table_id: UUID | None = None
     replace_revision: Nonnegative | None = None
 
@@ -194,7 +196,7 @@ class RoomCreationExecutor:
                     events.append(OutgoingEvent(dict(type='TABLE_STATE_CHANGED', table_id=old_game.table.table_id,
                         match_id=old_game.match_id, table_revision=payload.replace_revision + 1)))
                 game = HostedGame(claim.target.room_id, payload.capacity, [actor],
-                    name=' '.join(payload.name.split()), game_type=payload.game_type,
+                    name=' '.join(payload.name.split()), game_type=payload.game_type, card_theme=payload.card_theme,
                     table=TableState(table_id=table_id.hex), commands=CommandSession(match_id=match_id.hex))
                 if game.game_type == 'flush':
                     game.flush_seats[actor] = 1

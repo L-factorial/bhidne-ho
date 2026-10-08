@@ -4,7 +4,7 @@ import { useUiLanguage } from '../i18n/useUiLanguage';
 import {Pressable, View} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fonts, useTheme } from '../theme';
+import { fonts, typography, useTheme } from '../theme';
 
 export function LobbyNavigation({ selected, onSelect }: { selected: 'home' | 'friends' | 'chat'; onSelect: (tab: 'home' | 'friends' | 'chat') => void }) {
   useUiLanguage();
@@ -23,7 +23,7 @@ export function LobbyNavigation({ selected, onSelect }: { selected: 'home' | 'fr
         style={({ pressed }) => ({ flex: 1, minHeight: 64, justifyContent: 'center', alignItems: 'center', gap: 4,
           opacity: pressed ? 0.7 : 1 })}>
         <Ionicons name={item.outline} size={21} color={selected === item.key ? c.accent : c.textMuted} />
-        <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: selected === item.key ? c.accent : c.textMuted }}>{item.label}</Text>
+        <Text style={{ fontFamily: fonts.medium, fontSize: typography.navigation, color: selected === item.key ? c.accent : c.textMuted }}>{item.label}</Text>
       </Pressable>)}
     </View>
   </View>;

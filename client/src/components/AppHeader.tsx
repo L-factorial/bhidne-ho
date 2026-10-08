@@ -1,6 +1,6 @@
 import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
-import { fonts, useTheme } from '../theme';
+import { fonts, typography, useTheme } from '../theme';
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {Pressable, View, useWindowDimensions} from 'react-native';
@@ -25,8 +25,8 @@ export function AppHeader({ title, actions, inlineActions, hideProfile = false, 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
         {onBack && <Pressable accessibilityRole="button" accessibilityLabel={ui('common.back')} onPress={onBack} style={{minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center'}}><Ionicons name="arrow-back" size={22} color={colors.textMuted} /></Pressable>}
         <BrandIcon size={compact ? headerLogoSize.compact : headerLogoSize.regular} />
-        {!title && <Text numberOfLines={1} style={{ flexShrink: 1, color: colors.text, fontFamily: lobby ? fonts.editorial : fonts.medium, fontSize: lobby ? (compact ? 24 : 28) : compact ? 16 : 18 }}>{ui('common.brand_name')}</Text>}
-        {!!title && <Text accessibilityRole="header" style={{ flexShrink: 1, color: colors.text, fontFamily: fonts.medium, fontSize: 18 }}>{title}</Text>}
+        {lobby && !title && <Text numberOfLines={1} style={{ flexShrink: 1, color: colors.text, fontFamily: fonts.editorial, fontSize: typography.brand }}>{ui('common.brand_name')}</Text>}
+        {!!title && <Text accessibilityRole="header" style={{ flexShrink: 1, color: colors.text, fontFamily: fonts.editorial, fontSize: typography.pageTitle }}>{title}</Text>}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
         {inlineActions}

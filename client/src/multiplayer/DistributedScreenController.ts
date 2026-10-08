@@ -76,11 +76,11 @@ export class DistributedScreenController {
   table(view: SelectedTable, command: string, payload: Payload = {}) { return this.submit(()=>tableControl(this.command,view,command,payload)); }
   room(room: string, command: string, payload: Payload = {}) { return this.submit(()=>roomControl(this.command,room,command,payload)); }
   leave(view: LeaveView) { return this.submit(()=>leaveControl(this.command,view)); }
-  lobby(view: LeaveView, action: '/join'|'/leave'|'/start'|'/end'|'/settings'|'/marriage-settings'|'/flush-settings'|'/rule-vote'|'/next-deal', payload: Payload = {}) {
+  lobby(view: LeaveView, action: '/join'|'/leave'|'/start'|'/end'|'/settings'|'/marriage-settings'|'/flush-settings'|'/rule-vote'|'/card-theme'|'/next-deal', payload: Payload = {}) {
     if (action === '/leave') return this.leave(view);
     if (action === '/next-deal') return this.game(view,'NEXT_DEAL',payload);
     const commands = { '/join':'join-seat', '/start':'start', '/end':'end', '/settings':'settings',
-      '/marriage-settings':'marriage-settings', '/flush-settings':'flush-settings', '/rule-vote':'rule-vote' };
+      '/marriage-settings':'marriage-settings', '/flush-settings':'flush-settings', '/rule-vote':'rule-vote', '/card-theme':'card-theme' };
     return this.table(view,commands[action],payload);
   }
   chat(target: CommandTarget, text: string) { return this.submit(()=>chatControl(this.command,target,text)); }

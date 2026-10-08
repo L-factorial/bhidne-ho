@@ -49,6 +49,7 @@ class HostedGame:
     capacity: int
     users: list[str]
     name: str = "Table"
+    card_theme: str = "kathmandu"
     table: TableState = field(default_factory=TableState)
     previous_match_id: str | None = None
     rule_proposal: dict | None = None
@@ -266,6 +267,8 @@ class TestGameService(GameTableLifecycle, RuleProposals):
 
     def _snapshot(self, game, user_id):
         result = self._game_snapshot(game, user_id)
+        from app.multiplayer.card_themes import card_theme_view
+        result.update(card_theme_view(game, user_id))
         result["table_name"] = game.name
         result["path"] = f"{game.room_id}/{game.name}"
         result["tables"] = self.table_previews(game.room_id, user_id)
@@ -427,7 +430,9 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             async with game.lock:
                 await self._try_record_completed_ledger(game)
 
-    async def create(self, room_id, user_id, capacity, game_type="callbreak", name="Table", invitees=None):
+    async def create(self, room_id, user_id, capacity, game_type="callbreak", name="Table", invitees=None, card_theme="kathmandu"):
+        from app.multiplayer.card_themes import CardThemePayload
+        card_theme = CardThemePayload(card_theme=card_theme).card_theme
         await self._member(room_id, user_id)
         invitees = list(dict.fromkeys(invitees or []))
         if len(invitees) > 20:
@@ -457,7 +462,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                 raise HTTPException(422, "Table name must be between 1 and 60 characters.")
             if any(g.name.casefold() == normalized.casefold() and not g.ended for g in self._room_games(room_id)):
                 raise HTTPException(409, "An open table with that name already exists in this room.")
-            game = HostedGame(room_id, capacity, [user_id], name=normalized, game_type=game_type)
+            game = HostedGame(room_id, capacity, [user_id], name=normalized, game_type=game_type, card_theme=card_theme)
             if game_type == "flush": game.flush_seats[user_id] = 1
             self.tables.setdefault(room_id, {})[game.match_id] = game
             self.games[room_id] = game  # Legacy default: most recently created table.
@@ -693,6 +698,18 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                     await self._deliver(game, event)
                 await self._publish(game)
                 return self._snapshot(game, user_id)
+
+    async def change_card_theme(self, room_id, user_id, body):
+        from app.multiplayer.card_themes import set_card_theme
+        await self._member(room_id, user_id)
+        game = self._get(room_id, body.match_id)
+        async with game.lock:
+            await self._member(room_id, user_id, game)
+            detail = set_card_theme(game, user_id, body.card_theme)
+            if detail:
+                raise HTTPException(403 if not game.ended else 409, detail)
+            await self._publish(game)
+            return self._snapshot(game, user_id)
 
     async def configure(self, room_id, user_id, body):
         await self._member(room_id, user_id)

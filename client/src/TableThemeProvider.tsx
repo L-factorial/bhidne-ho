@@ -3,9 +3,9 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import { isTableThemeId, tableThemes, type TableThemeId } from './tableThemes';
 
 const storageKey = 'bhidne.table-theme.v1';
-const TableThemeContext = createContext({ id: 'classic' as TableThemeId, select: (_id: TableThemeId) => {} });
+const TableThemeContext = createContext({ id: 'dusk' as TableThemeId, select: (_id: TableThemeId) => {} });
 export function TableThemeProvider({ children }: { children: ReactNode }) {
-  const [id, setId] = useState<TableThemeId>('classic');
+  const [id, setId] = useState<TableThemeId>('dusk');
   const [ready, setReady] = useState(false);
   const changed = useRef(false);
   const writes = useRef(Promise.resolve());

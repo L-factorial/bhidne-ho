@@ -422,6 +422,39 @@ The server endpoint remains compatible with older installed clients.
 `src/theme.ts` owns the shared semantic colors. Use `useTheme()` for inline colors
 and `useThemedStyles()` for stylesheet factories.
 
+The shared theme picker offers Ivory Light, Espresso Brown, Midnight Navy,
+Charcoal Monochrome, and Evergreen Green. Midnight Navy is the default when no
+preference is saved; existing theme IDs and device preferences remain compatible.
+Libre Baskerville is used for headings and the lobby brand; Inter is used for
+body copy and controls. Shared sizes are 26px for the brand, 22px for page
+headings, 20px for game titles, 16px for body/buttons, 15px for tabs, and 14px
+for metadata/navigation. Compact game layouts may use smaller headings.
+Only lobby headers show the brand name beside the logo; other headers retain
+the logo, page title, and navigation. Theme colors apply to all pages, while
+card faces and suit colors stay recognizable.
+
+Card-back artwork is shared by everyone at a table. Both table-creation forms
+let the creator choose its initial **Card theme**, using their saved device
+preference as the default. Every game's hamburger menu has **Choose card theme**.
+The current dealer controls changes in Call Break and Flush; the creator controls
+pregame and Marriage (which has no explicit dealer role). If the dealer leaves,
+control falls back to the first remaining seated creator/player. Other players
+can preview the designs but cannot select them. The server enforces this policy.
+
+The ten bundled Nepal landmark designs update face-down cards through the
+shared table snapshot. Theme changes do not advance game turns or change the app
+palette or revealed cards. The table choice survives recovery and rematches;
+menu changes do not overwrite other players' saved next-table defaults.
+`CardThemeProvider` stores those defaults, while `TableCardThemeProvider` displays
+the authoritative table choice. Existing tables default to Kathmandu Durbar Square.
+
+`tests/browser/card-themes.cjs` checks create defaults/reload persistence,
+Escape dismissal, shared hidden-card updates, read-only observers and control
+handoff using two isolated players in all three games. Mobile/desktop coverage
+uses 390px and 1280px. Run against a local legacy-mode export on port 8099 with
+the same intercepted snapshot fixtures used by `lobby-followup.cjs`; all requests
+are intercepted and no real tables or player messages are created.
+
 ### Flush rooms
 
 Choose Flush to create a 2–5-player game. The creator can configure boot, starting
