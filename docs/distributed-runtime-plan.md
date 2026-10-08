@@ -7253,3 +7253,35 @@ implementation request before changing card rendering or Marriage turn behavior.
   This increment is local and has not been committed or deployed.
 - Exact next step: review the dealer-selection flow, then commit/deploy if
   requested. Capacity/HA/operational work remains separate.
+
+### 2026-10-07 — Callbreak dealer-selection release deployed
+
+- Completed and pushed the backend implementation in
+  `03ce086cb9fde94a7f278d2e75e94e2ec3d3aa5b`, following the frontend commit
+  `678606b744f8cb2a5c4b3f0540cd95768bc050ce`. Both production application
+  hosts (`168.144.105.49`, `165.245.180.205`) now run the complete release,
+  immutable image `sha256:a04b911b96f4290cb8e4ace67c8a7d583d289993fe3811d55c3422ff066c0738`.
+- Retained the installed receiver's release lock, schema/dependency preflight,
+  peer-health checks and container hardening. Both backends were healthy before
+  either frontend switched. No migrations, credentials or infrastructure changes.
+- Existing implementation verification remains the 383 focused backend tests,
+  68 follow-up draw/protocol tests, two legacy full-match/rematch checks and all
+  399 client tests documented above. For this release, all 41 receiver tests and
+  a fresh production TypeScript/web export pass. A read-only compatibility check
+  loaded all 39 production table checkpoints before activation. Both fresh live
+  server registrations advertise callbreak_dealer_selection and shared_card_themes.
+- Both hosts' exact revision/image, all 258 committed backend/game source hashes,
+  and matching frontend index/JavaScript hashes were verified. Public API health,
+  APNs, the dealer-selection bundle and all ten card-image hashes pass. Mobile
+  Chrome startup, font loading and absence of JavaScript errors pass.
+- Evidence: `/private/tmp/bhidne-03ce086-direct/verification.json`,
+  `/private/tmp/bhidne-03ce086-rollout.log`,
+  `/private/tmp/bhidne-dealer-release-web.log` and
+  `/private/tmp/bhidne-03ce086-production-live.png`.
+- Limitations: live checks created no accounts, tables or messages; dealer-draw
+  interactions use the passing isolated multiplayer fixtures. No full backend
+  process-suite rerun or signed native build was performed. Existing games keep
+  their dealer; the selection draw starts for newly started first-table games.
+  Old-code rollback after new checkpoint writes still requires compatibility review.
+- Exact next step: refresh the production web app and review the dealer draw
+  in a new Callbreak table. Installed native apps require a separate signed build.
