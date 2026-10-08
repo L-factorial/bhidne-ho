@@ -1,5 +1,11 @@
 // Editable English callbreak copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "choose_first_dealer": "Choose the first dealer",
+  "dealer_draw_rules": "Pick one face-down card in seat order. Lowest rank deals first: 2 is lowest, A is highest. If ranks tie, the last picker wins.",
+  "your_dealer_pick": "Your turn · Pick a card below",
+  "waiting_dealer_pick": "Waiting for {{player}} to pick a card",
+  "pick_dealer_card": "Pick face-down card {{number}}",
+  "selected_dealer": "{{player}} drew the lowest card and deals first.",
   "bid_rules_help": "Bid 1–{{max}}. Make your bid to score that many points, plus 0.1 per extra trick. Miss it and lose your bid. Highest total wins.",
   "turn_help": "Each player confirms their bid and taps a card to play. No turn time limit.",
   "rules_help": "Five deals. Spades are trump. Follow suit and beat the leading card when possible. When void, play a winning spade if you can; otherwise discard. The trick winner leads next.",

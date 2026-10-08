@@ -27,6 +27,7 @@ import { radii, fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeCol
 import type { ActionAck } from '../multiplayer/PendingGameAction';
 import type { PlayerPhrase } from '../multiplayer/pokes';
 import { PokeComposer } from '../components/PokeComposer';
+import { DealerSelectionTable } from '../components/DealerSelectionTable';
 
 export type PlayMode = 'manual';
 
@@ -53,6 +54,8 @@ export type RoomSnapshot = {
   players?: { player_id: number; user_id: string; display_name?: string; avatar_url?: string; connected?: boolean | null }[]; your_player_id?: number | null; can_join?: boolean;
   play_mode?: PlayMode; remaining_ms?: number | null; error?: string | null;
   game?: { revision: number; phase: string; finished: boolean; winners: number[]; turn: { player_id: number | null };
+    dealer_selection?: { complete: boolean; current_player: number | null; dealer: number | null;
+      available_positions: number[]; picks: { player_id: number; position: number; card: string }[] } | null;
     current_trick: Trick | null; scores_tenths: number[] };
   deal?: { attempt?: number; deal_number: number; dealer: number; tricks_completed: number; tricks_required: number; tricks: Trick[];
     players: { player_id: number; bid: number | null; tricks_won: number; cards_remaining: number }[] };
@@ -128,6 +131,12 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
       setPokeNotice({ player: pokeTarget === null ? null : playerName(pokeTarget), at: Date.now() });
     }} />;
   const startCue = ended ? endedNotice : <TableStartCue snapshot={snapshot} busy={busy} onStart={onStart} onTableAction={onTableAction} onNewGame={onNewGame} />;
+  if (!ended && game?.phase === 'SELECTING_DEALER' && game.dealer_selection) return <View style={styles.page}>
+    {header}<ScrollView contentContainerStyle={{ flexGrow: 1, padding: 12, gap: 12 }}>
+      <DealerSelectionTable snapshot={snapshot} busy={busy} onPick={position => onAction('PICK_DEALER_CARD', { position })} />
+      {!!error && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
+    </ScrollView>{socialOverlay}
+  </View>;
   if (ended && (!game || !deal)) return <View style={styles.page}>{header}<View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>{endedNotice}</View></View>;
   if (!game || !deal) return <View style={styles.page}>
     {header}
@@ -168,6 +177,8 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     }]}><View style={{ width }}>
     <Text style={styles.meta}>{ui("callbreak.live_deal_summary", { "label": ui("callbreak.deal") + " ", "deal": deal.deal_number, "completed": deal.tricks_completed, "total": deal.tricks_required })}</Text>
     {!ended && game.phase !== 'PLAYING' && game.phase !== 'BIDDING' && !reveal && <Text style={styles.meta}>{guidance.title.replace(/^Your turn[: ·]+/i, '')}</Text>}
+    {game.phase === 'AWAITING_SHUFFLE' && deal.deal_number === 1 && game.dealer_selection?.complete &&
+      <Text accessibilityLiveRegion="polite" style={styles.status}>{ui('callbreak.selected_dealer', { player: playerName(deal.dealer) })}</Text>}
     {!!(error || snapshot.error) && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error || (snapshot.error ? playerError(snapshot.error) : ''), 'feedback')}</Text>}
     <CardTable showScores={game.phase === 'BIDDING' || game.phase === 'PLAYING'} compact={mobile && cards.open && screenHeight < 760} centerControl={ended ? endedNotice : preparation} width={width} players={players} dealerId={String(deal.dealer)} viewerId={snapshot.your_player_id ? String(snapshot.your_player_id) : ''}
       collectionKey={reveal ? trickKey : undefined} collecting={reveal && collectingTrick === trickKey}

@@ -441,7 +441,7 @@ export default {
   "private_poke_heading": "✦ JUST FOR YOU",
   "table_talk_heading": "✦ TABLE TALK",
   "flush_roster_help": "2–10 players · lock the seated roster when ready.",
-  "dealer_selection_help": "Everyone is here. The first dealer will be chosen at random.",
+  "dealer_selection_help": "Everyone is here. Start to choose the dealer: draw one card in the first game; the previous last-place player deals first in later games.",
   "accept_redeal_hint": "Review your cards · Accept or request redeal",
   "abandon_room_help": "Abandon the active match and leave the room? The match will stop for everyone.",
   "leave_seated_room_help": "You are seated in a game. Leave the game and room? The game’s departure rules still apply.",
