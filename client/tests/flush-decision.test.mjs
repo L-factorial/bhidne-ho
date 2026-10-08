@@ -39,3 +39,12 @@ test('reconnection and switching match or viewer establish a quiet baseline', ()
   assert.equal(observeFlushDecision(previous, { ...previous, scope: 'b:1', decision: 'new' }, true).cue, false);
   assert.equal(observeFlushDecision(previous, { ...previous, scope: 'a:2', decision: 'new' }, true).cue, false);
 });
+
+test('accepted side show becomes a distinct reveal decision for the requester', () => {
+  const request = {requester_id:'1',target_id:'2',revision:10,accepted:false};
+  const respond = flushDecision(view({pending_side_show:request}),true);
+  const reveal = flushDecision(view({pending_side_show:{...request,accepted:true}}),true);
+  assert.equal(respond.actor,'2');
+  assert.equal(reveal.actor,'1');
+  assert.notEqual(respond.key,reveal.key);
+});

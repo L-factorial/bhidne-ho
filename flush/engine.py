@@ -3,7 +3,7 @@ from dataclasses import replace
 from copy import deepcopy
 from random import Random
 from card_utils import standard_52, shuffle, deal
-from .actions import RevealCards, StartNextRound, DealCards, CutDeck, SkipCut, Bet, SeeCards, Fold, Show, RequestSideShow, AcceptSideShow, DeclineSideShow
+from .actions import RevealSideShow, RevealCards, StartNextRound, DealCards, CutDeck, SkipCut, Bet, SeeCards, Fold, Show, RequestSideShow, AcceptSideShow, DeclineSideShow
 from .side_show import SideShowRequest, SideShowResult, evaluate_side_show_eligibility, previous_seen_player
 from .evaluator import FlushHandEvaluator
 from .enums import GameStatus, PlayerStatus, Visibility
@@ -219,7 +219,11 @@ class FlushGameEngine:
             events.append(('SIDE_SHOW_DECLINED', {'player_id': request.requester_id, 'target_player_id': request.target_id}))
         if len(active_players(candidate)) == 1:
             return self._finish(settle(candidate), events)
-        if state.current_player_id == player_id or (request and candidate.pending_side_show is None):
+        if request and candidate.pending_side_show is None:
+            if next(p for p in candidate.players if p.player_id == request.requester_id).status is not PlayerStatus.ACTIVE:
+                candidate = replace(candidate, current_seat=next_seat(candidate))
+            events.append(('TURN_CHANGED', {'player_id': candidate.current_player_id}))
+        elif state.current_player_id == player_id:
             candidate = replace(candidate, current_seat=next_seat(candidate))
             events.append(('TURN_CHANGED', {'player_id': candidate.current_player_id}))
         return self._commit(candidate, events)
@@ -262,16 +266,12 @@ class FlushGameEngine:
     def request_side_show(self, player_id):
         require_eligible(self.can_side_show(player_id))
         state = self._state
-        p = require_turn(state, player_id)
         target = previous_seen_player(state, player_id)
-        amount = required_bet(state, p)
-        candidate = self._replace_player(replace(p,
-            total_contribution=p.total_contribution + amount, turn_bet_count=p.turn_bet_count + 1))
-        candidate = replace(candidate, pot=candidate.pot + amount,
-            pending_side_show=SideShowRequest(player_id, target.player_id, state.revision + 1),
+        candidate = replace(state,
+            pending_side_show=SideShowRequest(player_id, target.player_id, state.revision + 1, prepaid=False),
             current_seat=state.config.player_ids.index(target.player_id))
         return self._commit(candidate, [('SIDE_SHOW_REQUESTED', {'player_id': player_id,
-            'target_player_id': target.player_id, 'amount': amount}), ('TURN_CHANGED', {'player_id': target.player_id})])
+            'target_player_id': target.player_id}), ('TURN_CHANGED', {'player_id': target.player_id})])
 
     def accept_side_show(self, player_id):
         return self._respond_side_show(player_id, accept=True)
@@ -282,32 +282,47 @@ class FlushGameEngine:
     def _respond_side_show(self, player_id, *, accept):
         state = self._state
         request = state.pending_side_show
-        if state.status is not GameStatus.IN_PROGRESS or request is None or request.target_id != player_id:
+        if (state.status is not GameStatus.IN_PROGRESS or request is None
+                or request.accepted or request.target_id != player_id):
             raise InvalidActionError('Only the requested player can respond to this side-show.')
-        requester = next(p for p in state.players if p.player_id == request.requester_id)
+        candidate = replace(state, pending_side_show=replace(request, accepted=True) if accept else None,
+                            current_seat=state.config.player_ids.index(request.requester_id))
+        return self._commit(candidate, [('SIDE_SHOW_ACCEPTED' if accept else 'SIDE_SHOW_DECLINED',
+            {'player_id': request.requester_id, 'target_player_id': request.target_id}),
+            ('TURN_CHANGED', {'player_id': request.requester_id})])
+
+    def reveal_side_show(self, player_id):
+        state = self._state
+        request = state.pending_side_show
+        if (state.status is not GameStatus.IN_PROGRESS or request is None
+                or not request.accepted or request.requester_id != player_id):
+            raise InvalidActionError('Only the requester can reveal an accepted side-show.')
+        requester = next(p for p in state.players if p.player_id == player_id)
         target = next(p for p in state.players if p.player_id == request.target_id)
-        candidate = replace(state, pending_side_show=None,
-                            current_seat=state.config.player_ids.index(requester.player_id))
-        fields = {'player_id': requester.player_id, 'target_player_id': target.player_id}
-        kind = 'SIDE_SHOW_DECLINED'
-        if accept:
-            comparison = FlushHandEvaluator(state.config.rules.sequence_ace_policy).compare(requester.cards, target.cards)
-            winner, loser = (requester, target) if comparison > 0 else (target, requester)
-            result = SideShowResult(requester.player_id, target.player_id, winner.player_id, loser.player_id,
-                requester.cards, target.cards, state.revision + 1)
-            candidate = replace(candidate, side_shows=state.side_shows + (result,),
-                players=tuple(replace(p, status=PlayerStatus.FOLDED) if p.player_id == loser.player_id else p for p in state.players))
-            fields.update(winner_ids=(winner.player_id,), loser_player_id=loser.player_id)
-            kind = 'SIDE_SHOW_RESOLVED'
+        amount = 0 if request.prepaid else state.current_seen_bet
+        comparison = FlushHandEvaluator(state.config.rules.sequence_ace_policy).compare(requester.cards, target.cards)
+        winner, loser = (requester, target) if comparison > 0 else (target, requester)
+        result = SideShowResult(requester.player_id, target.player_id, winner.player_id, loser.player_id,
+            requester.cards, target.cards, state.revision + 1)
+        candidate = replace(state, pending_side_show=None, pot=state.pot + amount,
+            current_seat=state.config.player_ids.index(player_id), side_shows=state.side_shows + (result,),
+            players=tuple(replace(p, total_contribution=p.total_contribution + amount,
+                                 turn_bet_count=p.turn_bet_count + (0 if request.prepaid else 1),
+                                 status=PlayerStatus.FOLDED if p.player_id == loser.player_id else p.status)
+                          if p.player_id == player_id else replace(p, status=PlayerStatus.FOLDED)
+                          if p.player_id == loser.player_id else p for p in state.players))
         candidate = replace(candidate, current_seat=next_seat(candidate))
-        return self._commit(candidate, [(kind, fields), ('TURN_CHANGED', {'player_id': candidate.current_player_id})])
+        return self._commit(candidate, [('SIDE_SHOW_RESOLVED', {'player_id': player_id,
+            'target_player_id': target.player_id, 'winner_ids': (winner.player_id,),
+            'loser_player_id': loser.player_id, 'amount': amount}),
+            ('TURN_CHANGED', {'player_id': candidate.current_player_id})])
 
     def apply_action(self, player_id, action):
         if type(action) is CutDeck:
             return self.cut_deck(player_id, action.position)
         if type(action) is Bet:
             return self.bet(player_id, action.amount)
-        handlers = {RevealCards: self.reveal_cards, StartNextRound: self.start_next_round, DealCards: self.deal_cards, SkipCut: self.skip_cut, SeeCards: self.see_cards, Fold: self.fold, Show: self.show, RequestSideShow: self.request_side_show,
+        handlers = {RevealSideShow: self.reveal_side_show, RevealCards: self.reveal_cards, StartNextRound: self.start_next_round, DealCards: self.deal_cards, SkipCut: self.skip_cut, SeeCards: self.see_cards, Fold: self.fold, Show: self.show, RequestSideShow: self.request_side_show,
                     AcceptSideShow: self.accept_side_show, DeclineSideShow: self.decline_side_show}
         if type(action) not in handlers:
             raise InvalidActionError('Unknown Flush action.')

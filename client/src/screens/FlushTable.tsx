@@ -1,3 +1,4 @@
+import {TurnGlow} from '../components/TurnGlow';
 import {AppText as Text} from '../components/AppText';
 import { gameAttention } from '../notifications/gameAttention';
 import { GameModal as Modal } from '../components/GameModal';
@@ -30,9 +31,11 @@ import type { PlayerPhrase } from '../multiplayer/pokes';
 import type { FlushRules } from '../multiplayer/flush';
 
 const labels: Record<keyof FlushRules, string> = {
+  require_minimum_bets_by_everyone: 'Require minimum bets by every remaining player',
+  minimum_bets_before_show: 'Minimum bets per player before showdown',
   allow_side_show: 'Allow private side-show',
   boot_amount: 'Boot per player (0 disables)', initial_blind_bet: 'Blind bet',
-  minimum_bet_rounds_before_side_show: 'Personal bets before side-show', blind_to_seen_bet_multiplier: 'Seen bet multiplier',
+  minimum_bet_rounds_before_side_show: 'Betting cycles before side-show', blind_to_seen_bet_multiplier: 'Seen bet multiplier',
   minimum_blind_rounds_before_show: 'Personal blind bets before show', maximum_active_players_for_blind_show: 'Blind show: at most N active players',
   allow_blind_show: 'Allow blind show', allow_seen_show: 'Allow seen show', show_only_when_two_players_remain: 'Show only with two players',
   minimum_players: 'Minimum players', maximum_players: 'Maximum players', show_cost_multiplier: 'Show cost multiplier (0 is free)',
@@ -128,6 +131,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   const [acknowledged, setAcknowledged] = useState(() => { try { return Number(globalThis.sessionStorage?.getItem(ackKey) || 0); } catch { return 0; } });
   const [flippedAll, setFlippedAll] = useState(false);
   const [resultOpen, setResultOpen] = useState(false);
+  useEffect(()=>{if(myTurn&&pub?.pending_side_show)setHandOpen(true);},[myTurn,pub?.pending_side_show?.revision,pub?.pending_side_show?.accepted]);
   const comparisonOpen = !ended && !!comparison && comparison.revision > acknowledged;
   useEffect(() => { setFlippedAll(false); setResultOpen(false); }, [comparison?.revision]);
   useEffect(() => { if (!flippedAll) return; const timer = setTimeout(() => setResultOpen(true), 400); return () => clearTimeout(timer); }, [flippedAll]);
@@ -142,6 +146,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   const button = (label: string, action: () => void, disabled = false, primary = false, danger = false, caption = label) => {
     return <Pressable accessibilityRole="button" accessibilityLabel={label}
       disabled={disabled} accessibilityState={{ disabled }} onPress={action} style={({ pressed }) => [s.button, gameButtonStyle(colors, primary ? 'primary' : 'secondary', pressed), disabled && { opacity: visualStates.disabledOpacity }]}>
+      {['SideShowRequest',ui('flush.accept_side_show'),ui('flush.reject_side_show_button'),ui('flush.reveal_side_show')].includes(label)&&<TurnGlow active={!disabled} radius={12}/>}
       <Text style={[s.text, primary && { color: colors.onPrimary }, danger && { color: colors.onTableHeader }]}>{caption}</Text>
     </Pressable>;
   };
@@ -173,8 +178,11 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
     !mine?.actions.show.allowed && mine?.actions.show.reason ? ui("common.show_status", { "status": uiLabel(mine.actions.show.reason) }) : null,
     settings.rules.allow_side_show && !mine?.actions.side_show.allowed && mine?.actions.side_show.reason ? ui("flush.side_show_status", { "status": uiLabel(mine.actions.side_show.reason) }) : null,
   ].filter(Boolean) : [];
+  const sideNotice=snapshot.flush?.side_show_events?.at(-1);
+  const sideMessage=sideNotice&&['SIDE_SHOW_REQUESTED','SIDE_SHOW_ACCEPTED','SIDE_SHOW_DECLINED'].includes(sideNotice.kind)
+    ? ui(sideNotice.kind==='SIDE_SHOW_REQUESTED'?'flush.side_show_requested_notice':sideNotice.kind==='SIDE_SHOW_ACCEPTED'?'flush.side_show_accepted_notice':'flush.side_show_declined_notice',{requester:name(sideNotice.player_id),player:name(sideNotice.target_player_id)}) : null;
   const turnText = ended ? ui("rooms.table_ended") : pub?.settlement ? ui("flush.round_complete") : decision ? myTurn
-    ? pub?.pending_side_show ? ui("flush.accept_or_decline_player_s_side_show", { "player": name(pub.pending_side_show.requester_id) })
+    ? pub?.pending_side_show ? pub.pending_side_show.accepted ? ui("flush.reveal_side_show_prompt") : ui("flush.accept_or_decline_player_s_side_show", { "player": name(pub.pending_side_show.requester_id) })
       : pub?.pending_show ? ui("flush.reveal_or_fold")
       : preparing ? `${pub?.status === 'awaiting_deal' ? ui("callbreak.deal_cards") : ui("callbreak.cut_or_skip")}`
       : `${visibility} · ${[['bet', 'Bet'], ['show', 'Show'], ['side_show', 'Side-show'], ['fold', 'Fold']].filter(([kind]) => available(kind)).map(([, label]) => uiLabel(label, 'flush')).join(' / ') || ui("common.choose_an_action")}`
@@ -194,6 +202,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
               : <Text style={s.text}>{ui("flush.waiting_for_the_creator_to_lock_the_table")}</Text> : undefined)}
           height={arenaHeight} />
       </ScrollView>
+      {sideMessage&&<Text testID="flush-side-show-notice" accessibilityLiveRegion="polite" style={{color:colors.accent,textAlign:'center'}}>{sideMessage}</Text>}
       {pub && <View pointerEvents="none" style={s.notice}><FlushFoldNotice key={`folds:${snapshot.match_id}`} snapshot={snapshot} /></View>}
       <View ref={socialAnchor.ref} onLayout={socialAnchor.onLayout} style={s.handDock} testID="flush-hand-dock">
         {!!mine && <HandAreaBar cue={gameAttention(snapshot)} open={handOpen} onToggle={() => setHandOpen(value=>!value)} attention={myTurn && connectionReady && !ended}
@@ -215,9 +224,10 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
             </>}
             {available('see_cards') && button(ui("flush.see_cards"), () => act('SEE_CARDS'), !can('see_cards'))}
             {available("show") && button(ui("flush.show_points_points", { "points": mine!.actions.show_cost }), () => act('SHOW'), !can("show"), true)}
-            {available('request_side_show') && button(ui("flush.request_side_show"), () => act('REQUEST_SIDE_SHOW'), !can('request_side_show'))}
+            {available('request_side_show') && button(ui("flush.request_side_show_button"), () => act('REQUEST_SIDE_SHOW'), !can('request_side_show'))}
             {available('accept_side_show') && button(ui("flush.accept_side_show"), () => act('ACCEPT_SIDE_SHOW'), !can('accept_side_show'), true)}
-            {available('decline_side_show') && button(ui("flush.decline_side_show"), () => act('DECLINE_SIDE_SHOW'), !can('decline_side_show'))}
+            {available('decline_side_show') && button(ui("flush.reject_side_show_button"), () => act('DECLINE_SIDE_SHOW'), !can('decline_side_show'))}
+            {available('reveal_side_show') && button(ui('flush.reveal_side_show'), () => act('REVEAL_SIDE_SHOW'), !can('reveal_side_show'), true)}
             {available('reveal_cards') && button(ui("common.reveal_cards"), () => act('REVEAL_CARDS'), !can('reveal_cards'), true)}
             {available("fold") && button(ui("flush.fold"), () => act('FOLD'), !can("fold"), false, true)}
           </>}

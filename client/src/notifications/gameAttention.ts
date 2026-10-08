@@ -43,6 +43,8 @@ export function gameAttention(snapshot:RoomSnapshot|null, local?:{marriage:boole
     if(s.flush?.public.settlement)return cue(`flush-round:${s.flush.public.round_number}`,'common.attention_round','common.attention_view_result');
     if(s.flush?.public.pending_side_show?.target_id===String(s.your_player_id) && s.flush.private?.actions.kinds.some(k=>k==='accept_side_show'||k==='decline_side_show'))
       return cue('side-show','common.attention_action','common.attention_side_show',true);
+    if(s.flush?.public.pending_side_show?.accepted && s.flush.public.pending_side_show.requester_id===String(s.your_player_id) && s.flush.private?.actions.kinds.includes('reveal_side_show'))
+      return cue('side-show-reveal','common.attention_action','common.attention_side_show',true);
     if(s.your_player_id && s.flush?.public.current_player_id===String(s.your_player_id) && s.flush.private?.actions.kinds.length)
       return cue('bet','common.attention_turn','common.attention_bet',true);
   }else if(s.your_player_id && s.game?.turn.player_id===s.your_player_id){

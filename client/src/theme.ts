@@ -8,7 +8,7 @@ export const colors = {
   // `accent` is used by existing links/headings; keep it readable on neutral surfaces.
   accent: '#7A1F2B', attention: '#D5A12A', turnText: '#6B1924', turnSurface: '#F6E5B5',
   text: '#211D1B', textMuted: '#6F655F', border: '#99867A', borderSubtle: '#E5DDD3', disabled: '#B7AAA0',
-  destructiveAction: '#AD2440', onDestructive: '#FFFFFF',
+  gain: '#167344', loss: '#B42335', destructiveAction: '#AD2440', onDestructive: '#FFFFFF',
   success: '#167344', successSurface: '#E5F4EC', danger: '#B42335', dangerSurface: '#FBE8EA', overlay: '#17111399',
   maalSeen: '#167344', maalUnseen: '#6F655F',
   cardFace: '#FFFCF7', cardInk: '#211B19', cardRed: '#B42335', cardClub: '#211B19', cardBorder: '#DDD2C4',
@@ -29,6 +29,7 @@ export const gameColors: ThemeColors = {
   text: '#FFF3DC', textMuted: '#C6D2C8', accent: '#F0C96A',
   border: '#7E947F', borderSubtle: '#315347', primarySoft: '#173E32',
   primary: '#AA2039', primaryPressed: '#83182D',
+  gain: '#7DE0A5', loss: '#FF9DAB',
   success: '#7DE0A5', successSurface: '#123E2B', danger: '#FF9DAB', dangerSurface: '#492630',
   warning: '#F0C96A', warningSoft: '#493A20',
   maalSeen: '#7DE0A5', maalUnseen: '#C6D2C8',

@@ -1,3 +1,4 @@
+import {CompactCardFace} from '../components/CompactCardFace';
 import {AppText as Text} from '../components/AppText';
 import { gameAttention } from '../notifications/gameAttention';
 import { ui, uiLabel } from '../i18n/copy.ts';
@@ -250,9 +251,8 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
                   onPress={()=>setSelected(ids=>ids.length===1&&ids[0]===card.card_id?[]:[card.card_id])}
                   style={[s.card, {width:48,height:76},back&&s.cardBack,!back&&card.card_id===drawnId&&s.drawnCard,checked&&s.selectedCard]}>
                   {!!marker&&<Text pointerEvents="none" testID={`marriage-card-marker-${marker}`} style={{position:'absolute',top:-17,fontSize:18,lineHeight:18,fontWeight:'bold',color:marker==='discard'?'#DC2626':'#15803D'}}>▼</Text>}
-                  {back?<MarriageCardBack/>:<Text style={[s.face,{fontSize:21,color:card.suit==='H'||card.suit==='D'?colors.cardRed:colors.cardInk}]}>{marriageFace(card)}</Text>}
+                  {back?<MarriageCardBack/>:<CompactCardFace rank={card.rank} suit={card.suit} joker={card.card_type==='man'}/>}
                   {!back&&card.card_id===drawnId&&<Text style={{fontSize:9,color:colors.cardInk}}>{ui("marriage.new")}</Text>}
-                  {!back&&<Text style={s.copy}>{card.card_type==='man'?ui("common.man"):ui("common.copy_copynumber", { "copyNumber": (card.deck_index??0)+1 })}</Text>}
                 </MarriageHandCard>;
               })}
         </View>

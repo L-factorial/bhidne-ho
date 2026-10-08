@@ -1,3 +1,4 @@
+import {CompactCardFace} from './CompactCardFace';
 import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -61,7 +62,7 @@ export function CardTable({ players, viewerId, activePlayerId, width, plays, pen
                   { translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [0, winner ? winner.x - (layout.center.x - 72 + x) : 0] }) },
                   { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, winner ? winner.y - (layout.center.y - 57 + y) : 0] }) },
                   { scale: progress.interpolate({ inputRange: [0, 1], outputRange: [1, .35] }) }] }]}>
-                <Text style={[styles.playedText, /[♥♦]/.test(play.card) && styles.red, play.card.endsWith('♣') && styles.club]}>{play.card}</Text>
+                <CompactCardFace compact rank={play.card.slice(0,-1)} suit={play.card.slice(-1)}/>
                 <Text style={styles.playOrder}>{play.playerId === winnerPlayerId ? ui("callbreak.won") : playIndex === 0 ? ui("callbreak.led") : playIndex + 1}</Text>
               </Animated.View>
             </View>;

@@ -42,6 +42,7 @@ class CommandName(str, Enum):
     FOLD_FOR_LEAVE = 'FOLD_FOR_LEAVE'
     SHOW = 'SHOW'
     REVEAL_CARDS = 'REVEAL_CARDS'
+    REVEAL_SIDE_SHOW = 'REVEAL_SIDE_SHOW'
     REQUEST_SIDE_SHOW = 'REQUEST_SIDE_SHOW'
     ACCEPT_SIDE_SHOW = 'ACCEPT_SIDE_SHOW'
     DECLINE_SIDE_SHOW = 'DECLINE_SIDE_SHOW'
@@ -61,6 +62,7 @@ class CommandSpec:
 
 
 COMMAND_SPECS = {
+    CommandName.REVEAL_SIDE_SHOW: CommandSpec(Empty, 'reveal_side_show', True),
     CommandName.REVEAL_CARDS: CommandSpec(Empty, 'reveal_cards', True),
     CommandName.START_NEXT_ROUND: CommandSpec(Empty, 'start_next_round', True),
     CommandName.DEAL_CARDS: CommandSpec(Empty, 'deal_cards', True),
@@ -162,6 +164,7 @@ class EventName(str, Enum):
     PLAYER_FOLDED = 'PLAYER_FOLDED'
     SHOW_REQUESTED = 'SHOW_REQUESTED'
     ROUND_FINISHED = 'ROUND_FINISHED'
+    SIDE_SHOW_ACCEPTED = 'SIDE_SHOW_ACCEPTED'
     SIDE_SHOW_REQUESTED = 'SIDE_SHOW_REQUESTED'
     SIDE_SHOW_DECLINED = 'SIDE_SHOW_DECLINED'
     SIDE_SHOW_RESOLVED = 'SIDE_SHOW_RESOLVED'

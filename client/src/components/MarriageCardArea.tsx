@@ -5,8 +5,9 @@ import { ActionCue } from './ActionCue';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import {AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, View} from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
-import { marriageFace, type MarriageMove } from '../multiplayer/marriage';
+import { type MarriageMove } from '../multiplayer/marriage';
 import { MarriagePlayers } from './MarriagePlayers';
+import {CompactCardFace} from './CompactCardFace';
 import { MarriageCardBack } from './MarriageCardBack';
 import { visualStates, radii, fonts, gameButtonStyle, useThemedStyles, type ThemeColors } from '../theme';
 
@@ -33,7 +34,7 @@ function FlyingCard({ move, origin, destination, done }: { move: MarriageMove; o
         { rotate: progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: ['-8deg', '8deg', '0deg'] }) },
         { scale: progress.interpolate({ inputRange: [0, 0.8, 1], outputRange: [1, 1, 0.75] }) },
       ],
-    }]}>{move.card ? <Text style={[styles.face, move.card.suit === 'H' || move.card.suit === 'D' ? styles.red : null]}>{marriageFace(move.card)}</Text> : <MarriageCardBack />}</Animated.View>;
+    }]}>{move.card ? <CompactCardFace rank={move.card.rank} suit={move.card.suit} joker={move.card.rank === null} /> : <MarriageCardBack />}</Animated.View>;
 }
 
 export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAnchor, onResult }: {
@@ -96,8 +97,7 @@ export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAncho
         <Pressable ref={discard} testID="marriage-discard-spot" accessibilityRole="button" accessibilityLabel={ui("marriage.take_discard")}
           disabled={!legalSource('discard')} accessibilityState={{ disabled: !legalSource('discard') }}
           onPress={() => onAction('DRAW_CARD', { source: 'discard' })} style={[styles.card, legalSource('discard') && styles.legal]}>
-          <Text style={[styles.face, pub.top_discard?.suit === 'H' || pub.top_discard?.suit === 'D' ? styles.red : null]}>
-            {current?.kind === 'CARD_DISCARDED' ? '' : pub.top_discard ? marriageFace(pub.top_discard) : '—'}</Text>
+          {current?.kind !== 'CARD_DISCARDED' && (pub.top_discard ? <CompactCardFace rank={pub.top_discard.rank} suit={pub.top_discard.suit} joker={pub.top_discard.rank === null} /> : <Text style={styles.face}>—</Text>)}
         </Pressable>
         {legalSource('discard') && <ActionCue active style={styles.caption}>{ui("marriage.tap_draw")}</ActionCue>}
       </View>
@@ -113,7 +113,7 @@ export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAncho
         <Pressable accessibilityRole="button" disabled={!privateMaal} accessibilityState={{ disabled: !privateMaal, expanded: maalVisible }}
           onPress={() => setMaalFace({ key: maalKey, visible: !maalVisible })} testID="marriage-maal-spot"
           accessibilityLabel={privateMaal ? maalLabel : ui("marriage.maal_hidden")} style={[styles.card, !maalVisible && styles.back]}>
-          {maalVisible && privateMaal ? <Text style={[styles.face, (privateMaal.tiplu.suit === 'H' || privateMaal.tiplu.suit === 'D') && styles.red]}>{marriageFace(privateMaal.tiplu)}</Text> : <MarriageCardBack />}
+          {maalVisible && privateMaal ? <CompactCardFace rank={privateMaal.tiplu.rank} suit={privateMaal.tiplu.suit} /> : <MarriageCardBack />}
         </Pressable>
         <Text style={styles.caption}>{maalLabel}</Text>
       </View>

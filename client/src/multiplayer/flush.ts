@@ -1,4 +1,5 @@
 export type FlushRules = {
+  require_minimum_bets_by_everyone: boolean; minimum_bets_before_show: number;
   boot_amount: number; initial_blind_bet: number;
   minimum_bet_rounds_before_side_show: number; blind_to_seen_bet_multiplier: number;
   minimum_blind_rounds_before_show: number; maximum_active_players_for_blind_show: number;
@@ -9,10 +10,11 @@ export type FlushRules = {
 };
 export type FlushSettings = { rules: FlushRules; rules_revision: number; locked: boolean };
 export type FlushView = {
+  side_show_events?: {sequence:number;revision:number;kind:string;player_id:string;target_player_id:string}[];
   folds?: { sequence: number; revision: number; player_id: string }[];
   participants?: { player_id: string; display_name: string }[];
   bets?: import('./flushTable').FlushBet[];
-  public: { dealer_id?: string; pending_show: { requester_id: string; target_id: string } | null; revealed_hands: { player_id: string; cards: {rank: number; suit: string}[] }[]; round_number: number; next_dealer_id: string | null; round_results: { round_number: number; winner_ids: string[]; net_changes: { player_id: string; amount: number }[] }[]; pending_side_show: { requester_id: string; target_id: string; revision: number } | null; status: string; current_player_id: string | null; current_blind_bet: number; current_seen_bet: number; pot: number;
+  public: { dealer_id?: string; pending_show: { requester_id: string; target_id: string } | null; revealed_hands: { player_id: string; cards: {rank: number; suit: string}[] }[]; round_number: number; next_dealer_id: string | null; round_results: { round_number: number; winner_ids: string[]; net_changes: { player_id: string; amount: number }[] }[]; pending_side_show: { requester_id: string; target_id: string; revision: number; accepted?: boolean } | null; status: string; current_player_id: string | null; current_blind_bet: number; current_seen_bet: number; pot: number;
     players: { player_id: string; status: string; visibility: string; blind_bet_count: number; turn_bet_count: number; total_contribution: number }[];
     settlement: { winner_ids: string[]; payouts: { player_id: string; amount: number }[];
       shown_hands: { player_id: string; cards: { rank: number; suit: string }[] }[] } | null };

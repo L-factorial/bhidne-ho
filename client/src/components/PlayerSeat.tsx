@@ -1,3 +1,4 @@
+import {ActiveTurnRing} from './ActiveTurnRing';
 import {AppText as Text} from './AppText';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -46,13 +47,14 @@ export function PlayerSeat({ name, mine = false, active = false, connected = tru
     <Animated.View style={{ transform: [{ scale }], width: size, height: size, borderRadius: size / 2, borderWidth: active ? 3 : 1,
       borderColor: target ? colors.accent : active ? colors.attention : colors.borderSubtle, borderStyle: connected ? 'solid' : 'dashed',
       backgroundColor: active ? colors.turnSurface : colors.surface, alignItems: 'center', justifyContent: 'center' }}>
+      <ActiveTurnRing active={active} size={size}/>
       {avatarUrl && failedImage !== avatarUrl ? <Image source={{ uri: avatarUrl }} onError={() => setFailedImage(avatarUrl)}
         style={{ width: size - 6, height: size - 6, borderRadius: size / 2 }} /> : <View style={{ width: size - 6, height: size - 6, borderRadius: size / 2, backgroundColor: colors.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}><Ionicons accessibilityLabel={ui("common.anonymous_profile")} name="person" size={compact ? 18 : 28} color={colors.textMuted} /></View>}
     </Animated.View>
     <Text numberOfLines={1} style={{ maxWidth: '100%', backgroundColor: colors.surface, paddingHorizontal: 8, borderRadius: 8, color: colors.text, fontFamily: fonts.medium, fontSize: compact ? 11 : 12 }}>{name}</Text>
-    <Text numberOfLines={1} style={{ backgroundColor: active ? colors.turnSurface : colors.surface, paddingHorizontal: 5, borderRadius: 5, color: active ? colors.turnText : colors.textMuted, fontFamily: fonts.medium, fontSize: compact ? 8 : active && mine ? 9 : 10 }}>
-      {active ? mine ? ui("common.you") : `● ${ui('common.turn')}` : presenceLabel ? presenceLabel : mine ? ui("common.you") : dealer ? ui("common.dealer") : uiLabel(status || '')}
-    </Text>
+    {(!!presenceLabel||mine||dealer||!active)&&<Text numberOfLines={1} style={{ backgroundColor: active ? colors.turnSurface : colors.surface, paddingHorizontal: 5, borderRadius: 5, color: active ? colors.turnText : colors.textMuted, fontFamily: fonts.medium, fontSize: compact ? 8 : active && mine ? 9 : 10 }}>
+      {presenceLabel ? presenceLabel : mine ? ui("common.you") : dealer ? ui("common.dealer") : uiLabel(status || '')}
+    </Text>}
     {(active || mine || !!presenceLabel || dealer) && !!status && <Text numberOfLines={1} style={{ backgroundColor: colors.surface, paddingHorizontal: 5, borderRadius: 5, color: colors.textMuted, fontSize: 10 }}>{connected === false && active ? ui("common.offline_player", { "player": uiLabel(status || '') }) : uiLabel(status || '')}</Text>}
   </Pressable>;
 }

@@ -20,7 +20,9 @@ class FlushRulesConfig:
     maximum_active_players_for_blind_show: int = 2
     allow_blind_show: bool = True
     allow_seen_show: bool = True
-    allow_side_show: bool = False
+    allow_side_show: bool = True
+    require_minimum_bets_by_everyone: bool = False
+    minimum_bets_before_show: int = 3
     show_only_when_two_players_remain: bool = True
     minimum_players: int = 2
     maximum_players: int = 10
@@ -31,7 +33,7 @@ class FlushRulesConfig:
 
     def __post_init__(self):
         for name in ('boot_amount', 'minimum_bet_rounds_before_side_show',
-                     'minimum_blind_rounds_before_show', 'show_cost_multiplier'):
+                     'minimum_blind_rounds_before_show', 'minimum_bets_before_show', 'show_cost_multiplier'):
             integer(getattr(self, name), name)
         for name in ('initial_blind_bet', 'blind_to_seen_bet_multiplier',
                      'maximum_active_players_for_blind_show'):
@@ -40,7 +42,7 @@ class FlushRulesConfig:
         integer(self.maximum_players, 'maximum_players', self.minimum_players)
         if self.maximum_players > 10:
             raise ValueError('Flush supports at most 10 players.')
-        for name in ('allow_blind_show', 'allow_seen_show', 'allow_side_show', 'show_only_when_two_players_remain'):
+        for name in ('allow_blind_show', 'allow_seen_show', 'allow_side_show', 'require_minimum_bets_by_everyone', 'show_only_when_two_players_remain'):
             if type(getattr(self, name)) is not bool:
                 raise ValueError(f'{name} must be a boolean.')
         if not self.show_only_when_two_players_remain:

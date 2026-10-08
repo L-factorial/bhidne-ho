@@ -1,3 +1,4 @@
+import {CompactCardFace} from './CompactCardFace';
 import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -63,6 +64,6 @@ function FlipCard({ card, index, label, revealed, disabled, onFlip, autoHideMs, 
     <Animated.View accessibilityElementsHidden={!revealed} importantForAccessibility={revealed ? 'auto' : 'no-hide-descendants'} style={[StyleSheet.absoluteFill, {
       backgroundColor: colors.cardFace, borderColor: colors.cardBorder, borderWidth: 1, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backfaceVisibility: 'hidden',
       transform: [{ perspective: 600 }, { rotateY: progress.interpolate({ inputRange: [0, 1], outputRange: ['180deg', '360deg'] }) }],
-    }]}>{revealed && card && <Text style={{ fontSize: 30, color: /[HD]$/.test(card) ? colors.cardRed : colors.cardInk }}>{card.slice(0, -1)}{symbols[card.slice(-1)]}</Text>}</Animated.View>
+    }]}>{revealed && card && <CompactCardFace rank={card.slice(0,-1)} suit={card.slice(-1)}/>}</Animated.View>
   </Pressable>;
 }

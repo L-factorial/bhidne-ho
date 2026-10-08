@@ -191,7 +191,7 @@ export default {
   "you_can_take_it_using_the_draw_control": "तास लिने बटनबाट यो लिन सक्नुहुन्छ।",
   "wait_until_the_draw_action_allows_it": "तास लिन मिल्ने समयसम्म पर्खने।",
   "wait_until_the_server_allows_this_draw": "सर्भरले यो तास लिन अनुमति नदिएसम्म पर्खने।",
-  "you_can_show_after_drawing_on_your_turn": "आफ्नो पालोमा तास तानेपछि देखाउन सक्नुहुन्छ।",
+  "you_can_show_after_drawing_on_your_turn": "आफ्नो पालोमा पत्ता तान्नुअघि वा पछि देखाउन सक्नुहुन्छ।",
   "you_can_show_marriage_when_finishing_is_allowed_on_your_turn": "आफ्नो पालोमा खेल टुङ्ग्याउन मिल्दा म्यारिज देखाउन सक्नुहुन्छ।",
   "shown_cards": "देखाइएका तास",
   "view_shown_cards": "देखाइएका तास हेर्ने",

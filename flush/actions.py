@@ -28,6 +28,11 @@ class RequestSideShow:
 
 
 @dataclass(frozen=True)
+class RevealSideShow:
+    pass
+
+
+@dataclass(frozen=True)
 class AcceptSideShow:
     pass
 
@@ -62,4 +67,4 @@ class RevealCards:
     pass
 
 
-PlayerAction: TypeAlias = RevealCards | StartNextRound | DealCards | CutDeck | SkipCut | Bet | SeeCards | Fold | Show | RequestSideShow | AcceptSideShow | DeclineSideShow
+PlayerAction: TypeAlias = RevealCards | StartNextRound | DealCards | CutDeck | SkipCut | Bet | SeeCards | Fold | Show | RequestSideShow | AcceptSideShow | DeclineSideShow | RevealSideShow

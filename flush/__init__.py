@@ -3,7 +3,7 @@ from card_utils import Card, Rank, Suit
 from .engine import FlushGameEngine
 from .rules import FlushRulesConfig
 from .models import FlushConfig, FlushGameState, PlayerState, Payout, RoundSettlement, RoundResult
-from .actions import RevealCards, StartNextRound, DealCards, CutDeck, SkipCut, Bet, SeeCards, Fold, Show, PlayerAction, RequestSideShow, AcceptSideShow, DeclineSideShow
+from .actions import RevealSideShow, RevealCards, StartNextRound, DealCards, CutDeck, SkipCut, Bet, SeeCards, Fold, Show, PlayerAction, RequestSideShow, AcceptSideShow, DeclineSideShow
 from .side_show import SideShowRequest, SideShowResult, PrivateSideShow
 from .enums import (GameStatus, PlayerStatus, Visibility, AceSequencePolicy, TiePolicy,
                     TerminationReason, FlushHandRank)
@@ -18,7 +18,7 @@ from .invariants import validate_game_state
 
 __all__ = [
     'RevealCards', 'StartNextRound', 'DealCards', 'CutDeck', 'SkipCut',
-    'RequestSideShow', 'AcceptSideShow', 'DeclineSideShow', 'SideShowRequest', 'SideShowResult', 'PrivateSideShow',
+    'RevealSideShow', 'RequestSideShow', 'AcceptSideShow', 'DeclineSideShow', 'SideShowRequest', 'SideShowResult', 'PrivateSideShow',
     'Card', 'Rank', 'Suit', 'FlushGameEngine', 'FlushRulesConfig', 'FlushConfig',
     'FlushGameState', 'PlayerState', 'Payout', 'RoundSettlement', 'RoundResult', 'Bet', 'SeeCards',
     'Fold', 'Show', 'PlayerAction', 'GameStatus', 'PlayerStatus', 'Visibility',

@@ -19,7 +19,7 @@ const pearl: ThemeColors = {
   text:'#161616',textMuted:'#575757',accent:'#292929',border:'#858585',borderSubtle:'#D6D6D6',disabled:'#999999',
   primary:'#1C1C1C',primaryPressed:'#363636',onPrimary:'#FFFFFF',primarySoft:'#EEEEEE',
   attention:'#444444',turnText:'#161616',turnSurface:'#E6E6E6',
-  success:'#353535',successSurface:'#EEEEEE',danger:'#B42335',dangerSurface:'#FBE8EA',warning:'#353535',warningSoft:'#EEEEEE',
+  success:'#353535',successSurface:'#EEEEEE',gain:'#167344',loss:'#B42335',danger:'#B42335',dangerSurface:'#FBE8EA',warning:'#353535',warningSoft:'#EEEEEE',
   maalSeen:'#161616',maalUnseen:'#575757',overlay:'#00000066',shadow:'rgba(0,0,0,0.08)',
   tableHeader:'#F5F5F5',onTableHeader:'#161616',tableTrim:'#858585',tableGreen:'#E6E6E6',
   ownMessage:'#E6E6E6',resultOwnSurface:'#E6E6E6',coin:'#252525',coinBorder:'#555555',onCoin:'#FFFFFF',

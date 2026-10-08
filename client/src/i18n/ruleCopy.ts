@@ -3,9 +3,11 @@ import { uiLabel } from './copy.ts';
 // Stable protocol keys map to presentation labels; the configuration stays untouched.
 const fields: Record<string, string> = {
   "allow_side_show": "Allow private side-show",
+  "require_minimum_bets_by_everyone": "Require minimum bets by every remaining player",
+  "minimum_bets_before_show": "Minimum bets per player before showdown",
   "boot_amount": "Boot per player (0 disables)",
   "initial_blind_bet": "Blind bet",
-  "minimum_bet_rounds_before_side_show": "Personal bets before side-show",
+  "minimum_bet_rounds_before_side_show": "Betting cycles before side-show",
   "blind_to_seen_bet_multiplier": "Seen bet multiplier",
   "minimum_blind_rounds_before_show": "Personal blind bets before show",
   "maximum_active_players_for_blind_show": "Blind show: at most N active players",
@@ -21,7 +23,7 @@ const fields: Record<string, string> = {
   "jhiplu": "Jhiplu",
   "poplu": "Poplu",
   "alter": "Alter",
-  "man": "Man",
+  "man": "Joker",
   "marriage": "Marriage combination",
   "tunnela_bonus": "Extra points per Tunnela",
   "seen_payment": "Loser payment: Maal seen",

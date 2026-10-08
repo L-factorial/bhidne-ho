@@ -28,7 +28,7 @@ def validate_game_state(state):
     contributions = dict.fromkeys(state.config.player_ids, 0)
     for event in state.history:
         if event.revision >= state.round_start_revision and event.kind in (
-                'BOOT_COLLECTED', 'BET_PLACED', 'SHOW_REQUESTED', 'SIDE_SHOW_REQUESTED'):
+                'BOOT_COLLECTED', 'BET_PLACED', 'SHOW_REQUESTED', 'SIDE_SHOW_REQUESTED', 'SIDE_SHOW_RESOLVED'):
             require(event.player_id in contributions and type(event.amount) is int and event.amount >= 0,
                     'Invalid contribution event.')
             contributions[event.player_id] += event.amount
@@ -61,7 +61,9 @@ def validate_game_state(state):
         require(all(p.status is PlayerStatus.ACTIVE and p.visibility is Visibility.SEEN
                     for p in state.players if p.player_id in (request.requester_id, request.target_id)), 'Side-show requires active seen players.')
         require(sum(p.status is PlayerStatus.ACTIVE for p in state.players) >= 3, 'Side-show requires at least three active players.')
-        require(state.current_player_id == request.target_id, 'Only side-show target is actionable.')
+        require(type(request.accepted) is bool and type(request.prepaid) is bool, 'Invalid side-show phase.')
+        require(state.current_player_id == (request.requester_id if request.accepted else request.target_id),
+                'Only the side-show decision actor is actionable.')
     for result in state.side_shows:
         require(result.requester_id != result.target_id
                 and {result.winner_id, result.loser_id} == {result.requester_id, result.target_id}, 'Invalid side-show result seats.')

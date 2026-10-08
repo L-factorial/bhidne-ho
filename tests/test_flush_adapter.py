@@ -163,6 +163,11 @@ async def test_side_show_target_authorization_retry_and_private_unicast():
     result, request = await act('u1', 'ACCEPT_SIDE_SHOW')
     assert result['action_ack']['status'] == 'accepted'
     assert a.snapshot()['view']['status'] == 'in_progress'
+    assert a.snapshot()['view']['pending_side_show']['accepted']
+    delivered.clear()
+    result, request = await act('u2', 'REVEAL_SIDE_SHOW')
+    assert result['action_ack']['status'] == 'accepted'
+    assert a.snapshot()['view']['pot'] == pot + 20
     for event in delivered:
         payload = event.message['payload']
         if event.message['event'] == 'PLAYER_STATE':
@@ -173,7 +178,7 @@ async def test_side_show_target_authorization_retry_and_private_unicast():
         else:
             assert payload['event']['shown_hands'] == []
     revision = a.revision
-    await runtime.execute(session, target, 'u1', request, deliver)
+    await runtime.execute(session, target, 'u2', request, deliver)
     assert a.revision == revision
 
 

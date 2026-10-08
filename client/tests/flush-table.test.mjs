@@ -40,3 +40,14 @@ test('two through ten seats stay separate and the first seat stays bottom center
     }
   }
 });
+
+test('session net counts settled rounds once and includes current round exposure', async () => {
+  const {flushPlayerNet} = await import('../src/multiplayer/flushTable.ts');
+  const rounds = [{net_changes:[{player_id:'1',amount:60},{player_id:'2',amount:-60}]},
+    {net_changes:[{player_id:'1',amount:-20},{player_id:'2',amount:20}]}];
+  assert.equal(flushPlayerNet(rounds,'1',10,false),30);
+  assert.equal(flushPlayerNet(rounds,'2',10,false),-50);
+  assert.equal(flushPlayerNet(rounds,'1',10,true),40,'finished contribution is already in settlement');
+  assert.equal(flushPlayerNet(rounds,'late-joiner',10,false),-10);
+  assert.equal(flushPlayerNet(rounds,'late-joiner',0,true),0);
+});

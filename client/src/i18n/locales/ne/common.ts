@@ -1,5 +1,6 @@
 // Editable Nepali common copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "joker": "जोकर",
   "username_or_email": "प्रयोगकर्ता नाम वा इमेल",
   "message_actions": "सन्देश विकल्प",
   "player_actions": "खेलाडी विकल्प",

@@ -204,12 +204,22 @@ class DecodedCheckpoint:
     engine_state: MatchState | MarriageGameState | FlushGameState | None
 
 
+def _flush_rules_defaults(value):
+    # Additive v1 compatibility only. Stored envelopes are digest-checked first;
+    # existing values and unknown fields still undergo strict/lossless validation.
+    return {"require_minimum_bets_by_everyone": False, "minimum_bets_before_show": 3, **value}
+
+
 def _normalize_engine_sets(kind, state):
     """Canonicalize only domain sets, preserving ordered cards/events and duplicates.
 
     Old checkpoints contain process-dependent frozenset order. Never normalize
     their stored envelope before digest validation or mutate their journal payload.
     """
+    if kind == 'flush':
+        pending = state.get('pending_side_show')
+        return {**state, 'config': {**state['config'], 'rules': _flush_rules_defaults(state['config']['rules'])},
+                'pending_side_show': None if pending is None else {'accepted': False, 'prepaid': True, **pending}}
     if kind != 'marriage':
         return state
     return {**state, 'players': [
@@ -227,6 +237,7 @@ def checkpoint_content(value):
     """Compare validated envelopes independently of legacy set ordering/digests."""
     data = value['data']
     return {**value, 'digest': None, 'data': {**data,
+        'host': {**data['host'], 'flush_rules': _flush_rules_defaults(data['host']['flush_rules'])},
         'engine': canonical_engine_checkpoint(data['game_type'], data['engine'])}}
 
 
@@ -235,7 +246,8 @@ def _decode_engine(data):
     for rule_type, value in ((FlushRulesConfig, data.host.flush_rules), (ScoringRules, data.host.marriage_scoring)):
         rule_adapter = TypeAdapter(rule_type)
         rules = rule_adapter.validate_json(canonical_json(value), strict=True)
-        if rule_adapter.dump_python(rules, mode='json') != value:
+        expected = _flush_rules_defaults(value) if rule_type is FlushRulesConfig else value
+        if rule_adapter.dump_python(rules, mode='json') != expected:
             raise CheckpointError('Stored rules did not decode losslessly.')
     checkpoint = data.engine
     if checkpoint is None:

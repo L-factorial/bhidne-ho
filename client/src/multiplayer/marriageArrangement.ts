@@ -18,7 +18,7 @@ export function arrangeMarriageHand(hand: MarriageCard[], mode: MarriageArrangem
   }
   for (const suit of [...suitOrder, null]) {
     const cards=sorted.filter(c=>c.suit===suit && !used.has(c.card_id));
-    if(cards.length) groups.push({label:uiLabel(({S:'Spades',C:'Clubs',H:'Hearts',D:'Diamonds'} as Record<string,string>)[suit || ''] || ui("common.man")),cards});
+    if(cards.length) groups.push({label:uiLabel(({S:'Spades',C:'Clubs',H:'Hearts',D:'Diamonds'} as Record<string,string>)[suit || ''] || ui("common.joker")),cards});
   }
   return groups;
 }

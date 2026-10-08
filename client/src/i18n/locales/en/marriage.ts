@@ -191,7 +191,7 @@ export default {
   "you_can_take_it_using_the_draw_control": "You can take it using the draw control.",
   "wait_until_the_draw_action_allows_it": "Wait until the draw action allows it.",
   "wait_until_the_server_allows_this_draw": "Wait until the server allows this draw.",
-  "you_can_show_after_drawing_on_your_turn": "You can show after drawing on your turn.",
+  "you_can_show_after_drawing_on_your_turn": "You can show on your turn, before or after drawing.",
   "you_can_show_marriage_when_finishing_is_allowed_on_your_turn": "You can show Marriage when finishing is allowed on your turn.",
   "shown_cards": "Shown cards",
   "view_shown_cards": "View shown cards",

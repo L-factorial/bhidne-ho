@@ -1,5 +1,6 @@
 // Editable English common copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "joker": "Joker",
   "username_or_email": "Username or email",
   "message_actions": "Message actions",
   "player_actions": "Player actions",
@@ -328,7 +329,7 @@ export default {
   "game": "Game",
   "on": "On",
   "off": "Off",
-  "man": "Man",
+  "man": "Joker",
   "score": "Score",
   "send_privately": "Send privately",
   "no_messages_yet": "No messages yet.",

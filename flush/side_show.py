@@ -11,6 +11,8 @@ class SideShowRequest:
     requester_id: str
     target_id: str
     revision: int
+    accepted: bool = False
+    prepaid: bool = True  # Older pending requests were charged before the response.
 
 
 @dataclass(frozen=True)
@@ -49,12 +51,16 @@ def previous_seen_player(state, player_id):
 def evaluate_side_show_eligibility(state, player_id):
     try:
         p = require_turn(state, player_id)
+        last_turn = next((e for e in reversed(state.history) if e.kind == 'TURN_CHANGED' and e.player_id == player_id), None)
+        if last_turn and any(e.kind == 'SIDE_SHOW_DECLINED' and e.player_id == player_id
+                             and e.revision == last_turn.revision for e in state.history):
+            raise InvalidActionError('The side-show was rejected; bet or fold this turn.')
         if not state.config.rules.allow_side_show:
             raise InvalidActionError('Side-show is disabled.')
         if p.visibility is not Visibility.SEEN:
             raise InvalidActionError('See your cards before requesting side-show.')
-        if p.turn_bet_count < state.config.rules.minimum_bet_rounds_before_side_show:
-            raise InvalidActionError('Complete the required personal bets before requesting side-show.')
+        if min(player.turn_bet_count for player in active_players(state)) < state.config.rules.minimum_bet_rounds_before_side_show:
+            raise InvalidActionError('Complete the required betting cycles before requesting side-show.')
         if len(active_players(state)) < 3:
             raise InvalidActionError('Use Show when only two players remain.')
         if previous_seen_player(state, player_id) is None:

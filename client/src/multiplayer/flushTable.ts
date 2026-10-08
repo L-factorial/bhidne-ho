@@ -25,3 +25,8 @@ export function minimumArenaHeight(count: number, width: number) {
       Math.abs(seat.x - other.x) >= 80 || Math.abs(seat.y - other.y) >= 86))) return height;
   }
 }
+
+/** Settled table totals plus current exposure, keyed by stable player seats. */
+export function flushPlayerNet(rounds: {net_changes:{player_id:string;amount:number}[]}[],playerId:string,contribution:number,settled:boolean){
+ return rounds.reduce((sum,round)=>sum+(round.net_changes.find(row=>row.player_id===playerId)?.amount||0),0)-(settled?0:contribution);
+}

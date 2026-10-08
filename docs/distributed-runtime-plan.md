@@ -7011,3 +7011,83 @@ requested stronger drawn/discard card markers. Tap selection remains unchanged.
   UIKit/Android rendering, large-system-text behavior or live device accessibility.
   Exact next step: review the local UI, especially native large-text/Devanagari
   and dense game hands; release or produce signed builds only when requested.
+
+### 2026-10-07 — Planned card-display and Marriage maal issues
+
+Status: collected requirements only. The user explicitly requested no
+implementation yet; this list does not authorize code changes or deployment.
+
+- [ ] Remove visible Marriage card copy-number labels (Copy 1/2/3). Retain
+  unique physical card IDs internally for selection, discard and game tracking.
+- [ ] Display “Joker” instead of “Man” for the Marriage joker card.
+- [ ] On small card displays, put the rank/number and suit on separate rows.
+  Resolve the inconsistent alignment of the two-character “10” rank while
+  keeping other ranks/suits aligned consistently.
+- [ ] Allow a player who is eligible to show maal to do so immediately at the
+  start of their own turn, before drawing a card. Showing remains optional:
+  the player may instead draw and discard normally without showing maal.
+- [ ] Preserve the normal draw/discard requirements when maal is shown:
+  - If shown before drawing, the player must still draw one card and then
+    discard one card to complete the turn, even though maal is now visible.
+  - If shown after drawing, the player only needs to discard one card.
+  - Showing/seeing maal does not itself replace a draw or discard.
+
+Verification: documentation-only update; no implementation or tests performed.
+Exact next step: continue collecting/reviewing issues and wait for an explicit
+implementation request before changing card rendering or Marriage turn behavior.
+
+
+### 2026-10-07 — Card display, turn indicators, Marriage qualification and Flush side-show
+
+- User explicitly authorized implementation, Git push and deployment of the
+  collected game changes. This supersedes the planning-only note above and
+  expands branch scope for this increment.
+- Removed visible physical-copy numbers while retaining card IDs. Joker naming
+  and separate rank/suit rows now cover small Marriage, Flush and CallBreak cards.
+  Active seats use themed flowing/pulsing avatar borders; reduced motion keeps a
+  static border. Only the player TURN badges were removed; action-area prompts remain.
+- Marriage initial melds/dublees may be shown before drawing on the player's turn.
+  Qualification remains optional and preserves MUST_DRAW before a draw, or
+  MUST_DISCARD after one; it never consumes the normal draw/discard.
+- Flush pot displays three compact rows (Pot, Seen Bet, Blind Bet); eye/eye-off
+  badges identify seen/blind. Seats show total contribution this round and table
+  session net (settled results minus current exposure); positive/negative values
+  have dedicated readable green/red theme colors. Finished rounds are counted once.
+- Flush rules expose minimum bet amount, optional minimum bet counts for every
+  remaining player before final show, and side-show configuration. New tables
+  enable side-show by default after three betting cycles by every remaining active
+  player, excluding boot. Existing saved rule choices are preserved.
+- SideShowRequest is free and requires at least three active players, with both
+  participants seen. The recipient is the previous active seen seat, skipping
+  blind/folded seats. The decision switches to that player with glowing Accept/
+  Reject controls in the normal card area. Rejection returns Bet/Fold to the
+  requester, with side-show eligibility restored on their next regular turn.
+- Acceptance returns a separate glowing Side show reveal decision to the requester.
+  Reveal charges the current minimum seen bet once, shows each participant the
+  other's cards privately, folds the loser (requester on ties), and advances after
+  the requester. Public request/accept/reject notices disclose no cards.
+- Reliable command contracts, private projections, contribution accounting and
+  checkpoint recovery include the accepted/reveal phase. Legacy rules receive only
+  additive defaults after digest validation; older already-paid pending side-shows
+  retain a prepaid flag so revealing never charges them twice. Unknown fields still
+  fail lossless validation. No database migration or dependency change is needed.
+- Verification so far: 333 focused backend tests, 398 client tests, TypeScript,
+  production web export and unsigned iOS/Android exports pass. Mocked Chrome
+  covers enabled request/response/reveal actions and actual command dispatch in
+  all five themes, private comparison, mobile/desktop Marriage/CallBreak borders,
+  and reduced motion. Screenshots were inspected. Full backend verification runs
+  separately with PGLite. Its account-deletion pending_actions fixture failure
+  reproduces on unchanged e8d7f7c, as does the shared-room invitation fixture
+  expectation failure. A telemetry listener sandbox bind failure passes with
+  local-listener permission. No unrelated deletion/invitation changes were made.
+  Direct guarded deployment avoids the automatic pipeline stopping on those
+  existing failures; implementation/report commits use [skip ci].
+- Release plan: use the guarded production receiver and one immutable image;
+  activate both backends before either frontend. A rollback to the old game code
+  after new checkpoint writes requires compatibility review, particularly for an
+  accepted side-show, because old code cannot decode the added phase/rules fields.
+  Browser fixtures use ephemeral local snapshots and intercepted network calls.
+  Native exports do not update installed apps; signed native builds remain separate.
+- Exact next step: finish broad verification, push the implementation and perform
+  guarded deployment to both application hosts, then verify exact source/image/
+  frontend hashes and public HTTPS health.

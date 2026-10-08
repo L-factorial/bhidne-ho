@@ -69,6 +69,9 @@ def evaluate_show_eligibility(state, player_id):
         count = len(active_players(state))
         if count != 2:
             raise InvalidActionError('Show requires exactly two active players.')
+        if rules.require_minimum_bets_by_everyone and any(
+                p.turn_bet_count < rules.minimum_bets_before_show for p in active_players(state)):
+            raise InvalidActionError('Every remaining player must complete the required minimum bets before showing.')
         if player.visibility is Visibility.BLIND:
             if not rules.allow_blind_show:
                 raise InvalidActionError('Blind show is disabled.')

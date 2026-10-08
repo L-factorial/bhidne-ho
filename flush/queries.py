@@ -99,8 +99,10 @@ def allowed_actions(state, player_id):
             kinds.append('show')
         if side_show.allowed:
             kinds.append('request_side_show')
-    if state.status is GameStatus.IN_PROGRESS and state.pending_side_show and state.pending_side_show.target_id == player_id:
+    if state.status is GameStatus.IN_PROGRESS and state.pending_side_show and not state.pending_side_show.accepted and state.pending_side_show.target_id == player_id:
         kinds.extend(('accept_side_show', 'decline_side_show'))
+    if state.pending_side_show and state.pending_side_show.accepted and state.pending_side_show.requester_id == player_id:
+        kinds.append('reveal_side_show')
     if state.pending_show and state.pending_show.target_id == player_id:
         kinds.extend(('reveal_cards', 'fold'))
     return AllowedActions(tuple(kinds), required_bet(state, player), show_cost(state, player), see, show, side_show, target.player_id if side_show.allowed else None)

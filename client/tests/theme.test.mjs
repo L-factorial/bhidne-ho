@@ -59,7 +59,7 @@ test('monochrome controls, status text and table surfaces retain contrast', () =
     }
     for (const bg of [c.background,c.surface]) assert.ok(contrast(c.border,bg)>=3);
     for (const [key,value] of Object.entries(c)) {
-      if (!value.startsWith('#') || ['destructiveAction','onDestructive','danger','dangerSurface','cardFace','cardInk','cardRed','cardClub','cardBorder','cardSelected'].includes(key)) continue;
+      if (!value.startsWith('#') || ['gain','loss','destructiveAction','onDestructive','danger','dangerSurface','cardFace','cardInk','cardRed','cardClub','cardBorder','cardSelected'].includes(key)) continue;
       const rgb=value.slice(1,7).match(/../g);
       const channels=rgb.map(channel=>parseInt(channel,16));
       assert.ok(Math.max(...channels)-Math.min(...channels)<=8,`${id}: ${key} must stay neutral`);

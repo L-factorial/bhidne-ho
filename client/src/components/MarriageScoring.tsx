@@ -16,7 +16,7 @@ import type { MarriageScoringRules } from '../multiplayer/marriage';
 
 const tables = ['tiplu', 'jhiplu', 'poplu', 'alter', 'man', 'marriage'] as const;
 const amounts = ['tunnela_bonus', 'seen_payment', 'unseen_payment', 'dublee_win_bonus'] as const;
-const labels = { tiplu: 'Tiplu', jhiplu: 'Jhiplu', poplu: 'Poplu', alter: 'Alter', man: 'Man', marriage: 'Marriage combination',
+const labels = { tiplu: 'Tiplu', jhiplu: 'Jhiplu', poplu: 'Poplu', alter: 'Alter', man: 'Joker', marriage: 'Marriage combination',
   tunnela_bonus: 'Extra points per Tunnela', seen_payment: 'Loser payment: Maal seen', unseen_payment: 'Loser payment: Maal unseen', dublee_win_bonus: 'Extra per loser: Dublee win' };
 
 export function MarriageScoring({ snapshot, busy, error, onSave, introduction }: {

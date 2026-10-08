@@ -367,11 +367,14 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             adapter = game.flush_target.adapter
             public = adapter.snapshot()["view"]
             result["flush"] = {"public": public, "private": adapter.snapshot(str(seat))["view"] if str(seat) in adapter.seat_ids and user_id in game.users else None,
-                "bets": [event for event in adapter.public_events() if event["revision"] >= adapter.checkpoint().get_state().round_start_revision and event["kind"] in ("BET_PLACED", "SHOW_REQUESTED", "SIDE_SHOW_REQUESTED")]}
+                "bets": [event for event in adapter.public_events() if event["revision"] >= adapter.checkpoint().get_state().round_start_revision and event["kind"] in ("BET_PLACED", "SHOW_REQUESTED", "SIDE_SHOW_REQUESTED", "SIDE_SHOW_RESOLVED")]}
             result["flush"]["folds"] = [{"sequence": event["sequence"], "revision": event["revision"],
                 "player_id": event["player_id"] if event["kind"] == "PLAYER_FOLDED" else event["loser_player_id"]}
                 for event in adapter.public_events() if event["revision"] >= adapter.checkpoint().get_state().round_start_revision
                 and event["kind"] in ("PLAYER_FOLDED", "SIDE_SHOW_RESOLVED")]
+            result["flush"]["side_show_events"] = [event for event in adapter.public_events()
+                if event["revision"] >= adapter.checkpoint().get_state().round_start_revision
+                and event["kind"] in ("SIDE_SHOW_REQUESTED", "SIDE_SHOW_ACCEPTED", "SIDE_SHOW_DECLINED", "SIDE_SHOW_RESOLVED")]
             result["flush"]["participants"] = [{"player_id": str(s), "display_name": self.profiles.name(u, s) if self.profiles else f"Player {s}"} for u, s in game.flush_seats.items()]
             settlement = public["settlement"]
             result["game"] = {"revision": adapter.revision, "phase": public["status"].upper(),

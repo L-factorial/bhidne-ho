@@ -1,3 +1,4 @@
+import {CompactCardFace} from './CompactCardFace';
 import {AppText as Text} from './AppText';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -72,7 +73,7 @@ export function MarriageMaalPanel({ hand, shown, unlocked, maal, enabled, visibl
         <Text style={text}>{ui("marriage.remaining_in_your_hand_count_cards", { "count": remaining.length })}</Text>
         <View testID="marriage-maal-remaining" style={{flexDirection:'row',flexWrap:'wrap',gap:4}}>
           {arrangeMarriageHand(remaining,arrangement).flatMap(group=>group.cards).map(card=><View key={card.card_id} accessibilityLabel={card.card_id} style={{padding:8,borderRadius:6,backgroundColor:c.cardFace,borderWidth:1,borderColor:c.cardBorder}}>
-            <Text style={{color:card.suit==='H'||card.suit==='D'?c.cardRed:c.cardInk}}>{marriageFace(card)}</Text>
+            <CompactCardFace rank={card.rank} suit={card.suit} joker={card.card_type === 'man'}/>
           </View>)}
         </View>
       </>}

@@ -274,3 +274,28 @@ def test_first_player_can_pick_up_initial_face_up_discard():
     engine.discard_card("p0", card.card_id)
     assert engine.get_public_view().top_discard == card
     validate_game_state(engine.get_state())
+
+
+@pytest.mark.parametrize('route', [QualificationRoute.NORMAL, QualificationRoute.DUBLEE])
+def test_qualify_before_drawing_preserves_draw_then_discard(route):
+    engine = qualified_fixture(route)
+    state = engine.get_state()
+    groups = state.players[0].shown_melds
+    player = replace(state.players[0], route=QualificationRoute.UNQUALIFIED,
+                     shown_melds=(), committed_card_ids=frozenset(), has_seen_maal=False)
+    engine._state = replace(state, players=(player, state.players[1]), tiplu=None, stock=state.stock+(state.tiplu,))
+    validate_game_state(engine.get_state())
+    show = engine.show_initial_melds if route is QualificationRoute.NORMAL else engine.show_dublees
+    assert ActionKind.DRAW in engine.get_allowed_actions('p0').kinds
+    assert ActionKind.SHOW_INITIAL_MELDS in engine.get_allowed_actions('p0').kinds
+    show('p0', groups)
+    assert engine.get_state().phase is TurnPhase.MUST_DRAW
+    assert len(engine.get_state().players[0].hand) == 21
+    assert engine.get_state().players[0].has_seen_maal
+    assert ActionKind.DISCARD not in engine.get_allowed_actions('p0').kinds
+    engine.draw_card('p0', DrawSource.STOCK)
+    assert len(engine.get_state().players[0].hand) == 22
+    discard = engine.get_allowed_actions('p0').discardable_card_ids[-1]
+    engine.discard_card('p0', discard)
+    assert len(engine.get_state().players[0].hand) == 21
+    assert engine.get_state().current_player_id == 'p1'

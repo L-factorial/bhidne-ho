@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { canSubmitMarriage, marriageFace, physicalLabel, marriageSuggestions, marriageUsesArc } from '../src/multiplayer/marriage.ts';
-test('physical labels distinguish all three copies and Man', () => {
-  assert.equal(new Set([0,1,2].map(i => physicalLabel(`D${i}:7H`))).size, 3);
+test('physical display labels hide copies and name Joker', () => {
+  assert.equal(new Set([0,1,2].map(i => physicalLabel(`D${i}:7H`))).size, 1);
   assert.equal(marriageFace({rank:14, suit:'S'}), 'A♠');
-  assert.equal(marriageFace({rank:null, suit:null}), 'Man');
-  assert.equal(physicalLabel('MAN:2'), 'Man · 3');
+  assert.equal(marriageFace({rank:null, suit:null}), 'Joker');
+  assert.equal(physicalLabel('MAN:2'), 'Joker');
 });
 
 const card = (rank, suit, deck_index = 0) => ({ card_id: `D${deck_index}:${rank === 14 ? 'A' : rank}${suit}`, rank, suit, deck_index, card_type: 'standard' });

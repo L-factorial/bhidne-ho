@@ -224,3 +224,75 @@ async def test_corrupt_revision_or_roster_rejected_even_with_valid_digest(kind):
         with pytest.raises(CheckpointError): decode_checkpoint(resign(value))
     finally:
         await host.close()
+
+
+async def test_legacy_flush_rules_decode_with_additive_defaults_only():
+    host, game = await make_host('flush')
+    try:
+        await start(host, game)
+        record = capture_checkpoint(game, table_revision=2)
+        for rules in [record['data']['host']['flush_rules'], record['data']['engine']['state']['config']['rules']]:
+            rules.pop('require_minimum_bets_by_everyone')
+            rules.pop('minimum_bets_before_show')
+        decoded = decode_checkpoint(resign(record))
+        assert decoded.engine_state.config.rules.require_minimum_bets_by_everyone is False
+        assert decoded.engine_state.config.rules.minimum_bets_before_show == 3
+        corrupt = deepcopy(record)
+        corrupt['data']['engine']['state']['config']['rules']['unknown_rule'] = True
+        with pytest.raises(CheckpointError): decode_checkpoint(resign(corrupt))
+    finally:
+        await host.close()
+
+
+async def test_legacy_prepaid_side_show_recovers_without_charging_twice():
+    from flush import FlushGameEngine, validate_game_state
+    host, game = await make_host('flush', 3)
+    try:
+        game.flush_rules = replace(game.flush_rules, minimum_bet_rounds_before_side_show=0)
+        await start(host, game)
+        await action(host, game, 'DEAL_CARDS')
+        await action(host, game, 'SKIP_CUT')
+        for _ in range(3):
+            await action(host, game, 'SEE_CARDS')
+            await action(host, game, 'BET', {'amount': 20})
+        await action(host, game, 'REQUEST_SIDE_SHOW')
+        record = capture_checkpoint(game, table_revision=2)
+        state = record['data']['engine']['state']
+        request = state['pending_side_show']
+        requester, target = request['requester_id'], request['target_id']
+        request.pop('accepted'); request.pop('prepaid')
+        state['pot'] += 20
+        player = next(p for p in state['players'] if p['player_id'] == requester)
+        player['total_contribution'] += 20; player['turn_bet_count'] += 1
+        next(e for e in state['history'] if e['kind'] == 'SIDE_SHOW_REQUESTED')['amount'] = 20
+        decoded = decode_checkpoint(resign(record))
+        recovered = FlushGameEngine.__new__(FlushGameEngine)
+        recovered._state = decoded.engine_state
+        before = recovered.get_state().pot
+        assert recovered.get_state().pending_side_show.prepaid
+        recovered.accept_side_show(target)
+        recovered.reveal_side_show(requester)
+        assert recovered.get_state().pot == before
+        validate_game_state(recovered.get_state())
+    finally:
+        await host.close()
+
+
+async def test_accepted_side_show_checkpoint_restores_the_requesters_reveal_turn():
+    host, game = await make_host('flush', 3)
+    try:
+        game.flush_rules = replace(game.flush_rules, minimum_bet_rounds_before_side_show=0)
+        await start(host, game)
+        for command in ('DEAL_CARDS', 'SKIP_CUT'):
+            await action(host, game, command)
+        for _ in range(3):
+            await action(host, game, 'SEE_CARDS')
+            await action(host, game, 'BET', {'amount': 20})
+        await action(host, game, 'REQUEST_SIDE_SHOW')
+        await action(host, game, 'ACCEPT_SIDE_SHOW')
+        before = engine_state(game)
+        restored = decode_checkpoint(capture_checkpoint(game, table_revision=2)).engine_state
+        assert restored == before
+        assert flush_view(restored, restored.pending_side_show.requester_id).actions.kinds == ('reveal_side_show',)
+    finally:
+        await host.close()
