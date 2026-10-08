@@ -7087,7 +7087,9 @@ implementation request before changing card rendering or Marriage turn behavior.
   after new checkpoint writes requires compatibility review, particularly for an
   accepted side-show, because old code cannot decode the added phase/rules fields.
   Browser fixtures use ephemeral local snapshots and intercepted network calls.
-  Native exports do not update installed apps; signed native builds remain separate.
+  Final review also aligned the in-hand discard preview and excluded zero-value
+  events from coin flights; free requests still appear in the public side-show
+  notices/history. Native exports do not update installed apps; signed native builds remain separate.
 - Exact next step: finish broad verification, push the implementation and perform
   guarded deployment to both application hosts, then verify exact source/image/
   frontend hashes and public HTTPS health.

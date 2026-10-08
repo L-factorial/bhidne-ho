@@ -6,6 +6,7 @@ test('coin flights select unseen event sequences and defer only pending contribu
   const bets = [{ sequence: 4, amount: 10, player_id: '1', kind: 'BET_PLACED' }, { sequence: 6, amount: 20, player_id: '2', kind: 'BET_PLACED' }];
   assert.deepEqual(newBets(bets, 4), [bets[1]]);
   assert.deepEqual(newBets(bets, 6), []);
+  assert.deepEqual(newBets([...bets, {sequence:7,amount:0,player_id:'1',kind:'SIDE_SHOW_REQUESTED'}], 6), [], 'free requests never launch coin flights');
   assert.equal(potBeforeFlights(40, bets), 10);
   assert.equal(potBeforeFlights(40, [bets[1]]), 20);
   assert.equal(potBeforeFlights(40, []), 40);

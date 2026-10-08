@@ -208,7 +208,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
               <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled: !allowed}}
                 disabled={!allowed} onPress={() => cards.act('DRAW_CARD', {source})}
                 style={[s.card, {width:58,height:84}, source === 'stock' && s.cardBack, !allowed && s.disabled]}>
-                {source === 'stock' ? <MarriageCardBack/> : <Text style={[s.face, {color:card?.suit === 'H' || card?.suit === 'D' ? colors.cardRed : colors.cardInk}]}>{card ? marriageFace(card) : '—'}</Text>}
+                {source === 'stock' ? <MarriageCardBack/> : card ? <CompactCardFace rank={card.rank} suit={card.suit} joker={card.rank === null}/> : <Text style={s.face}>—</Text>}
                 <TurnGlow active={allowed} radius={7}/>
               </Pressable>
               <Text style={[s.small, {color:allowed ? colors.accent : colors.textMuted, textAlign:'center'}]}>{allowed ? label : busy ? ui("marriage.taking_card") : social.connected ? ui("feedback.unavailable") : ui("feedback.reconnecting")}</Text>

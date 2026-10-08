@@ -14,7 +14,7 @@ export function playerPosition(index: number, count: number, width: number, heig
   return { x: points[end - 1].x + (points[end].x - points[end - 1].x) * fraction,
     y: points[end - 1].y + (points[end].y - points[end - 1].y) * fraction };
 }
-export function newBets(bets: FlushBet[], after: number) { return bets.filter(b => b.sequence > after); }
+export function newBets(bets: FlushBet[], after: number) { return bets.filter(b => b.sequence > after && b.amount > 0); }
 export function potBeforeFlights(pot: number, pending: FlushBet[]) { return Math.max(0, pot - pending.reduce((sum, b) => sum + b.amount, 0)); }
 
 export function minimumArenaHeight(count: number, width: number) {
