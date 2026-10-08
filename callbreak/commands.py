@@ -17,6 +17,11 @@ class Redeal(StartDeal):
 
 
 @dataclass(frozen=True)
+class PickDealerCard:
+    position: int
+
+
+@dataclass(frozen=True)
 class PlaceBid:
     amount: int
 

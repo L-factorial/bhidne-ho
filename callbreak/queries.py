@@ -14,6 +14,7 @@ from .game import MatchState, Phase
 from .house_rules import redeal_reasons
 from .models import Trick
 from .rules import current_winner, resolve_trick
+from .views import dealer_selection_view
 
 JSON = dict[str, Any]
 
@@ -53,6 +54,7 @@ class GameQuery:
         deal = self._deal()
         preparation = state.preparation
         return {
+            "dealer_selection": dealer_selection_view(state),
             "revision": state.revision, "phase": state.phase.value,
             "player_count": state.config.player_count, "players": list(state.config.players),
             "deals_per_match": state.config.deals_per_match,
@@ -96,7 +98,10 @@ class GameQuery:
         pending: list[int] = []
         action = None
         control = None
-        if state.phase in (Phase.AWAITING_SHUFFLE, Phase.AWAITING_CUT, Phase.AWAITING_DISTRIBUTION):
+        if state.phase == Phase.SELECTING_DEALER:
+            pending = [state.current_player]
+            action = "PICK_DEALER_CARD"
+        elif state.phase in (Phase.AWAITING_SHUFFLE, Phase.AWAITING_CUT, Phase.AWAITING_DISTRIBUTION):
             pending = [state.current_player]
             action = {Phase.AWAITING_SHUFFLE: "SHUFFLE_DECK", Phase.AWAITING_CUT: "CUT_OR_SKIP",
                       Phase.AWAITING_DISTRIBUTION: "START_DISTRIBUTION"}[state.phase]

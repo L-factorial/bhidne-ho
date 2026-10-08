@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from card_utils import Card, Rank
 
 from .commands import AcceptHand, ClaimRedeal, PlaceBid, PlayCard, Redeal, StartDeal
-from .commands import PrepareDeal, ShuffleDeck, CompleteShuffle, CutDeck, SkipCut, StartDistribution
+from .commands import PrepareDeal, ShuffleDeck, CompleteShuffle, CutDeck, SkipCut, StartDistribution, PickDealerCard
 from .config import GameConfig
 from .engine import apply_control, apply_player, create_match
 from .events import Transition
@@ -21,7 +21,7 @@ from .house_rules import RedealPolicy
 @dataclass(frozen=True)
 class Entry:
     actor: int | None
-    command: StartDeal | Redeal | PlaceBid | PlayCard | AcceptHand | ClaimRedeal | PrepareDeal | ShuffleDeck | CompleteShuffle | CutDeck | SkipCut | StartDistribution
+    command: StartDeal | Redeal | PlaceBid | PlayCard | AcceptHand | ClaimRedeal | PrepareDeal | ShuffleDeck | CompleteShuffle | CutDeck | SkipCut | StartDistribution | PickDealerCard
 
 
 @dataclass(frozen=True)
@@ -29,12 +29,15 @@ class Replay:
     config: GameConfig
     initial_dealer: int
     entries: tuple[Entry, ...] = ()
+    dealer_selection_deck: tuple[Card, ...] | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "entries", tuple(self.entries))
+        if self.dealer_selection_deck is not None:
+            object.__setattr__(self, "dealer_selection_deck", tuple(self.dealer_selection_deck))
 
     def restore(self) -> MatchState:
-        state = create_match(self.config, initial_dealer=self.initial_dealer)
+        state = create_match(self.config, initial_dealer=self.initial_dealer, dealer_selection_deck=self.dealer_selection_deck)
         for i, entry in enumerate(self.entries):
             result = apply_control(state, entry.command) if entry.actor is None else apply_player(state, entry.actor, entry.command)
             if not isinstance(result, Transition):
@@ -54,18 +57,21 @@ class Replay:
                 row["amount"] = command.amount
             elif type(command) is PlayCard:
                 row["card"] = str(command.card)
-            elif type(command) is CutDeck:
+            elif type(command) in (CutDeck, PickDealerCard):
                 row["position"] = command.position
             elif type(command) not in (AcceptHand, ClaimRedeal, PrepareDeal, ShuffleDeck, SkipCut, StartDistribution):
                 raise ValueError("Unsupported replay command.")
             rows.append(row)
-        return json.dumps({"version": 1, "config": {
+        record = {"version": 1, "config": {
             "player_count": self.config.player_count, "deals_per_match": 5,
             "ruleset": self.config.ruleset, "undealt_policy": self.config.undealt_policy,
             "weak_hand_enabled": policy.weak_hand_enabled,
             "weak_hand_threshold": policy.weak_hand_threshold.name,
             "no_spades_enabled": policy.no_spades_enabled,
-        }, "initial_dealer": self.initial_dealer, "entries": rows}, sort_keys=True)
+        }, "initial_dealer": self.initial_dealer, "entries": rows}
+        if self.dealer_selection_deck is not None:
+            record['dealer_selection_deck'] = list(map(str, self.dealer_selection_deck))
+        return json.dumps(record, sort_keys=True)
 
     @classmethod
     def loads(cls, text: str) -> "Replay":
@@ -74,7 +80,7 @@ class Replay:
                 raise ValueError("Invalid replay fields.")
         try:
             data = json.loads(text)
-            exact(data, "version config initial_dealer entries")
+            exact(data, "version config initial_dealer entries" + (" dealer_selection_deck" if 'dealer_selection_deck' in data else ""))
             if type(data["version"]) is not int or data["version"] != 1:
                 raise ValueError("Unsupported replay version.")
             c = data["config"]
@@ -100,9 +106,9 @@ class Replay:
                 elif name == "PlayCard":
                     exact(row, "actor command card")
                     command = PlayCard(Card.parse(row["card"]))
-                elif name == "CutDeck":
+                elif name in ("CutDeck", "PickDealerCard"):
                     exact(row, "actor command position")
-                    command = CutDeck(row["position"])
+                    command = (CutDeck if name == "CutDeck" else PickDealerCard)(row["position"])
                 elif name in ("AcceptHand", "ClaimRedeal", "PrepareDeal", "ShuffleDeck", "SkipCut", "StartDistribution"):
                     exact(row, "actor command")
                     command = {"AcceptHand": AcceptHand, "ClaimRedeal": ClaimRedeal,
@@ -110,7 +116,8 @@ class Replay:
                 else:
                     raise ValueError("Unknown replay command.")
                 entries.append(Entry(row["actor"], command))
-            replay = cls(config, data["initial_dealer"], tuple(entries))
+            replay = cls(config, data["initial_dealer"], tuple(entries),
+                         tuple(Card.parse(c) for c in data['dealer_selection_deck']) if 'dealer_selection_deck' in data else None)
             replay.restore()
             return replay
         except (KeyError, TypeError, AttributeError) as error:

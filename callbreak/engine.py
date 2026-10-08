@@ -10,23 +10,30 @@ from card_utils import Card, cut, deal as distribute, standard_52
 
 from .audit import audit_deal
 from .commands import AcceptHand, ClaimRedeal, PlaceBid, PlayCard, Redeal, StartDeal
-from .commands import PrepareDeal, ShuffleDeck, CompleteShuffle, CutDeck, SkipCut, StartDistribution
+from .commands import PrepareDeal, ShuffleDeck, CompleteShuffle, CutDeck, SkipCut, StartDistribution, PickDealerCard
 from .config import GameConfig, advance
 from .deals import CompletedDeal, DealResult, DealState, PlayerDealState
 from .events import Event, Transition
-from .game import DealPreparation, MatchState, Phase
+from .game import DealPreparation, DealerSelection, DealerPick, MatchState, Phase
 from .house_rules import redeal_reasons
 from .models import Play, Trick
 from .rules import PlayRejection, legal_cards, resolve_trick, validate_play
 from .scoring import score_deal
 
 
-def create_match(config: GameConfig | None = None, *, initial_dealer: int = 1) -> MatchState:
+def create_match(config: GameConfig | None = None, *, initial_dealer: int = 1,
+                 dealer_selection_deck: tuple[Card, ...] | None = None) -> MatchState:
     config = config if config is not None else GameConfig()
     if not isinstance(config, GameConfig):
         raise ValueError("A GameConfig is required.")
     if type(initial_dealer) is not int or initial_dealer not in config.players:
         raise ValueError("Dealer must be a player in the match.")
+    if dealer_selection_deck is not None:
+        deck = tuple(dealer_selection_deck)
+        if len(deck) != 52 or any(not isinstance(c, Card) for c in deck) or set(deck) != set(standard_52()):
+            raise ValueError("Dealer selection requires the complete standard deck.")
+        return MatchState(config=config, initial_dealer=initial_dealer,
+                          phase=Phase.SELECTING_DEALER, dealer_selection=DealerSelection(deck))
     return MatchState(config=config, initial_dealer=initial_dealer)
 
 
@@ -147,12 +154,34 @@ def available_cards(state: MatchState, player_id: int) -> tuple[Card, ...]:
 
 def apply_player(
     state: MatchState, player_id: int,
-    command: PlaceBid | PlayCard | AcceptHand | ClaimRedeal | ShuffleDeck | CutDeck | SkipCut | StartDistribution,
+    command: PlaceBid | PlayCard | AcceptHand | ClaimRedeal | ShuffleDeck | CutDeck | SkipCut | StartDistribution | PickDealerCard,
 ) -> Transition | PlayRejection:
     if type(player_id) is not int or player_id not in state.config.players:
         return _reject("INVALID_PLAYER", "Player is not in this match.")
     if state.phase == Phase.MATCH_COMPLETE:
         return _reject("MATCH_FINISHED", "The five-deal match has finished.")
+    if type(command) is PickDealerCard:
+        if state.phase != Phase.SELECTING_DEALER:
+            return _reject("INVALID_PHASE", "Dealer selection is not active.")
+        if player_id != state.current_player:
+            return _reject("NOT_YOUR_TURN", "Wait for your turn to pick a dealer card.")
+        selection = state.dealer_selection
+        if type(command.position) is not int or not 0 <= command.position < 52:
+            return _reject("INVALID_POSITION", "Pick a card position from 0 to 51.")
+        if any(p.position == command.position for p in selection.picks):
+            return _reject("CARD_ALREADY_PICKED", "That card has already been picked.")
+        selection = replace(selection, picks=selection.picks + (DealerPick(player_id, command.position),))
+        complete = len(selection.picks) == state.config.player_count
+        updated = replace(state, dealer_selection=selection,
+                          initial_dealer=selection.winner if complete else state.initial_dealer,
+                          phase=Phase.AWAITING_DEAL if complete else Phase.SELECTING_DEALER)
+        events = [_event("DealerCardPicked", player_id=player_id, position=command.position,
+                         card=str(selection.deck[command.position]))]
+        if complete:
+            events.append(_event("DealerSelectionCompleted", dealer_id=selection.winner))
+        else:
+            events.append(_turn(updated))
+        return _finish(updated, *events)
     if type(command) is StartDistribution:
         if state.phase != Phase.AWAITING_DISTRIBUTION:
             return _reject("INVALID_PHASE", "Wait for the cutter before distributing.")

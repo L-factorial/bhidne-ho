@@ -29,6 +29,10 @@ async def setup_game(database, kind='marriage', *, receipt_limit=10000):
 def command(game, kind=None, *, expected=None, command_id=None, payload=None):
     state = engine_state(game)
     name = kind or {'marriage': 'DRAW_CARD', 'flush': 'DEAL_CARDS', 'callbreak': 'SHUFFLE_DECK'}[game.game_type]
+    if kind is None and game.game_type == 'callbreak' and state.phase.value == 'SELECTING_DEALER':
+        name = 'PICK_DEALER_CARD'
+        if payload is None:
+            payload = {'position': state.current_player - 1}
     actor = (game.users[state.current_player - 1] if game.game_type == 'callbreak'
              else next(u for u in game.users if str(game.flush_seats[u]) == state.config.player_ids[state.current_seat])
              if game.game_type == 'flush' else game.users[state.current_seat])

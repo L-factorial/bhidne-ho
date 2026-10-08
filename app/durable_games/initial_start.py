@@ -6,8 +6,7 @@ state and controller outputs become authoritative only with the caller's commit.
 from typing import Literal
 from uuid import UUID
 
-from callbreak import GameConfig, create_match
-from callbreak.house_rules import RedealPolicy
+from app.multiplayer.callbreak_dealer import create_callbreak_match
 from marriage import MarriageGameEngine
 from marriage.rules import MarriageRules
 from flush import FlushGameEngine
@@ -48,10 +47,7 @@ def start_rejection(game, actor, payload, *, allow_finished_flush=False):
 def build_initial_engine(host, game, command_id):
     events = []
     if game.game_type == 'callbreak':
-        policy = RedealPolicy(weak_hand_enabled=game.settings['weak_hand_enabled'],
-                              no_spades_enabled=game.settings['no_spades_enabled'])
-        game.state = create_match(GameConfig(game.capacity, redeal_policy=policy),
-                                  initial_dealer=host._random.randint(1, game.capacity))
+        game.state = create_callbreak_match(game, host._random)
         events = host._apply_controllers(game)
     else:
         if game.game_type == 'marriage':

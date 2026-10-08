@@ -17,6 +17,7 @@ def command(name="PLAY_CARD", payload=None, **extra):
 
 
 @pytest.mark.parametrize("name,payload", [
+    ("PICK_DEALER_CARD", {"position": 0}),
     ("SHUFFLE_DECK", {}), ("CUT_DECK", {"position": 26}), ("SKIP_CUT", {}),
     ("START_DISTRIBUTION", {}), ("ACCEPT_HAND", {}), ("CLAIM_REDEAL", {}),
     ("PLACE_BID", {"amount": 4}), ("PLAY_CARD", {"card": "QH"}),
@@ -49,6 +50,8 @@ def payload_examples():
     counts = [{"player_id": p, "tricks_won": 1 if p == 2 else 0} for p in range(1, 5)]
     scores = [{"player_id": p, "score_tenths": -10} for p in range(1, 5)]
     return {
+        "DEALER_CARD_PICKED": {"player_id": 1, "position": 0, "card": "2H"},
+        "DEALER_SELECTION_COMPLETED": {"dealer_id": 1},
         "DEALER_ASSIGNED": {"dealer_id": 1}, "SHUFFLE_REQUESTED": {"dealer_id": 1},
         "DECK_SHUFFLED": {"dealer_id": 1},
         "CUT_REQUESTED": {"player_id": 2, "deck_size": 52},
@@ -82,10 +85,10 @@ def event(name, payload):
 def test_catalog_is_exhaustive_and_reports_supported_core_commands():
     assert set(COMMAND_SPECS) == set(CommandName)
     assert set(EVENT_SPECS) == set(EventName) == set(payload_examples())
-    assert len(COMMAND_SPECS) == 8 and len(EVENT_SPECS) == 24
+    assert len(COMMAND_SPECS) == 9 and len(EVENT_SPECS) == 26
     assert sum(s.audience == "unicast" for s in EVENT_SPECS.values()) == 7
     assert {s.engine_command for s in COMMAND_SPECS.values() if s.engine_command} == {
-        "AcceptHand", "ClaimRedeal", "PlaceBid", "PlayCard", "ShuffleDeck", "CutDeck", "SkipCut", "StartDistribution"}
+        "AcceptHand", "ClaimRedeal", "PlaceBid", "PlayCard", "ShuffleDeck", "CutDeck", "SkipCut", "StartDistribution", "PickDealerCard"}
     assert not {a.value for a in ControllerAction} & {c.value for c in CommandName}
 
 

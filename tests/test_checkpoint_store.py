@@ -46,7 +46,7 @@ async def database():
         await pool.close()
 
 
-async def host_game(users, kind='marriage', started=True):
+async def host_game(users, kind='marriage', started=True, select_dealer=True):
     rooms = RoomService()
     for user in users:
         await rooms.join('room', user)
@@ -62,6 +62,9 @@ async def host_game(users, kind='marriage', started=True):
         if kind != 'callbreak':
             await host.table_command('room', users[0], game.match_id, 'lock')
         await host.start('room', users[0], game.match_id, **({'rules_revision': 0} if kind == 'flush' else {}))
+        if select_dealer:
+            from callbreak_test_support import finish_dealer_selection
+            finish_dealer_selection(host, game)
         game.durable_game_id = UUID(game.match_id)
     return host, game
 

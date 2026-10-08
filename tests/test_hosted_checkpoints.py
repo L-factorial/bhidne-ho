@@ -43,6 +43,8 @@ async def start(host, game):
     if game.game_type != 'callbreak':
         await host.table_command('room', 'u0', game.match_id, 'lock')
     await host.start('room', 'u0', game.match_id, **({'rules_revision': 0} if game.game_type == 'flush' else {}))
+    from callbreak_test_support import finish_dealer_selection
+    finish_dealer_selection(host, game)
 
 
 async def action(host, game, command, payload=None, user=None):

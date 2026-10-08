@@ -70,6 +70,24 @@ def audit_match(state: MatchState) -> None:
     if type(state.initial_dealer) is not int or state.initial_dealer not in state.config.players:
         raise ValueError("Invalid initial dealer.")
     completed = state.completed_deals
+    selection = state.dealer_selection
+    if state.phase == Phase.SELECTING_DEALER and selection is None:
+        raise ValueError("Dealer selection is missing its deck.")
+    if selection is not None:
+        n = state.config.player_count
+        if (len(selection.deck) != 52 or set(selection.deck) != set(standard_52())
+                or len(selection.picks) > n
+                or tuple(p.player_id for p in selection.picks) != tuple(range(1, len(selection.picks) + 1))
+                or any(type(p.player_id) is not int for p in selection.picks)
+                or any(type(p.position) is not int or not 0 <= p.position < 52 for p in selection.picks)
+                or len({p.position for p in selection.picks}) != len(selection.picks)
+                or state.revision < len(selection.picks)):
+            raise ValueError("Invalid dealer-selection cards or picking order.")
+        if state.phase == Phase.SELECTING_DEALER:
+            if len(selection.picks) >= n or completed or state.current_deal or state.preparation or state.abandoned_attempts:
+                raise ValueError("Dealer selection must precede the first deal.")
+        elif len(selection.picks) != n or state.initial_dealer != selection.winner:
+            raise ValueError("Selected dealer does not match the lowest card and last-picker tie rule.")
     preparing = state.phase in (Phase.AWAITING_SHUFFLE, Phase.SHUFFLING, Phase.AWAITING_CUT, Phase.AWAITING_DISTRIBUTION)
     prep = state.preparation
     if preparing != (prep is not None):

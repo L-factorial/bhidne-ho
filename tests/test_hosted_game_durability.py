@@ -47,8 +47,8 @@ async def test_callbreak_engine_state_is_committed_to_durable_journal():
     try:
         game = service.games["room"]
         actor = game.state.current_player
-        body = GameAction(match_id=game.match_id, command_id="shuffle",
-            expected_revision=started["game"]["revision"], command="SHUFFLE_DECK")
+        body = GameAction(match_id=game.match_id, command_id="dealer-pick",
+            expected_revision=started["game"]["revision"], command="PICK_DEALER_CARD", payload={'position': 0})
         await service.action("room", f"u{actor - 1}", body)
         loaded = await store.load(game.durable_game_id, game.durable_definition)
         assert loaded.sequence == 1
@@ -369,8 +369,8 @@ async def test_unknown_commit_retry_cannot_publish_rerolled_cards(monkeypatch):
     service, store, started = await durable_host('callbreak')
     try:
         game = service.games['room']
-        body = GameAction(match_id=game.match_id, command_id='shuffle-uncertain',
-                          expected_revision=game.state.revision, command='SHUFFLE_DECK')
+        body = GameAction(match_id=game.match_id, command_id='pick-uncertain',
+                          expected_revision=game.state.revision, command='PICK_DEALER_CARD', payload={'position': 0})
         actor = game.users[game.state.current_player - 1]
         execute = store.execute
         async def lost_response(*args, **kwargs):

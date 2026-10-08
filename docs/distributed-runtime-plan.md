@@ -7184,3 +7184,72 @@ implementation request before changing card rendering or Marriage turn behavior.
   or production verification. Other historical failures have not been assessed
   in this increment.
 - Exact next step: review and commit the local changes, then deploy if requested.
+
+### 2026-10-07 — Shared-card-theme release deployed
+
+- Deployed committed release `be4c04800e23427dd1449c869c8980c61789e468`
+  to both production app hosts (`168.144.105.49`, `165.245.180.205`) using
+  immutable image `sha256:dbb431dbfaf76471f257ded85e7088f3e9a184836d1214bf18e7d3de3249bf19`.
+  Includes the five app palettes, consistent typography, lobby-only wordmark,
+  ten shared card themes with dealer/creator controls, and preview metadata fix.
+- Used the existing administrator sideload procedure with verified SSH host
+  keys and the installed receiver's release lock, dependency/schema preflight,
+  peer-health, container hardening and guarded activation. Both backends became
+  healthy before either frontend switched. Backend dependencies and schema were
+  unchanged; no migration, credential or infrastructure changes were needed.
+- Verification: 164 focused backend/release tests and all 399 client tests pass.
+  Production TypeScript and clean web export pass. A read-only repeatable-read
+  compatibility check successfully loaded all 39 existing production table
+  checkpoints with the new backend before activation. Both hosts serve the exact
+  image/revision and matching frontend index/JavaScript hashes. All 257 committed
+  backend/game source hashes match on both hosts. Public API health, APNs,
+  frontend bundle and ten card-image hashes pass. Mobile Chrome startup,
+  sign-in entry, new font loading and absence of JavaScript errors pass.
+- Evidence: `/private/tmp/bhidne-be4c048-direct/verification.json`,
+  `/private/tmp/bhidne-be4c048-backend.log`,
+  `/private/tmp/bhidne-be4c048-rollout.log` and
+  `/private/tmp/bhidne-be4c048-production-live.png`.
+- Limitations: no production accounts, tables or messages were created for
+  verification. Multiplayer interactions use the previously passing isolated
+  browser fixtures. This increment did not rerun the entire backend/process
+  suite or produce signed native builds. Rollback to old code after new
+  checkpoint writes requires compatibility review.
+- Exact next step: refresh the production web app and review shared-theme
+  controls during play. Installed native apps need a separate signed build.
+  Capacity, observability, database HA and operational readiness remain separate
+  follow-up work.
+
+### 2026-10-07 — Callbreak first-dealer draw and last-place rematches
+
+- Implemented the requested first-game dealer draw after starting locks the
+  roster. New SELECTING_DEALER state holds one shuffled standard deck privately.
+  Players pick one remaining card in seat order through PICK_DEALER_CARD; only
+  accepted picks are public. Lowest rank wins (2 low, A high); the last picker
+  wins rank ties regardless of suit. The selected dealer then begins normal
+  shuffle/cut/deal flow. The draw does not count as a scored round.
+- Implemented the user's confirmed later-game rule: previous last-place player
+  deals first. Scores persist by user identity through lobby changes and recovery.
+  If that player leaves, use the lowest-scoring returning player; equal scores
+  use first seat order. An entirely new roster draws again. Existing round
+  rotation is unchanged, including the first dealer returning in round five
+  for four-player games. Dealer card-theme permissions hand over after the draw.
+- Legacy and durable starts share one policy. Draw commands use existing fenced
+  game execution, durable receipts, private projections and view delivery. Added
+  strict draw validation, checkpoint audits and replay support. Old checkpoints
+  without the new optional selection/scores fields retain their original digest
+  verification before defaults. Added callbreak_dealer_selection capability;
+  no database migration. Active existing games keep their established dealer.
+- Verification: 383 focused backend tests passed, covering Callbreak, hosted
+  games, initial starts, recovery, checkpoints, rematches, command lanes, view
+  generation, activation and card themes. A subsequent 68-test draw/protocol run
+  passed with extra SQL authorization/payload and old-checkpoint checks. All 399
+  client tests, TypeScript, production web export and unsigned iOS export pass.
+  Four-/five-player Chrome fixture checks pass at 390px and 1280px, including
+  spectator restrictions, public reveals, reconnect and last-picker tie winner.
+- Limitations: browser multiplayer uses isolated fixtures; unsigned native
+  export does not establish device rendering. The full backend/process suite
+  was not rerun. New phases/checkpoints require upgrading both backends before
+  activating the frontend; old-code rollback needs compatibility review.
+  This increment is local and has not been committed or deployed.
+- Exact next step: review the dealer-selection flow, then commit/deploy if
+  requested. Capacity/HA/operational work remains separate.

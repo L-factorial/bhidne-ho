@@ -9,8 +9,9 @@ from dataclasses import dataclass
 from callbreak import (
     CompleteShuffle, CutDeck, MatchState, PlayRejection, PrepareDeal, ShuffleDeck,
     SkipCut, Transition, apply_control, apply_player, AcceptHand, ClaimRedeal,
-    PlaceBid, PlayCard, StartDistribution, Phase,
+    PlaceBid, PlayCard, StartDistribution, Phase, PickDealerCard,
 )
+from callbreak.game import DealPreparation
 from callbreak.config import advance
 from callbreak.house_rules import redeal_reasons
 from card_utils import Card
@@ -25,7 +26,8 @@ class AdapterResult:
 
 
 def _context(state):
-    return state.preparation or state.current_deal or (state.completed_deals[-1].deal if state.completed_deals else None)
+    return state.preparation or state.current_deal or (state.completed_deals[-1].deal if state.completed_deals else
+        DealPreparation(1, 1, state.initial_dealer) if state.dealer_selection else None)
 
 
 def _translate(match_id: str, result: Transition) -> AdapterResult:
@@ -49,7 +51,11 @@ def _translate(match_id: str, result: Transition) -> AdapterResult:
 
     for event in result.events:
         data = dict(event.data)
-        if event.name == "DealerAssigned":
+        if event.name == "DealerCardPicked":
+            emit("DEALER_CARD_PICKED", data)
+        elif event.name == "DealerSelectionCompleted":
+            emit("DEALER_SELECTION_COMPLETED", data)
+        elif event.name == "DealerAssigned":
             emit("DEALER_ASSIGNED", data)
             emit("SHUFFLE_REQUESTED", data, prep.dealer)
         elif event.name == "DeckShuffled":
@@ -130,7 +136,9 @@ def dispatch_player(
         return PlayRejection("INVALID_PHASE", "No deal is active.")
     if request.deal_number != prep.number or request.attempt != prep.attempt:
         return PlayRejection("STALE_DEAL", "Request belongs to another deal attempt.")
-    if request.command == CommandName.SHUFFLE_DECK:
+    if request.command == CommandName.PICK_DEALER_CARD:
+        command = PickDealerCard(request.payload["position"])
+    elif request.command == CommandName.SHUFFLE_DECK:
         command = ShuffleDeck()
     elif request.command == CommandName.CUT_DECK:
         command = CutDeck(request.payload["position"])

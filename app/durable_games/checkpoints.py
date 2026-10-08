@@ -90,6 +90,7 @@ class TableDetails(Record):
 
 
 class HostDetails(Record):
+    callbreak_previous_scores: dict[Identity, int] = Field(default_factory=dict)
     card_theme: CardThemeId = "kathmandu"
     users: tuple[Identity, ...]
     previous_match_id: str | None
@@ -222,6 +223,8 @@ def _normalize_engine_sets(kind, state):
         pending = state.get('pending_side_show')
         return {**state, 'config': {**state['config'], 'rules': _flush_rules_defaults(state['config']['rules'])},
                 'pending_side_show': None if pending is None else {'accepted': False, 'prepaid': True, **pending}}
+    if kind == 'callbreak':
+        return {'dealer_selection': None, **state}
     if kind != 'marriage':
         return state
     return {**state, 'players': [
@@ -330,14 +333,14 @@ def decode_checkpoint(value: dict) -> DecodedCheckpoint:
             raise CheckpointError('Unsupported checkpoint schema version.')
         record = Checkpoint.model_validate_json(canonical_json(value))
         digest_data = record.data.model_dump(mode='json')
-        legacy_theme = 'card_theme' not in value['data']['host']
-        if legacy_theme:
-            del digest_data['host']['card_theme']
+        missing_defaults = [key for key in ('card_theme', 'callbreak_previous_scores') if key not in value['data']['host']]
+        for key in missing_defaults:
+            del digest_data['host'][key]
         digest = hashlib.sha256(canonical_json(digest_data).encode()).hexdigest()
         if digest != record.digest:
             raise CheckpointError('Checkpoint digest mismatch.')
-        if legacy_theme:
-            # Verify old bytes first, then normalize the additive cosmetic default.
+        if missing_defaults:
+            # Verify old bytes first, then normalize additive host defaults.
             normalized_digest = hashlib.sha256(canonical_json(record.data.model_dump(mode='json')).encode()).hexdigest()
             record = record.model_copy(update={'digest': normalized_digest})
         return DecodedCheckpoint(record, _decode_engine(record.data))

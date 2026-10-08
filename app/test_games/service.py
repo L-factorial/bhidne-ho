@@ -14,10 +14,8 @@ from fastapi import HTTPException
 from pydantic import ValidationError, TypeAdapter
 
 from card_utils import shuffle, standard_52
-from callbreak.house_rules import RedealPolicy
 from callbreak import (
-    CompleteShuffle, GameConfig, GameQuery, MatchState, Phase, PrepareDeal,
-    create_match,
+    CompleteShuffle, GameQuery, MatchState, Phase, PrepareDeal,
 )
 from app.adapters.callbreak import AdapterResult, PlayerCommand, dispatch_control, dispatch_player
 from app.adapters.callbreak.host import CallBreakCommandTarget
@@ -52,6 +50,7 @@ class HostedGame:
     card_theme: str = "kathmandu"
     table: TableState = field(default_factory=TableState)
     previous_match_id: str | None = None
+    callbreak_previous_scores: dict[str, int] = field(default_factory=dict)
     rule_proposal: dict | None = None
     departed: set[str] = field(default_factory=set)
     pending_flush_departures: set[str] = field(default_factory=set)
@@ -819,10 +818,8 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                 await self._publish(game)
                 return self._snapshot(game, user_id)
             game.play_mode = play_mode
-            policy = RedealPolicy(weak_hand_enabled=game.settings["weak_hand_enabled"],
-                                  no_spades_enabled=game.settings["no_spades_enabled"])
-            game.state = create_match(GameConfig(game.capacity, redeal_policy=policy),
-                                      initial_dealer=self._random.randint(1, game.capacity))
+            from app.multiplayer.callbreak_dealer import create_callbreak_match
+            game.state = create_callbreak_match(game, self._random)
             game.table.phase = 'STARTED'
             game.table.emit('GAME_STARTED', match_id=game.match_id)
             initial_events = self._apply_controllers(game)
@@ -1058,10 +1055,11 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             recipient_player_id=recipient, text=body.text)
 
     def _apply_player(self, game, actor, command, payload=None, *, command_id=None):
-        context = game.state.preparation or game.state.current_deal or game.state.completed_deals[-1].deal
+        context = game.state.preparation or game.state.current_deal or (game.state.completed_deals[-1].deal
+                  if game.state.completed_deals else None)
         try:
             request = PlayerCommand(
-                match_id=game.match_id, deal_number=context.number, attempt=context.attempt,
+                match_id=game.match_id, deal_number=context.number if context else 1, attempt=context.attempt if context else 1,
                 command_id=command_id or uuid4().hex, expected_revision=game.state.revision,
                 command=command, payload=payload or {},
             )

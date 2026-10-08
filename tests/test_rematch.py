@@ -110,6 +110,11 @@ async def test_rematch_keeps_table_and_completed_history_then_starts_new_engine(
         detached = _DetachedHost(8)
         new = detached.game = rebuild_hosted_game(detached, started.checkpoint,
             receipt_snapshot=started.receipt_snapshot).game
+        if kind == 'callbreak':
+            lowest = min(range(len(game.users)), key=lambda i: game.state.score_tenths[i])
+            assert new.callbreak_previous_scores == dict(zip(game.users, game.state.score_tenths))
+            assert new.state.initial_dealer == lowest + 1
+            assert new.state.dealer_selection is None
         new_lane = await inbox.ensure_lane(LaneTarget(kind='game', room_id='room',
             table_id=UUID(game.table.table_id), game_id=new.durable_game_id))
         actor, action = command(new)

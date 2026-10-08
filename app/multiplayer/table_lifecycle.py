@@ -223,6 +223,8 @@ class GameTableLifecycle:
                     if not set(roster).issubset(members):
                         reject('INVALID_ROSTER', 'Every seat must belong to a room member.')
                     new = type(game)(room_id, game.capacity, roster, name=game.name, game_type=game.game_type,
+                        card_theme=game.card_theme,
+                        callbreak_previous_scores=dict(zip(game.users, game.state.score_tenths)) if game.game_type == 'callbreak' else {},
                         settings=dict(game.settings), marriage_scoring=game.marriage_scoring, table=deepcopy(table),
                         previous_match_id=game.match_id)
                     await self._release_durable_players(game)

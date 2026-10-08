@@ -20,6 +20,8 @@ def card_theme_controller(game):
     dealer = None
     if game.game_type == 'callbreak' and game.state is not None:
         state = game.state
+        if state.phase.value == 'SELECTING_DEALER':
+            return next((user for user in game.users if user in occupied), None)
         context = state.preparation or state.current_deal or (state.completed_deals[-1].deal if state.completed_deals else None)
         seat = context.dealer if context else state.initial_dealer
         if 1 <= seat <= len(game.users):

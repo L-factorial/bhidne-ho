@@ -9,6 +9,7 @@ from .deals import CompletedDeal, DealState
 
 
 class Phase(str, Enum):
+    SELECTING_DEALER = "SELECTING_DEALER"
     AWAITING_DEAL = "AWAITING_DEAL"
     AWAITING_SHUFFLE = "AWAITING_SHUFFLE"
     SHUFFLING = "SHUFFLING"
@@ -35,6 +36,29 @@ class DealPreparation:
 
 
 @dataclass(frozen=True)
+class DealerPick:
+    player_id: int
+    position: int
+
+
+@dataclass(frozen=True)
+class DealerSelection:
+    deck: tuple[Card, ...]
+    picks: tuple[DealerPick, ...] = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "deck", tuple(self.deck))
+        object.__setattr__(self, "picks", tuple(self.picks))
+
+    @property
+    def winner(self) -> int | None:
+        if not self.picks:
+            return None
+        # A later picker wins a rank tie; suits never decide the dealer.
+        return min(enumerate(self.picks), key=lambda row: (self.deck[row[1].position].rank.value, -row[0]))[1].player_id
+
+
+@dataclass(frozen=True)
 class MatchState:
     config: GameConfig
     initial_dealer: int
@@ -44,6 +68,7 @@ class MatchState:
     completed_deals: tuple[CompletedDeal, ...] = ()
     abandoned_attempts: tuple[DealState, ...] = ()
     preparation: DealPreparation | None = None
+    dealer_selection: DealerSelection | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "completed_deals", tuple(self.completed_deals))
@@ -51,6 +76,8 @@ class MatchState:
 
     @property
     def current_player(self) -> int | None:
+        if self.phase == Phase.SELECTING_DEALER:
+            return len(self.dealer_selection.picks) + 1
         if self.preparation:
             if self.phase in (Phase.AWAITING_SHUFFLE, Phase.AWAITING_DISTRIBUTION):
                 return self.preparation.dealer

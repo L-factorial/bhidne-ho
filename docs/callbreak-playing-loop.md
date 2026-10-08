@@ -201,6 +201,21 @@ network retry/disconnect policies. The existing console still uses EchoGameEngin
 
 ## Live round flow and score review
 
+The first game at a new table starts with `SELECTING_DEALER` after the roster
+is locked by starting the game. Players pick one face-down card each in seat
+order, using `PICK_DEALER_CARD` with a zero-based position from 0 to 51. Each
+pick is revealed publicly. The lowest rank wins (2 through A); suits do not
+break ties, and the later picker wins equal ranks. Unpicked cards stay private.
+The selected player then shuffles, the next player cuts, and dealing proceeds.
+The selection deck and accepted picks survive durable recovery and retries.
+
+For later games on that table, the previous game's lowest-scoring returning
+player deals first. Equal lowest scores use the first returning seat. If the
+last-place player has left, the lowest-scoring remaining previous player deals;
+if nobody returns, the new roster draws cards again. Scores follow user identity
+across seat changes. Dealer rotation remains one seat per round: four players
+return to the first dealer in round five; five players each deal once.
+
 The live client guides players through Shuffle, Cut, Deal, Bid, Play, and Scores.
 The current task names the acting player, highlights the local player's turn,
 and explains what to do. Cutting offers a midpoint cut (`CUT_DECK`, position 26)

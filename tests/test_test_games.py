@@ -50,7 +50,7 @@ async def test_full_table_waits_for_creator_then_completes_all_five_deals(n):
         game = service.games["room"]
         assert game.state is None and game.task is None
         snapshot = await service.start("room", "u0", waiting["match_id"])
-        assert 1 <= game.state.initial_dealer <= n and game.state.phase == Phase.AWAITING_SHUFFLE
+        assert game.state.phase == Phase.SELECTING_DEALER
         assert game.users == [f"u{i}" for i in range(n)]
         assert snapshot["game"]["turn"]["player_id"] == game.state.initial_dealer
         with pytest.raises(HTTPException):
@@ -92,6 +92,12 @@ async def test_full_table_waits_for_creator_then_completes_all_five_deals(n):
 
         replacement = await service.table_command("room", "u0", game.match_id, "next-match")
         assert replacement["match_id"] != waiting["match_id"]
+        lowest = min(range(n), key=lambda seat: game.state.score_tenths[seat])
+        await service.start('room', 'u0', replacement['match_id'])
+        rematch = service.games['room']
+        assert rematch.state.dealer_selection is None
+        assert rematch.state.initial_dealer == lowest + 1
+        assert rematch.state.phase == Phase.AWAITING_SHUFFLE
     finally:
         await service.close()
 
@@ -113,6 +119,7 @@ def next_action(service, game):
     else:
         phase = game.state.phase
         command, payload = {
+            Phase.SELECTING_DEALER: ('PICK_DEALER_CARD', {'position': actor - 1}),
             Phase.AWAITING_SHUFFLE: ('SHUFFLE_DECK', {}),
             Phase.AWAITING_CUT: ('SKIP_CUT', {}),
             Phase.AWAITING_DISTRIBUTION: ('START_DISTRIBUTION', {}),
@@ -244,6 +251,9 @@ async def test_manual_actions_reject_stale_commands_without_turn_deadlines():
             await service.join("room", f"u{i}", waiting["match_id"])
         game = service.games["room"]
         await service.start("room", "u0", waiting["match_id"])
+        while game.state.phase == Phase.SELECTING_DEALER:
+            actor, pick = next_action(service, game)
+            await service.action('room', actor, pick)
         dealer = game.state.initial_dealer
         dealer_user = f"u{dealer - 1}"
         cutter = dealer % 4 + 1
@@ -319,6 +329,13 @@ def test_console_http_auth_lobby_and_validation():
         assert started.json()['play_mode'] == 'manual'
         assert started.json()['remaining_ms'] is None
         state = client.get('/test-games/room', headers=headers[0]).json()
+        assert state['game']['phase'] == 'SELECTING_DEALER'
+        for i, h in enumerate(headers):
+            picked = client.post('/test-games/room/action', headers=h, json={
+                'match_id': match_id, 'expected_revision': state['game']['revision'],
+                'command': 'PICK_DEALER_CARD', 'payload': {'position': i}, 'command_id': f'dealer-pick-{i}'})
+            assert picked.status_code == 200
+            state = picked.json()
         assert state['game']['phase'] == 'AWAITING_SHUFFLE'
         assert client.post('/test-games/room/action', headers=headers[0], json={
             "match_id": match_id, "expected_revision": state['game']['revision'],
@@ -398,6 +415,8 @@ async def test_player_play_waits_for_input_and_completes_match(n):
             if phase == Phase.HAND_REVIEW:
                 actor = next(p for p in game.state.config.players if p not in game.state.current_deal.accepted_hands)
                 command = "ACCEPT_HAND"
+            elif phase == Phase.SELECTING_DEALER:
+                command, payload = 'PICK_DEALER_CARD', {'position': actor - 1}
             elif phase == Phase.BIDDING:
                 command, payload = "PLACE_BID", {"amount": 2}
             elif phase == Phase.PLAYING:

@@ -5,6 +5,19 @@ from .game import MatchState, Phase
 from .house_rules import redeal_reasons
 
 
+def dealer_selection_view(state: MatchState) -> dict | None:
+    selection = state.dealer_selection
+    if selection is None:
+        return None
+    complete = len(selection.picks) == state.config.player_count
+    picked = {p.position for p in selection.picks}
+    return {"complete": complete, "current_player": state.current_player if not complete else None,
+            "dealer": selection.winner if complete else None,
+            "available_positions": [] if complete else [i for i in range(52) if i not in picked],
+            "picks": [{"player_id": p.player_id, "position": p.position,
+                       "card": str(selection.deck[p.position])} for p in selection.picks]}
+
+
 def _plays(trick):
     return tuple({"player": p.player_id, "card": str(p.card)} for p in trick.plays) if trick else ()
 
@@ -15,6 +28,7 @@ def public_view(state: MatchState) -> dict:
         deal = None
     policy = state.config.redeal_policy
     return {
+        "dealer_selection": dealer_selection_view(state),
         "revision": state.revision, "phase": state.phase.value,
         "players": state.config.players, "deals_per_match": 5,
         "rules": {"ruleset": state.config.ruleset, "undealt_policy": state.config.undealt_policy,
@@ -23,7 +37,7 @@ def public_view(state: MatchState) -> dict:
                   "no_spades_enabled": policy.no_spades_enabled},
         "current_player": state.current_player, "deal": state.preparation.number if state.preparation else deal.number if deal else 0,
         "attempt": state.preparation.attempt if state.preparation else deal.attempt if deal else 0,
-        "dealer": state.preparation.dealer if state.preparation else deal.dealer if deal else state.initial_dealer,
+        "dealer": None if state.phase == Phase.SELECTING_DEALER else state.preparation.dealer if state.preparation else deal.dealer if deal else state.initial_dealer,
         "bids": tuple(p.bid for p in deal.players) if deal else (),
         "hand_counts": tuple(len(p.hand) for p in deal.players) if deal else (),
         "accepted_hands": deal.accepted_hands if deal else (),

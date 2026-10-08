@@ -31,6 +31,10 @@ class CutPayload(Payload):
     position: Annotated[int, Field(strict=True, ge=1, le=51)]
 
 
+class DealerPickPayload(Payload):
+    position: Annotated[int, Field(strict=True, ge=0, le=51)]
+
+
 class BidPayload(Payload):
     amount: Annotated[int, Field(strict=True, ge=1, le=13)]
 
@@ -46,6 +50,7 @@ class CardPayload(Payload):
 
 
 class CommandName(str, Enum):
+    PICK_DEALER_CARD = "PICK_DEALER_CARD"
     SHUFFLE_DECK = "SHUFFLE_DECK"
     CUT_DECK = "CUT_DECK"
     SKIP_CUT = "SKIP_CUT"
@@ -64,6 +69,7 @@ class CommandSpec:
 
 
 COMMAND_SPECS = {
+    CommandName.PICK_DEALER_CARD: CommandSpec(DealerPickPayload, "current_picker", "PickDealerCard"),
     CommandName.SHUFFLE_DECK: CommandSpec(Empty, "dealer", "ShuffleDeck"),
     CommandName.CUT_DECK: CommandSpec(CutPayload, "player_after_dealer", "CutDeck"),
     CommandName.SKIP_CUT: CommandSpec(Empty, "player_after_dealer", "SkipCut"),
@@ -126,6 +132,10 @@ class PlayerPayload(Payload):
 
 class DealerPayload(Payload):
     dealer_id: PlayerId
+
+
+class DealerCardPickedPayload(PlayerPayload, DealerPickPayload, CardPayload):
+    pass
 
 
 class CutRequestedPayload(PlayerPayload):
@@ -249,6 +259,7 @@ class MatchCompletedPayload(Payload):
 
 
 AdapterPhase = Literal[
+    "SELECTING_DEALER",
     "AWAITING_SHUFFLE", "SHUFFLING", "AWAITING_CUT", "AWAITING_DISTRIBUTION", "DISTRIBUTING",
     "HAND_REVIEW", "AWAITING_REDEAL", "BIDDING", "PLAYING", "DEAL_COMPLETE", "MATCH_COMPLETE",
 ]
@@ -260,6 +271,8 @@ class TurnChangedPayload(Payload):
 
 
 class EventName(str, Enum):
+    DEALER_CARD_PICKED = "DEALER_CARD_PICKED"
+    DEALER_SELECTION_COMPLETED = "DEALER_SELECTION_COMPLETED"
     DEALER_ASSIGNED = "DEALER_ASSIGNED"
     SHUFFLE_REQUESTED = "SHUFFLE_REQUESTED"
     DECK_SHUFFLED = "DECK_SHUFFLED"
@@ -294,6 +307,8 @@ class EventSpec:
 
 
 EVENT_SPECS = {
+    EventName.DEALER_CARD_PICKED: EventSpec(DealerCardPickedPayload, "broadcast"),
+    EventName.DEALER_SELECTION_COMPLETED: EventSpec(DealerPayload, "broadcast"),
     EventName.DEALER_ASSIGNED: EventSpec(DealerPayload, "broadcast"),
     EventName.SHUFFLE_REQUESTED: EventSpec(DealerPayload, "unicast", "dealer_id"),
     EventName.DECK_SHUFFLED: EventSpec(DealerPayload, "broadcast"),

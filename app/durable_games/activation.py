@@ -14,6 +14,7 @@ from .settlements import MODELS as SETTLEMENT_MODELS
 
 # Advertised by the explicitly assembled runtime, not inferred from installed code.
 ACTIVATION_CAPABILITIES = {
+    'callbreak_dealer_selection': 1,
     'manual_settlement': 1,
     'shared_card_themes': 1,
     'table_pokes': 1,
