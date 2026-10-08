@@ -7093,3 +7093,49 @@ implementation request before changing card rendering or Marriage turn behavior.
 - Exact next step: finish broad verification, push the implementation and perform
   guarded deployment to both application hosts, then verify exact source/image/
   frontend hashes and public HTTPS health.
+
+
+### 2026-10-07 — Game-change release completed
+
+- Implemented and pushed the complete collected game-change scope in `6c3e62b`
+  and final UI review corrections in `09fbf36ddbd9d109597633cb8d4822fb5a4e6665`.
+  All five Marriage/card items in the earlier planning-only checklist are complete.
+  The added avatar turn borders, Flush pot/status/session totals, rule controls,
+  and request → respond → reveal side-show process are complete as described above.
+- Verification: 333 focused engine/adapter/checkpoint tests and 398 client tests
+  pass. TypeScript, final production web export, unsigned iOS/Android exports,
+  mocked Chrome game checks across all five themes and reduced-motion checks pass.
+  The broad PGLite backend run completed with 1,872 passed, 30 skipped and six
+  failures. Five assertion failures reproduce on unchanged `e8d7f7c`: account
+  deletion pending-actions gating; shared-room invitation feed visibility; and
+  missing `created_at` in generated table previews for all three games. The sixth
+  was the sandboxed telemetry-listener bind; it passes with local-listener
+  permission. These are not silently reported as passing or fixed in this scope.
+  Real Postgres/Redis/Nginx process suites were not run in this increment.
+- Direct deployment retained the installed receiver's release lock, dependency/
+  schema preflight, peer-health check, container hardening and rollback guards.
+  Both backends were activated before either frontend. No database migration,
+  credentials change, dependency update or operational HA configuration was made.
+- Both production application hosts (`168.144.105.49`, `165.245.180.205`) run release
+  `09fbf36ddbd9d109597633cb8d4822fb5a4e6665`, immutable local image
+  `sha256:dc42d24eec89d87c71f373f6db0c90dbf8e7aab40679d84b26e497bf69bb04b9`.
+  All 252 committed backend/game source hashes match on both hosts. The frontend
+  index and JavaScript hashes match the fresh local production export on both
+  hosts and public HTTPS. API health and APNs capability remain healthy.
+- Live public web startup, sign-in entry, font loading and absence of JavaScript
+  errors pass in mobile Chrome. No production accounts, tables or messages were
+  created by verification. Game interactions were tested with isolated engine
+  state and intercepted browser fixtures, rather than active production games.
+- Release evidence: `/private/tmp/bhidne-09fbf36-direct/verification.json` and
+  `/private/tmp/bhidne-game-{backend-full,engine-tests,client,browser,rollout,public-check}.log`.
+  Browser screenshots use `/private/tmp/bhidne-game-*.png`. The release report is
+  a documentation-only follow-up; it does not require replacing the verified image.
+- Limitations: existing table rule choices are preserved, including tables that
+  disabled side-show. Refresh the web page to load the new controls. Installed
+  native apps require a separate signed build; unsigned export validation does
+  not establish device rendering. Old-code rollback after new checkpoint writes
+  requires the compatibility review described above.
+- Exact next step: use the refreshed production UI for the next play/review session.
+  Address the baseline test failures or produce signed native builds if requested.
+  Capacity testing, observability, database HA and operational readiness remain
+  the distributed-runtime follow-up task set.
