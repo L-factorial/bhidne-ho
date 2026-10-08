@@ -7417,3 +7417,37 @@ implementation request before changing card rendering or Marriage turn behavior.
   cross-row target detection. No new browser or native drag test was run.
 - Limitations: local, not deployed, alongside the pending room/table/Play fixes.
 - Exact next step: include this hand-order correction in the next requested release.
+
+### 2026-10-08 — Room/table, Play card and Marriage drag fixes deployed
+
+- Deployed committed release `1fc5aac10037b83addd2640453c4633339d02489`
+  to both production application hosts (`168.144.105.49`, `165.245.180.205`).
+  Both run immutable image
+  `sha256:50d013f60e1c2247a13eea538b4a105d6a6612391d154890d530877eb4725824`.
+  Includes persistent departure prompts, completed-table visibility/closure,
+  protected reserved-seat feed visibility, revised Join/Return/Watch/invitation
+  actions, and Marriage drag insertion before the target card.
+- Used the established administrator sideload procedure, verified host keys and
+  installed receiver's release lock, schema/dependency checks, peer-health checks,
+  container hardening and guarded activation. Both backends became healthy before
+  either frontend switched. No migration, credentials or infrastructure changes.
+- Verification: 96 focused backend/production-receiver tests, all 402 client
+  tests, TypeScript and a clean production web export pass. The candidate release
+  loaded all 40 existing table checkpoints in a read-only repeatable-read check
+  before activation. Both hosts' exact revision/image, all 253 committed Python
+  backend/game source hashes, and frontend index/JavaScript hashes match.
+  Public HTTPS API health, APNs, two fresh serving runtime registrations, ten
+  card-back image hashes, mobile startup and sign-in entry pass without JS errors.
+- Read-only live projections confirm Sigma sees `ABC Marriage` and
+  `abc ekraj marriage` as completed closable tables in `Abc`; `XYZ` remains
+  visible as her completed reserved table in `Hamro family`, alongside open `Flu`.
+  No production tables were closed, rooms deleted, or player seats changed by
+  deployment verification. Interaction checks use the earlier passing isolated
+  browser fixtures; this release does not add signed native builds.
+- Evidence: `/private/tmp/bhidne-1fc5aac-direct/verification.json`,
+  `user-projections.json` in that directory, and
+  `/private/tmp/bhidne-1fc5aac-{backend,client,production-build,rollout,source,live-browser}.log`.
+- Exact next step: refresh the production web app. Sigma can use the completed
+  tables' menus to close both Abc blockers and then explicitly delete the room;
+  use Return/Leave on XYZ before joining Flu. Installed native apps require a
+  separate signed build. Capacity/HA/operational work remains separate.
