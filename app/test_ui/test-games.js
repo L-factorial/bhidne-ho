@@ -3,7 +3,7 @@ let testGame = null, testGameBusy = false, testGameRefreshing = false;
 let testGameDeadline = null, testGameSignature = '';
 const suitSymbols = {C: '♣', D: '♦', H: '♥', S: '♠'};
 const gameConnected = () => !!activeRoom && socket?.readyState === WebSocket.OPEN;
-const scoreText = value => value === null || value === undefined ? '—' : (value / 10).toFixed(1);
+const scoreText = value => value === null || value === undefined ? '—' : (value / (testGame?.game?.score_scale || 10)).toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
 
 function resetTestGame() {
   testGame = null; testGameDeadline = null; testGameSignature = '';

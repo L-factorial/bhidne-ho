@@ -83,18 +83,14 @@ def project_match(decoded):
     elif data.game_type == 'callbreak':
         if state.phase != Phase.MATCH_COMPLETE:
             raise CheckpointError('Call Break settlement requires a completed match.')
-        ranked = sorted(enumerate(state.score_tenths), key=lambda row: (-row[1], row[0]))
-        if len({score for _, score in ranked}) != len(ranked):
-            return None  # Preserve legacy policy: tied placement has no payment projection.
-        payments = data.host.settings.get('payments')
-        if (not isinstance(payments, list) or len(payments) < len(users)-1
-                or any(type(payment) is not int or payment < 0 for payment in payments)):
-            raise CheckpointError('Call Break placement payments are invalid.')
-        amounts = dict.fromkeys(users, 0)
-        winner = users[ranked[0][0]]
-        for place, (index, _) in enumerate(ranked[1:]):
-            amounts[users[index]] -= payments[place]
-            amounts[winner] += payments[place]
+        from callbreak.settlement import settlement_amounts
+        try:
+            values = settlement_amounts(state, data.host.settings.get('payments', []))
+        except ValueError as error:
+            raise CheckpointError(str(error)) from error
+        if values is None:
+            return None
+        amounts = dict(zip(users, values))
     else:
         raise UnsupportedRecoveryWork('Unsupported match settlement type.')
     return GameLedgerResult(room_id=data.room_id, table_id=data.table_id, table_name=data.name,

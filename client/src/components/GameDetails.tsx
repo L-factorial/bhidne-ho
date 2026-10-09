@@ -6,6 +6,7 @@ import { FormScrollView } from './FormInput';
 import { RoomSheet } from './RoomSheet';
 import { FormFooter } from './FormFooter';
 import { NumericInput } from './NumericInput';
+import { callBreakRuleGroups, defaultCallBreakRules, formatCallBreakScore } from '../multiplayer/callbreakRules';
 import { useEffect, useState } from 'react';
 import {Pressable, StyleSheet, Switch, View} from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
@@ -21,6 +22,8 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = fa
   useEffect(() => setDraft(snapshot.settings), [JSON.stringify(snapshot.settings), snapshot.rule_proposal?.id, snapshot.rule_proposal?.status]);
   const editable = snapshot.is_creator && snapshot.status === 'waiting' && snapshot.rule_proposal?.status !== 'PENDING';
   const settings = editable ? draft || snapshot.settings : snapshot.settings;
+  const matchRules = settings?.match_rules ?? defaultCallBreakRules(snapshot.capacity || 4);
+  const scoreScale = snapshot.game?.score_scale ?? 10;
   const ruleAction = selectedTab === 'rules' && editable && settings ? <FormFooter>
     <Pressable accessibilityRole="button" disabled={busy} onPress={() => onSave(settings)} style={styles.button}><Text style={styles.label}>{busy ? ui("common.proposing") : ui("rooms.propose_rules_bets")}</Text></Pressable>
   </FormFooter> : undefined;
@@ -47,10 +50,10 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = fa
                 const points = score?.deal_scores_tenths[i];
                 const missed = points != null && points < 0;
                 return <View key={player.player_id} style={styles.playerCell}
-                  accessibilityLabel={ui("common.game_stats_accessible", {player: player.display_name || ui("common.player_number", {number: player.player_id}), deal: i + 1, active: active ? ui("rooms.active") : "", bid: bid ?? ui("common.rule_pending"), won: won ?? 0, score: points != null ? ui("common.game_stats_score", {missed: missed ? ui("common.missed_bid") : "", score: points / 10}) : ""})}>
+                  accessibilityLabel={ui("common.game_stats_accessible", {player: player.display_name || ui("common.player_number", {number: player.player_id}), deal: i + 1, active: active ? ui("rooms.active") : "", bid: bid ?? ui("common.rule_pending"), won: won ?? 0, score: points != null ? ui("common.game_stats_score", {missed: missed ? ui("common.missed_bid") : "", score: points / scoreScale}) : ""})}>
                   <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.statValue, active && styles.activeBid]}>{ui("callbreak.bid_count", { "count": bid ?? '—' })}</Text>
                   <Text numberOfLines={1} adjustsFontSizeToFit style={styles.statValue}>{ui("common.won_count", { "count": won ?? '—' })}</Text>
-                  <View style={[styles.result, missed && styles.missed]}><Text numberOfLines={1} adjustsFontSizeToFit style={[styles.statValue, missed && styles.negative]}>{points == null ? '—' : `${points > 0 ? '+' : ''}${(points / 10).toFixed(1)}`}</Text></View>
+                  <View style={[styles.result, missed && styles.missed]}><Text numberOfLines={1} adjustsFontSizeToFit style={[styles.statValue, missed && styles.negative]}>{points == null ? '—' : `${points > 0 ? '+' : ''}${formatCallBreakScore(points, scoreScale)}`}</Text></View>
                 </View>;
               })}
             </View>;
@@ -58,7 +61,7 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = fa
           <View style={styles.statsRow}>
             <Text style={styles.cell}>{ui("common.score")}</Text>
             {(snapshot.players || []).map(player => <Text key={player.player_id} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={[styles.playerCell, styles.columnHeading]}>
-              {((snapshot.scoreboard?.find(p => p.player_id === player.player_id)?.total_score_tenths ?? 0) / 10).toFixed(1)}
+              {formatCallBreakScore(snapshot.scoreboard?.find(p => p.player_id === player.player_id)?.total_score_tenths ?? 0, scoreScale)}
             </Text>)}
           </View>
           <View style={styles.statsRow}>
@@ -67,13 +70,35 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = fa
               {snapshot.player_stats?.find(p => p.player_id === player.player_id)?.total_tricks_won ?? 0}
             </Text>)}
           </View>
+          <View style={styles.statsRow}>
+            <Text style={styles.cell}>{ui('callbreak.bonus')}</Text>
+            {(snapshot.players || []).map(player => <Text key={player.player_id} style={[styles.playerCell, styles.columnHeading]}>
+              {snapshot.scoreboard?.find(p => p.player_id === player.player_id)?.bonus_tricks ?? 0}
+            </Text>)}
+          </View>
         </View>
       </> : <>
         <Text style={[styles.title, menu && { fontSize: 16 }]}>{ui("callbreak.rules_title")}</Text>
         <Text style={styles.text}>{ui("callbreak.rules_help")}</Text>
-        <Text style={styles.text}>{ui("callbreak.bid_rules_help", {max: snapshot.rules?.bid_max || Math.floor(52 / (snapshot.capacity || 4))})}</Text>
+        <Text style={styles.text}>{ui("callbreak.configured_bid_help", {max: snapshot.rules?.bid_max || Math.floor(52 / (snapshot.capacity || 4)), bonus: matchRules.bonus_conversion_enabled ? matchRules.bonus_per_point : 10})}</Text>
         <Text style={styles.text}>{editable ? ui("rooms.creator_settings_save_before_starting") : ui("rooms.creator_rules_help")}</Text>
         {settings && <>
+          {callBreakRuleGroups.map(group => <View key={group.toggle} style={{ gap: 8 }}>
+            <View style={styles.row}>
+              <Switch accessibilityLabel={ui(`callbreak.${group.toggle}`)} disabled={!editable || busy}
+                value={matchRules[group.toggle]} onValueChange={value => setDraft({ ...settings, match_rules: { ...matchRules, [group.toggle]: value } })} />
+              <Text style={styles.text}>{ui(`callbreak.${group.toggle}`)}</Text>
+            </View>
+            <Text style={styles.text}>{ui(`callbreak.${group.help}`)}</Text>
+            {matchRules[group.toggle] && group.values.map(key => <View key={key} style={styles.row}>
+              <Text style={styles.text}>{ui(`callbreak.${key}`)}</Text>
+              <NumericInput accessibilityLabel={ui(`callbreak.${key}`)} editable={!!editable && !busy} keyboardType={key === 'negative_threshold' ? 'numbers-and-punctuation' : 'number-pad'}
+                value={String(matchRules[key])} maxLength={5} onChangeText={text => {
+                  if ((key === 'negative_threshold' ? /^-?\d*$/ : /^\d*$/).test(text))
+                    setDraft({ ...settings, match_rules: { ...matchRules, [key]: key === 'negative_threshold' ? -Math.abs(Number(text === '-' ? '0' : text)) : Number(text) } });
+                }} style={styles.input} />
+            </View>)}
+          </View>)}
           {(['weak_hand_enabled', 'no_spades_enabled'] as const).map(key => <View key={key} style={styles.row}>
             <Switch accessibilityLabel={key === 'weak_hand_enabled' ? ui("callbreak.allow_weak_hand_redeal") : ui("callbreak.allow_no_spades_redeal")} disabled={!editable || busy} value={settings[key]} onValueChange={value => setDraft({ ...settings, [key]: value })} />
             <Text style={styles.text}>{key === 'weak_hand_enabled' ? ui("callbreak.redeal_with_no_card_above_jack") : ui("callbreak.redeal_with_no_spades")}</Text>

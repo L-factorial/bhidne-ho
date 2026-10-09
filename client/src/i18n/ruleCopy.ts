@@ -1,4 +1,4 @@
-import { uiLabel } from './copy.ts';
+import { ui, uiLabel } from './copy.ts';
 
 // Stable protocol keys map to presentation labels; the configuration stays untouched.
 const fields: Record<string, string> = {
@@ -42,6 +42,9 @@ const fields: Record<string, string> = {
 
 export function ruleFieldLabel(path: string): string {
   const key = path.split('.').at(-1) || path;
+  const callbreakKeys = ['match_rules', 'instant_win_enabled', 'instant_win_bid', 'perfect_bid_enabled', 'perfect_bid', 'bonus_conversion_enabled', 'bonus_per_point', 'double_win_enabled', 'double_win_threshold', 'winner_multiplier', 'negative_payment_enabled', 'negative_threshold', 'negative_multiplier'] as const;
+  const match = callbreakKeys.find(value => value === key);
+  if (match) return ui(`callbreak.${match}`);
   return uiLabel(fields[key] || key.replaceAll('_', ' '));
 }
 

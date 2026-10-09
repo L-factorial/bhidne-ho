@@ -7451,3 +7451,33 @@ implementation request before changing card rendering or Marriage turn behavior.
   tables' menus to close both Abc blockers and then explicitly delete the room;
   use Return/Leave on XYZ before joining Flu. Installed native apps require a
   separate signed build. Capacity/HA/operational work remains separate.
+
+
+## 2026-10-08: configurable Call Break match rules
+
+- User-expanded scope: implement the discussed instant high-bid victory, perfect
+  bid across all rounds, custom Bonus conversion, high-score payout multiplier,
+  and negative-score payment multiplier, with individual switches and editable
+  values. New switches are off by default; four/five-player suggested values are
+  8/6, 1/1, 10/8, 20/15 and below zero respectively.
+- Completed: domain configuration, immediate terminal trick handling, exact
+  integer scoring, shared local/durable settlement, pre-start unanimous proposals,
+  server validation, English/Nepali settings and result copy, exact score display,
+  Bonus totals, checkpoint compatibility and replay serialization.
+- Design decisions: exact high bid; converted Bonus counts toward thresholds;
+  multipliers apply to ordinary score wins only; perfect co-winners share top
+  places and split remaining placements. Special payouts reject indivisible
+  configurations rather than rounding. Tied opponents in perfect wins share the
+  payments of their tied places. See docs/callbreak-match-rules.md for full rules.
+- Verification: final Call Break/checkpoint/proposal regression run: 240 passed,
+  14 optional integration cases skipped without PGLITE_MODULE. Separately, 30
+  existing SQL finalization/rematch cases passed with PostgreSQL/WASM, and the new
+  early-win recovery/idempotent settlement test passed on rerun after fixing its
+  test-only dictionary assertion. All 404 client tests passed; TypeScript and
+  Expo web export passed. Legal-play and replay tests cover four/five-player rules.
+- Limits: no native PostgreSQL/Redis multi-process or device-native run in this
+  increment. Normal score-based tied-placement settlement retains existing policy.
+  No commit, push, deployment, or signed native build was performed.
+- Exact next step: review and deploy the backend/client together before enabling
+  custom rules, then smoke-test the Rules proposal and an early win on a test
+  table. Unrelated capacity/HA/operational increments remain separate.

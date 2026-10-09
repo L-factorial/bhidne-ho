@@ -5,7 +5,7 @@ public information only. get_player_view requires a trusted viewer ID supplied
 by the caller; this domain API does not authenticate users.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import Any
 
 from .deals import DealState
@@ -62,6 +62,7 @@ class GameQuery:
             "deal_number": preparation.number if preparation else deal.number if deal else None,
             "active_deal_number": preparation.number if preparation else state.current_deal.number if state.current_deal else None,
             "current_trick": self.get_current_trick(), "turn": self.get_turn(),
+            "score_scale": state.config.score_scale, "win_reason": state.win_reason,
             "scores_tenths": list(state.score_tenths), "winners": list(state.winners),
             "finished": state.phase == Phase.MATCH_COMPLETE,
         }
@@ -83,8 +84,10 @@ class GameQuery:
             "free_discard_when_void_and_no_winning_trump": True,
             "trick_winner_leads_next": True,
             "bid_min": 1, "bid_max": config.tricks_per_deal,
-            "scoring": {"unit": "tenths", "made_bid_multiplier": 10,
-                        "overtrick_bonus": 1, "missed_bid_multiplier": -10, "ties": "shared_winners"},
+            "scoring": {"unit": "tenths" if config.score_scale == 10 else "score_units", "made_bid_multiplier": config.score_scale,
+                        "score_scale": config.score_scale,
+                        "overtrick_bonus": 1, "missed_bid_multiplier": -config.score_scale, "ties": "shared_winners"},
+            "match_rules": asdict(config.match_rules) if config.match_rules else None,
             "redeal": {"weak_hand_enabled": policy.weak_hand_enabled,
                        "weak_hand_threshold": policy.weak_hand_threshold.name,
                        "no_spades_enabled": policy.no_spades_enabled,
@@ -212,6 +215,7 @@ class GameQuery:
         return [{"player_id": p,
                  "deal_scores_tenths": [state.completed_deals[i].result.score_tenths[p - 1]
                                         if i < len(state.completed_deals) else None for i in range(5)],
+                 "bonus_tricks": sum(max(0, d.result.tricks_won[p - 1] - d.result.bids[p - 1]) for d in state.completed_deals),
                  "total_score_tenths": state.score_tenths[p - 1], "is_winner": p in state.winners}
                 for p in state.config.players]
 

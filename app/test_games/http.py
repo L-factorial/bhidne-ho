@@ -1,9 +1,10 @@
 """Test-only HTTP commands; never enabled through the generic Echo runtime."""
 
 from typing import Annotated, Literal
+from callbreak.match_rules import MatchRules
 
 from fastapi import APIRouter, Depends, Request, Response
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator, field_validator
 
 from app.adapters.callbreak.contracts import COMMAND_SPECS, CommandName
 from app.adapters.marriage.contracts import COMMAND_SPECS as MARRIAGE_COMMANDS, CommandName as MarriageCommandName
@@ -121,6 +122,20 @@ async def leave(room_id: str, body: JoinGame, request: Request, response: Respon
 
 
 class GameSettings(JoinGame):
+    match_rules: MatchRules | None = None
+
+    @field_validator('match_rules', mode='before')
+    @classmethod
+    def strict_match_rules(cls, value):
+        if value is None or isinstance(value, MatchRules):
+            return value
+        if not isinstance(value, dict):
+            raise ValueError('Match rules must be an object.')
+        try:
+            return MatchRules(**value)
+        except TypeError as error:
+            raise ValueError('Unknown match rule.') from error
+
     weak_hand_enabled: Annotated[bool, Field(strict=True)] = True
     no_spades_enabled: Annotated[bool, Field(strict=True)] = True
     payments: Annotated[list[Annotated[int, Field(strict=True, ge=0, le=1000000)]], Field(min_length=4, max_length=4)] = [0, 0, 0, 0]

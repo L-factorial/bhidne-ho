@@ -45,6 +45,7 @@ def public_view(state: MatchState) -> dict:
         "completed_tricks": len(deal.completed_tricks) if deal else 0,
         "last_trick": _plays(deal.completed_tricks[-1]) if deal and deal.completed_tricks else (),
         "tricks_won": deal.tricks_won if deal else (),
+        "score_scale": state.config.score_scale, "win_reason": state.win_reason,
         "scores_tenths": state.score_tenths, "winners": state.winners,
         "scoreboard": tuple({"deal": d.deal.number, "bids": d.result.bids,
                              "tricks_won": d.result.tricks_won, "scores_tenths": d.result.score_tenths}

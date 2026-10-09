@@ -3,6 +3,7 @@ import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { visualStates, radii, gameControlFinish, gameHeadingFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { RoundResultsTable } from './RoundResultsTable';
+import { formatCallBreakScore } from '../multiplayer/callbreakRules';
 import type { ReactNode } from 'react';
 import { ActionCue } from './ActionCue';
 import {Pressable, ScrollView, StyleSheet, View} from 'react-native';
@@ -15,11 +16,14 @@ export function RoundSummary({ snapshot, busy, error, onContinue, onBack, onNewG
   useUiLanguage();
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const round = [...(snapshot.deal_history || [])].reverse().find(d => d.complete);
+  const instant = snapshot.game?.win_reason === 'instant_bid';
+  const round = [...(snapshot.deal_history || [])].reverse().find(d => instant || d.complete);
   const final = snapshot.game?.finished;
   const name = (id: number) => snapshot.players?.find(p => p.player_id === id)?.display_name || ui("common.player_number", { "number": id });
-  const score = (n: number | null | undefined) => n == null ? '—' : `${n > 0 ? '+' : ''}${(n / 10).toFixed(1)}`;
+  const score = (n: number | null | undefined) => n == null ? '—' : `${n > 0 ? '+' : ''}${formatCallBreakScore(n, snapshot.game?.score_scale ?? 10)}`;
   return <ScrollView testID="round-summary" style={styles.page} contentContainerStyle={styles.body}>
+    {snapshot.game?.win_reason === 'instant_bid' && <Text style={styles.note}>{ui('callbreak.instant_result')}</Text>}
+    {snapshot.game?.win_reason === 'perfect_bid' && <Text style={styles.note}>{ui('callbreak.perfect_result')}</Text>}
     <RoundResultsTable title={final ? ui("callbreak.final_scores") : ui("callbreak.deal_number_complete", { "number": round?.deal_number })}
       subtitle={final ? `Winner${snapshot.game!.winners.length > 1 ? 's' : ''}: ${snapshot.game!.winners.map(name).join(', ')}` : ui("callbreak.round_complete_call_break")}
       columns={['Bid', 'Taken', 'Score', 'Total']} rows={(round?.players || []).map(player => {

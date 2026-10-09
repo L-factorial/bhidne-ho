@@ -1,6 +1,7 @@
 """Shared first-dealer policy for legacy and durable Callbreak starts."""
 from callbreak import GameConfig, RedealPolicy, create_match
 from card_utils import shuffle, standard_52
+from callbreak.match_rules import rules_from_settings
 
 
 def create_callbreak_match(game, rng):
@@ -10,6 +11,7 @@ def create_callbreak_match(game, rng):
     dealer = min(previous, key=lambda u: (game.callbreak_previous_scores[u], game.users.index(u))) if previous else None
     policy = RedealPolicy(weak_hand_enabled=game.settings['weak_hand_enabled'],
                          no_spades_enabled=game.settings['no_spades_enabled'])
-    return create_match(GameConfig(game.capacity, redeal_policy=policy),
+    rules = rules_from_settings(game.settings, game.capacity) if game.settings.get('match_rules') is not None else None
+    return create_match(GameConfig(game.capacity, redeal_policy=policy, match_rules=rules),
                         initial_dealer=game.users.index(dealer) + 1 if dealer else 1,
                         dealer_selection_deck=shuffle(standard_52(), rng=rng) if dealer is None else None)

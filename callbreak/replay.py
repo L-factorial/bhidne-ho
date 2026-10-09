@@ -5,7 +5,7 @@ explicit so results do not depend on a random implementation or seed version.
 """
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 
 from card_utils import Card, Rank
 
@@ -16,6 +16,7 @@ from .engine import apply_control, apply_player, create_match
 from .events import Transition
 from .game import MatchState
 from .house_rules import RedealPolicy
+from .match_rules import MatchRules
 
 
 @dataclass(frozen=True)
@@ -69,6 +70,8 @@ class Replay:
             "weak_hand_threshold": policy.weak_hand_threshold.name,
             "no_spades_enabled": policy.no_spades_enabled,
         }, "initial_dealer": self.initial_dealer, "entries": rows}
+        if self.config.match_rules is not None:
+            record['config']['match_rules'] = asdict(self.config.match_rules)
         if self.dealer_selection_deck is not None:
             record['dealer_selection_deck'] = list(map(str, self.dealer_selection_deck))
         return json.dumps(record, sort_keys=True)
@@ -84,10 +87,11 @@ class Replay:
             if type(data["version"]) is not int or data["version"] != 1:
                 raise ValueError("Unsupported replay version.")
             c = data["config"]
-            exact(c, "player_count deals_per_match ruleset undealt_policy weak_hand_enabled weak_hand_threshold no_spades_enabled")
+            exact(c, "player_count deals_per_match ruleset undealt_policy weak_hand_enabled weak_hand_threshold no_spades_enabled" + (' match_rules' if 'match_rules' in c else ''))
             config = GameConfig(c["player_count"], c["deals_per_match"],
                                 RedealPolicy(c["weak_hand_enabled"], Rank[c["weak_hand_threshold"]], c["no_spades_enabled"]),
-                                c["undealt_policy"], c["ruleset"])
+                                c["undealt_policy"], c["ruleset"],
+                                MatchRules(**c['match_rules']) if 'match_rules' in c else None)
             if not isinstance(data["entries"], list):
                 raise ValueError("Entries must be a list.")
             entries = []

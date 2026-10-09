@@ -117,15 +117,29 @@ def audit_match(state: MatchState) -> None:
         if len(deal.completed_tricks) != state.config.tricks_per_deal or any(p.hand for p in deal.players):
             raise ValueError("Archived deal is incomplete.")
         bids = tuple(p.bid for p in deal.players)
+        rules = state.config.match_rules
+        if rules and rules.instant_win_enabled and any(
+                bid == rules.instant_win_bid and won >= rules.instant_win_bid
+                for bid, won in zip(bids, deal.tricks_won)):
+            raise ValueError('A qualifying instant win cannot be archived as a normal deal.')
         if (archived.result.bids != bids or archived.result.tricks_won != deal.tricks_won
-                or archived.result.score_tenths != score_deal(bids, deal.tricks_won)):
+                or archived.result.score_tenths != score_deal(bids, deal.tricks_won, state.config.score_scale)):
             raise ValueError("Recorded scores do not agree with history.")
     deal = state.current_deal
-    active = state.phase in (Phase.HAND_REVIEW, Phase.AWAITING_REDEAL, Phase.BIDDING, Phase.PLAYING)
+    instant = state.phase == Phase.MATCH_COMPLETE and bool(state.instant_winners)
+    active = state.phase in (Phase.HAND_REVIEW, Phase.AWAITING_REDEAL, Phase.BIDDING, Phase.PLAYING) or instant
     if active != (deal is not None):
         raise ValueError("Phase does not agree with current deal.")
     if deal:
         audit_deal(deal, state.config)
+        if instant:
+            if deal.current_trick is not None or len(state.instant_winners) != 1:
+                raise ValueError('Invalid instant-win boundary.')
+            winner = state.instant_winners[0]
+            from .rules import resolve_trick
+            if (not deal.completed_tricks or resolve_trick(deal.completed_tricks[-1]) != winner
+                    or deal.tricks_won[winner - 1] != state.config.match_rules.instant_win_bid):
+                raise ValueError('Instant win must stop on the target trick.')
         if deal.number != len(completed) + 1 or deal.dealer != advance(state.initial_dealer, state.config.player_count, deal.number - 1):
             raise ValueError("Incorrect active deal sequence.")
         if state.phase in (Phase.HAND_REVIEW, Phase.AWAITING_REDEAL):
@@ -138,8 +152,10 @@ def audit_match(state: MatchState) -> None:
             raise ValueError("Invalid bidding state.")
         if state.phase == Phase.PLAYING and deal.current_trick is None:
             raise ValueError("Playing requires a current trick.")
-    if state.phase == Phase.MATCH_COMPLETE and len(completed) != 5:
+    if state.phase == Phase.MATCH_COMPLETE and len(completed) != 5 and not instant:
         raise ValueError("Match ended early.")
+    if state.instant_winners and not instant:
+        raise ValueError('Instant-win target must end the match.')
     if len(completed) == 5 and state.phase != Phase.MATCH_COMPLETE:
         raise ValueError("Fifth deal must end the match.")
     if state.phase == Phase.AWAITING_DEAL and completed:

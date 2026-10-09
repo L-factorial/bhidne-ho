@@ -247,6 +247,7 @@ class Score(PlayerPayload):
 
 
 class DealCompletedPayload(Payload):
+    score_scale: Annotated[int, Field(strict=True, ge=1, le=100)] = 10
     bids: list[BidPlacedPayload]
     tricks_won: list[TrickCount]
     scores: list[Score]
@@ -254,6 +255,8 @@ class DealCompletedPayload(Payload):
 
 
 class MatchCompletedPayload(Payload):
+    score_scale: Annotated[int, Field(strict=True, ge=1, le=100)] = 10
+    win_reason: Literal['instant_bid', 'perfect_bid', 'score'] = 'score'
     totals: list[Score]
     winner_ids: list[PlayerId]
 

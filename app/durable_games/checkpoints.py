@@ -224,7 +224,8 @@ def _normalize_engine_sets(kind, state):
         return {**state, 'config': {**state['config'], 'rules': _flush_rules_defaults(state['config']['rules'])},
                 'pending_side_show': None if pending is None else {'accepted': False, 'prepaid': True, **pending}}
     if kind == 'callbreak':
-        return {'dealer_selection': None, **state}
+        return {'dealer_selection': None, **state,
+                'config': {'match_rules': None, **state['config']}}
     if kind != 'marriage':
         return state
     return {**state, 'players': [

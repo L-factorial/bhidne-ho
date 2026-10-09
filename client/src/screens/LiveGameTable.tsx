@@ -56,14 +56,14 @@ export type RoomSnapshot = {
   game?: { revision: number; phase: string; finished: boolean; winners: number[]; turn: { player_id: number | null };
     dealer_selection?: { complete: boolean; current_player: number | null; dealer: number | null;
       available_positions: number[]; picks: { player_id: number; position: number; card: string }[] } | null;
-    current_trick: Trick | null; scores_tenths: number[] };
+    current_trick: Trick | null; scores_tenths: number[]; score_scale?: number; win_reason?: 'instant_bid' | 'perfect_bid' | 'score' | null };
   deal?: { attempt?: number; deal_number: number; dealer: number; tricks_completed: number; tricks_required: number; tricks: Trick[];
     players: { player_id: number; bid: number | null; tricks_won: number; cards_remaining: number }[] };
   private?: { hand: string[]; legal_cards: string[]; can_accept_hand: boolean; can_claim_redeal: boolean } | null;
   is_creator?: boolean; ready?: boolean;
-  settings?: { weak_hand_enabled: boolean; no_spades_enabled: boolean; payments: number[] };
+  settings?: { weak_hand_enabled: boolean; no_spades_enabled: boolean; payments: number[]; match_rules?: import('../multiplayer/callbreakRules').CallBreakMatchRules | null };
   deal_history?: { deal_number: number; complete: boolean; players: { player_id: number; bid: number | null; tricks_won: number; score_tenths: number | null }[] }[];
-  scoreboard?: { player_id: number; deal_scores_tenths: (number | null)[]; total_score_tenths: number }[];
+  scoreboard?: { player_id: number; deal_scores_tenths: (number | null)[]; total_score_tenths: number; bonus_tricks?: number }[];
   player_stats?: { player_id: number; total_tricks_won: number }[];
   rules?: { bid_max: number };
   log?: { event: string; revision: number; player_id?: number; action?: string }[];

@@ -271,13 +271,17 @@ def apply_player(
     deal = replace(deal, current_trick=None, completed_tricks=deal.completed_tricks + (trick,))
     events.append(_event("TrickCompleted", winner=winner, plays=trick.plays,
                          trick=len(deal.completed_tricks), tricks_won=deal.tricks_won))
+    terminal = replace(state, current_deal=deal, phase=Phase.MATCH_COMPLETE)
+    if terminal.instant_winners:
+        events.append(_event('MatchCompleted', totals=terminal.score_tenths, winners=terminal.winners))
+        return _finish(terminal, *events)
     if len(deal.completed_tricks) < state.config.tricks_per_deal:
         deal = replace(deal, current_trick=Trick(state.config.player_count, winner))
         updated = replace(state, current_deal=deal)
         return _finish(updated, *events, _turn(updated))
 
     bids = tuple(p.bid for p in deal.players)
-    result = DealResult(bids, deal.tricks_won, score_deal(bids, deal.tricks_won))
+    result = DealResult(bids, deal.tricks_won, score_deal(bids, deal.tricks_won, state.config.score_scale))
     finished = deal.number == state.config.deals_per_match
     updated = replace(state, current_deal=None,
                       completed_deals=state.completed_deals + (CompletedDeal(deal, result),),

@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 
 from .house_rules import RedealPolicy
+from .match_rules import MatchRules
 
 
 @dataclass(frozen=True)
@@ -10,6 +11,7 @@ class GameConfig:
     redeal_policy: RedealPolicy = field(default_factory=RedealPolicy)
     undealt_policy: str = "hidden_unused"
     ruleset: str = "callbreak-v1"
+    match_rules: MatchRules | None = None
 
     def __post_init__(self) -> None:
         if type(self.player_count) is not int or self.player_count not in (4, 5):
@@ -20,6 +22,14 @@ class GameConfig:
             raise ValueError("A RedealPolicy is required.")
         if self.undealt_policy != "hidden_unused" or self.ruleset != "callbreak-v1":
             raise ValueError("Unsupported ruleset or undealt-card policy.")
+        if self.match_rules is not None:
+            if not isinstance(self.match_rules, MatchRules):
+                raise ValueError('Invalid match rules.')
+            self.match_rules.validate_for(self.player_count)
+
+    @property
+    def score_scale(self) -> int:
+        return self.match_rules.score_scale if self.match_rules else 10
 
     @property
     def players(self) -> tuple[int, ...]:

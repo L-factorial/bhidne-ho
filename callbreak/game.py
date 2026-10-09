@@ -95,6 +95,7 @@ class MatchState:
 
     @property
     def score_tenths(self) -> tuple[int, ...]:
+        """Historical field name; divide these integer units by config.score_scale."""
         return tuple(sum(d.result.score_tenths[i] for d in self.completed_deals)
                      for i in range(self.config.player_count))
 
@@ -102,5 +103,31 @@ class MatchState:
     def winners(self) -> tuple[int, ...]:
         if self.phase != Phase.MATCH_COMPLETE:
             return ()
+        if self.instant_winners:
+            return self.instant_winners
+        if self.perfect_winners:
+            return self.perfect_winners
         scores = self.score_tenths
         return tuple(i + 1 for i, score in enumerate(scores) if score == max(scores))
+
+    @property
+    def instant_winners(self) -> tuple[int, ...]:
+        rules, deal = self.config.match_rules, self.current_deal
+        if not rules or not rules.instant_win_enabled or not deal:
+            return ()
+        return tuple(p.player_id for p in deal.players
+                     if p.bid == rules.instant_win_bid and deal.tricks_won[p.player_id - 1] >= rules.instant_win_bid)
+
+    @property
+    def perfect_winners(self) -> tuple[int, ...]:
+        rules = self.config.match_rules
+        if not rules or not rules.perfect_bid_enabled or len(self.completed_deals) != self.config.deals_per_match:
+            return ()
+        return tuple(p for p in self.config.players if all(
+            d.result.bids[p - 1] == d.result.tricks_won[p - 1] == rules.perfect_bid for d in self.completed_deals))
+
+    @property
+    def win_reason(self) -> str | None:
+        if self.phase != Phase.MATCH_COMPLETE:
+            return None
+        return 'instant_bid' if self.instant_winners else 'perfect_bid' if self.perfect_winners else 'score'

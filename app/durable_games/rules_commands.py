@@ -35,7 +35,12 @@ def apply_rules(game, actor, request, lane_id):
         if game.rule_proposal and game.rule_proposal['status'] == 'PENDING':
             return 'Resolve the pending rule proposal first.'
         if game.game_type == 'callbreak':
-            current, proposed = game.settings, body.model_dump(exclude={'match_id'})
+            from callbreak.match_rules import rules_from_settings
+            current, proposed = game.settings, body.model_dump(exclude={'match_id'}, exclude_none=True)
+            try:
+                rules_from_settings(proposed, game.capacity)
+            except ValueError as error:
+                return str(error)
         elif game.game_type == 'marriage':
             current = asdict(game.marriage_scoring)
             proposed = asdict(ScoringRules.from_dict(body.scoring))

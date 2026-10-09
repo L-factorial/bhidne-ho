@@ -104,11 +104,12 @@ def _translate(match_id: str, result: Transition) -> AdapterResult:
                  "tricks_won": rows(data["tricks_won"], "tricks_won")})
         elif event.name == "DealCompleted":
             scores = data["result"]
-            emit("DEAL_COMPLETED", {"bids": rows(scores.bids, "amount"),
+            emit("DEAL_COMPLETED", {"score_scale": state.config.score_scale, "bids": rows(scores.bids, "amount"),
                  "tricks_won": rows(scores.tricks_won, "tricks_won"),
                  "scores": rows(scores.score_tenths, "score_tenths"), "totals": rows(data["totals"], "score_tenths")})
         elif event.name == "MatchCompleted":
-            emit("MATCH_COMPLETED", {"totals": rows(data["totals"], "score_tenths"), "winner_ids": list(data["winners"])})
+            emit("MATCH_COMPLETED", {"score_scale": state.config.score_scale, "win_reason": state.win_reason,
+                 "totals": rows(data["totals"], "score_tenths"), "winner_ids": list(data["winners"])})
         elif event.name == "TurnChanged":
             emit("TURN_CHANGED", {"phase": data["phase"], "player_id": data["player"]})
             if state.phase == Phase.BIDDING:

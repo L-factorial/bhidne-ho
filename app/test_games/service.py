@@ -716,7 +716,13 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         async with game.lock:
             await self._member(room_id, user_id, game)
             self._creator(game, user_id, body.match_id)
-            self._propose(game, user_id, body.model_dump(exclude={"match_id"}))
+            from callbreak.match_rules import rules_from_settings
+            proposed = body.model_dump(exclude={"match_id"}, exclude_none=True)
+            try:
+                rules_from_settings(proposed, game.capacity)
+            except ValueError as error:
+                raise HTTPException(422, str(error)) from error
+            self._propose(game, user_id, proposed)
             await self._publish(game)
             return self._snapshot(game, user_id)
 
@@ -991,15 +997,10 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                 amounts = {user_by_seat[row.player_id]: row.amount
                            for row in state.round_results[-1].net_changes}
         elif game.state and game.state.phase == Phase.MATCH_COMPLETE:
-            # Placement bets are unambiguous only when every final score differs.
-            ranked = sorted(enumerate(game.state.score_tenths), key=lambda row: (-row[1], row[0]))
-            if len({score for _, score in ranked}) == len(ranked):
-                amounts = dict.fromkeys(game.users, 0)
-                winner = game.users[ranked[0][0]]
-                for place, (index, _) in enumerate(ranked[1:], 1):
-                    payment = game.settings["payments"][place - 1]
-                    amounts[game.users[index]] -= payment
-                    amounts[winner] += payment
+            from callbreak.settlement import settlement_amounts
+            values = settlement_amounts(game.state, game.settings['payments'])
+            if values is not None:
+                amounts = dict(zip(game.users, values))
         if not amounts or game_id in game.ledgered_games:
             return
         await self.ledger.record_game(GameLedgerResult(room_id=game.room_id, table_id=game.table.table_id, table_name=game.name,
