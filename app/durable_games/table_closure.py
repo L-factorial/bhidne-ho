@@ -39,6 +39,11 @@ def close_table(game, actor, command, invitations):
                         reason='ABANDON_MATCH', penalty_policy='DEFERRED')
     game.ended = True
     game.table.phase = 'ENDED'
+    if game.session:
+        game.session['idle_deadline'] = None
+        game.session['turns'] = {}
+        for c in game.session['controls'].values():
+            c.update(offer=None, disconnected_at=None, return_pending=False)
     game.table.queue.clear()
     # Preserve engine roster/seat mappings, including pending Flush leavers, as
     # historical data. Ended checkpoints expose no occupied positions.

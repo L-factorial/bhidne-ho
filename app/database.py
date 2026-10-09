@@ -198,6 +198,8 @@ CREATE INDEX IF NOT EXISTS completed_games_room_time_idx
 """
 
 
+from app.distributed_schema import GAME_CONNECTION_SCHEMA
+
 MIGRATIONS = (
     (1, SCHEMA),
     (2, GAME_PERSISTENCE_SCHEMA),
@@ -718,6 +720,7 @@ MIGRATIONS = (
     """),
     (38, PUSH_SCHEMA),
     (39, SOCIAL_PUSH_SCHEMA),
+    (40, GAME_CONNECTION_SCHEMA),
 )
 
 

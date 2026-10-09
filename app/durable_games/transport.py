@@ -1,7 +1,9 @@
 """Opt-in route factory. Never imported or mounted by the legacy application."""
 import asyncio
 import json
-from uuid import UUID
+import time
+import logging
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect, Query
 from fastapi.encoders import jsonable_encoder
@@ -29,7 +31,7 @@ class InvitationEligibility(Record):
 
 def create_router(*, auth, hosted, chat, social, gateway, allowed_origins, reads=None, catalog=None,
                   presence=None, presence_room=None, admission=None,
-                  session_check_interval=5.0, session_check_timeout=2.0, ephemeral=None):
+                  session_check_interval=5.0, session_check_timeout=2.0, ephemeral=None, session_connections=None):
     """All dependencies are explicit; origins is an exact allowlist for browsers.
 
     Non-browser clients may omit Origin. Authentication still requires a bearer
@@ -59,7 +61,7 @@ def create_router(*, auth, hosted, chat, social, gateway, allowed_origins, reads
         try:
             async with asyncio.timeout(10):
                 result = await operation()
-            return JSONResponse(jsonable_encoder(result), headers={'Cache-Control': 'no-store'})
+            return JSONResponse(jsonable_encoder(result), headers={'Cache-Control': 'no-store', 'X-Bhidne-Server-Time': str(time.time() * 1000)})
         except QueryAccessDenied:
             raise HTTPException(403, 'Access denied.') from None
         except DurableGameNotFound:
@@ -278,9 +280,13 @@ def create_router(*, auth, hosted, chat, social, gateway, allowed_origins, reads
         disconnected = False
         session = None
         connection_presence = None
+        session_identity = uuid4()
         room_presence, alias_rooms = {}, {}
         view_presence = {}
         async def remove_room(alias):
+            if session_connections is not None:
+                async with asyncio.timeout(3):
+                    await session_connections.unsubscribe(session_identity, alias)
             view = view_presence.pop(alias, None)
             if view is not None:
                 await presence.detach(view)
@@ -324,6 +330,9 @@ def create_router(*, auth, hosted, chat, social, gateway, allowed_origins, reads
                 await session.check()
                 kind = data.get('type')
                 if kind == 'PING' and set(data) == {'type'}:
+                    if session_connections is not None:
+                        async with asyncio.timeout(3):
+                            await session_connections.refresh(session_identity)
                     await send({'type': 'PONG'})
                     continue
                 alias = data.get('subscription_id')
@@ -353,6 +362,9 @@ def create_router(*, auth, hosted, chat, social, gateway, allowed_origins, reads
                             if room not in room_presence:
                                 room_presence[room] = presence.attach(who, room_id=room)
                             alias_rooms[alias] = room
+                            if session_connections is not None and not room.startswith('__'):
+                                async with asyncio.timeout(3):
+                                    await session_connections.subscribe(session_identity, who, room, lane, alias)
                         if 'view-delta-v1' in capabilities and hasattr(gateway.store, 'presence_view'):
                             view = await gateway.store.presence_view(who, lane)
                             if view is not None:
@@ -397,6 +409,14 @@ def create_router(*, auth, hosted, chat, social, gateway, allowed_origins, reads
             async def cleanup():
                 if session is not None:
                     await session.stop()
+                if session_connections is not None:
+                    try:
+                        async with asyncio.timeout(3):
+                            await session_connections.close(session_identity)
+                    except Exception:
+                        # The trusted lease expires naturally. Always detach Redis
+                        # registry handles too, so it cannot keep refreshing a dead socket.
+                        logging.getLogger(__name__).warning('Connection lease cleanup failed; awaiting expiry.')
                 if presence is not None:
                     for entry in tuple(view_presence.values()):
                         await presence.detach(entry)

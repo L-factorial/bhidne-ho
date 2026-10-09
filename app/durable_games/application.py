@@ -85,6 +85,6 @@ def create_integration_app(server):
 
     app.add_middleware(NativeProtocolOnly, shared_routes=shared_routes)
     app.add_middleware(CORSMiddleware, allow_origins=list(server.allowed_origins),
-                       allow_methods=['GET', 'POST', 'PATCH', 'DELETE'], allow_headers=['Authorization', 'Content-Type'])
+                       allow_methods=['GET', 'POST', 'PATCH', 'DELETE'], allow_headers=['Authorization', 'Content-Type'], expose_headers=['X-Bhidne-Server-Time'])
     app.add_middleware(TelemetryMiddleware)
     return app

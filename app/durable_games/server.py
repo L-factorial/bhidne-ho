@@ -175,9 +175,10 @@ def build_server(pool, redis, *, internal_address, signal_secret, auth, allowed_
     social_ingress = SocialIngress(runtime.inbox, wakeup=social.wake)
     chat_ingress.ephemeral_limits = social_ingress.ephemeral_limits = ephemeral.limits
     signals.ephemeral_receiver = ephemeral
+    from .session_connections import SessionConnections
     server.router = create_router(auth=auth, hosted=HostedCommandIngress(runtime.inbox, wakeup=wake_room_lane),
         chat=chat_ingress, social=social_ingress, gateway=gateway,
         allowed_origins=server.allowed_origins, reads=DistributedReads(pool, cache=read_cache), catalog=PostgresRoomCreation(pool),
         presence=presence, presence_room=store.presence_room, admission=server.admission,
-        ephemeral=ephemeral)
+        ephemeral=ephemeral, session_connections=SessionConnections(pool))
     return server

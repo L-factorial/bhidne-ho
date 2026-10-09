@@ -14,7 +14,7 @@ export type TableView = {
   released_seats: { seat_id: number; leaving_player_id: string }[];
   current_user: { is_seated: boolean; seat_id: number | null; is_queued: boolean; queue_position: number | null;
     can_join: boolean; can_queue: boolean; can_lock: boolean; can_start: boolean; can_next_match: boolean;
-    can_leave_seat: boolean; can_abandon_match: boolean; can_invite_replacement: boolean;
+    can_leave_seat: boolean; can_pause_match?: boolean; can_abandon_match: boolean; can_invite_replacement: boolean;
     replacement_offer: { offer_id: string; seat_id: number; expires_at: number } | null };
 };
 
@@ -47,6 +47,7 @@ export function TableControls({ table, members, userId, busy, act, start, format
       {manage && table.requires_explicit_lock && table.phase === 'LOCKED' && button(ui("rooms.start_game"), () => void start(), !me.can_start || formationBlocked, true, true)}
       {leave && me.can_leave_seat && button(menuSection ? ui("rooms.leave_table") : ui("rooms.leave_seat"), () => void act('leave-seat'))}
       {manage && me.can_next_match && button(ui("rooms.prepare_next_match"), () => void act('next-match'), false, true)}
+      {leave && me.can_pause_match && button(ui('rooms.session_pause'), () => void act('pause-seat'))}
       {leave && me.can_abandon_match && button(menuSection ? ui("rooms.leave_table") : ui("rooms.abandon_match"), () => setAbandon(true))}
       {manage && me.can_invite_replacement && button(ui("rooms.invite_a_replacement"), () => setInvite(v => !v))}
     </View>

@@ -284,3 +284,53 @@ def test_new_socket_negotiates_deltas_and_ephemeral_route_binds_actor():
                 capabilities=['view-delta-v1','ephemeral-v1']))
             assert ws.receive_json()['type']=='SUBSCRIBED'
     assert not g.handles
+
+
+def test_session_connection_signals_use_authorized_scopes_and_navigation_keeps_socket_alive():
+    class Presence:
+        def __init__(self):self.detached=[]
+        def attach(self,actor,room_id=None):return (actor,room_id,uuid4())
+        async def detach(self,entry):self.detached.append(entry)
+    class Connections:
+        def __init__(self):self.calls=[]
+        async def subscribe(self,identity,actor,room,lane,alias):self.calls.append(('subscribe',identity,actor,room,alias))
+        async def unsubscribe(self,identity,alias):self.calls.append(('unsubscribe',identity,alias))
+        async def refresh(self,identity):self.calls.append(('refresh',identity))
+        async def close(self,identity):self.calls.append(('close',identity))
+    presence,leases=Presence(),Connections()
+    app=FastAPI();ingress=Ingress();gateway=Gateway()
+    public=uuid4()
+    async def room(actor,lane):return '__public_lobby__' if lane==public else 'room'
+    app.include_router(create_router(auth=Auth(),hosted=ingress,chat=ingress,social=ingress,gateway=gateway,
+        allowed_origins=(),presence=presence,presence_room=room,session_connections=leases))
+    with TestClient(app) as client:
+        with client.websocket_connect('/distributed/delivery') as ws:
+            ws.send_json(dict(type='AUTH',token='valid',client_id='phone'));ws.receive_json()
+            ws.send_json(dict(type='SUBSCRIBE',subscription_id='lobby',lane_id=str(public)));ws.receive_json()
+            assert not leases.calls
+            ws.send_json(dict(type='SUBSCRIBE',subscription_id='table',lane_id=str(uuid4())));ws.receive_json()
+            assert leases.calls[0][0]=='subscribe' and leases.calls[0][3:] == ('room','table')
+            assert leases.calls[0][2].endswith('0001')
+            ws.send_json(dict(type='UNSUBSCRIBE',subscription_id='table'))
+            ws.send_json(dict(type='PING'));ws.receive_json()
+            assert [c[0] for c in leases.calls]==['subscribe','unsubscribe','refresh']
+        assert leases.calls[-1][0]=='close'
+        assert len(presence.detached)==3  # Lobby, room, authenticated socket.
+
+
+def test_lease_cleanup_failure_still_detaches_presence_handles():
+    class Presence:
+        def __init__(self):self.detached=[]
+        def attach(self,actor,room_id=None):return uuid4()
+        async def detach(self,entry):self.detached.append(entry)
+    class Connections:
+        async def close(self,identity):raise RuntimeError('Database unavailable')
+    presence=Presence()
+    app=FastAPI();ingress=Ingress();gateway=Gateway()
+    async def room(actor,lane):return 'room'
+    app.include_router(create_router(auth=Auth(),hosted=ingress,chat=ingress,social=ingress,gateway=gateway,
+        allowed_origins=(),presence=presence,presence_room=room,session_connections=Connections()))
+    with TestClient(app) as client:
+        with client.websocket_connect('/distributed/delivery') as ws:
+            ws.send_json(dict(type='AUTH',token='valid',client_id='phone'));ws.receive_json()
+    assert len(presence.detached)==1

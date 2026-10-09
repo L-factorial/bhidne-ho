@@ -11,7 +11,7 @@ import json
 from typing import Annotated, Any, Literal, get_args
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter, model_validator
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter, model_validator, field_validator
 
 from callbreak import MatchState
 from callbreak.audit import audit_match
@@ -89,7 +89,40 @@ class TableDetails(Record):
     published_sequence: Nonnegative
 
 
+class SessionOffer(Record):
+    user_id: Identity
+    deadline: Annotated[float, Field(ge=0)]
+
+
+class SessionTurn(Record):
+    token: Identity
+    user_id: Identity
+    deadline: Annotated[float, Field(ge=0)]
+
+
+class SessionControl(Record):
+    user_id: Identity
+    mode: Literal['manual', 'auto', 'replacement']
+    last_active_at: Annotated[float, Field(ge=0)]
+    disconnected_at: Annotated[float, Field(ge=0)] | None
+    offer: SessionOffer | None
+    declined: list[Identity]
+    return_pending: bool
+
+
+class SessionDetails(Record):
+    version: Literal[1]
+    last_activity: Annotated[float, Field(ge=0)]
+    updated_at: Annotated[float, Field(ge=0)]
+    idle_deadline: Annotated[float, Field(ge=0)] | None
+    turns: dict[Identity, SessionTurn]
+    controls: dict[Identity, SessionControl]
+    removed: dict[Identity, Literal['ACTION_TIMEOUT', 'TIMEOUT_PENDING_DEAL']]
+    expired_at: Annotated[float, Field(ge=0)] | None
+
+
 class HostDetails(Record):
+    session: dict[str, JsonValue] = Field(default_factory=dict)
     callbreak_previous_scores: dict[Identity, int] = Field(default_factory=dict)
     card_theme: CardThemeId = "kathmandu"
     users: tuple[Identity, ...]
@@ -110,6 +143,13 @@ class HostDetails(Record):
     marriage_queries: dict[str, JsonValue]
     marriage_moves: tuple[dict[str, JsonValue], ...]
     durable_game_id: str | None
+
+    @field_validator('session')
+    @classmethod
+    def valid_session(cls, value):
+        if value:
+            return SessionDetails.model_validate_json(canonical_json(value)).model_dump(mode='json')
+        return value
 
 
 class EngineCheckpoint(Record):
@@ -192,6 +232,30 @@ class RecoveryData(Record):
                 raise ValueError('Invitation belongs to another table match.')
         if self.engine is None and self.phase in ('STARTED', 'COMPLETED'):
             raise ValueError('Started table is missing engine state.')
+        session = self.host.session
+        if session:
+            controls = session['controls']
+            if controls and (self.game_type != 'callbreak' or self.engine is None
+                    or set(controls) != {str(i+1) for i in range(len(self.host.users))}):
+                raise ValueError('Session controllers do not match the engine roster.')
+            actors = [c['user_id'] for c in controls.values()]
+            if len(set(actors)) != len(actors):
+                raise ValueError('A participant cannot control two seats.')
+            offers = [c['offer']['user_id'] for c in controls.values() if c['offer']]
+            if len(set(offers)) != len(offers) or set(offers) & set(actors):
+                raise ValueError('Live offers conflict with controllers.')
+            for seat,c in controls.items():
+                if c['user_id'] in self.host.users and self.host.users[int(seat)-1] != c['user_id']:
+                    raise ValueError('A controller cannot occupy another original seat.')
+            if session['expired_at'] is not None and not self.host.ended:
+                raise ValueError('An expired table must be ended.')
+            if self.host.ended and (session['idle_deadline'] is not None or session['turns']):
+                raise ValueError('An ended table cannot await actions.')
+            for seat,turn in session['turns'].items():
+                if not seat.isdigit() or int(seat) < 1:
+                    raise ValueError('Invalid required-action seat.')
+                if controls and (seat not in controls or turn['user_id'] != controls[seat]['user_id']):
+                    raise ValueError('Required action belongs to another controller.')
         return self
 
 
@@ -298,6 +362,15 @@ def _decode_engine(data):
         if data.game_type == 'flush' and state.status.value == 'finished':
             seats = tuple(str(seat) for seat in data.host.flush_seats.values())
             roster_valid = set(state.config.player_ids).issubset(seats)
+        elif data.game_type == 'flush':
+            # A timeout releases the current reservation immediately, while its
+            # folded engine seat remains historical for this round's settlement.
+            timed_out = {str(data.host.flush_seats[u]) for u,reason in data.host.session.get('removed', {}).items()
+                if reason == 'ACTION_TIMEOUT' and u in data.host.flush_seats}
+            folded = {p.player_id for p in state.players if p.status.value == 'folded'}
+            missing = set(state.config.player_ids) - set(seats)
+            roster_valid = (missing <= timed_out & folded and
+                seats == tuple(p for p in state.config.player_ids if p not in missing))
         else:
             roster_valid = seats == state.config.player_ids
         if not roster_valid or checkpoint.owner_player_id not in state.config.player_ids:
@@ -334,7 +407,7 @@ def decode_checkpoint(value: dict) -> DecodedCheckpoint:
             raise CheckpointError('Unsupported checkpoint schema version.')
         record = Checkpoint.model_validate_json(canonical_json(value))
         digest_data = record.data.model_dump(mode='json')
-        missing_defaults = [key for key in ('card_theme', 'callbreak_previous_scores') if key not in value['data']['host']]
+        missing_defaults = [key for key in ('card_theme', 'callbreak_previous_scores', 'session') if key not in value['data']['host']]
         for key in missing_defaults:
             del digest_data['host'][key]
         digest = hashlib.sha256(canonical_json(digest_data).encode()).hexdigest()

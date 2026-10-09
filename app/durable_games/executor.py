@@ -135,6 +135,8 @@ class GameLaneExecutor:
                 # mutations, randomness, query caches, table metadata, and events.
                 detail = error.detail
             else:
+                from app.multiplayer.table_session import resolve_pending_flush
+                events.extend(resolve_pending_flush(game))
                 if game.pending_flush_departures and game.flush_open:
                     for user in sorted(game.pending_flush_departures):
                         if user in game.users:
@@ -142,6 +144,10 @@ class GameLaneExecutor:
                         game.table.emit('SEAT_RELEASED', user_id=user, match_id=game.match_id, reason='ROUND_COMPLETED')
                     game.pending_flush_departures.clear()
                 host._sync_proposal(game)
+                from app.multiplayer.table_session import sync as sync_session
+                from .seat_offers import now as db_now
+                mutates = target.revision != data['engine']['revision'] or request.command == 'FOLD_AND_LEAVE'
+                sync_session(game, await db_now(claim.connection), actor=actor if mutates else None, activity=mutates)
                 game.table.sync(game)
                 # Offer creation/expiry belongs to table lanes and durable timers;
                 # never invoke the legacy async _publish/_advance_table here.

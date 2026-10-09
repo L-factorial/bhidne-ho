@@ -50,6 +50,7 @@ class HostedGame:
     name: str = "Table"
     card_theme: str = "kathmandu"
     table: TableState = field(default_factory=TableState)
+    session: dict = field(default_factory=dict)
     previous_match_id: str | None = None
     callbreak_previous_scores: dict[str, int] = field(default_factory=dict)
     rule_proposal: dict | None = None
@@ -201,10 +202,10 @@ class TestGameService(GameTableLifecycle, RuleProposals):
     def is_playing(self, room_id: str, user_id: str) -> bool:
         """Expose participation without leaking Call Break state to room services."""
         return any(not game.ended and game.started and not game.finished and not game.flush_open
-                   and user_id in game.users and user_id not in game.departed for game in self._room_games(room_id))
+                   and user_id in game.table.seats(game) and user_id not in game.departed for game in self._room_games(room_id))
 
     def chat_blocked(self, room_id, user_id):
-        game = next((g for g in self._room_games(room_id) if user_id in g.users and not g.ended), None)
+        game = next((g for g in self._room_games(room_id) if user_id in g.table.seats(g) and not g.ended), None)
         return bool(game) and self.is_playing(room_id, user_id) and not (
             game.game_type == 'callbreak' and game.state and game.state.phase == Phase.DEAL_COMPLETE)
 
@@ -269,6 +270,9 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         result = self._game_snapshot(game, user_id)
         from app.multiplayer.card_themes import card_theme_view
         result.update(card_theme_view(game, user_id))
+        from app.multiplayer.table_session import view as session_view
+        if game.session:
+            result["session"] = session_view(game, user_id, None)
         result["table_name"] = game.name
         result["path"] = f"{game.room_id}/{game.name}"
         result["tables"] = self.table_previews(game.room_id, user_id)
@@ -294,11 +298,12 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             return self._flush_snapshot(game, user_id)
         if game.game_type == "marriage":
             return self._marriage_snapshot(game, user_id)
-        seat = game.users.index(user_id) + 1 if user_id in game.users and user_id not in game.departed else None
+        from app.multiplayer.table_session import player_seat, controller
+        seat = player_seat(game, user_id)
         result = {
             "room_id": game.room_id, "match_id": game.match_id, "capacity": game.capacity,
             "game_type": "callbreak",
-            "players": [{"player_id": i + 1, "user_id": u, "display_name": self.profiles.name(u, i + 1) if self.profiles else f"Player {i + 1}"} for i, u in enumerate(game.users)],
+            "players": [{"player_id": i + 1, "user_id": u, "display_name": self.profiles.name(u, i + 1) if self.profiles else f"Player {i + 1}"} for i, u in enumerate(controller(game, n + 1) for n in range(len(game.users)))],
             "is_creator": bool(game.users) and user_id == game.users[0],
             "ready": len(game.users) == game.capacity, "settings": game.settings,
             "your_player_id": seat, "status": "ended" if game.ended else "waiting" if game.state is None else
@@ -311,7 +316,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         }
         if game.state and game.state.phase == Phase.DEAL_COMPLETE and self.round_summary_seconds and not game.ended:
             result["round_review"] = {"deal_number": len(game.state.completed_deals),
-                                      "can_continue": user_id == game.users[0]}
+                                      "can_continue": user_id == controller(game, 1)}
         if game.state:
             query = GameQuery(game.state)
             result.update(game=query.get_state(), deal=query.get_deal(), rules=query.get_rules(),
@@ -1098,7 +1103,8 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                 if event.event not in ("CARD_DISTRIBUTED", "TURN_CHANGED"):
                     game.log.append({"event": event.event.value, "revision": event.revision,
                                      "payload": envelope["payload"]})
-            recipient = game.users[routed.recipient_player_id - 1] if routed.recipient_player_id else None
+            from app.multiplayer.table_session import controller
+            recipient = controller(game, routed.recipient_player_id) if routed.recipient_player_id else None
             events.append(OutgoingEvent(envelope, recipient))
         game.log[:] = game.log[-30:]
         return events

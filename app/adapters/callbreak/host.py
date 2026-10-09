@@ -17,7 +17,8 @@ class CallBreakCommandTarget:
     def authorize(self, user_id):
         if not self.host._contains(self.game) or self.game.state is None or self.game.ended:
             raise CommandAccessError(409, "This game is not active. Refresh its state.")
-        if user_id not in self.game.users or user_id in self.game.departed:
+        from app.multiplayer.table_session import player_seat
+        if player_seat(self.game, user_id) is None:
             raise CommandAccessError(403, "Spectators cannot play.")
 
     @property
@@ -31,7 +32,12 @@ class CallBreakCommandTarget:
         self.game.state, self.game.log, self.game.deadline = checkpoint
 
     def apply(self, user_id, command):
-        actor = self.game.users.index(user_id) + 1
+        from app.multiplayer.table_session import player_seat
+        actor = player_seat(self.game, user_id)
+        entry = self.game.session.get('controls', {}).get(str(actor))
+        if entry and entry['mode'] == 'auto':
+            from app.games.base import GameCommandRejected
+            raise GameCommandRejected('RECLAIM_REQUIRED', 'Reclaim your seat before playing.')
         events = self.host._apply_player(self.game, actor, command.command, command.payload,
                                         command_id=command.command_id)
         events.extend(self.host._apply_controllers(self.game))

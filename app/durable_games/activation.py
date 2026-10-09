@@ -14,6 +14,7 @@ from .settlements import MODELS as SETTLEMENT_MODELS
 
 # Advertised by the explicitly assembled runtime, not inferred from installed code.
 ACTIVATION_CAPABILITIES = {
+    'table_sessions': 1,
     'callbreak_dealer_selection': 1,
     'manual_settlement': 1,
     'shared_card_themes': 1,
@@ -28,7 +29,7 @@ class PostgresRoomActivationStore:
     def __init__(self, ownership, *, max_items=4096, round_summary_seconds=8):
         self.ownership, self.pool = ownership, ownership.pool
         self.recovery = PostgresRoomRecoveryStore(self.pool, max_items=max_items,
-            offer_expiry=True, callbreak_review=True, match_settlement=True, flush_settlement=True)
+            offer_expiry=True, callbreak_review=True, match_settlement=True, flush_settlement=True, table_sessions=True)
         self.round_summary_seconds = round_summary_seconds
 
     @observe('recovery.activate_transaction')
@@ -70,7 +71,7 @@ class PostgresRoomActivationStore:
                         raise UnsupportedRecoveryWork('Pending room command needs an unavailable capability.')
                     if kind == 'table' and command not in TableLaneExecutor.commands:
                         raise UnsupportedRecoveryWork('Pending table command needs an unavailable capability.')
-                    if kind == 'table' and command != 'expire-seat-offer':
+                    if kind == 'table' and command not in ('expire-seat-offer', 'session-tick'):
                         try:
                             TableLaneExecutor.check_capability(tables[table_id], command)
                         except TableStateRejected:

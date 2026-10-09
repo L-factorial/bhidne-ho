@@ -1,5 +1,73 @@
 # Distributed runtime implementation plan
 
+## 2026-10-08: table expiry, action deadlines and Call Break continuity
+
+User authorized implementation in increments without waiting between them. Keep
+all changes local: no push or deployment. This explicitly expands branch scope.
+
+- Policy: all games expire between games after 30 minutes without an accepted
+  table activity. Polls, heartbeats, rejected/retried commands and automatic play
+  do not renew this deadline. Completion begins a fresh between-game window.
+- Flush and Marriage required actions: 3 minutes; fold and release on timeout.
+- Call Break: 2-minute action timeout uses random legal autoplay. A known network
+  disconnect gets a 2-minute reconnect grace; offer current-game control to the
+  FIFO queue, then connected table spectators, with 1 minute to accept. Unknown
+  or empty Redis presence is never proof of disconnection.
+- Returning original participants have priority. Reclaim from autoplay before
+  the next action; reclaim from a replacement at a trick boundary.
+- Financial safety decision: preserve original engine roster and settlement
+  identities. A replacement accepts temporary control of the original seat's
+  hand, bids and scores for this game only. Do not transfer liabilities silently.
+- [x] Increment 1: persisted policy, deadlines and controller/private-view model.
+- [x] Increment 2: fenced durable timer execution, gateway connection evidence,
+  atomic handover/reclaim, expiry recipients and restart recovery.
+- [x] Increment 3: responsive shared countdown, warning, removal, expiry,
+  replacement acceptance and return controls; English/Nepali copy.
+- [x] Increment 4: race, privacy, restart and legal-random-play tests; client
+  verification and final handoff. No capacity/HA/observability changes included.
+
+Final verification: 125 PostgreSQL/WASM integration tests and 87 policy,
+checkpoint, recovery and transport tests pass (2 optional tests skipped).
+All 413 client tests, TypeScript and the production web export pass. The checked-in
+browser fixture passes 20 mobile/desktop session UI cases across all three games,
+including deadlines, temporary-control consent, return controls and expiry/removal
+notifications. `git diff --check` passes. Coverage includes every Call Break preparation/play phase through
+completion, random legal cards, simultaneous reviews/declarations, trick-boundary
+reclaim, deterministic checkpoint views, multi-device leases, stale timer no-ops,
+reservation releases and transactional settlement/expiry routing, forged timers,
+stale ownership, no-op activity, old connection evidence and Flush timeouts while
+the remaining players continue. Strict additive
+session metadata validates checkpoints; old checkpoints receive defaults.
+
+Runtime decisions: gateway PostgreSQL leases last 60 seconds and refresh on ping;
+unsubscribing is navigation, not disconnection. Missing leases are unknown. Timer
+engine effects have system-owned game receipts linked to scheduled inbox work.
+Session maintenance uses bounded rotating pages and normal ownership fences.
+Flush preparation timeout completes required dealing/cutting before folding;
+pending dealer departure is reconciled as soon as a dealt hand exists. At Call
+Break completion the ready roster retains current controllers rather than silently
+reserving a returned original who may already be playing elsewhere. A replacement
+who chooses a subsequent match gets their own new roster identity and fresh stats.
+
+UI: a shared wrapping, scrollable status panel displays authoritative action and
+between-game countdowns, Auto play/temporary-control status, explicit acceptance
+and decline, resume and pending trick-boundary return. English/Nepali copy explains
+timeouts and the preserved original settlement identity. Expiry/removal closes the
+table view with a reason; automatic seats suppress manual-action prompts. Countdown
+clock offset comes from fresh HTTP responses, not an old checkpoint timestamp.
+
+Release requirements and limitations: this increment is wired into the distributed
+assembly only; legacy application selection remains unchanged. Migration 40 adds
+durable gateway connection leases, and updated owners require `table_sessions: 1`.
+Release the backend and client together using the existing distributed activation
+process. No native-device verification, deployment, commit or push was performed.
+The browser checks use local fixtures; they are not a production end-to-end run.
+
+Exact next step: user review and morning push of the local changes, then a coordinated
+release when requested and native-device verification. Capacity testing,
+observability, database HA deployment and operational readiness remain the next
+task set; none was added to this increment.
+
 ## 2026-10-08: separate game explanations and rule configuration
 
 - User-expanded scope: distinct Game rules and Game rules config drawer entries

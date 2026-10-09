@@ -12,7 +12,7 @@ async def audience(connection, room_id):
     return {row[0] for row in rows}
 
 
-async def changed(connection, inbox, room_id, *, before=(), public_before=False, extra=()):
+async def changed(connection, inbox, room_id, *, before=(), public_before=False, extra=(), message=None):
     room = await (await connection.execute('SELECT visibility,creator_id FROM rooms WHERE id=%s', (room_id,))).fetchone()
     if room is None:
         return
@@ -26,5 +26,5 @@ async def changed(connection, inbox, room_id, *, before=(), public_before=False,
         seq = await (await connection.execute('''UPDATE command_lanes SET emitted_sequence=emitted_sequence+1
             WHERE lane_id=%s RETURNING emitted_sequence''', (lane,))).fetchone()
         await connection.execute('''INSERT INTO notification_outbox
-            (event_id,lane_id,sequence,event_type,audience_user_id,payload) VALUES (%s,%s,%s,'LOBBY_CHANGED',%s,%s)''',
-            (uuid4(), lane, seq[0], target.recipient_id, Jsonb({'type':'LOBBY_CHANGED'})))
+            (event_id,lane_id,sequence,event_type,audience_user_id,payload) VALUES (%s,%s,%s,%s,%s,%s)''',
+            (uuid4(), lane, seq[0], (message or {'type':'LOBBY_CHANGED'})['type'], target.recipient_id, Jsonb(message or {'type':'LOBBY_CHANGED'})))

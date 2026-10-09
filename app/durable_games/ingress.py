@@ -81,7 +81,7 @@ class HostedCommandIngress:
                         if request.match_id is None or request.expected_revision is None:
                             raise DurableGameConflict('Stable match identity and expected revision are required.')
                         if target.kind == 'table':
-                            if request.command not in TableLaneExecutor.commands or request.command == 'expire-seat-offer':
+                            if request.command not in TableLaneExecutor.commands or request.command in ('expire-seat-offer', 'session-tick'):
                                 raise DurableGameConflict('Unsupported player table command.')
                             if request.command in ('send-poke', 'send-reaction'):
                                 from .pokes import Poke, TablePokePayload

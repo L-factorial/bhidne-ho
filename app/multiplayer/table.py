@@ -64,7 +64,11 @@ class TableState:
         elif game.finished:
             if self.phase != 'COMPLETED':
                 self.phase = 'COMPLETED'
-                self.next_seats = [u if u not in game.departed else None for u in game.users]
+                if game.game_type == 'callbreak':
+                    from .table_session import controller
+                    self.next_seats = [controller(game, i+1) for i in range(len(game.users))]
+                else:
+                    self.next_seats = [u if u not in game.departed else None for u in game.users]
                 self.emit('MATCH_COMPLETED', match_id=game.match_id)
         elif self.phase == 'STARTED' and game.flush_open:
             self.phase = 'OPEN'
@@ -73,6 +77,9 @@ class TableState:
     def seats(self, game):
         if self.next_seats is not None:
             return self.next_seats
+        if game.game_type == 'callbreak' and game.started and not game.finished:
+            from .table_session import controller
+            return [controller(game, i + 1) for i in range(len(game.users))]
         if game.game_type == 'marriage' and game.started:
             return [u if u not in game.departed else None for u in game.users]
         return [u for u in game.users if u not in game.departed]
@@ -140,7 +147,8 @@ class TableState:
                 'can_start': host and valid and not rules_pending and not pending and not self.releases and
                     (self.phase == 'LOCKED' if policy.requires_explicit_lock else open_),
                 'can_leave_seat': seated and self.phase in ('OPEN', 'COMPLETED', 'ENDED'),
-                'can_abandon_match': seated and self.phase == 'STARTED' and policy.supports_abandonment,
+                'can_abandon_match': seated and self.phase == 'STARTED' and policy.supports_abandonment and not bool(game.session),
+                'can_pause_match': seated and self.phase == 'STARTED' and game.game_type == 'callbreak' and bool(game.session),
                 'is_in_active_match': seated and self.phase == 'STARTED',
                 'can_next_match': host and self.phase == 'COMPLETED' and
                     (valid if policy.requires_replacement else 1 <= count <= policy.max_players) and not self.releases,

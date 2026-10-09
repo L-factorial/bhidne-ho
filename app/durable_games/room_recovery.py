@@ -84,7 +84,7 @@ class PostgresRoomRecoveryStore:
     def __init__(self, pool, *, game_types=('callbreak', 'marriage', 'flush'),
                  timer_validators=None, finalization_validators=None, max_items=4096,
                  offer_expiry=False, callbreak_review=False, match_settlement=False,
-                 flush_settlement=False):
+                 flush_settlement=False, table_sessions=False):
         if type(max_items) is not int or max_items < 1:
             raise ValueError('Recovery inventory limit must be a positive integer.')
         self.pool, self.max_items = pool, max_items
@@ -100,6 +100,7 @@ class PostgresRoomRecoveryStore:
         if type(flush_settlement) is not bool:
             raise ValueError('Flush settlement capability must be an explicit boolean.')
         self.flush_settlement = flush_settlement
+        self.table_sessions = table_sessions
         self.checkpoints = PostgresCheckpointStore(pool)
         self.game_types = frozenset(game_types)
         # Timer identity is (lane kind, action type); job identity includes version.
@@ -107,6 +108,9 @@ class PostgresRoomRecoveryStore:
         if offer_expiry:
             from .offer_expiry import validate_deadline
             self.timer_validators[('table', 'seat_offer_expiry')] = validate_deadline
+        if table_sessions:
+            from .session_timers import validate_deadline
+            self.timer_validators[('table', 'table_session')] = validate_deadline
         self.finalization_validators = dict(finalization_validators or {})
         if any(not callable(v) or inspect.iscoroutinefunction(v)
                for v in (*self.timer_validators.values(), *self.finalization_validators.values())):
@@ -231,6 +235,16 @@ class PostgresRoomRecoveryStore:
                 AND a.action_type='seat_offer_expiry' AND a.status IN ('pending','enqueued')
                 ORDER BY a.action_id''', (fence.room_id,))
             await validate_recovery(connection, tables, lanes, offer_rows)
+        if self.table_sessions:
+            from .session_timers import validate_recovery
+            from .offer_expiry import COLUMNS
+            columns = ','.join('a.' + c for c in COLUMNS.split(','))
+            session_rows = await self._rows(connection, 'SELECT ' + columns + """ FROM scheduled_actions a
+                JOIN command_lanes l USING(lane_id) WHERE l.room_id=%s
+                AND a.action_type='table_session' AND a.status IN ('pending','enqueued')
+                AND EXISTS(SELECT 1 FROM command_inbox i WHERE i.lane_id=a.lane_id
+                    AND i.sequence=a.inbox_sequence AND i.status='pending') ORDER BY a.action_id""", (fence.room_id,))
+            await validate_recovery(connection, tables, lanes, session_rows)
         jobs = tuple(RecoveredFinalization(*r) for r in await self._rows(connection, '''SELECT j.job_id,j.game_id,
             j.round_number,j.job_type,j.payload_version,j.payload,j.next_attempt_at,j.attempts
             FROM game_finalization_jobs j JOIN games g ON g.id=j.game_id

@@ -4,13 +4,14 @@ import { gameControl, tableControl, roomControl, chatControl, readNotifications,
 import type { SelectedTable } from './DistributedControls.ts';
 export type LeaveView = SelectedTable & {
   game_type: 'callbreak'|'marriage'|'flush';
-  table: { phase: string; current_user: { can_leave_seat: boolean; can_abandon_match: boolean; is_in_active_match: boolean } };
+  table: { phase: string; current_user: { can_leave_seat: boolean; can_abandon_match: boolean; can_pause_match?: boolean; is_in_active_match: boolean } };
 };
 export function leaveControl(client: DurableCommandClient, view: LeaveView): boolean {
   // An unresolved intention is retried as-is, even if the latest screen is gone.
   if (client.pending) return false;
   const {phase,current_user:user} = view.table;
   if (['OPEN','COMPLETED','ENDED'].includes(phase) && user.can_leave_seat) return tableControl(client,view,'leave-seat');
+  if (phase === 'STARTED' && view.game_type === 'callbreak' && user.can_pause_match) return tableControl(client,view,'pause-seat');
   if (phase === 'STARTED' && view.game_type === 'callbreak' && user.can_abandon_match) return tableControl(client,view,'abandon');
   if (phase === 'STARTED' && ['marriage','flush'].includes(view.game_type) && user.is_in_active_match) {
     return gameControl(client,view,'FOLD_AND_LEAVE');

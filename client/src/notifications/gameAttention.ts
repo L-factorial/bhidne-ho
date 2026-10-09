@@ -6,6 +6,7 @@ export type GameAttention = { key:string; title:UiKey; detail:UiKey; required:bo
 // Presentation uses authorized snapshots only. Suggestions never grant actions.
 export function gameAttention(snapshot:RoomSnapshot|null, local?:{marriage:boolean;maal:boolean;tunnela:boolean}):GameAttention|null {
   if(!snapshot?.match_id || snapshot.status==='ended')return null;
+  if(snapshot.game_type==='callbreak' && snapshot.session?.controls.some(c=>c.seat_id===snapshot.your_player_id && c.mode==='auto'))return null;
   const s=snapshot, mine=s.marriage?.private;
   const opportunities:UiKey[]=[];
   const cue=(kind:string,title:UiKey,detail:UiKey,required=false):GameAttention=>({

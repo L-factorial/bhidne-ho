@@ -313,7 +313,7 @@ export class OriginalUiApi {
     }
   }
   async tableRequest(room:string,action:string,data:Payload,signal:AbortSignal):Promise<unknown> {
-    const departing=['leave','table/leave-seat','table/abandon'].includes(action);
+    const departing=['leave','table/leave-seat','table/abandon','table/pause-seat'].includes(action);
     if(['poke','send-poke','send-reaction'].includes(action)&&this.root.ephemeralEnabled){
       const match=typeof data.match_id==='string'?data.match_id:null;
       const view=this.root.cachedGameView<LeaveView>(room,match)??await this.game(room,match,signal);
@@ -364,6 +364,7 @@ export class OriginalUiApi {
     if(action==='leave') {
       const user=view.table.current_user;
       if(['OPEN','COMPLETED','ENDED'].includes(view.table.phase)&&user.can_leave_seat)command='leave-seat';
+      else if(view.table.phase==='STARTED'&&view.game_type==='callbreak'&&user.can_pause_match)command='pause-seat';
       else if(view.table.phase==='STARTED'&&view.game_type==='callbreak'&&user.can_abandon_match)command='abandon';
       else if(view.table.phase==='STARTED'&&['marriage','flush'].includes(view.game_type)&&user.is_in_active_match){command='FOLD_AND_LEAVE';game=true;}
       else throw new GameRequestError(409,'Leaving is unavailable in the current table state.');

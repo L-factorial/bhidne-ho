@@ -51,7 +51,7 @@ async function fixture(browser, kind, count, width, spectator = false, configure
   await page.goto(site);
   await page.getByRole('button', {name:/Return to table|Watch/}).first().click();
   await page.getByTestId('game-stats-toggle').waitFor();
-  return {page, context, errors, writes, notify: () => {
+  return {page, context, errors, writes, change: update => { snapshot = structuredClone(snapshot); update(snapshot); }, notify: () => {
     snapshot = structuredClone(snapshot); snapshot.game.revision++;
     snapshot.game.turn.player_id = 1;
     if (kind === 'callbreak') { snapshot.game.phase = 'BIDDING'; snapshot.deal.players[0].bid = null; }

@@ -1,3 +1,4 @@
+import { GameSessionStatus } from './GameSessionStatus';
 import {AppText as Text} from './AppText';
 import { usePersistentNotice } from '../multiplayer/usePersistentNotice';
 import { playerPresence } from '../multiplayer/playerPresence';
@@ -77,6 +78,17 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
   const collapsed = !open && live && !!snapshot && snapshot.status !== 'empty';
   const notification = useGameNotification(snapshot, collapsed, false);
   function collapseGame() { notification.prepare(); setOpen(false); }
+  const handledSessionExit = useRef<string | null>(null);
+  useEffect(() => {
+    const session = snapshot?.session;
+    const reason = session?.expired_at ? 'expired' : session?.removal_reason === 'ACTION_TIMEOUT' ? 'removed' : null;
+    if (!reason) return;
+    const key = `${snapshot?.match_id}:${reason}`;
+    if (handledSessionExit.current === key) return;
+    handledSessionExit.current = key;
+    setOpen(false); setLive(false);
+    setError(ui(reason === 'expired' ? 'rooms.session_expired' : 'rooms.session_removed'));
+  }, [snapshot?.match_id, snapshot?.session?.expired_at, snapshot?.session?.removal_reason]);
   const [capacity, setCapacity] = useState<4|5>(4);
   const [tableName, setTableName] = useState('');
   const [selectedInvitees, setSelectedInvitees] = useState<InvitePlayer[]>([]);
@@ -307,7 +319,9 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
     (snapshot?.is_creator || (connected && roomMembers.length === 1 && roomMembers[0] === userId)));
   const gameName = ({ marriage: 'Marriage', callbreak: 'Call Break', flush: 'Flush' })[(canCreate ? gameType : snapshot?.game_type) || 'callbreak'];
   const noun = (canCreate ? gameType : snapshot?.game_type) === 'flush' ? 'table' : 'game';
+  const autoPlay = snapshot?.game_type === 'callbreak' && snapshot.session?.controls.some(c => c.user_id === userId && c.mode === 'auto');
   async function gameAction(command: string, payload: object = {}) {
+    if (autoPlay) return;
     if (!canSend.current || !snapshot?.game || !snapshot.match_id || pending.current) return;
     if (!commandClient.submit(snapshot, command, payload)) return;
     canSend.current = false; generation.current++;
@@ -321,7 +335,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
       const data = await api(suffix, { match_id: snapshot.match_id, ...payload });
       if (alive.current && generation.current === version) {
         selectedMatch.current = data.match_id; setSnapshot(data);
-        if (suffix === '/leave' || suffix === '/table/leave-seat' || suffix === '/table/abandon') { setOpen(false); setLive(false); }
+        if (suffix === '/leave' || suffix === '/table/leave-seat' || suffix === '/table/abandon' || suffix === '/table/pause-seat') { setOpen(false); setLive(false); }
       }
     } catch (error) { if (alive.current && generation.current === version) setError(playerError(error, ui("feedback.could_not_update_game"))); }
     finally { pending.current = false; if (alive.current) setBusy(false); }
@@ -333,7 +347,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
     start={() => lobbyAction('/start', { play_mode: 'manual', rules_revision: snapshot.flush_settings?.rules_revision })} /> : null;
   const menuLeaveControl = snapshot?.table ? <TableControls menuSection="leave" table={snapshot.table} members={roomMembers} userId={userId} busy={busy}
     act={(command, payload) => lobbyAction(`/table/${command}`, payload)} start={() => lobbyAction('/start')} /> : null;
-  const leaveControl = !snapshot?.table?.current_user.can_leave_seat && !snapshot?.table?.current_user.can_abandon_match && snapshot?.your_player_id
+  const leaveControl = !snapshot?.table?.current_user.can_leave_seat && !snapshot?.table?.current_user.can_abandon_match && !snapshot?.table?.current_user.can_pause_match && snapshot?.your_player_id
     ? <Pressable accessibilityRole="button" accessibilityLabel={snapshot.game_type === 'flush' || snapshot.game_type === 'marriage' ? ui("rooms.leave_table") : ui("common.leave_gameortable", { "gameOrTable": noun })} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => void lobbyAction('/leave')} style={{ minHeight: 44, padding: 10, justifyContent: 'center' }}><Text style={[styles.text, live && open && { color: colors.text }, { color: colors.danger }]}>{snapshot.game_type === 'flush' || snapshot.game_type === 'marriage' ? ui("rooms.leave_table") : ui("common.leave_gameortable", { "gameOrTable": noun })}</Text></Pressable> : null;
   const ruleReview = snapshot?.rule_proposal && <RuleProposal key={snapshot.rule_proposal.id} proposal={snapshot.rule_proposal} busy={busy} userId={userId} error={uiLabel(error, 'feedback')} vote={accept => void lobbyAction('/rule-vote', { proposal_id: snapshot.rule_proposal!.id, accept })} />;
   async function enterTable(matchId: string, action: TableEntry) {
@@ -420,6 +434,8 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
         backgroundColor: gameTheme.colors.background, paddingTop: insets.top, paddingBottom: insets.bottom,
         paddingLeft: insets.left, paddingRight: insets.right,
       }]}><View accessibilityViewIsModal testID="live-game-overlay" style={[styles.liveOverlay, (mobileGame || snapshot.game_type === 'flush') && !chat && { paddingBottom: 0 }]}>
+        <GameSessionStatus snapshot={snapshot} userId={userId} busy={busy || !connected || !synced}
+          act={command => lobbyAction(`/table/${command}`)} />
         {snapshot.game_type === 'flush' ? <FlushTable connectionReady={connected && synced} onLock={() => void lobbyAction('/table/lock')} tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onFormationBlocked={setFormationBlocked} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={uiLabel(error, 'feedback')}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: text => social.send(snapshot.match_id!, null, text) }}
           onSave={payload => lobbyAction('/flush-settings', payload)} onStart={rules_revision => lobbyAction('/start', { rules_revision })}
@@ -429,7 +445,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
           onAction={gameAction} onStart={() => lobbyAction('/start', { play_mode: 'manual' })} onBack={collapseGame}
           onNewGame={() => { setLive(false); setOpen(true); }} endControl={canEnd ? <EndGameControl table={snapshot.status === 'finished'} compact busy={busy} onEnd={() => lobbyAction('/end')} /> : null}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: (recipient, text) => social.send(snapshot.match_id!, recipient, text) }} />
-        : <LiveGameTable lobbyControl={<>{menuLeaveControl}{leaveControl}</>} tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onTableAction={command => void lobbyAction(`/table/${command}`)} endControl={canEnd ? <EndGameControl table={snapshot.status === 'finished'} compact busy={busy} onEnd={() => lobbyAction('/end')} /> : null} onNextDeal={() => lobbyAction('/next-deal', { deal_number: snapshot.round_review?.deal_number })} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={uiLabel(error, 'feedback')} onAction={gameAction} onNewGame={() => { setCapacity(snapshot.capacity === 5 ? 5 : 4); setLive(false); setOpen(true); }} onStart={() => lobbyAction('/start', { play_mode: 'manual' })} onSave={settings => lobbyAction('/settings', settings)} onBack={collapseGame}
+        : <LiveGameTable lobbyControl={<>{menuLeaveControl}{leaveControl}</>} tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onTableAction={command => void lobbyAction(`/table/${command}`)} endControl={canEnd ? <EndGameControl table={snapshot.status === 'finished'} compact busy={busy} onEnd={() => lobbyAction('/end')} /> : null} onNextDeal={() => lobbyAction('/next-deal', { deal_number: snapshot.round_review?.deal_number })} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy || !!autoPlay} error={uiLabel(error, 'feedback')} onAction={gameAction} onNewGame={() => { setCapacity(snapshot.capacity === 5 ? 5 : 4); setLive(false); setOpen(true); }} onStart={() => lobbyAction('/start', { play_mode: 'manual' })} onSave={settings => lobbyAction('/settings', settings)} onBack={collapseGame}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: (recipient, text) => social.send(snapshot.match_id!, recipient, text) }} />}
         <ScrollView testID="game-footer" style={[styles.gameFooter, mobileGame && { borderTopWidth: 0 }]} contentContainerStyle={{ gap: 4 }} nestedScrollEnabled>
           {snapshot.can_join && !snapshot.your_player_id && <View testID="in-game-invitation" style={[styles.invitation, { padding: 14, margin: 12, marginBottom: 0 }]}>

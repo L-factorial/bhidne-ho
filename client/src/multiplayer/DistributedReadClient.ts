@@ -1,3 +1,4 @@
+import { observeServerClock } from './tableSession.ts';
 import { DistributedRequestError } from './DistributedHttpTransport.ts';
 import type { CommandTarget } from './DurableCommandClient.ts';
 import { discoverDeliveryStreams } from './DurableDeliveryClient.ts';
@@ -24,9 +25,11 @@ export class DistributedReadClient {
     if(signal.aborted)cancel();
     const timer=setTimeout(cancel,10000);
     try {
+    const clockStarted = Date.now();
     const result = await this.fetcher(this.base + path, { signal:abort.signal, cache:'no-store',
       method:body === undefined ? 'GET':'POST', headers:{Authorization:`Bearer ${this.token}`,'Content-Type':'application/json'},
       ...(body === undefined ? {} : {body:JSON.stringify(body)}) });
+    observeServerClock(result.headers?.get('X-Bhidne-Server-Time') ?? null, clockStarted, Date.now());
     if (!result.ok) {
       let message:string|undefined;
       try {const body=await result.json();if(typeof body.detail==='string')message=body.detail;}catch {}

@@ -17,11 +17,14 @@ def next_deal(host, game, actor, request):
         payload = NextDealPayload.model_validate_json(canonical_json(request.payload))
     except ValidationError as error:
         raise GameCommandRejected('INVALID_COMMAND', 'Provide the completed deal number.') from error
-    if not game.users or actor != game.users[0]:
+    from app.multiplayer.table_session import controller
+    if not game.users or actor != controller(game, 1):
         raise GameCommandRejected('HOST_REQUIRED', 'Only the creator can start the next deal.')
     if (payload.deal_number != len(game.state.completed_deals)
             or game.state.phase == Phase.MATCH_COMPLETE):
         raise GameCommandRejected('STALE_DEAL', 'The round changed. Refresh the table.')
+    if game.session.get('controls', {}).get('1', {}).get('mode') == 'auto':
+        raise GameCommandRejected('RECLAIM_REQUIRED', 'Reclaim your seat before playing.')
     # A new current-revision request for an already continued deal is harmless,
     # matching the legacy endpoint. Same-ID retries resolve their original receipt.
     if game.state.phase != Phase.DEAL_COMPLETE:

@@ -488,3 +488,20 @@ SCOPED_CHAT_SCHEMA = """
     CREATE TRIGGER room_chat_messages_stream BEFORE INSERT ON room_chat_messages
         FOR EACH ROW EXECUTE FUNCTION validate_scoped_chat_stream();
 """
+
+
+GAME_CONNECTION_SCHEMA = '''
+CREATE TABLE game_connection_leases (
+    connection_id uuid NOT NULL,
+    room_id text NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+    user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    table_id uuid NOT NULL,
+    alias_id text NOT NULL,
+    watching boolean NOT NULL DEFAULT true,
+    expires_at timestamptz NOT NULL,
+    disconnected_at timestamptz,
+    PRIMARY KEY(connection_id,room_id,alias_id)
+);
+CREATE INDEX game_connection_leases_user ON game_connection_leases(room_id,user_id,expires_at);
+CREATE INDEX game_connection_leases_table ON game_connection_leases(room_id,table_id);
+'''

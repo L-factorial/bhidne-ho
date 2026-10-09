@@ -29,6 +29,9 @@ from .flush_restart import restart_flush
 from .seat_offers import OFFER_COMMANDS, InviteSeatPayload, ResolveSeatPayload, apply_offer, advance_offers
 from .rules_commands import COMMANDS as RULE_COMMANDS, apply_rules
 from . import invitations as hosted_invitations
+from .session_timers import COMMANDS as SESSION_COMMANDS
+from app.multiplayer import table_session as session_policy
+from .seat_offers import now as db_now
 
 
 class _LobbyHost(_DetachedHost):
@@ -42,7 +45,7 @@ class TableStateRejected(DurableGameConflict):
 
 class TableLaneExecutor:
     roster_commands = frozenset({'join-seat', 'leave-seat', 'join-queue', 'leave-queue'})
-    commands = frozenset({'join-seat', 'leave-seat', 'join-queue', 'leave-queue', 'lock', 'start', 'end', 'abandon', 'next-match', 'expire-seat-offer', 'answer-table-invitation', 'send-poke', 'send-reaction', 'card-theme'}) | OFFER_COMMANDS | RULE_COMMANDS
+    commands = frozenset({'join-seat', 'leave-seat', 'join-queue', 'leave-queue', 'lock', 'start', 'end', 'abandon', 'next-match', 'expire-seat-offer', 'answer-table-invitation', 'send-poke', 'send-reaction', 'card-theme'}) | OFFER_COMMANDS | RULE_COMMANDS | SESSION_COMMANDS | {'session-tick'}
 
     def __init__(self, inbox, *, max_events=512, round_summary_seconds=8):
         if type(max_events) is not int or max_events < 1 or round_summary_seconds < 0:
@@ -63,6 +66,10 @@ class TableLaneExecutor:
             if request.command in ('send-poke', 'send-reaction'):
                 from .pokes import execute
                 return await execute(claim, self.checkpoints)
+            if request.command == 'session-tick':
+                from .session_timers import execute_tick
+                return await execute_tick(claim, self.checkpoints, fence, max_events=self.max_events,
+                    round_summary_seconds=self.round_summary_seconds)
             if request.command == 'expire-seat-offer':
                 from .offer_expiry import execute_expiry
                 return await execute_expiry(claim, self.checkpoints, fence, max_events=self.max_events)
@@ -79,6 +86,7 @@ class TableLaneExecutor:
             host = _LobbyHost(self.round_summary_seconds)
             game = host.game = rebuild_hosted_game(host, stored.checkpoint,
                 receipt_snapshot=stored.receipt_snapshot).game
+            before_effect = self._activity_state(game, data['invitations'])
             detail = None
             context = None
             offer_payload = None
@@ -157,7 +165,7 @@ class TableLaneExecutor:
                 for user in sorted(candidates):
                     if await self._occupied(claim.connection, user, claim.target.table_id):
                         # Leaving a queue must remain possible while seated elsewhere.
-                        if request.command in ('join-seat', 'join-queue', 'start', 'next-match') or user != claim.entry.actor_id:
+                        if request.command in ({'join-seat', 'join-queue', 'start', 'next-match', 'accept-live-seat', 'reclaim-seat'}) or user != claim.entry.actor_id:
                             detail = 'A player is already seated at another table.'
                             if user == claim.entry.actor_id:
                                 from .departure_context import occupied_context
@@ -176,6 +184,9 @@ class TableLaneExecutor:
                 elif rematching:
                     game = host.game = await build_rematch(claim, game, stored)
                     invitations = []
+                elif request.command in SESSION_COMMANDS:
+                    session_policy.sync(game, await db_now(claim.connection))
+                    detail = session_policy.live_control(game, claim.entry.actor_id, request.command, await db_now(claim.connection))
                 elif request.command == 'card-theme':
                     from app.multiplayer.card_themes import CardThemePayload, set_card_theme
                     try:
@@ -231,6 +242,8 @@ class TableLaneExecutor:
             if detail is None and not (closing and already_ended):
                 host._sync_proposal(game)
                 game.table.sync(game)
+                session_policy.sync(game, await db_now(claim.connection),
+                    activity=self._activity_state(game, invitations) != before_effect)
                 events.extend(OutgoingEvent({'type': 'TABLE_EVENT', 'table_id': game.table.table_id, **event})
                               for event in game.table.events[game.table.published_sequence:])
                 game.table.published_sequence = len(game.table.events)
@@ -274,6 +287,8 @@ class TableLaneExecutor:
     @classmethod
     def check_capability(cls, data, command):
         """Shared state-dependent capability gate for execution and activation."""
+        if command in SESSION_COMMANDS or command == 'session-tick':
+            return False, False, False, False, False
         if command in ('send-poke', 'send-reaction'):
             return False, False, False, False, False
         if command == 'leave-seat' and data['host']['ended']:
@@ -308,8 +323,24 @@ class TableLaneExecutor:
         user = user_uuid(actor)
         return await (await connection.execute('''SELECT 1 FROM active_table_players
             WHERE user_id=%s AND table_id<>%s UNION ALL
-            SELECT 1 FROM active_game_players WHERE user_id=%s LIMIT 1''',
-            (user, table_id, user))).fetchone()
+            SELECT 1 FROM active_game_players p JOIN games g ON g.id=p.game_id
+            WHERE p.user_id=%s AND g.table_id<>%s LIMIT 1''',
+            (user, table_id, user, table_id))).fetchone()
+
+    @staticmethod
+    def _activity_state(game, invitations):
+        from dataclasses import asdict
+        # This is an intermediate-state comparison, not a checkpoint capture:
+        # e.g. closure clears its remaining deadlines in the following sync.
+        target = game.marriage_target or game.flush_target
+        return canonical_json(dict(users=game.users, departed=sorted(game.departed),
+            pending_flush_departures=sorted(game.pending_flush_departures), ended=game.ended,
+            table=asdict(game.table), settings=game.settings, rule_proposal=game.rule_proposal,
+            card_theme=game.card_theme, flush_rules=asdict(game.flush_rules),
+            flush_rules_revision=game.flush_rules_revision, marriage_scoring=asdict(game.marriage_scoring),
+            engine_revision=target.revision if target else game.state.revision if game.state else None,
+            invitations=list(invitations),
+            session={k:v for k,v in game.session.items() if k in ('controls', 'removed', 'expired_at')}))
 
     @staticmethod
     def _apply(host, game, actor, command):

@@ -201,6 +201,9 @@ class RoomCreationExecutor:
                 if game.game_type == 'flush':
                     game.flush_seats[actor] = 1
                 invitations = await hosted_invitations.create(claim, game, payload.invitees, notify_room=payload.notify_room)
+                from app.multiplayer.table_session import sync as sync_session
+                from .seat_offers import now as db_now
+                sync_session(game, await db_now(claim.connection), actor=actor, activity=True)
                 await self.checkpoints.save_in_transaction(claim.connection,
                     capture_checkpoint(game, table_revision=0, invitations=invitations), expected_revision=None, fence=fence)
                 await self.inbox.ensure_lane_in_transaction(claim.connection, LaneTarget(

@@ -34,7 +34,7 @@ ZERO = UUID(int=0)
 @dataclass
 class _RoomWork:
     fence: object
-    cursors: dict = field(default_factory=lambda: dict(inbox=ZERO, offers=ZERO, match=ZERO, flush=ZERO))
+    cursors: dict = field(default_factory=lambda: dict(inbox=ZERO, offers=ZERO, sessions=ZERO, match=ZERO, flush=ZERO))
     failures: int = 0
     retry_at: float = 0
     next_inbox_at: float = 0
@@ -82,6 +82,8 @@ class RoomExecutionRuntime:
         from .chat import ChatLaneExecutor, CHAT_KINDS
         self.executors.update({kind: ChatLaneExecutor(self.inbox) for kind in CHAT_KINDS})
         self.offers = OfferExpiryDispatcher(self.inbox)
+        from .session_timers import SessionDispatcher
+        self.sessions = SessionDispatcher(self.inbox)
         self.finalizers = {'match': MatchFinalizationWorker(pool), 'flush': FlushFinalizationWorker(pool)}
         self.scheduler = GameLaneScheduler(self, workers=workers, max_lanes=max_lanes,
             retry_base=retry_base, retry_max=retry_max, max_retries=max_retries,
@@ -281,6 +283,15 @@ class RoomExecutionRuntime:
         for lane in due:
             entry = await self._attempt(fence, self.offers.dispatch_one, lane, fence)
             room.cursors['offers'] = lane
+            if entry is not None:
+                self.offer(lane, fence)
+        due_sessions = await self._attempt(fence, self.sessions.due_lanes, fence,
+            limit=self.batch_size, after_lane_id=room.cursors['sessions'])
+        if not due_sessions:
+            room.cursors['sessions'] = ZERO
+        for lane in due_sessions:
+            entry = await self._attempt(fence, self.sessions.dispatch_one, lane, fence)
+            room.cursors['sessions'] = lane
             if entry is not None:
                 self.offer(lane, fence)
         for kind, worker in self.finalizers.items():
