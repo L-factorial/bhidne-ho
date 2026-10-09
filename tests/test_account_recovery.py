@@ -67,8 +67,10 @@ def test_signin_identifier_does_not_relax_signup_username_rules():
 
 
 async def allow_next(pool, purpose):
-    await pool.execute('''UPDATE account_recovery_limits SET next_allowed_at=clock_timestamp()-interval '1 second'
-        WHERE purpose=%s''', (purpose,))
+    # Serialize this fixture write with the application's background workers.
+    async with pool.connection() as connection:
+        await connection.execute('''UPDATE account_recovery_limits SET next_allowed_at=clock_timestamp()-interval '1 second'
+            WHERE purpose=%s''', (purpose,))
 
 
 @pytest.mark.parametrize('value', ['missing', 'x@@example.com', 'x@localhost', 'a..b@example.com',

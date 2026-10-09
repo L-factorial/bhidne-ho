@@ -36,7 +36,7 @@ async def test_load_driver_all_games(cluster, tmp_path):
         await run('--accounts', str(subset), '--url', cluster.urls[1], '--users', '4', '--seconds', '400',
                   '--ramp', '0', '--late', '0', '--games', game, '--max-games', '1')
         reports = [json.loads(p.read_text()) for p in Path(output).glob('*.json')]
-        assert any(r['counters'].get(f'games.{game}.validated') == 1 for r in reports)
+        assert any(r.get('counters', {}).get(f'games.{game}.validated') == 1 for r in reports)
 
     results = await asyncio.gather(*(play(game, i) for i, game in enumerate(('flush', 'marriage', 'callbreak'))), return_exceptions=True)
     for result in results:

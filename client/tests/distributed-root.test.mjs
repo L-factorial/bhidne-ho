@@ -204,18 +204,19 @@ test('HTTP read started before a push returns the newer installed view',async t=
 });
 
 test('pushed selected-table preview stays current without replacing other room tables',async t=>{
- const f=setup({capabilities:['view-delta-v1'],roomRead:v=>({...v,snapshot:{...v.snapshot,tables:[
+ const f=setup({capabilities:['view-delta-v1'],roomRead:v=>({...v,snapshot:{...v.snapshot,can_end_table:false,tables:[
   {table_id:'t',match_id:'m',table_revision:2,name:'Before'},
   {table_id:'other',match_id:'other-match',name:'Keep'}]}})});
  t.after(()=>{f.root.close();f.owner.close();});await f.root.select({room:'r',table:'t'});await wait(()=>f.installed.length===5);
  const {canonicalView}=await import('../src/multiplayer/GameViewDelta.ts');
  const {viewDigest}=await import('../src/multiplayer/ViewDigest.ts');
  const sub=f.sockets[0].opens.find(s=>s.lane==='table'),original=sub.page;
- const preview={table_id:'t',match_id:'m',table_revision:3,name:'After'};
+ const preview={table_id:'t',match_id:'m',table_revision:3,name:'After',can_end_table:true};
  sub.page=page=>{page.events[0].payload.table_preview=preview;
   page.events[0].payload.preview_checksum=checksum;original(page);};
  const checksum=await viewDigest(canonicalView(preview)),reads=f.roomReads();
  await pushedDelta(f);await wait(()=>f.root.cachedGameView('r','m')?.table_revision===3);
  assert.deepEqual(f.root.cachedGameView('r','m').tables,[preview,{table_id:'other',match_id:'other-match',name:'Keep'}]);
+ assert.equal(f.root.cachedGameView('r','m').can_end_table,true);
  assert.equal(f.roomReads(),reads);
 });

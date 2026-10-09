@@ -17,7 +17,7 @@ import { viewDigest } from './ViewDigest.ts';
 import type { DeliveryEvent } from './DurableDeliveryClient.ts';
 
 export type Selection = { room: string; table: string | null; chat?: ('room_chat'|'table_chat'|'game_chat')[] };
-export type Projection = { room_id: string; snapshot: (SelectedTable & { durable_game_id: string | null; status?: string; tables?: unknown }) | null };
+export type Projection = { room_id: string; snapshot: (SelectedTable & { durable_game_id: string | null; status?: string; tables?: unknown; can_end_table?: boolean }) | null };
 type GameReadView = Partial<SelectedTable> & {room_id: string; status?: string; [key: string]: unknown};
 export type RootView = {kind:'lobby';value:null} | { kind: 'snapshot'; value: Projection } | { kind: 'chat'|'social'; value: unknown };
 type SocketFactory = (url: string, token: string, device: string, disconnected: (detail?: SocketDisconnect) => void, ready?: () => void) => DistributedSocketTransport;
@@ -238,6 +238,9 @@ export class DistributedRootRuntime {
     const current=copy(installed.snapshot);
     let catalog=current.tables;
     delete current.tables;
+    // Room ownership permissions are supplied by HTTP/catalog previews, not
+    // immutable game projections. Keep them outside the delta checksum.
+    delete current.can_end_table;
     let candidate=current;
     let changed=false;
     try{
@@ -278,6 +281,9 @@ export class DistributedRootRuntime {
       }
       if(changed){
         candidate.tables=catalog;
+        candidate.can_end_table=Array.isArray(catalog)
+          ? catalog.find(row=>row?.table_id===candidate.table_id)?.can_end_table ?? installed.snapshot.can_end_table
+          : installed.snapshot.can_end_table;
         this.install(lane,{kind:'snapshot',value:{...installed,snapshot:candidate}});
         this.snapshotClock.success(installed.room_id,candidate.match_id);
       }

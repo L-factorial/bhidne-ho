@@ -287,7 +287,9 @@ async def test_active_abandonment_is_explicit_once_and_never_a_penalty():
         assert game.ended and game.state is state  # No invented scoring or engine replacement.
         events = [e for e in game.table.events if e['event'] == 'PLAYER_LEFT_ACTIVE_MATCH']
         assert len(events) == 1 and events[0]['payload']['penalty_policy'] == 'DEFERRED'
-        assert not any(e['event'] == 'SEAT_RELEASED' for e in game.table.events)
+        released = [e for e in game.table.events if e['event'] == 'SEAT_RELEASED']
+        assert len(released) == 1 and released[0]['payload']['user_id'] == 'u1'
+        assert (await host.snapshot('r', 'u1', game.match_id))['your_player_id'] is None
         assert 'u1' in await host.rooms.members('r')
         await life.leave('r', 'u1')
     finally:

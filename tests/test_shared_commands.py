@@ -182,9 +182,11 @@ def test_shared_http_auth_reconnect_and_receipt_isolation(prefix):
             client.post(prefix + '/room/start', headers=headers[0], json={"match_id": mid, "play_mode": "manual"})
         state = client.get(prefix + '/room', headers=headers[0]).json()
         actor = state['game']['turn']['player_id'] - 1 if prefix == '/test-games' else 0
-        command = "SHUFFLE_DECK" if prefix == '/test-games' else "PING"
+        command = "PICK_DEALER_CARD" if prefix == '/test-games' else "PING"
         body = {"command_id": "shared-id", "match_id": state['match_id'],
                 "expected_revision": state['game']['revision'], "command": command}
+        if prefix == '/test-games':
+            body['payload'] = {'position': actor}
         first = client.post(prefix + '/room/action', headers=headers[actor], json=body)
         assert first.status_code == 200 and first.json()['action_ack']['status'] == 'accepted'
         assert first.headers['cache-control'] == 'no-store'

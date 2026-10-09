@@ -185,6 +185,12 @@ async def test_private_conversation_and_chat_delivery_copies_are_cleaned(databas
     await chat_executor.execute_one(UUID(sent['lane_id']),fence)
     sent=await public.submit(users[1],target,chat('OTHER_ROOM_TEXT'))
     await chat_executor.execute_one(UUID(sent['lane_id']),fence)
+    # Chat now queues recipient notices. Complete them as the runtime's social
+    # workers do before erasure, which intentionally waits for pending actions.
+    notice_lanes = (await pool.execute("SELECT lane_id FROM command_lanes WHERE kind='recipient' AND enqueued_sequence>processed_sequence")).rows
+    for notice_lane, in notice_lanes:
+        while await executor.execute_one(notice_lane) is not None:
+            pass
     await deletion.request(a.user_id,password='original-password');await clean(pool,recovery,a.user_id)
     for table in ('direct_messages','command_inbox','notification_outbox','friend_notifications','room_chat_messages'):
         serialized=json.dumps((await pool.execute(f'SELECT to_jsonb(t) FROM {table} t')).rows,default=str)

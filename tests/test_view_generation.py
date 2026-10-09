@@ -30,6 +30,7 @@ async def test_worker_generates_exact_private_views_once_after_commit(database, 
         for actor in game.users:
             snapshot = (await PostgresHostedQueries(pool).room('room',actor,table_id=game.table.table_id))['snapshot']
             snapshot.pop('tables',None)
+            snapshot.pop('can_end_table',None)  # HTTP-only room ownership permission.
             from fastapi.encoders import jsonable_encoder
             initial_views[actor] = jsonable_encoder(snapshot)
         receipt = await advance(host, game)

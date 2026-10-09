@@ -13,13 +13,13 @@ def test_active_tables_are_discoverable_and_preserve_live_seating_permissions():
         game = client.post(root, headers=host, json={'name': 'Evening Flush', 'game_type': 'flush', 'player_count': 2}).json()
         match = {'match_id': game['match_id']}
         assert client.get('/active-tables').status_code in (401, 403)
-        assert len(client.get('/active-tables', headers=outsider).json()) == 1
-        assert len(client.get('/active-tables', headers=viewer).json()) == 1
+        assert client.get('/active-tables', headers=outsider).json() == []
+        assert client.get('/active-tables', headers=viewer).json() == []
         client.post(f"/friends/requests/{friend['user_id']}", headers=host)
         client.post(f"/friends/requests/{owner['user_id']}/accept", headers=viewer)
         assert len(client.get('/active-tables', headers=viewer).json()) == 1
         assert client.patch(f"/rooms/{room['room_id']}", headers=host, json={'visibility':'public'}).status_code == 200
-        assert len(client.get('/active-tables', headers=outsider).json()) == 1
+        assert client.get('/active-tables', headers=outsider).json() == []
         table = client.get('/active-tables', headers=viewer).json()[0]
         assert table['room_name'] == 'Family'
         assert table['name'] == 'Evening Flush'

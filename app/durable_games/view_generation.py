@@ -97,8 +97,8 @@ class ViewGenerationWorker:
             raise RuntimeError('Too many view recipients.')
         from .checkpoint_store import user_uuid
         async with self.pool.connection() as c:
-            table = await (await c.execute('''SELECT created_at FROM room_tables
-                WHERE room_id=%s AND table_id=%s''',
+            table = await (await c.execute('''SELECT t.created_at,r.creator_id FROM room_tables t
+                JOIN rooms r ON r.id=t.room_id WHERE t.room_id=%s AND t.table_id=%s''',
                 (data['room_id'], claim.table_id))).fetchone()
             if table is None:
                 raise RuntimeError('View table metadata unavailable.')
@@ -132,11 +132,15 @@ class ViewGenerationWorker:
                 delta = make_delta(before, after, game_id=data['match_id'],
                     base_revision=claim.base_revision, revision=claim.revision)
                 previews = after_host.table_previews(after_game.room_id, actor)
+                can_end = bool(after_game.finished and
+                    (table[1] == user or after_game.users and actor == after_game.users[0]))
                 preview = next((p for p in previews if p['match_id']==after_game.match_id
-                    and p['status'] not in ('ended','finished') and p['phase'] not in ('ENDED','COMPLETED')), None)
+                    and p['status'] != 'ended' and p['phase'] != 'ENDED'
+                    and (p['status'] != 'finished' and p['phase'] != 'COMPLETED'
+                         or p['current_user']['is_seated'] or can_end)), None)
                 if preview is not None:
                     preview.update(table_id=after_game.table.table_id, table_revision=claim.revision,
-                                   created_at=created_at)
+                                   created_at=created_at, can_end_table=can_end)
                     preview = jsonable_encoder(preview)
                 message = dict(type='VIEW_DELTA', table_id=str(claim.table_id), match_id=data['match_id'],
                     viewer_seat=after['your_player_id'], delta=delta, table_preview=preview,

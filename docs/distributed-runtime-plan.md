@@ -1,5 +1,31 @@
 # Distributed runtime implementation plan
 
+## 2026-10-09: production release checks and delta compatibility
+
+- User authorized deployment to both production application servers. The latest
+  UI changes were already committed and pushed as `287244b`; its production
+  workflow was running when deployment was requested. Prior runs failed before
+  deployment, so both-server activation must follow a successful corrected run.
+- Fixed: the distributed client excludes HTTP-only `can_end_table` permission
+  from game-delta checksums and retains/refreshes it from catalog previews.
+  Generated previews now include the same permission and completed-table
+  visibility rules as HTTP queries. Authorization remains server enforced.
+- Updated release checks to match approved invitation visibility and explicit
+  departures; receipt isolation now uses a valid initial dealer-selection action.
+  Account-erasure fixtures drain the recipient notices created by chat, and the
+  load-driver check ignores non-summary JSON artifacts while still requiring each
+  game to validate. Recovery fixture writes use a leased connection, avoiding
+  interleaving with background workers on the single-connection PGlite harness.
+- Verification: TypeScript and all 417 client tests pass, including a delta
+  test with HTTP permissions and changing catalog permissions. The affected
+  backend suite passed 90 cases before the preview fix, with only its three
+  exact-preview checks failing; the corrected view-generation/recovery rerun
+  passes all seven cases. The SQL suite passed 78 cases, exposing the recovery
+  fixture race now fixed. Diff checks pass. Native load/process gates run in CI.
+- Exact next step: commit/push these release blockers, supersede the older
+  test-only run, and verify the corrected workflow activates one identical
+  client/backend image on both hosts plus public HTTPS health/frontend checks.
+
 ## 2026-10-09: Call Break bidding-section pulse
 
 - Completed: the expanded bidding panel uses the existing TurnGlow to pulse

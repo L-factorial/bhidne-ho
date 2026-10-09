@@ -116,7 +116,8 @@ def test_active_room_departure_rejected_and_end_then_leave_preserves_other_seats
     assert client.post('/rooms/r/leave', headers=headers[1], json={}).status_code == 200
     assert client.get(root, headers=headers[2]).json()['status'] == 'empty'
     remaining = client.get(root, headers=headers[2], params=body).json()
-    assert remaining['your_player_id'] == before['your_player_id']
+    assert remaining['your_player_id'] == (None if kind == 'callbreak' else before['your_player_id'])
+    assert remaining['players'] == before['players']
     assert remaining['game']['revision'] == state['game']['revision']
 
 

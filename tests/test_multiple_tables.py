@@ -161,8 +161,9 @@ def test_new_account_can_resolve_shared_room_and_exact_game_invitation():
         game = client.post(f"/test-games/{room['room_id']}", headers=owner_header, json={
             'name': 'Main Table', 'game_type': 'callbreak', 'player_count': 4}).json()
 
-        # A new account does not yet have the room in its personal feed.
-        assert all(item['room_id'] != room['room_id'] for item in client.get('/rooms', headers=invited_header).json())
+        # An invited room appears in the feed without automatically joining it.
+        listed = next(item for item in client.get('/rooms', headers=invited_header).json() if item['room_id'] == room['room_id'])
+        assert invited['user_id'] not in listed['members']
         # Invitation lookup resolves the room directly without joining it.
         preview = client.get(f"/rooms/{room['room_id']}", headers=invited_header).json()
         assert preview['name'] == 'Friends Night'
