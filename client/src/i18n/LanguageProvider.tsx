@@ -17,8 +17,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, []);
   useEffect(() => {
     let mounted = true;
-    void AsyncStorage.getItem(storageKey).then(saved => {
-      if (mounted && !changed.current && (saved === 'en' || saved === 'ne')) setLanguageState(saved);
+    void AsyncStorage.getItem(storageKey).then(async saved => {
+      if (mounted && !changed.current && (saved === 'en' || saved === 'ne')) {
+        await i18n.changeLanguage(saved);
+        if (mounted && !changed.current) setLanguageState(saved);
+      }
     }).catch(() => {}).finally(() => { if (mounted) setHydrated(true); });
     return () => { mounted = false; };
   }, []);
@@ -27,7 +30,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     if (hydrated) writes.current = writes.current.then(() => AsyncStorage.setItem(storageKey, language)).catch(() => {});
   }, [hydrated, language]);
   const value = useMemo(() => ({ language, setLanguage }), [language, setLanguage]);
-  return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
+  return <LanguageContext.Provider value={value}>{hydrated ? children : null}</LanguageContext.Provider>;
 }
 
 export const useLanguage = () => useContext(LanguageContext);

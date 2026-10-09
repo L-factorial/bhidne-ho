@@ -4,6 +4,7 @@ import { cardThemeStorageKey, defaultCardTheme, isCardThemeId, type CardThemeId 
 
 type CardThemeChoice = { id: CardThemeId; select: (id: CardThemeId) => void; canSelect: boolean; shared: boolean; pending: boolean };
 const CardThemeContext = createContext<CardThemeChoice>({ id: defaultCardTheme, select: () => {}, canSelect: false, shared: true, pending: false });
+const DeviceCardThemeContext = createContext<CardThemeChoice>({ id: defaultCardTheme, select: () => {}, canSelect: false, shared: false, pending: false });
 /** Device-local artwork default used when creating the next table. */
 export function CardThemeProvider({ children }: { children: ReactNode }) {
   const [id, setId] = useState<CardThemeId>(defaultCardTheme);
@@ -20,9 +21,11 @@ export function CardThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (ready) writes.current = writes.current.then(() => AsyncStorage.setItem(cardThemeStorageKey, id)).catch(() => {});
   }, [id, ready]);
-  return <CardThemeContext.Provider value={{ id, canSelect: true, shared: false, pending: false, select: next => { changed.current = true; setId(next); } }}>{children}</CardThemeContext.Provider>;
+  const value: CardThemeChoice = { id, canSelect: true, shared: false, pending: false, select: next => { changed.current = true; setId(next); } };
+  return <DeviceCardThemeContext.Provider value={value}><CardThemeContext.Provider value={value}>{ready ? children : null}</CardThemeContext.Provider></DeviceCardThemeContext.Provider>;
 }
 export const useCardTheme = () => useContext(CardThemeContext);
+export const useDeviceCardTheme = () => useContext(DeviceCardThemeContext);
 
 /** Authoritative table projection overrides the device's next-table default. */
 export function TableCardThemeProvider({ id, canChange, pending, select, children }: {

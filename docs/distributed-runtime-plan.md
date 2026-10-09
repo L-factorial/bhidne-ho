@@ -1,5 +1,138 @@
 # Distributed runtime implementation plan
 
+## 2026-10-09: profile preferences, card alignment and turn presentation
+
+User authorized implementation of the previously planned client changes.
+
+- [x] Profile card-theme selector is the last profile section. Its upward-opening
+  overlay has three 78px rows visible and internal vertical scrolling; previews
+  match the collapsed 36×54px card. Opening it does not change profile height or
+  scroll extent, and parent scrolling pauses until it closes. Selecting closes
+  the dropdown. The create-table selector shares the compact three-row list.
+- [x] Device card defaults have a separate client context so editing the profile
+  from a live game does not change the authoritative shared table theme or invoke
+  a server write. Existing dealer/controller restrictions remain in effect.
+- [x] Hidden-card artwork explicitly fills its local bounds. Previously the web
+  Image's intrinsic asset dimensions competed with absolute-fill positioning.
+  Centered cover sizing preserves artwork proportions across card sizes; aspect
+  ratios that differ from the artwork crop its edges rather than stretch it.
+- [x] Active-turn rings are centered on avatar bounds, use a complete uniform
+  border and expand radially outward while fading. Removed the rotating partial
+  arc. Reduced-motion settings retain a stationary complete circle.
+- [x] Redundant named-turn labels are visually suppressed; player accessibility
+  labels/live announcements still identify the actor. Required action prompts,
+  player names, scores, dealer labels and game actions remain visible.
+- [x] Client providers restore saved language, app/table theme and personal card
+  default before rendering application content, avoiding a default-preference
+  flash. Existing device-local AsyncStorage keys and writes remain unchanged.
+  Invalid/missing preferences fall back to defaults. No new server preference
+  storage or API changes were introduced.
+- Verification: all 414 client tests, TypeScript, local web export and
+  `git diff --check` pass. The new browser fixture passes eight cases at
+  390/1280px: profile position/row count/preview size, internal scrolling without
+  parent movement, reload persistence, equal card/artwork bounds, centered
+  uniform circular pulses and personal-versus-shared theme isolation in all
+  three games. All twelve existing card-theme browser cases also pass, including
+  shared theme synchronization, read-only observers and controller handoff.
+  Screenshots: `/private/tmp/bhidne-profile-card-dropdown-{390,1280}.png` and
+  `/private/tmp/bhidne-card-alignment-{callbreak,marriage,flush}-{390,1280}.png`.
+- Limitations: fixture browser verification only; no native-device verification,
+  deployment, commit or push. Earlier local Play feed/invitation changes are
+  retained; this increment changes client presentation/preferences only.
+- Exact next step: review local UI and release when requested; then verify
+  nested dropdown scrolling, card alignment, reduced-motion turn indicators and
+  last-used preferences on native iOS/Android devices.
+
+## 2026-10-09: rename Game stats to Game summary
+
+- User authorized this label change across Call Break, Marriage and Flush.
+  Shared English button, panel title and accessibility copy now say Game summary;
+  Nepali uses खेलको सारांश. Updated the Marriage browser fixture text.
+- Verification: both static UI copy checks pass; no old English label remains
+  in client source or fixtures; `git diff --check` passes.
+- Limitations: local client copy only, no deployment or native-device check.
+  The previously discussed profile picker, card alignment and turn-indicator
+  changes remain planning-only.
+- Exact next step: include this copy change in the next authorized client release.
+
+## 2026-10-09: direct Play invitations and waitlist controls
+
+- User clarification: a direct invitation must appear in Play without friendship
+  or membership and remain available until answered or the table session closes.
+- Confirmed the existing Play component separately merges the invitation inbox
+  with the social active-table feed. The earlier chat statement that social
+  filtering would hide direct invitations was incorrect; no broad public-feed
+  exception is required and unrelated sibling tables remain hidden.
+- Completed: invited cards offer Join or Wait alongside Decline. Wait accepts
+  the invitation and uses the existing waitlist entry action when permitted.
+  Doing nothing leaves the invitation pending. Server invitation metadata now
+  reports phase and queue availability and derives seat availability from OPEN
+  phase, including between-game sessions, rather than merely waiting status.
+  Legacy metadata uses the authoritative table view and counts occupied seats.
+- Verification: 414 client tests, TypeScript and web export pass. Backend lobby,
+  invitation, visibility and blocking coverage passes, including a non-friend's
+  pending invitation with an unrelated sibling table, full/locked persistence,
+  decline, session closure and accept-then-queue without taking a seat.
+  Browser fixture passes at 390px and 1280px, showing Join/Wait and Decline on
+  invitations, preserving Return to table and removing a declined invitation.
+  The fixture export uses an explicit local API and a cleared Metro cache.
+- Limitations: local only; no deployment, commit, push or native-device check.
+  Pending invitations already use recipient events plus the Play refresh timer.
+- Exact next step: release the reviewed backend/client together when requested
+  and verify Sigma's direct invitation and waitlist flow on her device.
+
+## 2026-10-09: restrict Play tables to the player's room circle
+
+- User-reported issue: Sigma saw Gorkhe-Room's Flush table in Play despite
+  not being friends with its owner. The active-table query included every public
+  room, while the room tabs selected ownership and accepted friendships.
+- Completed: distributed and legacy active-table feeds now include only rooms
+  the viewer owns, has joined, or whose owner is an accepted friend. Distributed
+  filtering happens before pagination. Pending requests do not qualify.
+  Browse all rooms and public room entry retain their existing behavior.
+- Verification: 47 PostgreSQL/WASM lobby, social notification and table-creation
+  tests and 10 legacy room-visibility tests pass; `git diff --check` passes.
+  Regression coverage checks Flush, Marriage and Call Break, friendship removal,
+  joining/leaving, ownership without membership and private snapshot boundaries.
+- Limitations: local code only; no production account inspection, deployment,
+  commit or push. Existing membership intentionally keeps a room in Play even
+  without friendship. This is feed selection, not a new private-room policy.
+- Exact next step: review and release this backend change when requested, then
+  refresh Sigma's Play tab and verify Gorkhe-Room is absent if she is neither
+  its owner/member nor the owner's friend.
+
+## 2026-10-08: table-session production deployment
+
+- User subsequently authorized server deployment. Deployed committed revision
+  `dac54bed417122506c69091caf034250f133f667` to both production application hosts
+  (`168.144.105.49`, `165.245.180.205`) using the established administrator sideload
+  procedure. Both serve image
+  `sha256:bf0f1368aad8a4b900a83a78ed6a7ec159d19c988672f73a7269af751c0c5097`.
+- Created a root-only PostgreSQL custom-format backup on app1 at
+  `/var/backups/bhidne-release/pre-dac54be.dump` and validated its archive listing
+  before migration. Backup SHA-256:
+  `a03ff40411a2a534ba759d1f1d244b5d5c158f8a69acd92e380c119eaa93b9c5`.
+  Candidate code loaded all 41 existing table checkpoints in a read-only snapshot.
+  Applied additive migration 40, then passed both hosts' schema/dependency and
+  frontend preflight checks. Retained the installed release lock, container
+  hardening, peer-health checks and sequential activation procedure. Both backends
+  became healthy before either matching frontend switched.
+- Verification: fresh production web export and 42 deployment/recovery tests pass.
+  Both hosts' exact revision, immutable image, committed backend/game source hashes,
+  frontend index and JavaScript hashes match. Public HTTPS API health, APNs
+  capability, frontend index and exact JavaScript asset checks pass. Read-only
+  database checks confirm migration 40 and two fresh serving registrations with
+  `table_sessions: 1`. No startup/runtime error lines or tracebacks were observed
+  in the new containers during the post-activation check.
+- Evidence: `/private/tmp/bhidne-dac54be-direct/verification.json` and
+  `/private/tmp/bhidne-dac54be-{production-build,release-tests,backup,checkpoints,prepare,rollout,source,capabilities,logs}.log`.
+  No git push was performed; the requested revision was already on the remote
+  production branch. This deployment record remains a local documentation change.
+- Exact next step: refresh the production web app and verify session controls on
+  actual devices. Installed native apps require a separate signed client build;
+  server deployment does not replace their bundled UI. Capacity/HA/operational
+  work remains separate.
+
 ## 2026-10-08: table expiry, action deadlines and Call Break continuity
 
 User authorized implementation in increments without waiting between them. Keep

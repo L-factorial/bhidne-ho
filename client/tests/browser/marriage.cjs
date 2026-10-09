@@ -141,7 +141,7 @@ const label = c => c.card_type === 'man' ? `Man · ${Number(c.card_id.slice(-1))
     await two.getByText('Three sequences / Tunnelas unlock Maal. Normal-hand winning is not available yet.', { exact: true }).waitFor();
     await two.getByRole('button', { name: 'Close details', exact: true }).click();
     await two.getByRole('button', { name: 'Stats', exact: true }).click();
-    await two.getByText('Game stats', { exact: true }).waitFor();
+    await two.getByText('Game summary', { exact: true }).waitFor();
     await two.getByRole('button', { name: 'Close details', exact: true }).click();
     await one.getByTestId('marriage-player-grid').waitFor();
     await two.getByTestId('marriage-player-grid').waitFor();

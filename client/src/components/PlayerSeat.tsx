@@ -40,7 +40,7 @@ export function PlayerSeat({ name, mine = false, active = false, connected = tru
     return () => { mounted = false; scale.stopAnimation(); scale.setValue(1); };
   }, [active, scale]);
   const size = compact ? 28 : 44;
-  return <Pressable onLayout={onLayout} ref={node => { registerSeat?.(node); if (playerId !== undefined) social?.registerSeat(playerId, node); }} collapsable={false} testID={testID} accessibilityRole={press ? 'button' : undefined}
+  return <Pressable accessibilityLiveRegion="polite" onLayout={onLayout} ref={node => { registerSeat?.(node); if (playerId !== undefined) social?.registerSeat(playerId, node); }} collapsable={false} testID={testID} accessibilityRole={press ? 'button' : undefined}
     onTouchStart={event => { if (target) event.stopPropagation(); }} onPointerDown={event => { if (target) event.stopPropagation(); }}
     onPress={press} disabled={!press} accessibilityLabel={`${target ? ui("social.poke") : ''}${name}${mine ? `, ${ui("common.you")}` : ''}${active ? `, ${ui("common.current_turn")}` : ''}${dealer ? `, ${ui("common.dealer")}` : ''}${status ? `, ${status}` : ''}${presenceLabel ? `, ${presenceLabel}` : ''}`}
     style={{ width: '100%', alignItems: 'center', gap: 2, minHeight:44 }}>

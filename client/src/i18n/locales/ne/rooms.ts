@@ -1,6 +1,7 @@
 // Editable Nepali rooms copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
   "play": "खेल्नुहोस्",
+  "wait": "पर्खनुहोस्",
   "rooms": "कोठाहरू",
   "create_game_table": "आफ्नै खेल टेबल बनाउनुहोस्",
   "choose_game_type": "खेल छान्नुहोस्",

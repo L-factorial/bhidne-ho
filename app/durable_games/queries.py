@@ -202,8 +202,9 @@ class PostgresHostedQueries:
                     for item in state['data']['invitations']:
                         if item.get('recipient_id') == actor and item.get('status') == 'pending' and await invitation_allowed(connection,item):
                             items.append(dict(item, table_id=table.hex, table_revision=revision, room_name=name,
-                                capacity=capacity, seated=seated, seat_available=status == 'waiting'
-                                and state['data']['host']['durable_game_id'] is None and seated < capacity))
+                                capacity=capacity, seated=seated, phase=state['data']['phase'],
+                                can_queue=state['data']['phase'] != 'ENDED',
+                                seat_available=state['data']['phase'] == 'OPEN' and seated < capacity))
                 return dict(items=items, next_table_id=str(rows[limit - 1][0]) if len(rows) > limit else None)
 
     @observe('read.room')
@@ -378,6 +379,8 @@ class PostgresHostedQueries:
     async def activity(self, actor, *, memberships=False, after_room_id='', limit=20):
         """Bounded room pages for original membership and active-table panels.
 
+        Play includes owned rooms, joined rooms and accepted friends' rooms.
+        Unrelated public rooms are discoverable through the all-rooms browser.
         Authorization is checked again within each projection snapshot, including
         when a room becomes private while this page is being assembled.
         """
@@ -388,8 +391,11 @@ class PostgresHostedQueries:
             rows = await (await connection.execute('''SELECT r.id FROM rooms r WHERE r.id>%s
                 AND NOT EXISTS(SELECT 1 FROM deleted_rooms d WHERE d.id=r.id)
                 AND (EXISTS(SELECT 1 FROM room_memberships m WHERE m.room_id=r.id AND m.user_id=%s)
-                     OR (%s=false AND (r.visibility='public' OR r.creator_id=%s)))
-                ORDER BY r.id LIMIT %s''', (after_room_id, user, memberships, user, limit + 1))).fetchall()
+                     OR (%s=false AND (r.creator_id=%s OR EXISTS(
+                         SELECT 1 FROM friendships f WHERE f.status='accepted'
+                         AND f.user_low=LEAST(r.creator_id,%s::uuid)
+                         AND f.user_high=GREATEST(r.creator_id,%s::uuid)))))
+                ORDER BY r.id LIMIT %s''', (after_room_id, user, memberships, user, user, user, limit + 1))).fetchall()
             declined=set()
             dismissed=set()
             if not memberships:

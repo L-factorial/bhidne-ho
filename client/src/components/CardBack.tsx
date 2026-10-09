@@ -8,6 +8,7 @@ export function CardBack({ testID = 'card-back', size }: { testID?: string; size
   const dimensions = size ? { width: { small: 44, medium: 58, large: 80 }[size], aspectRatio: 50 / 74 } : StyleSheet.absoluteFill;
   return <View testID={testID} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
     style={[dimensions, { borderRadius: 5, overflow: 'hidden' }]}>
-    <Image testID={`card-back-art-${id}`} source={cardThemeImages[id]} accessible={false} resizeMode="stretch" style={StyleSheet.absoluteFill} />
+    <Image testID={`card-back-art-${id}`} source={cardThemeImages[id]} accessible={false} resizeMode="cover"
+      style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%' }} />
   </View>;
 }

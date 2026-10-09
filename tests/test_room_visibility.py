@@ -11,6 +11,32 @@ def room_ids(client, headers):
     return [room["room_id"] for room in client.get("/rooms", headers=headers).json()]
 
 
+def test_play_tables_include_only_owned_joined_and_friends_rooms():
+    with TestClient(create_app()) as client:
+        owner, host = account(client, 'play-room-owner', 'Owner')
+        viewer, guest = account(client, 'play-room-viewer', 'Viewer')
+        room = client.post('/rooms', headers=host, json={'name': 'Gorkhe-Room'}).json()['room_id']
+        table = client.post(f'/test-games/{room}', headers=host,
+                            json={'game_type': 'flush', 'player_count': 2}).json()
+
+        def matches(headers):
+            return [item['match_id'] for item in client.get('/active-tables', headers=headers).json()]
+
+        assert room in room_ids(client, guest)
+        assert matches(guest) == []
+        assert table['match_id'] in matches(host)
+        client.post(f"/friends/requests/{viewer['user_id']}", headers=host)
+        assert matches(guest) == []
+        client.post(f"/friends/requests/{owner['user_id']}/accept", headers=guest)
+        assert table['match_id'] in matches(guest)
+        client.delete(f"/friends/{owner['user_id']}", headers=guest)
+        assert matches(guest) == []
+        client.post(f'/rooms/{room}/enter', headers=guest)
+        assert table['match_id'] in matches(guest)
+        client.post(f'/rooms/{room}/leave', headers=guest)
+        assert matches(guest) == []
+
+
 def test_all_rooms_include_everyone_and_legacy_visibility_is_public():
     with TestClient(create_app()) as client:
         owner, owner_headers = account(client, "room-owner", "Owner")

@@ -47,6 +47,7 @@ async function loadedArtwork(page,id){
   const picker=form.getByTestId('card-theme-picker');assert.equal(await picker.getByRole('radio').count(),10);
   await picker.getByRole('radio',{name:'Rara Lake',exact:true}).click();
   await page.waitForFunction(()=>localStorage.getItem('bhidne.card-theme.v1')==='rara');
+  await form.getByRole('button',{name:'Choose card theme',exact:true}).click();
   assert.equal(await picker.getByRole('radio',{name:'Rara Lake',exact:true}).getAttribute('aria-checked'),'true');
   if(process.env.SCREENSHOT_DIR){await picker.getByRole('radio',{name:'Mount Everest',exact:true}).scrollIntoViewIfNeeded();await page.screenshot({path:path.join(process.env.SCREENSHOT_DIR,`bhidne-card-picker-${width}.png`)});}
   await form.getByRole('button',{name:'Close create table',exact:true}).click();

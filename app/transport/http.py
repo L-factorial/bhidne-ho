@@ -116,10 +116,11 @@ async def list_rooms(request: Request, user: UserIdentity = Depends(current_user
 
 @router.get("/active-tables")
 async def active_tables(request: Request, user: UserIdentity = Depends(current_user)):
-    # Use exactly the same room visibility boundary as the lobby feed.
+    # Play is a social feed; unrelated public rooms remain in Browse all rooms.
     rooms = await request.app.state.rooms.list_rooms(user.user_id, request.app.state.players.are_friends)
     return [{**table, "room_id": room.room_id, "room_name": room.name}
             for room in rooms
+            if room.feed_source in ('you', 'joined', 'friend')
             for table in request.app.state.test_games.table_previews(room.room_id, user.user_id)]
 
 

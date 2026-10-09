@@ -491,9 +491,12 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         result = dict(item)
         result["room_name"] = room["name"] if room else item["room_id"]
         game = self.tables.get(item["room_id"], {}).get(item["match_id"])
-        result["seated"] = len(game.table.seats(game)) if game else 0
+        result["seated"] = sum(user is not None for user in game.table.seats(game)) if game else 0
         result["capacity"] = game.capacity if game else 0
-        result["seat_available"] = bool(game and not game.ended and not game.started and len(game.table.seats(game)) < game.capacity)
+        view = game.table.view(game, item["recipient_id"]) if game else None
+        result["phase"] = view["phase"] if view else 'ENDED'
+        result["can_queue"] = bool(view and view["current_user"]["can_queue"])
+        result["seat_available"] = bool(view and view["current_user"]["can_join"])
         if self.players:
             for field, user_id in (("inviter", item["inviter_id"]), ("recipient", item["recipient_id"])):
                 try: result[field] = await self.players.public_player(user_id)

@@ -19,7 +19,7 @@ export function TableThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (ready) writes.current = writes.current.then(() => AsyncStorage.setItem(storageKey, id)).catch(() => {});
   }, [id, ready]);
-  return <TableThemeContext.Provider value={{ id, select: next => { changed.current = true; setId(next); } }}>{children}</TableThemeContext.Provider>;
+  return <TableThemeContext.Provider value={{ id, select: next => { changed.current = true; setId(next); } }}>{ready ? children : null}</TableThemeContext.Provider>;
 }
 export function useTableTheme() {
   const preference = useContext(TableThemeContext);

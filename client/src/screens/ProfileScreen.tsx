@@ -24,6 +24,7 @@ import { DisplayNameField } from '../components/DisplayNameField';
 import type { Session } from '../multiplayer/session';
 import type { usePlayerPhrases } from '../multiplayer/usePlayerPhrases';
 import { FriendsPanel } from '../components/FriendsPanel';
+import { CreateCardThemeSelector } from '../components/CardThemePicker';
 
 export function ProfileScreen({ session, onBack, onSignOut }: {
   session: Session; personal: ReturnType<typeof usePlayerPhrases>; onBack: () => void; onSignOut?: () => void;
@@ -35,6 +36,7 @@ export function ProfileScreen({ session, onBack, onSignOut }: {
   const insets = useSafeAreaInsets();
   const [identity, setIdentity] = useState<{ user_id: string; display_name: string; username?: string | null } | null>(null);
   const [identityError, setIdentityError] = useState('');
+  const [cardThemeExpanded, setCardThemeExpanded] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
     setIdentity(null); setIdentityError('');
@@ -43,7 +45,7 @@ export function ProfileScreen({ session, onBack, onSignOut }: {
       .catch(() => { if (!controller.signal.aborted) setIdentityError(ui("feedback.profile_load_help")); });
     return () => controller.abort();
   }, [userId, session.token]);
-  return <KeyboardFrame><FormScrollView testID="profile-screen" accessibilityViewIsModal style={styles.page} keyboardShouldPersistTaps="handled"
+  return <KeyboardFrame><FormScrollView testID="profile-screen" accessibilityViewIsModal style={styles.page} keyboardShouldPersistTaps="handled" scrollEnabled={!cardThemeExpanded}
     contentContainerStyle={{ padding: 20, paddingTop: Math.max(insets.top, 24), paddingBottom: Math.max(insets.bottom, 24) }}>
     <View style={styles.content}>
       <AppHeader title={ui("common.your_profile_title")} hideProfile inlineActions={<Pressable accessibilityRole="button" accessibilityLabel={ui("common.back_from_profile")} onPress={onBack} style={styles.back}><Ionicons name="arrow-back" size={22} color={styles.link.color} /></Pressable>} />
@@ -63,6 +65,7 @@ export function ProfileScreen({ session, onBack, onSignOut }: {
       <><PolicyLinks /><DeleteAccountLink /></>
       <FriendsPanel session={session} friendLimit={6} />
       {onSignOut && <Pressable accessibilityRole="button" onPress={() => afterDismiss(onSignOut)} style={styles.signOut}><Text style={styles.signOutText}>{ui("common.sign_out_label")}</Text></Pressable>}
+      <CreateCardThemeSelector device overlay onExpandedChange={setCardThemeExpanded} />
     </View>
   </FormScrollView></KeyboardFrame>;
 }

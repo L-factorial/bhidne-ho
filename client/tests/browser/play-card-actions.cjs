@@ -32,15 +32,22 @@ const summary = require('../fixtures/join-after-marriage.json').before.tables[0]
         else if (p === '/friends') body = { friends: [], incoming: [], outgoing: [], online_friend_ids: [] };
         else if (p === '/active-tables') body = [table('public', 'Public table'), table('own', 'My table', true)];
         else if (p === '/test-games/invitations') body = [invitation('stale', 'own', 'My table'),
+          {...invitation('wait', 'full', 'Full invited table'), seated: 2, seat_available: false, can_queue: true, phase: 'LOCKED'},
           ...(declined ? [] : [invitation('invite', 'invited', 'Invitation table')])];
         await route.fulfill({ json: body });
       });
       await page.goto(origin);
-      await page.getByRole('button', { name: 'Join · Public table', exact: true }).waitFor();
+      await page.getByRole('button', { name: 'Join · Public table', exact: true }).waitFor().catch(async error => {
+        console.error(await page.locator('body').innerText(), errors);
+        throw error;
+      });
       assert.equal(await page.getByRole('button', { name: /Discard/ }).count(), 0);
       assert.ok(await page.getByRole('button', { name: 'Return to table · My table', exact: true }).isVisible());
       assert.equal(await page.getByTestId('play-table-public').getByRole('button').count(), 1);
       assert.equal(await page.getByTestId('play-table-own').getByRole('button').count(), 1);
+      assert.ok(await page.getByRole('button', { name: 'Wait · Full invited table', exact: true }).isVisible());
+      assert.ok(await page.getByRole('button', { name: 'Decline invitation · Full invited table', exact: true }).isVisible());
+      assert.ok(await page.getByRole('button', { name: 'Join · Invitation table', exact: true }).isVisible());
       await page.getByRole('button', { name: 'Decline invitation · Invitation table', exact: true }).click();
       await page.getByTestId('play-table-invited').waitFor({ state: 'hidden' });
       assert.ok(await page.getByTestId('play-table-own').isVisible());

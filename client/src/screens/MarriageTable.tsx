@@ -153,6 +153,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
     : decision === 'DISCARD_REQUIRED' ? selectedCard ? ui("marriage.your_turn_confirm_discard") : ui("marriage.your_turn_select_a_card_to_discard")
     : decision === 'FINISH_REQUIRED' ? ui("marriage.your_turn_finish_round") : ui("common.your_cards_status", { "status": hand.length });
   const turnPrompt = activeGame && pub && <TurnIndicator testID="marriage-turn-instruction" personal={isTurn}
+    announcementOnly={!isTurn || decision === 'WAITING'}
     text={isTurn && decision !== 'WAITING' ? turnInstruction : ui("common.player_s_turn", { "player": name(pub.current_player_id) })} />;
   const mobileHandHeader = <View testID="marriage-hand-header" style={{ backgroundColor: colors.surface, paddingHorizontal: 10, gap: 4 }}>
     {!!error && !selectedCard && <Text accessibilityRole="alert" style={s.error}>{uiLabel(error, 'feedback')}</Text>}

@@ -57,7 +57,7 @@ export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot
       const name = snapshot.players?.find(row => String(row.player_id) === p.player_id)?.display_name || ui("common.player_number", { "number": p.player_id });
       const target = !!social?.pokeMode && social.eligible(Number(p.player_id));
       return <Pressable key={p.player_id} ref={node => social?.registerSeat(Number(p.player_id), node)} collapsable={false}
-        testID={`flush-seat-${p.player_id}`} accessibilityRole={target ? 'button' : undefined} accessibilityLabel={target ? ui("social.poke_player_2", { "player": name }) : name} disabled={!target}
+        testID={`flush-seat-${p.player_id}`} accessibilityLiveRegion="polite" accessibilityRole={target ? 'button' : undefined} accessibilityLabel={`${target ? ui("social.poke_player_2", { "player": name }) : name}${p.player_id === decision?.actor ? `, ${ui('common.current_turn')}` : ''}`} disabled={!target}
         onTouchStart={event => { if (target) event.stopPropagation(); }} onPointerDown={event => { if (target) event.stopPropagation(); }} onPress={() => social?.poke(Number(p.player_id))}
         style={[s.seat, { left: pos.x - 40, top: pos.y - 38, opacity: folded ? 0.4 : 1, minHeight: 44 }]}>
         <PlayerSocialEffect playerId={Number(p.player_id)} />

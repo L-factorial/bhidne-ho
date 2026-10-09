@@ -1,6 +1,7 @@
 // Editable English rooms copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
   "play": "Play",
+  "wait": "Wait",
   "rooms": "Rooms",
   "create_game_table": "Create your own game table",
   "choose_game_type": "Choose a game",

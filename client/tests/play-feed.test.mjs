@@ -24,6 +24,20 @@ test('available cards distinguish joining, returning, watching and declining act
   {label:'Return to table',canDeclineInvitation:false});
 });
 
+test('direct invitations survive an empty social feed, offer Wait when full or locked, and disappear on decline or closure',()=>{
+ for(const phase of ['OPEN','LOCKED','STARTED','COMPLETED']){
+  const invite={...invitation('direct',10),phase,seat_available:false,can_queue:true};
+  const [card]=playFeed([], [invite]);
+  assert.equal(card.invitation_id,'invite-direct');
+  assert.equal(playEntry(card),'queue');
+  assert.deepEqual(playCardActions(card),{label:'Wait',canDeclineInvitation:true});
+ }
+ const [join]=playFeed([], [invitation('direct',10)]);
+ assert.equal(playEntry(join),'seat');
+ assert.deepEqual(playCardActions(join),{label:'Join',canDeclineInvitation:true});
+ assert.deepEqual(playFeed([],[]),[]);
+});
+
 test('Marriage and both Call Break sizes use the server-computed capacity for Join/Watch',()=>{
  for(const [game_type,capacity] of [['marriage',5],['callbreak',4],['callbreak',5]]){
   assert.equal(playEntry(table('a',0,{game_type,capacity,players:capacity-1})),'seat');

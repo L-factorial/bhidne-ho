@@ -85,17 +85,24 @@ async def test_original_game_empty_room_and_membership_boundary(database):
         await query.game_view('room', users[-1])
 
 
-async def test_active_table_previews_do_not_grant_private_game_access(database):
+@pytest.mark.parametrize('kind', ['callbreak', 'marriage', 'flush'])
+async def test_active_table_previews_do_not_grant_private_game_access(database, kind):
     from test_checkpoint_store import host_game
     from app.durable_games.checkpoints import capture_checkpoint
     from app.durable_games.queries import QueryAccessDenied
     pool, store, fence, users = database
-    host, game = await host_game(users)
+    host, game = await host_game(users, kind)
     outsider = f'user-{UUID(int=99)}'
     await pool.execute("INSERT INTO users(id,kind) VALUES (%s,'account')", (UUID(int=99),))
     try:
         await store.save(capture_checkpoint(game, table_revision=0), expected_revision=None, fence=fence)
         query = PostgresHostedQueries(pool)
+        assert (await query.activity(outsider))['items'] == []
+        # Pending requests do not qualify; only accepted owner friendships do.
+        await pool.execute("INSERT INTO friendships(user_low,user_high,requested_by,status) VALUES (%s,%s,%s,'pending')",
+                           (UUID(int=1), UUID(int=99), UUID(int=99)))
+        assert (await query.activity(outsider))['items'] == []
+        await pool.execute("UPDATE friendships SET status='accepted' WHERE user_high=%s", (UUID(int=99),))
         public = await query.activity(outsider)
         assert len(public['items']) == 1
         assert public['items'][0]['match_id'] == game.match_id
@@ -106,6 +113,16 @@ async def test_active_table_previews_do_not_grant_private_game_access(database):
             await query.game_view('room', outsider, match_id=game.match_id)
         with pytest.raises(ValueError):
             await query.room('room', outsider, public_preview=True, select_default=True)
+        await pool.execute('DELETE FROM friendships WHERE user_high=%s', (UUID(int=99),))
+        assert (await query.activity(outsider))['items'] == []
+        await pool.execute("INSERT INTO room_memberships(room_id,user_id) VALUES ('room',%s)", (UUID(int=99),))
+        assert len((await query.activity(outsider))['items']) == 1
+        await pool.execute('DELETE FROM room_memberships WHERE user_id=%s', (UUID(int=99),))
+        assert (await query.activity(outsider))['items'] == []
+        # Ownership alone qualifies even if the owner has left membership.
+        await pool.execute("UPDATE rooms SET creator_id=%s WHERE id='room'", (UUID(int=99),))
+        assert len((await query.activity(outsider))['items']) == 1
+        await pool.execute("UPDATE rooms SET creator_id=%s WHERE id='room'", (UUID(int=1),))
         member = (await query.activity(users[0], memberships=True))['items'][0]
         assert member['room_id'] == 'room'
         assert member['active_game']['player_is_participant'] is True

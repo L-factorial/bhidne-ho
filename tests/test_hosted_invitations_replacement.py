@@ -11,6 +11,56 @@ from test_checkpoint_store import database
 from test_creation_executor import creation, create, request
 
 
+@pytest.mark.parametrize('finish', ['decline', 'end', 'wait'])
+async def test_nonfriend_invitation_remains_in_play_until_answer_or_session_closes(creation, finish):
+    pool, store, fence, users, inbox, _, _ = creation
+    recipient = users[-1]
+    await pool.execute('DELETE FROM room_memberships WHERE user_id=%s', (UUID(recipient[5:]),))
+    body = request(game_type='flush', capacity=2)
+    body['payload']['invitees'] = [recipient]
+    outcome = await create(creation, users[0], body)
+    unrelated = await create(creation, users[2], request('Unrelated', game_type='flush', capacity=2))
+    assert unrelated['status'] == 'accepted'
+    query = PostgresHostedQueries(pool)
+    assert (await query.activity(recipient))['items'] == []
+    invite, = (await query.invitations(recipient))['items']
+    assert invite['match_id'] == outcome['match_id']
+    assert invite['seat_available'] and invite['can_queue']
+    lane = await inbox.ensure_lane(LaneTarget(kind='table', room_id='room', table_id=UUID(outcome['table_id'])))
+
+    async def command(actor, name, revision, payload=None):
+        await inbox.enqueue(lane, actor, dict(command_id=uuid4().hex, command=name,
+            match_id=outcome['match_id'], expected_revision=revision, payload=payload or {}))
+        assert (await TableLaneExecutor(inbox).execute_one(lane, fence)).outcome['status'] == 'accepted'
+
+    await command(users[1], 'join-seat', 0)
+    invite, = (await query.invitations(recipient))['items']
+    assert not invite['seat_available'] and invite['can_queue']
+    await command(users[0], 'lock', 1)
+    invite, = (await query.invitations(recipient))['items']
+    assert invite['phase'] == 'LOCKED' and not invite['seat_available']
+    # Reads leave invitations pending and never add membership or friendship.
+    assert (await query.invitations(recipient))['items'][0]['id'] == invite['id']
+    assert (await pool.execute('SELECT count(*) FROM friendships')).rows == [(0,)]
+    assert (await query.activity(recipient, memberships=True))['items'] == []
+    if finish == 'decline':
+        await command(recipient, 'answer-table-invitation', 2,
+                      dict(invitation_id=invite['id'], accept=False))
+    elif finish == 'end':
+        await command(users[0], 'end', 2)
+    else:
+        await command(recipient, 'answer-table-invitation', 2,
+                      dict(invitation_id=invite['id'], accept=True))
+        await command(recipient, 'join-queue', 3)
+        card = next(item for item in (await query.activity(recipient))['items']
+                    if item['match_id'] == outcome['match_id'])
+        assert card['current_user']['is_queued'] and not card['current_user']['is_seated']
+        assert (await query.invitations(recipient))['items'] == []
+        return
+    assert (await query.invitations(recipient))['items'] == []
+    assert (await query.activity(recipient))['items'] == []
+
+
 async def test_create_invite_private_recipient_accept_and_no_seat_reservation(creation):
     pool, store, fence, users, inbox, lane, executor = creation
     recipient = users[-1]

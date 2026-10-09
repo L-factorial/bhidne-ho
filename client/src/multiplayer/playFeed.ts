@@ -1,16 +1,18 @@
 import type { TableSummary, TableEntry } from './tableNavigation';
 import {ui} from '../i18n/copy.ts';
 export type PlayTable = TableSummary & {table_id?:string;room_id:string;room_name:string;created_at?:number;invitation_id?:string};
-export type PlayInvitation = {id:string;room_id:string;room_name:string;match_id:string;table_name:string;game_type:PlayTable['game_type'];created_at:number;seated:number;capacity:number;seat_available:boolean};
+export type PlayInvitation = {id:string;room_id:string;room_name:string;match_id:string;table_name:string;game_type:PlayTable['game_type'];created_at:number;seated:number;capacity:number;seat_available:boolean;phase?:PlayTable['phase'];can_queue?:boolean};
 
 export function playEntry(table:PlayTable):TableEntry {
   if(table.current_user?.is_seated)return 'watch';
-  return table.players<table.capacity && table.current_user?.can_join ? 'seat' : 'watch';
+  if(table.players<table.capacity && table.current_user?.can_join)return 'seat';
+  return table.invitation_id && table.current_user?.can_queue ? 'queue' : 'watch';
 }
 export function playCardActions(table:PlayTable) {
   return {
     label: table.current_user?.is_seated ? ui('common.return_to_table')
-      : playEntry(table) === 'seat' ? ui('rooms.join') : ui('rooms.watch'),
+      : playEntry(table) === 'seat' ? ui('rooms.join')
+      : table.invitation_id ? ui('rooms.wait') : ui('rooms.watch'),
     canDeclineInvitation: !!table.invitation_id && !table.current_user?.is_seated,
   };
 }
@@ -23,7 +25,8 @@ export function playFeed(tables:PlayTable[], invitations:PlayInvitation[]):PlayT
       room_id:invitation.room_id,room_name:invitation.room_name,match_id:invitation.match_id,
       name:invitation.table_name,game_type:invitation.game_type,status:'waiting',
       players:invitation.seated,capacity:invitation.capacity,
-      current_user:{can_join:invitation.seat_available} as PlayTable['current_user'],
+      phase:invitation.phase,
+      current_user:{can_join:invitation.seat_available,can_queue:invitation.can_queue??true} as PlayTable['current_user'],
     }),created_at:Math.max(previous?.created_at??0,invitation.created_at),invitation_id:invitation.id});
   }
   return [...result.values()].sort((a,b)=>(b.created_at??0)-(a.created_at??0)||key(a).localeCompare(key(b)));

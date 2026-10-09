@@ -191,7 +191,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
       : pub?.pending_show ? ui("flush.reveal_or_fold")
       : preparing ? `${pub?.status === 'awaiting_deal' ? ui("callbreak.deal_cards") : ui("callbreak.cut_or_skip")}`
       : `${visibility} · ${[['bet', 'Bet'], ['show', 'Show'], ['side_show', 'Side-show'], ['fold', 'Fold']].filter(([kind]) => available(kind)).map(([, label]) => uiLabel(label, 'flush')).join(' / ') || ui("common.choose_an_action")}`
-    : `${ownPlayer?.status === 'active' && !preparing ? `${visibility} · ` : ownPlayer?.status === 'folded' ? `${ui("flush.folded")} · ` : ''}${ui("common.waiting_for_player", {player: name(decision.actor)})}`
+    : `${ownPlayer?.status === 'active' && !preparing ? `${visibility} · ` : ownPlayer?.status === 'folded' ? `${ui("flush.folded")} · ` : ''}${ui("rooms.waiting")}`
     : ui("rooms.seated_capacity_seated", {seated: snapshot.players?.length || 0, capacity: snapshot.capacity});
   return <View style={[s.page, mobile && { padding: 8, gap: 4 }]} testID="flush-table">
     <GameTableHeader showShare={showTableHeaderShare(snapshot)} tableName={snapshot.table_name} title={ui("rooms.flush")} compact path={snapshot.path} game="flush" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack} mobileTestIds drawerMetadata={<GameMenuMetadata snapshot={snapshot} />}>
