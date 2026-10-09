@@ -26,7 +26,7 @@ export function RoundSummary({ snapshot, busy, error, onContinue, onBack, onNewG
     {snapshot.game?.win_reason === 'perfect_bid' && <Text style={styles.note}>{ui('callbreak.perfect_result')}</Text>}
     <RoundResultsTable title={final ? ui("callbreak.final_scores") : ui("callbreak.deal_number_complete", { "number": round?.deal_number })}
       subtitle={final ? `Winner${snapshot.game!.winners.length > 1 ? 's' : ''}: ${snapshot.game!.winners.map(name).join(', ')}` : ui("callbreak.round_complete_call_break")}
-      columns={['Bid', 'Taken', 'Score', 'Total']} rows={(round?.players || []).map(player => {
+      numericAlign="right" columns={['Bid', 'Taken', 'Score', 'Total']} rows={(round?.players || []).map(player => {
         const total = snapshot.scoreboard?.find(p => p.player_id === player.player_id)?.total_score_tenths;
         return { id: String(player.player_id), name: name(player.player_id), avatarUrl: snapshot.players?.find(p => p.player_id === player.player_id)?.avatar_url,
           own: player.player_id === snapshot.your_player_id, winner: final && snapshot.game!.winners.includes(player.player_id), values: [

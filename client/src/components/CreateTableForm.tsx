@@ -12,7 +12,7 @@ import type {Session} from '../multiplayer/session';
 import {useInviteSuggestions} from '../multiplayer/useInviteSuggestions';
 import type {InvitePlayer} from '../multiplayer/inviteSuggestions';
 export type CreateGame='flush'|'marriage'|'callbreak';
-export function CreateTableForm({session,game,setGame,callbreakPlayers,setCallbreakPlayers,name,setName,invitees,setInvitees,busy,roomSelector}:{session:Session;game:CreateGame;setGame:(game:CreateGame)=>void;callbreakPlayers:4|5;setCallbreakPlayers:(count:4|5)=>void;name:string;setName:(name:string)=>void;invitees:InvitePlayer[];setInvitees:React.Dispatch<React.SetStateAction<InvitePlayer[]>>;busy:boolean;roomSelector?:ReactNode}){
+export function CreateTableForm({session,game,setGame,callbreakPlayers,setCallbreakPlayers,invitees,setInvitees,busy,roomSelector}:{session:Session;game:CreateGame;setGame:(game:CreateGame)=>void;callbreakPlayers:4|5;setCallbreakPlayers:(count:4|5)=>void;invitees:InvitePlayer[];setInvitees:React.Dispatch<React.SetStateAction<InvitePlayer[]>>;busy:boolean;roomSelector?:ReactNode}){
  const {colors:c}=useTheme();
  const [query,setQuery]=useState('');
  const suggestions=useInviteSuggestions(session,query,invitees,busy);
@@ -28,7 +28,6 @@ export function CreateTableForm({session,game,setGame,callbreakPlayers,setCallbr
       </View>}
 <CreateCardThemeSelector disabled={busy}/>
 {roomSelector}
-      <FormInput accessibilityLabel={ui('rooms.table_name')} placeholder={ui('rooms.table_name')} placeholderTextColor={c.textMuted} value={name} onChangeText={setName} maxLength={60} editable={!busy} style={input}/>
       <Text style={{...text,fontFamily:fonts.medium}}>{ui('rooms.invite_people_optional')}</Text>
       <View style={{gap:4}}>
         <FormInput accessibilityLabel={ui('rooms.find_player_to_invite')} placeholder={ui('rooms.username_or_user_id')} placeholderTextColor={c.textMuted} autoCapitalize="none" autoCorrect={false} value={query} onChangeText={setQuery} maxLength={64} editable={!busy} style={input}/>

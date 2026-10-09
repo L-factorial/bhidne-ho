@@ -57,7 +57,7 @@ class HostedGame:
     departed: set[str] = field(default_factory=set)
     pending_flush_departures: set[str] = field(default_factory=set)
     commands: CommandSession = field(default_factory=CommandSession)
-    settings: dict = field(default_factory=lambda: {"weak_hand_enabled": True, "no_spades_enabled": True, "payments": [0, 0, 0, 0]})
+    settings: dict | None = None
     state: MatchState | None = None
     deadline: float | None = None
     task: asyncio.Task | None = None
@@ -81,6 +81,13 @@ class HostedGame:
     durable_ownership: object | None = None
     durable_game_id: object | None = None
     durable_table_reserved: bool = False
+
+    def __post_init__(self):
+        if self.settings is None:
+            review = self.game_type != 'callbreak' or self.capacity != 5
+            self.settings = {"weak_hand_enabled": review, "no_spades_enabled": review, "payments": [0, 0, 0, 0]}
+            if not review:
+                self.settings['minimum_face_card'] = 'ANY'
 
     @property
     def started(self):
@@ -464,6 +471,12 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             else:
                 self._ensure_available(user_id, room_id=room_id)
             normalized = " ".join(name.split())
+            if name == 'Table':
+                from app.multiplayer.table_creation import available_table_name, DEFAULT_MAX_OPEN_TABLES
+                active = [g.name for g in self._room_games(room_id) if not g.ended]
+                if len(active) >= DEFAULT_MAX_OPEN_TABLES:
+                    raise HTTPException(409, 'This room has no available game slots.')
+                normalized = available_table_name(active)
             if not normalized or len(normalized) > 60:
                 raise HTTPException(422, "Table name must be between 1 and 60 characters.")
             if any(g.name.casefold() == normalized.casefold() and not g.ended for g in self._room_games(room_id)):

@@ -42,6 +42,8 @@ const fields: Record<string, string> = {
 
 export function ruleFieldLabel(path: string): string {
   const key = path.split('.').at(-1) || path;
+  if (key === 'minimum_face_card') return ui('callbreak.minimum_face_card');
+  if (key === 'no_spades_enabled') return ui('callbreak.no_spade_no_game');
   const callbreakKeys = ['match_rules', 'instant_win_enabled', 'instant_win_bid', 'perfect_bid_enabled', 'perfect_bid', 'bonus_conversion_enabled', 'bonus_per_point', 'double_win_enabled', 'double_win_threshold', 'winner_multiplier', 'negative_payment_enabled', 'negative_threshold', 'negative_multiplier'] as const;
   const match = callbreakKeys.find(value => value === key);
   if (match) return ui(`callbreak.${match}`);
@@ -54,5 +56,6 @@ const values: Record<string, string> = {
   off: 'None', shown: 'Shown Tunnelas', hand: 'All final Tunnelas',
 };
 export function ruleValueLabel(value: string): string {
+  if (value === 'ANY' || value === 'JACK' || value === 'QUEEN') return ui(`callbreak.minimum_${value}`);
   return uiLabel(values[value] || value);
 }

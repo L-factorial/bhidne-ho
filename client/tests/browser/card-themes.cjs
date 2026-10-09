@@ -41,7 +41,7 @@ async function loadedArtwork(page,id){
 (async()=>{const browser=await chromium.launch({channel:'chrome',headless:true});try{
  for(const width of [390,1280]){
   const f=await fixture(browser,{width}),{page}=f;
-  await page.getByRole('button',{name:'Create your own game table',exact:true}).click();
+  await page.getByRole('button',{name:'Create game',exact:true}).click();
   const form=page.getByTestId('create-game-table');await form.waitFor();
   await form.getByRole('button',{name:'Choose card theme',exact:true}).click();
   const picker=form.getByTestId('card-theme-picker');assert.equal(await picker.getByRole('radio').count(),10);
@@ -51,7 +51,7 @@ async function loadedArtwork(page,id){
   assert.equal(await picker.getByRole('radio',{name:'Rara Lake',exact:true}).getAttribute('aria-checked'),'true');
   if(process.env.SCREENSHOT_DIR){await picker.getByRole('radio',{name:'Mount Everest',exact:true}).scrollIntoViewIfNeeded();await page.screenshot({path:path.join(process.env.SCREENSHOT_DIR,`bhidne-card-picker-${width}.png`)});}
   await form.getByRole('button',{name:'Close create table',exact:true}).click();
-  await page.reload();await page.getByRole('button',{name:'Create your own game table',exact:true}).click();
+  await page.reload();await page.getByRole('button',{name:'Create game',exact:true}).click();
   await page.getByTestId('create-card-theme-selector').getByText('Rara Lake',{exact:true}).waitFor();
   assert.deepEqual(f.errors,[]);assert.deepEqual(f.writes,[]);await f.context.close();console.log('PASS create picker and reload persistence '+width);
  }

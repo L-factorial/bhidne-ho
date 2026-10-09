@@ -69,22 +69,23 @@ if (require.main === module) (async () => {
       const f = await fixture(browser,kind,4,width), {page} = f;
       await page.getByTestId('game-stats-toggle').click();
       const stats = page.getByTestId('game-stats-overlay'); await stats.waitFor();
-      assert.equal(await stats.getByRole('tab',{name:'All',exact:true}).getAttribute('aria-selected'),'true');
-      assert.equal(await stats.getByTestId(/^game-stats-player-/).count(),4);
+      if (kind === 'callbreak') { assert.equal(await stats.getByRole('tab').count(),0); await stats.getByTestId('callbreak-summary').waitFor(); }
+      else { assert.equal(await stats.getByRole('tab',{name:'All',exact:true}).getAttribute('aria-selected'),'true'); assert.equal(await stats.getByTestId(/^game-stats-player-/).count(),4); }
       const hand = page.getByTestId('hand-attention-collapsed'); await hand.waitFor();
       await page.screenshot({path:`/private/tmp/bhidne-stats-panel-${kind}-${width}.png`});
       const statsBox = await stats.boundingBox(), handBox = await hand.boundingBox();
       const headerBox = await page.getByTestId(new RegExp(`^${kind}-(mobile-)?header$`)).boundingBox();
       assert.ok(statsBox.y >= headerBox.y + headerBox.height - 1);
       assert.ok(statsBox.y + statsBox.height <= handBox.y + 1, `${kind} stats overlaps the collapsed hand`);
+      if (kind !== 'callbreak') {
       await stats.getByRole('tab',{name:'Player 2',exact:true}).click();
       assert.equal(await stats.getByTestId(/^game-stats-player-/).count(),1);
       assert.equal(await stats.getByTestId('game-stats-player-1').count(),0);
       if (kind === 'marriage') { await stats.getByText('Maal seen',{exact:true}).waitFor(); assert.equal(await stats.getByText('Dublee',{exact:true}).count(),7); }
-      if (kind === 'callbreak') { await stats.getByText('Previous tricks',{exact:true}).waitFor(); assert.ok(await stats.getByText(/Round 1 • Trick/).count()>0); }
       if (kind === 'flush') { await stats.getByText('Became seen',{exact:false}).first().waitFor(); assert.ok(await stats.getByText(/Bet placed/).count()>0); }
       await stats.getByRole('tab',{name:'All',exact:true}).click();
       assert.ok(await stats.getByTestId('game-stats-content').evaluate(node=>node.scrollHeight>node.clientHeight), `${kind} history should scroll`);
+      }
       f.notify();
       await page.waitForTimeout(6000); // Actual room polling refresh, not an injected React state.
       await stats.waitFor(); await hand.waitFor();
@@ -94,7 +95,7 @@ if (require.main === module) (async () => {
       assert.ok(Math.max(...opacity)-Math.min(...opacity)>.1, `${kind} collapsed attention should pulse while stats stays open`);
       await hand.click(); await stats.waitFor({state:'hidden'}); await page.getByTestId('hand-attention-expanded').waitFor();
       await page.getByTestId('game-stats-toggle').click(); await stats.waitFor(); await hand.waitFor();
-      assert.equal(await stats.getByRole('tab',{name:'All',exact:true}).getAttribute('aria-selected'),'true');
+      if (kind !== 'callbreak') assert.equal(await stats.getByRole('tab',{name:'All',exact:true}).getAttribute('aria-selected'),'true');
       await stats.getByTestId('game-stats-close').click(); await stats.waitFor({state:'hidden'}); await hand.waitFor();
       await page.getByRole('button',{name:'Table menu',exact:true}).click();
       const drawer = page.getByTestId(`${kind}-menu-drawer`); await drawer.waitFor();
@@ -110,13 +111,13 @@ if (require.main === module) (async () => {
       const f=await fixture(browser,'callbreak',count,width),{page}=f;
       const table=page.getByTestId('card-table');await table.waitFor();
       const expandedHand=page.getByTestId('hand-attention-expanded');if(await expandedHand.count())await expandedHand.click();
-      await page.getByTestId('callbreak-center-status').getByText('Round 3 • Trick 4',{exact:true}).waitFor();
+      await page.getByTestId('callbreak-center-status').getByText(/Round 3 \/ 5.*Hand 4 \/ (13|10)/s).waitFor();
       const cards=await page.getByTestId(/^trick-play-/).evaluateAll(nodes=>nodes.map(n=>{const r=n.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};}));
       const seats=await page.getByTestId(/^table-seat-/).evaluateAll(nodes=>nodes.map(n=>{const r=n.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};}));
       assert.equal(cards.length,count-1);
       for(const [i,card] of cards.entries()){assert.ok(seats.every(seat=>!overlap(card,seat)));assert.ok(cards.slice(i+1).every(other=>!overlap(card,other)));}
       assert.equal(await page.getByTestId(/^callbreak-seat-stats-/).count(),count);
-      assert.ok(await page.getByTestId(/^callbreak-seat-stats-/).evaluateAll(nodes=>nodes.every(n=>{const seat=n.closest('[data-testid^="table-seat-"]'),a=n.getBoundingClientRect(),b=seat.getBoundingClientRect();return a.bottom<=b.bottom+1&&a.left>=b.left&&a.right<=b.right+1;})), 'two stat rows must stay inside their seat');
+      assert.ok(await page.getByTestId(/^callbreak-seat-stats-/).evaluateAll(nodes=>nodes.every(n=>{const seat=n.closest('[data-testid^="table-seat-"]'),a=n.getBoundingClientRect(),b=seat.getBoundingClientRect();return a.bottom<=b.bottom+1&&a.left>=b.left&&a.right<=b.right+1;})), 'bid/won info must stay inside its seat');
       if(count===5&&width===320){
         // Exercise measured row growth as well as the pure fontScale geometry.
         await page.addStyleTag({content:'[data-testid^="callbreak-seat-stats-"] * { font-size:22px !important; line-height:32px !important; }'});

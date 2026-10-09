@@ -8,6 +8,7 @@ import { visualStates, radii, gameControlFinish, gameHeadingFinish, fonts, useTh
 import { RoundResultsTable } from './RoundResultsTable';
 import { FormScrollView } from './FormInput';
 import { type ReactNode } from 'react';
+import { RuleProposalButton } from './RuleProposalButton';
 import { FormFooter } from './FormFooter';
 import { NumericInput } from './NumericInput';
 import { useEffect, useState } from 'react';
@@ -66,7 +67,7 @@ export function MarriageScoring({ snapshot, busy, error, onSave, introduction, c
       : <Text style={s.text}>{ui("marriage.maal_points_points", { "points": draft.maal_requires_seen ? uiLabel('seen players only', 'marriage') : uiLabel('all players', 'marriage') })}</Text>}
     {!concise && <Text style={s.text}>{ui("marriage.scoring_help")}</Text>}
     </FormScrollView><FormFooter>
-    {editable && <>{button(ui("marriage.propose_scoring_rules"), () => onSave(draft), false, !valid || !changed)}
+    {editable && <><RuleProposalButton busy={busy} disabled={!valid || !changed} onPress={() => onSave(draft)} />
       <Text style={s.text}>{!valid ? ui("feedback.enter_whole_numbers_from_0_to_1000") : changed ? ui("rooms.unsaved_changes") : ui("rooms.rules_approval_help")}</Text></>}
     {!!error && <Text accessibilityRole="alert" style={s.text}>{uiLabel(error, 'feedback')}</Text>}
     </FormFooter></View>;

@@ -265,10 +265,9 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
       {button(ledgerOpen?ui("common.close_ledger"):ui("ledger.ledger"),()=>setLedgerOpen(v=>!v))}
       {ledgerOpen&&runtime&&<DistributedLedger key={selected.room} root={runtime} room={selected.room} session={account}/>}
       {(projection?.tables??[]).map(t=><View key={t.table_id}>{button(t.name+' · '+t.game_type,()=>setSelected({room:selected.room,table:t.table_id}))}</View>)}
-      {input(ui("rooms.table_name"),name,setName)}
       <View style={{flexDirection:'row',gap:8}}>{(['callbreak','marriage','flush'] as const).map(k=><View key={k}>{button(k+(kind===k?' ✓':''),()=>setKind(k))}</View>)}</View>
       {input('Players',capacity,setCapacity)}
-      {button(ui("rooms.create_table"),()=>void controller.current?.room(selected.room,'create-table',{game_type:kind,capacity:Number(capacity),name:name||'Table',invitees}),busy)}
+      {button(ui("rooms.create_table"),()=>void controller.current?.room(selected.room,'create-table',{game_type:kind,capacity:Number(capacity),invitees}),busy)}
       {button(ui("rooms.leave_room"),()=>void controller.current?.room(selected.room,'leave-room').then(ok=>{if(ok&&controller.current?.state.status==='accepted')setSelected(null);}),busy)}
       <Text style={{color:colors.text}}>{ui("rooms.room_chat")}</Text>
       {Object.entries(messages).flatMap(([lane,items])=>items.map((item,index)=>{const row=item as {text?:string;sender_id?:string};return <Text key={lane+index} style={{color:colors.text}}>{row.sender_id}: {row.text}</Text>;}))}

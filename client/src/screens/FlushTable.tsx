@@ -9,6 +9,7 @@ import { showTableHeaderShare } from '../multiplayer/tableHeaderSharing';
 import { FloatingTableAction } from '../components/FloatingTableAction';
 import { RoundResultsTable } from '../components/RoundResultsTable';
 import { RoomSheet } from '../components/RoomSheet';
+import { RuleProposalButton } from '../components/RuleProposalButton';
 import { FormFooter } from '../components/FormFooter';
 import { NumericInput } from '../components/NumericInput';
 import { GameMenuMetadata } from '../components/GameMenu';
@@ -78,6 +79,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   const chatOpen = useTableSocial()?.overlayOpen ?? false;
   const [pokeOpen, setPokeOpen] = useState(false);
   const [arenaHeight, setArenaHeight] = useState(280);
+  const [collapsedHandHeight, setCollapsedHandHeight] = useState(92);
   const [draft, setDraft] = useState<Record<string, string | number | boolean>>({ ...settings.rules });
   const [baseRevision, setBaseRevision] = useState(settings.rules_revision);
   const [dirty, setDirty] = useState(false);
@@ -199,8 +201,9 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
         poke={() => setPokeOpen(true)} canPoke={social.connected} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl} />}
     </GameTableHeader>
     <View style={s.mainColumn} testID="flush-main-column">
+      <View style={{ flex: 1, minHeight: 0, paddingBottom: mine ? collapsedHandHeight : 0 }}>
       <GameStats snapshot={snapshot} open={stats.open} onOpen={() => { setHandOpen(false); stats.show(); }} onClose={stats.close}>
-      <ScrollView style={s.playViewport} onLayout={e => setArenaHeight(Math.max(280, e.nativeEvent.layout.height))}
+      <ScrollView testID="flush-play-viewport" style={s.playViewport} onLayout={e => setArenaHeight(Math.max(280, e.nativeEvent.layout.height))}
         contentContainerStyle={s.playArea}>
         <FlushArena key={`${snapshot.match_id}:${pub?.round_number || 0}`} snapshot={snapshot}
           centerControl={ended ? endedNotice : centerControl || preparationControl || (!snapshot.table && snapshot.status === 'waiting'
@@ -211,10 +214,13 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
       {sideMessage&&<Text testID="flush-side-show-notice" accessibilityLiveRegion="polite" style={{color:colors.accent,textAlign:'center'}}>{sideMessage}</Text>}
       {pub && <View pointerEvents="none" style={s.notice}><FlushFoldNotice key={`folds:${snapshot.match_id}`} snapshot={snapshot} /></View>}
       </GameStats>
-      <View ref={socialAnchor.ref} onLayout={socialAnchor.onLayout} style={s.handDock} testID="flush-hand-dock">
-        {!!mine && <HandAreaBar cue={gameAttention(snapshot)} open={handOpen && !stats.open} onToggle={() => { stats.close(); setHandOpen(value=>!value); }} attention={myTurn && connectionReady && !ended}
-          instruction={ui("common.your_turn_action", { "action": turnText })}/>}
-        <View style={{display:!mine || handOpen && !stats.open?'flex':'none',alignItems:'center',gap:6,alignSelf:'stretch'}} accessibilityElementsHidden={!!mine&&(!handOpen||stats.open)} importantForAccessibility={mine&&(!handOpen||stats.open)?'no-hide-descendants':'auto'}>
+      </View>
+      <View ref={socialAnchor.ref} onLayout={socialAnchor.onLayout} style={[s.handDock, !!mine && s.handOverlay]} testID="flush-hand-dock">
+        {!!mine && <View style={{alignSelf:'stretch',flexShrink:0}} onLayout={event => setCollapsedHandHeight(event.nativeEvent.layout.height + 12)}>
+          <HandAreaBar cue={gameAttention(snapshot)} open={handOpen && !stats.open} onToggle={() => { stats.close(); setHandOpen(value=>!value); }} attention={myTurn && connectionReady && !ended}
+            instruction={ui("common.your_turn_action", { "action": turnText })}/>
+        </View>}
+        <ScrollView testID="flush-hand-content" nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{display:!mine || handOpen && !stats.open?'flex':'none',minHeight:0,flexShrink:1,alignSelf:'stretch'}} contentContainerStyle={{alignItems:'center',gap:6}} accessibilityElementsHidden={!!mine&&(!handOpen||stats.open)} importantForAccessibility={mine&&(!handOpen||stats.open)?'no-hide-descendants':'auto'}>
         {!ended && mine && !preparing && !pub?.settlement && <View style={s.cards} testID="flush-own-cards">
           <View style={s.scaledCards}><FlushCards tapToToggle key={pub?.round_number} cards={mine.cards} /></View>
         </View>}
@@ -245,7 +251,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
           </Pressable>
           {helpOpen && help.map(reason => <Text key={reason} style={s.status}>{reason}</Text>)}
         </>}
-        </View>
+        </ScrollView>
       </View>
     </View>
     <Modal transparent visible={comparisonOpen && !resultOpen && !chatOpen} onRequestClose={acknowledge}>
@@ -259,7 +265,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
       onSend={social.send} onClose={() => setPokeOpen(false)} />}
     <GameRules snapshot={snapshot} visible={rulesExplanationOpen} onClose={() => setRulesExplanationOpen(false)} />
     <RoomSheet visible={rulesOpen} title={ui("common.game_rules_config")} closeLabel={ui("common.close_game_rules_config")} onClose={() => setRulesOpen(false)} testID="flush-rules-config"
-      footer={canConfigureGameRules(snapshot) ? <FormFooter>{!!(localError || error) && <Text accessibilityRole="alert" style={s.error}>{uiLabel(localError || error, 'feedback')}</Text>}<View style={[s.row, { flexWrap: 'wrap' }]}>{button('Propose Flush rules', save, busy || !dirty || stale || snapshot.rule_proposal?.status === 'PENDING')}{button('Reload saved rules', reload, busy)}</View></FormFooter> : undefined}>
+      footer={canConfigureGameRules(snapshot) ? <FormFooter>{!!(localError || error) && <Text accessibilityRole="alert" style={s.error}>{uiLabel(localError || error, 'feedback')}</Text>}<View style={{ gap: 8 }}><RuleProposalButton busy={busy} disabled={!dirty || stale || snapshot.rule_proposal?.status === 'PENDING'} onPress={save} />{button('Reload saved rules', reload, busy)}</View></FormFooter> : undefined}>
       {rulesContent}
     </RoomSheet>
     {/* Automatic results wait for chat; a second modal would trap focus behind it. */}
@@ -309,6 +315,7 @@ const styles = (c: ThemeColors) => StyleSheet.create({
   playViewport: { flex: 1, minHeight: 0 },
   playArea: { flexGrow: 1, backgroundColor: c.table },
   handDock: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, flexShrink: 0, borderTopWidth: 1, borderColor: c.tableTrim, paddingTop: 4, paddingBottom: 8, gap: 6, alignItems: 'center' },
+  handOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '94%', zIndex: 50, elevation: 20 },
   cards: { width: 224, height: 128, alignItems: 'center', justifyContent: 'center' },
   scaledCards: { width: 280, height: 172, transform: [{ scale: 0.75 }] },
   status: { color: c.textMuted, fontFamily: fonts.body, fontSize: 13, textAlign: 'center' },

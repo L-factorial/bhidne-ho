@@ -153,7 +153,11 @@ class RoomCreationExecutor:
                 else:
                     names = await (await claim.connection.execute('''SELECT name FROM room_tables
                         WHERE room_id=%s AND status<>'closed' AND table_id IS DISTINCT FROM %s''', (claim.target.room_id, payload.replace_table_id))).fetchall()
-                    if any(name.casefold() == ' '.join(payload.name.split()).casefold() for (name,) in names):
+                    allocated_name = payload.name
+                    if payload.name == 'Table':
+                        from app.multiplayer.table_creation import available_table_name
+                        allocated_name = available_table_name([name for (name,) in names], room[1])
+                    if any(name.casefold() == ' '.join(allocated_name.split()).casefold() for (name,) in names):
                         detail = 'An open table with that name already exists in this room.'
             if detail is None:
                 eligibility = await hosted_invitations.eligibility(claim.connection, claim.target.room_id, actor, payload.invitees, lane=claim.entry.lane_id, sequence=claim.entry.sequence)
@@ -196,7 +200,7 @@ class RoomCreationExecutor:
                     events.append(OutgoingEvent(dict(type='TABLE_STATE_CHANGED', table_id=old_game.table.table_id,
                         match_id=old_game.match_id, table_revision=payload.replace_revision + 1)))
                 game = HostedGame(claim.target.room_id, payload.capacity, [actor],
-                    name=' '.join(payload.name.split()), game_type=payload.game_type, card_theme=payload.card_theme,
+                    name=' '.join(allocated_name.split()), game_type=payload.game_type, card_theme=payload.card_theme,
                     table=TableState(table_id=table_id.hex), commands=CommandSession(match_id=match_id.hex))
                 if game.game_type == 'flush':
                     game.flush_seats[actor] = 1

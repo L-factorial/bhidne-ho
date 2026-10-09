@@ -5,6 +5,7 @@ import { useUiLanguage } from '../i18n/useUiLanguage';
 import { radii, gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useThemedStyles, type ThemeColors } from '../theme';
 import { FormScrollView } from './FormInput';
 import { RoomSheet } from './RoomSheet';
+import { RuleProposalButton } from './RuleProposalButton';
 import { FormFooter } from './FormFooter';
 import { NumericInput } from './NumericInput';
 import { callBreakRuleGroups, defaultCallBreakRules, formatCallBreakScore } from '../multiplayer/callbreakRules';
@@ -26,7 +27,7 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = fa
   const matchRules = settings?.match_rules ?? defaultCallBreakRules(snapshot.capacity || 4);
   const scoreScale = snapshot.game?.score_scale ?? 10;
   const ruleAction = selectedTab === 'rules' && editable && settings ? <FormFooter>
-    <Pressable accessibilityRole="button" disabled={busy} onPress={() => onSave(settings)} style={styles.button}><Text style={styles.label}>{busy ? ui("common.proposing") : ui("rooms.propose_rules_bets")}</Text></Pressable>
+    <RuleProposalButton busy={busy} onPress={() => onSave(settings)} />
   </FormFooter> : undefined;
   const details = <>
       {selectedTab === 'stats' ? <>
@@ -54,26 +55,26 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = fa
                   accessibilityLabel={ui("common.game_stats_accessible", {player: player.display_name || ui("common.player_number", {number: player.player_id}), deal: i + 1, active: active ? ui("rooms.active") : "", bid: bid ?? ui("common.rule_pending"), won: won ?? 0, score: points != null ? ui("common.game_stats_score", {missed: missed ? ui("common.missed_bid") : "", score: points / scoreScale}) : ""})}>
                   <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.statValue, active && styles.activeBid]}>{ui("callbreak.bid_count", { "count": bid ?? '—' })}</Text>
                   <Text numberOfLines={1} adjustsFontSizeToFit style={styles.statValue}>{ui("common.won_count", { "count": won ?? '—' })}</Text>
-                  <View style={[styles.result, missed && styles.missed]}><Text numberOfLines={1} adjustsFontSizeToFit style={[styles.statValue, missed && styles.negative]}>{points == null ? '—' : `${points > 0 ? '+' : ''}${formatCallBreakScore(points, scoreScale)}`}</Text></View>
+                  <View style={[styles.result, missed && styles.missed]}><Text numberOfLines={1} adjustsFontSizeToFit style={[styles.statValue, { paddingHorizontal: 0 }, missed && styles.negative]}>{points == null ? '—' : `${points > 0 ? '+' : ''}${formatCallBreakScore(points, scoreScale)}`}</Text></View>
                 </View>;
               })}
             </View>;
           })}
           <View style={styles.statsRow}>
             <Text style={styles.cell}>{ui("common.score")}</Text>
-            {(snapshot.players || []).map(player => <Text key={player.player_id} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={[styles.playerCell, styles.columnHeading]}>
+            {(snapshot.players || []).map(player => <Text key={player.player_id} testID={`callbreak-total-${player.player_id}`} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={[styles.playerCell, styles.columnHeading, styles.numericCell, (snapshot.scoreboard?.find(p => p.player_id === player.player_id)?.total_score_tenths ?? 0) < 0 && styles.negative]}>
               {formatCallBreakScore(snapshot.scoreboard?.find(p => p.player_id === player.player_id)?.total_score_tenths ?? 0, scoreScale)}
             </Text>)}
           </View>
           <View style={styles.statsRow}>
             <Text style={styles.cell}>{ui("callbreak.tricks")}</Text>
-            {(snapshot.players || []).map(player => <Text key={player.player_id} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={[styles.playerCell, styles.columnHeading]}>
+            {(snapshot.players || []).map(player => <Text key={player.player_id} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={[styles.playerCell, styles.columnHeading, styles.numericCell]}>
               {snapshot.player_stats?.find(p => p.player_id === player.player_id)?.total_tricks_won ?? 0}
             </Text>)}
           </View>
           <View style={styles.statsRow}>
             <Text style={styles.cell}>{ui('callbreak.bonus')}</Text>
-            {(snapshot.players || []).map(player => <Text key={player.player_id} style={[styles.playerCell, styles.columnHeading]}>
+            {(snapshot.players || []).map(player => <Text key={player.player_id} style={[styles.playerCell, styles.columnHeading, styles.numericCell]}>
               {snapshot.scoreboard?.find(p => p.player_id === player.player_id)?.bonus_tricks ?? 0}
             </Text>)}
           </View>
@@ -83,11 +84,11 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = fa
         {settings && <>
           {callBreakRuleGroups.map(group => <View key={group.toggle} style={{ gap: 8 }}>
             <View style={styles.row}>
-              <Switch accessibilityLabel={ui(`callbreak.${group.toggle}`)} disabled={!editable || busy}
-                value={matchRules[group.toggle]} onValueChange={value => setDraft({ ...settings, match_rules: { ...matchRules, [group.toggle]: value } })} />
-              <Text style={styles.text}>{ui(`callbreak.${group.toggle}`)}</Text>
+              <Switch accessibilityLabel={group.toggle === 'instant_win_enabled' ? ui('callbreak.instant_toggle', { count: matchRules.instant_win_bid }) : ui(`callbreak.${group.toggle}`)} disabled={!editable || busy}
+                value={matchRules[group.toggle]} onValueChange={value => setDraft({ ...settings, match_rules: { ...matchRules, [group.toggle]: value, ...(group.toggle === 'perfect_bid_enabled' ? { perfect_bid: 1 } : {}) } })} />
+              <Text style={styles.text}>{group.toggle === 'instant_win_enabled' ? ui('callbreak.instant_toggle', { count: matchRules.instant_win_bid }) : ui(`callbreak.${group.toggle}`)}</Text>
             </View>
-            {matchRules[group.toggle] && group.values.map(key => <View key={key} style={styles.row}>
+            {matchRules[group.toggle] && group.toggle !== 'perfect_bid_enabled' && group.toggle !== 'instant_win_enabled' && group.values.map(key => <View key={key} style={styles.row}>
               <Text style={styles.text}>{ui(`callbreak.${key}`)}</Text>
               <NumericInput accessibilityLabel={ui(`callbreak.${key}`)} editable={!!editable && !busy} keyboardType={key === 'negative_threshold' ? 'numbers-and-punctuation' : 'number-pad'}
                 value={String(matchRules[key])} maxLength={5} onChangeText={text => {
@@ -96,10 +97,15 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = fa
                 }} style={styles.input} />
             </View>)}
           </View>)}
-          {(['weak_hand_enabled', 'no_spades_enabled'] as const).map(key => <View key={key} style={styles.row}>
-            <Switch accessibilityLabel={key === 'weak_hand_enabled' ? ui("callbreak.allow_weak_hand_redeal") : ui("callbreak.allow_no_spades_redeal")} disabled={!editable || busy} value={settings[key]} onValueChange={value => setDraft({ ...settings, [key]: value })} />
-            <Text style={styles.text}>{key === 'weak_hand_enabled' ? ui("callbreak.redeal_with_no_card_above_jack") : ui("callbreak.redeal_with_no_spades")}</Text>
-          </View>)}
+          <View style={styles.row}>
+            <Switch accessibilityLabel={ui('callbreak.no_spade_no_game')} disabled={!editable || busy} value={settings.no_spades_enabled} onValueChange={value => setDraft({ ...settings, no_spades_enabled: value })} />
+            <Text style={styles.text}>{ui('callbreak.no_spade_no_game')}</Text>
+          </View>
+          <Text style={styles.text}>{ui('callbreak.minimum_face_card')}</Text>
+          <View accessibilityRole="radiogroup" style={[styles.row, { flexWrap: 'wrap' }]}>
+            {(['ANY', 'JACK', 'QUEEN'] as const).map(value => <Pressable key={value} accessibilityRole="radio" aria-checked={(settings.minimum_face_card ?? (settings.weak_hand_enabled ? 'QUEEN' : 'ANY')) === value} accessibilityLabel={ui(`callbreak.minimum_${value}`)} accessibilityState={{ checked: (settings.minimum_face_card ?? (settings.weak_hand_enabled ? 'QUEEN' : 'ANY')) === value, disabled: !editable || busy }} disabled={!editable || busy}
+              onPress={() => setDraft({ ...settings, minimum_face_card: value, weak_hand_enabled: value !== 'ANY' })} style={[styles.button, (settings.minimum_face_card ?? (settings.weak_hand_enabled ? 'QUEEN' : 'ANY')) === value && styles.selectedTab]}><Text style={styles.label}>{ui(`callbreak.minimum_${value}`)}</Text></Pressable>)}
+          </View>
           <Text style={[styles.title, menu && { fontSize: 16 }]}>{ui("ledger.placement_bets_paid_to_first_place")}</Text>
           {editable ? settings.payments.slice(0, (snapshot.capacity || 4) - 1).map((amount, i) => <View key={i} style={styles.row}>
             <Text style={styles.text}>{ui("ledger.player_pays_first", { "player": ['2nd', '3rd', '4th', '5th'][i] })}</Text>
@@ -113,7 +119,7 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = fa
       </>}
   </>;
   return <View testID={sidebar ? "game-details-sidebar" : "game-details-inline"} style={[styles.panel, sidebar && styles.sidebar, menu && styles.menu]}>
-    <View style={[styles.row, menu && { flexDirection: 'column', alignItems: 'stretch', gap: 0 }]} accessibilityRole={sidebar ? 'tablist' : undefined}>{(["stats", "rules"] as const).map(value => <Pressable key={value} accessibilityRole={sidebar ? 'tab' : 'button'}
+    <View style={[styles.row, menu && { flexDirection: 'column', alignItems: 'stretch', gap: 0 }]} accessibilityRole={sidebar ? 'tablist' : undefined}>{(menu ? ['rules'] as const : ["stats", "rules"] as const).map(value => <Pressable key={value} accessibilityRole={sidebar ? 'tab' : 'button'}
       accessibilityLabel={value === 'stats' ? ui("common.stats") : ui("common.game_rules_config")} aria-selected={sidebar ? selectedTab === value : undefined}
       accessibilityState={sidebar ? { selected: selectedTab === value } : { expanded: selectedTab === value }} onPress={() => { setDraft(snapshot.settings); setTab(!sidebar && tab === value ? null : value); }} style={[styles.button, sidebar && selectedTab === value && styles.selectedTab, menu && { paddingHorizontal: 0, minHeight: 46 }]}>
       <Text style={[styles.label, menu && styles.menuLabel]}>{value === 'stats' ? ui("common.stats") : ui("common.game_rules_config")}{sidebar ? '' : selectedTab === value ? ' -' : ' +'}</Text>
@@ -134,9 +140,10 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   details: { maxHeight: 320 }, title: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 23, color: colors.text }, text: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 12, lineHeight: 21, flexShrink: 1 },
   statsTable: { width: '100%', borderWidth: 1, borderColor: colors.border, borderRadius: radii.medium, overflow: 'hidden' },
   statsRow: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderColor: colors.surfaceSelected },
-  playerCell: { flex: 1, minWidth: 0, paddingHorizontal: 2, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', gap: 2 },
-  statValue: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 11, lineHeight: 20, textAlign: 'center', fontVariant: ['tabular-nums'], maxWidth: '100%' },
+  playerCell: { flex: 1, minWidth: 0, paddingHorizontal: 2, paddingVertical: 8, alignItems: 'stretch', justifyContent: 'center', gap: 2 },
+  numericCell: { textAlign: 'right', paddingRight: 6, fontVariant: ['tabular-nums'] },
+  statValue: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 11, lineHeight: 20, textAlign: 'right', fontVariant: ['tabular-nums'], maxWidth: '100%', paddingHorizontal: 4 },
   columnHeading: { fontFamily: fonts.medium, color: colors.text, fontSize: 12, textAlign: 'center', fontVariant: ['tabular-nums'] }, activeDeal: { backgroundColor: colors.surface, borderRadius: radii.medium }, activeBid: { color: colors.accent, fontFamily: fonts.medium },
-  result: { alignSelf: 'center', maxWidth: '100%', paddingHorizontal: 3, borderWidth: 1, borderColor: 'transparent', borderRadius: radii.large }, missed: { borderColor: colors.danger, backgroundColor: colors.dangerSurface }, negative: { color: colors.danger },
+  result: { alignSelf: 'stretch', maxWidth: '100%', paddingHorizontal: 3, borderWidth: 1, borderColor: 'transparent', borderRadius: radii.large }, missed: { borderColor: colors.danger, backgroundColor: colors.dangerSurface }, negative: { color: colors.danger },
   cell: { width: 52, flexShrink: 0, color: colors.text, fontFamily: fonts.medium, fontSize: 11, lineHeight: 20, paddingVertical: 8, paddingLeft: 6 }, input: { width: 100, minHeight: 44, padding: 10, color: colors.text, borderWidth: 1, borderColor: colors.textMuted, borderRadius: radii.medium },
 });

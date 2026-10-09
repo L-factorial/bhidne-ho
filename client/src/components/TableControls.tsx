@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import {AppText as Text} from './AppText';
 import { phaseLabel } from '../i18n/display';
 import { ui } from '../i18n/copy.ts';
@@ -29,8 +30,9 @@ export function TableControls({ table, members, userId, busy, act, start, format
   const me = table.current_user, offer = me.replacement_offer;
   const button = (label: string, action: () => void, disabled = false, prominent = false, pulse = false, danger = false) => <Pressable accessibilityRole="button"
     accessibilityLabel={label} disabled={busy || disabled} onPress={action}
-    style={({ pressed }) => [{ padding: 10, minHeight: 44, borderRadius: radii.medium, justifyContent: 'center', opacity: busy || disabled ? visualStates.disabledOpacity : 1 }, prominent && primaryAction(colors, pressed)]}>
-    {pulse ? <ActionCue active={!busy && !disabled} style={{ color: colors.onPrimary, fontFamily: fonts.medium }}>{label}</ActionCue> : <Text style={{ color: menuSection === 'leave' || danger ? colors.danger : prominent ? colors.onPrimary : colors.text, fontFamily: fonts.medium }}>{label}</Text>}
+    style={({ pressed }) => [{ padding: 10, minHeight: 44, borderRadius: radii.medium, justifyContent: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, opacity: busy || disabled ? visualStates.disabledOpacity : 1 }, prominent && primaryAction(colors, pressed)]}>
+    {menuSection === 'leave' && <Ionicons name="exit-outline" size={19} color={colors.text} />}
+    {pulse ? <ActionCue active={!busy && !disabled} style={{ color: colors.onPrimary, fontFamily: fonts.medium }}>{label}</ActionCue> : <Text style={{ color: danger ? colors.danger : prominent ? colors.onPrimary : colors.text, fontFamily: fonts.medium }}>{label}</Text>}
   </Pressable>;
   return <View testID="table-lifecycle" style={{ backgroundColor: colors.surface, padding: 8, gap: 4 }}>
     {!menuSection && <Text style={{ color: colors.textMuted, fontFamily: fonts.body }}>

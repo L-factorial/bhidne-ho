@@ -1,5 +1,178 @@
 # Distributed runtime implementation plan
 
+## 2026-10-09: Call Break bidding-section pulse
+
+- Completed: the expanded bidding panel uses the existing TurnGlow to pulse
+  its border while awaiting a bid. Text and touch targets remain steady. The
+  pulse pauses while submitting and resumes after failure; accepted bids remove
+  the panel. Reduced-motion preferences show a steady highlighted border.
+- Verification: TypeScript, web export and diff checks pass. Mocked browser
+  checks at 320/390/1280px confirm changing border opacity, a steady border with
+  reduced motion, usable bid controls and removal after acceptance.
+  Evidence: `/private/tmp/callbreak-bid-pulse-{web,browser}.log`.
+- Limitations: local client change only; no native-device check or deployment.
+- Exact next step: check native pulse/touch behavior in the next requested release.
+
+## 2026-10-09: Call Break bidding turn and hand controls
+
+- User requested bidding-turn notifications and an expanded-hand bid stepper.
+- Completed: required actions use the existing notification sound even while
+  the game table is open, respect the sound toggle, and consume each action
+  entry once so timer/revision refreshes do not repeat its sound. Bidding cues
+  include deal/attempt identity and clear once the player's bid is accepted.
+- Completed: the expanded Call Break hand shows the bidding instruction and
+  minus/value/plus/Bid row, defaulting to 1 each deal/attempt and retaining the
+  existing reveal requirement and bid bounds. The explanatory text sits below
+  the controls. The bidding section disappears after the player's bid is
+  accepted, rather than remaining until all other players bid. Server acceptance
+  remains authoritative; failed submissions retain the controls.
+- Verification: TypeScript, all 417 client tests, web export and diff checks
+  pass. Mocked browser checks at 320/390/1280px verify the bidding label, default
+  value, adjustment, same-row controls, submitted amount and accepted-bid removal.
+  Logs: `/private/tmp/callbreak-bidding-{tests,web,browser}.log`.
+- Limitations: local client changes only; native audio/device behavior has not
+  been checked. No server behavior changes or deployment.
+- Exact next step: verify native bidding audio and touch controls in the next
+  requested client release.
+
+## 2026-10-09: game presentation, Call Break rules and Create game
+
+User authorized implementation of the accumulated proposal, expanding scope
+to the client UI and directly required game/creation behavior.
+
+- Completed: Call Break Game summary has no tabs. Its three sections show the
+  current dealer/round, current bid/won matrix, and five-round score matrix.
+  Columns start after the dealer and end with the dealer. Completed results use
+  authoritative integer score units; dotted bonus notation, zero bonuses,
+  penalties, subtotal after round four, final total after round five and blank
+  incomplete rows align by dot. Early terminal matches use their authoritative
+  final total. Configured bonus divisors determine whole points and remainder.
+  Columns adapt to available width and scroll horizontally when needed.
+- Completed: Call Break shows round/hand counts centrally, compact bid/won
+  information beside avatars, and a distinct accent border on the lead card.
+  Its expanded hand includes player names, bids/won and textual played cards in
+  lead-relative order, sharing the lead border. Existing drag insertion and
+  successful-play auto-collapse are retained; Group by suit restores a stable
+  spades/hearts/clubs/diamonds order without playing a card.
+- Completed: special victory rules are single switches with explicit labels;
+  the existing exact high-bid victory behavior is retained (four/five-player
+  suggested counts 8/6), and the perfect-every-round switch selects bid 1 / won
+  exactly 1. Nepali labels include टाइट. Deal rules expose No spade, no game
+  and Any / At least Jack / At least Queen. Jack includes J and higher; Queen
+  includes Q and higher. The legacy strict upper-bound policy also accepts Ten
+  so the inclusive Jack minimum survives replay without altering saved policies.
+  Any disables the face requirement. Five-player new games default both review
+  requirements off; they remain configurable. The existing engine skips hand
+  review when both are off and retains Accept/Reject when either is on. Saved
+  settings are preserved during checkpoint recovery.
+- Completed: all rule proposal actions use one full-width primary button,
+  matching Create game. Drawer Stats entries are removed in all games. Leave
+  uses normal text and an exit icon; End uses danger text and a stop icon.
+  Own-avatar visible You labels are removed, retaining player identity and
+  accessibility announcements. Session status/timer now occupies the bottom
+  outside hand overlays, with smaller text. Play areas use available space;
+  bounded hand overlays can grow to 94% without shrinking the table. Marriage's
+  desktop hand also overlays rather than taking normal-flow space.
+- Completed: newly eligible Marriage players get a client-only See maal step,
+  flip the existing private maal and continue. The step shares visibility with
+  the table card, which remains face up after Continue and can later be hidden
+  or revealed. This sends no game commands and changes no eligibility.
+- Completed: Create table presentation becomes Create game. Both creation
+  forms omit the name field and send automatic-name requests. Room selection
+  is a three-row absolute overlay with internal scrolling and paused parent
+  scrolling. Servers allocate the lowest available Table-N name while holding
+  the room/catalog lock, respecting the room limit. Durable allocation,
+  creation and receipts commit together; retries retain the same table identity.
+  Existing explicit-name API clients and room/table structure remain supported.
+- Verification: TypeScript, all 416 client tests, web export and
+  `git diff --check` pass. Focused backend coverage passes 223 cases (one
+  optional integration case skipped), including inclusive face requirements,
+  five-player defaults, saved-setting preservation and replay. All 44 selected
+  SQL cases pass; the final creation-only rerun passes all 30 cases. Browser
+  fixtures pass six Call Break summary/lead-card/timer cases at 320/390/1280px,
+  three games' drawer/rule-action cases, Marriage's local maal step, and two
+  creation-dropdown cases. Existing summary notification/pulse/spectator cases
+  pass at 390px. Six Call Break, three Flush and two Marriage hand-overlay
+  cases pass, as do three drag/regrouping cases.
+  Final Call Break seat/card collision checks pass for four and five players
+  at 320/390/1280px; spectator summaries pass for all three games.
+  Visual review confirmed adjacent seat info, legible totals and aligned dots.
+  Evidence: `/private/tmp/game-refactor-{client,backend,sql,browser,web}.log`,
+  `game-refactor-creation-final.log`, `game-refactor-regression.log`,
+  `game-refactor-callbreak-final.log`,
+  `game-refactor-{drag,overlay,flush-overlay,marriage-overlay}.log`, and
+  `/private/tmp/create-game-refactor-browser.log`.
+- Limitations: local changes only. No commit, push, deployment, schema migration
+  or native-device check. Release client and backend together when requested.
+- Exact next step: release the client/backend together only when requested,
+  then verify native dropdown gestures, drag ordering and overlays on iOS/Android.
+
+## 2026-10-09: Previous-round bonus notation
+
+- User requested the previous-round bonus after a dot. The Game summary's
+  previous-bids line now displays bids.bonus (for example, 7 bids and 2 bonus
+  tricks display as 7.2), in both English and Nepali. Existing totals and
+  scoring calculations are unchanged.
+- Verification: TypeScript passes. This is a local translation-only change;
+  no deployment or native-device check.
+- Exact next step: review the notation in the next requested client release.
+
+## 2026-10-09: Call Break score colors and numeric alignment
+
+- User expanded scope to improve the Call Break score tables: missed-bid
+  negative scores should be red and the last digits should align by column.
+- Completed: negative cumulative totals in the detailed score grid use the
+  danger color, matching its existing negative deal scores. Bid, won, deal
+  score, total, tricks and bonus values are right-aligned with tabular digits.
+  The end-of-round Call Break results also right-align numeric columns;
+  other games retain the shared results table's default alignment.
+- Verification: TypeScript and all 414 client tests pass; `git diff --check`
+  passes. No browser or native-device visual check for this increment.
+- Limitations: local client changes only; no deployment, commit or push.
+- Exact next step: visually verify numeric alignment on narrow native screens
+  when preparing the next requested client release.
+
+## 2026-10-09: Call Break hand overlays the play area
+
+- User requested the same non-shrinking hand behavior as Flush and Marriage.
+  Call Break also used a normal-flow dock and changed padding/compact seat mode
+  when opening its hand, causing table and seat geometry to change.
+- Completed: Call Break uses a bottom-anchored overlay with bounded, scrollable
+  content. The play column reserves the measured collapsed header height.
+  Table padding and compact mode depend on screen size rather than hand state;
+  last-trick controls sit above the collapsed header on mobile. Dragging,
+  reveal state, social anchors and summary/hand controls retain their behavior.
+  The shared hand component's existing non-overlay uses are unchanged.
+- Verification: TypeScript, all 414 client tests, web export and
+  `git diff --check` pass. Six browser cases cover four/five-player Call Break
+  at 320/390/1280px and assert identical viewport, table and seat geometry
+  across expand/collapse. Three existing hand-drag browser cases also pass,
+  covering all views, suit regrouping, filtering and explicit play confirmation.
+- Limitations: local client change only; no native-device check, deployment,
+  commit or push.
+- Exact next step: release when requested and verify the overlay and scrolling
+  on native iOS/Android devices alongside Flush and Marriage.
+
+## 2026-10-09: Flush hand overlays the play area
+
+- User-reported issue: expanding Your cards reduced the Flush play area's size.
+  The dock was a normal sibling taking space from the flexible table viewport.
+- Completed: seated players' hand docks are bottom-anchored overlays, like the
+  Marriage workspace. The play area reserves the measured collapsed header
+  height; opening the hand does not change the arena or viewport geometry.
+  Expanded content is bounded to 65% of the main column and scrolls internally
+  so cards, action controls and help remain reachable. Card reveal state,
+  social anchoring and summary/hand mutual exclusion retain their behavior.
+  Spectator controls remain in their existing layout.
+- Verification: TypeScript, all 414 client tests, web export and
+  `git diff --check` pass. New browser fixture passes at 320/390/1280px, checking
+  identical table geometry before/after expansion and collapse, actual overlay
+  placement, preserved card reveal state and Game summary/hand switching.
+- Limitations: local client change only, fixture-based browser verification;
+  no native-device check, deployment, commit or push.
+- Exact next step: include this correction in the next authorized client release
+  and verify hand scrolling and table geometry on native devices.
+
 ## 2026-10-09: profile preferences, card alignment and turn presentation
 
 User authorized implementation of the previously planned client changes.

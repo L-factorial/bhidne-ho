@@ -4,7 +4,7 @@ export function seatedOrder<T extends { id: string }>(players: T[], viewerId: st
   return own < 0 ? players : [...players.slice(own), ...players.slice(0, own)];
 }
 export function tableSeatGeometry(count: number, width: number, compact = false, availableHeight?: number) {
-  const height = compact ? 260 : Math.max(360, Math.min(560, availableHeight || 360));
+  const height = compact ? 260 : Math.max(360, availableHeight || 360);
   const seatWidth = compact ? 68 : 80, seatHeight = compact ? 68 : 88;
   const middle = width / 2, sideY = height * (compact ? .66 : .73);
   const top = seatHeight / 2, bottom = height - seatHeight / 2;

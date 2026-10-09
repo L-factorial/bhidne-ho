@@ -5,7 +5,7 @@ import { CardBack } from './CardBack';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MarriageHandCard } from './MarriageHandCard';
 import { cardDropTarget, insertHandCardBefore, type CardBounds } from '../multiplayer/marriageHandOrder';
-import { groupedCallBreakHand, reconcileCallBreakHand, shuffledCallBreakSuits } from '../multiplayer/callbreakHandOrder';
+import { groupedCallBreakHand, reconcileCallBreakHand } from '../multiplayer/callbreakHandOrder';
 import {Pressable, ScrollView, StyleSheet, View} from 'react-native';
 import { visualStates, radii, fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
@@ -24,19 +24,14 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
   useUiLanguage();
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const [suitLayout, setSuitLayout] = useState(() => ({ dealKey, order: shuffledCallBreakSuits() }));
-  useEffect(() => {
-    setSuitLayout(current => current.dealKey === dealKey ? current : { dealKey, order: shuffledCallBreakSuits(current.order) });
-  }, [dealKey]);
-  const suitOrder = suitLayout.order;
+  const suitOrder = ['S', 'H', 'C', 'D'];
   const [manualOrder, setManualOrder] = useState<{ dealKey: string; cards: string[] }>({ dealKey, cards: [] });
   const [dragging, setDragging] = useState(false);
   const cardNodes = useRef(new Map<string, View>());
   const registerCard = useCallback((id: string, node: View | null) => { if (node) cardNodes.current.set(id, node); else cardNodes.current.delete(id); }, []);
   function dragChanged(value: boolean) { setDragging(value); onDragChange?.(value); }
-  function shuffleGroups() {
+  function groupBySuit() {
     setManualOrder({ dealKey, cards: [] });
-    setSuitLayout(current => ({ dealKey, order: shuffledCallBreakSuits(current.order, hand.map(suitOf)) }));
   }
   const [selection, setSelection] = useState({ dealKey, suit: 'all' });
   const [revealed, setRevealed] = useState<{ dealKey: string; cards: string[] }>({ dealKey, cards: [] });
@@ -183,7 +178,7 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
     {(!compactControls || optionsOpen) && <>
     {!revealing && hand.length > 0 && <View style={styles.selector}>
       <Pressable accessibilityRole="button" accessibilityLabel={ui("common.hide_cards")} onPress={() => setHiddenDeal(dealKey)} style={styles.option}><Text style={styles.optionText}>{ui("common.hide_cards")}</Text></Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={ui("common.shuffle_suits")} onPress={shuffleGroups} style={styles.option}>
+      <Pressable accessibilityRole="button" accessibilityLabel={ui("common.shuffle_suits")} onPress={groupBySuit} style={styles.option}>
         <Text style={styles.optionText}>{ui("common.shuffle_suits")}</Text>
       </Pressable>
     </View>}

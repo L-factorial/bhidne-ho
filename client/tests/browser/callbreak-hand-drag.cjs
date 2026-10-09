@@ -60,7 +60,7 @@ function checkGrouping(sequence) {
       for (const mode of ['Card grid view','Sorted fan view','Suit fan view']) {
         await hand.getByRole('radio', {name:mode,exact:true}).click();
         const after = await dragVisibleCard(page, hand);
-        await hand.getByRole('button', {name:'Shuffle suits',exact:true}).click();
+        await hand.getByRole('button', {name:'Group by suit',exact:true}).click();
         const grouped = await order(hand); checkGrouping(grouped);
         assert.notDeepEqual(grouped, after);
       }

@@ -40,7 +40,7 @@ export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot
   const seated = own < 0 ? roster : [...roster.slice(own), ...roster.slice(0, own)];
   const players = pregame ? [...seated, ...Array.from({ length: Math.max(0, (snapshot.table?.max_players || snapshot.capacity || seated.length) - seated.length) }, (_, index) => ({ player_id: `empty-${index}`, status: 'empty', visibility: '', turn_bet_count: 0, total_contribution: 0 }))] : seated;
   const minimumHeight = useMemo(() => minimumArenaHeight(players.length, width), [players.length, width, uiLanguage]);
-  height = Math.max(pregame ? Math.min(height, 520) : Math.min(height, 420), minimumHeight);
+  height = Math.max(height - 8, minimumHeight);
   const current = pending[0];
   const index = current ? players.findIndex(p => p.player_id === current.player_id) : -1;
   return <View style={[s.arena, { height }]} onLayout={e => setWidth(e.nativeEvent.layout.width)} testID="flush-arena">

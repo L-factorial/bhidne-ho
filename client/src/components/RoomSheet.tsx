@@ -10,7 +10,7 @@ import { type ReactNode, useCallback, useEffect, useRef } from 'react';
 import {Keyboard, Platform, Pressable, useWindowDimensions, View} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export function RoomSheet({ visible, title, onClose, onDismiss, children, scrollable = true, footer, testID = 'room-sheet', closeLabel = ui("common.close_room_panel"), contentHandlesBottomInset = false, presentation = 'sheet', tableStyle = false, headerActions, isolateKeyboard = false }: { isolateKeyboard?: boolean; headerActions?: ReactNode; tableStyle?: boolean; visible: boolean; title: string; onClose: () => void; onDismiss?: () => void; children: ReactNode; scrollable?: boolean; footer?: ReactNode; testID?: string; closeLabel?: string; contentHandlesBottomInset?: boolean; presentation?: 'sheet' | 'dialog' }) {
+export function RoomSheet({ visible, title, onClose, onDismiss, children, scrollable = true, scrollEnabled = true, footer, testID = 'room-sheet', closeLabel = ui("common.close_room_panel"), contentHandlesBottomInset = false, presentation = 'sheet', tableStyle = false, headerActions, isolateKeyboard = false }: { isolateKeyboard?: boolean; headerActions?: ReactNode; tableStyle?: boolean; visible: boolean; title: string; onClose: () => void; onDismiss?: () => void; children: ReactNode; scrollable?: boolean; scrollEnabled?: boolean; footer?: ReactNode; testID?: string; closeLabel?: string; contentHandlesBottomInset?: boolean; presentation?: 'sheet' | 'dialog' }) {
   const uiLanguage = useUiLanguage();
   const { colors: c } = useTheme();
   const wide = useWindowDimensions().width >= 900;
@@ -41,7 +41,7 @@ export function RoomSheet({ visible, title, onClose, onDismiss, children, scroll
           {headerActions}
           <Pressable ref={closeButton} testID="room-sheet-close" accessibilityRole="button" accessibilityLabel={closeLabel} onPress={close} style={{ minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: tableStyle ? c.onTableHeader : c.text, fontSize: 24 }}>×</Text></Pressable>
         </View>
-        {scrollable ? <FormScrollView style={{ flexShrink: 1, minHeight: 0 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 12 }}>{children}</FormScrollView>
+        {scrollable ? <FormScrollView scrollEnabled={scrollEnabled} style={{ flexShrink: 1, minHeight: 0 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 12 }}>{children}</FormScrollView>
           : <View style={{ flex: 1, minHeight: 0 }}>{children}</View>}
         {footer}
       </View>

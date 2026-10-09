@@ -1,9 +1,19 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { notificationKey, notificationText } from '../src/notifications/gameNotification.ts';
+import { notificationKey, notificationText, requiredActionKey } from '../src/notifications/gameNotification.ts';
 const snapshot = { match_id: 'match-1', status: 'playing', your_player_id: 1,
   game: { revision: 10, phase: 'BIDDING', turn: { player_id: 1 } },
   deal: { deal_number: 1 }, remaining_ms: 3000 };
+test('bidding action notifies once per entry and clears after an accepted bid', () => {
+  const bidding = { ...snapshot, game_type: 'callbreak', deal: { deal_number: 1, attempt: 1, players: [{ player_id: 1, bid: null }] } };
+  const key = requiredActionKey(bidding);
+  assert.ok(key);
+  assert.equal(key, requiredActionKey({ ...bidding, remaining_ms: 2000, game: { ...bidding.game, revision: 11 } }));
+  assert.notEqual(key, requiredActionKey({ ...bidding, deal: { ...bidding.deal, deal_number: 2 } }));
+  assert.equal(requiredActionKey({ ...bidding, deal: { ...bidding.deal, players: [{ player_id: 1, bid: 2 }] } }), '');
+  assert.equal(requiredActionKey({ ...bidding, game: { ...bidding.game, turn: { player_id: 2 } } }), '');
+  assert.equal(requiredActionKey({ ...bidding, your_player_id: null }), '');
+});
 test('timer refreshes do not notify again, but new revisions and matches do', () => {
   assert.equal(notificationKey(snapshot), notificationKey({ ...snapshot, remaining_ms: 2000 }));
   assert.notEqual(notificationKey(snapshot), notificationKey({ ...snapshot, game: { ...snapshot.game, revision: 11 } }));

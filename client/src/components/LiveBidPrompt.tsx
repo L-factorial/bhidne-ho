@@ -6,6 +6,7 @@ import {Pressable, StyleSheet, View} from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { radii, fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { ActionCue } from './ActionCue';
+import { TurnGlow } from './TurnGlow';
 
 export function LiveBidPrompt({ snapshot, busy, onAction, revealed }: {
   revealed: boolean; snapshot: RoomSnapshot; busy: boolean; onAction: (command: string, payload: object) => void;
@@ -17,21 +18,20 @@ export function LiveBidPrompt({ snapshot, busy, onAction, revealed }: {
   const maximum = snapshot.rules?.bid_max || 13;
   const isTurn = !!snapshot.your_player_id && snapshot.game?.turn.player_id === snapshot.your_player_id;
   const ownBid = snapshot.deal?.players.find(p => p.player_id === snapshot.your_player_id)?.bid;
-  const bidder = snapshot.players?.find(p => p.player_id === snapshot.game?.turn.player_id)?.display_name || ui("common.player_number", { "number": snapshot.game?.turn.player_id });
-  return <View style={styles.panel}>
+  if (!isTurn || ownBid != null || snapshot.game?.phase !== 'BIDDING') return null;
+  return <View testID="callbreak-bid-prompt" style={styles.panel}>
+    <TurnGlow active={!busy} radius={radii.large} />
     <Text accessibilityRole="header" accessibilityLiveRegion="polite" style={styles.title}>
-      {isTurn ? (revealed ? ui("callbreak.make_your_call") : ui("common.reveal_your_hand")) : ui("callbreak.bidding")}
+      {revealed ? ui("callbreak.make_your_call") : ui("common.reveal_your_hand")}
     </Text>
-    <Text accessibilityLiveRegion="polite" style={styles.text}>{isTurn
-      ? (revealed ? ui("callbreak.how_many_tricks_will_you_win") : ui("common.reveal_bid_help"))
-      : `${ownBid != null ? ui("callbreak.your_bid_count", { "count": ownBid }) : ''} ${ui("common.waiting_bid", {player: bidder})}`}</Text>
-    {isTurn && revealed && <View style={styles.controls}>
+    <Text accessibilityLiveRegion="polite" style={styles.text}>{revealed ? ui("callbreak.how_many_tricks_will_you_win") : ui("common.reveal_bid_help")}</Text>
+    {revealed && <View style={styles.controls}>
       <Pressable accessibilityRole="button" accessibilityLabel={ui("callbreak.decrease_bid")} disabled={busy || amount <= 1} onPress={() => setAmount(value => Math.max(1, value - 1))} style={styles.button}><Text style={styles.label}>−</Text></Pressable>
       <Text accessibilityLabel={ui("callbreak.selected_bid_count", { "count": amount })} style={styles.amount}>{amount}</Text>
       <Pressable accessibilityRole="button" accessibilityLabel={ui("callbreak.increase_bid")} disabled={busy || amount >= maximum} onPress={() => setAmount(value => Math.min(maximum, value + 1))} style={styles.button}><Text style={styles.label}>+</Text></Pressable>
       <Pressable accessibilityRole="button" disabled={busy} onPress={() => onAction('PLACE_BID', { amount })} style={({ pressed }) => [styles.button, gameButtonStyle(colors, 'primary', pressed)]}><ActionCue active={!busy} style={[styles.label, { color: colors.onPrimary }]}>{busy ? ui("common.submitting") : ui("callbreak.confirm_bid")}</ActionCue></Pressable>
-      <Text style={styles.text}>{ui("common.your_bid_is_submitted_only_when_you_confirm")}</Text>
     </View>}
+    {revealed && <Text style={styles.text}>{ui("common.your_bid_is_submitted_only_when_you_confirm")}</Text>}
   </View>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({

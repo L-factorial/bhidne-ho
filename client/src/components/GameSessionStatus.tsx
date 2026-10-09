@@ -35,14 +35,14 @@ export function GameSessionStatus({snapshot,userId,busy,act}: {
     <Text style={{color:colors.accent,fontFamily:fonts.medium,flexShrink:1}}>{label}</Text>
   </Pressable>;
   if(deadline==null && !modes.length && !offer && !s.reclaim)return null;
-  return <ScrollView testID="game-session-status" style={{maxHeight:220,flexGrow:0,borderBottomWidth:1,borderColor:colors.border,backgroundColor:colors.surface}}
-    contentContainerStyle={{paddingHorizontal:12,paddingVertical:6,gap:6}} nestedScrollEnabled>
-    {time!==null && <Text testID="session-countdown" style={{color:warning?colors.danger:colors.textMuted,fontFamily:fonts.body,fontSize:12}}>
+  return <ScrollView testID="game-session-status" style={{maxHeight:220,flexGrow:0,borderTopWidth:1,borderColor:colors.border,backgroundColor:colors.surface}}
+    contentContainerStyle={{paddingHorizontal:12,paddingVertical:3,gap:3}} nestedScrollEnabled>
+    {time!==null && <Text testID="session-countdown" style={{color:warning?colors.danger:colors.textMuted,fontFamily:fonts.body,fontSize:10}}>
       {deadline!<=now?ui('rooms.session_waiting_server'):s.idle_deadline!=null?ui('rooms.session_idle',{time}):
         ui(warning?'rooms.session_action_warning':'rooms.session_action',{player:turn?name(turn.seat_id):'',time})}
     </Text>}
     <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
-      {modes.map(c=><Text key={c.seat_id} style={{color:colors.textMuted,fontFamily:fonts.body,fontSize:12,flexShrink:1}}>
+      {modes.map(c=><Text key={c.seat_id} style={{color:colors.textMuted,fontFamily:fonts.body,fontSize:10,flexShrink:1}}>
         {ui(c.mode==='auto'?'rooms.session_auto':c.mode==='replacement'?'rooms.session_replacement':'rooms.session_disconnected',{player:name(c.seat_id)})}
       </Text>)}
     </View>
@@ -50,7 +50,7 @@ export function GameSessionStatus({snapshot,userId,busy,act}: {
       : button(ui('rooms.session_reclaim'),'reclaim-seat'))}
     {!!offer && <View testID="session-live-offer" style={{gap:6}}>
       <Text accessibilityLiveRegion="polite" style={{color:colors.text,fontFamily:fonts.medium}}>{ui('rooms.session_offer',{seat:offer.seat_id,time:sessionTime(remaining(offer.expires_at,now))})}</Text>
-      <Text style={{color:colors.textMuted,fontFamily:fonts.body,fontSize:12}}>{ui('rooms.session_offer_help')}</Text>
+      <Text style={{color:colors.textMuted,fontFamily:fonts.body,fontSize:10}}>{ui('rooms.session_offer_help')}</Text>
       <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
         {button(ui('rooms.session_offer_accept'),'accept-live-seat')}
         {button(ui('rooms.session_offer_decline'),'decline-live-seat')}

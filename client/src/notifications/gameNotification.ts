@@ -1,4 +1,10 @@
 import type { RoomSnapshot } from '../screens/LiveGameTable';
+import { gameAttention } from './gameAttention.ts';
+
+export function requiredActionKey(snapshot: RoomSnapshot | null): string {
+  const attention = gameAttention(snapshot);
+  return attention?.required ? attention.key : '';
+}
 
 // Timer-only polls must not generate another notification.
 export function notificationKey(snapshot: RoomSnapshot | null): string {

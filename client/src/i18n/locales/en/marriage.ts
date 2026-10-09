@@ -1,5 +1,8 @@
 // Editable English marriage copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "see_maal_step": "See maal",
+  "see_maal_help": "Your shown cards qualify. Flip the maal to see it, then continue playing. You can show or hide it later.",
+
   "preset_help": "House bonus is the default. Choose a preset or edit any value, then propose the change for player approval.",
   "locked_rules_help": "The creator selects these rules before the round. They are locked during play.",
   "initial_declaration_help": "Before the first draw, every player must show dealt Tunnelas or declare none. Only those initial declarations earn the Tunnela bonus.",

@@ -17,6 +17,7 @@ import { useCallBreakHand } from '../multiplayer/useCallBreakHand';
 import { type ReactNode, useEffect, useState } from 'react';
 import {Pressable, ScrollView, StyleSheet, View, useWindowDimensions} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CallBreakSummary } from '../components/CallBreakSummary';
 import { CardTable } from '../components/CardTable';
 import { GameRules } from '../components/GameRules';
 import { GameStats, useGameStats } from '../components/GameStats';
@@ -65,7 +66,7 @@ export type RoomSnapshot = {
     players: { player_id: number; bid: number | null; tricks_won: number; cards_remaining: number }[] };
   private?: { hand: string[]; legal_cards: string[]; can_accept_hand: boolean; can_claim_redeal: boolean } | null;
   is_creator?: boolean; ready?: boolean;
-  settings?: { weak_hand_enabled: boolean; no_spades_enabled: boolean; payments: number[]; match_rules?: import('../multiplayer/callbreakRules').CallBreakMatchRules | null };
+  settings?: { weak_hand_enabled: boolean; minimum_face_card?: 'ANY' | 'JACK' | 'QUEEN'; no_spades_enabled: boolean; payments: number[]; match_rules?: import('../multiplayer/callbreakRules').CallBreakMatchRules | null };
   deal_history?: { deal_number: number; complete: boolean; tricks?: Trick[]; players: { player_id: number; bid: number | null; tricks_won: number; score_tenths: number | null }[] }[];
   scoreboard?: { player_id: number; deal_scores_tenths: (number | null)[]; total_score_tenths: number; bonus_tricks?: number }[];
   player_stats?: { player_id: number; total_tricks_won: number }[];
@@ -92,6 +93,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   const wide = screenWidth >= 1000;
   const mobile = screenWidth < 900;
   const [tableWidth, setTableWidth] = useState(280);
+  const [tableHeight, setTableHeight] = useState(400);
   const width = Math.max(180, Math.min(Math.min(tableWidth, screenWidth) - 24, 800));
   const [revealedDeal, setRevealedDeal] = useState<string | null>(null);
   const handDealKey = `${snapshot.match_id}:${snapshot.deal?.deal_number}:${snapshot.deal?.attempt}`;
@@ -99,6 +101,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   const [draggingCard, setDraggingCard] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [handView, setHandView] = useState<HandView>("fan");
+  const [collapsedHandHeight, setCollapsedHandHeight] = useState(93);
   const [pokeTarget, setPokeTarget] = useState<number | null | undefined>(undefined);
   const [pokeNotice, setPokeNotice] = useState<{ player: string | null; at: number } | null>(null);
   useEffect(() => {
@@ -179,18 +182,17 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     {header}{gameRules}
 
     <View style={[styles.workspace, wide && styles.wideBody]}>
-    <View style={[styles.playColumn, wide && { alignSelf: 'stretch' }]}>
+    <View style={[styles.playColumn, wide && { alignSelf: 'stretch' }, handAvailable && { paddingBottom: collapsedHandHeight }]}>
     <View style={styles.body}>
     <GameStats snapshot={snapshot} open={stats.open} onOpen={() => { cards.collapse(); stats.show(); }} onClose={stats.close}>
-    <ScrollView style={styles.tableScroll} onLayout={event => setTableWidth(event.nativeEvent.layout.width)} contentContainerStyle={[styles.container, {
-      paddingTop: mobile && cards.open ? 0 : 8, paddingBottom: 4,
+    <ScrollView testID="callbreak-play-viewport" style={styles.tableScroll} onLayout={event => { setTableWidth(event.nativeEvent.layout.width); setTableHeight(event.nativeEvent.layout.height - 12); }} contentContainerStyle={[styles.container, {
+      paddingTop: 8, paddingBottom: 4,
     }]}><View style={{ width }}>
-    <Text style={styles.meta}>{ui("callbreak.live_deal_summary", { "label": ui("callbreak.deal") + " ", "deal": deal.deal_number, "completed": deal.tricks_completed, "total": deal.tricks_required })}</Text>
     {!ended && game.phase !== 'PLAYING' && game.phase !== 'BIDDING' && !reveal && <Text style={styles.meta}>{guidance.title.replace(/^Your turn[: ·]+/i, '')}</Text>}
     {game.phase === 'AWAITING_SHUFFLE' && deal.deal_number === 1 && game.dealer_selection?.complete &&
       <Text accessibilityLiveRegion="polite" style={styles.status}>{ui('callbreak.selected_dealer', { player: playerName(deal.dealer) })}</Text>}
     {!!(error || snapshot.error) && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error || (snapshot.error ? playerError(snapshot.error) : ''), 'feedback')}</Text>}
-    <CardTable detailedStats centerStatus={<><Text numberOfLines={2} style={[styles.meta, { textAlign: 'center' }]}>{ui('common.stats_round_trick', { round: deal.deal_number, trick: trick?.trick_number ?? Math.min(deal.tricks_completed + 1, deal.tricks_required) })}</Text><Text accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 }}>{game.turn.player_id ? ui('common.player_s_turn', { player: playerName(game.turn.player_id) }) : ui('callbreak.current_trick')}</Text></>} showScores={game.phase === 'BIDDING' || game.phase === 'PLAYING'} compact={mobile && cards.open && screenHeight < 760} centerControl={ended ? endedNotice : preparation} width={width} players={players} dealerId={String(deal.dealer)} viewerId={snapshot.your_player_id ? String(snapshot.your_player_id) : ''}
+    <CardTable height={tableHeight} detailedStats centerStatus={<><Text numberOfLines={2} style={[styles.meta, { textAlign: 'center' }]}>{ui('callbreak.summary_round', { round: deal.deal_number, total: 5 })}{'\n'}{ui('callbreak.summary_hand', { hand: trick?.trick_number ?? Math.min(deal.tricks_completed + 1, deal.tricks_required), total: deal.tricks_required })}</Text><Text accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 }}>{game.turn.player_id ? ui('common.player_s_turn', { player: playerName(game.turn.player_id) }) : ui('callbreak.current_trick')}</Text></>} showScores={game.phase === 'BIDDING' || game.phase === 'PLAYING'} compact={mobile && screenHeight < 760} centerControl={ended ? endedNotice : preparation} width={width} players={players} dealerId={String(deal.dealer)} viewerId={snapshot.your_player_id ? String(snapshot.your_player_id) : ''}
       collectionKey={reveal ? trickKey : undefined} collecting={reveal && collectingTrick === trickKey}
       winnerPlayerId={reveal ? String(completedTrick?.winner) : undefined} activePlayerId={!ended && !reveal && game.turn.player_id ? String(game.turn.player_id) : ''} plays={(trick?.plays || []).map(play => ({ playerId: String(play.player_id), card: face(play.card) }))} />
     <View testID="central-turn-notice">
@@ -201,7 +203,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   </View></ScrollView>
 
     </GameStats></View>
-    {last && !stats.open && (!mobile || !cards.open) && <View style={[styles.lastTrick, mobile && handAvailable && { position: 'absolute', bottom: 52, left: 0, right: 0 }]}>
+    {last && !stats.open && (!mobile || !cards.open) && <View style={[styles.lastTrick, mobile && handAvailable && { position: 'absolute', bottom: collapsedHandHeight, left: 0, right: 0 }]}>
       <Pressable accessibilityRole="button" accessibilityLabel={ui("callbreak.last_trick")} aria-expanded={expandedLastTrick === trickKey} accessibilityState={{ expanded: expandedLastTrick === trickKey }}
         onPress={() => setExpandedLastTrick(value => value === trickKey ? null : trickKey)} style={styles.lastToggle}>
         <Text style={styles.meta}>{ui("callbreak.last_trick_player_won", { "player": playerName(last.winner!) })}</Text><Text style={styles.link}>{expandedLastTrick === trickKey ? '-' : '+'}</Text>
@@ -217,11 +219,11 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
         </View>)}
       </View>}
     </View>}
-    {handAvailable && <MobileGameHand draggingCard={draggingCard} cue={gameAttention(snapshot)} docked desktopDrawer mobile={mobile} game="callbreak" keepMounted cardCount={mine?.hand.length || 0}
+    {handAvailable && <MobileGameHand draggingCard={draggingCard} cue={gameAttention(snapshot)} docked overlay onCollapsedHeight={setCollapsedHandHeight} desktopDrawer mobile={mobile} game="callbreak" keepMounted cardCount={mine?.hand.length || 0}
       open={cards.open} onToggle={() => { stats.close(); cards.toggle(); }} myTurn={isTurn}
       attention={isTurn || !!mine?.can_accept_hand || !!mine?.can_claim_redeal}
       attentionText={mine?.can_accept_hand || mine?.can_claim_redeal ? ui("callbreak.review_your_cards_accept_or_request_redeal") : isTurn ? game.phase === 'BIDDING' ? ui("callbreak.make_your_call") : ui("callbreak.play_a_card") : ui("common.your_cards_count", {count: mine?.hand.length || 0})}>
-    <View testID="callbreak-hand-dock" style={[styles.handDock, mobile && { backgroundColor: 'transparent', borderTopWidth: 0, paddingHorizontal: 4 }]}>
+    <View testID="callbreak-hand-dock" style={[styles.handDock, mobile && { backgroundColor: 'transparent', borderTopWidth: 0, paddingHorizontal: 4 }]}><CallBreakSummary compact snapshot={{ ...snapshot, game: { ...game, current_trick: trick ?? null } }} />
     {game.phase === 'PLAYING' && !deal.tricks.some(trick => trick.complete || trick.plays.length) && !game.current_trick?.plays.length && <Text accessibilityLiveRegion="polite" style={styles.status}>{ui("callbreak.bidding_complete_message", { "message": isTurn ? ui("callbreak.you_lead_first") : ui("common.leads_first", {player: playerName(game.turn.player_id!)}) })}</Text>}
     {game.phase === 'BIDDING' && <LiveBidPrompt key={`${snapshot.match_id}-${deal.deal_number}-${deal.attempt}`} snapshot={snapshot} revealed={revealedDeal === handDealKey} busy={busy} onAction={cards.act} />}
 

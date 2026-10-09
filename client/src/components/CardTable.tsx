@@ -11,7 +11,7 @@ import { radii, fonts, useTheme, useThemedStyles, type ThemeColors } from '../th
 
 export type TablePlayer = { id: string; name: string; bid: number; currentBid?: number | null; tricks: number; bids?: number; bonus?: number; cardsRemaining: number; connected?: boolean | null; avatarUrl?: string };
 type Props = {
-  centerControl?: ReactNode; centerStatus?: ReactNode; compact?: boolean; showScores?: boolean; detailedStats?: boolean;
+  height?: number; centerControl?: ReactNode; centerStatus?: ReactNode; compact?: boolean; showScores?: boolean; detailedStats?: boolean;
   players: TablePlayer[]; viewerId: string; activePlayerId: string; width: number;
   plays: { playerId: string; card: string }[];
   winnerPlayerId?: string; collecting?: boolean; collectionKey?: string;
@@ -19,7 +19,7 @@ type Props = {
   onPokePlayer?: (playerId: string) => void; onPokeTable?: () => void;
 };
 
-export function CardTable({ players, viewerId, activePlayerId, width, plays, pendingBidPlayerId, dealerId, winnerPlayerId, collecting = false, collectionKey, onPokePlayer, onPokeTable, centerControl, centerStatus, compact = false, showScores = true, detailedStats = false }: Props) {
+export function CardTable({ height, players, viewerId, activePlayerId, width, plays, pendingBidPlayerId, dealerId, winnerPlayerId, collecting = false, collectionKey, onPokePlayer, onPokeTable, centerControl, centerStatus, compact = false, showScores = true, detailedStats = false }: Props) {
   useUiLanguage();
   const { colors } = useTheme();
   const { fontScale } = useWindowDimensions();
@@ -42,11 +42,11 @@ export function CardTable({ players, viewerId, activePlayerId, width, plays, pen
     return () => animation.stop();
   }, [collecting, collectionKey, reduceMotion, progress]);
   return <View style={{ width }}><TableSeatLayout testID="card-table" players={players} viewerId={viewerId} compact={compact}
-    geometry={detailedStats ? (count, availableWidth) => callBreakSeatGeometry(count, availableWidth, fontScale, seatMeasurement.key === measurementKey ? seatMeasurement.height : 0) : undefined}
-    renderSeat={player => <PlayerSeat playerId={Number(player.id)} name={player.name} mine={player.id === viewerId} active={player.id === activePlayerId}
-      connected={player.connected} avatarUrl={player.avatarUrl} compact={compact} dealer={dealerId === player.id}
+    geometry={detailedStats ? (count, availableWidth) => callBreakSeatGeometry(count, availableWidth, fontScale, seatMeasurement.key === measurementKey ? seatMeasurement.height : 0, height) : undefined}
+    renderSeat={(player, index) => <PlayerSeat playerId={Number(player.id)} name={player.name} mine={player.id === viewerId} active={player.id === activePlayerId}
+      inlineStatus={detailedStats && fontScale <= 1 && (players.length < 4 || index !== 1 && index !== players.length - 1)} connected={player.connected} avatarUrl={player.avatarUrl} compact={compact} dealer={dealerId === player.id}
       status={!showScores ? player.cardsRemaining ? `${player.cardsRemaining} cards` : 'Waiting' : compact ? `${player.bid || '—'} / ${player.tricks}` : `Bid ${player.bid || '—'} · Won ${player.tricks}`}
-      statusRows={detailedStats && showScores ? [ui('common.stats_seat_previous', { bids: player.bids ?? 0, bonus: player.bonus ?? 0 }), ui('common.stats_seat_current', { bid: player.currentBid === null ? '—' : player.currentBid ?? player.bid, won: player.tricks })] : undefined}
+      statusRows={detailedStats && showScores ? [`${player.currentBid === null ? '—' : player.currentBid ?? player.bid} / ${player.tricks}`, ''] : undefined}
       onLayout={detailedStats ? event => { const height = event.nativeEvent.layout.height + 8; setSeatMeasurement(current => current.key === measurementKey && current.height >= height ? current : { key: measurementKey, height }); } : undefined}
       testID={player.id === viewerId ? 'your-seat' : 'opponent-seat'}
       onPress={onPokePlayer && player.id !== viewerId && player.connected !== false ? () => onPokePlayer(player.id) : undefined} />}>
@@ -54,7 +54,7 @@ export function CardTable({ players, viewerId, activePlayerId, width, plays, pen
       const winnerIndex = ordered.findIndex(player => player.id === winnerPlayerId);
       const winner = layout.positions[winnerIndex];
       return <View testID="current-trick-area" style={detailedStats ? { position: 'absolute', inset: 0 } : { position: 'absolute', left: layout.center.x - 72, width: 144, ...(centerControl ? { top: 0, bottom: 0, justifyContent: 'center' } : { top: layout.center.y - 57, height: 114 }) }}>
-        {detailedStats && <View testID="callbreak-center-status" style={{ position: 'absolute', left: layout.center.x - 64, top: layout.seatHeight + 72, height: layout.height - 3 * layout.seatHeight - 144, width: 128, alignItems: 'center', justifyContent: 'center', gap: 4 }}>{centerControl || centerStatus}</View>}
+        {detailedStats && <View testID="callbreak-center-status" style={{ position: 'absolute', left: layout.center.x - 64, top: layout.center.y - 28, height: 56, width: 128, alignItems: 'center', justifyContent: 'center', gap: 4 }}>{centerControl || centerStatus}</View>}
         {(!detailedStats && centerControl) || <>
           {!detailedStats && !plays.length && <Text style={[styles.empty, { textAlign: 'center', paddingTop: 42, fontSize: 12 }]}>{ui("callbreak.current_trick")}</Text>}
           {plays.map((play, playIndex) => {
@@ -66,7 +66,8 @@ export function CardTable({ players, viewerId, activePlayerId, width, plays, pen
             return <View key={play.playerId} testID={`trick-play-${play.playerId}`} accessibilityLabel={ui("common.card_played", {player: player?.id === viewerId ? ui("common.you") : player?.name, card: play.card, lead: playIndex === 0 ? ui("common.led_trick") : ""})}
               style={{ position: 'absolute', left: x - 20, top: y - 28 }}>
               <Animated.View testID={play.playerId === winnerPlayerId ? 'winning-card' : 'trick-card'} style={[styles.playedCard,
-                play.playerId === winnerPlayerId && { borderWidth: 3, borderColor: colors.cardSelectedBorder, backgroundColor: colors.cardSelected },
+                playIndex === 0 && { borderWidth: 3, borderColor: colors.accent },
+                play.playerId === winnerPlayerId && { borderWidth: 3, borderColor: playIndex === 0 ? colors.accent : colors.cardSelectedBorder, backgroundColor: colors.cardSelected },
                 { opacity: progress.interpolate({ inputRange: [0, .8, 1], outputRange: [1, 1, 0] }), transform: reduceMotion ? [] : [
                   { translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [0, winner ? winner.x - (detailedStats ? x : layout.center.x - 72 + x) : 0] }) },
                   { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, winner ? winner.y - (detailedStats ? y : layout.center.y - 57 + y) : 0] }) },

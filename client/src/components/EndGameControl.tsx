@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -18,8 +19,8 @@ export function EndGameControl({ busy, onEnd, compact = false, table = false }: 
   }
   const button = (label: string, onPress: () => void) => <Pressable accessibilityRole="button"
     accessibilityLabel={label} disabled={busy} accessibilityState={{ disabled: busy }} onPress={onPress}
-    style={{ minHeight: 44, padding: 12, justifyContent: 'center', opacity: busy ? visualStates.disabledOpacity : 1 }}>
-    <Text style={{ color: colors.accent, fontFamily: fonts.medium }}>{label}</Text>
+    style={{ minHeight: 44, padding: 12, justifyContent: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, opacity: busy ? visualStates.disabledOpacity : 1 }}>
+    <Ionicons name={label === ui('common.keep_playing') ? 'play-outline' : 'stop-circle-outline'} size={19} color={label === ui('common.keep_playing') ? colors.text : colors.danger} /><Text style={{ color: label === ui('common.keep_playing') ? colors.text : colors.danger, fontFamily: fonts.medium }}>{label}</Text>
   </Pressable>;
   if (compact) return <View>
     {button(label, () => setConfirming(true))}

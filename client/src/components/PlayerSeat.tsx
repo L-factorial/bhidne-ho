@@ -9,9 +9,9 @@ import {AccessibilityInfo, Animated, Image, Pressable, View, type LayoutChangeEv
 import { fonts, useTheme } from '../theme';
 
 export function PlayerSeat({ name, mine = false, active = false, connected = true, status, avatarUrl, compact = false, dealer = false,
-  onPress, testID, registerSeat, playerId, statusRows, onLayout }: {
+  onPress, testID, registerSeat, playerId, statusRows, onLayout, inlineStatus = false }: {
   onLayout?: (event: LayoutChangeEvent) => void;
-  statusRows?: [string, string];
+  inlineStatus?: boolean; statusRows?: [string, string];
   playerId?: number;
   name: string; mine?: boolean; active?: boolean; connected?: boolean | null; status?: string;
   avatarUrl?: string; compact?: boolean; dealer?: boolean; onPress?: () => void; testID?: string;
@@ -46,6 +46,7 @@ export function PlayerSeat({ name, mine = false, active = false, connected = tru
     style={{ width: '100%', alignItems: 'center', gap: 2, minHeight:44 }}>
     <PlayerSocialEffect playerId={playerId} />
     {target && <Text pointerEvents="none" style={{position:'absolute',right:0,top:0,fontSize:14}}>👋</Text>}
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
     <Animated.View style={{ transform: [{ scale }], width: size, height: size, borderRadius: size / 2, borderWidth: active ? 3 : 1,
       borderColor: target ? colors.accent : active ? colors.attention : colors.borderSubtle, borderStyle: connected ? 'solid' : 'dashed',
       backgroundColor: active ? colors.turnSurface : colors.surface, alignItems: 'center', justifyContent: 'center' }}>
@@ -53,12 +54,14 @@ export function PlayerSeat({ name, mine = false, active = false, connected = tru
       {avatarUrl && failedImage !== avatarUrl ? <Image source={{ uri: avatarUrl }} onError={() => setFailedImage(avatarUrl)}
         style={{ width: size - 6, height: size - 6, borderRadius: size / 2 }} /> : <View style={{ width: size - 6, height: size - 6, borderRadius: size / 2, backgroundColor: colors.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}><Ionicons accessibilityLabel={ui("common.anonymous_profile")} name="person" size={compact ? 18 : 28} color={colors.textMuted} /></View>}
     </Animated.View>
+    {inlineStatus && statusRows && <Text testID={`callbreak-seat-stats-${playerId}`} style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 12, backgroundColor: colors.surface, borderRadius: 4, padding: 3 }}>{statusRows[0]}</Text>}
+    </View>
     <Text numberOfLines={1} style={{ maxWidth: '100%', backgroundColor: colors.surface, paddingHorizontal: 8, borderRadius: 8, color: colors.text, fontFamily: fonts.medium, fontSize: compact ? 11 : 12 }}>{name}</Text>
-    {statusRows && <View testID={`callbreak-seat-stats-${playerId}`} style={{ alignSelf: 'stretch', gap: 2, paddingHorizontal: 2, borderRadius: 6, backgroundColor: colors.surface }}>
-      {statusRows.map((row, index) => <Text key={index} style={{ color: index ? colors.text : colors.textMuted, textAlign: 'center', fontFamily: fonts.medium, fontSize: 12 }}>{row}</Text>)}
+    {!inlineStatus && statusRows && <View testID={`callbreak-seat-stats-${playerId}`} style={{ alignSelf: 'stretch', gap: 2, paddingHorizontal: 2, borderRadius: 6, backgroundColor: colors.surface }}>
+      {statusRows.filter(Boolean).map((row, index) => <Text key={index} style={{ color: !statusRows[1] || index ? colors.text : colors.textMuted, textAlign: 'center', fontFamily: fonts.medium, fontSize: 12 }}>{row}</Text>)}
     </View>}
-    {!statusRows && (!!presenceLabel||mine||dealer||!active)&&<Text numberOfLines={1} style={{ backgroundColor: active ? colors.turnSurface : colors.surface, paddingHorizontal: 5, borderRadius: 5, color: active ? colors.turnText : colors.textMuted, fontFamily: fonts.medium, fontSize: compact ? 8 : active && mine ? 9 : 10 }}>
-      {presenceLabel ? presenceLabel : mine ? ui("common.you") : dealer ? ui("common.dealer") : uiLabel(status || '')}
+    {!statusRows && (!!presenceLabel||dealer||(!active && !!status))&&<Text numberOfLines={1} style={{ backgroundColor: active ? colors.turnSurface : colors.surface, paddingHorizontal: 5, borderRadius: 5, color: active ? colors.turnText : colors.textMuted, fontFamily: fonts.medium, fontSize: compact ? 8 : active && mine ? 9 : 10 }}>
+      {presenceLabel ? presenceLabel : dealer ? ui("common.dealer") : uiLabel(status || '')}
     </Text>}
     {!statusRows && (active || mine || !!presenceLabel || dealer) && !!status && <Text numberOfLines={1} style={{ backgroundColor: colors.surface, paddingHorizontal: 5, borderRadius: 5, color: colors.textMuted, fontSize: 10 }}>{connected === false && active ? ui("common.offline_player", { "player": uiLabel(status || '') }) : uiLabel(status || '')}</Text>}
   </Pressable>;

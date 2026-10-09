@@ -7,7 +7,8 @@ import { type ReactNode, useEffect, useRef } from 'react';
 import { AccessibilityInfo, Animated, Pressable, ScrollView, View } from 'react-native';
 import { useTheme } from '../theme';
 
-export function MobileGameHand({ mobile, open, onToggle, docked = false, desktopDrawer = false, myTurn, attention = myTurn, attentionText, children, game = 'flush', keepMounted = false, header, cardCount, cue, draggingCard = false }: {
+export function MobileGameHand({ mobile, open, onToggle, docked = false, overlay = false, onCollapsedHeight, desktopDrawer = false, myTurn, attention = myTurn, attentionText, children, game = 'flush', keepMounted = false, header, cardCount, cue, draggingCard = false }: {
+  overlay?: boolean; onCollapsedHeight?: (height: number) => void;
   draggingCard?: boolean;
   cue?: GameAttention|null; cardCount?: number; header?: ReactNode; docked?: boolean; desktopDrawer?: boolean;
   attention?: boolean; attentionText?: string;
@@ -32,13 +33,13 @@ export function MobileGameHand({ mobile, open, onToggle, docked = false, desktop
   return <>
     {open && !docked && <Pressable testID={`${game}-hand-backdrop`} accessibilityRole="button" accessibilityLabel={ui("common.close_your_card_area")}
       onPress={onToggle} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 29, backgroundColor: colors.overlay }} />}
-    <Animated.View ref={socialAnchor.ref} onLayout={socialAnchor.onLayout} testID={`${game}-mobile-hand`} style={{ position: docked ? 'relative' : 'absolute', bottom: 0, left: 0, right: 0,
-    maxHeight: docked ? '42%' : '88%', flexShrink: 0, zIndex: 30, elevation: 16, transform: [{ translateY: slide }], borderWidth: 1, borderColor: colors.tableTrim,
+    <Animated.View ref={socialAnchor.ref} onLayout={socialAnchor.onLayout} testID={`${game}-mobile-hand`} style={{ position: docked && !overlay ? 'relative' : 'absolute', bottom: 0, left: 0, right: 0,
+    maxHeight: '94%', flexShrink: 0, zIndex: 30, elevation: 16, transform: [{ translateY: slide }], borderWidth: 1, borderColor: colors.tableTrim,
     borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden', backgroundColor: colors.surface }}>
     <View style={{ alignItems: 'center', paddingTop: 7, backgroundColor: colors.tableHeader }}>
       <View style={{ width: 38, height: 4, borderRadius: 2, backgroundColor: colors.tableTrim }} />
     </View>
-    <Animated.View testID={`${game}-hand-attention`} style={{ position: 'relative' }}>
+    <Animated.View testID={`${game}-hand-attention`} style={{ position: 'relative', flexShrink: 0 }} onLayout={event => onCollapsedHeight?.(event.nativeEvent.layout.height + 13)}>
     <HandAreaBar cue={cue} open={open} onToggle={onToggle} count={cardCount} attention={attention}
       instruction={myTurn ? ui("common.your_turn_action", { "action": attentionText || 'Choose an action' }) : attentionText}/>
     </Animated.View>

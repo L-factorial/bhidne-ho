@@ -14,8 +14,8 @@ class RedealPolicy:
     def __post_init__(self) -> None:
         if type(self.weak_hand_enabled) is not bool or type(self.no_spades_enabled) is not bool:
             raise ValueError("Redeal switches must be booleans.")
-        if not isinstance(self.weak_hand_threshold, Rank) or self.weak_hand_threshold not in (Rank.JACK, Rank.QUEEN):
-            raise ValueError("Weak-hand threshold must be Jack or Queen.")
+        if not isinstance(self.weak_hand_threshold, Rank) or self.weak_hand_threshold not in (Rank.TEN, Rank.JACK, Rank.QUEEN):
+            raise ValueError("Weak-hand threshold must be Ten, Jack or Queen.")
 
     @property
     def enabled(self) -> bool:

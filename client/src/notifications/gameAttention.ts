@@ -49,7 +49,8 @@ export function gameAttention(snapshot:RoomSnapshot|null, local?:{marriage:boole
     if(s.your_player_id && s.flush?.public.current_player_id===String(s.your_player_id) && s.flush.private?.actions.kinds.length)
       return cue('bet','common.attention_turn','common.attention_bet',true);
   }else if(s.your_player_id && s.game?.turn.player_id===s.your_player_id){
-    if(s.game.phase==='BIDDING')return cue('bid','common.attention_turn','common.attention_bid',true);
+    if(s.game.phase==='BIDDING' && s.deal?.players?.find(p=>p.player_id===s.your_player_id)?.bid == null)
+      return cue(`bid:${s.deal?.deal_number}:${s.deal?.attempt}`,'common.attention_turn','common.attention_bid',true);
     if(s.game.phase==='PLAYING')return cue('play','common.attention_turn','common.attention_play',true);
   }
   if(s.private?.can_accept_hand)return cue('review','common.attention_review','common.attention_review_detail',true);

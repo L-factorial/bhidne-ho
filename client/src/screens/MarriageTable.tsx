@@ -1,4 +1,5 @@
 import {CompactCardFace} from '../components/CompactCardFace';
+import { RoomSheet } from '../components/RoomSheet';
 import {AppText as Text} from '../components/AppText';
 import { gameAttention } from '../notifications/gameAttention';
 import { ui, uiLabel } from '../i18n/copy.ts';
@@ -72,6 +73,11 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   // Start face up; Hide remains a local privacy choice.
   const { revealed, reveal } = useMarriageReveal(snapshot.match_id, mine?.player_id, true);
   const own = pub?.players.find(p => p.player_id === mine?.player_id);
+  const maalKey = `${snapshot.match_id}:${mine?.player_id}:${mine?.maal?.tiplu.rank}:${mine?.maal?.tiplu.suit}`;
+  const [seenMaal, setSeenMaal] = useState('');
+  const [flippedMaal, setFlippedMaal] = useState('');
+  const seeMaal = !!own?.has_seen_maal && !!mine?.maal && snapshot.status === 'playing' && seenMaal !== maalKey;
+
   const committed = own?.shown_melds.flatMap(m => m.card_ids) || [];
   const handKey = hand.map(c => c.card_id).join(',') + committed.join(',');
   useEffect(() => {
@@ -173,10 +179,17 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       {close => <GameMenu snapshot={snapshot} close={close} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl}
         poke={() => setPoke(null)} pokePlayer={setPoke} canPoke={social.connected}
         rules={() => setRulesOpen(true)} rulesConfig={() => setDetails('config')}
-        gameActions={(['stats', 'points'] as const).map(section => ({ label: section === 'stats' ? ui("common.stats") : ui("marriage.points"), action: () => { if (section === 'stats') { setSnap('collapsed'); stats.show(); } else setDetails(section); } }))} />}
+        gameActions={[{ label: ui('marriage.points'), action: () => setDetails('points') }]} />}
     </GameTableHeader>
     <View style={{ flex: 1, minHeight: 0 }}>
-    <View testID="marriage-play-area" style={[s.playArea, mobile && mine && activeGame && { paddingBottom: collapsedHandHeight + 8 }]}>
+    <RoomSheet visible={seeMaal} presentation="dialog" testID="marriage-see-maal-step" title={ui('marriage.see_maal_step')} closeLabel={ui('marriage.see_maal_step')} onClose={() => { if (flippedMaal === maalKey) setSeenMaal(maalKey); }}>
+      <Text style={s.text}>{ui('marriage.see_maal_help')}</Text>
+      <Pressable testID="marriage-see-maal-card" accessibilityRole="button" accessibilityLabel={ui(flippedMaal === maalKey ? 'marriage.tap_to_hide_the_maal' : 'marriage.tap_to_see_the_maal')} onPress={() => setFlippedMaal(flippedMaal === maalKey ? '' : maalKey)} style={[s.card, { width: 72, height: 104, alignSelf: 'center' }]}>
+        {flippedMaal === maalKey && mine?.maal ? <CompactCardFace rank={mine.maal.tiplu.rank} suit={mine.maal.tiplu.suit} /> : <MarriageCardBack />}
+      </Pressable>
+      {button(ui('common.continue'), () => setSeenMaal(maalKey), flippedMaal !== maalKey)}
+    </RoomSheet>
+    <View testID="marriage-play-area" style={[s.playArea, mine && activeGame && { paddingBottom: collapsedHandHeight + 2 }]}>
       <GameStats snapshot={snapshot} open={stats.open} onOpen={() => { setSnap('collapsed'); stats.show(); }} onClose={stats.close}>
       {ended && !pub ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>{endedNotice}</View> : !pub ? <ScrollView contentContainerStyle={s.panel}>
         <PreGameTable snapshot={snapshot}>{startCue}</PreGameTable>
@@ -186,7 +199,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
           <View style={s.main}>
             <View style={s.table}>
               <MarriageAnnouncements key={snapshot.match_id} snapshot={snapshot} suspended={stats.open} />
-              <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}><MarriageCardArea snapshot={snapshot} onResult={() => setDetails("points")} handAnchor={handAnchor} canAct={!busy && activeGame} onAction={cards.act} onPoke={activeGame || ended ? undefined : setPoke} /></ScrollView>
+              <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}><MarriageCardArea snapshot={snapshot} maalFaceUp={flippedMaal === maalKey} onToggleMaal={() => setFlippedMaal(value => value === maalKey ? '' : maalKey)} onResult={() => setDetails("points")} handAnchor={handAnchor} canAct={!busy && activeGame} onAction={cards.act} onPoke={activeGame || ended ? undefined : setPoke} /></ScrollView>
               <View style={tableSocial?.canRead ? { marginBottom: 60 } : undefined}>{!isTurn && turnPrompt}</View>
               {snapshot.status === 'finished' && startCue}
               {ended && <View testID="ended-table-overlay" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center', zIndex: 70 }}>{endedNotice}</View>}

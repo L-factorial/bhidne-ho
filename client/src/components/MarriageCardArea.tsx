@@ -37,7 +37,8 @@ function FlyingCard({ move, origin, destination, done }: { move: MarriageMove; o
     }]}>{move.card ? <CompactCardFace rank={move.card.rank} suit={move.card.suit} joker={move.card.rank === null} /> : <MarriageCardBack />}</Animated.View>;
 }
 
-export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAnchor, onResult }: {
+export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAnchor, onResult, maalFaceUp, onToggleMaal }: {
+  maalFaceUp?: boolean; onToggleMaal?: () => void;
   onResult?: () => void;
   handAnchor?: RefObject<View | null>;
   snapshot: RoomSnapshot; canAct: boolean;
@@ -86,7 +87,7 @@ export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAncho
   const privateMaal = mine?.maal;
   const legalSource = (source: string) => canAct && !!mine?.actions.kinds.includes('draw') && !!mine.actions.drawable_sources.includes(source);
   const maalKey = `${snapshot.match_id}:${mine?.player_id}:${privateMaal?.tiplu.rank}:${privateMaal?.tiplu.suit}`;
-  const maalVisible = !!privateMaal && maalFace.key === maalKey && maalFace.visible;
+  const maalVisible = !!privateMaal && (maalFaceUp ?? (maalFace.key === maalKey && maalFace.visible));
   const maalLabel = !privateMaal ? ui("common.hidden") : maalVisible ? ui("marriage.tap_to_hide_the_maal") : ui("marriage.tap_to_see_the_maal");
   useEffect(() => { if (!privateMaal) setMaalFace({ key: '', visible: false }); }, [!!privateMaal]);
   return <View ref={area} style={styles.area}>
@@ -110,8 +111,8 @@ export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAncho
         {legalSource('stock') && <ActionCue active style={styles.caption}>{ui("marriage.tap_draw")}</ActionCue>}
       </View>
       <View style={styles.spot}><Text style={styles.label}>{ui("marriage.maal")}</Text>
-        <Pressable accessibilityRole="button" disabled={!privateMaal} accessibilityState={{ disabled: !privateMaal, expanded: maalVisible }}
-          onPress={() => setMaalFace({ key: maalKey, visible: !maalVisible })} testID="marriage-maal-spot"
+        <Pressable accessibilityRole="button" disabled={!privateMaal} aria-expanded={maalVisible} accessibilityState={{ disabled: !privateMaal, expanded: maalVisible }}
+          onPress={() => onToggleMaal ? onToggleMaal() : setMaalFace({ key: maalKey, visible: !maalVisible })} testID="marriage-maal-spot"
           accessibilityLabel={privateMaal ? maalLabel : ui("marriage.maal_hidden")} style={[styles.card, !maalVisible && styles.back]}>
           {maalVisible && privateMaal ? <CompactCardFace rank={privateMaal.tiplu.rank} suit={privateMaal.tiplu.suit} /> : <MarriageCardBack />}
         </Pressable>

@@ -3,6 +3,19 @@ from marriage.rules import MarriageRules
 from flush.rules import FlushRulesConfig
 
 
+DEFAULT_MAX_OPEN_TABLES = 5  # Matches the rooms catalog default.
+
+
+def available_table_name(names, maximum=DEFAULT_MAX_OPEN_TABLES):
+    """Caller holds the room/catalog lock while allocating and inserting."""
+    occupied = {name.casefold() for name in names}
+    for number in range(1, maximum + 1):
+        name = f'Table-{number}'
+        if name.casefold() not in occupied:
+            return name
+    raise ValueError('This room has no available game slots.')
+
+
 def table_capacity(kind, requested=None):
     if kind == 'marriage':
         minimum, maximum = MarriageRules.min_players, MarriageRules.max_players

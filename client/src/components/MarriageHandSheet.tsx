@@ -24,10 +24,10 @@ export function MarriageHandSheet({ mobile, anchor, snap, onSnap, instruction, a
   // This footer takes layout space; it never floats over the final row of cards.
   const actionFooter = footer ? <View testID="marriage-hand-footer" style={{ flexShrink: 0,
     borderTopWidth: 1, borderColor: colors.tableTrim, padding: 10, paddingBottom: 12, gap: 6 }}>{footer}</View> : null;
-  if (!mobile) return <View onLayout={socialAnchor.onLayout} ref={anchor} style={{ maxHeight: '68%', minHeight: 0 }}>{controls}<View style={{display:open?'flex':'none',minHeight:0,flexShrink:1}} accessibilityElementsHidden={!open} importantForAccessibility={open?'auto':'no-hide-descendants'}>{header}
+  if (!mobile) return <View testID="marriage-desktop-hand" onLayout={socialAnchor.onLayout} ref={anchor} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 30, backgroundColor: colors.surface, maxHeight: '94%', minHeight: 0 }}>{controls}<View style={{display:open?'flex':'none',minHeight:0,flexShrink:1}} accessibilityElementsHidden={!open} importantForAccessibility={open?'auto':'no-hide-descendants'}>{header}
     <ScrollView scrollEnabled={!draggingCard} style={{ minHeight: 0 }} contentContainerStyle={{ paddingBottom: 16 }}>{children}</ScrollView>{actionFooter}</View></View>;
   return <View onLayout={socialAnchor.onLayout} ref={anchor} testID="marriage-mobile-hand" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 30,
-    height: open ? '80%' : Math.max(90, headerHeight + 2),
+    height: open ? '94%' : Math.max(90, headerHeight + 2),
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.tableTrim,
     borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden' }}>
     {open && <View style={{ alignSelf: 'center', marginTop: 5, width: 36, height: 3, borderRadius: 2, backgroundColor: colors.tableTrim }} />}

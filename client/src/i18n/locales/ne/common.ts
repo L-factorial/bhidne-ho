@@ -1,5 +1,6 @@
 // Editable Nepali common copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "propose_changes": "परिवर्तन प्रस्ताव गर्नुहोस्",
   "card_theme_saving": "टेबलको तास थिम बदलिँदैछ…",
   "card_theme_controller_help": "यो थिम डिलरले मात्र बदल्न सक्छन्। डिलर नतोकिएको बेला टेबल बनाउने व्यक्तिले बदल्न सक्छन्।",
   "card_theme_shared_help": "यस टेबलमा सबैले तासको एउटै पछाडिको डिजाइन देख्छन्।",
@@ -194,7 +195,7 @@ export default {
   "all_suits": "सबै रङ",
   "filter_hand_by_suit": "रङअनुसार तास छान्ने",
   "drag_card_to_reorder": "क्रम मिलाउन अर्को तासमाथि तानेर त्यसको अगाडि राख्नुहोस्।",
-  "shuffle_suits": "तासका रङको क्रम फेर्ने",
+  "shuffle_suits": "रङअनुसार मिलाउने",
   "spades": "हुकुम",
   "clubs": "चिडी",
   "hearts": "पान",
@@ -540,7 +541,7 @@ export default {
   "attention_tunnela": "टनेला भेटियो",
   "close_game_stats": "खेलको सारांश बन्द गर्ने",
   "stats_round_trick": "राउन्ड {{round}} • हात {{trick}}",
-  "stats_previous_bid_bonus": "अघिल्ला बोल {{bids}} • बोनस {{bonus}}",
+  "stats_previous_bid_bonus": "अघिल्ला बोल {{bids}}.{{bonus}}",
   "stats_current_bid_won": "अहिलेको बोल {{bid}} / जितेका हात {{won}}",
   "stats_round_standing": "राउन्ड {{round}} • बोल {{bid}} / जितेका {{won}}",
   "stats_flush_totals": "नहेरी बाजी {{blind}} • बाजी {{bets}} • योगदान {{contribution}}",

@@ -33,6 +33,18 @@ async def create(context, actor, body):
     return (await executor.execute_one(lane, fence)).outcome
 
 
+async def test_automatic_names_allocate_distinct_slots_and_retry_stably(creation):
+    pool, checkpoints, fence, users, inbox, lane, executor = creation
+    first_request = request()
+    first = await create(creation, users[0], first_request)
+    second = await create(creation, users[1], request())
+    assert first['status'] == second['status'] == 'accepted'
+    assert (await pool.execute('SELECT name FROM room_tables ORDER BY name')).rows == [('Table-1',), ('Table-2',)]
+    duplicate = await inbox.enqueue(lane, users[0], first_request)
+    assert duplicate.duplicate and duplicate.outcome == first
+    assert (await pool.execute('SELECT open_table_count FROM rooms')).rows == [(2,)]
+
+
 @pytest.mark.parametrize(('kind', 'capacity'), [('callbreak', 4), ('marriage', 5), ('flush', 10)])
 async def test_creates_recoverable_lobby_and_lane_with_stable_receipt(creation, kind, capacity):
     pool, checkpoints, fence, users, inbox, lane, executor = creation

@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { GameSessionStatus } from './GameSessionStatus';
 import {AppText as Text} from './AppText';
 import { usePersistentNotice } from '../multiplayer/usePersistentNotice';
@@ -90,7 +91,6 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
     setError(ui(reason === 'expired' ? 'rooms.session_expired' : 'rooms.session_removed'));
   }, [snapshot?.match_id, snapshot?.session?.expired_at, snapshot?.session?.removal_reason]);
   const [capacity, setCapacity] = useState<4|5>(4);
-  const [tableName, setTableName] = useState('');
   const [selectedInvitees, setSelectedInvitees] = useState<InvitePlayer[]>([]);
   const [pendingAction, setBusy] = useState(false);
   const [formationBlocked, setFormationBlocked] = useState(false);
@@ -270,14 +270,13 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
   }
   async function act(join: boolean) {
     if (!canSend.current || pending.current) return;
-    if (!join && !tableName.trim()) { setError(ui("feedback.enter_a_table_name")); return; }
     pending.current = true; const version = ++generation.current; setBusy(true); setError('');
     try {
-      const data = await api(join ? '/join' : '', join ? { match_id: snapshot?.match_id } : { ...(gameType === 'callbreak' ? {player_count:capacity} : {}), notify_room:true, game_type: gameType, card_theme: cardTheme, name: tableName.trim(), invitees: selectedInvitees.map(player => player.user_id) });
+      const data = await api(join ? '/join' : '', join ? { match_id: snapshot?.match_id } : { ...(gameType === 'callbreak' ? {player_count:capacity} : {}), notify_room:true, game_type: gameType, card_theme: cardTheme, invitees: selectedInvitees.map(player => player.user_id) });
       if (alive.current && generation.current === version) {
         selectedMatch.current = data.match_id;
         setSnapshot(data); setLive(true); setOpen(true);
-        if (!join) { setTableName(''); setSelectedInvitees([]); }
+        if (!join) setSelectedInvitees([]);
       }
     } catch (error) {
       if (alive.current && generation.current === version) {
@@ -348,7 +347,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
   const menuLeaveControl = snapshot?.table ? <TableControls menuSection="leave" table={snapshot.table} members={roomMembers} userId={userId} busy={busy}
     act={(command, payload) => lobbyAction(`/table/${command}`, payload)} start={() => lobbyAction('/start')} /> : null;
   const leaveControl = !snapshot?.table?.current_user.can_leave_seat && !snapshot?.table?.current_user.can_abandon_match && !snapshot?.table?.current_user.can_pause_match && snapshot?.your_player_id
-    ? <Pressable accessibilityRole="button" accessibilityLabel={snapshot.game_type === 'flush' || snapshot.game_type === 'marriage' ? ui("rooms.leave_table") : ui("common.leave_gameortable", { "gameOrTable": noun })} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => void lobbyAction('/leave')} style={{ minHeight: 44, padding: 10, justifyContent: 'center' }}><Text style={[styles.text, live && open && { color: colors.text }, { color: colors.danger }]}>{snapshot.game_type === 'flush' || snapshot.game_type === 'marriage' ? ui("rooms.leave_table") : ui("common.leave_gameortable", { "gameOrTable": noun })}</Text></Pressable> : null;
+    ? <Pressable accessibilityRole="button" accessibilityLabel={snapshot.game_type === 'flush' || snapshot.game_type === 'marriage' ? ui("rooms.leave_table") : ui("common.leave_gameortable", { "gameOrTable": noun })} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => void lobbyAction('/leave')} style={{ minHeight: 44, padding: 10, justifyContent: 'center', flexDirection: 'row', alignItems: 'center', gap: 8 }}><Ionicons name="exit-outline" size={19} color={colors.text} /><Text style={[styles.text, { color: colors.text }]}>{snapshot.game_type === 'flush' || snapshot.game_type === 'marriage' ? ui("rooms.leave_table") : ui("common.leave_gameortable", { "gameOrTable": noun })}</Text></Pressable> : null;
   const ruleReview = snapshot?.rule_proposal && <RuleProposal key={snapshot.rule_proposal.id} proposal={snapshot.rule_proposal} busy={busy} userId={userId} error={uiLabel(error, 'feedback')} vote={accept => void lobbyAction('/rule-vote', { proposal_id: snapshot.rule_proposal!.id, accept })} />;
   async function enterTable(matchId: string, action: TableEntry) {
     if (busy || pending.current) return;
@@ -434,8 +433,6 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
         backgroundColor: gameTheme.colors.background, paddingTop: insets.top, paddingBottom: insets.bottom,
         paddingLeft: insets.left, paddingRight: insets.right,
       }]}><View accessibilityViewIsModal testID="live-game-overlay" style={[styles.liveOverlay, (mobileGame || snapshot.game_type === 'flush') && !chat && { paddingBottom: 0 }]}>
-        <GameSessionStatus snapshot={snapshot} userId={userId} busy={busy || !connected || !synced}
-          act={command => lobbyAction(`/table/${command}`)} />
         {snapshot.game_type === 'flush' ? <FlushTable connectionReady={connected && synced} onLock={() => void lobbyAction('/table/lock')} tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onFormationBlocked={setFormationBlocked} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={uiLabel(error, 'feedback')}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: text => social.send(snapshot.match_id!, null, text) }}
           onSave={payload => lobbyAction('/flush-settings', payload)} onStart={rules_revision => lobbyAction('/start', { rules_revision })}
@@ -459,17 +456,19 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
         </ScrollView>
         {chat}
         {snapshot.status !== 'ended' && snapshot.rule_proposal?.status === 'PENDING' && ruleReview}
+        <GameSessionStatus snapshot={snapshot} userId={userId} busy={busy || !connected || !synced}
+          act={command => lobbyAction(`/table/${command}`)} />
       </View></View></TableSocialPresentation></ThemeContext.Provider> :
       <GameModalContent><KeyboardFrame style={[styles.overlay, { paddingVertical: 16 }]}><View accessibilityViewIsModal style={styles.modal}>
         <FormScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
           <Text accessibilityRole="header" style={styles.title}>{ui("rooms.create_table")}</Text>
-          <CreateTableForm session={{user_id:userId,token}} game={gameType} setGame={value=>onGameTypeChange?.(value)} callbreakPlayers={capacity} setCallbreakPlayers={setCapacity} name={tableName} setName={setTableName} invitees={selectedInvitees} setInvitees={setSelectedInvitees} busy={busy || !creationEnabled}/>
+          <CreateTableForm session={{user_id:userId,token}} game={gameType} setGame={value=>onGameTypeChange?.(value)} callbreakPlayers={capacity} setCallbreakPlayers={setCapacity} invitees={selectedInvitees} setInvitees={setSelectedInvitees} busy={busy || !creationEnabled}/>
         </FormScrollView>
         <FormFooter>
           {!!error && <Text accessibilityRole="alert" style={styles.modalError}>{uiLabel(error, 'feedback')}</Text>}
           {!synced && <Text accessibilityLiveRegion="polite" style={styles.note}>{sessionActive ? ui("common.waiting_for_the_table_service_your_form_will_stay_open_while_it_retries") : ui("feedback.sign_in_again_before_creating_a_table")}</Text>}
           {refreshError && sessionActive && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.retry_table_service")} onPress={() => setActionTick(value => value + 1)} style={styles.choice}><Text style={styles.text}>{ui("rooms.retry_table_service")}</Text></Pressable>}
-          <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_this_table")} disabled={busy || !creationEnabled || !tableName.trim()} accessibilityState={{ disabled: busy || !creationEnabled || !tableName.trim() }} onPress={() => void act(false)} style={[styles.button, {borderWidth:1,borderColor:colors.onPrimary}, (busy || !creationEnabled || !tableName.trim()) && { opacity: visualStates.disabledOpacity }]}><Text style={styles.buttonText}>{ui("rooms.create_table")}</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_this_table")} disabled={busy || !creationEnabled} accessibilityState={{ disabled: busy || !creationEnabled }} onPress={() => void act(false)} style={[styles.button, {minHeight:52,borderWidth:1,borderColor:colors.onPrimary}, (busy || !creationEnabled) && { opacity: visualStates.disabledOpacity }]}><Text style={styles.buttonText}>{ui("rooms.create_table")}</Text></Pressable>
           <Pressable accessibilityRole="button" onPress={() => setOpen(false)} style={styles.choice}><Text style={styles.text}>{ui("common.back_to_room")}</Text></Pressable>
         </FormFooter>
       </View></KeyboardFrame></GameModalContent>}
@@ -487,7 +486,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   bidNotice: { padding: 14, gap: 10, borderRadius: radii.medium, borderWidth: 1, borderColor: colors.accent, backgroundColor: colors.surfaceSelected },
   liveBackdrop: { flex: 1, backgroundColor: colors.overlay, alignItems: 'center', justifyContent: 'center' },
   gameFooter: { flexGrow: 0, flexShrink: 0, maxHeight: '38%', borderTopWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  liveOverlay: { width: '100%', height: '100%', paddingBottom: 64, overflow: 'hidden', backgroundColor: colors.background },
+  liveOverlay: { width: '100%', height: '100%', paddingBottom: 0, overflow: 'hidden', backgroundColor: colors.background },
   codePanel: { padding: 16, borderRadius: radii.medium, backgroundColor: colors.surface, gap: 8 },
   code: { fontFamily: fonts.medium, fontSize: 22, color: colors.text, letterSpacing: 1 },
   joinHint: { fontFamily: fonts.body, fontSize: 12, lineHeight: 21, color: colors.textMuted, marginTop: 8 },

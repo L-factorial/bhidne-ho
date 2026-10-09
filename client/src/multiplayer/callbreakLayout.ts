@@ -1,8 +1,8 @@
-/** Room for two readable stat rows, with played cards on the inward side. */
-export function callBreakSeatGeometry(count: number, width: number, fontScale = 1, measuredSeatHeight = 0) {
+/** Room for avatar and adjacent bid/won info, with played cards on the inward side. */
+export function callBreakSeatGeometry(count: number, width: number, fontScale = 1, measuredSeatHeight = 0, availableHeight = 0) {
   const seatWidth = Math.min(144, Math.max(100, width * .36));
-  const seatHeight = Math.max(Math.ceil(140 * Math.max(1, fontScale)), Math.ceil(measuredSeatHeight));
-  const height = seatHeight * 4 + 80;
+  const seatHeight = Math.max(Math.ceil(112 * Math.max(1, fontScale)), Math.ceil(measuredSeatHeight));
+  const height = Math.max(seatHeight * 4 + 80, availableHeight || seatHeight * 4 + 80);
   const middle = width / 2, top = seatHeight / 2, bottom = height - seatHeight / 2;
   const left = seatWidth / 2, right = width - seatWidth / 2;
   const side = bottom - seatHeight;

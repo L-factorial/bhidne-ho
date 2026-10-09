@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated } from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
-import { notificationKey, notificationText } from './gameNotification';
+import { notificationKey, notificationText, requiredActionKey } from './gameNotification';
 import { usePong } from './usePong';
 
 export function useGameNotification(snapshot: RoomSnapshot | null, collapsed: boolean, animate = true) {
@@ -11,7 +11,9 @@ export function useGameNotification(snapshot: RoomSnapshot | null, collapsed: bo
   const [reduceMotion, setReduceMotion] = useState(false);
   const opacity = useRef(new Animated.Value(1)).current;
   const previous = useRef('');
+  const previousAction = useRef('');
   const key = notificationKey(snapshot);
+  const actionKey = requiredActionKey(snapshot);
   useEffect(() => {
     let alive = true;
     void AccessibilityInfo.isReduceMotionEnabled().then(value => { if (alive) setReduceMotion(value); }).catch(() => {});
@@ -21,11 +23,14 @@ export function useGameNotification(snapshot: RoomSnapshot | null, collapsed: bo
   useEffect(() => {
     const old = previous.current;
     previous.current = key;
+    const newAction = !!actionKey && actionKey !== previousAction.current;
+    previousAction.current = actionKey;
+    if (newAction && !muted) play();
     if (!collapsed) { setNotice(''); return; }
     if (!snapshot || !old || key === old) return;
     setNotice(notificationText(snapshot));
-    if (!muted) play();
-  }, [key, collapsed, snapshot, muted, play]);
+    if (!newAction && !muted) play();
+  }, [key, actionKey, collapsed, snapshot, muted, play]);
   useEffect(() => {
     if (!animate || !notice || !collapsed || reduceMotion) { opacity.setValue(1); return; }
     const animation = Animated.loop(Animated.sequence([

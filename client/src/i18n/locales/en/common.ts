@@ -1,5 +1,6 @@
 // Editable English common copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "propose_changes": "Propose changes",
   "card_theme_saving": "Updating the table’s card theme…",
   "card_theme_controller_help": "Only the dealer can change this theme. The creator controls it when no dealer is assigned.",
   "card_theme_shared_help": "Everyone at this table sees the same card backs.",
@@ -194,7 +195,7 @@ export default {
   "all_suits": "All suits",
   "filter_hand_by_suit": "Filter hand by suit",
   "drag_card_to_reorder": "Drag onto another card to move it before that card.",
-  "shuffle_suits": "Shuffle suits",
+  "shuffle_suits": "Group by suit",
   "spades": "Spades",
   "clubs": "Clubs",
   "hearts": "Hearts",
@@ -540,7 +541,7 @@ export default {
   "attention_tunnela": "TUNNELA DETECTED",
   "close_game_stats": "Close game summary",
   "stats_round_trick": "Round {{round}} • Trick {{trick}}",
-  "stats_previous_bid_bonus": "Previous bids {{bids}} • Bonus {{bonus}}",
+  "stats_previous_bid_bonus": "Previous bids {{bids}}.{{bonus}}",
   "stats_current_bid_won": "Current bid {{bid}} / Tricks won {{won}}",
   "stats_round_standing": "Round {{round}} • Bid {{bid}} / Won {{won}}",
   "stats_flush_totals": "Blind bets {{blind}} • Bets {{bets}} • Contributed {{contribution}}",
