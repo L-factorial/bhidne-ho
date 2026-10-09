@@ -20,8 +20,11 @@
   test with HTTP permissions and changing catalog permissions. The affected
   backend suite passed 90 cases before the preview fix, with only its three
   exact-preview checks failing; the corrected view-generation/recovery rerun
-  passes all seven cases. The SQL suite passed 78 cases, exposing the recovery
+  passes all five cases. The SQL suite passed 78 cases, exposing the recovery
   fixture race now fixed. Diff checks pass. Native load/process gates run in CI.
+  A broader run passed 1289 cases and found two remaining outdated checks for
+  multiple games per room and five-player review defaults. Both are updated;
+  their four-case rerun (including the loopback metrics listener) passes.
 - Exact next step: commit/push these release blockers, supersede the older
   test-only run, and verify the corrected workflow activates one identical
   client/backend image on both hosts plus public HTTPS health/frontend checks.

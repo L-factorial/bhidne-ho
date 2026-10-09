@@ -438,7 +438,8 @@ async def test_player_play_waits_for_input_and_completes_match(n):
         assert len(game.state.completed_deals) == 5
         assert all(p.bid == 2 for d in game.state.completed_deals for p in d.deal.players)
         assert not any(data.get("event") == "AutoAction" for _, data in delivery.public)
-        assert {Phase.BIDDING, Phase.PLAYING, Phase.HAND_REVIEW} <= checked_phases
+        assert {Phase.BIDDING, Phase.PLAYING} <= checked_phases
+        assert (Phase.HAND_REVIEW in checked_phases) == (n == 4)
     finally:
         await service.close()
 

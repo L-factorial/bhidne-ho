@@ -87,8 +87,12 @@ def test_marriage_http_lifecycle_private_hands_retries_and_room_chat_policy():
         assert client.post(root + '/marriage-settings', headers=headers[0], json=settings).json()['marriage_scoring'] == custom
         assert client.get(root, headers=headers[2]).json()['marriage_scoring'] == custom
         assert not client.app.state.participation.is_playing('marriage-room', users[0]['user_id'])
-        # A Call Break and Marriage game cannot compete for the same room.
-        assert client.post(root, headers=headers[1], json={'player_count': 4}).status_code == 409
+        # Separate games share a room without changing the Marriage table.
+        parallel = client.post(root, headers=headers[2], json={'player_count': 4})
+        assert parallel.status_code == 201
+        assert parallel.json()['match_id'] != mid and parallel.json()['table_name'] != waiting.json()['table_name']
+        assert client.post(root + '/end', headers=headers[2], json={'match_id': parallel.json()['match_id']}).status_code == 200
+        assert client.get(root, headers=headers[0], params={'match_id': mid}).json()['marriage_scoring'] == custom
         joined = client.post(root + '/join', headers=headers[1], json={'match_id': mid})
         assert joined.json()['ready']
         assert client.post(root + '/leave', headers=headers[1], json={'match_id': mid}).json()['your_player_id'] is None
