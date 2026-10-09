@@ -17,6 +17,18 @@ test('Call Break chooses only legal cards for the pending player',()=>{
  const rng=random(9);const seen=new Set();for(let i=0;i<100;i++){const action=move(view,rng,3)!;assert.equal(action.command,'PLAY_CARD');seen.add(action.payload.card);}assert.deepEqual(seen,new Set(['AS','2H']));
  assert.equal(move({...view,your_player_id:1},rng,3),null);
 });
+test('Call Break advances dealer selection using only available positions',()=>{
+ const view={game_type:'callbreak',your_player_id:2,game:{turn:{action:'PICK_DEALER_CARD',pending_players:[2]},dealer_selection:{available_positions:[4,7,12]}}};
+ const rng=random(9),seen=new Set();
+ for(let i=0;i<100;i++){
+  const action=move(view,rng,0)!;
+  assert.equal(action.command,'PICK_DEALER_CARD');
+  assert(view.game.dealer_selection.available_positions.includes(action.payload.position));
+  seen.add(action.payload.position);
+ }
+ assert.equal(seen.size,3);
+ assert.equal(move({...view,your_player_id:1},rng,0),null);
+});
 test('Flush honors required bet and eventually folds; preparation varies',()=>{
  const v={game_type:'flush',flush:{private:{actions:{kinds:['bet'],required_bet:16}}}};
  assert.deepEqual(move(v,random(1),0),{command:'BET',payload:{amount:16}});

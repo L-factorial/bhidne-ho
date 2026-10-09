@@ -25,9 +25,21 @@
   A broader run passed 1289 cases and found two remaining outdated checks for
   multiple games per room and five-player review defaults. Both are updated;
   their four-case rerun (including the loopback metrics listener) passes.
-- Exact next step: commit/push these release blockers, supersede the older
-  test-only run, and verify the corrected workflow activates one identical
-  client/backend image on both hosts plus public HTTPS health/frontend checks.
+  The final full local backend/SQL regression run passes 1979 cases, with 30
+  optional native-service/process cases skipped; CI runs the real-service gate.
+  Evidence: `/private/tmp/bhidne-release-backend-sql-full.log` and
+  `/private/tmp/bhidne-release-client-tests.log`.
+- Release fixes are committed/pushed as `dc00ee2` and `4236c50`. Superseded
+  test-only runs were canceled; the final production run is
+  `https://github.com/L-factorial/bhidne-ho/actions/runs/37992844001`.
+- That CI run passed 2003 backend cases but failed the Call Break native
+  load-driver scenario: its move selector omitted initial `PICK_DEALER_CARD`
+  and therefore stalled without sending an action. No image was published and
+  neither server was changed. The driver now selects only authorized available
+  dealer-card positions; its 12 model tests pass, including pending-player and
+  position validation. The production application code is unchanged by this fix.
+- Exact next step: finish monitoring that workflow, verify one identical
+  client/backend image on both hosts, and check public HTTPS health/frontend.
 
 ## 2026-10-09: Call Break bidding-section pulse
 

@@ -19,6 +19,7 @@ export function move(v:any,rng:()=>number,steps:number):Move|null {
     if(v.round_review?.can_continue)return m('NEXT_DEAL',{deal_number:v.round_review.deal_number});
     const turn=v.game?.turn;if(!turn?.pending_players?.includes(v.your_player_id))return null;
     switch(turn.action){
+      case 'PICK_DEALER_CARD':return m('PICK_DEALER_CARD',{position:choice(v.game.dealer_selection.available_positions,rng)});
       case 'SHUFFLE_DECK':return m('SHUFFLE_DECK');
       case 'CUT_OR_SKIP':return rng()<.2?m('SKIP_CUT'):m('CUT_DECK',{position:1+Math.floor(rng()*51)});
       case 'START_DISTRIBUTION':return m('START_DISTRIBUTION');
