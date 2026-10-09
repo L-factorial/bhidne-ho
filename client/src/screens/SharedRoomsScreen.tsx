@@ -293,7 +293,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
     paddingTop: Math.max(insets.top, 16), paddingBottom: (room ? Math.max(insets.bottom, 28) + 64 : 24),
   }]}>
     <View style={[styles.content, !session && {maxWidth: 460}, room && { flexGrow: 1, maxWidth: 760 }]}>
-      <AppHeader lobby={!room && !!session} onOpenProfile={!room ? () => setLobbyProfileOpen(true) : undefined} inlineActions={session && !expired ? <NotificationBell session={session} onOpenActivity={target=>{
+      <AppHeader logoSize={!session ? (wide ? 60 : 52) : undefined} lobby={!room && !!session} onOpenProfile={!room ? () => setLobbyProfileOpen(true) : undefined} inlineActions={session && !expired ? <NotificationBell session={session} onOpenActivity={target=>{
         if(target.otherUserId){setChatPlayer(target.otherUserId);setLobbyTab('chat');shared.exitRoom();}
         else if(target.roomId)setCodeInvitation(target);
       }} onOpenTable={invited => {

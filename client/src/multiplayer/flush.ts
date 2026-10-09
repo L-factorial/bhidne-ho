@@ -10,6 +10,7 @@ export type FlushRules = {
 };
 export type FlushSettings = { rules: FlushRules; rules_revision: number; locked: boolean };
 export type FlushView = {
+  history?: { sequence: number; revision: number; round_number: number; kind: string; player_id: string | null; amount: number; target_player_id: string | null; loser_player_id: string | null; winner_ids: string[]; visibility?: 'seen' | 'blind' | null; bet_number?: number | null }[];
   side_show_events?: {sequence:number;revision:number;kind:string;player_id:string;target_player_id:string}[];
   folds?: { sequence: number; revision: number; player_id: string }[];
   participants?: { player_id: string; display_name: string }[];

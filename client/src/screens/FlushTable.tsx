@@ -21,6 +21,7 @@ import { type ReactNode, useEffect, useState } from 'react';
 import {Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions} from 'react-native';
 import { visualStates, radii, fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import type { RoomSnapshot } from './LiveGameTable';
+import { GameStats, useGameStats } from '../components/GameStats';
 import { FlushFoldNotice } from '../components/FlushFoldNotice';
 import { FlushLockButton } from '../components/FlushLockButton';
 import { FlushArena } from '../components/FlushArena';
@@ -28,6 +29,8 @@ import { FlushCards } from '../components/FlushCards';
 import { FlushBetTable } from '../components/FlushBetTable';
 import { PokeComposer } from '../components/PokeComposer';
 import type { PlayerPhrase } from '../multiplayer/pokes';
+import { GameRules } from '../components/GameRules';
+import { canConfigureGameRules } from '../multiplayer/gameRulesConfig';
 import type { FlushRules } from '../multiplayer/flush';
 
 const labels: Record<keyof FlushRules, string> = {
@@ -67,6 +70,8 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   const act = onAction;
   const settings = snapshot.flush_settings!;
   const [handOpen, setHandOpen] = useState(true);
+  const stats = useGameStats(snapshot.match_id, snapshot.your_player_id);
+  const [rulesExplanationOpen, setRulesExplanationOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [betsOpen, setBetsOpen] = useState(false);
   const socialAnchor = useSocialHandAnchor();
@@ -78,16 +83,17 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   const [dirty, setDirty] = useState(false);
   const [localError, setLocalError] = useState('');
   const stale = baseRevision !== settings.rules_revision;
-  useEffect(() => { onFormationBlocked?.(dirty || stale); }, [dirty, stale, onFormationBlocked]);
+  const configurationAvailable = canConfigureGameRules(snapshot);
+  useEffect(() => { onFormationBlocked?.(configurationAvailable && (dirty || stale)); }, [configurationAvailable, dirty, stale, onFormationBlocked]);
   useEffect(() => () => onFormationBlocked?.(false), [onFormationBlocked]);
   function reload() { setDraft({ ...settings.rules }); setBaseRevision(settings.rules_revision); setDirty(false); setLocalError(''); }
   useEffect(() => {
     const saved = { ...settings.rules };
     if (!dirty || Object.entries(saved).every(([key, value]) => String(draft[key]) === String(value))) reload();
   }, [settings.rules_revision]);
-  const editable = !ended && snapshot.is_creator && !settings.locked && !busy && snapshot.rule_proposal?.status !== 'PENDING';
+  const editable = canConfigureGameRules(snapshot) && !busy;
   useEffect(() => { if (snapshot.rule_proposal) reload(); }, [snapshot.rule_proposal?.id, snapshot.rule_proposal?.status]);
-  const shownRules = settings.locked ? { ...settings.rules } : draft;
+  const shownRules = canConfigureGameRules(snapshot) ? draft : { ...settings.rules };
   function edit(key: string, value: string | boolean) { setDraft(v => ({ ...v, [key]: value })); setDirty(true); setLocalError(''); }
   function save() {
     const values: Record<string, string | number | boolean> = { ...draft };
@@ -131,8 +137,8 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   const [acknowledged, setAcknowledged] = useState(() => { try { return Number(globalThis.sessionStorage?.getItem(ackKey) || 0); } catch { return 0; } });
   const [flippedAll, setFlippedAll] = useState(false);
   const [resultOpen, setResultOpen] = useState(false);
-  useEffect(()=>{if(myTurn&&pub?.pending_side_show)setHandOpen(true);},[myTurn,pub?.pending_side_show?.revision,pub?.pending_side_show?.accepted]);
-  const comparisonOpen = !ended && !!comparison && comparison.revision > acknowledged;
+  useEffect(()=>{if(!stats.open&&myTurn&&pub?.pending_side_show)setHandOpen(true);},[myTurn,pub?.pending_side_show?.revision,pub?.pending_side_show?.accepted]);
+  const comparisonOpen = !stats.open && !ended && !!comparison && comparison.revision > acknowledged;
   useEffect(() => { setFlippedAll(false); setResultOpen(false); }, [comparison?.revision]);
   useEffect(() => { if (!flippedAll) return; const timer = setTimeout(() => setResultOpen(true), 400); return () => clearTimeout(timer); }, [flippedAll]);
   function acknowledge() {
@@ -157,8 +163,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   </View> : null;
   const rulesContent = <>
       <Text style={s.title}>{settings.locked ? ui("rooms.rules_locked_for_this_game") : ui("rooms.rules_before_starting")}</Text>
-      <Text style={s.text}>{ui("flush.boot_help")}</Text>
-      <Text style={s.text}>{ui("flush.betting_help")}</Text>
+      <Text style={s.text}>{ui(canConfigureGameRules(snapshot) ? 'common.rules_config_editable' : 'common.rules_config_read_only')}</Text>
       {stale && dirty && !settings.locked && <Text accessibilityRole="alert" style={s.error}>{ui("common.saved_rules_changed_reload_before_editing_or_starting")}</Text>}
       {(Object.keys(labels) as (keyof FlushRules)[]).map(key => {
         const value = shownRules[key]; const label = uiLabel(labels[key], 'flush');
@@ -190,10 +195,11 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
     : ui("rooms.seated_capacity_seated", {seated: snapshot.players?.length || 0, capacity: snapshot.capacity});
   return <View style={[s.page, mobile && { padding: 8, gap: 4 }]} testID="flush-table">
     <GameTableHeader showShare={showTableHeaderShare(snapshot)} tableName={snapshot.table_name} title={ui("rooms.flush")} compact path={snapshot.path} game="flush" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack} mobileTestIds drawerMetadata={<GameMenuMetadata snapshot={snapshot} />}>
-      {closeMenu => <FlushMenu snapshot={snapshot} close={closeMenu} rules={() => setRulesOpen(true)} history={() => setBetsOpen(true)}
+      {closeMenu => <FlushMenu snapshot={snapshot} close={closeMenu} rules={() => setRulesExplanationOpen(true)} rulesConfig={() => setRulesOpen(true)} history={() => setBetsOpen(true)}
         poke={() => setPokeOpen(true)} canPoke={social.connected} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl} />}
     </GameTableHeader>
     <View style={s.mainColumn} testID="flush-main-column">
+      <GameStats snapshot={snapshot} open={stats.open} onOpen={() => { setHandOpen(false); stats.show(); }} onClose={stats.close}>
       <ScrollView style={s.playViewport} onLayout={e => setArenaHeight(Math.max(280, e.nativeEvent.layout.height))}
         contentContainerStyle={s.playArea}>
         <FlushArena key={`${snapshot.match_id}:${pub?.round_number || 0}`} snapshot={snapshot}
@@ -204,10 +210,11 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
       </ScrollView>
       {sideMessage&&<Text testID="flush-side-show-notice" accessibilityLiveRegion="polite" style={{color:colors.accent,textAlign:'center'}}>{sideMessage}</Text>}
       {pub && <View pointerEvents="none" style={s.notice}><FlushFoldNotice key={`folds:${snapshot.match_id}`} snapshot={snapshot} /></View>}
+      </GameStats>
       <View ref={socialAnchor.ref} onLayout={socialAnchor.onLayout} style={s.handDock} testID="flush-hand-dock">
-        {!!mine && <HandAreaBar cue={gameAttention(snapshot)} open={handOpen} onToggle={() => setHandOpen(value=>!value)} attention={myTurn && connectionReady && !ended}
+        {!!mine && <HandAreaBar cue={gameAttention(snapshot)} open={handOpen && !stats.open} onToggle={() => { stats.close(); setHandOpen(value=>!value); }} attention={myTurn && connectionReady && !ended}
           instruction={ui("common.your_turn_action", { "action": turnText })}/>}
-        <View style={{display:!mine || handOpen?'flex':'none',alignItems:'center',gap:6,alignSelf:'stretch'}} accessibilityElementsHidden={!!mine&&!handOpen} importantForAccessibility={mine&&!handOpen?'no-hide-descendants':'auto'}>
+        <View style={{display:!mine || handOpen && !stats.open?'flex':'none',alignItems:'center',gap:6,alignSelf:'stretch'}} accessibilityElementsHidden={!!mine&&(!handOpen||stats.open)} importantForAccessibility={mine&&(!handOpen||stats.open)?'no-hide-descendants':'auto'}>
         {!ended && mine && !preparing && !pub?.settlement && <View style={s.cards} testID="flush-own-cards">
           <View style={s.scaledCards}><FlushCards tapToToggle key={pub?.round_number} cards={mine.cards} /></View>
         </View>}
@@ -250,12 +257,13 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
     </Modal>
     {!ended && pokeOpen && <PokeComposer recipient={null} connected={social.connected} phrases={social.phrases} onSave={social.save}
       onSend={social.send} onClose={() => setPokeOpen(false)} />}
-    <RoomSheet visible={rulesOpen} title={ui("flush.flush_rules")} closeLabel={ui("common.close_flush_rules")} onClose={() => setRulesOpen(false)} testID="flush-rules"
-      footer={!settings.locked && snapshot.is_creator ? <FormFooter>{!!(localError || error) && <Text accessibilityRole="alert" style={s.error}>{uiLabel(localError || error, 'feedback')}</Text>}<View style={[s.row, { flexWrap: 'wrap' }]}>{button('Propose Flush rules', save, busy || !dirty || stale || snapshot.rule_proposal?.status === 'PENDING')}{button('Reload saved rules', reload, busy)}</View></FormFooter> : undefined}>
+    <GameRules snapshot={snapshot} visible={rulesExplanationOpen} onClose={() => setRulesExplanationOpen(false)} />
+    <RoomSheet visible={rulesOpen} title={ui("common.game_rules_config")} closeLabel={ui("common.close_game_rules_config")} onClose={() => setRulesOpen(false)} testID="flush-rules-config"
+      footer={canConfigureGameRules(snapshot) ? <FormFooter>{!!(localError || error) && <Text accessibilityRole="alert" style={s.error}>{uiLabel(localError || error, 'feedback')}</Text>}<View style={[s.row, { flexWrap: 'wrap' }]}>{button('Propose Flush rules', save, busy || !dirty || stale || snapshot.rule_proposal?.status === 'PENDING')}{button('Reload saved rules', reload, busy)}</View></FormFooter> : undefined}>
       {rulesContent}
     </RoomSheet>
     {/* Automatic results wait for chat; a second modal would trap focus behind it. */}
-    <Modal transparent visible={finalShowOpen && finalStage !== null && !chatOpen} animationType={Platform.OS === 'web' ? 'none' : 'fade'} onRequestClose={() => setFinalShowOpen(false)}>
+    <Modal transparent visible={finalShowOpen && finalStage !== null && !chatOpen && !stats.open} animationType={Platform.OS === 'web' ? 'none' : 'fade'} onRequestClose={() => setFinalShowOpen(false)}>
       <View style={s.backdrop}><View style={s.modal} accessibilityViewIsModal testID="flush-show-overlay">
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text accessibilityRole="header" style={s.title}>{finalStage === 'pending' ? ui("flush.final_show") : ui("flush.round_result")}</Text>

@@ -3,7 +3,7 @@ import { GameModal as Modal } from './GameModal';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { Ionicons } from '@expo/vector-icons';
-import { BrandIcon, headerLogoSize } from './BrandArt';
+import { BrandIcon } from './BrandArt';
 import { KeyboardFrame } from './KeyboardFrame';
 import { type ReactNode, createContext, useContext, useEffect, useState } from 'react';
 import {Platform, Pressable, ScrollView, View, useWindowDimensions} from 'react-native';
@@ -61,14 +61,14 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
       <CardThemePicker />
     </RoomSheet>
     <View testID={`${game}-${mobile && mobileTestIds ? 'mobile-' : ''}header`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 8, backgroundColor: colors.surface, borderBottomWidth: 1, borderColor: colors.borderSubtle }}>
-      <View style={{flexDirection:'row',alignItems:'center',gap:8,flex:1,minWidth:0}}>
-        <BrandIcon size={mobile ? 36 : headerLogoSize.regular} />
+      <View style={{flexDirection:'row',alignItems:'center',flexShrink:0}}>
+        <BrandIcon />
       </View>
       <View testID={`${game}-header-location`} style={{flex:1,minWidth:0,alignItems:'center'}}>
         <Text numberOfLines={1} accessibilityRole="header" style={{fontFamily:fonts.medium,fontSize:small?16:20,color:colors.text}}>{title}</Text>
         <Text numberOfLines={1} style={{fontFamily:fonts.body,fontSize:11,color:colors.textMuted}}>{roomName ? `${roomName} → ${tableName || title}` : path || tableName || ''}</Text>
       </View>
-      <View style={{flex:1,flexDirection:'row',alignItems:'center',justifyContent:'flex-end',gap:4,minWidth:88}}>
+      <View style={{flexShrink:0,flexDirection:'row',alignItems:'center',justifyContent:'flex-end',gap:4,minWidth:88}}>
       <Pressable accessibilityRole="button" accessibilityLabel={t('common.backToLobby')} onPress={onBack}
         style={({ pressed }) => ({ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radii.medium, backgroundColor: pressed ? colors.surfaceRaised : 'transparent' })}>
         <Ionicons name="arrow-back" size={22} color={colors.text} />
@@ -93,7 +93,7 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
               style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.textMuted, fontSize: 24 }}>×</Text></Pressable>
           </View>
           {drawerMetadata}
-          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 8, marginHorizontal: -8, paddingBottom: 8 }}>
+          <ScrollView keyboardShouldPersistTaps="handled" horizontal={false} showsVerticalScrollIndicator={false} style={{ flex: 1, minWidth: 0, width: '100%' }} contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 8, paddingBottom: 8 }}>
             {menuControls}
             {typeof children === 'function' ? children(() => setOpen(false)) : children}
           </ScrollView>

@@ -1,5 +1,113 @@
 # Distributed runtime implementation plan
 
+## 2026-10-08: separate game explanations and rule configuration
+
+- User-expanded scope: distinct Game rules and Game rules config drawer entries
+  for Call Break, Marriage and Flush. Explanations describe gameplay and supported
+  configurable variations; configuration focuses on concise controls and values.
+- Completed: shared read-only explanation sheet with English/Nepali gameplay,
+  scoring and variation descriptions. Existing settings and proposal workflows
+  remain in separate configuration sheets, without their explanatory paragraphs.
+  Marriage's former Rules/config tabs become separate drawer destinations.
+- Configuration editing requires the creator, waiting status, an OPEN table,
+  unlocked Flush settings and no pending proposal. Locked/started games and
+  other viewers can inspect agreed settings without changing them. Locking while
+  a configuration sheet is open disables its controls and hides proposal actions;
+  unsaved drafts do not replace the agreed read-only values or block locked Flush
+  table controls.
+- Verification: 411 client tests pass, including configuration availability for
+  locked/started/completed tables, non-creators and pending proposals. Six browser
+  fixture cases pass across all games at 320/1280px, covering distinct destinations,
+  explanation-only content, editable waiting settings and live lock transitions.
+  TypeScript and production web build pass.
+- Limitations: local only, no native-device check or deployment; backend rule
+  validation and unanimous approval requirements retain their existing behavior.
+- Exact next step: include these drawer changes in the requested client release,
+  then verify explanations and configuration on native devices.
+
+## 2026-10-08: draggable Call Break hands
+
+- User-expanded scope: make Call Break hand cards draggable like Marriage in
+  every hand view, and make the existing suit-shuffle control regroup cards in
+  a randomized suit order that alternates red and black where possible.
+- Completed: fan, suit-filtered fan and grid reuse Marriage's gesture behavior.
+  Movement starts a drag without selecting or playing a card; local ordering
+  works outside the player's turn and on cards that are currently illegal to
+  play. Legal-card selection and explicit play confirmation remain enforced.
+  Hand and drawer scrolling pause during a card drag.
+- Manual order survives view changes, suit filters, hide/show, collapse/expand
+  and cards leaving the hand; a new deal resets the order. Shuffle suits clears
+  manual ordering, groups by suit and ascending rank, chooses a different visible
+  suit order and maximizes color alternation among the suits still present.
+  Internal All filtering no longer depends on translated display text.
+- Verification: 410 client tests pass, including partial-suit alternation and
+  ordering after card removal. Local browser fixtures exercise actual mouse
+  drags in all views at 320/390/1280px, including unplayable cards, filtering,
+  local-only changes, hide/show and collapse/expand persistence, and explicit
+  legal-card confirmation. TypeScript and the production web build pass.
+- Limitations: no native-device drag verification or deployment. Ordering is a
+  local presentation preference; hidden/unrevealed hands retain their privacy
+  and reveal behavior.
+- Exact next step: include this change in the requested client release and verify
+  touch dragging on an iOS and Android device with existing text/display settings.
+
+## 2026-10-08: shared game stats and responsive game layouts
+
+- User-expanded scope: implement the agreed Marriage, Call Break and Flush
+  game-stats overlay, hand interaction, inward Call Break cards and drawer fixes.
+- Completed: all three games have a top-left Game stats control and a scrollable
+  overlay with default All and individual player tabs. Opening stats collapses
+  the hand; expanding the hand closes stats. Required-action notifications keep
+  the collapsed hand pulsing, with automatic hand expansion suppressed while
+  stats is open. Marriage announcements wait until stats closes.
+- Marriage stats show public Maal/qualification status and shown melds, replacing
+  the old shown-cards button that overlapped the top seat. Flush stats include
+  round-labelled public action history, seen/blind state at each action, per-seat
+  bet number, side shows and results. History explicitly excludes card payloads.
+  Call Break stats include previous tricks/winners and round standings; the table
+  shows prior-round bid sums and separate bonus, current bid/tricks won, central
+  round/trick/turn information and played cards inward of their respective seats.
+- Layout: all game drawers fit horizontally and scroll vertically. Call Break
+  seats reserve space for two wrapping stat rows and grow with measured text;
+  Marriage reserves the measured collapsed-hand height. Tall tables remain
+  vertically scrollable on small screens or with enlarged text. English and
+  Nepali translations cover the new controls and status text.
+- Verification: all 408 client tests and 52 focused backend tests pass (5 optional
+  database tests skipped). Public history survives hosted checkpoint restoration.
+  TypeScript and the production web build pass. The checked-in browser fixtures
+  pass 18 cases at 320/390/1280px, covering tabs, scrolling, mutual exclusion,
+  notification pulsing, drawer bounds, spectator reads and four/five-player
+  inward-card geometry; the 320px five-player case also enlarges stat text.
+  The broader database run has three pre-existing view-generation failures:
+  missing `can_end_table: false` metadata. The same three failures reproduce on
+  untouched HEAD in `/private/tmp/bhidne-stats-baseline`; no unrelated fix included.
+- Limitations: local changes only; no native-device check or deployment. New
+  historical data requires the updated backend; existing clients tolerate the
+  additive public snapshot fields.
+- Exact next step: review the local UI, then release backend and client together
+  when requested and check Gorkhe's device with its current display/text settings.
+
+## 2026-10-08: consistent app header branding
+
+- User-expanded scope: remove the separate Bhidne Ho header label and enlarge
+  the mobile logo approximately 10%, with one size across application pages;
+  preserve login branding. This supersedes the earlier brand-text wrapping fix.
+- Completed: shared app and game headers use a single 57px square logo (formerly
+  52px in the mobile lobby, 36px in mobile games, 60px on desktop). AppHeader
+  no longer renders the separate brand text. Logo accessibility names remain.
+  Game headers reserve only the space required by the logo and controls, giving
+  the remaining width to game/location text. Page titles and touch targets remain.
+  The unauthenticated sign-in header explicitly keeps its original 52/60px size;
+  welcome artwork and the loading splash retain their existing presentation.
+- Verification: TypeScript, all 404 client tests and a clean web export pass.
+  Chrome fixture checks pass for lobby/profile at 320, 390, 768 and 1280px:
+  both headers show a 57px logo and no separate brand text, with no JS errors.
+  Evidence: `/private/tmp/bhidne-logo-browser.cjs` and profile screenshots at
+  `/private/tmp/bhidne-logo-profile-{320,390,768,1280}.png`.
+- Limitations: local, not deployed; no native device check performed.
+- Exact next step: include this header correction in the next requested frontend
+  release, then check Gorkhe's device with his existing display/text settings.
+
 Current status: implementation increments **1–8 are complete for the isolated
 integration path**; production activation and feature-parity validation remain gated.
 The user has now explicitly brought application observability into scope. Operational

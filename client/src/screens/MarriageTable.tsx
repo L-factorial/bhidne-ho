@@ -27,10 +27,12 @@ import { MarriageCardArea } from '../components/MarriageCardArea';
 import { MarriageCardBack } from '../components/MarriageCardBack';
 import { MarriageHandCard } from '../components/MarriageHandCard';
 import { cardDropTarget, marriageCardMarker, reconcileHandOrder, insertHandCardBefore, type CardBounds } from '../multiplayer/marriageHandOrder';
+import { GameRules } from '../components/GameRules';
 import { MarriageDetails } from '../components/MarriagePlayers';
 import { PokeComposer } from '../components/PokeComposer';
 import type { PlayerPhrase } from '../multiplayer/pokes';
 import type { RoomSnapshot } from './LiveGameTable';
+import { GameStats, useGameStats } from '../components/GameStats';
 import { marriageFace, physicalLabel } from '../multiplayer/marriage';
 
 export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack, onNewGame, onSave, endControl, lobbyControl, social, tableControl, onTableAction }: {
@@ -46,6 +48,8 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const endedNotice = <EndedTableNotice onBack={onBack} onNewGame={onNewGame} />;
   const s = useThemedStyles(createStyles);
   const mobile = useWindowDimensions().width < 900;
+  const stats = useGameStats(snapshot.match_id, snapshot.your_player_id);
+  const [collapsedHandHeight, setCollapsedHandHeight] = useState(90);
   const [arrangement, setArrangement] = useState<MarriageArrangement>("sequence");
   const [manualOrder,setManualOrder] = useState<{key:string;ids:string[]}>({key:'',ids:[]});
   const [draggingCard,setDraggingCard] = useState(false);
@@ -60,7 +64,8 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const [finishPreview, setFinishPreview] = useState(false);
   const handAnchor = useRef<View>(null);
   const tableSocial = useTableSocial();
-  const [details, setDetails] = useState<'stats' | 'rules' | 'points' | null>(null);
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const [details, setDetails] = useState<'stats' | 'config' | 'points' | null>(null);
   const [poke, setPoke] = useState<number | null | undefined>(undefined);
   const pub = snapshot.marriage?.public, mine = snapshot.marriage?.private;
   const hand = mine?.hand || [], actions = mine?.actions;
@@ -106,7 +111,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const [snap, setSnap] = useState<HandSnap>(() => marriageHandSnap(decision));
   // Only a new decision changes the sheet; polling, selecting and showing melds do not.
   useEffect(() => {
-    setSnap(marriageHandSnap(decision));
+    setSnap(stats.open ? 'collapsed' : marriageHandSnap(decision));
     setSelected([]);
   }, [decision, snapshot.match_id, mine?.player_id]);
   const cards = {
@@ -159,17 +164,19 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       style={({ pressed }) => [s.button, gameButtonStyle(colors, 'primary', pressed), !canDiscard && s.disabled]}><Text style={[s.buttonText, { color: colors.onPrimary }]}>{busy ? ui("social.sending") : ui("marriage.discard_card", { "card": marriageFace(selectedCard) })}</Text></Pressable>
   </>;
   useEffect(() => {
-    if (error && !busy && selectedCard && decision === 'DISCARD_REQUIRED') setSnap('expanded');
+    if (!stats.open && error && !busy && selectedCard && decision === 'DISCARD_REQUIRED') setSnap('expanded');
   }, [error, busy, selectedCard?.card_id, decision]);
   return <View style={s.page} testID="marriage-table">
     <GameTableHeader showShare={showTableHeaderShare(snapshot)} tableName={snapshot.table_name} compact title={ui("rooms.marriage")} path={snapshot.path} game="marriage" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack}
       drawerMetadata={<GameMenuMetadata snapshot={snapshot} />}>
       {close => <GameMenu snapshot={snapshot} close={close} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl}
         poke={() => setPoke(null)} pokePlayer={setPoke} canPoke={social.connected}
-        gameActions={(['stats', 'rules', 'points'] as const).map(section => ({ label: section === 'stats' ? ui("common.stats") : section === 'rules' ? ui("common.rules_and_config") : ui("marriage.points"), action: () => setDetails(section) }))} />}
+        rules={() => setRulesOpen(true)} rulesConfig={() => setDetails('config')}
+        gameActions={(['stats', 'points'] as const).map(section => ({ label: section === 'stats' ? ui("common.stats") : ui("marriage.points"), action: () => { if (section === 'stats') { setSnap('collapsed'); stats.show(); } else setDetails(section); } }))} />}
     </GameTableHeader>
     <View style={{ flex: 1, minHeight: 0 }}>
-    <View testID="marriage-play-area" style={[s.playArea, mobile && mine && activeGame && { paddingBottom: 84 }]}>
+    <View testID="marriage-play-area" style={[s.playArea, mobile && mine && activeGame && { paddingBottom: collapsedHandHeight + 8 }]}>
+      <GameStats snapshot={snapshot} open={stats.open} onOpen={() => { setSnap('collapsed'); stats.show(); }} onClose={stats.close}>
       {ended && !pub ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>{endedNotice}</View> : !pub ? <ScrollView contentContainerStyle={s.panel}>
         <PreGameTable snapshot={snapshot}>{startCue}</PreGameTable>
         {!snapshot.is_creator && <Text style={s.text}>{ui("common.waiting_for_the_creator_to_start")}</Text>}
@@ -177,7 +184,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         <View style={s.columns}>
           <View style={s.main}>
             <View style={s.table}>
-              <MarriageAnnouncements key={snapshot.match_id} snapshot={snapshot} />
+              <MarriageAnnouncements key={snapshot.match_id} snapshot={snapshot} suspended={stats.open} />
               <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}><MarriageCardArea snapshot={snapshot} onResult={() => setDetails("points")} handAnchor={handAnchor} canAct={!busy && activeGame} onAction={cards.act} onPoke={activeGame || ended ? undefined : setPoke} /></ScrollView>
               <View style={tableSocial?.canRead ? { marginBottom: 60 } : undefined}>{!isTurn && turnPrompt}</View>
               {snapshot.status === 'finished' && startCue}
@@ -189,8 +196,9 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         </View>
       </>}
       {!!error && (!mine || !activeGame || (mobile && snap === 'collapsed')) && <Text accessibilityRole="alert" style={s.error}>{uiLabel(error, 'feedback')}</Text>}
+      </GameStats>
     </View>
-    {pub && mine && activeGame && <MarriageHandSheet draggingCard={draggingCard} cue={handCue} cardCount={hand.length} anchor={handAnchor} mobile={mobile} snap={snap} onSnap={setSnap} instruction={turnInstruction} attention={declaring || isTurn && !declarationsPending} header={mobileHandHeader} footer={own?.folded || preview || finishPreview ? null : discardFooter}>
+    {pub && mine && activeGame && <MarriageHandSheet onCollapsedHeight={setCollapsedHandHeight} draggingCard={draggingCard} cue={handCue} cardCount={hand.length} anchor={handAnchor} mobile={mobile} snap={stats.open ? 'collapsed' : snap} onSnap={next => { if (next !== 'collapsed') stats.close(); setSnap(next); }} instruction={turnInstruction} attention={declaring || isTurn && !declarationsPending} header={mobileHandHeader} footer={own?.folded || preview || finishPreview ? null : discardFooter}>
     <View testID="marriage-hand-dock" style={[s.handDock, mobile && { backgroundColor: 'transparent', borderTopWidth: 0, padding: 4 }]}>
       <View style={[s.row, { backgroundColor: colors.tableHeader, borderRadius: radii.medium }]}><Text style={[s.small, { color: colors.onTableHeader }]}>{ui("common.your_cards_status", { "status": hand.length })}</Text>
         {!own?.folded && button(ui("marriage.fold"), () => setConfirmFold(true), busy || !social.connected || !actions?.kinds.includes('fold'))}
@@ -261,6 +269,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       </>}
     </View></MarriageHandSheet>}
     </View>
+    <GameRules snapshot={snapshot} visible={rulesOpen} onClose={() => setRulesOpen(false)} />
     <MarriageDetails busy={busy} error={uiLabel(error, 'feedback')} onSave={onSave} snapshot={snapshot} section={details} onClose={() => setDetails(null)} />
     {!ended && poke !== undefined && <PokeComposer recipient={poke} recipientName={snapshot.players?.find(p => p.player_id === poke)?.display_name} connected={social.connected} phrases={social.phrases} onSave={social.save}
       onSend={text => social.send(poke, text)} onClose={() => setPoke(undefined)} />}

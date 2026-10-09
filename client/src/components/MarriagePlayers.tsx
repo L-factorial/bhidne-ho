@@ -76,13 +76,13 @@ export function MarriagePlayers({ snapshot, onPoke, registerSeat, children }: { 
   </>;
 }
 
-export function MarriageDetails({ snapshot, section, onClose, busy, error, onSave }: { busy: boolean; error: string; onSave: (rules: import('../multiplayer/marriage').MarriageScoringRules) => void; snapshot: RoomSnapshot; section: 'stats' | 'rules' | 'points' | null; onClose: () => void }) {
+export function MarriageDetails({ snapshot, section, onClose, busy, error, onSave }: { busy: boolean; error: string; onSave: (rules: import('../multiplayer/marriage').MarriageScoringRules) => void; snapshot: RoomSnapshot; section: 'stats' | 'config' | 'points' | null; onClose: () => void }) {
   const uiLanguage = useUiLanguage();
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
   const pub = snapshot.marriage?.public;
-  return <RoomSheet visible={section !== null} title={section === 'stats' ? ui("common.game_stats") : section === 'rules' ? ui("common.rules_and_config") : ui("marriage.game_result")} onClose={onClose} closeLabel={ui("common.close_details")} testID="marriage-details" scrollable={false} contentHandlesBottomInset={section === 'rules'}>
-        {section === 'rules' ? <MarriageRulesAndConfig snapshot={snapshot} busy={busy} error={uiLabel(error, 'feedback')} onSave={onSave} /> : <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.details}>
+  return <RoomSheet visible={section !== null} title={section === 'stats' ? ui("common.game_stats") : section === 'config' ? ui("common.game_rules_config") : ui("marriage.game_result")} onClose={onClose} closeLabel={ui("common.close_details")} testID="marriage-details" scrollable={false} contentHandlesBottomInset={section === 'config'}>
+        {section === 'config' ? <MarriageScoring concise snapshot={snapshot} busy={busy} error={uiLabel(error, 'feedback')} onSave={onSave} /> : <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.details}>
           {section === 'stats' ? pub ? pub.players.map(p => <View key={p.player_id} style={styles.stat}>
             <Text style={styles.name}>{playerName(snapshot, p.player_id)}</Text>
             <Text style={styles.text}>{ui("common.player_cards", { "player": situation(p, pub), "count": p.hand_count })}</Text>
@@ -94,38 +94,6 @@ export function MarriageDetails({ snapshot, section, onClose, busy, error, onSav
           </View>) : <Text style={styles.text}>{ui("marriage.player_stats_appear_when_the_game_starts")}</Text> : section === 'points' ? <MarriagePoints snapshot={snapshot} /> : null}
         </ScrollView>}
   </RoomSheet>;
-}
-
-function MarriageRulesAndConfig(props: React.ComponentProps<typeof MarriageScoring>) {
-  const uiLanguage = useUiLanguage();
-  const [tab, setTab] = useState<'rules' | 'config'>("config");
-  const styles = useThemedStyles(createStyles);
-  const { colors } = useTheme();
-  return <View style={{flex:1,minHeight:0}}>
-    <View accessibilityRole="tablist" style={{flexDirection:'row',padding:12,gap:8}}>
-      {(["rules","config"] as const).map(value => <Pressable key={value} accessibilityRole="tab"
-        accessibilityLabel={value === 'rules' ? ui("common.rules") : ui("common.config")} accessibilityState={{selected:tab === value}}
-        onPress={() => setTab(value)} style={[styles.tab,tab === value && styles.tabSelected]}>
-        <Text style={styles.name}>{value === 'rules' ? ui("common.rules") : ui("common.config")}</Text>
-      </Pressable>)}
-    </View>
-    <View style={{flex:1,minHeight:0,display:tab === 'config' ? 'flex' : 'none'}} accessibilityElementsHidden={tab !== 'config'} importantForAccessibility={tab === 'config' ? 'auto' : 'no-hide-descendants'}>
-      <MarriageScoring {...props}/>
-    </View>
-    {tab === 'rules' && <ScrollView testID="marriage-static-rules" contentContainerStyle={styles.details}>
-      {[
-        [ui("common.deal_and_turns"), ui("marriage.deal_rules_help")],
-        [ui("marriage.initial_tunnelas"), ui("marriage.tunnela_rules_help")],
-        [ui("marriage.natural_groups"), ui("marriage.natural_rules_help")],
-        [ui("marriage.seeing_maal"), ui("marriage.qualification_rules_help")],
-        [ui("common.tiplu_jhiplu_poplu_and_alter"), ui("marriage.maal_rules_help")],
-        [ui("marriage.winning_after_maal"), ui("marriage.winning_rules_help")],
-        [ui("marriage.dublee_finish"), ui("marriage.dublee_rules_help")],
-        [ui("common.points_and_privacy"), ui("marriage.privacy_rules_help")],
-        [ui("marriage.folding"), ui("marriage.fold_rules_help")],
-      ].map(([title,body]) => <View key={title} style={{gap:6}}><Text accessibilityRole="header" style={styles.heading}>{title}</Text><Text style={styles.text}>{body}</Text></View>)}
-    </ScrollView>}
-  </View>;
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({

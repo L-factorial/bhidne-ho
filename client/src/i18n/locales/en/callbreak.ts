@@ -128,5 +128,6 @@ export default {
   "live_deal_summary": "{{label}}{{deal}} of 5 · {{completed}}/{{total}} tricks completed · Spades trump",
   "follow_suit": "Follow {{suit}} if you can. Select a legal card, then confirm Play.",
   "you_lead": "You lead first.",
-  "player_leads": "{{player}} leads first."
+  "player_leads": "{{player}} leads first.",
+  "redeal_variations_help": "The creator can allow a redeal for a hand with no card above Jack, for a hand without spades, or both. These options are agreed before play.",
 } as const;

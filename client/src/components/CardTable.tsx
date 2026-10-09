@@ -3,14 +3,15 @@ import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import {AccessibilityInfo, Animated, StyleSheet, View} from 'react-native';
+import {AccessibilityInfo, Animated, StyleSheet, View, useWindowDimensions} from 'react-native';
+import { callBreakSeatGeometry, inwardTrickPosition } from '../multiplayer/callbreakLayout';
 import { PlayerSeat } from './PlayerSeat';
 import { TableSeatLayout } from './TableSeatLayout';
 import { radii, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
-export type TablePlayer = { id: string; name: string; bid: number; tricks: number; cardsRemaining: number; connected?: boolean | null; avatarUrl?: string };
+export type TablePlayer = { id: string; name: string; bid: number; currentBid?: number | null; tricks: number; bids?: number; bonus?: number; cardsRemaining: number; connected?: boolean | null; avatarUrl?: string };
 type Props = {
-  centerControl?: ReactNode; compact?: boolean; showScores?: boolean;
+  centerControl?: ReactNode; centerStatus?: ReactNode; compact?: boolean; showScores?: boolean; detailedStats?: boolean;
   players: TablePlayer[]; viewerId: string; activePlayerId: string; width: number;
   plays: { playerId: string; card: string }[];
   winnerPlayerId?: string; collecting?: boolean; collectionKey?: string;
@@ -18,9 +19,12 @@ type Props = {
   onPokePlayer?: (playerId: string) => void; onPokeTable?: () => void;
 };
 
-export function CardTable({ players, viewerId, activePlayerId, width, plays, pendingBidPlayerId, dealerId, winnerPlayerId, collecting = false, collectionKey, onPokePlayer, onPokeTable, centerControl, compact = false, showScores = true }: Props) {
+export function CardTable({ players, viewerId, activePlayerId, width, plays, pendingBidPlayerId, dealerId, winnerPlayerId, collecting = false, collectionKey, onPokePlayer, onPokeTable, centerControl, centerStatus, compact = false, showScores = true, detailedStats = false }: Props) {
   useUiLanguage();
   const { colors } = useTheme();
+  const { fontScale } = useWindowDimensions();
+  const measurementKey = `${width}:${fontScale}:${compact}`;
+  const [seatMeasurement, setSeatMeasurement] = useState({ key: '', height: 0 });
   const styles = useThemedStyles(createStyles);
   const progress = useRef(new Animated.Value(0)).current;
   const [reduceMotion, setReduceMotion] = useState(true);
@@ -38,29 +42,34 @@ export function CardTable({ players, viewerId, activePlayerId, width, plays, pen
     return () => animation.stop();
   }, [collecting, collectionKey, reduceMotion, progress]);
   return <View style={{ width }}><TableSeatLayout testID="card-table" players={players} viewerId={viewerId} compact={compact}
+    geometry={detailedStats ? (count, availableWidth) => callBreakSeatGeometry(count, availableWidth, fontScale, seatMeasurement.key === measurementKey ? seatMeasurement.height : 0) : undefined}
     renderSeat={player => <PlayerSeat playerId={Number(player.id)} name={player.name} mine={player.id === viewerId} active={player.id === activePlayerId}
       connected={player.connected} avatarUrl={player.avatarUrl} compact={compact} dealer={dealerId === player.id}
       status={!showScores ? player.cardsRemaining ? `${player.cardsRemaining} cards` : 'Waiting' : compact ? `${player.bid || '—'} / ${player.tricks}` : `Bid ${player.bid || '—'} · Won ${player.tricks}`}
+      statusRows={detailedStats && showScores ? [ui('common.stats_seat_previous', { bids: player.bids ?? 0, bonus: player.bonus ?? 0 }), ui('common.stats_seat_current', { bid: player.currentBid === null ? '—' : player.currentBid ?? player.bid, won: player.tricks })] : undefined}
+      onLayout={detailedStats ? event => { const height = event.nativeEvent.layout.height + 8; setSeatMeasurement(current => current.key === measurementKey && current.height >= height ? current : { key: measurementKey, height }); } : undefined}
       testID={player.id === viewerId ? 'your-seat' : 'opponent-seat'}
       onPress={onPokePlayer && player.id !== viewerId && player.connected !== false ? () => onPokePlayer(player.id) : undefined} />}>
     {(layout, ordered) => {
       const winnerIndex = ordered.findIndex(player => player.id === winnerPlayerId);
       const winner = layout.positions[winnerIndex];
-      return <View testID="current-trick-area" style={{ position: 'absolute', left: layout.center.x - 72, width: 144, ...(centerControl ? { top: 0, bottom: 0, justifyContent: 'center' } : { top: layout.center.y - 57, height: 114 }) }}>
-        {centerControl || <>
-          {!plays.length && <Text style={[styles.empty, { textAlign: 'center', paddingTop: 42, fontSize: 12 }]}>{ui("callbreak.current_trick")}</Text>}
+      return <View testID="current-trick-area" style={detailedStats ? { position: 'absolute', inset: 0 } : { position: 'absolute', left: layout.center.x - 72, width: 144, ...(centerControl ? { top: 0, bottom: 0, justifyContent: 'center' } : { top: layout.center.y - 57, height: 114 }) }}>
+        {detailedStats && <View testID="callbreak-center-status" style={{ position: 'absolute', left: layout.center.x - 64, top: layout.seatHeight + 72, height: layout.height - 3 * layout.seatHeight - 144, width: 128, alignItems: 'center', justifyContent: 'center', gap: 4 }}>{centerControl || centerStatus}</View>}
+        {(!detailedStats && centerControl) || <>
+          {!detailedStats && !plays.length && <Text style={[styles.empty, { textAlign: 'center', paddingTop: 42, fontSize: 12 }]}>{ui("callbreak.current_trick")}</Text>}
           {plays.map((play, playIndex) => {
             const index = ordered.findIndex(player => player.id === play.playerId);
             const player = ordered[index];
             const columns = ordered.length > 4 ? 3 : 2;
-            const x = 72 + (playIndex % columns - (columns - 1) / 2) * 46, y = 28 + Math.floor(playIndex / columns) * 58;
-            return <View key={play.playerId} accessibilityLabel={ui("common.card_played", {player: player?.id === viewerId ? ui("common.you") : player?.name, card: play.card, lead: playIndex === 0 ? ui("common.led_trick") : ""})}
+            const position = detailedStats ? inwardTrickPosition(layout, index) : { x: 72 + (playIndex % columns - (columns - 1) / 2) * 46, y: 28 + Math.floor(playIndex / columns) * 58 };
+            const { x, y } = position;
+            return <View key={play.playerId} testID={`trick-play-${play.playerId}`} accessibilityLabel={ui("common.card_played", {player: player?.id === viewerId ? ui("common.you") : player?.name, card: play.card, lead: playIndex === 0 ? ui("common.led_trick") : ""})}
               style={{ position: 'absolute', left: x - 20, top: y - 28 }}>
               <Animated.View testID={play.playerId === winnerPlayerId ? 'winning-card' : 'trick-card'} style={[styles.playedCard,
                 play.playerId === winnerPlayerId && { borderWidth: 3, borderColor: colors.cardSelectedBorder, backgroundColor: colors.cardSelected },
                 { opacity: progress.interpolate({ inputRange: [0, .8, 1], outputRange: [1, 1, 0] }), transform: reduceMotion ? [] : [
-                  { translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [0, winner ? winner.x - (layout.center.x - 72 + x) : 0] }) },
-                  { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, winner ? winner.y - (layout.center.y - 57 + y) : 0] }) },
+                  { translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [0, winner ? winner.x - (detailedStats ? x : layout.center.x - 72 + x) : 0] }) },
+                  { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, winner ? winner.y - (detailedStats ? y : layout.center.y - 57 + y) : 0] }) },
                   { scale: progress.interpolate({ inputRange: [0, 1], outputRange: [1, .35] }) }] }]}>
                 <CompactCardFace compact rank={play.card.slice(0,-1)} suit={play.card.slice(-1)}/>
                 <Text style={styles.playOrder}>{play.playerId === winnerPlayerId ? ui("callbreak.won") : playIndex === 0 ? ui("callbreak.led") : playIndex + 1}</Text>

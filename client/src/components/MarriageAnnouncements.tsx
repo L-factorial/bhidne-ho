@@ -12,10 +12,10 @@ import { fonts, gameButtonStyle, useTheme } from '../theme';
 import { marriageAnnouncements, type MarriageAnnouncement } from '../multiplayer/marriageAnnouncements';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 
-export function MarriageAnnouncements({ snapshot }: { snapshot: RoomSnapshot }) {
+export function MarriageAnnouncements({ snapshot, suspended = false }: { snapshot: RoomSnapshot; suspended?: boolean }) {
   useUiLanguage();
   const { colors: c } = useTheme();
-  const chatOpen = useTableSocial()?.overlayOpen ?? false;
+  const chatOpen = (useTableSocial()?.overlayOpen ?? false) || suspended;
   const pub = snapshot.marriage?.public;
   const events = pub ? marriageAnnouncements(pub) : [];
   const seen = useRef<Set<string> | null>(null);
@@ -61,7 +61,6 @@ export function MarriageAnnouncements({ snapshot }: { snapshot: RoomSnapshot }) 
   const finish = events.find(e => e.kind === 'win');
   return <>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
-      {!!qualifications.length && action(ui("marriage.view_shown_cards"), () => setReview(qualifications[qualifications.length - 1]))}
       {!!finish && action(ui("marriage.view_winning_hand"), () => setReview(finish))}
     </View>
     <RoomSheet visible={!!current && !chatOpen} title={title} onClose={close} presentation="dialog" testID="marriage-announcement" closeLabel={ui("common.close_table_announcement")}>

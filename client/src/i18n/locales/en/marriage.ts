@@ -258,5 +258,6 @@ export default {
   "maal_points_summary": "Total Maal: {{points}}. Positive points are won; negative points are paid.",
   "maal_loser_payment": "Each loser pays {{seen}} if Maal seen, otherwise {{unseen}}, plus {{bonus}} for a completed Dublee win.",
   "additional_bonus": "Additional bonus: {{count}} × {{rate}} = {{points}}. These cards can also earn Maal points.",
-  "maal_net_formula": "Maal net: {{players}} x {{own}} - {{total}} = {{net}}"
+  "maal_net_formula": "Maal net: {{players}} x {{own}} - {{total}} = {{net}}",
+  "config_variations_help": "Before locking, choose a scoring preset or set totals for one, two and three scoring cards or combinations. Configure Tunnela bonuses and whether they count from shown groups or the final hand; initial Tunnela declaration changes which scope is available. Set payments for losers who have or have not seen Maal, the Dublee win bonus, and whether only players who have seen Maal receive Maal points. These choices change scoring, not the qualification and winning requirements above.",
 } as const;

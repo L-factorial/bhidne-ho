@@ -11,8 +11,8 @@ import type { RoomSnapshot } from '../screens/LiveGameTable';
 import { TableShareSheet } from './ShareLink';
 import { useLanguage } from '../i18n/LanguageProvider';
 
-export function GameMenu({ snapshot, close, rules, history, poke, canPoke, back, tableControl, leaveControl, endControl, gameActions, gameContent, pokePlayer }: {
-  snapshot: RoomSnapshot; close: () => void; rules?: () => void; history?: () => void; poke: () => void;
+export function GameMenu({ snapshot, close, rules, rulesConfig, history, poke, canPoke, back, tableControl, leaveControl, endControl, gameActions, gameContent, pokePlayer }: {
+  snapshot: RoomSnapshot; close: () => void; rules?: () => void; rulesConfig?: () => void; history?: () => void; poke: () => void;
   gameActions?: { label: string; action: () => void }[]; gameContent?: ReactNode; pokePlayer?: (id: number) => void;
   canPoke: boolean; back: () => void; tableControl?: ReactNode; leaveControl?: ReactNode; endControl?: ReactNode;
 }) {
@@ -27,12 +27,12 @@ export function GameMenu({ snapshot, close, rules, history, poke, canPoke, back,
     marginTop: 12, marginBottom: 4 }}>{label}</Text>;
   const row = (label: string, action: () => void, disabled = false, expanded?: boolean, value?: string, icon: ComponentProps<typeof Ionicons>['name'] = 'options-outline') => <Pressable accessibilityRole="button"
     accessibilityLabel={value ? `${label}, ${value}` : label} accessibilityState={{ disabled, ...(expanded === undefined ? {} : { expanded }) }} disabled={disabled}
-    onPress={action} style={({ pressed }) => ({ minHeight: 52, paddingVertical: 10, paddingHorizontal: 8, marginHorizontal: -8,
+    onPress={action} style={({ pressed }) => ({ minHeight: 52, paddingVertical: 10, paddingHorizontal: 8,
       borderRadius: radii.medium, flexDirection: 'row', gap: 12, alignItems: 'center', justifyContent: 'space-between',
       backgroundColor: pressed ? colors.surfaceRaised : 'transparent', opacity: disabled ? visualStates.disabledOpacity : 1 })}>
     <Ionicons name={icon} size={19} color={colors.textMuted} />
     <Text style={{ flex: 1, flexShrink: 1, color: disabled ? colors.textMuted : colors.text, fontFamily: fonts.medium, fontSize: 14 }}>{label}</Text>
-    {value ? <Text style={{ color: colors.textMuted, fontFamily: fonts.body, fontSize: 13 }}>{value}</Text>
+    {value ? <Text style={{ flexShrink: 1, minWidth: 0, color: colors.textMuted, fontFamily: fonts.body, fontSize: 13 }}>{value}</Text>
       : <Ionicons name={expanded === undefined ? 'chevron-forward' : expanded ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} />}
   </Pressable>;
   const open = (action: () => void) => { close(); action(); };
@@ -54,7 +54,8 @@ export function GameMenu({ snapshot, close, rules, history, poke, canPoke, back,
 
     {section(ui("common.game"))}
     {history && row(ui("flush.bet_history"), () => open(history), false, undefined, undefined, 'receipt-outline')}
-    {rules && row(ui("common.rules"), () => open(rules), false, undefined, undefined, 'document-text-outline')}
+    {rules && row(ui("common.game_rules"), () => open(rules), false, undefined, undefined, 'document-text-outline')}
+    {rulesConfig && row(ui("common.game_rules_config"), () => open(rulesConfig), false, undefined, undefined, 'options-outline')}
     {gameActions?.map(item => <View key={item.label}>{row(item.label, () => open(item.action))}</View>)}
     {gameContent}
     {section(ui("common.room"))}

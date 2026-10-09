@@ -7,7 +7,8 @@ import { type ReactNode, useEffect, useRef } from 'react';
 import { AccessibilityInfo, Animated, Pressable, ScrollView, View } from 'react-native';
 import { useTheme } from '../theme';
 
-export function MobileGameHand({ mobile, open, onToggle, docked = false, desktopDrawer = false, myTurn, attention = myTurn, attentionText, children, game = 'flush', keepMounted = false, header, cardCount, cue }: {
+export function MobileGameHand({ mobile, open, onToggle, docked = false, desktopDrawer = false, myTurn, attention = myTurn, attentionText, children, game = 'flush', keepMounted = false, header, cardCount, cue, draggingCard = false }: {
+  draggingCard?: boolean;
   cue?: GameAttention|null; cardCount?: number; header?: ReactNode; docked?: boolean; desktopDrawer?: boolean;
   attention?: boolean; attentionText?: string;
   game?: string; keepMounted?: boolean;
@@ -41,7 +42,7 @@ export function MobileGameHand({ mobile, open, onToggle, docked = false, desktop
     <HandAreaBar cue={cue} open={open} onToggle={onToggle} count={cardCount} attention={attention}
       instruction={myTurn ? ui("common.your_turn_action", { "action": attentionText || 'Choose an action' }) : attentionText}/>
     </Animated.View>
-    {(open || keepMounted) && <ScrollView ref={content} style={!open && { display: 'none' }} accessibilityElementsHidden={!open} importantForAccessibility={open ? 'auto' : 'no-hide-descendants'} testID={`${game}-hand-content`} contentContainerStyle={{ padding: 8, paddingBottom: 18 }} nestedScrollEnabled>
+    {(open || keepMounted) && <ScrollView scrollEnabled={!draggingCard} ref={content} style={!open && { display: 'none' }} accessibilityElementsHidden={!open} importantForAccessibility={open ? 'auto' : 'no-hide-descendants'} testID={`${game}-hand-content`} contentContainerStyle={{ padding: 8, paddingBottom: 18 }} nestedScrollEnabled>
       {header}{children}
     </ScrollView>}
   </Animated.View></>;

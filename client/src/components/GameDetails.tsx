@@ -1,3 +1,4 @@
+import { canConfigureGameRules } from '../multiplayer/gameRulesConfig';
 import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -20,7 +21,7 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = fa
   const selectedTab = tab ?? (sidebar ? 'stats' : null);
   const [draft, setDraft] = useState(snapshot.settings);
   useEffect(() => setDraft(snapshot.settings), [JSON.stringify(snapshot.settings), snapshot.rule_proposal?.id, snapshot.rule_proposal?.status]);
-  const editable = snapshot.is_creator && snapshot.status === 'waiting' && snapshot.rule_proposal?.status !== 'PENDING';
+  const editable = canConfigureGameRules(snapshot);
   const settings = editable ? draft || snapshot.settings : snapshot.settings;
   const matchRules = settings?.match_rules ?? defaultCallBreakRules(snapshot.capacity || 4);
   const scoreScale = snapshot.game?.score_scale ?? 10;
@@ -78,10 +79,7 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = fa
           </View>
         </View>
       </> : <>
-        <Text style={[styles.title, menu && { fontSize: 16 }]}>{ui("callbreak.rules_title")}</Text>
-        <Text style={styles.text}>{ui("callbreak.rules_help")}</Text>
-        <Text style={styles.text}>{ui("callbreak.configured_bid_help", {max: snapshot.rules?.bid_max || Math.floor(52 / (snapshot.capacity || 4)), bonus: matchRules.bonus_conversion_enabled ? matchRules.bonus_per_point : 10})}</Text>
-        <Text style={styles.text}>{editable ? ui("rooms.creator_settings_save_before_starting") : ui("rooms.creator_rules_help")}</Text>
+        <Text style={styles.text}>{ui(editable ? 'common.rules_config_editable' : 'common.rules_config_read_only')}</Text>
         {settings && <>
           {callBreakRuleGroups.map(group => <View key={group.toggle} style={{ gap: 8 }}>
             <View style={styles.row}>
@@ -89,7 +87,6 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = fa
                 value={matchRules[group.toggle]} onValueChange={value => setDraft({ ...settings, match_rules: { ...matchRules, [group.toggle]: value } })} />
               <Text style={styles.text}>{ui(`callbreak.${group.toggle}`)}</Text>
             </View>
-            <Text style={styles.text}>{ui(`callbreak.${group.help}`)}</Text>
             {matchRules[group.toggle] && group.values.map(key => <View key={key} style={styles.row}>
               <Text style={styles.text}>{ui(`callbreak.${key}`)}</Text>
               <NumericInput accessibilityLabel={ui(`callbreak.${key}`)} editable={!!editable && !busy} keyboardType={key === 'negative_threshold' ? 'numbers-and-punctuation' : 'number-pad'}
@@ -110,19 +107,19 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = fa
               onChangeText={text => { if (/^\d*$/.test(text)) setDraft({ ...settings, payments: settings.payments.map((v, index) => index === i ? Math.min(1000000, Number(text)) : v) }); }} style={styles.input} />
           </View>) : settings.payments.slice(0, (snapshot.capacity || 4) - 1).map((amount, i) =>
             <Text key={i} style={styles.text}>{ui("common.player_place_1st_amount_units", { "player": ['2nd', '3rd', '4th', '5th'][i], "amount": amount })}</Text>)}
-          <Text style={styles.text}>{ui("ledger.bets_help")}</Text>
+
 
         </>}
       </>}
   </>;
   return <View testID={sidebar ? "game-details-sidebar" : "game-details-inline"} style={[styles.panel, sidebar && styles.sidebar, menu && styles.menu]}>
     <View style={[styles.row, menu && { flexDirection: 'column', alignItems: 'stretch', gap: 0 }]} accessibilityRole={sidebar ? 'tablist' : undefined}>{(["stats", "rules"] as const).map(value => <Pressable key={value} accessibilityRole={sidebar ? 'tab' : 'button'}
-      accessibilityLabel={value === 'stats' ? ui("common.stats") : ui("common.rules")} aria-selected={sidebar ? selectedTab === value : undefined}
+      accessibilityLabel={value === 'stats' ? ui("common.stats") : ui("common.game_rules_config")} aria-selected={sidebar ? selectedTab === value : undefined}
       accessibilityState={sidebar ? { selected: selectedTab === value } : { expanded: selectedTab === value }} onPress={() => { setDraft(snapshot.settings); setTab(!sidebar && tab === value ? null : value); }} style={[styles.button, sidebar && selectedTab === value && styles.selectedTab, menu && { paddingHorizontal: 0, minHeight: 46 }]}>
-      <Text style={[styles.label, menu && styles.menuLabel]}>{value === 'stats' ? ui("common.stats") : ui("common.rules")}{sidebar ? '' : selectedTab === value ? ' -' : ' +'}</Text>
+      <Text style={[styles.label, menu && styles.menuLabel]}>{value === 'stats' ? ui("common.stats") : ui("common.game_rules_config")}{sidebar ? '' : selectedTab === value ? ' -' : ' +'}</Text>
     </Pressable>)}</View>
     {selectedTab && (menu && selectedTab === 'rules'
-      ? <RoomSheet visible title={ui("callbreak.rules_title")} closeLabel={ui("common.close_call_break_rules")} onClose={() => setTab(null)} footer={ruleAction}>{details}</RoomSheet>
+      ? <RoomSheet testID="callbreak-rules-config" visible title={ui("common.game_rules_config")} closeLabel={ui("common.close_game_rules_config")} onClose={() => setTab(null)} footer={ruleAction}>{details}</RoomSheet>
       : <><FormScrollView keyboardShouldPersistTaps="handled" style={sidebar ? styles.sidebarDetails : styles.details} nestedScrollEnabled contentContainerStyle={{ gap: 12, paddingVertical: 12 }}>{details}</FormScrollView>{ruleAction}</>)}
 
   </View>;

@@ -3,11 +3,12 @@ import { initialHandDrawer, updateHandDrawer, type HandDrawerInput } from './han
 
 export function useCallBreakHand(input: HandDrawerInput, onAction: (command: string, payload?: object) => void) {
   const [state, setState] = useState(initialHandDrawer);
-  const { deal, turn, revision, hand, busy, error } = input;
-  useEffect(() => { setState(current => updateHandDrawer(current, { deal, turn, revision, hand, busy, error })); },
-    [deal, turn, revision, hand, busy, error]);
+  const { deal, turn, revision, hand, busy, error, keepCollapsed } = input;
+  useEffect(() => { setState(current => updateHandDrawer(current, { deal, turn, revision, hand, busy, error, keepCollapsed })); },
+    [deal, turn, revision, hand, busy, error, keepCollapsed]);
   return {
-    open: state.open,
+    open: !keepCollapsed && state.open,
+    collapse: () => setState(current => ({ ...current, open: false })),
     toggle: () => setState(current => ({ ...current, open: !current.open })),
     act: (command: string, payload?: object) => {
       if (busy) return;

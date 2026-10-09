@@ -1,6 +1,6 @@
 // Presentation state only; turns and successful plays come from server snapshots.
 export type HandDrawerState = { open: boolean; entered: string | null; deal: string; pending: { card: string; revision: number } | null };
-export type HandDrawerInput = { deal: string; turn: string | null; revision: number; hand: string[]; busy: boolean; error: string };
+export type HandDrawerInput = { deal: string; turn: string | null; revision: number; hand: string[]; busy: boolean; error: string; keepCollapsed?: boolean };
 export const initialHandDrawer: HandDrawerState = { open: false, entered: null, deal: '', pending: null };
 export function updateHandDrawer(state: HandDrawerState, input: HandDrawerInput): HandDrawerState {
   let next = state.deal === input.deal ? state : { ...initialHandDrawer, deal: input.deal };
@@ -14,5 +14,7 @@ export function updateHandDrawer(state: HandDrawerState, input: HandDrawerInput)
   if (input.turn && input.turn !== next.entered && !next.pending) {
     next = { ...next, open: true, entered: input.turn };
   }
-  return next;
+  // Consume new turns while stats is open, so closing stats does not reopen the
+  // hand for a notification that has already been presented by its pulse.
+  return input.keepCollapsed ? { ...next, open: false } : next;
 }

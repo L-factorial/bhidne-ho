@@ -1,3 +1,4 @@
+import { canConfigureGameRules } from '../multiplayer/gameRulesConfig';
 import {AppText as Text} from './AppText';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -19,17 +20,19 @@ const amounts = ['tunnela_bonus', 'seen_payment', 'unseen_payment', 'dublee_win_
 const labels = { tiplu: 'Tiplu', jhiplu: 'Jhiplu', poplu: 'Poplu', alter: 'Alter', man: 'Joker', marriage: 'Marriage combination',
   tunnela_bonus: 'Extra points per Tunnela', seen_payment: 'Loser payment: Maal seen', unseen_payment: 'Loser payment: Maal unseen', dublee_win_bonus: 'Extra per loser: Dublee win' };
 
-export function MarriageScoring({ snapshot, busy, error, onSave, introduction }: {
+export function MarriageScoring({ snapshot, busy, error, onSave, introduction, concise = false }: {
+  concise?: boolean;
   introduction?: ReactNode; snapshot: RoomSnapshot; busy: boolean; error: string; onSave: (rules: MarriageScoringRules) => void;
 }) {
   const uiLanguage = useUiLanguage();
   const s = useThemedStyles(createStyles);
   const source = snapshot.marriage?.public.scoring_rules || snapshot.marriage_scoring;
   const saved = source ? {...source, alter:source.alter || [0,0,0],initial_tunnela_declaration:source.initial_tunnela_declaration ?? false} : undefined;
-  const [draft, setDraft] = useState(saved);
+  const [draftState, setDraft] = useState(saved);
   const savedKey = JSON.stringify(saved);
   useEffect(() => setDraft(saved), [savedKey, snapshot.rule_proposal?.id, snapshot.rule_proposal?.status]);
-  const editable = snapshot.status === 'waiting' && !!snapshot.is_creator && snapshot.rule_proposal?.status !== 'PENDING';
+  const editable = canConfigureGameRules(snapshot);
+  const draft = editable ? draftState : saved;
   if (!draft) return <Text style={s.text}>{ui("marriage.scoring_rules_are_loading")}</Text>;
   const valid = [...tables.flatMap(key => draft[key]), ...amounts.map(key => draft[key])].every(n => Number.isInteger(n) && n >= 0 && n <= 1000);
   const changed = JSON.stringify(draft) !== savedKey;
@@ -44,24 +47,24 @@ export function MarriageScoring({ snapshot, busy, error, onSave, introduction }:
   }
   return <View testID="marriage-scoring-rules" style={{ flex: 1, minHeight: 0 }}><FormScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 12 }}>{introduction}
     <Text style={s.heading}>{ui("marriage.scoring_rules")}</Text>
-    <Text style={s.text}>{editable ? ui("marriage.preset_help") : ui("marriage.locked_rules_help")}</Text>
+    <Text style={s.text}>{concise ? ui(editable ? 'common.rules_config_editable' : 'common.rules_config_read_only') : editable ? ui("marriage.preset_help") : ui("marriage.locked_rules_help")}</Text>
     {editable && <View style={s.row}>{Object.entries(snapshot.marriage_scoring_presets || {}).map(([key, rules]) =>
       <View key={uiLabel(key, 'marriage')}>{button(key === 'house' ? ui("marriage.house_bonus_default") : ui("marriage.simple_points"), () => setDraft({...rules,alter:rules.alter || [0,0,0],initial_tunnela_declaration:rules.initial_tunnela_declaration ?? false}), JSON.stringify(draft) === JSON.stringify(rules))}</View>)}</View>}
     <Text style={s.text}>{ui("marriage.totals_for_1_2_3_copies_or_combinations")}</Text>
     {tables.map(key => <View key={uiLabel(key, 'marriage')} style={s.row}><Text style={[s.text, s.label]}>{uiLabel(labels[key], 'marriage')}</Text>
       {draft[key].map((value, i) => <View key={i}>{input(ui("common.scoring_total", {label: uiLabel(labels[key], "marriage"), number: i + 1}), value, n => setDraft({ ...draft, [key]: draft[key].map((v, j) => i === j ? n : v) }))}</View>)}
     </View>)}
-    <Text style={s.text}>{ui("marriage.alter_help")}</Text>
+    {!concise && <Text style={s.text}>{ui("marriage.alter_help")}</Text>}
     {amounts.map(key => <View key={uiLabel(key, 'marriage')} style={s.row}><Text style={[s.text, s.label]}>{uiLabel(labels[key], 'marriage')}</Text>
       {input(uiLabel(labels[key], 'marriage'), draft[key], n => setDraft({ ...draft, [key]: n }))}</View>)}
     {button(ui("marriage.initial_tunnela_declaration_count", { "count": uiLabel(draft.initial_tunnela_declaration?'On':'Off') }),()=>setDraft({...draft,initial_tunnela_declaration:!draft.initial_tunnela_declaration,tunnela_scope:!draft.initial_tunnela_declaration && draft.tunnela_scope === 'hand' ? 'shown' : draft.tunnela_scope}),!!draft.initial_tunnela_declaration,!editable)}
-    <Text style={s.text}>{draft.initial_tunnela_declaration?ui("marriage.initial_declaration_help"):ui("marriage.tunnela_bonus_applies_to")}</Text>
+    {!concise && <Text style={s.text}>{draft.initial_tunnela_declaration?ui("marriage.initial_declaration_help"):ui("marriage.tunnela_bonus_applies_to")}</Text>}
     <View style={s.row}>{(draft.initial_tunnela_declaration ? ["off",'shown'] as const : ["off", 'shown', 'hand'] as const).map(scope => <View key={scope}>{editable
       ? button(scope === 'off' ? ui("marriage.none") : scope === 'shown' ? draft.initial_tunnela_declaration?ui("marriage.initially_declared_tunnelas"):ui("marriage.shown_tunnelas") : ui("marriage.all_final_tunnelas"), () => setDraft({ ...draft, tunnela_scope: scope }), draft.tunnela_scope === scope)
       : draft.tunnela_scope === scope && <Text style={s.text}>{scope === 'off' ? ui("marriage.none") : scope === 'shown' ? draft.initial_tunnela_declaration?ui("marriage.initially_declared_tunnelas"):ui("marriage.shown_tunnelas") : ui("marriage.all_final_tunnelas")}</Text>}</View>)}</View>
     {editable ? button(draft.maal_requires_seen ? ui("marriage.maal_points_seen_players_only") : ui("marriage.maal_points_all_players"), () => setDraft({ ...draft, maal_requires_seen: !draft.maal_requires_seen }))
       : <Text style={s.text}>{ui("marriage.maal_points_points", { "points": draft.maal_requires_seen ? uiLabel('seen players only', 'marriage') : uiLabel('all players', 'marriage') })}</Text>}
-    <Text style={s.text}>{ui("marriage.scoring_help")}</Text>
+    {!concise && <Text style={s.text}>{ui("marriage.scoring_help")}</Text>}
     </FormScrollView><FormFooter>
     {editable && <>{button(ui("marriage.propose_scoring_rules"), () => onSave(draft), false, !valid || !changed)}
       <Text style={s.text}>{!valid ? ui("feedback.enter_whole_numbers_from_0_to_1000") : changed ? ui("rooms.unsaved_changes") : ui("rooms.rules_approval_help")}</Text></>}

@@ -2,7 +2,9 @@ import {useEffect, useRef, useState, type ReactNode} from 'react';
 import {Animated, PanResponder, Pressable, type StyleProp, type View, type ViewStyle} from 'react-native';
 
 /** A drag takes over only after movement, leaving ordinary card taps intact. */
-export function MarriageHandCard({id, disabled, dragDisabled, selected, label, hint, style, children, register, onPress, onDragChange, onDrop}: {
+export function MarriageHandCard({id, disabled, dragDisabled, selected, label, hint, style, children, register, onPress, onDragChange, onDrop, wrapperStyle, testID, pressDisabled = disabled, onHoverIn, onHoverOut}: {
+  onHoverIn?:()=>void; onHoverOut?:()=>void;
+  wrapperStyle?:StyleProp<ViewStyle>; testID?:string; pressDisabled?:boolean;
   id:string; disabled:boolean; dragDisabled:boolean; selected:boolean; label:string; hint?:string;
   style:StyleProp<ViewStyle>; children:ReactNode;
   register:(id:string, node:View|null)=>void;
@@ -35,11 +37,11 @@ export function MarriageHandCard({id, disabled, dragDisabled, selected, label, h
     },
     onPanResponderTerminationRequest:()=>false,
   })).current;
-  return <Animated.View {...responder.panHandlers} style={{width:48,height:90,paddingTop:14,
-    zIndex:dragging?10:0,transform:position.getTranslateTransform(),opacity:dragging?0.8:1}}>
-    <Pressable ref={node=>register(id,node)} testID={`marriage-hand-card-${id}`} accessibilityRole="button"
+  return <Animated.View testID={testID ? `drag-${testID}` : undefined} {...responder.panHandlers} style={[{width:48,height:90,paddingTop:14}, wrapperStyle, {
+    zIndex:dragging?10:0,transform:position.getTranslateTransform(),opacity:dragging?0.8:1}]}>
+    <Pressable ref={node=>register(id,node)} testID={testID || `marriage-hand-card-${id}`} accessibilityRole="button"
       accessibilityLabel={label} accessibilityHint={hint} aria-pressed={selected}
-      accessibilityState={{selected,disabled}} disabled={disabled}
+      accessibilityState={{selected,disabled:pressDisabled}} disabled={pressDisabled} onHoverIn={onHoverIn} onHoverOut={onHoverOut}
       onPress={()=>{if(Date.now()>suppressedUntil.current)latest.current.onPress();}} style={style}>
       {children}
     </Pressable>

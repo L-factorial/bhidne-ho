@@ -11,8 +11,8 @@ import { useTranslation } from 'react-i18next';
 
 export const HeaderProfileContext = createContext<((close: () => void) => ReactNode) | null>(null);
 
-export function AppHeader({ title, actions, inlineActions, hideProfile = false, lobby = false, onOpenProfile, onBack }: {
-  onBack?: () => void; title?: string; actions?: ReactNode; inlineActions?: ReactNode; hideProfile?: boolean; lobby?: boolean; onOpenProfile?: () => void;
+export function AppHeader({ title, actions, inlineActions, hideProfile = false, lobby = false, onOpenProfile, onBack, logoSize = headerLogoSize }: {
+  onBack?: () => void; title?: string; actions?: ReactNode; inlineActions?: ReactNode; hideProfile?: boolean; lobby?: boolean; onOpenProfile?: () => void; logoSize?: number;
 }) {
   const { colors } = useTheme();
   const { t } = useTranslation();
@@ -21,14 +21,13 @@ export function AppHeader({ title, actions, inlineActions, hideProfile = false, 
   const [profileOpen, setProfileOpen] = useState(false);
   return <View style={{ paddingHorizontal: compact ? 4 : 12, paddingVertical: compact ? 6 : 10, gap: 8,
     borderBottomWidth: 1, borderColor: colors.borderSubtle, backgroundColor: lobby ? colors.background : colors.header }}>
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: compact ? 8 : 12 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: compact ? 6 : 10, flex: 1, minWidth: 0 }}>
         {onBack && <Pressable accessibilityRole="button" accessibilityLabel={ui('common.back')} onPress={onBack} style={{minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center'}}><Ionicons name="arrow-back" size={22} color={colors.textMuted} /></Pressable>}
-        <BrandIcon size={compact ? headerLogoSize.compact : headerLogoSize.regular} />
-        {lobby && !title && <Text numberOfLines={1} style={{ flexShrink: 1, color: colors.text, fontFamily: fonts.editorial, fontSize: typography.brand }}>{ui('common.brand_name')}</Text>}
+        <BrandIcon size={logoSize} />
         {!!title && <Text accessibilityRole="header" style={{ flexShrink: 1, color: colors.text, fontFamily: fonts.editorial, fontSize: typography.pageTitle }}>{title}</Text>}
       </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 0, gap: compact ? 6 : 10 }}>
         {inlineActions}
         {!hideProfile && renderProfile && <HeaderAction icon="profile" label={t('common.profile')} compact={compact} onPress={onOpenProfile || (() => setProfileOpen(true))} />}
       </View>

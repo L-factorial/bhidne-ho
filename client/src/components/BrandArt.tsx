@@ -7,9 +7,10 @@ export function BrandLogo() {
   useUiLanguage();
   return <Image source={branding.logo} accessibilityLabel={ui("common.brand_name")} resizeMode="contain" style={styles.logo} />;
 }
-export const headerLogoSize = { compact: 52, regular: 60 };
+// One in-app size, approximately 10% larger than the former 52px mobile logo.
+export const headerLogoSize = 57;
 
-export function BrandIcon({ size = headerLogoSize.compact }: { size?: number }) {
+export function BrandIcon({ size = headerLogoSize }: { size?: number }) {
   useUiLanguage();
   return <Image source={branding.icon} accessibilityLabel={ui("common.brand_name")} resizeMode="contain" style={{ width: size, height: size, flexShrink: 0, borderRadius: 10 }} />;
 }

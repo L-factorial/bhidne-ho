@@ -2,31 +2,20 @@ import {AppText as Text} from './AppText';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { CardBack } from './CardBack';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { MarriageHandCard } from './MarriageHandCard';
+import { cardDropTarget, insertHandCardBefore, type CardBounds } from '../multiplayer/marriageHandOrder';
+import { groupedCallBreakHand, reconcileCallBreakHand, shuffledCallBreakSuits } from '../multiplayer/callbreakHandOrder';
 import {Pressable, ScrollView, StyleSheet, View} from 'react-native';
 import { visualStates, radii, fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
-const defaultSuits = ['S', 'C', 'H', 'D'];
-function shuffledSuits(previous = defaultSuits, present = defaultSuits) {
-  const order = [...previous];
-  for (let i = order.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [order[i], order[j]] = [order[j], order[i]];
-  }
-  const visible = previous.filter(suit => present.includes(suit));
-  if (visible.length > 1 && order.filter(suit => present.includes(suit)).join() === visible.join()) {
-    const a = order.indexOf(visible[0]), b = order.indexOf(visible[1]);
-    [order[a], order[b]] = [order[b], order[a]];
-  }
-  return order;
-}
 const suits: Record<string, string> = { S: '♠', C: '♣', H: '♥', D: '♦' };
 const suitNames: Record<string, string> = { S: 'Spades', C: 'Clubs', H: 'Hearts', D: 'Diamonds' };
 export type HandView = 'fan' | 'suits' | 'grid';
-const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 const suitOf = (card: string) => card.slice(-1);
 
-export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', onViewChange, onRevealComplete, turnKey = '', dealKey = '', compactControls = false }: {
+export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', onViewChange, onRevealComplete, turnKey = '', dealKey = '', compactControls = false, onDragChange }: {
+  onDragChange?: (dragging: boolean) => void;
   turnKey?: string; compactControls?: boolean;
   onRevealComplete?: (dealKey: string | null) => void;
   view?: HandView; onViewChange?: (view: HandView) => void; dealKey?: string;
@@ -35,21 +24,27 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
   useUiLanguage();
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const [suitLayout, setSuitLayout] = useState(() => ({ dealKey, order: shuffledSuits() }));
+  const [suitLayout, setSuitLayout] = useState(() => ({ dealKey, order: shuffledCallBreakSuits() }));
   useEffect(() => {
-    setSuitLayout(current => current.dealKey === dealKey ? current : { dealKey, order: shuffledSuits(current.order) });
+    setSuitLayout(current => current.dealKey === dealKey ? current : { dealKey, order: shuffledCallBreakSuits(current.order) });
   }, [dealKey]);
   const suitOrder = suitLayout.order;
+  const [manualOrder, setManualOrder] = useState<{ dealKey: string; cards: string[] }>({ dealKey, cards: [] });
+  const [dragging, setDragging] = useState(false);
+  const cardNodes = useRef(new Map<string, View>());
+  const registerCard = useCallback((id: string, node: View | null) => { if (node) cardNodes.current.set(id, node); else cardNodes.current.delete(id); }, []);
+  function dragChanged(value: boolean) { setDragging(value); onDragChange?.(value); }
   function shuffleGroups() {
-    setSuitLayout(current => ({ dealKey, order: shuffledSuits(current.order, hand.map(suitOf)) }));
+    setManualOrder({ dealKey, cards: [] });
+    setSuitLayout(current => ({ dealKey, order: shuffledCallBreakSuits(current.order, hand.map(suitOf)) }));
   }
   const [selection, setSelection] = useState({ dealKey, suit: 'all' });
   const [revealed, setRevealed] = useState<{ dealKey: string; cards: string[] }>({ dealKey, cards: [] });
   const isRevealed = (card: string) => revealed.dealKey === dealKey && revealed.cards.includes(card);
   const revealing = hand.some(card => !isRevealed(card));
   const fullyRevealed = hand.length > 0 && !revealing;
-  const [optionsOpen, setOptionsOpen] = useState(false);
   const [hovered, setHovered] = useState<string | null>(null);
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const [chosen, setChosen] = useState<{ key: string; card: string } | null>(null);
   const choiceKey = `${dealKey}:${turnKey}`;
   useEffect(() => { setOptionsOpen(false); setHovered(null); }, [choiceKey]);
@@ -65,10 +60,23 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
     });
   }
   function revealAll() { setRevealed({ dealKey, cards: [...hand] }); }
-  const selectedSuit = selection.dealKey === dealKey ? selection.suit : ui("rooms.all");
-  const sortedCards = [...hand].sort((a, b) => suitOrder.indexOf(suitOf(a)) - suitOrder.indexOf(suitOf(b))
-    || ranks.indexOf(a.slice(0, -1)) - ranks.indexOf(b.slice(0, -1)));
-  const cards = revealing ? hand : view === 'suits' && selectedSuit !== 'all' ? sortedCards.filter(card => suitOf(card) === selectedSuit) : sortedCards;
+  const selectedSuit = selection.dealKey === dealKey ? selection.suit : 'all';
+  const groupedCards = groupedCallBreakHand(hand, suitOrder);
+  const orderedCards = reconcileCallBreakHand(groupedCards, manualOrder.dealKey === dealKey ? manualOrder.cards : []);
+  const cards = revealing ? hand : view === 'suits' && selectedSuit !== 'all' ? orderedCards.filter(card => suitOf(card) === selectedSuit) : orderedCards;
+  const dragKey = `${dealKey}:${hand.join(',')}:${view}:${selectedSuit}:${revealing}:${hidden}:${cards.join(',')}`;
+  const currentDragKey = useRef(dragKey); currentDragKey.current = dragKey;
+  async function dropCard(source: string, x: number, y: number) {
+    if (revealing || hidden) return;
+    const bounds = await Promise.all([...cardNodes.current].map(([id, node]) => new Promise<CardBounds>(resolve =>
+      node.measureInWindow((x, y, width, height) => resolve({ id, x, y, width, height })))));
+    if (currentDragKey.current !== dragKey) return;
+    const target = cardDropTarget(bounds, source, x, y);
+    if (target) {
+      setChosen(null);
+      setManualOrder(current => ({ dealKey, cards: insertHandCardBefore(reconcileCallBreakHand(groupedCards, current.dealKey === dealKey ? current.cards : []), source, target) }));
+    }
+  }
   const selectedCard = chosen?.key === choiceKey && canPlay && !hidden && !revealing && cards.includes(chosen.card) && legalCards.includes(chosen.card) ? chosen.card : null;
   useEffect(() => { setChosen(null); }, [choiceKey, canPlay, hidden, view, selectedSuit]);
   function selectCard(card: string) { setChosen({ key: choiceKey, card }); }
@@ -77,7 +85,7 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
     setChosen(null);
     onPlay(selectedCard);
   }
-  const groups = revealing ? 1 : new Set(cards.map(suitOf)).size;
+  const groups = revealing ? 1 : 1 + cards.slice(1).filter((card, index) => suitOf(card) !== suitOf(cards[index])).length;
   const spread = Math.max(0, cards.length - 1) * 10 + Math.max(0, groups - 1) * 3;
   const halfAngle = spread * Math.PI / 360;
   const fanWidth = Math.ceil(2 * (170 * Math.sin(halfAngle) + 32 + 18) + 32);
@@ -103,20 +111,21 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
 
   return <View testID="player-hand">
     {revealing && <Text style={styles.empty}>{ui("callbreak.reveal_arc", { "shown": hand.filter(isRevealed).length, "total": hand.length })}</Text>}
-    {!revealing && view === 'grid' ? <ScrollView style={{ height: 250 }} contentContainerStyle={styles.grid} accessibilityLabel={ui("common.card_grid")}>
-      {cards.map((card, index) => {
+    {!revealing && view === 'grid' ? <ScrollView scrollEnabled={!dragging} style={{ height: 250 }} contentContainerStyle={styles.grid} accessibilityLabel={ui("common.card_grid")}>
+      {cards.map(card => {
         const suit = suitOf(card), faceUp = isRevealed(card), enabled = faceUp && canPlay && legalCards.includes(card);
-        return <Pressable key={card} accessibilityRole="button" accessibilityLabel={faceUp ? ui("common.select_card", { "card": card }) : ui("common.reveal_card_card", { "card": index + 1 })}
-          accessibilityHint={faceUp ? `${card.slice(0, -1)} of ${uiLabel(suitNames[suit])}` : ui("common.turn_this_card_face_up_without_playing_it")} disabled={faceUp && !enabled} accessibilityState={{ disabled: faceUp && !enabled, selected: selectedCard === card }} aria-pressed={selectedCard === card}
+        return <MarriageHandCard key={card} id={card} testID={`callbreak-hand-card-${card}`} register={registerCard} onDragChange={dragChanged} onDrop={(id, x, y) => void dropCard(id, x, y)}
+          wrapperStyle={{ width: 56, height: 66, paddingTop: 0 }} disabled={false} dragDisabled={revealing} pressDisabled={!enabled} selected={selectedCard === card}
           onHoverIn={() => { if (enabled) setHovered(card); }} onHoverOut={() => setHovered(null)}
-          onPress={() => { if (enabled) selectCard(card); }} style={[styles.gridCard, enabled && hovered === card && { transform: [{ translateY: -4 }] }, !faceUp && styles.cardBack, enabled && styles.legal, selectedCard === card && styles.chosenGrid, faceUp && canPlay && !enabled && { opacity: visualStates.disabledOpacity }]}>
+          label={ui("common.select_card", { card })} hint={ui("common.drag_card_to_reorder")}
+          onPress={() => { if (enabled) selectCard(card); }} style={[styles.gridCard, enabled && hovered === card && { transform: [{ translateY: -4 }] }, enabled && styles.legal, selectedCard === card && styles.chosenGrid, faceUp && canPlay && !enabled && { opacity: visualStates.disabledOpacity }]}>
           {faceUp ? <>
           <Text style={[styles.gridRank, /[HD]/.test(suit) && styles.red, suit === 'C' && styles.club]}>{card.slice(0, -1)}{suits[suit]}</Text>
           <Text style={[styles.suitName, /[HD]/.test(suit) && styles.red, suit === 'C' && styles.club]}>{uiLabel(suitNames[suit])}</Text>
           </> : <CardBack />}
-        </Pressable>;
+        </MarriageHandCard>;
       })}
-    </ScrollView> : <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.scroll}
+    </ScrollView> : <ScrollView scrollEnabled={!dragging} horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.scroll}
       accessibilityLabel={revealing ? ui("common.your_hand_in_dealt_order") : ui("common.your_hand_grouped_by_suit_suits", { "suits": suitOrder.map(suit => uiLabel(suitNames[suit])).join(', ') })}>
       <View style={{ width: fanWidth, height: 250 }}>
         {cards.map((card, index) => {
@@ -125,23 +134,22 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
           const angle = index * 10 + groupAngle - spread / 2;
           const faceUp = isRevealed(card), legal = legalCards.includes(card), enabled = !revealing && faceUp && canPlay && legal;
           const red = /[HD]$/.test(card), club = suitOf(card) === 'C';
-          return <Pressable key={card} accessibilityRole="button" accessibilityLabel={revealing ? ui("common.reveal_next_card_from_position_position", { "position": index + 1 }) : ui("common.select_card", { "card": card })}
-            accessibilityHint={revealing ? (faceUp ? ui("common.reveal_card_hint", {card}) : ui("common.reveal_next_hint")) : undefined}
-            accessibilityState={{ disabled: !revealing && !enabled, selected: selectedCard === card }} aria-pressed={selectedCard === card} disabled={!revealing && !enabled} onPress={() => { if (revealing) revealNext(); else if (enabled) selectCard(card); }}
+          return <MarriageHandCard key={card} id={card} testID={`callbreak-hand-card-${card}`} register={registerCard} onDragChange={dragChanged} onDrop={(id, x, y) => void dropCard(id, x, y)}
             onHoverIn={() => { if (enabled) setHovered(card); }} onHoverOut={() => setHovered(null)}
-            style={({ pressed }) => [styles.card, !faceUp && styles.cardBack, enabled && styles.legal, selectedCard === card && styles.chosen, {
-              // Keep the bottom pivots within 36px: the entire base stays under two card widths.
-              left: fanWidth / 2 - 32 + position * 18,
-              top: 18 - (selectedCard === card ? 15 : enabled ? 7 : 0) - (pressed || (enabled && hovered === card) ? 5 : 0),
-              transformOrigin: 'bottom center',
-              transform: [{ rotate: `${angle}deg` }],
+            disabled={false} dragDisabled={revealing} pressDisabled={!revealing && !enabled} selected={selectedCard === card}
+            label={revealing ? ui("common.reveal_next_card_from_position_position", { position: index + 1 }) : ui("common.select_card", { card })}
+            hint={revealing ? (faceUp ? ui("common.reveal_card_hint", {card}) : ui("common.reveal_next_hint")) : ui("common.drag_card_to_reorder")}
+            onPress={() => { if (revealing) revealNext(); else if (enabled) selectCard(card); }}
+            wrapperStyle={{ position: 'absolute', width: 64, height: 170, paddingTop: 0, left: fanWidth / 2 - 32 + position * 18, top: 18 - (selectedCard === card ? 15 : enabled ? 7 : 0) - (enabled && hovered === card ? 5 : 0) }}
+            style={[styles.card, !faceUp && styles.cardBack, enabled && styles.legal, selectedCard === card && styles.chosen, {
+              left: 0, top: 0, transformOrigin: 'bottom center', transform: [{ rotate: `${angle}deg` }],
               opacity: !revealing && faceUp && canPlay && !legal ? 0.55 : 1,
             }]}>
             {faceUp ? <View style={styles.corner}>
               <Text style={[styles.rank, red && styles.red, club && styles.club]}>{card.slice(0, -1)}</Text>
               <Text style={[styles.smallSuit, red && styles.red, club && styles.club]}>{suits[suitOf(card)]}</Text>
             </View> : <CardBack />}
-          </Pressable>;
+          </MarriageHandCard>;
         })}
       </View>
     </ScrollView>}
@@ -157,7 +165,7 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
       <Pressable accessibilityRole="button" accessibilityLabel={ui("common.flip_all_cards")} onPress={revealAll} style={styles.option}><Text style={styles.optionText}>{ui("common.flip_all")}</Text></Pressable>
     </View>}
     {!revealing && view === 'suits' && <View accessibilityRole="radiogroup" accessibilityLabel={ui("common.filter_hand_by_suit")} style={styles.selector}>
-      {[ui("rooms.all"), ...suitOrder].map(suit => {
+      {['all', ...suitOrder].map(suit => {
         const count = suit === 'all' ? hand.length : hand.filter(card => suitOf(card) === suit).length;
         return <Pressable key={suit} accessibilityRole="radio" accessibilityLabel={`${suit === 'all' ? ui("common.all_suits") : uiLabel(suitNames[suit])}, ${count} cards`}
           accessibilityState={{ checked: selectedSuit === suit, disabled: count === 0 }} aria-checked={selectedSuit === suit} disabled={count === 0}

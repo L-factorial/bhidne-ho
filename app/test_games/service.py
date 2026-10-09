@@ -28,6 +28,7 @@ from app.test_games.marriage import HostedMarriageTarget
 from flush import FlushGameEngine, FlushRulesConfig, FlushError
 from app.adapters.flush import FlushAdapter
 from app.test_games.flush import HostedFlushTarget
+from app.test_games.flush_stats import flush_action_history
 from app.games.base import GameCommandRejected
 from app.multiplayer.table import TableState, GameTablePolicy, reject
 from app.multiplayer.table_lifecycle import GameTableLifecycle
@@ -315,7 +316,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             query = GameQuery(game.state)
             result.update(game=query.get_state(), deal=query.get_deal(), rules=query.get_rules(),
                           scoreboard=query.get_scoreboard(),
-                          deal_history=[{key: deal[key] for key in ("deal_number", "complete", "players")}
+                          deal_history=[{key: deal[key] for key in ("deal_number", "complete", "players", "tricks")}
                                         for deal in query.get_deals()],
                           player_stats=[query.get_player(p) for p in game.state.config.players],
                           private=query.get_player_view(seat) if seat else None)
@@ -378,6 +379,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                 if event["revision"] >= adapter.checkpoint().get_state().round_start_revision
                 and event["kind"] in ("SIDE_SHOW_REQUESTED", "SIDE_SHOW_ACCEPTED", "SIDE_SHOW_DECLINED", "SIDE_SHOW_RESOLVED")]
             result["flush"]["participants"] = [{"player_id": str(s), "display_name": self.profiles.name(u, s) if self.profiles else f"Player {s}"} for u, s in game.flush_seats.items()]
+            result["flush"]["history"] = flush_action_history(adapter.public_events())
             settlement = public["settlement"]
             result["game"] = {"revision": adapter.revision, "phase": public["status"].upper(),
                 "finished": game.finished, "winners": [int(p) for p in settlement["winner_ids"]] if settlement else [],
