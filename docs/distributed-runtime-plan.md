@@ -8602,3 +8602,38 @@ implementation request before changing card rendering or Marriage turn behavior.
   creation and room-entry guards are covered; all 462 client cases pass again.
   The first direct image was built but never activated; release uses the follow-up
   commit and a newly rebuilt matching frontend.
+
+### 2026-10-10 — Direct production release of creation progress
+
+- Committed/pushed implementation `d9e2c7a` and continuation concurrency guard
+  `59f6e9e34af643171ecb35f39093b9de7347c982`. Canceled GitHub runs
+  `38064150244` and `38064328526` during testing and confirmed cancellation
+  before direct activation. The initial d9e2c7a image was never activated.
+- Both app hosts `168.144.105.49` and `165.245.180.205` now run revision
+  `59f6e9e34af643171ecb35f39093b9de7347c982`, identical immutable image
+  `sha256:dc91ffbeb0e2420c746343baeb3b10bbcd49f52b04d153a7e824e36287b63e0e`.
+  Built committed sources with unchanged production dependencies and a fresh
+  production frontend; archive checksums and installed receiver hashes verified.
+- Preflight initially stopped before activation because the sideload adapter's
+  expected revision still named the previous release. Corrected that assertion,
+  installed the corrected adapter on both hosts, and reran both dependency/schema
+  and frontend preflights successfully. Existing exclusive locks, peer health and
+  guarded rollback protected sequential backend activation and matching frontends.
+- Verification: both hosts report exact revision/image, healthy API, APNs capability
+  and identical frontend index/JS hashes. Public HTTPS API health, APNs capability,
+  frontend index and exact JS asset checks pass. No schema migration or live-player
+  creation writes were used for deployment verification.
+- Evidence: `/private/tmp/bhidne-59f6e9e-direct/verification.json`,
+  `/private/tmp/bhidne-59f6e9e-direct-{build,rollout}.log`, and
+  `/private/tmp/bhidne-creation-cancellation.json`. Pre-release checks: 462 client,
+  62 affected PostgreSQL/WASM and 17 HTTP transport cases, production TypeScript/
+  export and mobile/desktop browser restoration fixtures pass.
+- Limitations: full GitHub/native gates were intentionally canceled, not reported
+  as passed. Physical iOS/PWA lifecycle behavior still needs device verification;
+  installed native clients need a fresh signed build for the new presentation.
+  HTTP/transport failures without a definitive receipt retain their original
+  command and processing state rather than declaring an unproven failure.
+- Exact next step: refresh the web client and verify closing room/game forms while
+  processing, eventual replacement/error feedback and busy-invitee notes. Test
+  native behavior in the next signed build. Capacity, observability and database
+  HA readiness remain the next infrastructure task set.
