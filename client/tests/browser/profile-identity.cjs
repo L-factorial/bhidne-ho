@@ -28,12 +28,14 @@ async function api(path, user, body) {
     await page.getByLabel('Confirm password', { exact: true }).fill('does-not-match');
     assert.equal(await create.isDisabled(), true);
     await page.getByLabel('Confirm password', { exact: true }).fill(password);
+    assert.equal(await create.isDisabled(), true);
+    await page.getByRole('checkbox', {name:'I agree to the community rules'}).click();
     assert.equal(await create.isDisabled(), false);
     const registered = page.waitForResponse(response => response.url().endsWith('/auth/signup') && response.status() === 201);
     await create.click();
     const user = await (await registered).json();
     await page.getByRole('button', { name: 'Open profile', exact: true }).waitFor();
-    const friend = await api('/auth/signup', null, { email: 'browser@example.test', username: `friend_${Date.now()}`, password, display_name: 'Ekraj Friend' });
+    const friend = await api('/auth/signup', null, { community_rules_version:'2026-10-01', email: 'browser@example.test', username: `friend_${Date.now()}`, password, display_name: 'Ekraj Friend' });
     await api(`/friends/requests/${friend.user_id}`, user, {});
     await api(`/friends/requests/${user.user_id}/accept`, friend, {});
     async function verify(name) {

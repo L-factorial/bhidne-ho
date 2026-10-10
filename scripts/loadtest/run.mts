@@ -57,7 +57,7 @@ async function provision() {
       const account=pool[index++];
       try {
         try {await raw('/auth/signin',null,account);inc('accounts.existing');}
-        catch(error){if((error as any).status!==401)throw error;await raw('/auth/signup',null,{...account,email:account.email??`${account.username}@loadtest.example.test`,display_name:account.username});inc('accounts.created');}
+        catch(error){if((error as any).status!==401)throw error;await raw('/auth/signup',null,{...account,community_rules_version:'2026-10-01',email:account.email??`${account.username}@loadtest.example.test`,display_name:account.username});inc('accounts.created');}
         if(index%100===0)console.log(JSON.stringify({processed:index,...counters}));
       } catch(error){stopping=true;throw error;}
     }

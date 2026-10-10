@@ -1,5 +1,6 @@
 """New signup requires email; legacy login and verified recovery remain separate."""
 from uuid import UUID
+from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 import pytest
@@ -11,6 +12,12 @@ from app.main import create_app
 from pglite_support import PGlitePool
 from test_account_recovery import recovery_database
 from test_distributed_platform import application
+
+
+async def query(pool, statement, args=()):
+    # The running platform leases this single harness connection for workers too.
+    async with pool.connection() as connection:
+        return SimpleNamespace(rows=await (await connection.execute(statement, args)).fetchall())
 
 
 @pytest.mark.parametrize('email', [None, '', '   ', 'invalid', 'x@localhost', 'a..b@example.com',
@@ -50,9 +57,9 @@ async def test_distributed_signup_email_is_durable_private_and_untrusted(recover
         assert reply.status_code == 201, reply.text
         credentials = reply.json()
         user_id = UUID(credentials['user_id'][5:])
-        assert (await pool.execute('SELECT unverified_email FROM account_credentials WHERE user_id=%s', (user_id,))).rows == [('Player@example.com',)]
-        assert (await pool.execute('SELECT count(*) FROM account_recovery_contacts')).rows == [(0,)]
-        assert (await pool.execute('SELECT count(*) FROM account_recovery_challenges')).rows == [(0,)]
+        assert (await query(pool, 'SELECT unverified_email FROM account_credentials WHERE user_id=%s', (user_id,))).rows == [('Player@example.com',)]
+        assert (await query(pool, 'SELECT count(*) FROM account_recovery_contacts')).rows == [(0,)]
+        assert (await query(pool, 'SELECT count(*) FROM account_recovery_challenges')).rows == [(0,)]
         recovery = PostgresRecoveryService(pool)
         assert await recovery.request_reset('new_player') is None
         # A second service can still log in without email. Email is not a public profile field.
@@ -66,7 +73,7 @@ async def test_distributed_signup_email_is_durable_private_and_untrusted(recover
         assert other.status_code == 201 and other.json()['user_id'] != credentials['user_id']
         proof = await recovery.enroll_email(credentials['user_id'], 'original-password', 'Player@example.com')
         await recovery.verify_email(proof.token)
-        assert (await pool.execute('SELECT unverified_email FROM account_credentials WHERE user_id=%s', (user_id,))).rows == [(None,)]
+        assert (await query(pool, 'SELECT unverified_email FROM account_credentials WHERE user_id=%s', (user_id,))).rows == [(None,)]
         assert (await recovery.request_reset('new_player')).email == 'Player@example.com'
 
 
@@ -81,13 +88,13 @@ async def test_migration_29_preserves_legacy_accounts_sessions_profiles_and_veri
         legacy_id = UUID(legacy.user_id[5:])
         await pool.execute("UPDATE user_profiles SET display_name='Legacy Player' WHERE user_id=%s", (legacy_id,))
         await pool.execute('INSERT INTO account_recovery_contacts (user_id,email) VALUES (%s,%s)', (legacy_id, 'verified@example.com'))
-        before = (await pool.execute('SELECT * FROM account_recovery_contacts')).rows
+        before = (await query(pool, 'SELECT * FROM account_recovery_contacts')).rows
         await pool.execute(dict(MIGRATIONS)[29], script=True)
         assert (await auth.authenticate(legacy.token)).user_id == legacy.user_id
         assert (await auth.sign_in('legacy_player', 'original-password')).user_id == legacy.user_id
-        assert (await pool.execute('SELECT unverified_email FROM account_credentials')).rows == [(None,)]
-        assert (await pool.execute('SELECT display_name FROM user_profiles')).rows == [('Legacy Player',)]
-        assert (await pool.execute('SELECT * FROM account_recovery_contacts')).rows == before
+        assert (await query(pool, 'SELECT unverified_email FROM account_credentials')).rows == [(None,)]
+        assert (await query(pool, 'SELECT display_name FROM user_profiles')).rows == [('Legacy Player',)]
+        assert (await query(pool, 'SELECT * FROM account_recovery_contacts')).rows == before
         # Accounts without any recovery enrollment continue working too.
         await pool.execute('DELETE FROM account_recovery_contacts')
         assert (await auth.sign_in('legacy_player', 'original-password')).user_id == legacy.user_id
@@ -104,7 +111,7 @@ async def test_signup_email_write_failure_rolls_back_entire_account(recovery_dat
     with pytest.raises(Exception, match='test email failure'):
         await PostgresAuthService(pool).sign_up('new_player', 'original-password', email='player@example.com')
     for table in ('users', 'account_credentials', 'user_profiles', 'auth_sessions'):
-        assert (await pool.execute(f'SELECT count(*) FROM {table}')).rows == [(0,)]
+        assert (await query(pool, f'SELECT count(*) FROM {table}')).rows == [(0,)]
 
 
 @pytest.mark.parametrize('version', [None, '', 'old-version', True])
@@ -125,7 +132,7 @@ async def test_signup_records_rules_acceptance_atomically(recovery_database):
             password='original-password', email='player@example.com', community_rules_version='2026-10-01'))
         assert response.status_code == 201, response.text
         user_id = UUID(response.json()['user_id'][5:])
-        assert (await pool.execute('SELECT version FROM community_acceptance WHERE user_id=%s',
+        assert (await query(pool, 'SELECT version FROM community_acceptance WHERE user_id=%s',
             (user_id,))).rows == [('2026-10-01',)]
         from app.moderation.policy import require_posting
         async with pool.connection() as connection:
@@ -142,4 +149,4 @@ async def test_rules_acceptance_failure_rolls_back_account_and_session(recovery_
         await PostgresAuthService(pool).sign_up('new_player', 'original-password',
             email='player@example.com', community_rules_version='2026-10-01')
     for table in ('users', 'account_credentials', 'user_profiles', 'auth_sessions', 'community_acceptance'):
-        assert (await pool.execute(f'SELECT count(*) FROM {table}')).rows == [(0,)]
+        assert (await query(pool, f'SELECT count(*) FROM {table}')).rows == [(0,)]

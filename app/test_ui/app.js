@@ -173,6 +173,9 @@ function setMode(value) {
   $('auth-submit').textContent = value ? 'Create account' : 'Sign in';
   $('password').autocomplete = value ? 'new-password' : 'current-password';
   $('signup-email').hidden = !value;
+  $('signup-rules').hidden = !value;
+  $('rules-accepted').required = value;
+  $('rules-accepted').checked = false;
   $('email').required = value;
   $('email').disabled = !value;
   feedback();
@@ -192,8 +195,9 @@ async function authenticate(path, body) {
 }
 $('auth-form').onsubmit = event => {
   event.preventDefault();
+  if (signingUp && !$('rules-accepted').checked) { feedback('Accept the community rules before creating your account.'); return; }
   authenticate(signingUp ? '/auth/signup' : '/auth/signin', {username: $('username').value, password: $('password').value,
-    ...(signingUp ? {email: $('email').value.trim()} : {})});
+    ...(signingUp ? {email: $('email').value.trim(), community_rules_version:'2026-10-01'} : {})});
 };
 $('signout').onclick = () => { signOut(); feedback(); };
 $('refresh').onclick = refreshRooms;

@@ -22,6 +22,7 @@
             <label for="username">Username</label><input id="username" autocomplete="username" required minlength="3" maxlength="32" pattern="[A-Za-z0-9_-]+" placeholder="e.g. player_one">
             <div id="signup-email" hidden><label for="email">Email</label><input id="email" type="email" autocomplete="email" maxlength="254"></div>
             <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required minlength="8" maxlength="128" placeholder="At least 8 characters">
+            <div id="signup-rules" hidden><label><input id="rules-accepted" type="checkbox"> I agree to the community rules</label><a href="/community-rules" target="_blank" rel="noopener">Read community rules</a></div>
             <button id="auth-submit" class="primary full">Sign in</button>
           </form>
         </div>

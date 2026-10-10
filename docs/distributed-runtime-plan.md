@@ -1,5 +1,25 @@
 # Distributed runtime implementation plan
 
+## 2026-10-09: Rules-acceptance production release
+
+- User authorized deployment to both production servers. Client changes were
+  already committed as `4386c73`; server enforcement, HTTP feedback and related
+  fixtures/documentation were committed/pushed as `0e36cf3`.
+- Canceled the superseded client-only workflow while it was still testing;
+  no deployment had begun. Release preparation found the load driver omitted
+  the required signup consent field. It now supplies explicit test-account consent;
+  the development console also exposes a required checkbox. Profile browser
+  acceptance checks include the new checkbox.
+- Previous release `a3af291` failed two gates: a native load-driver timeout and
+  a signup-recovery fixture failure. Signup SQL reads now lease the harness
+  connection to prevent interleaving with platform workers. Native timeout
+  checks retain their deadline and assertions, but now include driver output
+  and event reports so any repeated failure can be diagnosed.
+- Verification: development-console checks pass seven cases and load-model
+  checks pass. No production state changes yet.
+- Exact next step: push these release compatibility fixes, monitor all required
+  CI gates, then verify one identical image and public health on both hosts.
+
 ## 2026-10-09: Required community-rules acceptance at signup
 
 - User requested simple mandatory acceptance during profile/account creation.

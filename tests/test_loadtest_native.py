@@ -1,6 +1,7 @@
 """Real load-driver smoke; opt-in disposable two-gateway cluster."""
 import asyncio
 import json
+import pytest
 from pathlib import Path
 
 from distributed_process_support import cluster
@@ -17,7 +18,14 @@ async def test_load_driver_all_games(cluster, tmp_path):
             '--accounts', credentials, '--output', output, *args,
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
         try:
-            text, _ = await asyncio.wait_for(process.communicate(), 480)
+            communication = asyncio.create_task(process.communicate())
+            try:
+                text, _ = await asyncio.wait_for(asyncio.shield(communication), 480)
+            except TimeoutError:
+                process.kill()
+                text, _ = await communication
+                reports = [p.read_text() for p in Path(output).glob('*.jsonl')] if Path(output).exists() else []
+                pytest.fail('Load driver timed out: ' + text.decode() + '\n' + '\n'.join(reports)[-5000:])
             reports = [p.read_text() for p in Path(output).glob('*.jsonl')] if Path(output).exists() else []
             assert process.returncode == 0, text.decode() + '\n' + '\n'.join(reports)[-5000:]
         finally:
