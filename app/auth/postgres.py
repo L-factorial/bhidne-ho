@@ -65,9 +65,13 @@ class PostgresAuthService:
             raise AuthenticationError("Invalid session token")
         return UserIdentity(user_id=f"user-{row[0]}")
 
-    async def sign_up(self, username: str, password: str, *, email: str | None = None) -> AccountCredentials:
+    async def sign_up(self, username: str, password: str, *, email: str | None = None, community_rules_version: str | None = None) -> AccountCredentials:
         # None supports trusted legacy-account fixtures/imports. Public signup
         # requires email in SignUpInput and always supplies it explicitly.
+        if community_rules_version is not None:
+            from app.moderation.policy import RULES_VERSION
+            if community_rules_version != RULES_VERSION:
+                raise ValueError('Accept the current community rules.')
         if email is not None:
             email = normalize_recovery_email(email)
         user_id, salt = uuid4(), secrets.token_bytes(16)
@@ -86,6 +90,9 @@ class PostgresAuthService:
                                                  (email, user_id))
                         if self.recovery is not None:
                             await self.recovery._issue(connection, user_id, 'verify_email', email)
+                    if community_rules_version is not None:
+                        await connection.execute('INSERT INTO community_acceptance(user_id,version) VALUES (%s,%s)',
+                                                 (user_id, community_rules_version))
                     return await self._session(connection, user_id, username)
         except UniqueViolation:
             raise UsernameTakenError("Username is already taken") from None

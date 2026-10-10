@@ -12,7 +12,7 @@ from distributed_process_support import cluster, until
 
 
 async def signup(client, base, name):
-    response=await client.post(base+'/auth/signup',json=dict(email='signup@example.test', username=name,password='integration-test-password'))
+    response=await client.post(base+'/auth/signup',json=dict(community_rules_version='2026-10-01', email='signup@example.test', username=name,password='integration-test-password'))
     assert response.status_code==201,response.text
     value=response.json()
     headers={'Authorization':'Bearer '+value['token']}

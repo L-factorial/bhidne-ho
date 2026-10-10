@@ -7,6 +7,13 @@ from .content import normalized, validate_content
 
 RULES_VERSION='2026-10-01'
 
+class CommunityRulesRequired(QueryAccessDenied):
+    """Public, actionable policy denial; no account details."""
+    code = 'COMMUNITY_RULES_REQUIRED'
+
+    def __init__(self):
+        super().__init__('Open Profile and accept the community rules before sending invitations or using chat.')
+
 async def require_posting(connection,actor, *, text=None, category='message', consume=False, lock=True):
     uid=user_uuid(actor)
     # A policy update takes the exclusive counterpart before changing restrictions.
@@ -18,7 +25,7 @@ async def require_posting(connection,actor, *, text=None, category='message', co
     if not row or row[0]!='account':raise QueryAccessDenied('Sign in with an account to post.')
     if row[2]:raise QueryAccessDenied('This account is suspended. Contact support to appeal.')
     if row[1]:raise QueryAccessDenied('Chat and invitations are temporarily muted. Contact support to appeal.')
-    if not row[3]:raise QueryAccessDenied('Accept the community rules in Profile before posting.')
+    if not row[3]:raise CommunityRulesRequired()
     if text is not None:
         try:validate_content(text)
         except ValueError as error:raise QueryAccessDenied(str(error)) from None

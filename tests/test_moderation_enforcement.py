@@ -30,7 +30,7 @@ async def post(pool,user,text='Hello',category='message'):
 async def test_consent_mute_expiry_restore_and_idempotency(database):
     pool,_,_,users=database;user=users[1]
     await sql(pool,'DELETE FROM community_acceptance WHERE user_id=%s',(UUID(user[5:]),))
-    with pytest.raises(QueryAccessDenied,match='Accept'):await post(pool,user)
+    with pytest.raises(QueryAccessDenied,match='accept the community rules'):await post(pool,user)
     await accept_rules(pool,user,RULES_VERSION)
     await post(pool,user)
     with pytest.raises(QueryAccessDenied,match='repeating'):await post(pool,user)
@@ -115,6 +115,9 @@ async def test_public_metadata_and_explicit_rule_acceptance(database,monkeypatch
         assert public.status_code==200 and public.json()['ready']
         assert set(public.json())=={'ready','operator','contact','minimum_age','backups'}
         user,headers=await signup(client,'rules_account')
+        assert (await client.get('/me/community-rules',headers=headers)).json()['accepted']
+        # Existing accounts without consent can still accept through Profile.
+        await sql(database[0], 'DELETE FROM community_acceptance WHERE user_id=%s', (UUID(user['user_id'][5:]),))
         assert not (await client.get('/me/community-rules',headers=headers)).json()['accepted']
         assert (await client.post('/me/community-rules',headers=headers,json={'accepted':False,'version':RULES_VERSION})).status_code==422
         assert (await client.post('/me/community-rules',headers=headers,json={'accepted':True,'version':'old'})).status_code==422

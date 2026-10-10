@@ -334,3 +334,32 @@ def test_lease_cleanup_failure_still_detaches_presence_handles():
         with client.websocket_connect('/distributed/delivery') as ws:
             ws.send_json(dict(type='AUTH',token='valid',client_id='phone'));ws.receive_json()
     assert len(presence.detached)==1
+
+
+def test_room_creation_returns_actionable_rules_denial_without_exposing_other_denials():
+    from app.moderation.policy import CommunityRulesRequired
+    from app.durable_games.queries import QueryAccessDenied
+
+    class Catalog:
+        error = CommunityRulesRequired()
+
+        async def create(self, actor, body):
+            raise self.error
+
+    catalog = Catalog()
+    app = FastAPI()
+    ingress = Ingress()
+    app.include_router(create_router(auth=Auth(), hosted=ingress, chat=ingress,
+        social=ingress, gateway=Gateway(), allowed_origins=set(), catalog=catalog))
+    with TestClient(app) as client:
+        def submit():
+            return client.post('/distributed/rooms', headers={'Authorization': 'Bearer valid'},
+                json=dict(command_id='rules-retry', name='Room', invitees=[]))
+        response = submit()
+        assert response.status_code == 403
+        assert response.json()['detail'] == {
+            'code': 'COMMUNITY_RULES_REQUIRED',
+            'message': 'Open Profile and accept the community rules before sending invitations or using chat.',
+        }
+        catalog.error = QueryAccessDenied('Private account detail')
+        assert submit().json() == {'detail': 'Access denied.'}

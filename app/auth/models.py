@@ -65,6 +65,16 @@ class SignUpInput(AccountInput, GuestInput):
         from app.moderation.content import validate_content
         return validate_content(value)
 
+    community_rules_version: str
+
+    @field_validator('community_rules_version')
+    @classmethod
+    def accepted_current_rules(cls, value):
+        from app.moderation.policy import RULES_VERSION
+        if value != RULES_VERSION:
+            raise ValueError('Accept the current community rules before creating your account.')
+        return value
+
     email: str = Field(min_length=3, max_length=254)
 
     @field_validator('email')

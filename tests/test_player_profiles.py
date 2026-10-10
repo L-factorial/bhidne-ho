@@ -33,7 +33,7 @@ def test_profile_names_are_owned_validated_and_visible_at_table():
 
 def test_signup_username_is_saved_as_initial_profile_and_game_name():
     with TestClient(create_app()) as client:
-        accounts = [client.post('/auth/signup', json={'email': 'signup@example.test',
+        accounts = [client.post('/auth/signup', json={'community_rules_version': '2026-10-01', 'email': 'signup@example.test',
             'username': username, 'password': 'test-password-123'}).json()
             for username in ('table-alice', 'table-bob')]
         headers = [{'Authorization': f"Bearer {account['token']}"} for account in accounts]
@@ -79,7 +79,7 @@ def test_named_guest_registration_validates_and_saves_profile():
 
 def test_signout_revokes_current_session_only():
     with TestClient(create_app()) as client:
-        first = client.post('/auth/signup', json={'email': 'signup@example.test', 'username': 'signout-user', 'password': 'test-password-123'}).json()
+        first = client.post('/auth/signup', json={'community_rules_version': '2026-10-01', 'email': 'signup@example.test', 'username': 'signout-user', 'password': 'test-password-123'}).json()
         second = client.post('/auth/signin', json={'username': 'signout-user', 'password': 'test-password-123'}).json()
         first_headers = {'Authorization': f"Bearer {first['token']}"}
         second_headers = {'Authorization': f"Bearer {second['token']}"}
@@ -110,8 +110,8 @@ def test_named_account_registration_validates_and_restores_identity():
     with TestClient(create_app()) as client:
         account = {'username': 'named-account', 'password': 'test-password-123'}
         for name in ['', '   ', 'x' * 26, 'bad\nname', None]:
-            assert client.post('/auth/signup', json={'email': 'signup@example.test', **account, 'display_name': name}).status_code == 422
-        response = client.post('/auth/signup', json={'email': 'signup@example.test', **account, 'display_name': '  Sita   Rai  '})
+            assert client.post('/auth/signup', json={'community_rules_version': '2026-10-01', 'email': 'signup@example.test', **account, 'display_name': name}).status_code == 422
+        response = client.post('/auth/signup', json={'community_rules_version': '2026-10-01', 'email': 'signup@example.test', **account, 'display_name': '  Sita   Rai  '})
         assert response.status_code == 201
         first = response.json()
         second = client.post('/auth/signin', json=account).json()
@@ -127,7 +127,7 @@ def test_named_account_registration_validates_and_restores_identity():
 def test_appearance_is_owned_validated_and_restored_across_sessions():
     with TestClient(create_app()) as client:
         account = {'username': 'theme-player', 'password': 'appearance-test-123'}
-        first = client.post('/auth/signup', json={**account, 'email': 'signup@example.test'}).json()
+        first = client.post('/auth/signup', json={**account, 'community_rules_version': '2026-10-01', 'email': 'signup@example.test'}).json()
         second = client.post('/auth/signin', json=account).json()
         other = client.post('/auth/guest').json()
         headers = lambda user: {'Authorization': f"Bearer {user['token']}"}

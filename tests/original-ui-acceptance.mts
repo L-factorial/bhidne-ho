@@ -9,7 +9,7 @@ const runtimes:any[]=[];
 async function raw(path:string,session:any,body?:object,signal?:AbortSignal,method?:string){const r=await fetch(base+path,{method:method??(body?'POST':'GET'),headers:{'Content-Type':'application/json',...(session?{Authorization:'Bearer '+session.token}:{})},...(body?{body:JSON.stringify(body)}:{}),signal});const text=await r.text();if(!r.ok)throw Error(`${r.status}: ${text}`);return text?JSON.parse(text):undefined;}
 async function retry<T>(fn:()=>Promise<T>):Promise<T>{for(let n=0;;n++)try{return await fn();}catch(e){if(n===3||!String(e).match(/confirmation|confirm|reconciliation|already being/))throw e;await new Promise(r=>setTimeout(r,1000));}}
 async function player(i:number){
- const a=await raw('/auth/signup',null,{username:'adapter_'+Date.now()+'_'+i,password:'local-test-password-42',email:`adapter-${i}@example.test`,display_name:'Adapter '+i});
+ const a=await raw('/auth/signup',null,{community_rules_version:'2026-10-01',username:'adapter_'+Date.now()+'_'+i,password:'local-test-password-42',email:`adapter-${i}@example.test`,display_name:'Adapter '+i});
  // Test accounts follow the same explicit consent flow as the Profile UI.
  const rules=await raw('/me/community-rules',a);
  assert.equal(rules.accepted,false);

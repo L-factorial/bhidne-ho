@@ -26,7 +26,7 @@ async def application(pool, **options):
 
 
 async def signup(client, name):
-    reply = await client.post('/auth/signup', json=dict(email='signup@example.test', username=name, password='long-password', display_name=name))
+    reply = await client.post('/auth/signup', json=dict(community_rules_version='2026-10-01', email='signup@example.test', username=name, password='long-password', display_name=name))
     assert reply.status_code == 201, reply.text
     value = reply.json()
     return value, {'Authorization': 'Bearer ' + value['token']}
@@ -38,7 +38,7 @@ async def test_account_profile_session_and_actor_binding(database):
         assert (await client.get('/auth/me')).status_code == 401
         user, headers = await signup(client, 'native_account')
         assert (await client.get('/auth/me', headers=headers)).json()['user_id'] == user['user_id']
-        assert (await client.post('/auth/signup', json=dict(email='signup@example.test', username='native_account', password='long-password'))).status_code == 409
+        assert (await client.post('/auth/signup', json=dict(community_rules_version='2026-10-01', email='signup@example.test', username='native_account', password='long-password'))).status_code == 409
         assert (await client.post('/auth/signin', json=dict(username='native_account', password='bad-password'))).status_code == 401
         logged = await client.post('/auth/signin', json=dict(username='native_account', password='long-password'))
         assert logged.status_code == 200 and logged.json()['user_id'] == user['user_id']

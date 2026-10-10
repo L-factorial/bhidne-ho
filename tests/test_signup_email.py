@@ -17,7 +17,7 @@ from test_distributed_platform import application
     'a@-example.com', 'a@exam_ple.com', 'a\r\nb@example.com', 'a' * 65 + '@example.com'])
 def test_signup_requires_valid_email_without_creating_account(email):
     with TestClient(create_app()) as client:
-        payload = dict(username='new_player', password='original-password')
+        payload = dict(community_rules_version='2026-10-01', username='new_player', password='original-password')
         if email is not None:
             payload['email'] = email
         result = client.post('/auth/signup', json=payload)
@@ -28,7 +28,7 @@ def test_signup_requires_valid_email_without_creating_account(email):
 
 def test_memory_signup_normalizes_private_email_and_signin_needs_no_email():
     with TestClient(create_app()) as client:
-        payload = dict(username='new_player', password='original-password', email=' Player.Name+tag@EXAMPLE.COM ')
+        payload = dict(community_rules_version='2026-10-01', username='new_player', password='original-password', email=' Player.Name+tag@EXAMPLE.COM ')
         result = client.post('/auth/signup', json=payload)
         assert result.status_code == 201
         credentials = result.json()
@@ -46,7 +46,7 @@ async def test_distributed_signup_email_is_durable_private_and_untrusted(recover
     pool = recovery_database
     async with application(pool) as (client, _, __):
         assert (await client.post('/auth/signup', json=dict(username='new_player', password='original-password'))).status_code == 422
-        reply = await client.post('/auth/signup', json=dict(username='new_player', password='original-password', email=' Player@EXAMPLE.COM '))
+        reply = await client.post('/auth/signup', json=dict(community_rules_version='2026-10-01', username='new_player', password='original-password', email=' Player@EXAMPLE.COM '))
         assert reply.status_code == 201, reply.text
         credentials = reply.json()
         user_id = UUID(credentials['user_id'][5:])
@@ -62,7 +62,7 @@ async def test_distributed_signup_email_is_durable_private_and_untrusted(recover
             public = (await client.get(path, headers=headers)).json()
             assert 'email' not in public and 'unverified_email' not in public
         # A shared email address does not silently merge accounts.
-        other = await client.post('/auth/signup', json=dict(username='other_player', password='original-password', email='Player@example.com'))
+        other = await client.post('/auth/signup', json=dict(community_rules_version='2026-10-01', username='other_player', password='original-password', email='Player@example.com'))
         assert other.status_code == 201 and other.json()['user_id'] != credentials['user_id']
         proof = await recovery.enroll_email(credentials['user_id'], 'original-password', 'Player@example.com')
         await recovery.verify_email(proof.token)
@@ -104,4 +104,42 @@ async def test_signup_email_write_failure_rolls_back_entire_account(recovery_dat
     with pytest.raises(Exception, match='test email failure'):
         await PostgresAuthService(pool).sign_up('new_player', 'original-password', email='player@example.com')
     for table in ('users', 'account_credentials', 'user_profiles', 'auth_sessions'):
+        assert (await pool.execute(f'SELECT count(*) FROM {table}')).rows == [(0,)]
+
+
+@pytest.mark.parametrize('version', [None, '', 'old-version', True])
+def test_signup_requires_explicit_current_rules_acceptance(version):
+    with TestClient(create_app()) as client:
+        payload = dict(username='new_player', password='original-password', email='player@example.com')
+        if version is not None:
+            payload['community_rules_version'] = version
+        response = client.post('/auth/signup', json=payload)
+        assert response.status_code == 422
+        assert not client.app.state.auth._accounts
+
+
+async def test_signup_records_rules_acceptance_atomically(recovery_database):
+    pool = recovery_database
+    async with application(pool) as (client, _, __):
+        response = await client.post('/auth/signup', json=dict(username='consenting_player',
+            password='original-password', email='player@example.com', community_rules_version='2026-10-01'))
+        assert response.status_code == 201, response.text
+        user_id = UUID(response.json()['user_id'][5:])
+        assert (await pool.execute('SELECT version FROM community_acceptance WHERE user_id=%s',
+            (user_id,))).rows == [('2026-10-01',)]
+        from app.moderation.policy import require_posting
+        async with pool.connection() as connection:
+            await require_posting(connection, response.json()['user_id'], category='invitation')
+
+
+async def test_rules_acceptance_failure_rolls_back_account_and_session(recovery_database):
+    pool = recovery_database
+    await pool.execute('''CREATE FUNCTION reject_signup_rules_test() RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN RAISE EXCEPTION 'test rules failure'; END; $$;
+        CREATE TRIGGER reject_signup_rules_test BEFORE INSERT ON community_acceptance
+            FOR EACH ROW EXECUTE FUNCTION reject_signup_rules_test();''', script=True)
+    with pytest.raises(Exception, match='test rules failure'):
+        await PostgresAuthService(pool).sign_up('new_player', 'original-password',
+            email='player@example.com', community_rules_version='2026-10-01')
+    for table in ('users', 'account_credentials', 'user_profiles', 'auth_sessions', 'community_acceptance'):
         assert (await pool.execute(f'SELECT count(*) FROM {table}')).rows == [(0,)]

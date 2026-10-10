@@ -68,7 +68,15 @@ role no longer needs schema-changing privileges.
 
 ## Next security increments
 
-New password-account signup requires `email` along with `username` and `password`.
+New password-account signup requires `email` along with `username` and `password`,
+and explicit acceptance of the community rules. Both signup forms show an unchecked
+“I agree to the community rules” checkbox with a link to read them. The API requires
+`community_rules_version` matching the current rules version (`2026-10-01`);
+missing or stale acceptance fails validation before account creation. PostgreSQL
+saves acceptance in the same transaction as the account and session, making new
+accounts immediately eligible for chat and invitations under the other policy checks.
+Existing accounts continue to accept rules through Profile. Older clients that omit
+the acceptance field can sign in but must update before creating an account.
 The original client also requires profile name and matching password confirmation.
 The API rejects missing, blank and malformed email. Sign-in remains username/password
 only, including for existing accounts without email; social/guest login is unchanged.

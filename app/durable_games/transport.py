@@ -62,7 +62,10 @@ def create_router(*, auth, hosted, chat, social, gateway, allowed_origins, reads
             async with asyncio.timeout(10):
                 result = await operation()
             return JSONResponse(jsonable_encoder(result), headers={'Cache-Control': 'no-store', 'X-Bhidne-Server-Time': str(time.time() * 1000)})
-        except QueryAccessDenied:
+        except QueryAccessDenied as error:
+            from app.moderation.policy import CommunityRulesRequired
+            if isinstance(error, CommunityRulesRequired):
+                raise HTTPException(403, dict(code=error.code, message=str(error))) from None
             raise HTTPException(403, 'Access denied.') from None
         except DurableGameNotFound:
             raise HTTPException(404, 'Command or scope unavailable.') from None

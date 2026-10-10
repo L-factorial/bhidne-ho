@@ -68,7 +68,11 @@ class InMemoryAuthService(GuestAuthService):
         self._identities[token] = identity
         return AccountCredentials(username=username, user_id=identity.user_id, token=token)
 
-    async def sign_up(self, username: str, password: str, *, email: str | None = None) -> AccountCredentials:
+    async def sign_up(self, username: str, password: str, *, email: str | None = None, community_rules_version: str | None = None) -> AccountCredentials:
+        if community_rules_version is not None:
+            from app.moderation.policy import RULES_VERSION
+            if community_rules_version != RULES_VERSION:
+                raise ValueError('Accept the current community rules.')
         if email is not None:
             email = normalize_recovery_email(email)
         salt = secrets.token_bytes(16)

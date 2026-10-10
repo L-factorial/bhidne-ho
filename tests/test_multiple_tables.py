@@ -152,8 +152,8 @@ def test_table_seats_are_exclusive_across_rooms_but_room_entry_is_allowed():
 
 def test_new_account_can_resolve_shared_room_and_exact_game_invitation():
     with TestClient(create_app()) as client:
-        owner = client.post('/auth/signup', json={'email': 'signup@example.test', 'username': 'invite-owner', 'password': 'password123'}).json()
-        invited = client.post('/auth/signup', json={'email': 'signup@example.test', 'username': 'new-phone-user', 'password': 'password123'}).json()
+        owner = client.post('/auth/signup', json={'community_rules_version': '2026-10-01', 'email': 'signup@example.test', 'username': 'invite-owner', 'password': 'password123'}).json()
+        invited = client.post('/auth/signup', json={'community_rules_version': '2026-10-01', 'email': 'signup@example.test', 'username': 'new-phone-user', 'password': 'password123'}).json()
         owner_header = {'Authorization': 'Bearer ' + owner['token']}
         invited_header = {'Authorization': 'Bearer ' + invited['token']}
         room = client.post('/rooms', headers=owner_header, json={'name': 'Friends Night', 'invitees': [invited['user_id']]}).json()
@@ -174,8 +174,8 @@ def test_new_account_can_resolve_shared_room_and_exact_game_invitation():
 
 def test_table_invitation_adds_room_access_but_never_assigns_a_seat():
     with TestClient(create_app()) as client:
-        owner = client.post('/auth/signup', json={'email': 'signup@example.test', 'username': 'table-owner', 'password': 'password123'}).json()
-        invited = client.post('/auth/signup', json={'email': 'signup@example.test', 'username': 'table-guest', 'password': 'password123'}).json()
+        owner = client.post('/auth/signup', json={'community_rules_version': '2026-10-01', 'email': 'signup@example.test', 'username': 'table-owner', 'password': 'password123'}).json()
+        invited = client.post('/auth/signup', json={'community_rules_version': '2026-10-01', 'email': 'signup@example.test', 'username': 'table-guest', 'password': 'password123'}).json()
         owner_headers = {'Authorization': 'Bearer ' + owner['token']}
         invited_headers = {'Authorization': 'Bearer ' + invited['token']}
         room = client.post('/rooms', headers=owner_headers, json={

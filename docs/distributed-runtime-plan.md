@@ -1,5 +1,90 @@
 # Distributed runtime implementation plan
 
+## 2026-10-09: Required community-rules acceptance at signup
+
+- User requested simple mandatory acceptance during profile/account creation.
+  Both password-account signup forms now show an unchecked “I agree to the
+  community rules” checkbox and a Read community rules link. Create account
+  remains disabled until checked; keyboard submission and session hooks enforce
+  the same condition. Switching auth modes clears the checkbox.
+- Public signup requires the current `community_rules_version`, validated before
+  account creation. PostgreSQL writes explicit acceptance atomically with account
+  credentials/profile/session so invitations and chat do not need a second consent
+  step. Existing-account sign-in and Profile acceptance remain supported. Trusted
+  internal fixture/import calls can still omit consent; public HTTP cannot.
+- Updated registration fixtures and API documentation for the required field.
+  No migration is required; the existing acceptance table records the version.
+- Verification: TypeScript, web export, all 419 client tests and diff checks pass.
+  Initial focused backend checks pass 45 cases (four SQL cases skipped), then
+  PostgreSQL/WASM checks pass 39 cases and reveal one obsolete expectation that
+  a newly registered account has no consent. That check now verifies signup
+  consent and separately models an existing account without it; its rerun passes.
+  The added acceptance-write rollback test passes, proving no account/session
+  remains when consent persistence fails. Missing/stale/non-string consent and
+  immediate invitation eligibility are covered. Evidence:
+  `/private/tmp/bhidne-signup-rules-{sql,rollback,client-full,web}.log`.
+- Limitations: local changes only; no deployment, native-device or browser visual
+  check. Older clients require an update for new registration; sign-in still works.
+  Social provider choices are currently disabled; their future onboarding needs
+  an explicit consent step before enabling account creation.
+- Exact next step: release the server and client together when requested, then
+  verify checkbox/link behavior and new-account invitation creation on devices.
+
+## 2026-10-09: Actionable community-rules denial
+
+- User requested a server message directing players to accept the rules.
+  Missing consent now raises a specific public policy denial; distributed HTTP
+  returns `COMMUNITY_RULES_REQUIRED` with “Open Profile and accept the community
+  rules before sending invitations or using chat.” Other permission denials
+  retain generic HTTP feedback without exposing account details.
+- Client transport recognizes only this explicit 403 code, and player feedback
+  displays the instruction in English/Nepali rather than unresolved-outcome copy.
+  Durable request identity remains retained so retry after acceptance reconciles
+  the original creation; ambiguous failures retain existing behavior.
+- Verification: 17 HTTP transport cases pass; combined backend checks pass 26
+  cases with seven SQL-dependent cases skipped in the current environment.
+  All 31 selected client transport, room-action and player-error cases pass,
+  including original-ID retry after rules acceptance. TypeScript and diff checks
+  pass. Client evidence: `/private/tmp/bhidne-rules-denial-client.log`.
+- Limitations: local changes only; no production deployment or native build.
+- Exact next step: release server and client changes together when requested,
+  then verify missing-consent creation shows the instruction and retry after
+  accepting rules confirms the original request.
+
+## 2026-10-09: Create game invitation incident investigation
+
+- Report: a friend attempted to create a Flush game inviting `ekraj` around
+  17:15 Pacific; the client displayed “Still confirming your action.”
+- Read-only evidence: both application servers logged repeated `room.create`
+  failures with `QueryAccessDenied` from 00:11 through 00:15 UTC Oct 10
+  (17:11–17:15 PDT Oct 9). Database aggregate checks found zero newly created
+  rooms and zero `create-table` inbox entries in 00:05–01:30 UTC; the targeted
+  query for create-table receipts inviting `ekraj` also returned no rows.
+- Deployed room creation performs invitation posting/contact checks before its
+  atomic commit. HTTP transport discards non-success response details and raises
+  an unresolved-outcome error; the command remains pending, producing the
+  misleading confirmation message for an access denial.
+- Limitations: logs omit actor and policy-denial reason, so the failed requests
+  cannot yet be attributed conclusively to the reported creator or a particular
+  policy check. No production writes, code changes, or deployment performed.
+  A broad account query was rejected by automatic review; narrower incident
+  receipt and aggregate queries were approved and completed.
+- Exact next step: obtain the creator's username, inspect only that account's
+  invitation-policy state and contact permission with `ekraj`, then address the
+  confirmed denial and client feedback without weakening durable retry safety.
+- Follow-up: user supplied the name Arun Thapa. No full-name profile matched;
+  a limited Arun-name search found one candidate, username/display name `arun`.
+  Its account was created at 00:10:11 UTC Oct 10 (17:10:11 PDT Oct 9), with an
+  authentication session created in the incident window. Targeted read-only
+  checks found no community-rules acceptance, mute, suspension, active contact
+  block with `ekraj`, or invitation-rate row. Missing rules acceptance explains
+  an invitation-bearing room creation denial for this candidate. Attribution
+  remains probable rather than proven because failure logs omit the actor.
+- Updated next step: have the creator confirm username `arun` and accept the
+  community rules in Profile; investigate/reconcile the retained creation
+  intention when retrying. Correct actionable denial feedback in a subsequent
+  implementation increment while preserving ambiguous-outcome retry safety.
+
 ## 2026-10-09: production release checks and delta compatibility
 
 - User authorized deployment to both production application servers. The latest
@@ -8004,3 +8089,29 @@ implementation request before changing card rendering or Marriage turn behavior.
 - Exact next step: review and deploy the backend/client together before enabling
   custom rules, then smoke-test the Rules proposal and an early win on a test
   table. Unrelated capacity/HA/operational increments remain separate.
+
+### 2026-10-09 — Direct production rollout of game UI/rules changes
+
+- User explicitly requested direct deployment to both servers while GitHub CI
+  continues. Released committed revision `a3af2917610fcfca940def7a9826f868e3926930`.
+- Fresh production TypeScript/web build passed. Built the exact committed backend
+  atop the verified production dependency image; dependency manifest is unchanged.
+  Schema matches the previously deployed `dac54be`; no migration was required.
+- Transferred and hash-verified one immutable image on both hosts:
+  `sha256:46e5e1c69cbdafa23d491f7d1abf8b14fcb08a9c9d58896305aac30cd8540c1e`.
+  Both dependency/schema/frontend preflights passed. Updated backends sequentially
+  using the installed release lock, peer-health gate and rollback safeguards,
+  then activated matching frontends.
+- Both hosts report the exact revision/image, healthy backend and APNs enabled.
+  Frontend index and JS hashes match across both hosts and public HTTPS.
+  Public browser rendering at 390/1280px displayed the sign-in landing screen
+  without JavaScript errors. The initial smoke selector expected “Sign in”; the
+  actual landing action is “Sign in or sign up”, verified by page inspection.
+  Verification record: `/private/tmp/bhidne-a3af291-direct/verification.json`.
+- GitHub run `37996145224` remains in its backend test step; it may later deploy
+  its own image of this same revision. Direct backend/web release is complete.
+  No signed native build/submission or physical-device gameplay test was performed.
+- Exact next step: install the user's new TestFlight build and verify bidding
+  notifications/pulse, rules, summary, hand overlays, dragging and invitation
+  visibility with separate accounts. Observe the same-revision GitHub workflow
+  independently; no further deployment is needed to make this release live.
