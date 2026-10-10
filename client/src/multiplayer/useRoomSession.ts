@@ -1,3 +1,4 @@
+import {SIGNUP_RULES_VERSION} from '../auth/communityRules';
 import { setSessionNotice } from '../auth/sessionNotice';
 import { usePersistentNotice } from './usePersistentNotice';
 import { playerError } from './playerError.ts';
@@ -136,14 +137,15 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
     setSession(value); setExpired(false); setError(''); setDeliveryInterrupted(false); setRefreshInterrupted(false);
   }
   function socialLoginBusy(value: boolean) { loginPending.current = value; setLoggingIn(value); }
-  async function loginAccount(username: string, password: string, signup: boolean, email = '') {
+  async function loginAccount(username: string, password: string, signup: boolean, email = '', rulesAccepted = false) {
     if (loginPending.current || session) return false;
+    if (signup && !rulesAccepted) { setError(ui('feedback.community_rules_required')); return false; }
     if (signup && !validSignupEmail(email)) { setError(ui('common.enter_valid_email')); return false; }
     const lifetime = loginLifetime.current;
     loginPending.current = true; setLoggingIn(true); setError('');
     try {
       const value = await request<Session>(signup ? '/auth/signup' : '/auth/signin', null, {
-        username: username.trim(), password, ...(signup ? { email: email.trim() } : {}),
+        username: username.trim(), password, ...(signup ? { email: email.trim(), community_rules_version: SIGNUP_RULES_VERSION } : {}),
       }, lifetime.signal);
       if (lifetime.signal.aborted) return false;
       saveSession(apiUrl, {session:value,room:null,game:null}); setSessionNotice(apiUrl, 'auth');

@@ -95,5 +95,10 @@ test('table creation rejections show the exact cause before the HTTP conflict fa
 
 test('community acceptance errors point to the rules instead of generic forbidden feedback',()=>{
   assert.equal(playerError(new ApiError(403,'Accept the community rules in Profile before posting.')),
-    'Open Community Rules and accept them to use chat.');
+    'Open Profile and accept the community rules before sending invitations or using chat.');
+});
+
+test('structured rules denial takes priority over unresolved-outcome feedback', () => {
+ const error=new DistributedRequestError(403,undefined,'COMMUNITY_RULES_REQUIRED');
+ assert.equal(playerError(error),'Open Profile and accept the community rules before sending invitations or using chat.');
 });

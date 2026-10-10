@@ -81,3 +81,20 @@ test('new capabilities are negotiated after READY while AUTH stays compatible',a
  f.frame({type:'EPHEMERAL',payload:{type:'TABLE_CHAT_MESSAGE',text:'Hi'}});
  assert.deepEqual(live,[{type:'TABLE_CHAT_MESSAGE',text:'Hi'}]);assert.equal(f.pages.length,0);
 });
+
+test('rules denial is actionable and retained command retries with the same identity', async () => {
+ const {DurableCommandClient} = await import('../src/multiplayer/DurableCommandClient.ts');
+ let accepted=false;const ids=[];
+ const transport=distributedHttpTransport('/distributed','token',async (_url,options)=>{
+  const body=JSON.parse(options.body);ids.push(body.command_id);
+  return accepted
+   ? {ok:true,json:async()=>({command_id:body.command_id,status:'accepted',room_id:'a'.repeat(32)})}
+   : {ok:false,status:403,json:async()=>({detail:{code:'COMMUNITY_RULES_REQUIRED'}})};
+ });
+ const command=new DurableCommandClient(transport,{newId:()=> 'original'});
+ command.begin({kind:'catalog'},{command:'create-room',payload:{name:'Room',invitees:[]}});
+ await assert.rejects(command.reconcile(),error=>error.code==='COMMUNITY_RULES_REQUIRED'&&/Open Profile/.test(error.message));
+ assert.equal(command.pending,true);accepted=true;
+ assert.equal((await command.reconcile()).status,'accepted');
+ assert.deepEqual(ids,['original','original']);
+});

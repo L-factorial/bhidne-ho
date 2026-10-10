@@ -149,6 +149,8 @@ export function playerError(error: unknown, fallback?: string): string {
   } : undefined;
   const message = typeof error === 'string' ? error : typeof item?.message === 'string' ? item.message : '';
   const code = item?.detail?.code ?? item?.code;
+  if (code === 'COMMUNITY_RULES_REQUIRED') return ui('feedback.community_rules_required');
+  if (message === 'Open Profile and accept the community rules before sending invitations or using chat.') return ui('feedback.community_rules_required');
   if (code && codes[code]) return ui(codes[code]);
   if (messages[message]) return ui(messages[message]);
   if (item?.status === 401) return ui('feedback.session_sign_in');

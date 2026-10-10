@@ -1,3 +1,4 @@
+import {SignupRules,SIGNUP_RULES_VERSION} from '../components/moderation/SignupRules';
 import {AppText as Text} from '../components/AppText';
 import {PushProvider} from '../notifications/PushProvider';
 import {PushSettings} from '../notifications/PushSettings';
@@ -59,6 +60,7 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
   const [username,setUsername] = useState(''), [password,setPassword] = useState('');
   const [email,setEmail] = useState('');
   const [accountFormOpen,setAccountFormOpen] = useState(false);
+  const [rulesAccepted,setRulesAccepted] = useState(false);
   const [signupMode,setSignupMode] = useState(false), [confirmPassword,setConfirmPassword] = useState('');
   const [authBusy,setAuthBusy] = useState(false), [error,setError] = useState('');
   const [runtime,setRuntime] = useState<DistributedRootRuntime|null>(null);
@@ -173,9 +175,9 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
   const input=(label:string,value:string,change:(s:string)=>void,secure=false)=><FormInput accessibilityLabel={label} placeholder={label} placeholderTextColor={colors.textMuted}
     value={value} onChangeText={change} secureTextEntry={secure} autoCapitalize="none" style={{color:colors.text,borderColor:colors.textMuted,borderWidth:1,padding:12,borderRadius: radii.medium}}/>;
   async function login(signup: boolean) {
-    if (authBusy || (signup && (!confirmPassword || password !== confirmPassword || !validSignupEmail(email)))) return;
+    if (authBusy || (signup && (!confirmPassword || password !== confirmPassword || (!validSignupEmail(email) || !rulesAccepted)))) return;
     setAuthBusy(true);setError('');
-    try {const session=await request<Session>(signup?'/auth/signup':'/auth/signin',null,{username,password,...(signup?{email:email.trim()}:{})});saveSession(apiUrl,{session,room:null,game:null});setSessionNotice(apiUrl,'auth');setPassword('');setConfirmPassword('');setEmail('');setAccount(session);}
+    try {const session=await request<Session>(signup?'/auth/signup':'/auth/signin',null,{username,password,...(signup?{email:email.trim(),community_rules_version:SIGNUP_RULES_VERSION}:{})});saveSession(apiUrl,{session,room:null,game:null});setSessionNotice(apiUrl,'auth');setPassword('');setConfirmPassword('');setEmail('');setAccount(session);}
     catch(e){setError(playerError(e && typeof e === 'object' && 'status' in e && e.status === 401 ? Error(ui("common.invalid_credentials")) : e));}finally{setAuthBusy(false);}
   }
   async function logout() {
@@ -186,14 +188,14 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
   }
   if (!account) return <AccountPage compact footer={accountFormOpen ? <>
     {!signupMode && <PolicyLinks />}
-    <Pressable accessibilityRole="button" disabled={authBusy || (signupMode && (!confirmPassword || password !== confirmPassword || !validSignupEmail(email)))}
+    <Pressable accessibilityRole="button" disabled={authBusy || (signupMode && (!confirmPassword || password !== confirmPassword || (!validSignupEmail(email) || !rulesAccepted)))}
       onPress={() => void login(signupMode)} style={[authStyles.button,{backgroundColor:colors.primary},authBusy && {opacity:visualStates.disabledOpacity}]}>
       <Text style={[authStyles.buttonText,{color:colors.onPrimary}]}>{ui(signupMode ? 'common.create_account' : 'common.sign_in')}</Text>
     </Pressable>
   </> : null}>
     <AuthBackButton disabled={authBusy} onPress={() => accountFormOpen ? setAccountFormOpen(false) : onExit()} />
     <Text accessibilityRole="header" style={authStyles.title}>{ui(signupMode ? 'common.create_your_account' : 'common.welcome_back')}</Text>
-    {button(ui(signupMode ? 'common.sign_in' : 'common.sign_up'),()=>{setSignupMode(!signupMode);setAccountFormOpen(false);setConfirmPassword('');setError('');},authBusy)}
+    {button(ui(signupMode ? 'common.sign_in' : 'common.sign_up'),()=>{setSignupMode(!signupMode);setAccountFormOpen(false);setConfirmPassword('');setRulesAccepted(false);setError('');},authBusy)}
     {!accountFormOpen ? <AuthMethodChoices signup={signupMode} disabled={authBusy} onContinue={() => setAccountFormOpen(true)} /> : <>
     <FormInput accessibilityLabel={ui(signupMode?'common.username':'common.username_or_email')} placeholder={ui(signupMode?'common.username':'common.username_or_email')} maxLength={signupMode?32:254} value={username} onChangeText={setUsername} autoCapitalize="none" autoCorrect={false} editable={!authBusy} style={authStyles.input} />
     {signupMode && <>
@@ -206,6 +208,7 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
     <FormInput accessibilityLabel={ui('common.password')} placeholder={ui('common.password')} value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} maxLength={128} editable={!authBusy} style={authStyles.input} />
     {!signupMode && <ForgotPassword />}
     {signupMode && <FormInput accessibilityLabel={ui('common.confirm_password')} placeholder={ui('common.confirm_password')} value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} maxLength={128} editable={!authBusy} style={authStyles.input} />}
+    {signupMode && <SignupRules accepted={rulesAccepted} onChange={setRulesAccepted} disabled={authBusy} />}
     {signupMode && !!confirmPassword && password !== confirmPassword && <Text accessibilityRole="alert" style={{color:colors.danger}}>{ui('common.passwords_do_not_match')}</Text>}
     {!!error&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(error, 'feedback')}</Text>}
     </>}

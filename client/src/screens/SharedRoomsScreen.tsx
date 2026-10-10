@@ -1,3 +1,4 @@
+import {SignupRules} from '../components/moderation/SignupRules';
 import {AppText as Text} from '../components/AppText';
 import {PushProvider} from '../notifications/PushProvider';
 import { PolicyLinks } from '../components/moderation/PublicPolicies';
@@ -79,6 +80,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const [linkedMatch, setLinkedMatch] = useState<string>();
   const [linkedEntry, setLinkedEntry] = useState<{ matchId: string; action: TableEntry }>();
   const [accountFormOpen, setAccountFormOpen] = useState(false);
+  const [rulesAccepted,setRulesAccepted] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -88,9 +90,9 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const passwordMismatch = authMode === 'signup' && password !== confirmPassword;
   const usernameInput = useRef<TextInput>(null), emailInput = useRef<TextInput>(null), passwordInput = useRef<TextInput>(null), confirmPasswordInput = useRef<TextInput>(null);
   const shared = useRoomSession(roomActions);
-  const authDisabled = username.trim().length < 3 || password.length < 8 || passwordMismatch || shared.loggingIn || (authMode === 'signup' && !validSignupEmail(email));
+  const authDisabled = username.trim().length < 3 || password.length < 8 || passwordMismatch || shared.loggingIn || (authMode === 'signup' && (!validSignupEmail(email) || !rulesAccepted));
   function submitAccount() {
-    if (!authDisabled) void shared.loginAccount(username, password, authMode === 'signup', email);
+    if (!authDisabled) void shared.loginAccount(username, password, authMode === 'signup', email, rulesAccepted);
   }
   const { session, rooms, room, game, setGame, expired } = shared;
   useEffect(()=>{
@@ -415,7 +417,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
           <View style={styles.gameTabs}>
             {([['signin', ui("common.sign_in")], ['signup', ui("common.sign_up")]] as const).map(([value, label]) =>
               <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: authMode === value }}
-                onPress={() => { setAuthMode(value); setAccountFormOpen(false); setConfirmPassword(''); setError(''); }} style={[styles.gameTab, authMode === value && styles.selectedTab]}>
+                onPress={() => { setAuthMode(value); setAccountFormOpen(false); setConfirmPassword(''); setRulesAccepted(false); setError(''); }} style={[styles.gameTab, authMode === value && styles.selectedTab]}>
                 <Text style={[styles.tabText, authMode === value && styles.selectedTabText]}>{label}</Text>
               </Pressable>)}
           </View>
@@ -451,6 +453,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
                 style={styles.input} returnKeyType="go" onSubmitEditing={submitAccount} />
               {!!confirmPassword && passwordMismatch && <Text accessibilityRole="alert" style={styles.error}>{ui("common.passwords_do_not_match")}</Text>}
             </>}
+            {authMode === 'signup' && <SignupRules accepted={rulesAccepted} onChange={setRulesAccepted} disabled={shared.loggingIn} />}
             <Text style={styles.description}>{ui("common.account_requirements")}</Text>
 
           </>}

@@ -1,0 +1,1 @@
+export const SIGNUP_RULES_VERSION = '2026-10-01';
