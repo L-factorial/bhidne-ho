@@ -1,5 +1,9 @@
 // Editable Nepali rooms copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "creating_room": "कोठा बनाइँदैछ…",
+  "creating_table": "टेबल बनाइँदैछ…",
+  "busy_invitees_skipped": "टेबल बन्यो। अर्को टेबलमा खेलिरहेका {{players}} लाई निमन्त्रणा पठाइएन।",
+
   "play": "खेल्नुहोस्",
   "wait": "पर्खनुहोस्",
   "rooms": "कोठाहरू",

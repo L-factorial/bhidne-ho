@@ -8440,3 +8440,159 @@ implementation request before changing card rendering or Marriage turn behavior.
 - Exact next step: review these local changes and, when requested, push/deploy
   them and test simultaneous hand review on the app servers. The distributed
   capacity/observability/HA readiness work remains the next infrastructure set.
+
+### 2026-10-10 — Direct production deployment of review and UI fixes
+
+- User authorized direct deployment. Released committed revision
+  `21cef2a1e2a2d1a5b42230c3fcff7e91ae8b01d1` to both app hosts
+  `168.144.105.49` and `165.245.180.205`. Canceled the matching GitHub workflow
+  `38042397699` during testing and confirmed it completed as canceled.
+- Built a fresh production frontend with the production API and
+  `distributed-original` runtime. Both hosts run identical image
+  `sha256:6332d08b768e28d118a6ba52b41ea944966be266980f995a7248a15fa150dd72`.
+  Existing dependencies were unchanged; no schema migration was necessary.
+- Installed release checks, exclusive locks, peer health and rollback safeguards
+  protected the sequential backend activation, followed by matching frontends.
+- Verification: both hosts report the exact revision/image, healthy API and APNs
+  capability. Public HTTPS serves the exact matching frontend index and JS asset.
+  Evidence: `/private/tmp/bhidne-21cef2a-direct/verification.json` and
+  `/private/tmp/bhidne-21cef2a-{web,build,rollout}.log`.
+- Limitations: deployment verification did not create live player games. Native
+  device interactions still need user testing. No new commit or push performed.
+- Exact next step: test simultaneous Call Break hand reviews and the updated
+  Marriage/card/picker flows on production devices; infrastructure capacity,
+  observability and database HA readiness remain the next infrastructure set.
+
+### 2026-10-10 — skibidi create-game incident investigation
+
+- User reported Flush creation failing around 07:30 (or slightly earlier) on
+  October 10; screenshots show unresolved confirmation and generic “Cannot
+  update game” feedback. Assumed Pacific time pending timezone clarification.
+- Read-only production checks found the exact username `skibidi`, but no command
+  receipts for that actor in 14:00–15:00 UTC October 10 and no create-table
+  receipts in October 9 00:00 through October 10 15:00 UTC. No community-rules
+  acceptance is recorded; that alone does not establish the cause of this failure.
+- App-one filtered error logs were empty in 14:15–14:45 UTC. App two recorded
+  Redis dispatch failures and room retirement at 14:34:51 and 14:35:21 UTC,
+  plus a Redis connection failure at 14:02:38 UTC. These events are near the
+  report but are not yet attributed to this actor/request.
+- Limitations: server receipts do not identify an admitted create command for
+  this account; screenshots alone cannot distinguish client/journal, transport,
+  room lookup or pre-ingress failure. No production writes or deployment.
+- Evidence/query runner: `/private/tmp/bhidne-skibidi-incident.py` (read-only,
+  exact-username and bounded recent create-table history).
+- Exact next step: confirm incident timezone and whether `skibidi` was the signed-in
+  username; obtain the affected room and client type/version, then correlate its
+  room/transport path before selecting a fix. Preserve the existing pending
+  request identity while its outcome remains unresolved.
+- Follow-up screenshot identifies `Hamro family` and seated display name `Sigma`.
+  Room-scoped receipts confirm the creator was username `sigma`, not the separate
+  `skibidi` account queried initially. The matching create-table request entered
+  at 14:34:47.953 UTC and committed accepted at 14:35:53.337 UTC (07:34:47–
+  07:35:53 PDT, approximately 65 seconds). It created Flush `Table-1`, table
+  `ba448966a2025aeab55d6f23181660b3`, match `d9094cb0dae9547ba2b460e4c7ad65d8`.
+- The room's ID matches both 14:34:51/14:35:21 retirement/dispatch failures.
+  This correlates room disruption with delayed execution; the underlying reason
+  for retirement remains unproven. Creation itself succeeded atomically.
+- Code trace: `DistributedUiIntent.run` stops foreground confirmation after
+  30 seconds while retaining the original command. `OriginalUiApi.recover`
+  reports accepted restored actions with `Previous create-table action confirmed.`;
+  `useRoomSession` passes that success text into `playerError`, which does not
+  recognize it and returns the generic failure shown in the new screenshot.
+  This is a concrete success-feedback bug, although client diagnostics are not
+  available to prove that callback fired on this particular phone. Command-source
+  reconciliation errors can also populate the same persistent banner.
+- Updated exact next step: distinguish recovered success from error feedback and
+  clear only the matching resolved action's stale error, with recovery tests;
+  separately inspect why this room retired twice before acceptance. No application
+  source edits or production changes were made during this investigation.
+- Additional read-only evidence runner:
+  `/private/tmp/bhidne-skibidi-room-incident.py`.
+
+### 2026-10-10 — Delayed table creation and recovery feedback fix (local)
+
+- User requested handling/fixing the confirmed creation incident. Exact room logs
+  show two prepared recoveries canceled during activation, followed by successful
+  third activation/creation. Redis placement dispatch shared a two-second deadline
+  with ordinary broker operations, shorter than SQL recovery plus activation.
+- Added a separate finite positive placement deadline (30 seconds by default).
+  Other dispatch and Redis I/O retain their two-second limits; worker/queue bounds,
+  fences, lease validation and shutdown cancellation are unchanged. This prevents
+  ordinary multi-second placement from being interrupted by the broker deadline;
+  it does not promise a 30-second total creation SLA or eliminate genuine failures.
+- Recovery callbacks now distinguish accepted commands from rejected commands.
+  Accepted recovery emits success only after projection refresh and command-slot
+  retirement. The session clears generic/confirmation feedback while retaining
+  actionable denials. Success text no longer enters the error formatter.
+  Original command identities and durable ambiguous-outcome semantics are retained.
+- Verification: all 457 client tests, TypeScript, fresh Expo web export and diff
+  checks pass. Fault-injection transport tests pass 19 cases (two initial SQL
+  cases skipped); coverage includes separate placement limits, timeout enforcement,
+  invalid deadlines, ordinary short dispatch and shutdown cancellation. Restored
+  creation tests verify projection refresh, same-ID retry, success versus rejection
+  feedback and no extra creation identity. English/Nepali error clearing is covered.
+- Evidence: `/private/tmp/bhidne-create-recovery-{tests,client-full,web}.log`,
+  `/private/tmp/bhidne-placement-timeout-tests.log`. Additional PostgreSQL/WASM
+  placement/transport regression verification recorded below when complete.
+- Limitations: local changes only, no deployment or device smoke test. Client
+  recovery covered here is journal restoration; active-screen timeout/pending
+  behavior retains its existing retry contract. Placement can occupy a bounded
+  dispatch worker longer, but probes remain independent. Timing evidence strongly
+  supports dispatch cancellation as the incident delay mechanism; no database
+  availability guarantees are inferred from this fix.
+- Exact next step: release backend and client together when requested, then check
+  a cold-room creation and restored-request success feedback on production devices.
+  Native clients require a fresh signed build; do not claim device verification
+  from the local web export. Capacity/HA readiness remains the separate task set.
+- SQL follow-up: combined transport, room placement and placement discovery suite
+  passes all 54 cases using the PostgreSQL/WASM harness, with no skipped cases.
+  Evidence: `/private/tmp/bhidne-placement-sql-tests.log`.
+
+### 2026-10-10 — Durable creation cards and busy-invitee handling
+
+- User authorized implementation, commit/push, and direct release to both servers
+  without waiting for GitHub. Forms remain open during creation and can be closed.
+  Room and table lists show bounded cards with native loading indicators and
+  localized “Creating room…” / “Creating table…” copy. Table placeholders appear
+  in Play and their destination room and share the existing command identity.
+- Cards derive from authenticated durable journal slots rather than form lifetime.
+  Offscreen newly pending table requests are reconciled by the root adapter;
+  room recovery continues after foreground timeout. Accepted outcomes refresh the
+  committed projection before retiring the original command. Definitive rejections
+  remove processing cards and publish feedback to their lists, including closed
+  forms. Existing ambiguous-outcome identity and payload guards prevent duplicates.
+- Game creation from Play also stores a bounded account/device-scoped continuation
+  in the journal. Default-room identity persists before its receipt is retired;
+  restart resumes room entry and the same table request. Creation completion clears
+  that continuation before the table receipt is retired. Closing a form does not
+  cancel work or force navigation when it later completes. Logout closes access
+  while retaining unresolved work for that account/device.
+- Busy explicit invitees are filtered under existing user locks. Table creation
+  succeeds for the creator and eligible invitees; skipped players receive neither
+  explicit invitations nor fallback room notifications. Receipts retain skipped
+  user IDs and display names, and both table lists explain who was skipped.
+  Rates count only attempted eligible invitations. Other recipient permission,
+  policy and validity denials retain existing enforcement; the creator's own
+  active seat still rejects creation. No auto-departure or reserved invitee seat.
+- Includes the previously verified separate 30-second placement dispatch deadline
+  and typed recovery-success feedback fix. Broker I/O/probe limits remain short.
+- Verification: all 462 client tests and production TypeScript/export pass.
+  Tests cover restored/newly pending offscreen requests, same-ID retry, rejection,
+  journal continuation, duplicate guards, logout and localized stale-error clearing.
+  Browser fixtures at 390/1280px verify room/table spinners, persisted placeholders
+  after reload and bounded card widths. The affected PostgreSQL/WASM suite passed
+  62 cases before final receipt validation; final regression results follow below.
+- Evidence: `/private/tmp/bhidne-creation-{client-tests,flow-tests,types,sql-tests,
+  final-sql,production-build,browser}.log` and
+  `/private/tmp/bhidne-creating-{room,table}-{390,1280}.png`.
+- Limitations: browser fixtures, not physical iOS testing. New native presentation
+  requires a signed app build. Genuine server delays still retain processing state;
+  the separate placement deadline is a bound, not a completion-time guarantee.
+  No schema or dependency changes. Creation feedback is session-scoped after a
+  receipt has been presented; unresolved commands/continuations survive restart.
+- Exact next step: finish final SQL checks, commit/push this increment, cancel the
+  matching GitHub run before activation, build the committed release and deploy the
+  same immutable backend/frontend to both servers with installed safeguards.
+- Final pre-release checks: all 62 affected PostgreSQL/WASM cases pass after receipt
+  validation changes; all 17 distributed HTTP transport cases pass. The final
+  browser checks pass room and table restoration at both viewport sizes.

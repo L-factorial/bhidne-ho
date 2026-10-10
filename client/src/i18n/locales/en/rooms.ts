@@ -1,5 +1,9 @@
 // Editable English rooms copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "creating_room": "Creating room…",
+  "creating_table": "Creating table…",
+  "busy_invitees_skipped": "Table created. {{players}} weren’t invited because they are playing at another table.",
+
   "play": "Play",
   "wait": "Wait",
   "rooms": "Rooms",

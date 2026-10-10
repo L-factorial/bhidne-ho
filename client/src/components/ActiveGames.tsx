@@ -9,13 +9,15 @@ import {AppState, Pressable, ScrollView, View} from 'react-native';
 import { request } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 import type { TableEntry } from '../multiplayer/tableNavigation';
+import {CreationCards} from './CreationCards';
+import type {OriginalDistributedRuntime} from '../multiplayer/OriginalDistributedRuntime';
 import { PlayTableCard } from './PlayTableCard';
 import {playFeed,type PlayTable,type PlayInvitation} from '../multiplayer/playFeed';
 import {playerError} from '../multiplayer/playerError';
 
 export type ActiveTable = PlayTable;
 const filters = [['all', 'All'], ['flush', 'Flush'], ['marriage', 'Marriage'], ['callbreak', 'Call Break']] as const;
-export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable, activity }: { activity?: { observeActivity: (listener: () => void) => () => void }; onCreateTable: () => void; onBrowseRooms: () => void; session: Session; busy: boolean; enter: (table: ActiveTable, action: TableEntry) => void }) {
+export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable, activity, runtime }: { runtime?:OriginalDistributedRuntime|null; activity?: { observeActivity: (listener: () => void) => () => void }; onCreateTable: () => void; onBrowseRooms: () => void; session: Session; busy: boolean; enter: (table: ActiveTable, action: TableEntry) => void }) {
   useUiLanguage();
   const { colors: c } = useTheme();
   const [actionError,setActionError]=useState(''),[discarding,setDiscarding]=useState(false);
@@ -100,6 +102,7 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable
       <Pressable accessibilityRole="button" onPress={onCreateTable} style={{minHeight:44,paddingHorizontal:16,borderRadius: radii.medium,backgroundColor:c.primary,justifyContent:'center'}}><Text style={{color:c.onPrimary,fontFamily:fonts.medium}}>{ui("rooms.create_table")}</Text></Pressable>
       <Pressable accessibilityRole="button" onPress={() => filter === 'all' ? onBrowseRooms() : setFilter('all')} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: c.accent, fontFamily: fonts.medium }}>{filter === 'all' ? ui("rooms.browse_rooms") : ui("rooms.view_all_games")}</Text></Pressable>
     </View>}
+    <CreationCards runtime={runtime} kind="table" matches={tables.map(table=>table.match_id)}/>
     {visible.map(table => <PlayTableCard key={`${table.room_id}:${table.match_id}`} table={table} busy={busy||discarding} enter={action => enter(table, action)} declineInvitation={()=>void declineInvitation(table)}/>)}
   </View>;
 }

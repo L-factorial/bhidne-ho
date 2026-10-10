@@ -1,10 +1,11 @@
 import { validateCommandCheckpoint } from './DurableCommandClient.ts';
-import type { CommandCheckpoint, CommandPersistence } from './DurableCommandClient.ts';
+import type { Json, CommandCheckpoint, CommandPersistence } from './DurableCommandClient.ts';
 
 // Synchronous durable atomic replacement, NOT a write-behind cache. An async-only
 // platform needs an awaited adapter/lifecycle before using this synchronous API.
 export type JournalStorage = { read(key: string): string | null; write(key: string, value: string): void };
-type Document = { version: 1; account: string; device: string; slots: [string, CommandCheckpoint][] };
+export type GameCreationFlow={id:string;defaultName:string;room:{room_id:string;name:string;members:string[]}|null;payload:{[key:string]:Json}};
+type Document = { version: 1; account: string; device: string; slots: [string, CommandCheckpoint][]; creationFlow?:GameCreationFlow|null };
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 const validName = (s: unknown): s is string => typeof s === 'string' && s.trim().length > 0 && s.length <= 128;
 
@@ -30,8 +31,15 @@ export class CommandJournal {
       if (!Array.isArray(row) || row.length !== 2 || !validName(row[0]) || seen.has(row[0])) throw new Error('Invalid journal slot.');
       seen.add(row[0]); row[1] = validateCommandCheckpoint(row[1]);
     }
+    if(value.creationFlow)this.validateCreationFlow(value.creationFlow);
     this.document = value;
   }
+  private validateCreationFlow(value:GameCreationFlow) {
+    if(!validName(value.id)||!validName(value.defaultName)||!value.payload||typeof value.payload!=='object'||Array.isArray(value.payload)||!['flush','marriage','callbreak'].includes(String(value.payload.game_type))
+      ||value.room&&(!validName(value.room.room_id)||!validName(value.room.name)||!Array.isArray(value.room.members)))throw Error('Invalid creation flow.');
+  }
+  get creationFlow(){this.check();return clone(this.document.creationFlow??null);}
+  saveCreationFlow(value:GameCreationFlow|null){if(value)this.validateCreationFlow(value);const next=clone(this.document);next.creationFlow=clone(value);this.commit(next);}
   private decode(raw: string): Document {
     if (raw.length * 2 > 1048576) throw new Error('Journal exceeds storage bound.');
     const value = JSON.parse(raw);

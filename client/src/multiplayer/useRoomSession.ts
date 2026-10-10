@@ -1,11 +1,11 @@
 import {SIGNUP_RULES_VERSION} from '../auth/communityRules';
 import { setSessionNotice } from '../auth/sessionNotice';
 import { usePersistentNotice } from './usePersistentNotice';
-import { playerError } from './playerError.ts';
+import { playerError, confirmedActionError } from './playerError.ts';
 import { OriginalDistributedRuntime, originalDistributedOwner } from './OriginalDistributedRuntime';
 import { acquireJournal } from './journalPlatform';
 import { DistributedRequestError } from './DistributedHttpTransport';
-import { RoomActionRejected } from './DistributedRoomActions';
+import { RoomActionRejected, RoomActionPending } from './DistributedRoomActions';
 import { ui } from '../i18n/copy.ts';
 import { validSignupEmail } from '../auth/email';
 import { legacyRoomActions } from './legacyRoomActions';
@@ -84,7 +84,17 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
     })).then(value=>{
       if(!live||!value)return;
       value.connectRequests(sharedRequest);value.api!.attachSocial(socialChannel);
-      value.api!.recover(message=>{if(live)setError(playerError(message));});setRuntime(value);
+      value.api!.recover(notice=>{
+        if(!live || !isCurrentSession(apiUrl, active))return;
+        if(notice.command==='create-table'){
+
+          if(notice.status==='rejected')value!.recordCreationFeedback({id:notice.commandId??'table',kind:'table',roomId:notice.roomId,error:notice.message});
+          else if(notice.skipped?.length)value!.recordCreationFeedback({id:notice.commandId??'table',kind:'table',roomId:notice.roomId,skipped:notice.skipped});
+          else value!.clearCreationFeedback('table');
+        }
+        if(notice.status==='accepted')setError(confirmedActionError);
+        else setError(playerError(notice.message));
+      });setRuntime(value);
       void value.root.reconnect().catch(error=>{
         if (!live) return;
         if (error instanceof DistributedRequestError && error.status === 401) expireAccount(active);
@@ -93,11 +103,17 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
       async function recover(){
         if(!live || !isCurrentSession(apiUrl, active))return;
         try {
+          if(value!.creationFlow)return;
           const result=await value!.recoverRoomAction();
           if(!live || !isCurrentSession(apiUrl, active))return;
           if(result){
             const commandId=value!.roomCommandId!;
-            if(result.command==='create-room'||result.command==='enter-room'){
+            if(result.command==='create-room'){
+              await value!.root.reads.preview<Room>(result.roomId,new AbortController().signal);
+              if(result.room)setRooms(current=>[...current.filter(room=>room.room_id!==result.roomId),result.room!]);
+              value!.clearCreationFeedback('room');
+              setError(confirmedActionError);
+            } else if(result.command==='enter-room'){
               const controller=new AbortController();
               const target=result.room??await value!.root.reads.preview<Room>(result.roomId,controller.signal);
               if(!live || !isCurrentSession(apiUrl, active))return;
@@ -111,10 +127,13 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
           }
         }catch(error){
           if(!live || !isCurrentSession(apiUrl, active))return;
-          setError(playerError(error, 'Could not recover room action.'));
+          if(!(error instanceof RoomActionPending)){
+            setError(playerError(error, 'Could not recover room action.'));
+            if(error instanceof RoomActionRejected)value!.recordCreationFeedback({id:value!.roomCommandId??'room',kind:'room',error:error.message});
+          }
           if(error instanceof RoomActionRejected&&value!.roomCommandId)value!.acknowledgeRoomAction(value!.roomCommandId);
-          else timer=setTimeout(()=>void recover(),1500);
-        }
+
+        } finally {if(live)timer=setTimeout(()=>void recover(),1500);}
       }
       void recover();
     }).catch(error=>{if(live) {
@@ -334,7 +353,7 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
     clearAccount(); setError('');
     await pending;
   }
-  return { runtime, startupError, roomActions, socialChannel, loginAccount, acceptSocialSession, socialLoginBusy, loggingIn, session, room, rooms, memberships, game, setGame, joinRoom, enterRoom, exitRoom, leaveRoom, deleteRoom, signOut, leaveGameRequired, leaveGameAndRoom, abandonRequired,
+  return { createdRoom:(created:Room)=>setRooms(current=>[...current.filter(room=>room.room_id!==created.room_id),created]), runtime, startupError, roomActions, socialChannel, loginAccount, acceptSocialSession, socialLoginBusy, loggingIn, session, room, rooms, memberships, game, setGame, joinRoom, enterRoom, exitRoom, leaveRoom, deleteRoom, signOut, leaveGameRequired, leaveGameAndRoom, abandonRequired,
     cancelLeave: () => { setLeaveGameRequired(null); setError(''); }, status, expired, error, connectionNotice, recoveryKind: recoveryNotice ? recoveryKind : null, pokes, presenceFresh: !refreshInterrupted,
     retry: () => {
       setError(''); setStartupError('');

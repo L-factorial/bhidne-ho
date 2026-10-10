@@ -19,6 +19,7 @@ function delay(signal: AbortSignal) {
 // their original target, payload, revision and ID, even after the screen unmounts.
 export class DistributedUiIntent {
   private active = new Set<string>();
+  isActive(slot:string) { return this.active.has(slot); }
   private session: Pick<DistributedSession<unknown>,'command'|'releaseCommand'>;
   constructor(session: Pick<DistributedSession<unknown>,'command'|'releaseCommand'>) { this.session=session; }
   async run<T>(slot: string,target: CommandTarget,body: Omit<CommandBody,'command_id'>,

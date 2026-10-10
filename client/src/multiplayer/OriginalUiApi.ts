@@ -13,13 +13,17 @@ import type { LeaveView } from './DistributedScreenController.ts';
 import { GameRequestError } from './PendingGameAction.ts';
 
 type Payload = {[key:string]:Json};
+export type UiRecoveryNotice = {status:'accepted';command:string;commandId?:string;roomId?:string;skipped?:string[]} | {status:'rejected';message:string;command?:string;commandId?:string;roomId?:string};
+const uiSlots=['ui-table-control','ui-room-settings','ui-ledger','ui-invitations','ui-friendship','ui-notifications','ui-direct-chat','ui-room-chat','ui-table-chat'];
 export class OriginalUiApi {
   readonly request:UiRequest;
+  onCreationResolved:((notice:UiRecoveryNotice)=>void)|null=null;
   private root:DistributedRootRuntime;
   private account:Session;
   private shared:UiRequest;
   private intents:DistributedUiIntent;
   private restored=new Map<string,string>();
+  private recoveryNotify:((notice:UiRecoveryNotice)=>void)|null=null;
   private recoveryTimer?:ReturnType<typeof setTimeout>;
   private closed=new AbortController();
   private channel:TableSocialChannel|null=null;
@@ -44,7 +48,7 @@ export class OriginalUiApi {
   }
   constructor(root:DistributedRootRuntime,account:Session,shared:UiRequest) {
     this.root=root;this.account={...account};this.shared=shared;this.intents=new DistributedUiIntent(root.session);
-    for(const slot of ['ui-table-control','ui-room-settings','ui-ledger','ui-invitations','ui-friendship','ui-notifications','ui-direct-chat','ui-room-chat','ui-table-chat']) {
+    for(const slot of uiSlots) {
       const saved=root.session.command(slot).request;
       if(saved)this.restored.set(slot,saved.body.command_id);
     }
@@ -54,38 +58,48 @@ export class OriginalUiApi {
       this.closed.signal.addEventListener('abort',cancel,{once:true});signal?.addEventListener('abort',cancel,{once:true});
       if(signal?.aborted)cancel();
       try {return await this.route(path,body,abort.signal,method) as T;}
-      catch(error){if(error instanceof DistributedRequestError)throw new ApiError(error.status,error.message);throw error;}
+      catch(error){
+        const saved=this.root.session.command('ui-table-control').request;
+        if(body&&/^\/test-games\/[^/?]+$/.test(path)&&error instanceof GameRequestError)this.recoveryNotify?.({status:'rejected',message:error.message,command:'create-table',roomId:path.split('/')[2],commandId:saved?.body.command_id});
+        if(error instanceof DistributedRequestError)throw new ApiError(error.status,error.message);throw error;}
       finally {this.closed.signal.removeEventListener('abort',cancel);signal?.removeEventListener('abort',cancel);}
     };
   }
-  recover(notify:(message:string)=>void) {
+  recover(notify:(notice:UiRecoveryNotice)=>void) {
+    this.recoveryNotify=notify;
     const tick=async()=>{
+      const creating=this.root.session.command('ui-table-control').request;
+      if(creating?.body.command==='create-table'&&!this.intents.isActive('ui-table-control'))this.restored.set('ui-table-control',creating.body.command_id);
       for(const [slot,id] of this.restored) {
         if(this.closed.signal.aborted)return;
+        if(this.intents.isActive(slot))continue;
         const saved=this.root.session.command(slot).request;
         if(!saved||saved.body.command_id!==id){this.restored.delete(slot);continue;}
         const {command_id,...body}=saved.body;
         try {
-          await this.intents.run(slot,saved.target,body,this.closed.signal,async()=>{
+          let skipped:string[]|undefined;
+          await this.intents.run(slot,saved.target,body,this.closed.signal,async(receipt)=>{
+            if(body.command==='create-table')this.onCreationResolved?.({status:'accepted',command:'create-table',commandId:id,roomId:saved.target.room_id});
+            if('outcome' in receipt)skipped=receipt.outcome?.skipped_invitee_names??receipt.outcome?.skipped_invitees??undefined;
             // Present a committed projection before retiring an offscreen intent.
             if(['conversation','room_chat','table_chat'].includes(saved.target.kind)&&['send-message','send-chat'].includes(body.command))
               await this.messages(saved.target,this.closed.signal);
             else if(saved.target.room_id) {
-              try {await this.game(saved.target.room_id,null,this.closed.signal);}
+              try {await this.game(saved.target.room_id,'outcome' in receipt?receipt.outcome?.match_id??null:null,this.closed.signal);}
               catch(error){if(!(error instanceof DistributedRequestError)||![403,404].includes(error.status))throw error;}
             }
-            notify(`Previous ${body.command} action confirmed.`);
           });
+          notify({status:'accepted',command:body.command,commandId:id,roomId:saved.target.room_id,...(skipped?.length?{skipped}:{})});
           this.restored.delete(slot);
         } catch(error) {
           if(this.closed.signal.aborted)return;
           if(error instanceof GameRequestError) {
-            notify(error.message);this.restored.delete(slot);
+            notify({status:'rejected',message:error.message,command:body.command,commandId:id,roomId:saved.target.room_id});this.restored.delete(slot);
           }
           // Transport uncertainty keeps the original journal and is retried.
         }
       }
-      if(this.restored.size&&!this.closed.signal.aborted)this.recoveryTimer=setTimeout(()=>void tick(),1500);
+      if(!this.closed.signal.aborted)this.recoveryTimer=setTimeout(()=>void tick(),1500);
     };
     void tick();
   }
@@ -344,7 +358,10 @@ export class OriginalUiApi {
       }
       return this.intents.run('ui-table-control',{kind:'room',room_id:room},{command:'create-table',payload},signal,async(receipt)=>{
         if(!('outcome' in receipt)||!receipt.outcome?.match_id)throw Error('Missing created match identity.');
-        return this.game(room,receipt.outcome.match_id,signal);
+        const game=await this.game(room,receipt.outcome.match_id,signal);
+        this.onCreationResolved?.({status:'accepted',command:'create-table',commandId:receipt.command_id,roomId:room});
+        this.recoveryNotify?.({status:'accepted',command:'create-table',commandId:receipt.command_id,roomId:room,skipped:receipt.outcome.skipped_invitee_names??receipt.outcome.skipped_invitees??[]});
+        return {...game,skipped_invitees:receipt.outcome.skipped_invitees??[]};
       });
     }
     const saved=this.root.session.command('ui-table-control').request;

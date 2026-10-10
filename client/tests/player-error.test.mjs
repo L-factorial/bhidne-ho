@@ -102,3 +102,16 @@ test('structured rules denial takes priority over unresolved-outcome feedback', 
  const error=new DistributedRequestError(403,undefined,'COMMUNITY_RULES_REQUIRED');
  assert.equal(playerError(error),'Open Profile and accept the community rules before sending invitations or using chat.');
 });
+
+test('confirmed recovery clears uncertainty without replacing actionable errors', async () => {
+  const {confirmedActionError}=await import('../src/multiplayer/playerError.ts');
+  for(const language of ['en','ne']) {
+    await i18n.changeLanguage(language);
+    assert.equal(confirmedActionError(playerError('Waiting for confirmation.')), '');
+    assert.equal(confirmedActionError(playerError(Error('unknown recovery error'))), '');
+    const denial=playerError({code:'COMMUNITY_RULES_REQUIRED'});
+    assert.equal(confirmedActionError(denial),denial);
+    assert.equal(confirmedActionError(''), '');
+  }
+  await i18n.changeLanguage('en');
+});

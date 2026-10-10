@@ -87,6 +87,7 @@ class RoomCreationExecutor:
             if claim.target.kind != 'room' or request.command != 'create-table':
                 raise DurableGameConflict('This executor only handles room-lane create-table commands.')
             detail = None
+            skipped_invitees = []
             try:
                 payload = CreateTablePayload.model_validate_json(canonical_json(request.payload))
             except ValidationError:
@@ -161,9 +162,13 @@ class RoomCreationExecutor:
                         detail = 'An open table with that name already exists in this room.'
             if detail is None:
                 eligibility = await hosted_invitations.eligibility(claim.connection, claim.target.room_id, actor, payload.invitees, lane=claim.entry.lane_id, sequence=claim.entry.sequence)
-                detail = next((item['reason'] for item in eligibility if not item['eligible']), None)
+                skipped_invitees = [item['user_id'] for item in eligibility
+                    if item['reason'] == 'Already seated at another active table.']
+                detail = next((item['reason'] for item in eligibility
+                    if not item['eligible'] and item['user_id'] not in skipped_invitees), None)
             if detail is None:
-                detail = await hosted_invitations.reserve_rate(claim.connection, actor, len(set(payload.invitees)))
+                recipients = [u for u in payload.invitees if u not in skipped_invitees]
+                detail = await hosted_invitations.reserve_rate(claim.connection, actor, len(set(recipients)))
             outcome = {'command_id': request.command_id, 'status': 'rejected' if detail else 'accepted'}
             events = []
             if detail is not None:
@@ -204,7 +209,8 @@ class RoomCreationExecutor:
                     table=TableState(table_id=table_id.hex), commands=CommandSession(match_id=match_id.hex))
                 if game.game_type == 'flush':
                     game.flush_seats[actor] = 1
-                invitations = await hosted_invitations.create(claim, game, payload.invitees, notify_room=payload.notify_room)
+                invitations = await hosted_invitations.create(claim, game, recipients, notify_room=payload.notify_room,
+                    skip_recipients=skipped_invitees)
                 from app.multiplayer.table_session import sync as sync_session
                 from .seat_offers import now as db_now
                 sync_session(game, await db_now(claim.connection), actor=actor, activity=True)
@@ -213,6 +219,15 @@ class RoomCreationExecutor:
                 await self.inbox.ensure_lane_in_transaction(claim.connection, LaneTarget(
                     kind='table', room_id=claim.target.room_id, table_id=table_id))
                 outcome.update(table_id=table_id.hex, match_id=match_id.hex, revision=0)
+                if skipped_invitees:
+                    outcome['skipped_invitees'] = skipped_invitees
+                    names = await (await claim.connection.execute('''SELECT u.id,
+                        COALESCE(NULLIF(p.display_name,''),a.username,'Player')
+                        FROM users u LEFT JOIN user_profiles p ON p.user_id=u.id
+                        LEFT JOIN account_credentials a ON a.user_id=u.id
+                        WHERE u.id=ANY(%s)''', ([user_uuid(u) for u in skipped_invitees],))).fetchall()
+                    labels = {f'user-{identifier}':name for identifier,name in names}
+                    outcome['skipped_invitee_names'] = [labels[u] for u in skipped_invitees]
                 from .lobby_events import changed
                 await changed(claim.connection, self.inbox, game.room_id, extra=[i['recipient_id'] for i in invitations])
                 events.append(OutgoingEvent({'type': 'TABLE_CREATED', 'table_id': table_id.hex,

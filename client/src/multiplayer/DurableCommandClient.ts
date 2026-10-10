@@ -11,6 +11,8 @@ export type CommandOutcome = {
   command_id: string; status: 'accepted' | 'rejected'; revision?: number | null;
   context?: {code:'PLAYER_ALREADY_AT_TABLE'|'LEAVE_GAME_REQUIRED';room_id:string;match_id:string;requires_leave_game:boolean;departure_command:'leave'|'abandon'|'end'} | null;
   detail?: string | null; table_id?: string | null; match_id?: string | null;
+  skipped_invitees?: string[] | null;
+  skipped_invitee_names?: string[] | null;
 };
 export type CommandReceipt = StatusReference & {
   sequence: number; status: 'pending' | 'accepted' | 'rejected';
@@ -44,6 +46,9 @@ function receipt(value: unknown, commandId: string, previous: CommandReceipt | n
     if (r.outcome !== null) throw new Error('Pending command cannot have an outcome.');
   } else if (r.status === 'accepted' || r.status === 'rejected') {
     const o = r.outcome;
+    for(const values of [o?.skipped_invitees,o?.skipped_invitee_names]) {
+      if(values!=null&&(!Array.isArray(values)||values.length>20||values.some(value=>!nonempty(value))))throw Error('Invalid skipped invitation feedback.');
+    }
     if (o?.context && (r.status!=='rejected'||!['PLAYER_ALREADY_AT_TABLE','LEAVE_GAME_REQUIRED'].includes(o.context.code)
         ||!nonempty(o.context.room_id)||!nonempty(o.context.match_id)||typeof o.context.requires_leave_game!=='boolean'
         ||!['leave','abandon','end'].includes(o.context.departure_command)))throw new Error('Invalid departure context.');

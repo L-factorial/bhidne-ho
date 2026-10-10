@@ -116,13 +116,13 @@ class SignalCodec:
 class RedisSignalTransport:
     def __init__(self, client, instance_id, secret, *, wakeup_receiver, placement_receiver,
                  delivery_receiver=None, on_health=None, namespace='bhidne-ho:runtime:v1', workers=4, max_pending=256,
-                 operation_timeout=2.0, probe_interval=1.0, probe_timeout=2.0,
+                 operation_timeout=2.0, placement_timeout=30.0, probe_interval=1.0, probe_timeout=2.0,
                  retry_base=.2, retry_max=5.0, owns_client=False):
         if (not isinstance(instance_id, str) or not instance_id.strip() or len(instance_id) > 128
                 or re.fullmatch(r'[A-Za-z0-9:_-]{1,80}', namespace) is None
                 or type(workers) is not int or workers < 1 or type(max_pending) is not int or max_pending < workers
                 or any(not math.isfinite(v) or v <= 0 for v in
-                       (operation_timeout, probe_interval, probe_timeout, retry_base, retry_max))
+                       (operation_timeout, placement_timeout, probe_interval, probe_timeout, retry_base, retry_max))
                 or retry_max < retry_base or on_health is not None and not callable(on_health)):
             raise ValueError('Invalid Redis transport configuration.')
         self.client, self.instance_id, self.namespace = client, instance_id, namespace
@@ -132,6 +132,7 @@ class RedisSignalTransport:
         self.ephemeral_receiver = None
         self.workers, self.queue = workers, asyncio.Queue(maxsize=max_pending)
         self.operation_timeout, self.probe_interval, self.probe_timeout = operation_timeout, probe_interval, probe_timeout
+        self.placement_timeout = placement_timeout
         self.retry_base, self.retry_max, self.owns_client = retry_base, retry_max, owns_client
         self._task, self._workers = None, []
         self._closed, self._healthy = False, False
@@ -219,7 +220,11 @@ class RedisSignalTransport:
         while True:
             body = await self.queue.get()
             try:
-                async with asyncio.timeout(self.operation_timeout):
+                # Placement includes SQL recovery and activation, not just a
+                # broker operation. A short Redis timeout can cancel activation
+                # after acquisition, forcing a lease-expiry wait before retry.
+                timeout = self.placement_timeout if body['kind'] == 'placement' else self.operation_timeout
+                async with asyncio.timeout(timeout):
                     if body['kind'] == 'wakeup':
                         await self.wakeup_receiver.receive(RoomWakeup(body['room_id'], UUID(body['lane_id']),
                             self.instance_id, body['epoch']))

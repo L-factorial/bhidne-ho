@@ -107,7 +107,7 @@ test('restored offscreen intention is reconciled and presented before its slot i
  const notices=[];
  restored.recover(message=>notices.push(message));
  for(let i=0;i<100&&!notices.length;i++)await new Promise(resolve=>setTimeout(resolve,5));
- assert.deepEqual(notices,['Previous lock action confirmed.']);
+ assert.equal(notices[0].status,'accepted');assert.equal(notices[0].command,'lock');
  assert.equal(f.sent[1].body.command_id,first.body.command_id);
  assert.equal(f.root.session.command('ui-table-control').request,null);
  await restored.request('/test-games/r/start',account,{match_id:'m'});
@@ -281,4 +281,48 @@ test('a definitive end rejection racing an already-closed table returns closure 
  f.root.reads.gameView=async()=>++reads===1?structuredClone(view):endedView();
  const result=await f.api.request('/test-games/r/end',account,{match_id:'m'});
  assert.equal(result.status,'ended');assert.equal(f.sent.length,1);f.api.close();
+});
+
+test('restored successful creation refreshes its projection before reporting success without duplication',async()=>{
+ let first;
+ const f=setup(r=>{if(!first){first=r;throw Error('lost response');}return receipt(r);});
+ await assert.rejects(f.api.request('/test-games/r',account,{game_type:'flush',name:'Table'}),/lost/);
+ f.api.close();
+ let refreshed=false;
+ f.root.reads.gameView=async()=>{refreshed=true;return structuredClone(view);};
+ const restored=new OriginalUiApi(f.root,account,async()=>({}));
+ const notices=[];
+ restored.recover(notice=>{assert.equal(refreshed,true);assert.equal(f.root.session.command('ui-table-control').request,null);notices.push(notice);});
+ for(let i=0;i<100&&!notices.length;i++)await new Promise(resolve=>setTimeout(resolve,5));
+ assert.equal(notices[0].status,'accepted');assert.equal(notices[0].command,'create-table');assert.equal(notices[0].commandId,first.body.command_id);
+ assert.equal(f.sent.length,2);
+ assert.equal(f.sent[1].body.command_id,first.body.command_id);
+ restored.close();
+});
+
+test('restored creation rejection stays distinct from successful recovery',async()=>{
+ let first;
+ const f=setup(r=>{if(!first){first=r;throw Error('lost response');}return {...receipt(r,'rejected'),outcome:{command_id:r.body.command_id,status:'rejected',detail:'This room has reached its open-table limit.'}};});
+ await assert.rejects(f.api.request('/test-games/r',account,{game_type:'flush',name:'Table'}),/lost/);
+ f.api.close();
+ const restored=new OriginalUiApi(f.root,account,async()=>({})),notices=[];
+ restored.recover(notice=>notices.push(notice));
+ for(let i=0;i<100&&!notices.length;i++)await new Promise(resolve=>setTimeout(resolve,5));
+ assert.equal(notices[0].status,'rejected');assert.equal(notices[0].message,'This room has reached its open-table limit.');
+ assert.equal(f.sent[1].body.command_id,first.body.command_id);
+ restored.close();
+});
+
+test('a newly pending creation recovers offscreen without remount or a new command identity',async()=>{
+ let first;
+ const f=setup(r=>{if(!first){first=r;throw Error('lost response');}return receipt(r);});
+ const notices=[];f.api.recover(notice=>notices.push(notice));
+ try {
+   await assert.rejects(f.api.request('/test-games/r',account,{game_type:'flush',name:'Table'}),/lost/);
+   for(let i=0;i<400&&!notices.length;i++)await new Promise(resolve=>setTimeout(resolve,5));
+   assert.equal(notices.length,1);assert.equal(notices[0].status,'accepted');
+   assert.equal(notices[0].commandId,first.body.command_id);
+   assert.equal(f.sent.length,2);assert.equal(f.sent[1].body.command_id,first.body.command_id);
+   assert.equal(f.root.session.command('ui-table-control').request,null);
+ } finally {f.api.close();}
 });

@@ -49,6 +49,7 @@ class InboxRequest(Record):
     command_id: CommandId
     command: str = Field(min_length=1, pattern=r'\S')
     match_id: Identity | None = None
+
     expected_revision: Nonnegative | None = None
     payload: dict[str, JsonValue] = Field(default_factory=dict)
 
@@ -69,9 +70,16 @@ class InboxOutcome(Record):
     context: RejectionContext | None = None
     table_id: Identity | None = None
     match_id: Identity | None = None
+    skipped_invitees: list[Identity] | None = Field(default=None, max_length=20)
+    skipped_invitee_names: list[str] | None = Field(default=None, max_length=20)
 
     @model_validator(mode='after')
     def creation_identity(self):
+        if self.skipped_invitees is not None or self.skipped_invitee_names is not None:
+            if self.status != 'accepted' or self.table_id is None or self.match_id is None:
+                raise ValueError('Skipped invitations require successful table creation.')
+            if self.skipped_invitee_names is not None and len(self.skipped_invitee_names) != len(self.skipped_invitees or []):
+                raise ValueError('Skipped invitation names must match recipients.')
         if self.context is not None and self.status != 'rejected':
             raise ValueError('Departure context requires a rejected command.')
         if self.table_id is not None or self.match_id is not None:

@@ -12,13 +12,18 @@ import {isCurrentSession,type Room,type Session} from '../multiplayer/session';
 import type {RoomActions} from '../multiplayer/RoomActions';
 import {playerError} from '../multiplayer/playerError';
 import type {InvitePlayer} from '../multiplayer/inviteSuggestions';
+import {useCreationProgress} from './CreationCards';
+import type {OriginalDistributedRuntime} from '../multiplayer/OriginalDistributedRuntime';
 type Game='flush'|'marriage'|'callbreak';
 
-export function CreateTableSheet({session,rooms,playerName,roomActions,onClose,onCreated}:{
-  session:Session;rooms:Room[];playerName:string;roomActions:RoomActions;onClose:()=>void;
+export function CreateTableSheet({visible=true,runtime,session,rooms,playerName,roomActions,onClose,onCreated}:{
+  visible?:boolean;runtime?:OriginalDistributedRuntime|null;session:Session;rooms:Room[];playerName:string;roomActions:RoomActions;onClose:()=>void;
   onCreated:(room:Room,game:Game,match:string)=>void;
 }){
   const {colors:c}=useTheme();
+  const creation=useCreationProgress(runtime);
+  const pendingCreation=creation.cards.length>0;
+  const formVisible=useRef(visible);formVisible.current=visible;
   const {id:cardTheme}=useCardTheme();
   const [game,setGame]=useState<Game>('flush'),[roomId,setRoomId]=useState(rooms[0]?.room_id??'');
   const [callbreakPlayers,setCallbreakPlayers]=useState<4|5>(4);
@@ -30,10 +35,17 @@ export function CreateTableSheet({session,rooms,playerName,roomActions,onClose,o
   const selected=rooms.find(room=>room.room_id===roomId)??(!roomId?rooms[0]:undefined);
   const text={color:c.text,fontFamily:fonts.body},input={color:c.text,borderWidth:1,borderColor:c.border,borderRadius: radii.medium,padding:12,minHeight:48};
   async function create(){
-    if(creating.current||rooms.length&&!selected)return;
+    if(creating.current||pendingCreation||rooms.length&&!selected)return;
     creating.current=true;setBusy(true);setError('');
     try{
       let room=selected??defaultRoom.current;
+      if(runtime){
+        const identity=playerName.trim()?null:await request<InvitePlayer>('/auth/me',session);
+        const owner=playerName.trim()||identity?.display_name?.trim()||identity?.username?.trim()||ui('common.player');
+        const result=await runtime.createGame(room,ui('rooms.default_room',{player:owner.slice(0,50)}),{game_type:game,card_theme:cardTheme,...(game==='callbreak'?{player_count:callbreakPlayers}:{}),invitees:invitees.map(player=>player.user_id),notify_room:true});
+        if(result&&formVisible.current&&isCurrentSession(apiUrl,session))onCreated(result.room,game,result.matchId);
+        return;
+      }
       if(!room){
         const identity=playerName.trim()?null:await request<InvitePlayer>('/auth/me',session);
         const owner=playerName.trim()||identity?.display_name?.trim()||identity?.username?.trim();
@@ -46,13 +58,13 @@ export function CreateTableSheet({session,rooms,playerName,roomActions,onClose,o
       await roomActions.enter(session,room.room_id);
       const result=await request<{match_id:string}>(`/test-games/${encodeURIComponent(room.room_id)}`,session,
         {game_type:game,card_theme:cardTheme,...(game==='callbreak'?{player_count:callbreakPlayers}:{}),invitees:invitees.map(player=>player.user_id),notify_room:true});
-      if(isCurrentSession(apiUrl,session))onCreated(room,game,result.match_id);
+      if(formVisible.current&&isCurrentSession(apiUrl,session))onCreated(room,game,result.match_id);
     }catch(error){setError(playerError(error,ui('rooms.create_failed')));}
     finally{creating.current=false;setBusy(false);}
   }
   const [inviteSuggestionsExpanded,setInviteSuggestionsExpanded]=useState(false);
-  return <RoomSheet visible scrollEnabled={!dropdown && !cardThemeExpanded && !inviteSuggestionsExpanded} presentation="dialog" testID="create-game-table" title={ui('rooms.create_table')} closeLabel={ui('rooms.close_create_table')} onClose={()=>{if(!creating.current)onClose();}}
-    footer={<Pressable accessibilityRole="button" accessibilityLabel={ui('rooms.create_table')} disabled={busy||rooms.length>0&&!selected} accessibilityState={{disabled:busy||rooms.length>0&&!selected}}
+  return <RoomSheet visible={visible} scrollEnabled={!dropdown && !cardThemeExpanded && !inviteSuggestionsExpanded} presentation="dialog" testID="create-game-table" title={ui('rooms.create_table')} closeLabel={ui('rooms.close_create_table')} onClose={onClose}
+    footer={<Pressable accessibilityRole="button" accessibilityLabel={ui('rooms.create_table')} disabled={busy||pendingCreation||rooms.length>0&&!selected} accessibilityState={{disabled:busy||pendingCreation||rooms.length>0&&!selected}}
       onPress={()=>void create()} style={{minHeight:52,borderRadius: radii.medium,alignItems:'center',justifyContent:'center',backgroundColor:c.primary,borderWidth:1,borderColor:c.onPrimary,opacity:busy?visualStates.disabledOpacity:1}}><Text style={{color:c.onPrimary,fontFamily:fonts.medium}}>{busy?ui('social.sending'):ui('rooms.create_table')}</Text></Pressable>}>
     <View style={{padding:16,gap:14}}>
 <CreateTableForm onInviteSuggestionsExpandedChange={setInviteSuggestionsExpanded} onCardThemeExpandedChange={setCardThemeExpanded} session={session} game={game} setGame={setGame} callbreakPlayers={callbreakPlayers} setCallbreakPlayers={setCallbreakPlayers} invitees={invitees} setInvitees={setInvitees} busy={busy} roomSelector={<View style={{ position: 'relative', zIndex: 50, gap: 8 }}>      {!!rooms.length&&<>

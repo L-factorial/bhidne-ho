@@ -60,7 +60,7 @@ async def reserve_rate(connection, actor, count):
     return None
 
 
-async def create(claim, game, recipients, *, notify_room=False):
+async def create(claim, game, recipients, *, notify_room=False, skip_recipients=()):
     explicit = set(recipients)
     if notify_room:
         rows = await (await claim.connection.execute('SELECT user_id FROM room_memberships WHERE room_id=%s ORDER BY user_id LIMIT 1001', (game.room_id,))).fetchall()
@@ -75,6 +75,8 @@ async def create(claim, game, recipients, *, notify_room=False):
     observed = int((await (await connection.execute('SELECT floor(extract(epoch FROM clock_timestamp())*1000)::bigint')).fetchone())[0])
     invitations = []
     for recipient in dict.fromkeys(recipients):
+        if recipient in skip_recipients:
+            continue
         from app.player_blocks.service import require_contact
         from .queries import QueryAccessDenied
         try:

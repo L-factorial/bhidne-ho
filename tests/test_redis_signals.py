@@ -247,3 +247,76 @@ async def test_redis_outage_keeps_durable_commands_progressing_without_ownership
     finally:
         await bus.stop()
         await runtime.stop()
+
+async def test_placement_has_a_separate_bounded_dispatch_deadline():
+    completed = asyncio.Event()
+    cancelled = asyncio.Event()
+
+    class SlowPlacement:
+        async def receive(self, demand):
+            try:
+                await asyncio.sleep(.04)
+                completed.set()
+            except asyncio.CancelledError:
+                cancelled.set()
+                raise
+
+    receiver = SlowPlacement()
+    transport = RedisSignalTransport(Broker(), 'owner', SECRET,
+        wakeup_receiver=Receiver(), placement_receiver=receiver,
+        operation_timeout=.01, placement_timeout=.2)
+    worker = asyncio.create_task(transport._dispatch())
+    try:
+        await transport.queue.put(dict(kind='placement', room_id='room'))
+        await asyncio.wait_for(transport.queue.join(), timeout=1)
+        assert completed.is_set() and not cancelled.is_set()
+        assert transport.dispatch_failures == 0
+        completed.clear()
+        transport.placement_timeout = .01
+        await transport.queue.put(dict(kind='placement', room_id='room'))
+        await asyncio.wait_for(transport.queue.join(), timeout=1)
+        assert cancelled.is_set() and not completed.is_set()
+        assert transport.dispatch_failures == 1
+    finally:
+        worker.cancel()
+        await asyncio.gather(worker, return_exceptions=True)
+
+
+@pytest.mark.parametrize('deadline', [0, -1, float('nan'), float('inf')])
+def test_invalid_placement_dispatch_deadlines_fail_closed(deadline):
+    with pytest.raises(ValueError):
+        RedisSignalTransport(Broker(), 'owner', SECRET, wakeup_receiver=Receiver(),
+            placement_receiver=Receiver(), placement_timeout=deadline)
+
+async def test_ordinary_dispatch_keeps_short_deadline_and_shutdown_cancels_placement():
+    entered, cancelled = asyncio.Event(), asyncio.Event()
+
+    class BlockedReceiver:
+        async def receive(self, message):
+            entered.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                cancelled.set()
+                raise
+
+    receiver = BlockedReceiver()
+    transport = RedisSignalTransport(Broker(), 'owner', SECRET,
+        wakeup_receiver=receiver, placement_receiver=receiver,
+        operation_timeout=.01, placement_timeout=1)
+    worker = asyncio.create_task(transport._dispatch())
+    try:
+        await transport.queue.put(dict(kind='wakeup', room_id='room', lane_id=str(uuid4()), epoch=1))
+        await asyncio.wait_for(transport.queue.join(), timeout=.5)
+        assert cancelled.is_set() and transport.dispatch_failures == 1
+        entered.clear()
+        cancelled.clear()
+        await transport.queue.put(dict(kind='placement', room_id='room'))
+        await asyncio.wait_for(entered.wait(), timeout=.5)
+        worker.cancel()
+        await asyncio.wait_for(asyncio.gather(worker, return_exceptions=True), timeout=.5)
+        assert cancelled.is_set()
+        assert transport.dispatch_failures == 1
+    finally:
+        worker.cancel()
+        await asyncio.gather(worker, return_exceptions=True)

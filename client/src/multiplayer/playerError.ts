@@ -174,3 +174,10 @@ export function playerError(error: unknown, fallback?: string): string {
   if (key) return ui(key);
   return fallback || ui('feedback.generic_failure');
 }
+
+// A recovered success must never go through the error formatter. Preserve
+// actionable errors unrelated to an uncertain request's generic feedback.
+export function confirmedActionError(current: string): string {
+  return ['feedback.please_wait_confirmation','feedback.generic_failure','feedback.cannot_update_game']
+    .some(key=>current===ui(key as UiKey)) ? '' : current;
+}

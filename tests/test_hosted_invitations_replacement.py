@@ -157,3 +157,34 @@ async def test_replacement_outbox_failure_rolls_back_every_effect(database, monk
         assert (await RoomCreationExecutor(inbox).execute_one(lane, fence)).outcome['status'] == 'accepted'
     finally:
         await host.close()
+
+async def test_busy_invitee_is_skipped_without_rejecting_creation_or_notifying_them(creation):
+    pool, store, fence, users, inbox, lane, executor = creation
+    busy = await create(creation, users[1], request('Busy', game_type='flush'))
+    body = request('New', game_type='flush')
+    body['payload'].update(invitees=[users[1], users[1], users[2]], notify_room=True)
+    result = await create(creation, users[0], body)
+    assert result['status'] == 'accepted'
+    assert result['skipped_invitees'] == [users[1]]
+    saved = await store.load(result['table_id'])
+    invites = saved.checkpoint['data']['invitations']
+    assert users[1] not in [item['recipient_id'] for item in invites]
+    assert users[2] in [item['recipient_id'] for item in invites]
+    assert (await pool.execute('SELECT cardinality(attempts) FROM hosted_invitation_limits WHERE user_id=%s', (UUID(users[0][5:]),))).rows == [(1,)]
+    assert (await inbox.enqueue(lane, users[0], body)).outcome == result
+    assert (await pool.execute('SELECT count(*) FROM room_tables')).rows == [(2,)]
+    own_busy = await create(creation, users[1], request('Another'))
+    assert own_busy['status'] == 'rejected'
+
+
+async def test_all_busy_invitees_can_be_skipped_but_other_invalid_recipients_still_reject(creation):
+    pool, store, fence, users, inbox, lane, executor = creation
+    await create(creation, users[1], request('Busy', game_type='flush'))
+    invalid = request('Invalid', game_type='flush')
+    invalid['payload']['invitees'] = [users[1], users[0]]
+    assert (await create(creation, users[0], invalid))['status'] == 'rejected'
+    body = request('New', game_type='flush')
+    body['payload']['invitees'] = [users[1]]
+    result = await create(creation, users[0], body)
+    assert result['status'] == 'accepted' and result['skipped_invitees'] == [users[1]]
+    assert (await store.load(result['table_id'])).checkpoint['data']['invitations'] == []

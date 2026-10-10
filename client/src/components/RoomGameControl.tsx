@@ -18,6 +18,7 @@ import { KeyboardFrame } from './KeyboardFrame';
 import { FormFooter } from './FormFooter';
 import { TableSocialProvider, TableSocialPresentation } from './TableSocial';
 import type { TableSocialChannel } from '../multiplayer/TableSocialChannel';
+import {CreationCards,useCreationProgress} from './CreationCards';
 import { TableCard } from './TableCard';
 import type { TableEntry } from '../multiplayer/tableNavigation';
 import { RuleProposal } from './RuleProposal';
@@ -54,6 +55,8 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
   roomId: string; apiUrl: string; token: string; connected: boolean; sessionActive?: boolean; members: string[]; roomMembers?: string[]; connectionMessage?: string;
 }) {
   useUiLanguage();
+  const creation=useCreationProgress(runtime);
+  const creationPending=creation.cards.some(card=>card.kind==='table');
   const { colors } = useTheme();
   const { id: cardTheme } = useCardTheme();
   const { theme: gameTheme } = useTableTheme();
@@ -269,6 +272,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
       if (alive.current) setError(playerError(error, ui("feedback.could_not_restore_game")));
     } finally { pending.current = false; if (alive.current) setBusy(false); }
   }
+  const creationVisible=useRef(open);creationVisible.current=open;
   async function act(join: boolean) {
     if (!canSend.current || pending.current) return;
     pending.current = true; const version = ++generation.current; setBusy(true); setError('');
@@ -276,7 +280,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
       const data = await api(join ? '/join' : '', join ? { match_id: snapshot?.match_id } : { ...(gameType === 'callbreak' ? {player_count:capacity} : {}), notify_room:true, game_type: gameType, card_theme: cardTheme, invitees: selectedInvitees.map(player => player.user_id) });
       if (alive.current && generation.current === version) {
         selectedMatch.current = data.match_id;
-        setSnapshot(data); setLive(true); setOpen(true);
+        setSnapshot(data); setLive(true); if(join || creationVisible.current)setOpen(true);
         if (!join) setSelectedInvitees([]);
       }
     } catch (error) {
@@ -405,6 +409,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
         <Text style={[styles.buttonText, { color: colors.onPrimary, fontSize: 15 }]}>{ui("rooms.create_table_2")}</Text>
       </Pressable>
     </View>}
+    <CreationCards runtime={runtime} kind="table" roomId={roomId} matches={visibleTables.map(table=>table.match_id)}/>
     {visibleTables.map(table => <TableCard key={table.match_id} roomId={roomId} table={table} busy={busy} enter={action => void enterTable(table.match_id, action)} />)}
       {!!visibleTables.length && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_table")} disabled={pendingAction || !sessionActive || !creationEnabled} onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 52, marginBottom: 16 }]}>
         <Text style={[styles.buttonText, { color: colors.onPrimary }]}>{ui("rooms.create_new_table")}</Text>
@@ -469,7 +474,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
           {!!error && <Text accessibilityRole="alert" style={styles.modalError}>{uiLabel(error, 'feedback')}</Text>}
           {!synced && <Text accessibilityLiveRegion="polite" style={styles.note}>{sessionActive ? ui("common.waiting_for_the_table_service_your_form_will_stay_open_while_it_retries") : ui("feedback.sign_in_again_before_creating_a_table")}</Text>}
           {refreshError && sessionActive && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.retry_table_service")} onPress={() => setActionTick(value => value + 1)} style={styles.choice}><Text style={styles.text}>{ui("rooms.retry_table_service")}</Text></Pressable>}
-          <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_this_table")} disabled={busy || !creationEnabled} accessibilityState={{ disabled: busy || !creationEnabled }} onPress={() => void act(false)} style={[styles.button, {minHeight:52,borderWidth:1,borderColor:colors.onPrimary}, (busy || !creationEnabled) && { opacity: visualStates.disabledOpacity }]}><Text style={styles.buttonText}>{ui("rooms.create_table")}</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_this_table")} disabled={busy || creationPending || !creationEnabled} accessibilityState={{ disabled: busy || creationPending || !creationEnabled }} onPress={() => void act(false)} style={[styles.button, {minHeight:52,borderWidth:1,borderColor:colors.onPrimary}, (busy || !creationEnabled) && { opacity: visualStates.disabledOpacity }]}><Text style={styles.buttonText}>{ui("rooms.create_table")}</Text></Pressable>
           <Pressable accessibilityRole="button" onPress={() => setOpen(false)} style={styles.choice}><Text style={styles.text}>{ui("common.back_to_room")}</Text></Pressable>
         </FormFooter>
       </View></KeyboardFrame></GameModalContent>}
