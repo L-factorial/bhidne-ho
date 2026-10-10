@@ -48,7 +48,7 @@ test('Call Break inward cards and two-row seats do not overlap at narrow widths 
   for(const width of [240,256,280,336,390,760])for(const scale of [1,1.5,2])for(const count of [2,3,4,5]){
     const layout=callBreakSeatGeometry(count,width,scale);
     const seats=layout.positions.map(p=>({x:p.x-layout.seatWidth/2,y:p.y-layout.seatHeight/2,width:layout.seatWidth,height:layout.seatHeight}));
-    const cards=layout.positions.map((_,index)=>{const p=inwardTrickPosition(layout,index);return{x:p.x-20,y:p.y-28,width:40,height:56};});
+    const cards=layout.positions.map((_,index)=>{const p=inwardTrickPosition(layout,index);return{x:p.x-20,y:p.y-28,width:40,height:80};});
     const center={x:layout.center.x-64,y:layout.center.y-32,width:128,height:64};
     for(const [index,card] of cards.entries()){
       assert.ok(card.x>=0&&card.x+card.width<=width&&card.y>=0&&card.y+card.height<=layout.height);

@@ -1,5 +1,6 @@
+import { WaitingHandArea } from '../components/WaitingHandArea';
+import { HandAreaOutline } from '../components/HandAreaOutline';
 import { FormScrollView } from '../components/FormInput';
-import {TurnGlow} from '../components/TurnGlow';
 import {AppText as Text} from '../components/AppText';
 import { gameAttention } from '../notifications/gameAttention';
 import { GameModal as Modal } from '../components/GameModal';
@@ -146,11 +147,10 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
 
   const name = (id: string) => snapshot.players?.find(p => String(p.player_id) === id)?.display_name || ui("common.player_number", { "number": id });
   const can = (kind: string) => !busy && snapshot.status === 'playing' && !!mine?.actions.kinds.includes(kind);
-  const button = (label: string, action: () => void, disabled = false, primary = false, danger = false, caption = label) => {
+  const button = (label: string, action: () => void, disabled = false, _primary = false, _danger = false, caption = label) => {
     return <Pressable accessibilityRole="button" accessibilityLabel={label}
-      disabled={disabled} accessibilityState={{ disabled }} onPress={action} style={({ pressed }) => [s.button, gameButtonStyle(colors, primary ? 'primary' : 'secondary', pressed), disabled && { opacity: visualStates.disabledOpacity }]}>
-      {['SideShowRequest',ui('flush.accept_side_show'),ui('flush.reject_side_show_button'),ui('flush.reveal_side_show')].includes(label)&&<TurnGlow active={!disabled} radius={12}/>}
-      <Text style={[s.text, primary && { color: colors.onPrimary }, danger && { color: colors.onTableHeader }]}>{caption}</Text>
+      disabled={disabled} accessibilityState={{ disabled }} onPress={action} style={({ pressed }) => [s.button, gameButtonStyle(colors, 'secondary', pressed), disabled && { opacity: visualStates.disabledOpacity }]}>
+      <Text style={[s.text, { color: colors.text }]}>{caption}</Text>
     </Pressable>;
   };
   const preparationControl = activeGame && preparing && myTurn ? <View testID="flush-center-preparation" style={{ gap: 8, alignItems: 'center' }}>
@@ -200,7 +200,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
         poke={() => setPokeOpen(true)} canPoke={social.connected} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl} />}
     </GameTableHeader>
     <View style={s.mainColumn} testID="flush-main-column">
-      <View style={{ flex: 1, minHeight: 0, paddingBottom: mine ? collapsedHandHeight : 0 }}>
+      <View style={{ flex: 1, minHeight: 0, paddingBottom: snapshot.your_player_id && !ended ? collapsedHandHeight + 12 : 0 }}>
       <GameStats snapshot={snapshot} open={stats.open} onOpen={() => { setHandOpen(false); stats.show(); }} onClose={stats.close}>
       <ScrollView testID="flush-play-viewport" style={s.playViewport} onLayout={e => setArenaHeight(Math.max(280, e.nativeEvent.layout.height))}
         contentContainerStyle={s.playArea}>
@@ -214,12 +214,13 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
       {pub && <View pointerEvents="none" style={s.notice}><FlushFoldNotice key={`folds:${snapshot.match_id}`} snapshot={snapshot} /></View>}
       </GameStats>
       </View>
-      <View ref={socialAnchor.ref} onLayout={socialAnchor.onLayout} style={[s.handDock, !!mine && s.handOverlay]} testID="flush-hand-dock">
+      <View ref={socialAnchor.ref} onLayout={socialAnchor.onLayout} style={[s.handDock, !!snapshot.your_player_id && !ended && s.handOverlay]} testID="flush-hand-dock">
+        {!mine && !ended && !!snapshot.your_player_id && <WaitingHandArea />}
         {!!mine && <View style={{alignSelf:'stretch',flexShrink:0}} onLayout={event => setCollapsedHandHeight(event.nativeEvent.layout.height + 12)}>
           <HandAreaBar cue={gameAttention(snapshot)} open={handOpen && !stats.open} onToggle={() => { stats.close(); setHandOpen(value=>!value); }} attention={myTurn && connectionReady && !ended}
             instruction={ui("common.your_turn_action", { "action": turnText })}/>
         </View>}
-        <ScrollView testID="flush-hand-content" nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{display:!mine || handOpen && !stats.open?'flex':'none',minHeight:0,flexShrink:1,alignSelf:'stretch'}} contentContainerStyle={{alignItems:'center',gap:6}} accessibilityElementsHidden={!!mine&&(!handOpen||stats.open)} importantForAccessibility={mine&&(!handOpen||stats.open)?'no-hide-descendants':'auto'}>
+        <ScrollView testID="flush-hand-content" nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{display:!snapshot.your_player_id || !!mine && handOpen && !stats.open?'flex':'none',minHeight:0,flexShrink:1,alignSelf:'stretch'}} contentContainerStyle={{alignItems:'center',gap:6}} accessibilityElementsHidden={!!mine&&(!handOpen||stats.open)} importantForAccessibility={mine&&(!handOpen||stats.open)?'no-hide-descendants':'auto'}>
         {!ended && mine && !preparing && !pub?.settlement && <View style={s.cards} testID="flush-own-cards">
           <View style={s.scaledCards}><FlushCards tapToToggle key={pub?.round_number} cards={mine.cards} /></View>
         </View>}
@@ -251,6 +252,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
           {helpOpen && help.map(reason => <Text key={reason} style={s.status}>{reason}</Text>)}
         </>}
         </ScrollView>
+        {!!mine && <HandAreaOutline />}
       </View>
     </View>
     <Modal transparent visible={comparisonOpen && !resultOpen && !chatOpen} onRequestClose={acknowledge}>
@@ -296,6 +298,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
         </View>}
           {!!error && <Text accessibilityRole="alert" style={s.error}>{uiLabel(error, 'feedback')}</Text>}
         </ScrollView>
+        {!!mine && <HandAreaOutline />}
       </View></View>
     </Modal>
     <Modal transparent visible={betsOpen} onRequestClose={() => setBetsOpen(false)}>
@@ -314,7 +317,7 @@ const styles = (c: ThemeColors) => StyleSheet.create({
   mainColumn: { flex: 1, minWidth: 0, minHeight: 0 },
   playViewport: { flex: 1, minHeight: 0 },
   playArea: { flexGrow: 1, backgroundColor: c.table },
-  handDock: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, flexShrink: 0, borderTopWidth: 1, borderColor: c.tableTrim, paddingTop: 4, paddingBottom: 8, gap: 6, alignItems: 'center' },
+  handDock: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, flexShrink: 0, borderTopWidth: 0, overflow:'hidden', borderColor: c.tableTrim, paddingTop: 4, paddingBottom: 8, gap: 6, alignItems: 'center' },
   handOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '94%', zIndex: 50, elevation: 20 },
   cards: { width: 224, height: 128, alignItems: 'center', justifyContent: 'center' },
   scaledCards: { width: 280, height: 172, transform: [{ scale: 0.75 }] },

@@ -126,7 +126,8 @@ async function openProfile(page) {
       try {
         const { page, state } = profile;
         await openProfile(page);
-        await page.getByRole('textbox', { name: 'Game display name', exact: true }).fill('Updated Owner');
+        await page.getByTestId('profile-name-edit').click();
+        await page.getByRole('textbox', { name: 'Profile name', exact: true }).fill('Updated Owner');
         await page.getByRole('button', { name: 'Save display name', exact: true }).tap();
         await page.getByTestId('profile-identity').getByRole('heading', { name: 'Updated Owner', exact: true }).waitFor();
         await page.getByRole('link', { name: 'Privacy', exact: true }).tap();

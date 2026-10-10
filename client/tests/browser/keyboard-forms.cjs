@@ -63,8 +63,8 @@ async function unclipped(locator) {
     const friend = await api('/auth/signup', null, { email: 'browser@example.test', username: `keyboard_friend_${stamp}`, password, display_name: 'Keyboard Friend' });
     await api(`/friends/requests/${friend.user_id}`, user, {}); await api(`/friends/requests/${user.user_id}/accept`, friend, {});
     await button('Open profile').click(); await page.waitForTimeout(350);
-    await field('Game display name').fill('New keyboard name'); await visibleHeight(page, 340);
-    await adjacent(field('Game display name'), button('Save display name'));
+    await page.getByTestId('profile-name-edit').click(); await field('Profile name').fill('New keyboard name'); await visibleHeight(page, 340);
+    await adjacent(field('Profile name'), button('Save display name'));
     await within(button('Save display name'), 340, 'name save stays beside focused input');
     await button('Save display name').click(); await page.getByText('Display name saved.', { exact: true }).waitFor();
     await visibleHeight(page, 844);

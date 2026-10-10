@@ -1,5 +1,30 @@
 # Distributed runtime implementation plan
 
+## 2026-10-09: Profile, rule tabs and table-layout direct production release
+
+- User pushed revision `5e6240f623b9294f9063b3beb2dbd584690740d3` and
+  explicitly requested direct deployment to both application servers.
+- Canceled workflow `38026368651` while backend tests were still running;
+  confirmed completion/cancellation before activation to prevent concurrent rollout.
+- Built the exact committed backend and fresh production frontend using unchanged
+  deployed dependencies. Production TypeScript and web export passed. No database
+  migration was required. Both hosts passed dependency/schema/frontend preflight.
+- Both backends and matching frontends now run immutable image
+  `sha256:9c9b816276e5ca7032b0f46c52fea3a9521361240717335a3b89351f63b6fab1`.
+  Archive checksum validation, installed receiver hash checks, release locks,
+  peer-health checks and guarded rollback were retained.
+- Verification: both hosts report the exact revision/image, healthy APIs, identical
+  frontend index/JS hashes and APNs capability. Public HTTPS API health, capability,
+  frontend index and exact JavaScript asset checks passed.
+- Evidence: `/private/tmp/bhidne-5e6240f-direct/verification.json`,
+  `/private/tmp/bhidne-5e6240f-{production-build,direct-build,rollout}.log`.
+- Limitations: full GitHub backend/native gates were canceled before completion;
+  prior local checks remain recorded in the UI increment below. No native package
+  release or production account/game writes were made for smoke checks.
+- Exact next step: refresh the production web app and review the profile/rule tabs
+  and table layouts. Complete full CI gates separately; native UI changes need a
+  signed application build. This deployment note remains local and unpushed.
+
 ## 2026-10-09: Rules-acceptance production release
 
 - User authorized deployment to both production servers. Client changes were
@@ -8214,3 +8239,78 @@ implementation request before changing card rendering or Marriage turn behavior.
   Push only when the user explicitly requests it; any later release must include
   the matching backend and client for the new Flush rules and transfers.
   Capacity testing, observability, HA and operational work remain separate.
+
+### 2026-10-10 — TestFlight UI follow-up (local only)
+
+- User explicitly authorized implementing the full tracked test-feedback list.
+  Preserved the existing local production-release note. No commit, push,
+  deployment or signed native build was performed.
+- All games: draw the hand-tray gold outline above opaque children; retain chat
+  and poke beside the hand header when expanded or collapsed; show a disabled
+  collapsed tray for seated players before cards are available. Table surfaces
+  fill the usable viewport with a clean gap above the tray. Call Break fits
+  modestly with uniform scaling to preserve card proportions; exceptionally
+  short screens and larger accessibility text retain scrolling. Last-trick
+  history takes layout space rather than overlapping the table.
+- All games: themed card backs replace the hand-header icon. Attention pulses
+  glow inside the banner; external rays are removed consistently. Finite glow
+  disappears when the animation completes; required attention continues pulsing.
+- Presence: the authenticated local socket establishes self presence even when
+  its room presence list has not caught up; a disconnected self is unknown
+  rather than falsely offline. Other players still use observed presence.
+- Marriage: Discard/Deck/Maal fit one top-aligned row in the expanded hand with
+  labels below. Buttons view recorded normal/Dublee/Tunnela declarations only
+  when the relevant cards exist, including initial and subsequently shown
+  Tunnelas. Recorded views remain separate from arrangement/eligibility actions.
+- Call Break: dealer selection uses the normal collapsible tray and one Flip
+  action selecting an available hidden position. The server's seat order,
+  ranking and tie rule stay authoritative; own revealed cards and public picks
+  remain visible. Spectators do not receive a private tray. Played-card rank/suit
+  typography is bounded, play-order captions sit outside card faces, and the
+  compact trick summary uses card faces. Fan rotation follows touch-drag position
+  and resets on release/cancellation; reordering remains local.
+- Flush: all turn actions use equal neutral styling, including side-show choices;
+  individual action glow/primary styling is removed while the shared turn cue
+  remains. Profile: blocked-player management uses Create game's primary button
+  treatment; notification preferences use native switches; the name opens with
+  a pencil, Save only after a change, and Cancel restores the saved value.
+- Closure: an accepted durable end receipt directly acknowledges the closed
+  table, without requiring a projection which may already have been removed.
+  A definitive end rejection racing confirmed closure reconciles to that closed
+  table. Actual rejections retain feedback; ambiguous commands retain their
+  request identity and receipt lookup. Room UI clears stale closure notices.
+- Verification: TypeScript, fresh localhost Expo web export, diff checks and
+  all 424 client tests pass. Browser fixtures pass shared layouts at
+  320/390/1280px, disabled pregame trays, Marriage declaration viewers and finite
+  pulse cleanup. Summary/pulse/drawer regressions pass all games at those widths;
+  four/five-player Call Break geometry also passes larger stat text and spectator
+  checks. Dealer selection passes four/five players at 390/1280px, including
+  turn permissions, reveals, reconnects, selected-dealer announcements and ties.
+  Touch-drag rotation passes 390/1280px; Profile edit/cancel/save and blocked-player
+  management pass 320/390/1280px. Table-fill/label checks pass 390/1280px.
+- Evidence: `/private/tmp/bhidne-followup-{typecheck,client,web,browser,
+  browser-stats,dealer,drag,profile,fill}.log` and
+  `/private/tmp/followup-{callbreak,marriage,flush}-*-{collapsed,expanded}.png`.
+- Limitations: browser checks use isolated API/socket fixtures; no production
+  account/game writes or physical iPhone checks. Web intentionally lacks native
+  push settings, so notification switches need a new TestFlight device check.
+  No backend or database schema changes were needed for this increment.
+- Exact next step: review the local diff and build/install a signed TestFlight
+  client to verify iOS outlines, switches, table transitions and drag behavior.
+  Push/deploy only when separately requested. Capacity/HA/operational tasks
+  remain outside this UI increment.
+
+### 2026-10-10 — Call Break central dealer deck (local only)
+
+- Added a themed facedown deck at the center of dealer selection. Tapping it
+  and pressing the private tray's Flip card button use the same random available
+  position draw. Both actions are disabled for other players, spectators and
+  while a command is pending; server turn validation remains authoritative.
+- Kept the existing public revealed-card row and private drawn-card display.
+- Verification: TypeScript and fresh Expo web export pass. Dealer browser checks
+  alternate deck taps and tray flips across four/five players at 390/1280px,
+  including disabled controls, reveals, reconnects and dealer selection ties.
+- Limitations: browser fixture verification; physical iOS remains to be checked.
+  No backend changes, commits, pushes or deployments.
+- Exact next step: review locally and verify the native dealer view in TestFlight;
+  push/deploy only when separately requested.

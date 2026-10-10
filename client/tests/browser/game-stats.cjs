@@ -90,9 +90,10 @@ if (require.main === module) (async () => {
       await page.waitForTimeout(6000); // Actual room polling refresh, not an injected React state.
       await stats.waitFor(); await hand.waitFor();
       assert.equal(await page.getByTestId('hand-attention-expanded').count(),0);
-      const rays = hand.getByTestId('attention-ray-left-0'); await rays.waitFor();
-      const opacity=[]; for(let i=0;i<5;i++){opacity.push(await rays.evaluate(node=>Number(getComputedStyle(node.parentElement).opacity)));await page.waitForTimeout(180);}
-      assert.ok(Math.max(...opacity)-Math.min(...opacity)>.1, `${kind} collapsed attention should pulse while stats stays open`);
+      assert.equal(await hand.getByTestId(/^attention-ray-/).count(),0);
+      const glow=hand.getByTestId('attention-glow');await glow.waitFor();
+      const opacity=[];for(let i=0;i<5;i++){opacity.push(await glow.evaluate(node=>Number(getComputedStyle(node).opacity)));await page.waitForTimeout(180);}
+      assert.ok(Math.max(...opacity)-Math.min(...opacity)>.1,`${kind} internal attention should pulse`);
       await hand.click(); await stats.waitFor({state:'hidden'}); await page.getByTestId('hand-attention-expanded').waitFor();
       await page.getByTestId('game-stats-toggle').click(); await stats.waitFor(); await hand.waitFor();
       if (kind !== 'callbreak') assert.equal(await stats.getByRole('tab',{name:'All',exact:true}).getAttribute('aria-selected'),'true');

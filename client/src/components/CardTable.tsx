@@ -41,8 +41,15 @@ export function CardTable({ height, players, viewerId, activePlayerId, width, pl
     animation.start();
     return () => animation.stop();
   }, [collecting, collectionKey, reduceMotion, progress]);
-  return <View style={{ width }}><TableSeatLayout testID="card-table" players={players} viewerId={viewerId} compact={compact}
-    geometry={detailedStats ? (count, availableWidth) => callBreakSeatGeometry(count, availableWidth, fontScale, seatMeasurement.key === measurementKey ? seatMeasurement.height : 0, height) : undefined}
+  const seatHeight = seatMeasurement.key === measurementKey ? seatMeasurement.height : 0;
+  const naturalHeight = callBreakSeatGeometry(players.length, width, fontScale, seatHeight, height).height;
+  // Modest uniform fitting keeps cards proportional; large accessibility text
+  // and exceptionally short screens retain scrolling instead of shrinking text.
+  const ratio = height ? height / naturalHeight : 1;
+  const fit = detailedStats && fontScale <= 1 && ratio >= .8 ? Math.min(1, ratio) : 1;
+  const displayHeight = detailedStats ? naturalHeight * fit : undefined;
+  return <View style={{ width, height: displayHeight }}><View style={{width:width/fit,alignSelf:'center',transformOrigin:'top center',transform:[{scale:fit}]}}><TableSeatLayout testID="card-table" players={players} viewerId={viewerId} compact={compact}
+    geometry={detailedStats ? (count, availableWidth) => callBreakSeatGeometry(count, availableWidth, fontScale, seatHeight, naturalHeight) : undefined}
     renderSeat={(player, index) => <PlayerSeat playerId={Number(player.id)} name={player.name} mine={player.id === viewerId} active={player.id === activePlayerId}
       inlineStatus={detailedStats && fontScale <= 1 && (players.length < 4 || index !== 1 && index !== players.length - 1)} connected={player.connected} avatarUrl={player.avatarUrl} compact={compact} dealer={dealerId === player.id}
       status={!showScores ? player.cardsRemaining ? `${player.cardsRemaining} cards` : 'Waiting' : compact ? `${player.bid || '—'} / ${player.tricks}` : `Bid ${player.bid || '—'} · Won ${player.tricks}`}
@@ -54,7 +61,7 @@ export function CardTable({ height, players, viewerId, activePlayerId, width, pl
       const winnerIndex = ordered.findIndex(player => player.id === winnerPlayerId);
       const winner = layout.positions[winnerIndex];
       return <View testID="current-trick-area" style={detailedStats ? { position: 'absolute', inset: 0 } : { position: 'absolute', left: layout.center.x - 72, width: 144, ...(centerControl ? { top: 0, bottom: 0, justifyContent: 'center' } : { top: layout.center.y - 57, height: 114 }) }}>
-        {detailedStats && <View testID="callbreak-center-status" style={{ position: 'absolute', left: layout.center.x - 64, top: layout.center.y - 28, height: 56, width: 128, alignItems: 'center', justifyContent: 'center', gap: 4 }}>{centerControl || centerStatus}</View>}
+        {detailedStats && <View testID="callbreak-center-status" style={{ position: 'absolute', left: layout.center.x - (centerControl ? (width/fit-48)/2 : 64), top: layout.center.y - (centerControl ? 80 : 28), height: centerControl ? 160 : 56, width: centerControl ? width/fit-48 : 128, alignItems: 'center', justifyContent: 'center', gap: 4 }}>{centerControl || centerStatus}</View>}
         {(!detailedStats && centerControl) || <>
           {!detailedStats && !plays.length && <Text style={[styles.empty, { textAlign: 'center', paddingTop: 42, fontSize: 12 }]}>{ui("callbreak.current_trick")}</Text>}
           {plays.map((play, playIndex) => {
@@ -73,22 +80,23 @@ export function CardTable({ height, players, viewerId, activePlayerId, width, pl
                   { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, winner ? winner.y - (detailedStats ? y : layout.center.y - 57 + y) : 0] }) },
                   { scale: progress.interpolate({ inputRange: [0, 1], outputRange: [1, .35] }) }] }]}>
                 <CompactCardFace compact rank={play.card.slice(0,-1)} suit={play.card.slice(-1)}/>
-                <Text style={styles.playOrder}>{play.playerId === winnerPlayerId ? ui("callbreak.won") : playIndex === 0 ? ui("callbreak.led") : playIndex + 1}</Text>
+
               </Animated.View>
+                <Text style={styles.playOrder}>{play.playerId === winnerPlayerId ? ui("callbreak.won") : playIndex === 0 ? ui("callbreak.led") : playIndex + 1}</Text>
             </View>;
           })}
         </>}
       </View>;
     }}
-  </TableSeatLayout></View>;
+  </TableSeatLayout></View></View>;
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  playedCard: { width: 40, height: 56, borderRadius: 8, backgroundColor: colors.cardFace,
+  playedCard: { width: 40, height: 56, overflow:'hidden', borderRadius: 8, backgroundColor: colors.cardFace,
     alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.cardBorder },
   playedText: { fontFamily: fonts.card, fontSize: 22, color: colors.cardInk },
   red: { color: colors.cardRed },
   club: { color: colors.cardClub },
-  playOrder: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 10, textAlign: 'center', marginTop: 6 },
+  playOrder: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 10, textAlign: 'center', marginTop: 3 },
   empty: { color: colors.textMuted, fontSize: 18 },
 });

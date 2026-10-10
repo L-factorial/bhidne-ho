@@ -1,5 +1,8 @@
 // Editable English marriage copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "view_shown_sequence": "View shown sequence",
+  "view_shown_dublee": "View shown Dublee",
+  "view_shown_tunnela": "View shown Tunnela",
   "see_maal_step": "See maal",
   "see_maal_help": "Your shown cards qualify. Flip the maal to see it, then continue playing. You can show or hide it later.",
 

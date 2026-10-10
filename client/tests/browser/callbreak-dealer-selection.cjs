@@ -29,7 +29,7 @@ async function player(browser, count, actor, width, state) {
       const action = request.postDataJSON();
       assert.equal(actor, 'u' + state.step);
       assert.equal(action.command, 'PICK_DEALER_CARD');
-      assert.deepEqual(action.payload, { position: state.step });
+      assert.ok(snapshot().game.dealer_selection.available_positions.includes(action.payload.position));
       assert.equal(action.expected_revision, snapshot().game.revision);
       state.actions.push(action); state.step++;
       body = { ...snapshot(), action_ack: { command_id: action.command_id, status: 'accepted', revision: snapshot().game.revision } };
@@ -55,11 +55,16 @@ async function player(browser, count, actor, width, state) {
       for (let step = 0; step < count; step++) {
         if (step > 0) for (const p of players) await p.page.getByTestId(`dealer-pick-${step}`).waitFor();
         const current = players[step].page;
-        await current.getByTestId(`dealer-card-${step}`).waitFor();
-        await current.getByText('Your turn · Pick a card below', { exact: true }).waitFor();
-        assert.equal(await current.getByTestId('dealer-selection-deck').getByRole('button').count(), 52 - step);
-        for (let i = 0; i <= count; i++) if (i !== step) assert.ok(await players[i].page.getByTestId(`dealer-card-${step}`).isDisabled());
-        await current.getByTestId(`dealer-card-${step}`).click();
+        await current.getByTestId('dealer-flip-card').waitFor();
+        await current.getByText('Your turn · Flip your card', { exact: true }).waitFor();
+        assert.equal(await current.getByTestId('dealer-selection-deck').getByRole('button').count(), 1);
+        for (let i = 0; i < count; i++) if (i !== step) {
+          assert.ok(await players[i].page.getByTestId('dealer-flip-card').isDisabled());
+          assert.ok(await players[i].page.getByTestId('dealer-center-deck').isDisabled());
+        }
+        assert.equal(await players[count].page.getByTestId('dealer-flip-card').count(),0);
+        assert.ok(await players[count].page.getByTestId('dealer-center-deck').isDisabled());
+        await current.getByTestId(step % 2 ? 'dealer-flip-card' : 'dealer-center-deck').click();
         if (step + 1 < count) {
           await current.getByTestId(`dealer-pick-${step + 1}`).waitFor();
           // Reconnect while the draw is unfinished: preserve revealed picks and next turn.

@@ -259,3 +259,26 @@ test('card theme creation and updates use durable room/table commands',async()=>
  assert.equal(f.sent[1].target.kind,'table');assert.deepEqual(f.sent[1].body.payload,{card_theme:'lumbini'});
  assert.equal(f.shared.length,0);
 });
+
+test('accepted end closes the UI even when the released table projection disappears',async()=>{
+ const f=setup();let reads=0;
+ f.root.reads.gameView=async()=>{reads++;if(reads>1)throw new DistributedRequestError(404);return structuredClone(view);};
+ const result=await f.api.request('/test-games/r/end',account,{match_id:'m'});
+ assert.equal(result.status,'ended');assert.equal(result.match_id,'m');assert.equal(result.table.phase,'ENDED');
+ assert.equal(reads,1);assert.equal(f.sent.length,1);
+ assert.equal(f.root.session.command('ui-table-control').request,null);
+ f.api.close();
+});
+
+test('a rejected end retains error feedback and never reports successful closure',async()=>{
+ const f=setup(r=>receipt(r,'rejected'));
+ await assert.rejects(f.api.request('/test-games/r/end',account,{match_id:'m'}),/rejected/);
+ assert.equal(f.sent.length,1);f.api.close();
+});
+
+test('a definitive end rejection racing an already-closed table returns closure without another command',async()=>{
+ const f=setup(r=>receipt(r,'rejected'));let reads=0;
+ f.root.reads.gameView=async()=>++reads===1?structuredClone(view):endedView();
+ const result=await f.api.request('/test-games/r/end',account,{match_id:'m'});
+ assert.equal(result.status,'ended');assert.equal(f.sent.length,1);f.api.close();
+});

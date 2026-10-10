@@ -132,7 +132,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
   const canSend = useRef(false);
   canSend.current = sessionActive && synced && !commandClient.pending;
   const visibleSnapshot = snapshot ? { ...snapshot, players: snapshot.players?.map(player => ({
-    ...player, connected: playerPresence(player.user_id, members, presenceKnown),
+    ...player, connected: playerPresence(player.user_id, members, presenceKnown, { user: userId, connected }),
   })) } : null;
   const openedInvitation = useRef<string | null>(null);
   useEffect(() => {
@@ -143,6 +143,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
   useEffect(() => {
     if (snapshot?.status === 'ended') {
       selectedMatch.current = undefined;
+      setError(''); setRefreshError(''); setActionNotice('');
       setLive(false); setOpen(false);
     }
   }, [snapshot?.status, snapshot?.match_id]);

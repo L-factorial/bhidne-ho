@@ -290,6 +290,10 @@ export class OriginalUiApi {
     throw Error(`Distributed UI route is not connected: ${url.pathname}`);
   }
   private async afterTable(room:string,match:string|null|undefined,command:string,signal:AbortSignal) {
+    // Called after an accepted receipt: closure does not need the released
+    // match projection, whose removal can race this response.
+    if(command==='end')return {room_id:room,match_id:match,status:'ended',
+      table:{phase:'ENDED',current_user:{can_leave_seat:false,can_abandon_match:false,is_in_active_match:false}}};
     if(!match||command==='next-match')return this.game(room,null,signal);
     try {return await this.game(room,match,signal);}
     catch(error) {
@@ -313,7 +317,7 @@ export class OriginalUiApi {
     }
   }
   async tableRequest(room:string,action:string,data:Payload,signal:AbortSignal):Promise<unknown> {
-    const departing=['leave','table/leave-seat','table/abandon','table/pause-seat'].includes(action);
+    const departing=['end','table/end','leave','table/leave-seat','table/abandon','table/pause-seat'].includes(action);
     if(['poke','send-poke','send-reaction'].includes(action)&&this.root.ephemeralEnabled){
       const match=typeof data.match_id==='string'?data.match_id:null;
       const view=this.root.cachedGameView<LeaveView>(room,match)??await this.game(room,match,signal);

@@ -57,7 +57,7 @@ export function PlayerSeat({ name, mine = false, active = false, connected = tru
     {inlineStatus && statusRows && <Text testID={`callbreak-seat-stats-${playerId}`} style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 12, backgroundColor: colors.surface, borderRadius: 4, padding: 3 }}>{statusRows[0]}</Text>}
     </View>
     <Text numberOfLines={1} style={{ maxWidth: '100%', backgroundColor: colors.surface, paddingHorizontal: 8, borderRadius: 8, color: colors.text, fontFamily: fonts.medium, fontSize: compact ? 11 : 12 }}>{name}</Text>
-    {!inlineStatus && statusRows && <View testID={`callbreak-seat-stats-${playerId}`} style={{ alignSelf: 'stretch', gap: 2, paddingHorizontal: 2, borderRadius: 6, backgroundColor: colors.surface }}>
+    {!inlineStatus && statusRows && <View testID={`callbreak-seat-stats-${playerId}`} style={{ alignSelf: 'center', maxWidth:'100%', gap: 2, paddingHorizontal: 2, borderRadius: 6, backgroundColor: colors.surface }}>
       {statusRows.filter(Boolean).map((row, index) => <Text key={index} style={{ color: !statusRows[1] || index ? colors.text : colors.textMuted, textAlign: 'center', fontFamily: fonts.medium, fontSize: 12 }}>{row}</Text>)}
     </View>}
     {!statusRows && (!!presenceLabel||dealer||(!active && !!status))&&<Text numberOfLines={1} style={{ backgroundColor: active ? colors.turnSurface : colors.surface, paddingHorizontal: 5, borderRadius: 5, color: active ? colors.turnText : colors.textMuted, fontFamily: fonts.medium, fontSize: compact ? 8 : active && mine ? 9 : 10 }}>

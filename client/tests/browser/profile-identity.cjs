@@ -48,7 +48,8 @@ async function api(path, user, body) {
     await verify(username);
     await page.reload();
     await verify(username);
-    const input = page.getByLabel('Game display name', { exact: true });
+    await page.getByTestId('profile-name-edit').click();
+    const input = page.getByLabel('Profile name', { exact: true });
     await input.fill('Sita Updated');
     await page.getByRole('button', { name: 'Save display name', exact: true }).click();
     await page.getByTestId('profile-identity').getByRole('heading', { name: 'Sita Updated', exact: true }).waitFor();

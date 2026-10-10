@@ -1,3 +1,4 @@
+import { WaitingHandArea } from '../components/WaitingHandArea';
 import {AppText as Text} from '../components/AppText';
 import { gameAttention } from '../notifications/gameAttention';
 import { playerError } from '../multiplayer/playerError.ts';
@@ -26,7 +27,6 @@ import { PlayerHand, type HandView } from '../components/PlayerHand';
 import { LiveBidPrompt } from '../components/LiveBidPrompt';
 import { GameDetails } from '../components/GameDetails';
 import { RoundSummary } from '../components/RoundSummary';
-import { roundGuidance } from '../multiplayer/roundFlow';
 import { radii, fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import type { ActionAck } from '../multiplayer/PendingGameAction';
 import type { PlayerPhrase } from '../multiplayer/pokes';
@@ -120,7 +120,6 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     return () => { clearTimeout(gather); clearTimeout(timer); };
   }, [trickKey]);
   const reveal = !!trickKey && hiddenTrick !== trickKey && !snapshot.game?.current_trick?.plays.length;
-  const guidance = roundGuidance(snapshot);
   const playerName = (id: number) => snapshot.players?.find(p => p.player_id === id)?.display_name || ui("common.player_number", { "number": id });
   const game = snapshot.game, deal = snapshot.deal, mine = snapshot.private;
   const stats = useGameStats(snapshot.match_id, snapshot.your_player_id);
@@ -143,10 +142,10 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     }} />;
   const startCue = ended ? endedNotice : <TableStartCue snapshot={snapshot} busy={busy} onStart={onStart} onTableAction={onTableAction} onNewGame={onNewGame} />;
   if (!ended && game?.phase === 'SELECTING_DEALER' && game.dealer_selection) return <View style={styles.page}>
-    {header}{gameRules}<GameStats snapshot={snapshot} open={stats.open} onOpen={stats.show} onClose={stats.close}><ScrollView contentContainerStyle={{ flexGrow: 1, padding: 12, gap: 12 }}>
+    {header}{gameRules}<GameStats snapshot={snapshot} open={stats.open} onOpen={stats.show} onClose={stats.close}><View style={{ flex:1, minHeight:0 }}>
       <DealerSelectionTable snapshot={snapshot} busy={busy} onPick={position => onAction('PICK_DEALER_CARD', { position })} />
       {!!error && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
-    </ScrollView></GameStats>{socialOverlay}
+    </View></GameStats>{socialOverlay}
   </View>;
   if (ended && (!game || !deal)) return <View style={styles.page}>{header}{gameRules}<GameStats snapshot={snapshot} open={stats.open} onOpen={stats.show} onClose={stats.close}><View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>{endedNotice}</View></GameStats></View>;
   if (!game || !deal) return <View style={styles.page}>
@@ -154,7 +153,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     <GameStats snapshot={snapshot} open={stats.open} onOpen={stats.show} onClose={stats.close}><ScrollView contentContainerStyle={{ flexGrow: 1 }}>
       <PreGameTable fill snapshot={snapshot}>{startCue}</PreGameTable>
       {!!error && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
-    </ScrollView></GameStats>{socialOverlay}
+    </ScrollView></GameStats>{snapshot.your_player_id && <WaitingHandArea />}{socialOverlay}
   </View>;
   if (!ended && (snapshot.round_review || game.finished) && !reveal) return <View style={styles.page}>{header}{gameRules}<GameStats snapshot={snapshot} open={stats.open} onOpen={stats.show} onClose={stats.close}><RoundSummary
     snapshot={snapshot} busy={busy} error={error || (snapshot.error ? playerError(snapshot.error) : '')} onContinue={onNextDeal} onBack={onBack} onNewGame={onNewGame}
@@ -176,6 +175,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
       {game.phase === 'AWAITING_CUT' && <>{<FloatingTableAction label={ui("callbreak.cut_in_half")} disabled={busy} onPress={() => cards.act('CUT_DECK', { position: 26 })} />}{<FloatingTableAction label={ui("callbreak.skip_cut")} disabled={busy} onPress={() => cards.act('SKIP_CUT')} />}</>}
       {game.phase === 'AWAITING_DISTRIBUTION' && <FloatingTableAction label={ui("callbreak.deal_cards")} disabled={busy} onPress={() => cards.act('START_DISTRIBUTION')} />}
     </View> : null;
+  const showDealerNotice=game.phase==='AWAITING_SHUFFLE'&&deal.deal_number===1&&game.dealer_selection?.complete;
   return <View style={styles.page}>
     {header}{gameRules}
 
@@ -184,13 +184,13 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     <View style={styles.body}>
     <GameStats snapshot={snapshot} open={stats.open} onOpen={() => { cards.collapse(); stats.show(); }} onClose={stats.close}>
     <ScrollView testID="callbreak-play-viewport" style={styles.tableScroll} onLayout={event => { setTableWidth(event.nativeEvent.layout.width); setTableHeight(event.nativeEvent.layout.height); }} contentContainerStyle={[styles.container, {
-      paddingTop: 0, paddingBottom: 0,
+      paddingTop: 0, paddingBottom: 12,
     }]}><View style={{ width }}>
-    {!ended && game.phase !== 'PLAYING' && game.phase !== 'BIDDING' && !reveal && <Text style={styles.meta}>{guidance.title.replace(/^Your turn[: ·]+/i, '')}</Text>}
-    {game.phase === 'AWAITING_SHUFFLE' && deal.deal_number === 1 && game.dealer_selection?.complete &&
-      <Text accessibilityLiveRegion="polite" style={styles.status}>{ui('callbreak.selected_dealer', { player: playerName(deal.dealer) })}</Text>}
     {!!(error || snapshot.error) && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error || (snapshot.error ? playerError(snapshot.error) : ''), 'feedback')}</Text>}
-    <CardTable height={tableHeight} detailedStats centerStatus={<><Text numberOfLines={2} style={[styles.meta, { textAlign: 'center' }]}>{ui('callbreak.summary_round', { round: deal.deal_number, total: 5 })}{'\n'}{ui('callbreak.summary_hand', { hand: trick?.trick_number ?? Math.min(deal.tricks_completed + 1, deal.tricks_required), total: deal.tricks_required })}</Text><Text accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 }}>{game.turn.player_id ? ui('common.player_s_turn', { player: playerName(game.turn.player_id) }) : ui('callbreak.current_trick')}</Text></>} showScores={game.phase === 'BIDDING' || game.phase === 'PLAYING'} compact={mobile && screenHeight < 760} centerControl={ended ? endedNotice : preparation} width={width} players={players} dealerId={String(deal.dealer)} viewerId={snapshot.your_player_id ? String(snapshot.your_player_id) : ''}
+    <CardTable height={tableHeight - 12} detailedStats centerStatus={<><Text numberOfLines={2} style={[styles.meta, { textAlign: 'center' }]}>{ui('callbreak.summary_round', { round: deal.deal_number, total: 5 })}{'\n'}{ui('callbreak.summary_hand', { hand: trick?.trick_number ?? Math.min(deal.tricks_completed + 1, deal.tricks_required), total: deal.tricks_required })}</Text><Text accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 }}>{game.turn.player_id ? ui('common.player_s_turn', { player: playerName(game.turn.player_id) }) : ui('callbreak.current_trick')}</Text></>} showScores={game.phase === 'BIDDING' || game.phase === 'PLAYING'} compact={mobile && screenHeight < 760} centerControl={ended ? endedNotice : preparation || showDealerNotice ? <View style={{gap:8,alignItems:'center'}}>
+        {showDealerNotice&&<Text accessibilityLiveRegion="polite" style={styles.meta}>{ui('callbreak.selected_dealer',{player:playerName(deal.dealer)})}</Text>}
+        {preparation}
+      </View> : null} width={width} players={players} dealerId={String(deal.dealer)} viewerId={snapshot.your_player_id ? String(snapshot.your_player_id) : ''}
       collectionKey={reveal ? trickKey : undefined} collecting={reveal && collectingTrick === trickKey}
       winnerPlayerId={reveal ? String(completedTrick?.winner) : undefined} activePlayerId={!ended && !reveal && game.turn.player_id ? String(game.turn.player_id) : ''} plays={(trick?.plays || []).map(play => ({ playerId: String(play.player_id), card: face(play.card) }))} />
     <View testID="central-turn-notice">
@@ -201,7 +201,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   </View></ScrollView>
 
     </GameStats></View>
-    {last && !stats.open && (!mobile || !cards.open) && <View style={[styles.lastTrick, mobile && handAvailable && { position: 'absolute', bottom: collapsedHandHeight, left: 0, right: 0 }]}>
+    {last && !stats.open && (!mobile || !cards.open) && <View style={[styles.lastTrick]}>
       <Pressable accessibilityRole="button" accessibilityLabel={ui("callbreak.last_trick")} aria-expanded={expandedLastTrick === trickKey} accessibilityState={{ expanded: expandedLastTrick === trickKey }}
         onPress={() => setExpandedLastTrick(value => value === trickKey ? null : trickKey)} style={styles.lastToggle}>
         <Text style={styles.meta}>{ui("callbreak.last_trick_player_won", { "player": playerName(last.winner!) })}</Text><Text style={styles.link}>{expandedLastTrick === trickKey ? '-' : '+'}</Text>
@@ -234,6 +234,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
 
     </View>
     </View>
+    {!ended && snapshot.your_player_id && !handAvailable && <WaitingHandArea />}
     {socialOverlay}
   </View>;
 }
@@ -253,7 +254,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   overlayHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderColor: colors.border, minHeight: 60 },
   overlayTitle: { fontFamily: fonts.display, fontSize: 23, color: colors.text, flexShrink: 1 },
   body: { backgroundColor: colors.table, flex: 1, minHeight: 0 }, wideBody: { flexDirection: 'row', justifyContent: 'center' }, tableScroll: { flex: 1, minHeight: 0, minWidth: 0 },
-  page: { flex: 1, backgroundColor: colors.background }, container: { alignItems: 'center' }, back: { minHeight: 44, justifyContent: 'center' }, link: { color: colors.accent, fontFamily: fonts.medium, fontSize: 12 },
+  page: { flex: 1, backgroundColor: colors.background }, container: { flexGrow:1, alignItems: 'center' }, back: { minHeight: 44, justifyContent: 'center' }, link: { color: colors.accent, fontFamily: fonts.medium, fontSize: 12 },
   title: { fontFamily: fonts.display, fontSize: 28, color: colors.text, marginVertical: 12 }, meta: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 11, lineHeight: 20 }, status: { fontFamily: fonts.medium, fontSize: 13, color: colors.accent, marginVertical: 12 }, error: { color: colors.danger, fontFamily: fonts.body, fontSize: 12 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, paddingVertical: 10 }, button: { padding: 12, ...gameButtonStyle(colors, 'primary'), justifyContent: 'center', alignItems: 'center' }, buttonText: { color: colors.onPrimary, fontFamily: fonts.medium, fontSize: 12 },
   handDock: { paddingHorizontal: 20, paddingBottom: 8, borderTopWidth: 1, borderColor: colors.tableTrim, backgroundColor: colors.surface },

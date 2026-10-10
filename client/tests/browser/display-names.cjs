@@ -25,7 +25,7 @@ const assert=require('node:assert/strict');
    await page.getByRole('button',{name:'Open profile',exact:true}).click();await page.getByRole('textbox',{name:'Game display name',exact:true}).waitFor();await page.waitForFunction(expected=>document.querySelector('[aria-label="Game display name"]')?.value===expected,names[i]);await page.getByRole('button',{name:'Back from profile',exact:true}).click();
   }
   await pages[0].getByRole('button',{name:'Open profile',exact:true}).click();
-  const input=pages[0].getByRole('textbox',{name:'Game display name',exact:true});await input.fill('Asha Ace');await pages[0].getByRole('button',{name:'Save display name',exact:true}).click();await pages[0].getByText('Display name saved.',{exact:true}).waitFor();await pages[0].getByRole('button',{name:'Back from profile',exact:true}).click();
+  await pages[0].getByTestId('profile-name-edit').click();const input=pages[0].getByRole('textbox',{name:'Profile name',exact:true});await input.fill('Asha Ace');await pages[0].getByRole('button',{name:'Save display name',exact:true}).click();await pages[0].getByText('Display name saved.',{exact:true}).waitFor();await pages[0].getByRole('button',{name:'Back from profile',exact:true}).click();
 
   for(let i=0;i<4;i++){
    await pages[i].getByRole('button',{name:'Available rooms',exact:true}).click();

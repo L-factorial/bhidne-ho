@@ -6,7 +6,7 @@ import { sharedRequest } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 import { ui } from '../i18n/copy';
 import { useUiLanguage } from '../i18n/useUiLanguage';
-import { visualStates, radii, fonts, useTheme } from '../theme';
+import { visualStates, radii, fonts, gameButtonStyle, useTheme } from '../theme';
 import { RoomSheet } from './RoomSheet';
 
 const changes = new Set<(token: string) => void>();
@@ -105,7 +105,9 @@ export function BlockedPlayers({session}: {session: Session}) {
   }
   if (!enabled) return null;
   return <View style={{gap: 12}}>
-    <Button text={ui('safety.manage')} onPress={() => setOpen(true)} />
+    <Pressable testID="manage-blocked-players" accessibilityRole="button" onPress={() => setOpen(true)} style={({pressed})=>({...gameButtonStyle(c,'primary',pressed),alignSelf:'center',minHeight:48,paddingHorizontal:24,justifyContent:'center',alignItems:'center'})}>
+      <Text style={{color:c.onPrimary,fontFamily:fonts.medium}}>{ui('safety.manage')}</Text>
+    </Pressable>
     {open && <RoomSheet visible title={ui('safety.blocked_players')} onClose={() => setOpen(false)}>
       <Text style={{color: c.textMuted, fontFamily: fonts.body}}>{ui('safety.unblock_help')}</Text>
       {!!error && <><Text accessibilityRole="alert" style={{color: c.danger}}>{error}</Text><Button text={ui('safety.retry')} disabled={busy} onPress={() => setRefresh(v => v + 1)} /></>}

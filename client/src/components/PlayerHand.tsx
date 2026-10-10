@@ -130,7 +130,7 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
           const faceUp = isRevealed(card), legal = legalCards.includes(card), enabled = !revealing && faceUp && canPlay && legal;
           const red = /[HD]$/.test(card), club = suitOf(card) === 'C';
           return <MarriageHandCard key={card} id={card} testID={`callbreak-hand-card-${card}`} register={registerCard} onDragChange={dragChanged} onDrop={(id, x, y) => void dropCard(id, x, y)}
-            onHoverIn={() => { if (enabled) setHovered(card); }} onHoverOut={() => setHovered(null)}
+            arcAngle={angle} onHoverIn={() => { if (enabled) setHovered(card); }} onHoverOut={() => setHovered(null)}
             disabled={false} dragDisabled={revealing} pressDisabled={!revealing && !enabled} selected={selectedCard === card}
             label={revealing ? ui("common.reveal_next_card_from_position_position", { position: index + 1 }) : ui("common.select_card", { card })}
             hint={revealing ? (faceUp ? ui("common.reveal_card_hint", {card}) : ui("common.reveal_next_hint")) : ui("common.drag_card_to_reorder")}

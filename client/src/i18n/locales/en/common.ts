@@ -375,6 +375,8 @@ export default {
   "chat_unread": "Table Chat, {{count}} unread",
   "copied_fallback": "Copy this link",
   "profile_name_required": "Profile name (required) · the name other players see",
+  "edit_profile_name": "Edit profile name",
+  "flip_card": "Flip",
   "profile_name": "Profile name",
   "name_nickname": "Your name or nickname",
   "player_photo": "Player photo",

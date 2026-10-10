@@ -1,3 +1,5 @@
+import { MarriageMeldCards } from '../components/MarriageMeldCards';
+import { WaitingHandArea } from '../components/WaitingHandArea';
 import {CompactCardFace} from '../components/CompactCardFace';
 import { RoomSheet } from '../components/RoomSheet';
 import {AppText as Text} from '../components/AppText';
@@ -58,6 +60,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const registerCard = useCallback((id:string,node:View|null)=>{
     if(node)cardNodes.current.set(id,node);else cardNodes.current.delete(id);
   },[]);
+  const [shownSection, setShownSection] = useState<'sequence'|'dublee'|'tunnela'|null>(null);
   const [confirmFold, setConfirmFold] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
@@ -73,6 +76,8 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   // Start face up; Hide remains a local privacy choice.
   const { revealed, reveal } = useMarriageReveal(snapshot.match_id, mine?.player_id, true);
   const own = pub?.players.find(p => p.player_id === mine?.player_id);
+  const recordedTunnelas = [...new Map([...(own?.initial_tunnelas || []), ...(own?.shown_melds.filter(meld => meld.meld_type==='tunnela') || [])]
+    .map(meld => [meld.card_ids.slice().sort().join(','), meld])).values()];
   const maalKey = `${snapshot.match_id}:${mine?.player_id}:${mine?.maal?.tiplu.rank}:${mine?.maal?.tiplu.suit}`;
   const [seenMaal, setSeenMaal] = useState('');
   const [flippedMaal, setFlippedMaal] = useState('');
@@ -182,6 +187,9 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         gameActions={[{ label: ui('marriage.points'), action: () => setDetails('points') }]} />}
     </GameTableHeader>
     <View style={{ flex: 1, minHeight: 0 }}>
+    <RoomSheet visible={shownSection!==null} presentation="dialog" title={ui(shownSection==='dublee'?'marriage.dublee':shownSection==='tunnela'?'marriage.tunnela':'marriage.sequence')} onClose={()=>setShownSection(null)} testID="marriage-own-shown-cards">
+      <MarriageMeldCards groups={shownSection==='tunnela'?recordedTunnelas:own?.shown_melds||[]}/>
+    </RoomSheet>
     <RoomSheet visible={seeMaal} presentation="dialog" testID="marriage-see-maal-step" title={ui('marriage.see_maal_step')} closeLabel={ui('marriage.see_maal_step')} onClose={() => { if (flippedMaal === maalKey) setSeenMaal(maalKey); }}>
       <Text style={s.text}>{ui('marriage.see_maal_help')}</Text>
       <Pressable testID="marriage-see-maal-card" accessibilityRole="button" accessibilityLabel={ui(flippedMaal === maalKey ? 'marriage.tap_to_hide_the_maal' : 'marriage.tap_to_see_the_maal')} onPress={() => setFlippedMaal(flippedMaal === maalKey ? '' : maalKey)} style={[s.card, { width: 72, height: 104, alignSelf: 'center' }]}>
@@ -189,11 +197,10 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       </Pressable>
       {button(ui('common.continue'), () => setSeenMaal(maalKey), flippedMaal !== maalKey)}
     </RoomSheet>
-    <View testID="marriage-play-area" style={[s.playArea, mine && activeGame && { paddingBottom: collapsedHandHeight }]}>
+    <View testID="marriage-play-area" style={[s.playArea, mine && activeGame && { paddingBottom: collapsedHandHeight + 12 }]}>
       <GameStats snapshot={snapshot} open={stats.open} onOpen={() => { setSnap('collapsed'); stats.show(); }} onClose={stats.close}>
       {ended && !pub ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>{endedNotice}</View> : !pub ? <ScrollView contentContainerStyle={{flexGrow:1}}>
         <PreGameTable fill snapshot={snapshot}>{startCue}</PreGameTable>
-        {!snapshot.is_creator && <Text style={s.text}>{ui("common.waiting_for_the_creator_to_start")}</Text>}
       </ScrollView> : <>
         <View style={s.columns}>
           <View style={s.main}>
@@ -212,6 +219,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       {!!error && (!mine || !activeGame || (mobile && snap === 'collapsed')) && <Text accessibilityRole="alert" style={s.error}>{uiLabel(error, 'feedback')}</Text>}
       </GameStats>
     </View>
+    {!ended && snapshot.your_player_id && !(pub && mine && activeGame) && <WaitingHandArea />}
     {pub && mine && activeGame && <MarriageHandSheet onCollapsedHeight={setCollapsedHandHeight} draggingCard={draggingCard} cue={handCue} cardCount={hand.length} anchor={handAnchor} mobile={mobile} snap={stats.open ? 'collapsed' : snap} onSnap={next => { if (next !== 'collapsed') stats.close(); setSnap(next); }} instruction={turnInstruction} attention={declaring || isTurn && !declarationsPending} header={mobileHandHeader} footer={own?.folded || preview || finishPreview ? null : discardFooter}>
     <View testID="marriage-hand-dock" style={[s.handDock, mobile && { backgroundColor: 'transparent', borderTopWidth: 0, padding: 4 }]}>
       <View style={[s.row, { backgroundColor: colors.tableHeader, borderRadius: radii.medium }]}><Text style={[s.small, { color: colors.onTableHeader }]}>{ui("common.your_cards_status", { "status": hand.length })}</Text>
@@ -220,24 +228,36 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         {!allRevealed && button(ui("common.reveal_cards"), () => reveal(true), busy)}
         {allRevealed && button(hidden ? ui("common.show_cards") : ui("common.hide_cards"), () => { setHidden(v => !v); setSelected([]); setPreview(false); setFinishPreview(false); })}
       </View>
-        {!preview && !finishPreview && drawVisible && (!mobile || snap === 'expanded') && <View testID="marriage-hand-draw" style={s.drawSection}>
+        {!preview && !finishPreview && (!mobile || snap === 'expanded') && <View testID="marriage-hand-draw" style={s.drawSection}>
           {(['discard', 'stock'] as const).map(source => {
             const allowed = canDrawFrom(source);
             const label = source === 'discard' ? ui("marriage.tap_to_take_from_discard") : ui("marriage.tap_to_take_from_deck");
             const card = pub.top_discard;
             return <View key={source} style={s.drawSource}>
-              <Text style={s.small}>{source === 'discard' ? ui("marriage.discard_pile") : ui("marriage.deck_count", { "count": pub.stock_count })}</Text>
               <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled: !allowed}}
                 disabled={!allowed} onPress={() => cards.act('DRAW_CARD', {source})}
                 style={[s.card, {width:58,height:84}, source === 'stock' && s.cardBack, !allowed && s.disabled]}>
                 {source === 'stock' ? <MarriageCardBack/> : card ? <CompactCardFace rank={card.rank} suit={card.suit} joker={card.rank === null}/> : <Text style={s.face}>—</Text>}
                 <TurnGlow active={allowed} radius={7}/>
               </Pressable>
+              <Text style={s.small}>{source === 'discard' ? ui("marriage.discard_pile") : ui("marriage.deck_count", { "count": pub.stock_count })}</Text>
               <Text style={[s.small, {color:allowed ? colors.accent : colors.textMuted, textAlign:'center'}]}>{allowed ? label : busy ? ui("marriage.taking_card") : social.connected ? ui("feedback.unavailable") : ui("feedback.reconnecting")}</Text>
             </View>;
           })}
+          <View style={s.drawSource}>
+            <Pressable testID="marriage-hand-maal" accessibilityRole="button" accessibilityLabel={ui(flippedMaal===maalKey?'marriage.tap_to_hide_the_maal':'marriage.tap_to_see_the_maal')}
+              disabled={!mine.maal} accessibilityState={{disabled:!mine.maal,expanded:!!mine.maal&&flippedMaal===maalKey}} onPress={()=>setFlippedMaal(value=>value===maalKey?'':maalKey)} style={[s.card,{width:58,height:84},!mine.maal&&s.disabled]}>
+              {mine.maal&&flippedMaal===maalKey?<CompactCardFace rank={mine.maal.tiplu.rank} suit={mine.maal.tiplu.suit}/>:<MarriageCardBack/>}
+            </Pressable>
+            <Text style={s.small}>{ui('marriage.maal')}</Text>
+          </View>
         </View>}
 
+      <View testID="marriage-recorded-declarations" style={s.row}>
+        {own?.route==='normal' && !!own.shown_melds.length && button(ui('marriage.view_shown_sequence'),()=>setShownSection('sequence'))}
+        {own?.route==='dublee' && !!own.shown_melds.length && button(ui('marriage.view_shown_dublee'),()=>setShownSection('dublee'))}
+        {!!recordedTunnelas.length && button(ui('marriage.view_shown_tunnela'),()=>setShownSection('tunnela'))}
+      </View>
       {confirmFold && !own?.folded && <View style={s.panel}>
         <Text style={s.text}>{ui("marriage.fold_help")}</Text>
         <View style={s.row}>{button(ui("marriage.confirm_fold"), () => { onAction('FOLD'); }, busy || !social.connected || !actions?.kinds.includes('fold'))}
@@ -303,7 +323,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   small: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 12, lineHeight: 19 }, heading: { fontFamily: fonts.medium, color: colors.accent, fontSize: 16 },
   row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }, button: { ...gameButtonStyle(colors), alignItems: 'center', justifyContent: 'center' },
   chosen: { backgroundColor: colors.surfaceSelected }, buttonText: { fontFamily: fonts.medium, color: colors.onTableHeader, fontSize: 12 }, disabled: { opacity: visualStates.disabledOpacity },
-  drawSection: { flexDirection:'row', gap:16, justifyContent:'center', padding:10, borderWidth:1, borderColor:colors.border, borderRadius: radii.medium, backgroundColor:colors.tableHeader },
+  drawSection: { flexDirection:'row', alignItems:'flex-start', gap:8, justifyContent:'center', padding:10, borderWidth:1, borderColor:colors.border, borderRadius: radii.medium, backgroundColor:colors.tableHeader },
   drawSource: { flex:1, alignItems:'center', gap:6 },
   piles: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 24, minHeight: 130 }, pileFace: { fontSize: 32, backgroundColor: colors.cardFace, color: colors.cardRed, borderRadius: radii.medium, padding: 14 },
   hand: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, position: 'relative', paddingVertical: 6 }, card: { width: 49, height: 78, borderRadius: 7, borderWidth: 2, borderColor: colors.cardBorder, backgroundColor: colors.cardFace, alignItems: 'center', justifyContent: 'center', gap: 3 },

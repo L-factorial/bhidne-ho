@@ -1,5 +1,8 @@
 // Editable Nepali marriage copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "view_shown_sequence": "देखाइएको सिक्वेन्स हेर्नुहोस्",
+  "view_shown_dublee": "देखाइएको डुब्ली हेर्नुहोस्",
+  "view_shown_tunnela": "देखाइएको टनेला हेर्नुहोस्",
   "see_maal_step": "माल हेर्नुहोस्",
   "see_maal_help": "देखाएका पत्ताबाट माल हेर्न मिल्यो। माल पल्टाएर हेर्नुहोस्, अनि खेल जारी राख्नुहोस्। पछि फेरि देखाउन वा लुकाउन सक्नुहुन्छ।",
 

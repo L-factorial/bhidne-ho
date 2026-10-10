@@ -29,14 +29,14 @@ async function profile(browser, width) {
   const screen = page.getByTestId('profile-screen'); await screen.waitFor();
   assert.equal(await screen.getByRole('tab').count(),3);
   await screen.getByText('@sigma',{exact:true}).waitFor();
-  await screen.getByLabel('Profile name',{exact:true}).waitFor();
+  await screen.getByTestId('profile-name-value').waitFor();
   assert.equal(await screen.getByTestId('profile-card-theme').count(),0);
   assert.equal(await screen.getByText('Friends',{exact:true}).count(),0);
   await screen.getByRole('tab',{name:'Information & Support',exact:true}).click();
   await screen.getByRole('link',{name:'Privacy',exact:true}).waitFor();
   assert.equal(await screen.getByRole('link',{name:'Community rules',exact:true}).count(),0,'rules acceptance entry is the single rules entry');
   await screen.getByRole('tab',{name:'Notifications',exact:true}).click();
-  assert.equal(await screen.getByLabel('Profile name',{exact:true}).count(),0);
+  assert.equal(await screen.getByTestId('profile-name-value').count(),0);
   await screen.getByRole('tab',{name:'Account',exact:true}).click();
   await screen.getByText('@sigma',{exact:true}).waitFor();
   if (process.env.SCREENSHOT_DIR) await page.screenshot({path:`${process.env.SCREENSHOT_DIR}/profile-tabs-${width}.png`});

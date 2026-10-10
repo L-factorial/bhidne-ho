@@ -1,3 +1,4 @@
+import { CompactCardFace } from './CompactCardFace';
 import { useState } from 'react';
 import { ScrollView, View, useWindowDimensions } from 'react-native';
 import { AppText as Text } from './AppText';
@@ -48,7 +49,9 @@ export function CallBreakSummary({ snapshot, compact = false }: { snapshot: Room
       })}</View>
       {compact && <View style={{ flexDirection: 'row' }}>{players.map(player => {
         const play = trick?.plays.find(play => play.player_id === player.player_id);
-        return <View key={player.player_id} style={{ width: currentWidth, alignItems: 'center', padding: 3 }}><Text testID={`hand-trick-${player.player_id}`} style={{ ...text, padding: 4, borderWidth: 2, borderRadius: 5, borderColor: play && play === trick?.plays[0] ? c.accent : c.border, color: play && /[HD]$/.test(play.card) ? c.cardRed : c.text }}>{play ? play.card.replace(/S$/, '♠').replace(/H$/, '♥').replace(/D$/, '♦').replace(/C$/, '♣') : '—'}</Text></View>;
+        return <View key={player.player_id} style={{ width: currentWidth, alignItems: 'center', padding: 3 }}><View testID={`hand-trick-${player.player_id}`} accessibilityLabel={play?.card} style={{width:44,height:64,borderWidth:2,borderRadius:6,overflow:'hidden',alignItems:'center',justifyContent:'center',backgroundColor:play?c.cardFace:c.surface,borderColor:play&&play===trick?.plays[0]?c.accent:c.border}}>
+          {play?<CompactCardFace compact rank={play.card.slice(0,-1)} suit={play.card.slice(-1)}/>:<Text style={text}>—</Text>}
+        </View></View>;
       })}</View>}
     </View></ScrollView>
     {!compact && <ScrollView horizontal nestedScrollEnabled><View>

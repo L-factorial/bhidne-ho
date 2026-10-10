@@ -128,7 +128,8 @@ The web export is written to ignored `dist/`. The client follows Expo's
 
 
 Room games now open a full-screen table once all four or five seats are filled.
-The creator presses **Start game**; the server chooses the first dealer randomly.
+The creator presses **Start game**. Players reveal one dealer-selection card in
+seat order using **Flip**; the lowest rank deals first (the last picker wins a tie).
 **Collapse** returns to the room without leaving the game. Reopen with **Enter game**.
 The hand stays in a bottom card row, while **Stats & bets**, **Rules**, and history
 start collapsed. Stats show current bids, tricks won, total tricks, and all five
@@ -591,3 +592,18 @@ side-show and multiplayer blind-show custom rules; see [Flush rules](../docs/flu
 Call Break and Marriage surfaces fill the play viewport above the collapsed hand.
 Call Break omits the waiting/help text below its waiting table. Marriage aligns
 Last discard, Deck and Maal cards at their top edges, with labels below.
+
+
+The card-area header keeps chat and poke beside **Your cards** in both expanded
+and collapsed views. Seated players see the disabled collapsed bar before cards
+are dealt. Each game fills the table viewport with a clear gap above the hand;
+very short screens and larger accessibility text retain scrolling. Attention
+pulses glow inside the header, with no side rays remaining after the pulse ends.
+The card icon uses the selected table card theme.
+
+Marriage keeps Discard, Deck and Maal in one row in the expanded hand, and offers
+views of recorded sequence/Dublee/Tunnela declarations only after they exist.
+Call Break shows bounded card faces in the current-trick summary and on the table;
+fan cards rotate with their position while dragging. Flush turn actions share
+one neutral button style. Profile names enter edit mode through a pencil icon,
+with Save/Cancel, and native notification preferences use visible switches.

@@ -375,6 +375,8 @@ export default {
   "chat_unread": "टेबल च्याट, {{count}} नपढिएका",
   "copied_fallback": "यो लिङ्क कपी गर्ने",
   "profile_name_required": "प्रोफाइल नाम (अनिवार्य) · अरू खेलाडीले देख्ने नाम",
+  "edit_profile_name": "प्रोफाइल नाम सम्पादन गर्नुहोस्",
+  "flip_card": "पल्टाउनुहोस्",
   "profile_name": "प्रोफाइल नाम",
   "name_nickname": "तपाईँको नाम वा उपनाम",
   "player_photo": "खेलाडीको फोटो",
