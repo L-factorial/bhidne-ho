@@ -16,6 +16,7 @@ from callbreak.config import advance
 from callbreak.house_rules import redeal_reasons
 from card_utils import Card
 
+from .concurrency import review_scope_matches
 from .contracts import CommandName, OutboundEvent, PlayerCommand, RoutedEvent
 
 
@@ -130,7 +131,8 @@ def dispatch_player(
     request = PlayerCommand.model_validate(request.model_dump(mode="json"))
     if request.match_id != match_id:
         return PlayRejection("MATCH_MISMATCH", "Request belongs to another match.")
-    if request.expected_revision != state.revision:
+    scoped = request.command in (CommandName.ACCEPT_HAND, CommandName.CLAIM_REDEAL) and request.payload.get('hand_review_phase_id') is not None
+    if not (review_scope_matches(state, match_id, request, player_id) if scoped else request.expected_revision == state.revision):
         return PlayRejection("STALE_REVISION", "Refresh game state before retrying.")
     prep = _context(state)
     if prep is None:

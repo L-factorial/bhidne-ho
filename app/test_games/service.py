@@ -332,6 +332,8 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                                         for deal in query.get_deals()],
                           player_stats=[query.get_player(p) for p in game.state.config.players],
                           private=query.get_player_view(seat) if seat else None)
+            from app.adapters.callbreak.concurrency import hand_review_phase_id
+            result['game']['hand_review_phase_id'] = hand_review_phase_id(game.state, game.match_id)
         return result
 
     def _marriage_snapshot(self, game, user_id):

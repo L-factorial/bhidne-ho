@@ -50,11 +50,12 @@ export function CreateTableSheet({session,rooms,playerName,roomActions,onClose,o
     }catch(error){setError(playerError(error,ui('rooms.create_failed')));}
     finally{creating.current=false;setBusy(false);}
   }
-  return <RoomSheet visible scrollEnabled={!dropdown && !cardThemeExpanded} presentation="dialog" testID="create-game-table" title={ui('rooms.create_table')} closeLabel={ui('rooms.close_create_table')} onClose={()=>{if(!creating.current)onClose();}}
+  const [inviteSuggestionsExpanded,setInviteSuggestionsExpanded]=useState(false);
+  return <RoomSheet visible scrollEnabled={!dropdown && !cardThemeExpanded && !inviteSuggestionsExpanded} presentation="dialog" testID="create-game-table" title={ui('rooms.create_table')} closeLabel={ui('rooms.close_create_table')} onClose={()=>{if(!creating.current)onClose();}}
     footer={<Pressable accessibilityRole="button" accessibilityLabel={ui('rooms.create_table')} disabled={busy||rooms.length>0&&!selected} accessibilityState={{disabled:busy||rooms.length>0&&!selected}}
       onPress={()=>void create()} style={{minHeight:52,borderRadius: radii.medium,alignItems:'center',justifyContent:'center',backgroundColor:c.primary,borderWidth:1,borderColor:c.onPrimary,opacity:busy?visualStates.disabledOpacity:1}}><Text style={{color:c.onPrimary,fontFamily:fonts.medium}}>{busy?ui('social.sending'):ui('rooms.create_table')}</Text></Pressable>}>
     <View style={{padding:16,gap:14}}>
-<CreateTableForm onCardThemeExpandedChange={setCardThemeExpanded} session={session} game={game} setGame={setGame} callbreakPlayers={callbreakPlayers} setCallbreakPlayers={setCallbreakPlayers} invitees={invitees} setInvitees={setInvitees} busy={busy} roomSelector={<View style={{ position: 'relative', zIndex: 50, gap: 8 }}>      {!!rooms.length&&<>
+<CreateTableForm onInviteSuggestionsExpandedChange={setInviteSuggestionsExpanded} onCardThemeExpandedChange={setCardThemeExpanded} session={session} game={game} setGame={setGame} callbreakPlayers={callbreakPlayers} setCallbreakPlayers={setCallbreakPlayers} invitees={invitees} setInvitees={setInvitees} busy={busy} roomSelector={<View style={{ position: 'relative', zIndex: 50, gap: 8 }}>      {!!rooms.length&&<>
       <Text style={{...text,fontFamily:fonts.medium}}>{ui('rooms.choose_room')}</Text>
       <Pressable accessibilityRole="button" accessibilityLabel={ui('rooms.select_room')} accessibilityState={{expanded:dropdown,disabled:busy||!rooms.length}} disabled={busy||!rooms.length} onPress={()=>setDropdown(open=>!open)} style={{...input,flexDirection:'row',alignItems:'center',gap:10}}>
         <Text style={{...text,flex:1}}>{selected?.name}</Text><Ionicons name={dropdown?'chevron-up':'chevron-down'} size={18} color={c.text}/>

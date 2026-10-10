@@ -176,7 +176,7 @@ plan; they are not claims about every table's Marriage rules.
 | Man / natural Maal | Qualification remains natural. Normal final partitions allow Man, Tiplu-rank cards, and Jhiplu/Poplu as wildcards; see the extension. Points use natural holdings. |
 | Tiplu | One standard card removed from stock at first qualification. Scan from top, skipping Man without removing/reordering them. Later qualifiers reuse it. |
 | Maal neighbors | Cyclic: below Ace is King, above King is Ace. Separate from sequence ordering; shared `Rank.ACE` remains 14. |
-| Qualification | Exactly three sequences/Tunnelas OR seven Dublees; mutually exclusive routes. |
+| Qualification | On your turn after drawing, show exactly three sequences/Tunnelas OR seven Dublees; mutually exclusive routes. Showing grants Maal access and keeps the turn in the discard/finish phase. Initial dealt Tunnela declarations remain a separate pre-play step. |
 | Winning pair | Separate from all fourteen committed cards. A third copy of a committed face is only a singleton. Witness chosen by canonical ID order. |
 | Finish | Explicit after drawing. Dublee preserves 22 cards: sixteen paired cards plus six leftovers. Normal partitions 21 cards, preserving shown groups, and discards the 22nd card. |
 

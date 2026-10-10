@@ -327,21 +327,23 @@ is highlighted and only Confirm bid submits it. After confirmation, the panel
 names the player whose bid is awaited. When bidding ends, the hand area announces
 who leads first until the first card is played. The reveal step gates the manual controls.
 
-- **Sorted fan** keeps the full hand in its existing arc, ordered by suit and rank.
-- **Suit fan** adds suit buttons with card counts. Select a suit to show just its
-  cards in an arc, or select All to see the full hand. Empty suits are disabled.
+- **Arc** shows the full hand in an arc.
 - **Grid** shows compact cards with rank, suit symbol, and the full suit name.
 
-Suit groups start in a randomized order each deal. After revealing the hand,
-Shuffle suits changes their order again across the sorted fan, grid, and suit
-selector. Cards stay in rank order within each suit, and a selected suit stays
-selected. Shuffling groups is local to your hand and never submits a game action.
-The initial reveal arc still follows dealt order.
+Group by suit resets manual dragging order in either view. Suits follow alternating
+colors (Spades, Hearts, Clubs, Diamonds) and cards sort by rank within each suit.
+Dragging changes only the local order until Group is pressed again. The initial
+reveal arc still follows dealt order. Hand review allows Accept before flipping;
+Request redeal also appears for eligible hands. Each response carries the exact
+match, deal and attempt scope, so another player’s review does not invalidate it.
+The server and durable checkpoint store validate that scope; old-hand responses
+cannot affect a redeal. Older snapshots use a bounded same-hand conflict retry;
+ambiguous responses retain the original command identity.
 
 During play, tapping a legal card only selects it. The selected card is raised and
 highlighted; Play shows its rank and suit and submits it only on confirmation.
 Tap another legal card to change the choice, or Cancel to clear it. Hiding cards,
-changing view/suit filter, a new deal/trick/turn, and losing play eligibility clear
+changing view, a new deal/trick/turn, and losing play eligibility clear
 the selection. Illegal cards remain disabled in every view.
 
 As soon as a hand is fully revealed, it offers Hide cards, including during hand

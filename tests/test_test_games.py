@@ -534,3 +534,37 @@ async def test_manual_round_summary_holds_scores_and_creator_advances_once(n):
             assert game.state.preparation.number == round_number + 1
     finally:
         await service.close()
+
+
+@pytest.mark.parametrize('count', [4, 5])
+async def test_same_hand_review_accepts_independent_concurrent_responses(count):
+    service, _, game = await manual_host(count)
+    from dataclasses import replace
+    from callbreak import RedealPolicy
+    game.state = replace(game.state, config=replace(game.state.config,
+        redeal_policy=RedealPolicy(weak_hand_enabled=True, no_spades_enabled=True)))
+    try:
+        while game.state.phase != Phase.HAND_REVIEW:
+            user, action = next_action(service, game)
+            await service.action('room', user, action)
+        snapshot = await service.snapshot('room', 'u0')
+        phase = snapshot['game']['hand_review_phase_id']
+        revision = game.state.revision
+        requests = [GameAction(match_id=game.match_id, command_id=uuid4().hex,
+            expected_revision=revision, command='ACCEPT_HAND',
+            payload={'hand_review_phase_id': phase}) for _ in range(count)]
+        bad = requests[0].model_copy(update={'command_id': uuid4().hex,
+            'payload': {'hand_review_phase_id': phase + ':old'}})
+        assert (await service.action('room', 'u0', bad))['action_ack']['status'] == 'rejected'
+        results = await asyncio.gather(*(service.action('room', f'u{i}', request)
+                                         for i, request in enumerate(requests)))
+        assert all(result['action_ack']['status'] == 'accepted' for result in results)
+        assert game.state.phase == Phase.BIDDING
+        assert set(game.state.current_deal.accepted_hands) == set(game.state.config.players)
+        final_revision = game.state.revision
+        assert (await service.action('room', 'u0', requests[0]))['action_ack'] == results[0]['action_ack']
+        closed = requests[0].model_copy(update={'command_id': uuid4().hex, 'expected_revision': final_revision})
+        assert (await service.action('room', 'u0', closed))['action_ack']['status'] == 'rejected'
+        assert game.state.revision == final_revision
+    finally:
+        await service.close()

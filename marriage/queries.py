@@ -53,9 +53,7 @@ def allowed_actions(state: MarriageGameState, player_id: str) -> AllowedActions:
                 blocked.append(BlockedDrawSource(source, reason))
             else:
                 sources.append(source)
-        return AllowedActions(kinds=((ActionKind.DRAW,) if sources else ()) + fold +
-                                ((ActionKind.SHOW_INITIAL_MELDS, ActionKind.SHOW_DUBLEES)
-                                 if player.route is QualificationRoute.UNQUALIFIED else ()),
+        return AllowedActions(kinds=((ActionKind.DRAW,) if sources else ()) + fold,
                               drawable_sources=tuple(sources), blocked_sources=tuple(blocked))
     ids = discardable_ids(state, player)
     witness = normal_finish(player, state.tiplu, state.config.rules)

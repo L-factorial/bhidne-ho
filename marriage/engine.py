@@ -216,7 +216,7 @@ class MarriageGameEngine:
         return self._show(player_id, pairs, QualificationRoute.DUBLEE)
 
     def _show(self, player_id: str, melds: Sequence[Meld], route: QualificationRoute) -> ActionResult:
-        player = self._require_turn(player_id, self._state.phase)
+        player = self._require_turn(player_id, TurnPhase.MUST_DISCARD)
         if player.route is not QualificationRoute.UNQUALIFIED:
             raise InvalidActionError("Player has already qualified; routes cannot be changed.")
         values = validate_declaration(player, melds, route, self._state.config.rules)

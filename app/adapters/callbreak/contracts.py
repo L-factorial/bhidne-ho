@@ -27,6 +27,10 @@ class Empty(Payload):
     pass
 
 
+class HandReviewPayload(Payload):
+    hand_review_phase_id: Identifier | None = None
+
+
 class CutPayload(Payload):
     position: Annotated[int, Field(strict=True, ge=1, le=51)]
 
@@ -74,8 +78,8 @@ COMMAND_SPECS = {
     CommandName.CUT_DECK: CommandSpec(CutPayload, "player_after_dealer", "CutDeck"),
     CommandName.SKIP_CUT: CommandSpec(Empty, "player_after_dealer", "SkipCut"),
     CommandName.START_DISTRIBUTION: CommandSpec(Empty, "dealer", "StartDistribution"),
-    CommandName.ACCEPT_HAND: CommandSpec(Empty, "reviewing_player", "AcceptHand"),
-    CommandName.CLAIM_REDEAL: CommandSpec(Empty, "eligible_reviewing_player", "ClaimRedeal"),
+    CommandName.ACCEPT_HAND: CommandSpec(HandReviewPayload, "reviewing_player", "AcceptHand"),
+    CommandName.CLAIM_REDEAL: CommandSpec(HandReviewPayload, "eligible_reviewing_player", "ClaimRedeal"),
     CommandName.PLACE_BID: CommandSpec(BidPayload, "current_bidder", "PlaceBid"),
     CommandName.PLAY_CARD: CommandSpec(CardPayload, "current_player", "PlayCard"),
 }

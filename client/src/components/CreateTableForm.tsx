@@ -1,7 +1,7 @@
 import {AppText as Text} from './AppText';
-import {useState,type ReactNode} from 'react';
+import {useEffect,useState,type ReactNode} from 'react';
 import {Ionicons} from '@expo/vector-icons';
-import {Pressable, View} from 'react-native';
+import {Pressable, ScrollView, View} from 'react-native';
 import {FormInput} from './FormInput';
 import {CreateCardThemeSelector} from './CardThemePicker';
 import {GameIcon} from './BrandArt';
@@ -12,10 +12,13 @@ import type {Session} from '../multiplayer/session';
 import {useInviteSuggestions} from '../multiplayer/useInviteSuggestions';
 import type {InvitePlayer} from '../multiplayer/inviteSuggestions';
 export type CreateGame='flush'|'marriage'|'callbreak';
-export function CreateTableForm({session,game,setGame,callbreakPlayers,setCallbreakPlayers,invitees,setInvitees,busy,roomSelector,onCardThemeExpandedChange}:{session:Session;game:CreateGame;setGame:(game:CreateGame)=>void;callbreakPlayers:4|5;setCallbreakPlayers:(count:4|5)=>void;invitees:InvitePlayer[];setInvitees:React.Dispatch<React.SetStateAction<InvitePlayer[]>>;busy:boolean;roomSelector?:ReactNode;onCardThemeExpandedChange?:(expanded:boolean)=>void}){
+export function CreateTableForm({session,game,setGame,callbreakPlayers,setCallbreakPlayers,invitees,setInvitees,busy,roomSelector,onCardThemeExpandedChange,onInviteSuggestionsExpandedChange}:{session:Session;game:CreateGame;setGame:(game:CreateGame)=>void;callbreakPlayers:4|5;setCallbreakPlayers:(count:4|5)=>void;invitees:InvitePlayer[];setInvitees:React.Dispatch<React.SetStateAction<InvitePlayer[]>>;busy:boolean;roomSelector?:ReactNode;onCardThemeExpandedChange?:(expanded:boolean)=>void;onInviteSuggestionsExpandedChange?:(expanded:boolean)=>void}){
  const {colors:c}=useTheme();
  const [query,setQuery]=useState('');
+ const [suggestionRowHeight,setSuggestionRowHeight]=useState(44);
  const suggestions=useInviteSuggestions(session,query,invitees,busy);
+ const suggestionsOpen = suggestions.players.length > 0;
+ useEffect(()=>{onInviteSuggestionsExpandedChange?.(suggestionsOpen);return ()=>onInviteSuggestionsExpandedChange?.(false);},[suggestionsOpen,onInviteSuggestionsExpandedChange]);
  const text={color:c.text,fontFamily:fonts.body},input={color:c.text,borderWidth:1,borderColor:c.border,borderRadius: radii.medium,padding:12,minHeight:48};
  return <View style={{gap:14}}>
       <Text style={{...text,fontFamily:fonts.medium}}>{ui('rooms.choose_game_type')}</Text>
@@ -29,13 +32,17 @@ export function CreateTableForm({session,game,setGame,callbreakPlayers,setCallbr
 <CreateCardThemeSelector disabled={busy} overlay onExpandedChange={onCardThemeExpandedChange}/>
 {roomSelector}
       <Text style={{...text,fontFamily:fonts.medium}}>{ui('rooms.invite_people_optional')}</Text>
-      <View style={{gap:4}}>
+      <View style={{gap:4,zIndex:suggestionsOpen?100:0}}>
+        <View testID="invite-search-anchor" style={{position:'relative'}}>
         <FormInput accessibilityLabel={ui('rooms.find_player_to_invite')} placeholder={ui('rooms.username_or_user_id')} placeholderTextColor={c.textMuted} autoCapitalize="none" autoCorrect={false} value={query} onChangeText={setQuery} maxLength={64} editable={!busy} style={input}/>
-        {!!suggestions.players.length&&<View testID="invite-player-suggestions" style={{borderWidth:1,borderColor:c.border,borderRadius: radii.medium,overflow:'hidden',backgroundColor:c.surfaceRaised}}>
-          {suggestions.players.map(player=><Pressable key={player.user_id} accessibilityRole="button" accessibilityLabel={ui('rooms.invite_player',{player:player.display_name||player.username||player.user_id})} disabled={busy||invitees.length>=20} accessibilityState={{disabled:busy||invitees.length>=20}} onPress={()=>{
+        {suggestionsOpen&&<View testID="invite-player-suggestions" style={{position:'absolute',top:'100%',marginTop:4,left:0,right:0,zIndex:100,elevation:24,borderWidth:1,borderColor:c.borderSubtle,borderRadius:12,overflow:'hidden',backgroundColor:c.surfaceRaised,shadowColor:'#000',shadowOpacity:0.18,shadowRadius:8,shadowOffset:{width:0,height:3}}}>
+          <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="always" style={{maxHeight:suggestionRowHeight*4}}>
+          {suggestions.players.map((player,index)=><Pressable key={player.user_id} onLayout={index===0?e=>setSuggestionRowHeight(Math.ceil(e.nativeEvent.layout.height)):undefined} accessibilityRole="button" accessibilityLabel={ui('rooms.invite_player',{player:player.display_name||player.username||player.user_id})} disabled={busy||invitees.length>=20} accessibilityState={{disabled:busy||invitees.length>=20}} onPress={()=>{
             setInvitees(current=>current.length>=20||current.some(item=>item.user_id===player.user_id)?current:[...current,player]);setQuery('');
-          }} style={{minHeight:48,padding:12,gap:3}}><Text style={{...text,fontFamily:fonts.medium}}>{player.display_name||player.username||player.user_id}</Text>{!!player.username&&<Text style={{color:c.textMuted}}>@{player.username}</Text>}</Pressable>)}
+          }} style={({pressed})=>({minHeight:44,paddingHorizontal:12,paddingVertical:8,flexDirection:'row',alignItems:'center',gap:8,backgroundColor:pressed?c.surfaceSelected:c.surfaceRaised})}><Text numberOfLines={1} style={{...text,fontFamily:fonts.medium,flexShrink:1}}>{player.display_name||player.username||player.user_id}</Text>{!!player.username&&<Text numberOfLines={1} style={{color:c.textMuted,fontSize:13,flexShrink:1}}>@{player.username}</Text>}</Pressable>)}
+          </ScrollView>
         </View>}
+        </View>
         {query.trim().length<3&&<Text style={{...text,color:c.textMuted}}>{ui('rooms.invite_search_help')}</Text>}
         {suggestions.searching&&<Text accessibilityLiveRegion="polite" style={{...text,color:c.textMuted}}>{ui('rooms.finding_players')}</Text>}
         {!suggestions.searching&&!suggestions.error&&query.trim().length>=3&&!suggestions.players.length&&<Text style={{...text,color:c.textMuted}}>{ui('rooms.no_matching_players')}</Text>}
@@ -43,10 +50,12 @@ export function CreateTableForm({session,game,setGame,callbreakPlayers,setCallbr
       </View>
       {!!invitees.length&&<View testID="selected-invite-players" style={{gap:6}}>
         <Text style={{...text,fontFamily:fonts.medium}}>{ui('rooms.invited_players')}</Text>
-        {invitees.map(player=><View key={player.user_id} style={{flexDirection:'row',alignItems:'center',paddingLeft:12,borderRadius: radii.medium,borderWidth:1,borderColor:c.border,backgroundColor:c.surfaceSelected}}>
-          <Text style={{...text,flex:1}}>{player.display_name||player.username||player.user_id}</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel={ui('rooms.remove_player',{player:player.display_name||player.username||player.user_id})} disabled={busy} accessibilityState={{disabled:busy}} onPress={()=>setInvitees(current=>current.filter(item=>item.user_id!==player.user_id))} style={{minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center'}}><Ionicons name="close" size={20} color={c.text}/></Pressable>
+        <View testID="invite-player-chips" style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
+        {invitees.map(player=><View key={player.user_id} style={{flexDirection:'row',alignItems:'center',alignSelf:'flex-start',maxWidth:'100%',paddingLeft:12,borderRadius:24,borderWidth:1,borderColor:c.border,backgroundColor:c.surfaceSelected}}>
+          <Text numberOfLines={1} style={{...text,fontSize:14,flexShrink:1}}>{player.display_name||player.username||player.user_id}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={ui('rooms.remove_player',{player:player.display_name||player.username||player.user_id})} disabled={busy} accessibilityState={{disabled:busy}} onPress={()=>setInvitees(current=>current.filter(item=>item.user_id!==player.user_id))} style={{minWidth:44,minHeight:44,flexShrink:0,alignItems:'center',justifyContent:'center'}}><Ionicons name="close" size={20} color={c.text}/></Pressable>
         </View>)}
+        </View>
       </View>}
       <Text style={{...text,color:c.textMuted}}>{ui('rooms.notify_room_help')}</Text>
 </View>;

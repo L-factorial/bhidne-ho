@@ -110,3 +110,24 @@ test('distributed declarations journal the original phase through reconnect and 
  assert.equal(original.body.expected_revision,3);
  assert.equal(restored.pending,false);
 });
+
+for (const reviewCommand of ['ACCEPT_HAND', 'CLAIM_REDEAL']) {
+ test(`distributed ${reviewCommand} restores the original hand review scope`,async()=>{
+  let saved=null,original=null,current={...view,game_type:'callbreak',
+   game:{revision:3,hand_review_phase_id:'match:1:1:hand-review'}};
+  const persistence={load:()=>saved,save:value=>{saved=structuredClone(value);},check:()=>{}};
+  const transport={submit:async request=>{
+   if(!original){original=structuredClone(request);throw Error('response lost');}
+   assert.deepEqual(request,original);return receipt(request);
+  },status:async()=>assert.fail()};
+  const client=new DistributedGameCommandClient(new DurableCommandClient(transport,{persistence}),async()=>current,s=>s);
+  assert.equal(client.submit(current,reviewCommand,{}),true);
+  await assert.rejects(client.refresh(signal()),/response lost/);
+  current={...current,game:{revision:5,hand_review_phase_id:'match:1:2:hand-review'}};
+  const restored=new DistributedGameCommandClient(new DurableCommandClient(transport,{persistence}),async()=>current,s=>s);
+  await restored.refresh(signal());
+  assert.deepEqual(original.body.payload,{hand_review_phase_id:'match:1:1:hand-review'});
+  assert.equal(original.body.expected_revision,3);
+  assert.equal(restored.pending,false);
+ });
+}

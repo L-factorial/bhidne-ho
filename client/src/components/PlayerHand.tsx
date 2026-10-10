@@ -11,7 +11,7 @@ import { visualStates, radii, fonts, gameButtonStyle, useTheme, useThemedStyles,
 
 const suits: Record<string, string> = { S: '♠', C: '♣', H: '♥', D: '♦' };
 const suitNames: Record<string, string> = { S: 'Spades', C: 'Clubs', H: 'Hearts', D: 'Diamonds' };
-export type HandView = 'fan' | 'suits' | 'grid';
+export type HandView = 'fan' | 'grid';
 const suitOf = (card: string) => card.slice(-1);
 
 export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', onViewChange, onRevealComplete, turnKey = '', dealKey = '', compactControls = false, onDragChange }: {
@@ -33,7 +33,6 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
   function groupBySuit() {
     setManualOrder({ dealKey, cards: [] });
   }
-  const [selection, setSelection] = useState({ dealKey, suit: 'all' });
   const [revealed, setRevealed] = useState<{ dealKey: string; cards: string[] }>({ dealKey, cards: [] });
   const isRevealed = (card: string) => revealed.dealKey === dealKey && revealed.cards.includes(card);
   const revealing = hand.some(card => !isRevealed(card));
@@ -55,11 +54,10 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
     });
   }
   function revealAll() { setRevealed({ dealKey, cards: [...hand] }); }
-  const selectedSuit = selection.dealKey === dealKey ? selection.suit : 'all';
   const groupedCards = groupedCallBreakHand(hand, suitOrder);
   const orderedCards = reconcileCallBreakHand(groupedCards, manualOrder.dealKey === dealKey ? manualOrder.cards : []);
-  const cards = revealing ? hand : view === 'suits' && selectedSuit !== 'all' ? orderedCards.filter(card => suitOf(card) === selectedSuit) : orderedCards;
-  const dragKey = `${dealKey}:${hand.join(',')}:${view}:${selectedSuit}:${revealing}:${hidden}:${cards.join(',')}`;
+  const cards = revealing ? hand : orderedCards;
+  const dragKey = `${dealKey}:${hand.join(',')}:${view}:${revealing}:${hidden}:${cards.join(',')}`;
   const currentDragKey = useRef(dragKey); currentDragKey.current = dragKey;
   async function dropCard(source: string, x: number, y: number) {
     if (revealing || hidden) return;
@@ -73,7 +71,7 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
     }
   }
   const selectedCard = chosen?.key === choiceKey && canPlay && !hidden && !revealing && cards.includes(chosen.card) && legalCards.includes(chosen.card) ? chosen.card : null;
-  useEffect(() => { setChosen(null); }, [choiceKey, canPlay, hidden, view, selectedSuit]);
+  useEffect(() => { setChosen(null); }, [choiceKey, canPlay, hidden, view]);
   function selectCard(card: string) { setChosen({ key: choiceKey, card }); }
   function confirmCard() {
     if (!selectedCard) return;
@@ -154,20 +152,10 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
       </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={ui("common.cancel_card_selection")} onPress={() => setChosen(null)} style={styles.option}><Text style={styles.optionText}>{ui("common.cancel")}</Text></Pressable>
     </View>}
-    {!cards.length && <Text style={styles.empty}>{hand.length ? ui("callbreak.no_suit_left_choose_another_suit", { "suit": suitNames[selectedSuit]?.toLowerCase() || 'cards' }) : ui("callbreak.no_cards_in_your_hand")}</Text>}
+    {!cards.length && <Text style={styles.empty}>{ui("callbreak.no_cards_in_your_hand")}</Text>}
     {revealing && <View style={styles.selector}>
       <Pressable accessibilityRole="button" accessibilityLabel={ui("common.reveal_next_card")} onPress={revealNext} style={styles.option}><Text style={styles.optionText}>{ui("common.reveal_next")}</Text></Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={ui("common.flip_all_cards")} onPress={revealAll} style={styles.option}><Text style={styles.optionText}>{ui("common.flip_all")}</Text></Pressable>
-    </View>}
-    {!revealing && view === 'suits' && <View accessibilityRole="radiogroup" accessibilityLabel={ui("common.filter_hand_by_suit")} style={styles.selector}>
-      {['all', ...suitOrder].map(suit => {
-        const count = suit === 'all' ? hand.length : hand.filter(card => suitOf(card) === suit).length;
-        return <Pressable key={suit} accessibilityRole="radio" accessibilityLabel={`${suit === 'all' ? ui("common.all_suits") : uiLabel(suitNames[suit])}, ${count} cards`}
-          accessibilityState={{ checked: selectedSuit === suit, disabled: count === 0 }} aria-checked={selectedSuit === suit} disabled={count === 0}
-          onPress={() => setSelection({ dealKey, suit })} style={[styles.option, selectedSuit === suit && styles.selected, count === 0 && { opacity: 0.4 }]}>
-          <Text style={[styles.optionText, suit === 'C' && { color: colors.text }]}>{suit === 'all' ? ui("rooms.all") : suits[suit]} {count}</Text>
-        </Pressable>;
-      })}
     </View>}
     {!revealing && compactControls && <View style={{ alignItems: 'flex-end' }}>
       <Pressable accessibilityRole="button" accessibilityLabel={ui("common.hand_options")} accessibilityState={{ expanded: optionsOpen }}
@@ -183,11 +171,11 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
       </Pressable>
     </View>}
     {!revealing && onViewChange && <View accessibilityRole="radiogroup" accessibilityLabel={ui("common.hand_view")} style={styles.selector}>
-      {(["fan", 'suits', "grid"] as const).map(mode => <Pressable key={mode} accessibilityRole="radio"
-        accessibilityLabel={`${mode === 'fan' ? ui("common.sorted_fan") : mode === 'suits' ? ui("common.suit_fan") : ui("common.card_grid")} view`}
+      {(["fan", "grid"] as const).map(mode => <Pressable key={mode} accessibilityRole="radio"
+        accessibilityLabel={`${mode === 'fan' ? ui("common.arc") : ui("common.card_grid")} view`}
         accessibilityState={{ checked: view === mode }} aria-checked={view === mode} onPress={() => onViewChange(mode)}
         style={[styles.option, view === mode && styles.selected]}>
-        <Text style={styles.optionText}>{mode === 'fan' ? ui("common.sorted_fan") : mode === 'suits' ? ui("common.suit_fan") : ui("common.grid")}</Text>
+        <Text style={styles.optionText}>{mode === 'fan' ? ui("common.arc") : ui("common.grid")}</Text>
       </Pressable>)}
     </View>}
     </>}

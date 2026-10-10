@@ -129,3 +129,22 @@ test('initial tunnela declaration pins its phase and payload across a lost respo
   assert.equal(bodies[0].expected_revision,1);
   assert.deepEqual(bodies[0].payload,{melds:[],declaration_phase_id:'match:initial-tunnelas'});
 });
+
+for (const command of ['ACCEPT_HAND', 'CLAIM_REDEAL']) {
+  test(`${command} pins the reviewed deal across a lost response`, async () => {
+    let phase='match:1:1:hand-review';
+    const bodies=[];
+    const snapshot=()=>({match_id:'match',game_type:'callbreak',game:{revision:4,hand_review_phase_id:phase}});
+    const client=new GameCommandClient({snapshot:async()=>snapshot(),action:async body=>{
+      bodies.push(structuredClone(body));
+      if(bodies.length===1)throw Error('response lost');
+      return {...snapshot(),action_ack:{command_id:body.command_id,status:'accepted',revision:5}};
+    }});
+    assert.equal(client.submit(snapshot(),command,{}),true);
+    await assert.rejects(client.refresh(signal()),/response lost/);
+    phase='match:1:2:hand-review';
+    await client.refresh(signal());
+    assert.deepEqual(bodies[0],bodies[1]);
+    assert.deepEqual(bodies[0].payload,{hand_review_phase_id:'match:1:1:hand-review'});
+  });
+}

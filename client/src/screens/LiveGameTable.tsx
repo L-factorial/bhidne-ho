@@ -58,7 +58,7 @@ export type RoomSnapshot = {
   status: 'empty' | 'waiting' | 'playing' | 'finished' | 'ended'; match_id?: string; capacity?: number;
   players?: { player_id: number; user_id: string; display_name?: string; avatar_url?: string; connected?: boolean | null }[]; your_player_id?: number | null; can_join?: boolean;
   play_mode?: PlayMode; remaining_ms?: number | null; error?: string | null;
-  game?: { revision: number; phase: string; finished: boolean; winners: number[]; turn: { player_id: number | null };
+  game?: { revision: number; hand_review_phase_id?: string | null; phase: string; finished: boolean; winners: number[]; turn: { player_id: number | null };
     dealer_selection?: { complete: boolean; current_player: number | null; dealer: number | null;
       available_positions: number[]; picks: { player_id: number; position: number; card: string }[] } | null;
     current_trick: Trick | null; scores_tenths: number[]; score_scale?: number; win_reason?: 'instant_bid' | 'perfect_bid' | 'score' | null };
@@ -225,7 +225,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     {game.phase === 'PLAYING' && !deal.tricks.some(trick => trick.complete || trick.plays.length) && !game.current_trick?.plays.length && <Text accessibilityLiveRegion="polite" style={styles.status}>{ui("callbreak.bidding_complete_message", { "message": isTurn ? ui("callbreak.you_lead_first") : ui("common.leads_first", {player: playerName(game.turn.player_id!)}) })}</Text>}
     {game.phase === 'BIDDING' && <LiveBidPrompt key={`${snapshot.match_id}-${deal.deal_number}-${deal.attempt}`} snapshot={snapshot} revealed={revealedDeal === handDealKey} busy={busy} onAction={cards.act} />}
 
-    {(mine?.can_accept_hand || mine?.can_claim_redeal) && <View style={styles.actions}>{mine?.can_accept_hand && revealedDeal === handDealKey && action(ui("callbreak.accept_hand"), 'ACCEPT_HAND')}{mine?.can_claim_redeal && action(ui("callbreak.request_redeal"), 'CLAIM_REDEAL')}</View>}
+    {(mine?.can_accept_hand || mine?.can_claim_redeal) && <View style={styles.actions}>{mine?.can_accept_hand && action(ui("callbreak.accept_hand"), 'ACCEPT_HAND')}{mine?.can_claim_redeal && action(ui("callbreak.request_redeal"), 'CLAIM_REDEAL')}</View>}
     <Text style={[styles.title, { fontSize: 22, marginVertical: 4 }]}>{mine ? ui("common.your_hand_count_cards", { "count": mine.hand.length }) : ui("rooms.spectator_view")}</Text>
     {mine && <PlayerHand onDragChange={setDraggingCard} compactControls turnKey={`${game.phase}:${game.turn.player_id}:${game.current_trick?.trick_number}`} view={handView} onViewChange={setHandView} dealKey={handDealKey} onRevealComplete={setRevealedDeal} hand={mine.hand} legalCards={mine.legal_cards}
       canPlay={!reveal && !busy && isTurn && game.phase === 'PLAYING'} onPlay={card => cards.act('PLAY_CARD', { card })} />}

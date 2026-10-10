@@ -1,11 +1,15 @@
+import { captureReview, isRevisionRejection, reviewRetry, type ReviewIntent } from './callbreakReviewRetry.ts';
 import { ui } from '../i18n/copy.ts';
 import { PendingGameAction, GameRequestError } from './PendingGameAction.ts';
 import type { ActionAck, ActionRequest } from './PendingGameAction.ts';
 
-export type GameSnapshot = { match_id?: string; game?: { revision: number }; action_ack?: ActionAck;
+export type GameSnapshot = { match_id?: string; game?: { revision: number; hand_review_phase_id?: string | null }; action_ack?: ActionAck;
   game_type?: string; marriage?: { public: { declaration_phase_id?: string | null } } };
 
 export function captureGamePayload(snapshot: GameSnapshot, command: string, payload: object): object {
+  const reviewPhase = snapshot.game?.hand_review_phase_id;
+  if (snapshot.game_type === 'callbreak' && reviewPhase && ['ACCEPT_HAND','CLAIM_REDEAL'].includes(command))
+    return JSON.parse(JSON.stringify({...payload,hand_review_phase_id:reviewPhase}));
   const phase = snapshot.marriage?.public.declaration_phase_id;
   return JSON.parse(JSON.stringify(command === 'DECLARE_TUNNELAS' && snapshot.game_type === 'marriage' && phase
     ? {...payload, declaration_phase_id: phase} : payload));
@@ -21,23 +25,44 @@ export class GameCommandClient<T extends GameSnapshot> {
   private action = new PendingGameAction();
   private transport: GameCommandTransport<T>;
   private generation = 0;
+  private review: ReviewIntent | null = null;
+  private reviewRetries = 0;
+  private reviewConflict: {request: ActionRequest; error: string} | null = null;
 
   constructor(transport: GameCommandTransport<T>) { this.transport = transport; }
-  get pending() { return this.action.request !== null; }
+  get pending() { return this.action.request !== null || this.reviewConflict !== null; }
 
   submit(snapshot: T, command: string, payload: object = {}) {
-    if (!snapshot.match_id || !snapshot.game) return false;
+    if (this.pending || !snapshot.match_id || !snapshot.game) return false;
     const submitted = this.action.begin({ match_id: snapshot.match_id, expected_revision: snapshot.game.revision, command,
       payload: captureGamePayload(snapshot, command, payload) });
-    if (submitted) this.generation++;
+    if (submitted) { this.generation++; this.review = captureReview(snapshot, command); this.reviewRetries = 0; }
     return submitted;
   }
 
   async refresh(signal: AbortSignal): Promise<{ snapshot: T; error: string }> {
     const generation = this.generation;
-    const snapshot = await this.transport.snapshot(signal);
+    let snapshot = await this.transport.snapshot(signal);
     if (generation !== this.generation) return { snapshot, error: '' };
-    return this.action.reconcile(snapshot, body => this.transport.action(body, signal), signal);
+    while (true) {
+      if (signal.aborted || generation !== this.generation) return {snapshot,error:''};
+      if (this.reviewConflict && this.review) {
+        const conflict = this.reviewConflict;
+        const decision = reviewRetry(this.review,snapshot);
+        if (decision === 'resolved') { this.reviewConflict = null; return {snapshot,error:''}; }
+        if (decision !== 'retry' || snapshot.game!.revision <= conflict.request.expected_revision || this.reviewRetries >= 5) { this.reviewConflict = null; return {snapshot,error:conflict.error}; }
+        this.reviewRetries++;
+        this.action.begin({...conflict.request, expected_revision:snapshot.game!.revision});
+        this.reviewConflict = null;
+      }
+      const request = this.action.request;
+      const result = await this.action.reconcile(snapshot, body => this.transport.action(body, signal), signal);
+      if (!request || !this.review || !isRevisionRejection(result.error) || signal.aborted || generation !== this.generation) return result;
+      // Keep the rejected intention while obtaining a fresh view. A read failure
+      // must not discard it or turn it into a blind resubmission.
+      this.reviewConflict = {request,error:result.error};
+      snapshot = await this.transport.snapshot(signal);
+    }
   }
 }
 

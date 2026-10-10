@@ -1,3 +1,4 @@
+import { captureReview, isRevisionRejection, reviewRetry, type ReviewIntent } from './callbreakReviewRetry.ts';
 import type { GameSnapshot } from './GameCommandClient.ts';
 import { captureGamePayload } from './GameCommandClient.ts';
 import type { DurableCommandClient, DurableReceipt, Json } from './DurableCommandClient.ts';
@@ -21,6 +22,8 @@ export class DistributedGameCommandClient<T extends GameSnapshot> {
   private selected: (snapshot: T) => SelectedTable;
   private unobserved: string | null;
   private generation = 0;
+  private review: ReviewIntent | null = null;
+  private reviewRetries = 0;
   private observed: T | null = null;
   private preferPush: () => boolean;
   observe(snapshot:T) { this.observed=snapshot; }
@@ -39,6 +42,7 @@ export class DistributedGameCommandClient<T extends GameSnapshot> {
     }
     if (!gameControl(this.commands,view,command,captureGamePayload(snapshot,command,payload) as {[key:string]:Json})) return false;
     this.unobserved = this.commands.request!.body.command_id; this.generation++;
+    this.review = captureReview(snapshot,command); this.reviewRetries = 0;
     return true;
   }
   async refresh(signal: AbortSignal): Promise<{snapshot:T;error:string}> {
@@ -77,6 +81,17 @@ export class DistributedGameCommandClient<T extends GameSnapshot> {
     // Keep the result unobserved until a fresh projection succeeds. A failed read
     // after acceptance therefore retries only the read, never the game action.
     this.unobserved = null;
+    if (receipt?.status === 'rejected' && this.review && isRevisionRejection(receipt.outcome?.detail ?? undefined)) {
+      const decision = reviewRetry(this.review,snapshot);
+      if (decision === 'resolved') return {snapshot,error:''};
+      if (decision === 'retry' && snapshot.game!.revision > (this.commands.request!.body.expected_revision ?? -1) && this.reviewRetries < 5) {
+        const request = this.commands.request!.body;
+        if (gameControl(this.commands,this.selected(snapshot),request.command,request.payload)) {
+          this.reviewRetries++; this.unobserved=this.commands.request!.body.command_id;
+          return this.refresh(signal);
+        }
+      }
+    }
     return {snapshot,error:receipt?.status === 'rejected'
       ? receipt.outcome?.detail || 'Action rejected.' : ''};
   }

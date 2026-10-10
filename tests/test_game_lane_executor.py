@@ -313,3 +313,41 @@ async def test_same_deal_declarations_survive_durable_execution_and_recovery(dat
         assert (await checkpoints.load(game.table.table_id)).checkpoint == loaded.checkpoint
     finally:
         await host.close()
+
+
+async def test_same_hand_reviews_survive_durable_execution_and_recovery(database):
+    from callbreak import Phase
+    from app.adapters.callbreak.concurrency import hand_review_phase_id
+    pool, checkpoints, fence, users = database
+    host, game = await host_game(users, 'callbreak')
+    try:
+        while game.state.phase != Phase.HAND_REVIEW:
+            await advance(host, game, {Phase.AWAITING_SHUFFLE: 'SHUFFLE_DECK',
+                Phase.AWAITING_CUT: 'SKIP_CUT', Phase.AWAITING_DISTRIBUTION: 'START_DISTRIBUTION'}[game.state.phase])
+        revision = game.state.revision
+        phase = hand_review_phase_id(game.state, game.match_id)
+        await checkpoints.save(capture_checkpoint(game, table_revision=0), expected_revision=None, fence=fence)
+        inbox = PostgresInboxStore(pool)
+        lane = await inbox.ensure_lane(LaneTarget(kind='game', room_id='room',
+            table_id=UUID(game.table.table_id), game_id=game.durable_game_id))
+        requests = []
+        for user in users[:4]:
+            request = ReliableActionCommand(match_id=game.match_id, command_id=uuid4().hex,
+                expected_revision=revision, command='ACCEPT_HAND',
+                payload={'hand_review_phase_id': phase}).model_dump(mode='json')
+            requests.append(request)
+            await inbox.enqueue(lane, user, request)
+        outcomes = []
+        for _ in requests:
+            result = await GameLaneExecutor(inbox).execute_one(lane, fence)
+            assert result.outcome['status'] == 'accepted'
+            outcomes.append(result.outcome)
+        loaded = await checkpoints.load(game.table.table_id)
+        assert loaded.checkpoint['data']['engine']['state']['phase'] == 'BIDDING'
+        assert (await inbox.enqueue(lane, users[0], requests[0])).outcome == outcomes[0]
+        stale = dict(requests[0], command_id=uuid4().hex, expected_revision=outcomes[-1]['revision'])
+        await inbox.enqueue(lane, users[0], stale)
+        assert (await GameLaneExecutor(inbox).execute_one(lane, fence)).outcome['status'] == 'rejected'
+        assert (await checkpoints.load(game.table.table_id)).checkpoint == loaded.checkpoint
+    finally:
+        await host.close()

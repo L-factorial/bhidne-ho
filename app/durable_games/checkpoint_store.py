@@ -170,10 +170,18 @@ class PostgresCheckpointStore:
                     seat = str(old.host.users.index(actor) + 1) if actor in old.host.users else None
                     valid = seat is not None and declaration_scope_matches(
                         prior_state, old.match_id, receipt.request, seat)
+                elif (data.game_type == 'callbreak' and receipt.request.command in ('ACCEPT_HAND', 'CLAIM_REDEAL')
+                      and receipt.request.payload.get('hand_review_phase_id') is not None):
+                    from app.adapters.callbreak.concurrency import review_scope_matches
+                    prior_state = decode_checkpoint(previous.checkpoint).engine_state
+                    actor = receipt.actor_id
+                    seat = old.host.users.index(actor) + 1 if actor in old.host.users else None
+                    valid = seat is not None and review_scope_matches(
+                        prior_state, old.match_id, receipt.request, seat)
                 else:
                     valid = receipt.request.expected_revision == old.engine.revision
                 if not valid:
-                    raise DurableGameConflict('Accepted request does not match the committed revision or declaration phase.')
+                    raise DurableGameConflict('Accepted request does not match the committed revision or response phase.')
         if old_id and old_id != game_id:
             await connection.execute("UPDATE games SET status='completed',completed_at=COALESCE(completed_at,clock_timestamp()) WHERE id=%s", (old_id,))
             await connection.execute('DELETE FROM active_game_players WHERE game_id=%s', (old_id,))

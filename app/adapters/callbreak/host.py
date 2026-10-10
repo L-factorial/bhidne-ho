@@ -31,6 +31,16 @@ class CallBreakCommandTarget:
     def restore(self, checkpoint):
         self.game.state, self.game.log, self.game.deadline = checkpoint
 
+    def validate_concurrency(self, user_id, command):
+        from app.games.base import GameCommandRejected
+        from app.multiplayer.table_session import player_seat
+        from .concurrency import review_scope_matches
+        scoped = command.command in ('ACCEPT_HAND', 'CLAIM_REDEAL') and command.payload.get('hand_review_phase_id') is not None
+        valid = (review_scope_matches(self.game.state, self.game.match_id, command, player_seat(self.game, user_id))
+                 if scoped else command.expected_revision == self.revision)
+        if not valid:
+            raise GameCommandRejected('STALE_REVISION', 'The turn changed. Your view has been refreshed; try again.')
+
     def apply(self, user_id, command):
         from app.multiplayer.table_session import player_seat
         actor = player_seat(self.game, user_id)

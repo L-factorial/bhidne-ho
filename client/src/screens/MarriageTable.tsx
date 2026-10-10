@@ -228,7 +228,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         {!allRevealed && button(ui("common.reveal_cards"), () => reveal(true), busy)}
         {allRevealed && button(hidden ? ui("common.show_cards") : ui("common.hide_cards"), () => { setHidden(v => !v); setSelected([]); setPreview(false); setFinishPreview(false); })}
       </View>
-        {!preview && !finishPreview && (!mobile || snap === 'expanded') && <View testID="marriage-hand-draw" style={s.drawSection}>
+        {(!preview || drawVisible) && !finishPreview && (!mobile || snap === 'expanded') && <View testID="marriage-hand-draw" style={s.drawSection}>
           {(['discard', 'stock'] as const).map(source => {
             const allowed = canDrawFrom(source);
             const label = source === 'discard' ? ui("marriage.tap_to_take_from_discard") : ui("marriage.tap_to_take_from_deck");
@@ -269,7 +269,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         visible={allRevealed && !hidden} enabled={canAct && isTurn && social.connected} busy={busy} canFinish={!!actions?.kinds.includes('finish')}
         preview={finishPreview && !hidden} setPreview={setFinishPreview} error={uiLabel(error, 'feedback')} submit={onAction} /> :
       <MarriageMaalPanel onEligibility={reportMaal} hand={availableHand} shown={own?.shown_melds || []} unlocked={false} maal={mine.maal}
-        enabled={canAct && isTurn && social.connected} visible={allRevealed && !hidden} busy={busy} actions={actions?.kinds || []}
+        enabled={canAct && isTurn && pub.phase === 'must_discard' && social.connected} visible={allRevealed && !hidden} busy={busy} actions={actions?.kinds || []}
         preview={preview && !hidden} setPreview={setPreview} arrangement={arrangement} error={uiLabel(error, 'feedback')} submit={onAction} />)}
       {!preview && !finishPreview && <>
 

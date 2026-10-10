@@ -8,6 +8,7 @@ from app.adapters.callbreak import (
     AdapterResult, PlayerCommand, RoutedEvent, dispatch_control, dispatch_player,
 )
 from callbreak import (
+    PlayRejection,
     CompleteShuffle, GameConfig, Phase, PrepareDeal, RedealPolicy,
     available_cards, create_match,
 )
@@ -126,3 +127,36 @@ def test_redeal_privacy_and_stale_attempt_rejection():
     mutated.payload["player_id"] = 2
     with pytest.raises(ValidationError):
         dispatch_player(state, mutated, match_id="m", player_id=1)
+
+
+def test_hand_review_scope_allows_redeal_after_another_players_acceptance():
+    from app.adapters.callbreak.concurrency import hand_review_phase_id
+    from callbreak.house_rules import redeal_reasons
+    state = create_match(GameConfig(4))
+    while state.phase != Phase.HAND_REVIEW:
+        if state.phase == Phase.AWAITING_DEAL:
+            state = checked(dispatch_control(state, PrepareDeal(), match_id='m'))
+        elif state.phase == Phase.SHUFFLING:
+            state = checked(dispatch_control(state, CompleteShuffle(shuffle(standard_52(), rng=Random(0))), match_id='m'))
+        else:
+            name = {Phase.AWAITING_SHUFFLE: 'SHUFFLE_DECK', Phase.AWAITING_CUT: 'SKIP_CUT',
+                    Phase.AWAITING_DISTRIBUTION: 'START_DISTRIBUTION'}[state.phase]
+            state = checked(play(state, name))
+    eligible = next(p for p in state.config.players if redeal_reasons(state.current_deal.players[p-1].hand, state.config.redeal_policy))
+    other = next(p for p in state.config.players if p != eligible)
+    revision = state.revision
+    payload = {'hand_review_phase_id': hand_review_phase_id(state, 'm')}
+    accept = request(state, 'ACCEPT_HAND', payload)
+    reject = request(state, 'CLAIM_REDEAL', payload)
+    future = request(state, 'ACCEPT_HAND', payload, expected_revision=revision + 1)
+    assert isinstance(dispatch_player(state, future, match_id='m', player_id=other), PlayRejection)
+    wrong = request(state, 'CLAIM_REDEAL', {'hand_review_phase_id': payload['hand_review_phase_id'] + ':old'})
+    assert isinstance(dispatch_player(state, wrong, match_id='m', player_id=eligible), PlayRejection)
+    state = checked(dispatch_player(state, accept, match_id='m', player_id=other))
+    repeat = request(state, 'ACCEPT_HAND', payload)
+    assert isinstance(dispatch_player(state, repeat, match_id='m', player_id=other), PlayRejection)
+    legacy = request(state, 'ACCEPT_HAND', expected_revision=revision)
+    assert isinstance(dispatch_player(state, legacy, match_id='m', player_id=eligible), PlayRejection)
+    state = checked(dispatch_player(state, reject, match_id='m', player_id=eligible))
+    assert state.phase == Phase.AWAITING_REDEAL
+    assert isinstance(dispatch_player(state, accept, match_id='m', player_id=other), PlayRejection)

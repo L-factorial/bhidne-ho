@@ -8314,3 +8314,129 @@ implementation request before changing card rendering or Marriage turn behavior.
   No backend changes, commits, pushes or deployments.
 - Exact next step: review locally and verify the native dealer view in TestFlight;
   push/deploy only when separately requested.
+
+### 2026-10-10 — Direct production deployment of UI follow-up
+
+- User requested immediate deployment of pushed revision
+  `7b64798d91af8afee27649e18b472dbf6742d889`. Canceled GitHub run
+  `38036535753` while still testing; confirmed cancellation before activation.
+- Built a fresh production Expo export and committed source image with unchanged
+  dependencies. Verified installed receiver hashes and transferred the same image
+  with checksum verification to both app hosts; dependency/schema preflight passed.
+- Activated backends sequentially using installed release locking, peer-health
+  checks and rollback safeguards; then activated the matching frontend on both.
+- Both hosts run image
+  `sha256:bb4d051292e92667740caef40ff4cbb3663900c4e465b19fc5eb6941af70cef4`.
+  Exact revision, frontend index/JS hashes, host and public HTTPS API health, and
+  APNs capability all verified. No schema migration or backend source changes.
+- Evidence: `/private/tmp/bhidne-7b64798-direct/verification.json` and
+  `/private/tmp/bhidne-7b64798-{web,build,rollout}.log`.
+- Exact next step: test the live web UI; native client changes require a fresh
+  signed TestFlight build/device check. This deployment note is local/uncommitted.
+
+### 2026-10-10 — Marriage draw-before-qualification order (local only)
+
+- Supersedes the earlier before-draw qualification behavior. Normal sequences/
+  Tunnelas and seven Dublees can be shown only after the current player draws.
+  The server rejects premature commands without mutation and removes those
+  actions from the pre-draw projection. Maal remains hidden until qualification.
+- Client eligibility remains a private hint: “Maal eligible · Draw before
+  showing”. Preview explains that drawing on your turn is required and retains
+  legal deck/discard controls. Client also checks the discard phase explicitly,
+  protecting old snapshots that might still advertise before-draw Show actions.
+- Showing unlocks the existing Maal reveal step and retains the current turn in
+  the discard/finish phase. After seeing Maal, the hand is reassessed and a final
+  winning show is allowed immediately; normal finish performs the final discard.
+  Initial dealt Tunnela declarations remain a separate pre-play exception.
+- Verification: TypeScript, fresh local Expo export, all 424 client tests and
+  212 Marriage engine/adapter/room/checkpoint tests pass. Updated normal/Dublee
+  tests verify pre-draw rejection, unchanged state/RNG, hidden Maal, post-draw
+  qualification and subsequent discard. Existing normal completion tests cover
+  same-turn finishes. Browser checks at 390/1280px exercise eligibility preview,
+  disabled Show/Maal, drawing without leaving preview, qualification, explicit
+  Maal flip/Continue, and same-turn finish in that exact command order.
+- Evidence: `/private/tmp/bhidne-marriage-order-{python,client,web,browser}.log`.
+- Limitations: browser fixtures; no physical iOS or production game writes.
+  No schema change. Nothing committed, pushed or deployed in this increment.
+- Exact next step: review locally and check the native flow in TestFlight;
+  push/deploy only when separately requested.
+
+### 2026-10-10 — Compact Create game invitation picker (local only)
+
+- Search suggestions now use compact single-row name/username options in an
+  anchored absolute overlay with a subtle border/shadow. The list scrolls beyond
+  176px and does not contribute to form height. Pause parent sheet scrolling while
+  suggestions are open; keep keyboard taps usable within the suggestion list.
+- Selected players use content-sized 14px name chips with wrapping rows, bounded
+  long labels, and separate 44px remove targets. Selection still clears search,
+  excludes already selected players and preserves the existing invitation limit.
+- Verification: TypeScript, fresh localhost Expo export and diff checks pass.
+  Isolated browser checks pass at 320/390/1280px: one versus multiple results keep
+  dialog height stable, overlay height stays bounded, selection closes results,
+  short names share rows, long labels stay inside the dialog, and removal works.
+- Evidence: `/private/tmp/bhidne-invite-overlay-{types,web,browser}.log` and
+  `/private/tmp/invite-chips-{320,390,1280}.png`.
+- Limitations: browser fixtures; native keyboard/nested scrolling needs a device
+  check. Nothing committed, pushed or deployed. Earlier Marriage changes remain.
+- Exact next step: review the local picker and verify its native keyboard flow;
+  push/deploy only when separately requested.
+
+### 2026-10-10 — Call Break review concurrency and hand views (local only)
+
+- Invitation results measure a row and bound their scroll viewport to four rows,
+  including scaled text, while retaining the anchored overlay and wrapping chips.
+- Call Break Accept no longer waits for card flipping. Eligible hands also expose
+  enabled Request redeal; ineligible hands show only Accept. Connection/pending
+  guards remain; bidding/play retain their existing reveal requirements.
+- Hand views now offer only Grid and Arc. Both share local drag order. Group by
+  suit clears manual order and restores Spades/Hearts/Clubs/Diamonds alternation,
+  with ranks sorted inside each suit. Removed the third view and suit filtering.
+- Local and distributed clients silently recover definitive review revision
+  rejections. Capture the original match/deal/attempt/hand and review intent;
+  obtain a fresh projection and check eligibility before issuing a new command
+  ID at its revision. Already accepted or redealing hands resolve without another
+  mutation. Never retry a changed match, altered hand, lost eligibility, unrelated
+  error or stale projection. Bound replacement commands to five retries.
+- Ambiguous/lost responses preserve the original ID/revision. Read failures retain
+  the intention for later revalidation. Restored distributed journal actions
+  without a captured original hand use existing confirmation behavior, rather
+  than guessing their retry safety. Current APIs expose concurrency through exact
+  rejection detail strings; classification is restricted to those known messages.
+- Verification: all 450 client tests, TypeScript, fresh local web export and diff
+  checks pass. Retry tests cover both clients, conflicts, resolutions, replacement
+  IDs, read/lost-response recovery, unsafe changes and retry limits. Browser checks
+  at 390/1280px cover both eligible/ineligible unflipped review, two views, touch
+  dragging and Group reset in each view. Invitation checks pass 320/390/1280px.
+- Evidence: `/private/tmp/bhidne-callbreak-review-{client,types,web,browser,invite}.log`.
+- Limitations: isolated browser/API fixtures, no production writes or physical
+  device checks. No backend/schema changes. Earlier local Marriage/picker work is
+  preserved. Nothing committed, pushed or deployed.
+- Exact next step: review locally and check the native controls/scrolling; push
+  and deploy only when separately requested.
+
+### 2026-10-10 — Independent Call Break hand reviews (local only)
+
+- Reused the Marriage initial Tunnela declaration concurrency model for
+  `ACCEPT_HAND` and `CLAIM_REDEAL`. Snapshots expose a hand-review scope tied to
+  the match, deal number and attempt; both command transports capture and retain
+  it through lost responses and journal restoration.
+- Adapter, local/durable host validation and the PostgreSQL checkpoint receipt
+  guard accept an older revision only while that exact review remains open and
+  the authenticated player has not responded. Eligibility still comes from the
+  engine. Future revisions, wrong scopes, closed reviews and repeat responses
+  with new command IDs remain rejected. Same-ID retries return the original
+  receipt. Other commands and legacy unscoped requests retain exact revision
+  checks; the prior bounded client fallback remains for older snapshots.
+- Verification: 84 related Python tests passed; 31 PostgreSQL/WASM executor and
+  checkpoint tests passed, including successive responses from the same captured
+  revision through freshly rebuilt executors; adapter checks passed again after
+  adding future/wrong scope and repeat-response assertions. All 454 client tests,
+  TypeScript and `git diff --check` passed. Local tests cover simultaneous four-
+  and five-player acceptance and acceptance followed by an eligible redeal claim.
+- Limitations: no database migration needed; no push or deployment performed.
+  A valid redeal closes the old review, so subsequent old-hand responses cannot
+  change the replacement hand. This is independent review concurrency, not a
+  relaxation of bid or play turn ordering.
+- Exact next step: review these local changes and, when requested, push/deploy
+  them and test simultaneous hand review on the app servers. The distributed
+  capacity/observability/HA readiness work remains the next infrastructure set.

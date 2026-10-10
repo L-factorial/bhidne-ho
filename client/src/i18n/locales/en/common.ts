@@ -196,6 +196,7 @@ export default {
   "grid": "Grid",
   "card_grid": "Card grid",
   "fan": "Fan",
+  "arc": "Arc",
   "sorted_fan": "Sorted fan",
   "suit_fan": "Suit fan",
   "all_suits": "All suits",
