@@ -8735,3 +8735,30 @@ implementation request before changing card rendering or Marriage turn behavior.
   recipient leaving their current seat before joining the invited table. Native
   builds must include both the prior adaptive UI and this menu. Capacity,
   observability and database HA remain separate infrastructure work.
+
+## 2026-10-10 — Direct adaptive UI and invitation release
+
+- User requested direct deployment of committed revision
+  `db15033206732b7ccda5fa74985a98dddbe38486` to both app servers, bypassing
+  GitHub rollout. Exact-revision production workflow run 38073924340 had already
+  completed with failure; no active matching rollout remained to cancel.
+- Fresh production web export passed. Built one immutable image on app1 using
+  unchanged production dependencies and transferred that exact image to app2:
+  `sha256:7a52871875b06bcffa4119c20dea2f50ab33f44c49afee37f1ddd5adbcc9003d`.
+  Installed release receiver hashes matched; dependency/schema and frontend
+  preflight passed on both hosts. Sequential backend/frontend activation retained
+  release locks, peer-health checks and rollback safeguards.
+- Verification: both hosts run the exact revision/image, report healthy, expose
+  APNs capability and serve identical frontend index and JS bytes. Public HTTPS
+  API health, APNs capability and exact frontend assets pass. Evidence:
+  `/private/tmp/bhidne-db15033-{production-build,direct-build,rollout}.log`,
+  `/private/tmp/bhidne-db15033-direct/verification.json` and
+  `/private/tmp/bhidne-db15033-cancellation.json`.
+- Limitations: server/web deployment does not update an installed native client.
+  Signed iOS build and physical-device invitation delivery checks remain pending;
+  earlier skipped invitations are not resent. GitHub failure is not a passing CI
+  result; local verification is documented in the preceding increments.
+- Exact next step: include these client changes in the next signed iOS build and
+  verify adaptive layouts and two-account invitations, including a busy recipient
+  leaving their seat before joining. Capacity/observability/database HA remain
+  separate infrastructure work.
