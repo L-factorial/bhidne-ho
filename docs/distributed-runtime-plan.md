@@ -8596,3 +8596,9 @@ implementation request before changing card rendering or Marriage turn behavior.
 - Final pre-release checks: all 62 affected PostgreSQL/WASM cases pass after receipt
   validation changes; all 17 distributed HTTP transport cases pass. The final
   browser checks pass room and table restoration at both viewport sizes.
+- Pre-activation review follow-up: a pending game continuation now owns the room
+  action slot until completion. Other room mutations fail with confirmation-pending
+  feedback rather than competing with its default-room/entry stages. Duplicate
+  creation and room-entry guards are covered; all 462 client cases pass again.
+  The first direct image was built but never activated; release uses the follow-up
+  commit and a newly rebuilt matching frontend.

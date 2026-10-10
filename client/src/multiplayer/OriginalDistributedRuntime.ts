@@ -121,7 +121,7 @@ export class OriginalDistributedRuntime {
   }
   private availableActions() {
     if (this.closed) throw Error('Authenticated runtime closed.');
-    if (this.recovered || this.recovering) throw new RoomActionPending();
+    if (this.creationFlow || this.recovered || this.recovering) throw new RoomActionPending();
     return this.actions;
   }
   get roomCommandId() { return this.root.session.command(roomSlot).request?.body.command_id ?? null; }

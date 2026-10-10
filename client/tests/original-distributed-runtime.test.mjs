@@ -86,6 +86,8 @@ test('root workflow blocks duplicate creation and logout ignores late success',a
 
  await new Promise(resolve=>setImmediate(resolve));
  assert.equal(r.value.creationFlow.room.room_id,room);
+  await assert.rejects(r.value.roomActions.create(account,input),/confirmation/);
+  assert.throws(()=>r.value.roomActions.enter(account,room),/confirmation/);
  await assert.rejects(r.value.createGame(null,'Another',{game_type:'flush'}),/confirmation/);
  r.close();finish();assert.equal(await pending,null);
 });
