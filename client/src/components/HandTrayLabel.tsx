@@ -8,10 +8,10 @@ import { fonts, useTheme } from '../theme';
 export function HandTrayLabel({ count }: { count?: number }) {
   useUiLanguage();
   const { colors: c } = useTheme();
-  return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flexShrink: 1 }}>
-    <View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: 30, height: 32 }}>
+  return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 0, flexShrink: 1 }}>
+    <View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: 30, height: 32, flexShrink: 0 }}>
       {[-12, 10].map((angle, i) => <View key={angle} style={{ position: 'absolute', left: i * 7, top: 2, width: 21, height: 28, borderRadius: 4, borderWidth: 1, borderColor: c.tableTrim, transform: [{ rotate: `${angle}deg` }] }}><CardBack /></View>)}
     </View>
-    <Text numberOfLines={1} style={{ color: c.onTableHeader, fontFamily: fonts.medium, fontSize: 14 }}>{count === undefined ? ui("common.your_cards") : ui("common.your_cards_status", { "status": count })}</Text>
+    <Text style={{ flexShrink: 1, minWidth: 0, color: c.onTableHeader, fontFamily: fonts.medium, fontSize: 14 }}>{count === undefined ? ui("common.your_cards") : ui("common.your_cards_status", { "status": count })}</Text>
   </View>;
 }

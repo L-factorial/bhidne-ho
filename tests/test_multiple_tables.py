@@ -232,3 +232,25 @@ def test_directory_actions_are_viewer_specific_and_do_not_expose_hands():
         client.post('/test-games/cards/table/lock', headers=headers[0], json={'match_id': mid})
         assert card(2)['phase'] == 'LOCKED'
         assert 'cards' not in str(card(2)['seated_players'])
+
+
+def test_in_game_invitation_http_targets_existing_match_while_recipient_is_busy():
+    with TestClient(create_app()) as client:
+        users = [client.post('/auth/guest').json() for _ in range(2)]
+        headers = [{'Authorization':'Bearer '+user['token']} for user in users]
+        for header in headers:
+            client.post('/rooms/invites/enter', headers=header, json={})
+        busy = client.post('/test-games/invites', headers=headers[1], json={
+            'name':'Busy','game_type':'flush','player_count':2}).json()
+        target = client.post('/test-games/invites', headers=headers[0], json={
+            'name':'Target','game_type':'flush','player_count':2}).json()
+        response = client.post('/test-games/invites/table/invite-table', headers=headers[0], json={
+            'match_id':target['match_id'],'recipients':[users[1]['user_id']]})
+        assert response.status_code == 200
+        assert response.json()['match_id'] == target['match_id']
+        invites = client.get('/test-games/invitations', headers=headers[1]).json()
+        assert len(invites) == 1 and invites[0]['match_id'] == target['match_id']
+        joined = client.post('/test-games/invites/join', headers=headers[1], json={'match_id':target['match_id']})
+        assert joined.status_code == 409
+        active = client.get('/test-games/invites', headers=headers[1], params={'match_id':busy['match_id']}).json()
+        assert active['your_player_id']

@@ -326,3 +326,17 @@ test('a newly pending creation recovers offscreen without remount or a new comma
    assert.equal(f.root.session.command('ui-table-control').request,null);
  } finally {f.api.close();}
 });
+
+test('in-game invites use the current table identity and revision with durable same-ID retry',async()=>{
+ let first;
+ const f=setup(r=>{if(!first){first=r;throw Error('lost invitation response');}assert.deepEqual(r,first);return receipt(r);});
+ const payload={match_id:'m',recipients:['user-b','user-c']};
+ await assert.rejects(f.api.request('/test-games/r/table/invite-table',account,payload),/lost invitation/);
+ await f.api.request('/test-games/r/table/invite-table',account,payload);
+ assert.equal(f.sent.length,2);
+ assert.equal(f.sent[0].target.kind,'table');assert.equal(f.sent[0].target.table_id,'t');
+ assert.equal(f.sent[0].body.command,'invite-table');assert.equal(f.sent[0].body.match_id,'m');
+ assert.equal(f.sent[0].body.expected_revision,7);assert.deepEqual(f.sent[0].body.payload,{recipients:['user-b','user-c']});
+ assert.equal(f.shared.length,0);
+ f.api.close();
+});

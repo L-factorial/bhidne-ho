@@ -102,6 +102,17 @@ async def create(room_id: str, body: CreateGame, request: Request, response: Res
     return await request.app.state.test_games.create(room_id, user.user_id, body.player_count, body.game_type, body.name, body.invitees, body.card_theme)
 
 
+class InviteTable(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    match_id: str
+    recipients: list[str] = Field(min_length=1, max_length=20)
+
+
+@router.post("/{room_id}/table/invite-table")
+async def invite_table(room_id: str, body: InviteTable, request: Request, user: UserIdentity = Depends(current_user)):
+    return await request.app.state.test_games.invite_table(room_id, user.user_id, body.match_id, body.recipients)
+
+
 @router.post("/{room_id}/join")
 async def join(room_id: str, body: JoinGame, request: Request, response: Response, user: UserIdentity = Depends(current_user)):
     response.headers["Cache-Control"] = "no-store"

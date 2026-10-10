@@ -1,5 +1,11 @@
 """Hosted invitation eligibility and creation inside the room transaction."""
 from uuid import NAMESPACE_URL, uuid5
+from pydantic import Field
+from .checkpoints import Record, Identity
+
+
+class InviteTablePayload(Record):
+    recipients: list[Identity] = Field(min_length=1, max_length=20)
 from .checkpoints import canonical_json
 from .checkpoint_store import user_uuid
 
@@ -30,9 +36,6 @@ async def eligibility(connection, room_id, actor, recipients, *, lane=None, sequ
                 (room_id, target_id, room_id, target))).fetchone()
             if not permitted:
                 reason = 'Ask the room owner to invite this player first.'
-        if reason is None and await (await connection.execute('''SELECT 1 FROM active_table_players WHERE user_id=%s
-            UNION ALL SELECT 1 FROM active_game_players WHERE user_id=%s LIMIT 1''', (target_id, target_id))).fetchone():
-            reason = 'Already seated at another active table.'
         result.append(dict(user_id=target, eligible=reason is None, reason=reason))
     return result
 
@@ -60,9 +63,9 @@ async def reserve_rate(connection, actor, count):
     return None
 
 
-async def create(claim, game, recipients, *, notify_room=False, skip_recipients=()):
+async def create(claim, game, recipients, *, notify_room=False, skip_recipients=(), include_room=True):
     explicit = set(recipients)
-    if notify_room:
+    if notify_room and include_room:
         rows = await (await claim.connection.execute('SELECT user_id FROM room_memberships WHERE room_id=%s ORDER BY user_id LIMIT 1001', (game.room_id,))).fetchall()
         if len(rows) > 1000:
             from .store import DurableGameConflict
@@ -138,3 +141,27 @@ def reconcile(game, invitations):
         if item.get('status') == 'pending' and (game.ended or item.get('recipient_id') in game.table.seats(game)
                                               or item.get('recipient_id') in game.table.queue)
         else dict(item) for item in invitations]
+
+
+async def send(claim, game, invitations, payload):
+    """Invite without reserving seats; all policy checks precede writes."""
+    recipients = list(dict.fromkeys(payload.recipients))
+    eligible = await eligibility(claim.connection, game.room_id, claim.entry.actor_id,
+        recipients, lane=claim.entry.lane_id, sequence=claim.entry.sequence)
+    detail = next((item['reason'] for item in eligible if not item['eligible']), None)
+    if detail:
+        return detail, []
+    pending = {item['recipient_id'] for item in invitations if item['status'] == 'pending'}
+    seated = set(game.table.seats(game)) | set(game.table.queue)
+    recipients = [user for user in recipients if user not in pending and user not in seated]
+    if len(invitations) + len(recipients) > 1000:
+        return 'This table has reached its invitation limit.', []
+    detail = await reserve_rate(claim.connection, claim.entry.actor_id, len(recipients))
+    if detail:
+        return detail, []
+    created = await create(claim, game, recipients, notify_room=True, include_room=False)
+    # notify_room grants explicit acceptance semantics, but menu invitations target
+    # only selected players, never every room member.
+    created = [item for item in created if item['recipient_id'] in recipients]
+    invitations.extend(created)
+    return None, created

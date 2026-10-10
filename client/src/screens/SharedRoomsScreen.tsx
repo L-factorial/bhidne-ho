@@ -64,7 +64,8 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
-  const wide = useWindowDimensions().width >= 900;
+  const {width,fontScale} = useWindowDimensions();
+  const wide = width >= 900;
   const [roomToolsOpen, setRoomToolsOpen] = useState(false);
   const [lobbyTab, setLobbyTab] = useState<'rooms' | 'players' | 'createJoin' | 'games' | 'chat'>("games");
   const [chatPlayer,setChatPlayer]=useState<string>();
@@ -412,7 +413,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
       </> : <>
         {session && !expired && lobbyTab !== 'players' && lobbyTab !== 'chat' && <View style={styles.hero}>
           <View accessibilityRole="tablist" style={styles.lobbyTabs}>
-            {([["games", ui("rooms.play")], ['rooms', ui("rooms.rooms")], ["createJoin", ui("rooms.create_or_join")]] as const).map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: lobbyTab === value }} onPress={() => setLobbyTab(value)} style={styles.lobbyTab}><Text style={[styles.lobbyTabText, lobbyTab === value && styles.activeLobbyTabText]}>{label}</Text>{lobbyTab === value && <View style={styles.activeLobbyTab} />}</Pressable>)}
+            {([["games", ui("rooms.play")], ['rooms', ui("rooms.rooms")], ["createJoin", ui("rooms.create_or_join")]] as const).map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: lobbyTab === value }} onPress={() => setLobbyTab(value)} style={[styles.lobbyTab, {flexBasis: 100 * fontScale}]}><Text style={[styles.lobbyTabText, lobbyTab === value && styles.activeLobbyTabText]}>{label}</Text>{lobbyTab === value && <View style={styles.activeLobbyTab} />}</Pressable>)}
           </View>
         </View>}
         {!session && <View style={[styles.panel, {padding: 18}]}>
@@ -563,7 +564,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   hero: { paddingTop: 12, paddingBottom: 12, gap: 8 }, eyebrow: { fontFamily: fonts.medium, fontSize: 9, letterSpacing: 0, color: colors.accent }, title: { ...gameHeadingFinish(colors), fontFamily: fonts.editorial, fontSize: 22, lineHeight: 29, color: colors.text }, mobileTitle: { fontSize: 22, lineHeight: 29 }, subtitle: { fontFamily: fonts.body, fontSize: 13, lineHeight: 23, color: colors.textMuted },
   readyPrompt: { fontFamily: fonts.medium, fontSize: 18, lineHeight: 25, color: colors.textMuted },
   quickActions: { flexDirection: 'row', gap: 10, marginTop: 8 }, primaryAction: { ...gameControlFinish(colors), flex: 1, minHeight: 54, borderRadius: radii.medium, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 }, primaryActionText: { fontFamily: fonts.medium, fontSize: 13, color: colors.onPrimary }, secondaryAction: { ...gameControlFinish(colors), flex: 1, minHeight: 54, borderRadius: radii.medium, borderWidth: 1, borderColor: colors.tableTrim, backgroundColor: colors.tableHeader, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 }, secondaryActionText: { fontFamily: fonts.medium, fontSize: 13, color: colors.text },
-  lobbyTabs: { backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, flexDirection: 'row', borderBottomWidth: 1, borderColor: colors.borderSubtle, marginTop: 8 }, lobbyTab: { flex: 1, alignItems: 'center', minHeight: 64, paddingHorizontal: 6, justifyContent: 'center' }, activeLobbyTab: { position: 'absolute', bottom: 0, width: '70%', height: 3, borderRadius: 3, backgroundColor: colors.accent }, lobbyTabText: { textAlign: 'center', fontFamily: fonts.medium, fontSize: 15, color: colors.textMuted }, activeLobbyTabText: { color: colors.accent }, playersArea: { marginTop: 4, gap: 14 },
+  lobbyTabs: { backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, flexDirection: 'row', flexWrap: 'wrap', borderBottomWidth: 1, borderColor: colors.borderSubtle, marginTop: 8 }, lobbyTab: { flexGrow: 1, flexBasis: 100, maxWidth: '100%', minWidth: 0, alignItems: 'center', minHeight: 64, paddingVertical: 10, paddingHorizontal: 6, justifyContent: 'center' }, activeLobbyTab: { position: 'absolute', bottom: 0, width: '70%', height: 3, borderRadius: 3, backgroundColor: colors.accent }, lobbyTabText: { textAlign: 'center', fontFamily: fonts.medium, fontSize: 15, color: colors.textMuted }, activeLobbyTabText: { color: colors.accent }, playersArea: { marginTop: 4, gap: 14 },
   sectionToggle: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, sectionTitle: { fontFamily: fonts.medium, fontSize: 22, color: colors.text },
   resumeCard: { ...gamePanelFinish(colors), flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, backgroundColor: colors.surfaceSelected, borderRadius: radii.medium },
   resumeTitle: { fontFamily: fonts.medium, fontSize: 16, color: colors.text },

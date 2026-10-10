@@ -45,7 +45,7 @@ class TableStateRejected(DurableGameConflict):
 
 class TableLaneExecutor:
     roster_commands = frozenset({'join-seat', 'leave-seat', 'join-queue', 'leave-queue'})
-    commands = frozenset({'join-seat', 'leave-seat', 'join-queue', 'leave-queue', 'lock', 'start', 'end', 'abandon', 'next-match', 'expire-seat-offer', 'answer-table-invitation', 'send-poke', 'send-reaction', 'card-theme'}) | OFFER_COMMANDS | RULE_COMMANDS | SESSION_COMMANDS | {'session-tick'}
+    commands = frozenset({'join-seat', 'leave-seat', 'join-queue', 'leave-queue', 'lock', 'start', 'end', 'abandon', 'next-match', 'expire-seat-offer', 'answer-table-invitation', 'invite-table', 'send-poke', 'send-reaction', 'card-theme'}) | OFFER_COMMANDS | RULE_COMMANDS | SESSION_COMMANDS | {'session-tick'}
 
     def __init__(self, inbox, *, max_events=512, round_summary_seconds=8):
         if type(max_events) is not int or max_events < 1 or round_summary_seconds < 0:
@@ -89,6 +89,15 @@ class TableLaneExecutor:
             before_effect = self._activity_state(game, data['invitations'])
             detail = None
             context = None
+            invite_payload = None
+            if request.command == 'invite-table':
+                try:
+                    invite_payload = hosted_invitations.InviteTablePayload.model_validate_json(canonical_json(request.payload))
+                    for recipient in invite_payload.recipients:
+                        user_uuid(recipient)
+                except (ValidationError, ValueError, AttributeError):
+                    invite_payload = None
+                    detail = 'Invalid table invitation payload.'
             offer_payload = None
             payload_error = None
             if offer_command:
@@ -122,6 +131,8 @@ class TableLaneExecutor:
                 users = sorted({actor_id, *(user_uuid(p['user_id']) for p in data['positions'])})
                 if request.command == 'invite-seat' and offer_payload is not None:
                     users = sorted(set(users) | {user_uuid(offer_payload.recipient)})
+                if invite_payload is not None:
+                    users = sorted(set(users) | {user_uuid(u) for u in invite_payload.recipients})
                 for user in users:
                     row = await (await claim.connection.execute('SELECT id FROM users WHERE id=%s FOR UPDATE', (user,))).fetchone()
                     if user == actor_id and row is None:
@@ -145,7 +156,7 @@ class TableLaneExecutor:
                     start_payload = InitialStartPayload.model_validate_json(canonical_json(request.payload))
                 except ValidationError:
                     detail = 'Invalid start payload. Only manual play and a rules revision are supported.'
-            elif detail is None and request.payload and not offer_command and request.command not in RULE_COMMANDS and request.command not in ('answer-table-invitation', 'card-theme'):
+            elif detail is None and request.payload and not offer_command and request.command not in RULE_COMMANDS and request.command not in ('answer-table-invitation', 'invite-table', 'card-theme'):
                 detail = 'This table command does not accept a payload.'
             if detail is None and game.ended and not closing:
                 detail = 'This table has ended.'
@@ -198,6 +209,13 @@ class TableLaneExecutor:
                 elif request.command in RULE_COMMANDS:
                     host._sync_proposal(game)
                     detail = apply_rules(game, claim.entry.actor_id, request, claim.entry.lane_id)
+                elif request.command == 'invite-table':
+                    detail, created = await hosted_invitations.send(claim, game, invitations, invite_payload)
+                    if detail is None:
+                        invitation_recipients.extend(item['recipient_id'] for item in created)
+                        events.extend(OutgoingEvent(dict(type='TABLE_INVITATION_CREATED', invitation_id=item['id'],
+                            room_id=game.room_id, table_id=game.table.table_id, match_id=game.match_id), item['recipient_id'])
+                            for item in created)
                 elif request.command == 'answer-table-invitation':
                     from .room_commands import Answer
                     try:
@@ -309,10 +327,10 @@ class TableLaneExecutor:
             and command in ({'leave-seat', 'join-queue', 'leave-queue'} | OFFER_COMMANDS))
         # Never consume a supported future command against a partially ported
         # active/rotation runtime. No legacy async publish or timer loop runs.
-        if (not closing and not rematching and not round_command and not completed_roster and not offer_command and not active_queue and command not in RULE_COMMANDS and command not in ('answer-table-invitation', 'card-theme')
+        if (not closing and not rematching and not round_command and not completed_roster and not offer_command and not active_queue and command not in RULE_COMMANDS and command not in ('answer-table-invitation', 'invite-table', 'card-theme')
                 and command != 'start' and data['engine'] is not None):
             raise TableStateRejected('This command is unavailable while the game is active.')
-        if not closing and not rematching and command not in RULE_COMMANDS and command not in ('answer-table-invitation', 'card-theme') and ((data['engine'] is None and data['phase'] not in ('OPEN', 'LOCKED', 'ENDED'))
+        if not closing and not rematching and command not in RULE_COMMANDS and command not in ('answer-table-invitation', 'invite-table', 'card-theme') and ((data['engine'] is None and data['phase'] not in ('OPEN', 'LOCKED', 'ENDED'))
                 or (not completed_roster and (data['table']['next_seat_count'] is not None or data['table']['releases']))
                 or (not completed_roster and any(o['status'] == 'PENDING' for o in data['table']['offers']))):
             raise DurableGameConflict('Active games and seat-offer reconciliation are not supported here.')

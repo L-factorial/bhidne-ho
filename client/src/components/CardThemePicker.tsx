@@ -21,10 +21,10 @@ export function CardThemePicker({ disabled = false, compact = false, device = fa
       {(Object.keys(cardThemeCatalog) as CardThemeId[]).map(key => <Pressable key={key} testID={`card-theme-${key}`}
         accessibilityRole="radio" accessibilityLabel={ui(cardThemeCatalog[key].nameKey)}
         accessibilityState={{ checked: id === key, disabled: unavailable }} aria-checked={id === key} disabled={unavailable}
-        onPress={() => { select(key); onSelected?.(); }} style={({ pressed }) => ({ height: 78, flexDirection: 'row',
+        onPress={() => { select(key); onSelected?.(); }} style={({ pressed }) => ({ minHeight: 78, flexDirection: 'row',
           alignItems: 'center', gap: 12, padding: 12, borderBottomWidth: 1, borderColor: c.borderSubtle,
           backgroundColor: pressed || id === key ? c.surfaceRaised : c.surface, opacity: unavailable ? 0.55 : 1 })}>
-        <Image source={cardThemeImages[key]} accessible={false} resizeMode="cover" style={{ width: 36, height: 54, borderRadius: 4 }} />
+        <Image source={cardThemeImages[key]} accessible={false} resizeMode="cover" style={{ width: 36, height: 54, flexShrink: 0, borderRadius: 4 }} />
         <Text style={{ flex: 1, color: c.text, fontFamily: fonts.medium }}>{ui(cardThemeCatalog[key].nameKey)}</Text>
         {id === key && <Ionicons name="checkmark-circle" size={20} color={c.accent} />}
       </Pressable>)}
@@ -64,7 +64,7 @@ export function CreateCardThemeSelector({ disabled = false, device = false, over
       accessibilityState={{ expanded, disabled }} disabled={disabled} onPress={() => expand(!expanded)}
       style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: radii.medium,
         borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, minHeight: 64 }}>
-      <Image source={cardThemeImages[id]} accessible={false} resizeMode="cover" style={{ width: 36, height: 54, borderRadius: 4 }} />
+      <Image source={cardThemeImages[id]} accessible={false} resizeMode="cover" style={{ width: 36, height: 54, flexShrink: 0, borderRadius: 4 }} />
       <Text style={{ flex: 1, fontFamily: fonts.medium }}>{ui(cardThemeCatalog[id].nameKey)}</Text>
       <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={20} color={c.text} />
     </Pressable>

@@ -272,9 +272,10 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
       if (alive.current) setError(playerError(error, ui("feedback.could_not_restore_game")));
     } finally { pending.current = false; if (alive.current) setBusy(false); }
   }
+  const [unselectedInviteQuery,setUnselectedInviteQuery]=useState(false);
   const creationVisible=useRef(open);creationVisible.current=open;
   async function act(join: boolean) {
-    if (!canSend.current || pending.current) return;
+    if (!canSend.current || pending.current || (!join && unselectedInviteQuery)) return;
     pending.current = true; const version = ++generation.current; setBusy(true); setError('');
     try {
       const data = await api(join ? '/join' : '', join ? { match_id: snapshot?.match_id } : { ...(gameType === 'callbreak' ? {player_count:capacity} : {}), notify_room:true, game_type: gameType, card_theme: cardTheme, invitees: selectedInvitees.map(player => player.user_id) });
@@ -468,13 +469,13 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
       <GameModalContent><KeyboardFrame style={[styles.overlay, { paddingVertical: 16 }]}><View accessibilityViewIsModal style={styles.modal}>
         <FormScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
           <Text accessibilityRole="header" style={styles.title}>{ui("rooms.create_table")}</Text>
-          <CreateTableForm session={{user_id:userId,token}} game={gameType} setGame={value=>onGameTypeChange?.(value)} callbreakPlayers={capacity} setCallbreakPlayers={setCapacity} invitees={selectedInvitees} setInvitees={setSelectedInvitees} busy={busy || !creationEnabled}/>
+          <CreateTableForm onUnselectedInviteQueryChange={setUnselectedInviteQuery} session={{user_id:userId,token}} game={gameType} setGame={value=>onGameTypeChange?.(value)} callbreakPlayers={capacity} setCallbreakPlayers={setCapacity} invitees={selectedInvitees} setInvitees={setSelectedInvitees} busy={busy || !creationEnabled}/>
         </FormScrollView>
         <FormFooter>
           {!!error && <Text accessibilityRole="alert" style={styles.modalError}>{uiLabel(error, 'feedback')}</Text>}
           {!synced && <Text accessibilityLiveRegion="polite" style={styles.note}>{sessionActive ? ui("common.waiting_for_the_table_service_your_form_will_stay_open_while_it_retries") : ui("feedback.sign_in_again_before_creating_a_table")}</Text>}
           {refreshError && sessionActive && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.retry_table_service")} onPress={() => setActionTick(value => value + 1)} style={styles.choice}><Text style={styles.text}>{ui("rooms.retry_table_service")}</Text></Pressable>}
-          <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_this_table")} disabled={busy || creationPending || !creationEnabled} accessibilityState={{ disabled: busy || creationPending || !creationEnabled }} onPress={() => void act(false)} style={[styles.button, {minHeight:52,borderWidth:1,borderColor:colors.onPrimary}, (busy || !creationEnabled) && { opacity: visualStates.disabledOpacity }]}><Text style={styles.buttonText}>{ui("rooms.create_table")}</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_this_table")} disabled={busy || creationPending || unselectedInviteQuery || !creationEnabled} accessibilityState={{ disabled: busy || creationPending || unselectedInviteQuery || !creationEnabled }} onPress={() => void act(false)} style={[styles.button, {minHeight:52,borderWidth:1,borderColor:colors.onPrimary}, (busy || !creationEnabled) && { opacity: visualStates.disabledOpacity }]}><Text style={styles.buttonText}>{ui("rooms.create_table")}</Text></Pressable>
           <Pressable accessibilityRole="button" onPress={() => setOpen(false)} style={styles.choice}><Text style={styles.text}>{ui("common.back_to_room")}</Text></Pressable>
         </FormFooter>
       </View></KeyboardFrame></GameModalContent>}

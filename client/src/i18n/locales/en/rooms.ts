@@ -1,5 +1,12 @@
 // Editable English rooms copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "select_or_clear_invite_search": "Select a player from the results, or clear the search before continuing.",
+  "invite_players": "Invite players",
+  "send_invitations": "Send invitations",
+  "invitations_sent": "Invitations sent.",
+  "busy_invitation_help": "Players can receive invitations while seated elsewhere. They must leave their current seat before joining this table.",
+  "select_invite_player_help": "Search for a player, then select their name to add them.",
+
   "creating_room": "Creating room…",
   "creating_table": "Creating table…",
   "busy_invitees_skipped": "Table created. {{players}} weren’t invited because they are playing at another table.",

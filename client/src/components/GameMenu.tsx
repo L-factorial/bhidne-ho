@@ -8,6 +8,7 @@ import { type ReactNode, type ComponentProps, useState } from 'react';
 import {Pressable, View} from 'react-native';
 import { visualStates, radii, fonts, useTheme } from '../theme';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
+import { TableInviteSheet } from './TableInviteSheet';
 import { TableShareSheet } from './ShareLink';
 import { useLanguage } from '../i18n/LanguageProvider';
 
@@ -21,6 +22,7 @@ export function GameMenu({ snapshot, close, rules, rulesConfig, history, poke, c
   const { colors } = useTheme();
   const { language, setLanguage } = useLanguage();
   const ended = snapshot.status === 'ended' || snapshot.table?.phase === 'ENDED';
+  const [inviting, setInviting] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [playersOpen, setPlayersOpen] = useState(false);
   const section = (label: string) => <Text style={{ color: colors.textMuted, fontFamily: fonts.body, fontSize: 11,
@@ -38,6 +40,10 @@ export function GameMenu({ snapshot, close, rules, rulesConfig, history, poke, c
   const open = (action: () => void) => { close(); action(); };
   return <>
     {section(ui("common.table"))}
+    {tableSocial?.canRead && tableSocial.session && snapshot.room_id && snapshot.match_id && <>
+      {row(ui('rooms.invite_players'), () => setInviting(true), ended, undefined, undefined, 'person-add-outline')}
+      <TableInviteSheet session={tableSocial.session} roomId={snapshot.room_id} matchId={snapshot.match_id} visible={inviting} onClose={() => setInviting(false)} />
+    </>}
     {tableSocial?.canRead && row(ui("common.table_chat"), () => open(tableSocial.openChat), false, undefined, undefined, 'chatbubble-outline')}
     {row(ui("common.players_waiting_queue"), () => setPlayersOpen(value => !value), false, playersOpen, undefined, 'people-outline')}
     {playersOpen && <View style={{ gap: 8, padding: 12, backgroundColor: colors.surfaceRaised, borderRadius: 16 }} testID={`${snapshot.game_type}-menu-players`}>

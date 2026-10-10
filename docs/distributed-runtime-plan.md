@@ -8637,3 +8637,101 @@ implementation request before changing card rendering or Marriage turn behavior.
   processing, eventual replacement/error feedback and busy-invitee notes. Test
   native behavior in the next signed build. Capacity, observability and database
   HA readiness remain the next infrastructure task set.
+
+## 2026-10-10 — Call Break grid proportions and off-turn hand dragging
+
+- User explicitly expanded UI scope to fix distorted grid cards, remove written
+  suit names, and allow local hand rearrangement outside the player's turn.
+- Grid cards and gesture wrappers now share fixed 56x80 rectangular bounds.
+  Single-line rank/suit symbols fit within the face; suit names are removed.
+- Call Break opts into an interactive drag surface even when card selection is
+  unavailable. Tap handlers still enforce play eligibility; revealed hands can
+  reorder in Arc/Grid during another player's turn. Hidden/unrevealed hands keep
+  existing restrictions. Other games retain their existing disabled behavior.
+- Verification: TypeScript and web export pass; all 462 client tests pass.
+  Browser touch fixtures pass at 320/390/1280px both on/off turn, checking
+  reordering, uniform dimensions, no suit-name text, guarded selection, preserved
+  order after hiding/collapsing, and no game-action writes.
+- Evidence: /private/tmp/bhidne-callbreak-grid-{build,tests,browser}.log and
+  /private/tmp/bhidne-callbreak-drag-{320,390,1280}-{true,false}.png.
+- Limitations: browser touch simulation, not physical iOS testing. Changes remain
+  local; no commit, push, deployment or signed native build in this increment.
+- Exact next step: review the UI changes and include them in the next release;
+  verify dragging and card text scaling on an iOS device in the next signed build.
+  Capacity, observability and database HA remain separate infrastructure work.
+
+## 2026-10-10 — Adaptive shared UI and pregame hand headers
+
+- User authorized the collected UI fixes while parking invitation behavior.
+  This increment changes client presentation only; no invitation/runtime logic.
+- Waiting hand areas explicitly stretch across their parent in Flush, Marriage
+  and Call Break, reusing the in-game header with a disabled card control.
+  The shared card label can wrap for larger text while artwork keeps its bounds.
+- Creation choices use measured available width and OS font scaling to switch
+  between three equal tiles and stacked icon/label rows. Compact sheets reduce
+  horizontal padding; player-count controls and shared lobby/settings/history/
+  ledger tabs wrap, with width limits and font-scaled bases where appropriate.
+- Play game filters wrap onto visible rows instead of cropping the last filter
+  in a horizontal scroller. Compact theme dropdown rows grow to fit longer text
+  and preserve image proportions inside their bounded scroll area.
+- Verification: all 462 client tests, TypeScript and production web export pass.
+  Browser creation checks pass at 320/390/1280px, including filter bounds, game
+  selection, narrow stacked choices and existing dropdown/request behavior.
+  Waiting hand checks pass all three games at those widths. 390px fixtures use
+  enlarged text to verify visible labels and bounded controls. No live writes.
+- Evidence: /private/tmp/bhidne-adaptive-ui-{build,tests,production-build}.log,
+  /private/tmp/bhidne-adaptive-{create,waiting}-browser.log,
+  /private/tmp/bhidne-waiting-hand-{flush,marriage,callbreak}-{320,390,1280}.png
+  and /private/tmp/create-game-refactor-{320,390,1280}.png.
+- Limitations: enlarged browser text simulates presentation, not native Dynamic
+  Type. Physical iOS testing and signed build remain pending. Changes are local;
+  no backend deployment, commit or push was performed in this increment.
+- Exact next step: produce the requested iOS test build after UI review, verify
+  waiting headers, creation choices and filters on tester devices with default
+  and larger text. Invitation investigation remains parked; infrastructure
+  capacity/observability/database HA stay outside this UI increment.
+
+## 2026-10-10 — In-game invitations and busy-recipient delivery
+
+- User authorized Invite players in the burger menu for all three games, busy
+  invitees receiving invitations without taking a second seat, and addressing
+  typed searches that could submit an empty invitation list. This explicitly
+  supersedes the earlier skip-busy-recipient behavior; old receipts remain valid.
+- Shared menu opens a localized bounded 20-player search/select/send sheet for
+  the exact room/match. Uses the existing durable UI table-command slot, stable
+  command identity, table revision and receipt recovery. Accepted feedback and
+  submission spinner appear in the sheet; sending does not reserve a seat.
+- New invite-table execution works on open, active and completed hosted tables.
+  It validates recipients, room membership/access, blocks/moderation and existing
+  rate policy, locks users consistently, deduplicates pending/seated recipients,
+  caps invitation history at 1000, then commits checkpoint, receipt and recipient
+  invalidations/events together. Existing checkpoint push jobs pick up invites.
+  Private owner invitations retain room-access/explicit-acceptance semantics.
+- Creation and eligibility stop rejecting/skipping busy recipients. The sender's
+  active-seat creation guard and all recipient join/queue occupancy rules remain.
+  Local test HTTP adapter supports the same menu endpoint and busy policy.
+- Creation forms now require typed invite search text to be selected or cleared,
+  with explicit helper copy. Both Play and room creation footers enforce the
+  guard, and menu sending follows the same rule. Earlier production records prove
+  empty payloads, not whether a player was typed or selected; this closes a
+  plausible UI path without claiming it as the confirmed incident cause.
+- Verification: all 463 client tests and TypeScript pass; production export
+  passes. 76 affected creation/table/block SQL checks pass; final invitation
+  suite passes 19 cases including all three games before/during play, unchanged
+  engine state, ingress, same-ID receipts, pending deduplication, join exclusivity,
+  end cancellation, invalid recipients, blocked contact and commit rollback.
+  45 transport/multiple-table/push checks and one new HTTP busy-invite check pass.
+  Browser menu send checks pass all three games at 320/390/1280px; creation
+  checks verify selected invitees reach the request and unselected searches block
+  submission. The backend test counts overlap; no live-player writes were used.
+- Evidence: /private/tmp/bhidne-table-invite-{client,sql,final-sql,rollback,
+  transport,http,build,production-build,browser,creation-browser}.log and
+  /private/tmp/bhidne-table-invite-{flush,marriage,callbreak}-{320,390,1280}.png.
+- Limitations: local browser/SQL checks, not physical iOS or live push delivery.
+  No schema/dependency changes, commit, push, backend rollout or signed build in
+  this increment. Existing production invitations skipped earlier are not resent.
+- Exact next step: review/release the backend changes together with the new client
+  build; test invitations between two accounts on devices, including a busy
+  recipient leaving their current seat before joining the invited table. Native
+  builds must include both the prior adaptive UI and this menu. Capacity,
+  observability and database HA remain separate infrastructure work.

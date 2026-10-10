@@ -158,26 +158,26 @@ async def test_replacement_outbox_failure_rolls_back_every_effect(database, monk
     finally:
         await host.close()
 
-async def test_busy_invitee_is_skipped_without_rejecting_creation_or_notifying_them(creation):
+async def test_busy_invitee_receives_invitation_without_seat_reservation(creation):
     pool, store, fence, users, inbox, lane, executor = creation
     busy = await create(creation, users[1], request('Busy', game_type='flush'))
     body = request('New', game_type='flush')
     body['payload'].update(invitees=[users[1], users[1], users[2]], notify_room=True)
     result = await create(creation, users[0], body)
     assert result['status'] == 'accepted'
-    assert result['skipped_invitees'] == [users[1]]
+    assert 'skipped_invitees' not in result
     saved = await store.load(result['table_id'])
     invites = saved.checkpoint['data']['invitations']
-    assert users[1] not in [item['recipient_id'] for item in invites]
+    assert users[1] in [item['recipient_id'] for item in invites]
     assert users[2] in [item['recipient_id'] for item in invites]
-    assert (await pool.execute('SELECT cardinality(attempts) FROM hosted_invitation_limits WHERE user_id=%s', (UUID(users[0][5:]),))).rows == [(1,)]
+    assert (await pool.execute('SELECT cardinality(attempts) FROM hosted_invitation_limits WHERE user_id=%s', (UUID(users[0][5:]),))).rows == [(2,)]
     assert (await inbox.enqueue(lane, users[0], body)).outcome == result
     assert (await pool.execute('SELECT count(*) FROM room_tables')).rows == [(2,)]
     own_busy = await create(creation, users[1], request('Another'))
     assert own_busy['status'] == 'rejected'
 
 
-async def test_all_busy_invitees_can_be_skipped_but_other_invalid_recipients_still_reject(creation):
+async def test_busy_invitees_are_eligible_but_invalid_recipients_still_reject(creation):
     pool, store, fence, users, inbox, lane, executor = creation
     await create(creation, users[1], request('Busy', game_type='flush'))
     invalid = request('Invalid', game_type='flush')
@@ -186,5 +186,90 @@ async def test_all_busy_invitees_can_be_skipped_but_other_invalid_recipients_sti
     body = request('New', game_type='flush')
     body['payload']['invitees'] = [users[1]]
     result = await create(creation, users[0], body)
-    assert result['status'] == 'accepted' and result['skipped_invitees'] == [users[1]]
-    assert (await store.load(result['table_id'])).checkpoint['data']['invitations'] == []
+    assert result['status'] == 'accepted' and 'skipped_invitees' not in result
+    assert [i['recipient_id'] for i in (await store.load(result['table_id'])).checkpoint['data']['invitations']] == [users[1]]
+
+
+@pytest.mark.parametrize('kind', ['flush','marriage','callbreak'])
+@pytest.mark.parametrize('phase', ['OPEN', 'STARTED'])
+async def test_invite_from_existing_table_busy_delivery_deduplication_and_join_guard(creation, phase, kind):
+    pool, store, fence, users, inbox, lane, executor = creation
+    busy = await create(creation, users[1], request('Busy', game_type='flush'))
+    target = await create(creation, users[0], request('Target', game_type=kind, capacity=4))
+    table_lane = await inbox.ensure_lane(LaneTarget(kind='table', room_id='room', table_id=UUID(target['table_id'])))
+    revision = 0
+    async def command(actor, name, payload=None, body=None):
+        nonlocal revision
+        body = body or dict(command_id=uuid4().hex, command=name, match_id=target['match_id'],
+            expected_revision=revision, payload=payload or {})
+        if name == 'invite-table' and payload and payload.get('recipients') != ['user-invalid']:
+            await HostedCommandIngress(inbox).submit(actor, LaneTarget(kind='table', room_id='room', table_id=UUID(target['table_id'])), body)
+        else:
+            await inbox.enqueue(table_lane, actor, body)
+        result = (await TableLaneExecutor(inbox).execute_one(table_lane, fence)).outcome
+        if result['status'] == 'accepted': revision = result['revision']
+        return result, body
+    if phase == 'STARTED':
+        for actor in users[2:5]:
+            assert (await command(actor, 'join-seat'))[0]['status'] == 'accepted'
+        if kind in ('flush','marriage'):
+            assert (await command(users[0], 'lock'))[0]['status'] == 'accepted'
+        assert (await command(users[0], 'start', {'play_mode':'manual', **({'rules_revision':0} if kind == 'flush' else {})}))[0]['status'] == 'accepted'
+    engine_before = (await store.load(target['table_id'])).checkpoint['data']['engine']
+    outcome, body = await command(users[0], 'invite-table', {'recipients':[users[1],users[1],users[-1]]})
+    assert outcome['status'] == 'accepted'
+    assert (await store.load(target['table_id'])).checkpoint['data']['engine'] == engine_before
+    assert (await inbox.enqueue(table_lane, users[0], body)).outcome == outcome
+    queries = PostgresHostedQueries(pool)
+    invite, = [item for item in (await queries.invitations(users[1]))['items'] if item['match_id'] == target['match_id']]
+    assert (await pool.execute('SELECT table_id FROM active_table_players WHERE user_id=%s', (UUID(users[1][5:]),))).rows == [(UUID(busy['table_id']),)]
+    before = await store.load(target['table_id'])
+    assert (await command(users[0], 'invite-table', {'recipients':[users[1],users[-1]]}))[0]['status'] == 'accepted'
+    assert len((await store.load(target['table_id'])).checkpoint['data']['invitations']) == 2
+    assert (await pool.execute('SELECT cardinality(attempts) FROM hosted_invitation_limits WHERE user_id=%s', (UUID(users[0][5:]),))).rows == [(2,)]
+    assert (await command(users[1], 'join-seat'))[0]['status'] == 'rejected'
+    assert (await command(users[0], 'invite-table', {'recipients':[users[0]]}))[0]['status'] == 'rejected'
+    assert (await command(users[0], 'invite-table', {'recipients':['user-invalid']}))[0]['status'] == 'rejected'
+    assert (await store.load(target['table_id'])).checkpoint['data']['invitations'] == before.checkpoint['data']['invitations']
+    assert (await command(users[0], 'end'))[0]['status'] == 'accepted'
+    assert (await queries.invitations(users[1]))['items'] == []
+    assert (await command(users[0], 'invite-table', {'recipients':[users[-1]]}))[0]['status'] == 'rejected'
+
+async def test_menu_invitation_commit_failure_rolls_back_and_preserves_same_id(creation, monkeypatch):
+    pool, store, fence, users, inbox, _, _ = creation
+    from app.durable_games import table_executor
+    target = await create(creation, users[0], request('Target', game_type='flush'))
+    lane = await inbox.ensure_lane(LaneTarget(kind='table', room_id='room', table_id=UUID(target['table_id'])))
+    body = dict(command_id=uuid4().hex, command='invite-table', match_id=target['match_id'],
+        expected_revision=0, payload={'recipients':[users[-1]]})
+    await inbox.enqueue(lane, users[0], body)
+    before = await store.load(target['table_id'])
+    original = table_executor.append_lane_events
+    async def fail(*args, **kwargs):
+        raise OSError('invitation commit interrupted')
+    monkeypatch.setattr(table_executor, 'append_lane_events', fail)
+    with pytest.raises(OSError):
+        await TableLaneExecutor(inbox).execute_one(lane, fence)
+    assert await store.load(target['table_id']) == before
+    assert (await inbox.lookup(lane, users[0], body['command_id'])).status == 'pending'
+    assert (await pool.execute('SELECT count(*) FROM hosted_invitation_limits')).rows == [(0,)]
+    assert (await pool.execute('SELECT count(*) FROM room_invitations')).rows == [(0,)]
+    monkeypatch.setattr(table_executor, 'append_lane_events', original)
+    outcome = (await TableLaneExecutor(inbox).execute_one(lane, fence)).outcome
+    assert outcome['status'] == 'accepted'
+    assert (await inbox.enqueue(lane, users[0], body)).outcome == outcome
+    assert len((await store.load(target['table_id'])).checkpoint['data']['invitations']) == 1
+
+
+async def test_menu_invites_enforce_blocks_and_recipient_policy_before_writes(creation):
+    from app.player_blocks.service import BlockService
+    pool, store, fence, users, inbox, _, _ = creation
+    target = await create(creation, users[0], request('Target', game_type='flush'))
+    lane = await inbox.ensure_lane(LaneTarget(kind='table', room_id='room', table_id=UUID(target['table_id'])))
+    await BlockService(pool).set(users[-1], users[0], True)
+    body = dict(command_id=uuid4().hex, command='invite-table', match_id=target['match_id'],
+        expected_revision=0, payload={'recipients':[users[1],users[-1]]})
+    await inbox.enqueue(lane, users[0], body)
+    assert (await TableLaneExecutor(inbox).execute_one(lane, fence)).outcome['status'] == 'rejected'
+    assert (await store.load(target['table_id'])).checkpoint['data']['invitations'] == []
+    assert (await pool.execute('SELECT count(*) FROM hosted_invitation_limits')).rows == [(0,)]

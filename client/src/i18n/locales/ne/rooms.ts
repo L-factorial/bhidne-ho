@@ -1,5 +1,12 @@
 // Editable Nepali rooms copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "select_or_clear_invite_search": "खोजीको नतिजाबाट खेलाडी छान्नुहोस्, वा अघि बढ्न खोजी खाली गर्नुहोस्।",
+  "invite_players": "खेलाडी बोलाउनुहोस्",
+  "send_invitations": "निमन्त्रणा पठाउनुहोस्",
+  "invitations_sent": "निमन्त्रणा पठाइयो।",
+  "busy_invitation_help": "अन्य टेबलमा बसेका खेलाडीले पनि निमन्त्रणा पाउँछन्। यहाँ बस्नुअघि उनीहरूले हालको सिट छोड्नुपर्छ।",
+  "select_invite_player_help": "खेलाडी खोज्नुहोस्, अनि थप्नका लागि उहाँको नाम छान्नुहोस्।",
+
   "creating_room": "कोठा बनाइँदैछ…",
   "creating_table": "टेबल बनाइँदैछ…",
   "busy_invitees_skipped": "टेबल बन्यो। अर्को टेबलमा खेलिरहेका {{players}} लाई निमन्त्रणा पठाइएन।",

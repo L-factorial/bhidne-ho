@@ -40,7 +40,7 @@ export function GameHistory({ snapshot }: { snapshot: RoomSnapshot }) {
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   panel: { ...gamePanelFinish(colors), flex: 1, minHeight: 0, backgroundColor: colors.surface, padding: 14 }, heading: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 24, color: colors.text },
-  tabs: { flexDirection: 'row', gap: 6, marginVertical: 10 }, tab: { ...gameControlFinish(colors), minHeight: 44, paddingHorizontal: 10, justifyContent: 'center', borderRadius: 7 }, selected: { backgroundColor: colors.surface }, label: { fontFamily: fonts.medium, fontSize: 11, color: colors.text },
+  tabs: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginVertical: 10 }, tab: { ...gameControlFinish(colors), minHeight: 44, paddingHorizontal: 10, justifyContent: 'center', borderRadius: 7 }, selected: { backgroundColor: colors.surface }, label: { fontFamily: fonts.medium, fontSize: 11, color: colors.text },
   scroll: { flex: 1, minHeight: 0 }, entries: { paddingRight: 8, paddingBottom: 12, gap: 10 }, entry: { borderBottomWidth: 1, borderColor: colors.border, paddingVertical: 10, gap: 6 },
   title: { ...gameHeadingFinish(colors), fontFamily: fonts.medium, fontSize: 12, lineHeight: 19, color: colors.accent }, text: { fontFamily: fonts.body, fontSize: 11, lineHeight: 20, color: colors.textMuted }, cards: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 10 }, caption: { fontFamily: fonts.body, fontSize: 10, color: colors.textMuted, marginTop: 8 },
 });

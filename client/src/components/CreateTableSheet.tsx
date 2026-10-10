@@ -29,13 +29,14 @@ export function CreateTableSheet({visible=true,runtime,session,rooms,playerName,
   const [callbreakPlayers,setCallbreakPlayers]=useState<4|5>(4);
   const [dropdown,setDropdown]=useState(false);
   const [cardThemeExpanded,setCardThemeExpanded]=useState(false);
+  const [unselectedInviteQuery,setUnselectedInviteQuery]=useState(false);
   const [invitees,setInvitees]=useState<InvitePlayer[]>([]);
   const [busy,setBusy]=useState(false),[error,setError]=useState('');
   const creating=useRef(false),defaultRoom=useRef<Room|null>(null);
   const selected=rooms.find(room=>room.room_id===roomId)??(!roomId?rooms[0]:undefined);
   const text={color:c.text,fontFamily:fonts.body},input={color:c.text,borderWidth:1,borderColor:c.border,borderRadius: radii.medium,padding:12,minHeight:48};
   async function create(){
-    if(creating.current||pendingCreation||rooms.length&&!selected)return;
+    if(creating.current||pendingCreation||unselectedInviteQuery||rooms.length&&!selected)return;
     creating.current=true;setBusy(true);setError('');
     try{
       let room=selected??defaultRoom.current;
@@ -64,10 +65,10 @@ export function CreateTableSheet({visible=true,runtime,session,rooms,playerName,
   }
   const [inviteSuggestionsExpanded,setInviteSuggestionsExpanded]=useState(false);
   return <RoomSheet visible={visible} scrollEnabled={!dropdown && !cardThemeExpanded && !inviteSuggestionsExpanded} presentation="dialog" testID="create-game-table" title={ui('rooms.create_table')} closeLabel={ui('rooms.close_create_table')} onClose={onClose}
-    footer={<Pressable accessibilityRole="button" accessibilityLabel={ui('rooms.create_table')} disabled={busy||pendingCreation||rooms.length>0&&!selected} accessibilityState={{disabled:busy||pendingCreation||rooms.length>0&&!selected}}
+    footer={<Pressable accessibilityRole="button" accessibilityLabel={ui('rooms.create_table')} disabled={busy||pendingCreation||unselectedInviteQuery||rooms.length>0&&!selected} accessibilityState={{disabled:busy||pendingCreation||unselectedInviteQuery||rooms.length>0&&!selected}}
       onPress={()=>void create()} style={{minHeight:52,borderRadius: radii.medium,alignItems:'center',justifyContent:'center',backgroundColor:c.primary,borderWidth:1,borderColor:c.onPrimary,opacity:busy?visualStates.disabledOpacity:1}}><Text style={{color:c.onPrimary,fontFamily:fonts.medium}}>{busy?ui('social.sending'):ui('rooms.create_table')}</Text></Pressable>}>
     <View style={{padding:16,gap:14}}>
-<CreateTableForm onInviteSuggestionsExpandedChange={setInviteSuggestionsExpanded} onCardThemeExpandedChange={setCardThemeExpanded} session={session} game={game} setGame={setGame} callbreakPlayers={callbreakPlayers} setCallbreakPlayers={setCallbreakPlayers} invitees={invitees} setInvitees={setInvitees} busy={busy} roomSelector={<View style={{ position: 'relative', zIndex: 50, gap: 8 }}>      {!!rooms.length&&<>
+<CreateTableForm onUnselectedInviteQueryChange={setUnselectedInviteQuery} onInviteSuggestionsExpandedChange={setInviteSuggestionsExpanded} onCardThemeExpandedChange={setCardThemeExpanded} session={session} game={game} setGame={setGame} callbreakPlayers={callbreakPlayers} setCallbreakPlayers={setCallbreakPlayers} invitees={invitees} setInvitees={setInvitees} busy={busy} roomSelector={<View style={{ position: 'relative', zIndex: 50, gap: 8 }}>      {!!rooms.length&&<>
       <Text style={{...text,fontFamily:fonts.medium}}>{ui('rooms.choose_room')}</Text>
       <Pressable accessibilityRole="button" accessibilityLabel={ui('rooms.select_room')} accessibilityState={{expanded:dropdown,disabled:busy||!rooms.length}} disabled={busy||!rooms.length} onPress={()=>setDropdown(open=>!open)} style={{...input,flexDirection:'row',alignItems:'center',gap:10}}>
         <Text style={{...text,flex:1}}>{selected?.name}</Text><Ionicons name={dropdown?'chevron-up':'chevron-down'} size={18} color={c.text}/>

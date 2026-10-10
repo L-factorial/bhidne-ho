@@ -531,8 +531,6 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             if reason is None and room and room["visibility"] != "public" and room["creator_id"] != user_id:
                 if not await self.rooms.can_enter(room_id, target, None):
                     reason = "Ask the room owner to invite this player first"
-            occupied = self._occupied_game(target) if reason is None else None
-            if occupied: reason = "Already seated at another active table"
             output.append({"user_id": target, "eligible": reason is None, "reason": reason})
         return output
 
@@ -563,6 +561,22 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             self.table_invitations[item["id"]] = item
             output.append(item)
         return output
+
+    async def invite_table(self, room_id, user_id, match_id, recipients):
+        await self._member(room_id, user_id)
+        game = self.tables.get(room_id, {}).get(match_id)
+        if game is None:
+            raise HTTPException(404, "Table not found.")
+        async with game.lock:
+            await self._member(room_id, user_id, game)
+            if game.ended:
+                raise HTTPException(409, "This table has ended.")
+            eligibility = await self.invitation_eligibility(room_id, user_id, recipients)
+            blocked = next((item for item in eligibility if not item['eligible']), None)
+            if blocked:
+                raise HTTPException(409, blocked['reason'])
+            await self._invite_players(game, user_id, list(dict.fromkeys(recipients)))
+            return self._snapshot(game, user_id)
 
     async def invitations_for(self, user_id):
         items = [item for item in self.table_invitations.values() if item["recipient_id"] == user_id]

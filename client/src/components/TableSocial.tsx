@@ -29,6 +29,7 @@ import type { RoomPoke } from '../multiplayer/pokes';
 
 type Effect = { id: string; player: number; kind: 'chat' | 'poke'; text: string; expires: number };
 type SocialContext = {
+  session: Session;
   pokeMode: boolean; eligible: (id: number) => boolean; poke: (id: number) => void;
   effects: Effect[]; anchor: (node: View | null) => void; openChat: () => void; canRead: boolean; chatOpen: boolean;
   registerSeat: (id: number, node: View | null) => void; overlayOpen: boolean;
@@ -276,7 +277,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
       </GameModalContent>
     </View>
   );
-  return <Context.Provider value={{pokeMode,eligible,poke,effects,anchor,openChat,canRead,chatOpen:open&&canRead,overlayOpen:(open&&canRead)||pokeMode||targetPlayer!==null,registerSeat,presentation,openPoke,unread,enabled,pokeSent,setHandCollapsed}}>{children}{rules.view}</Context.Provider>;
+  return <Context.Provider value={{session,pokeMode,eligible,poke,effects,anchor,openChat,canRead,chatOpen:open&&canRead,overlayOpen:(open&&canRead)||pokeMode||targetPlayer!==null,registerSeat,presentation,openPoke,unread,enabled,pokeSent,setHandCollapsed}}>{children}{rules.view}</Context.Provider>;
 }
 
 export function TableSocialPresentation({children, expanded = true}: {children: ReactNode; expanded?: boolean}) {

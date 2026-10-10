@@ -5,7 +5,7 @@ import { useUiLanguage } from '../i18n/useUiLanguage';
 import { visualStates, radii, gameTabFinish, typography, fonts, useTheme } from '../theme';
 import { useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import {AppState, Pressable, ScrollView, View} from 'react-native';
+import {AppState, Pressable, View} from 'react-native';
 import { request } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 import type { TableEntry } from '../multiplayer/tableNavigation';
@@ -84,12 +84,12 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable
       <Text accessibilityRole="header" style={{ flex: 1, color: c.text, fontFamily: fonts.editorial, fontSize: typography.pageTitle }}>{ui("rooms.available_tables")}</Text>
       <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.refresh_active_games")} disabled={refreshing} accessibilityState={{ disabled: refreshing }} onPress={() => setRefresh(v => v + 1)} style={{ minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="refresh-outline" size={20} color={refreshing ? c.textMuted : c.accent} /></Pressable>
     </View>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} accessibilityRole="tablist" accessibilityLabel={ui("rooms.filter_active_games")}>
-      {filters.map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityLabel={ui("ledger.count_games", { "count": uiLabel(label, "rooms") })} accessibilityState={{ selected: filter === value }} onPress={() => setFilter(value)} style={{ ...gameTabFinish(c, filter === value), minHeight: 44, paddingHorizontal: 14, borderRadius: radii.large, borderWidth: 1, borderColor: c.tableTrim, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <Text style={{ color: filter === value ? c.onCoin : c.textMuted, fontFamily: fonts.medium, fontSize: 13 }}>{uiLabel(label, 'rooms')}</Text>
+    <View testID="active-game-filters" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }} accessibilityRole="tablist" accessibilityLabel={ui("rooms.filter_active_games")}>
+      {filters.map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityLabel={ui("ledger.count_games", { "count": uiLabel(label, "rooms") })} accessibilityState={{ selected: filter === value }} onPress={() => setFilter(value)} style={{ ...gameTabFinish(c, filter === value), minHeight: 44, paddingHorizontal: 14, paddingVertical: 8, maxWidth: '100%', borderRadius: radii.large, borderWidth: 1, borderColor: c.tableTrim, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Text style={{ color: filter === value ? c.onCoin : c.textMuted, fontFamily: fonts.medium, fontSize: 13, flexShrink: 1 }}>{uiLabel(label, 'rooms')}</Text>
         {loaded && <Text style={{ color: filter === value ? c.onCoin : c.textMuted, fontSize: 12 }}>{value === 'all' ? tables.length : tables.filter(table => table.game_type === value).length}</Text>}
       </Pressable>)}
-    </ScrollView>
+    </View>
     {error && <View accessibilityRole="alert" testID="active-games-error" style={{ gap: 12, alignItems: 'flex-start', backgroundColor: c.surface, padding: 20, borderRadius: radii.large, borderWidth: 1, borderColor: c.borderSubtle }}>
       <Text style={{ color: c.text, fontFamily: fonts.medium }}>{loaded ? ui("rooms.couldn_t_refresh_tables") : ui("rooms.couldn_t_load_tables")}</Text>
       <Text style={{ color: c.textMuted }}>{loaded ? ui("common.showing_the_last_available_tables_try_refreshing_again") : ui("feedback.check_your_connection_and_try_again")}</Text>{retry}
