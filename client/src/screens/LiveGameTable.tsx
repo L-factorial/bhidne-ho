@@ -100,6 +100,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   const [expandedLastTrick, setExpandedLastTrick] = useState<string | null>(null);
   const [draggingCard, setDraggingCard] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
   const [handView, setHandView] = useState<HandView>("fan");
   const [collapsedHandHeight, setCollapsedHandHeight] = useState(93);
   const [pokeTarget, setPokeTarget] = useState<number | null | undefined>(undefined);
@@ -132,10 +133,9 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   const header = <GameTableHeader showShare={showTableHeaderShare(snapshot)} tableName={snapshot.table_name} compact game="callbreak" title={ui("rooms.call_break")} path={snapshot.path} roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack}
     drawerMetadata={<GameMenuMetadata snapshot={snapshot} />}>
     {close => <GameMenu snapshot={snapshot} close={close} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl}
-      rules={() => setRulesOpen(true)} poke={() => setPokeTarget(null)} pokePlayer={setPokeTarget} canPoke={social.connected}
-      gameContent={<GameDetails menu snapshot={snapshot} busy={busy} onSave={onSave} />} />}
+      rules={() => setRulesOpen(true)} rulesConfig={() => setConfigOpen(true)} poke={() => setPokeTarget(null)} pokePlayer={setPokeTarget} canPoke={social.connected} />}
   </GameTableHeader>;
-  const gameRules = <GameRules snapshot={snapshot} visible={rulesOpen} onClose={() => setRulesOpen(false)} />;
+  const gameRules = <><GameRules snapshot={snapshot} visible={rulesOpen} onClose={() => setRulesOpen(false)} /><GameDetails configOpen={configOpen} onCloseConfig={() => setConfigOpen(false)} snapshot={snapshot} busy={busy} onSave={onSave} menu /></>;
   const socialOverlay = !ended && pokeTarget !== undefined && <PokeComposer recipient={pokeTarget} recipientName={snapshot.players?.find(p => p.player_id === pokeTarget)?.display_name} phrases={social.phrases} connected={social.connected}
     onClose={() => setPokeTarget(undefined)} onSave={social.save} onSend={async text => {
       await social.send(pokeTarget, text);
@@ -151,10 +151,8 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   if (ended && (!game || !deal)) return <View style={styles.page}>{header}{gameRules}<GameStats snapshot={snapshot} open={stats.open} onOpen={stats.show} onClose={stats.close}><View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>{endedNotice}</View></GameStats></View>;
   if (!game || !deal) return <View style={styles.page}>
     {header}{gameRules}
-    <GameStats snapshot={snapshot} open={stats.open} onOpen={stats.show} onClose={stats.close}><ScrollView contentContainerStyle={{ flexGrow: 1, padding: 12, gap: 12 }}>
-      <PreGameTable snapshot={snapshot}>{startCue}</PreGameTable>
-      <Text style={styles.meta}>{snapshot.ready ? ui("common.dealer_selection_help") : ui("rooms.waiting_for_everyone_to_take_a_seat")}</Text>
-      <Text style={styles.meta}>{ui("callbreak.turn_help")}</Text>
+    <GameStats snapshot={snapshot} open={stats.open} onOpen={stats.show} onClose={stats.close}><ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+      <PreGameTable fill snapshot={snapshot}>{startCue}</PreGameTable>
       {!!error && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
     </ScrollView></GameStats>{socialOverlay}
   </View>;
@@ -185,8 +183,8 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     <View style={[styles.playColumn, wide && { alignSelf: 'stretch' }, handAvailable && { paddingBottom: collapsedHandHeight }]}>
     <View style={styles.body}>
     <GameStats snapshot={snapshot} open={stats.open} onOpen={() => { cards.collapse(); stats.show(); }} onClose={stats.close}>
-    <ScrollView testID="callbreak-play-viewport" style={styles.tableScroll} onLayout={event => { setTableWidth(event.nativeEvent.layout.width); setTableHeight(event.nativeEvent.layout.height - 12); }} contentContainerStyle={[styles.container, {
-      paddingTop: 8, paddingBottom: 4,
+    <ScrollView testID="callbreak-play-viewport" style={styles.tableScroll} onLayout={event => { setTableWidth(event.nativeEvent.layout.width); setTableHeight(event.nativeEvent.layout.height); }} contentContainerStyle={[styles.container, {
+      paddingTop: 0, paddingBottom: 0,
     }]}><View style={{ width }}>
     {!ended && game.phase !== 'PLAYING' && game.phase !== 'BIDDING' && !reveal && <Text style={styles.meta}>{guidance.title.replace(/^Your turn[: ·]+/i, '')}</Text>}
     {game.phase === 'AWAITING_SHUFFLE' && deal.deal_number === 1 && game.dealer_selection?.complete &&

@@ -94,28 +94,31 @@ export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAncho
     <MarriagePlayers snapshot={snapshot} onPoke={onPoke} registerSeat={(id, node) => { if (node) seats.current.set(id, node); else seats.current.delete(id); }}>
     {snapshot.status === 'finished' && onResult ? <Pressable accessibilityRole="button" accessibilityLabel={ui("marriage.game_result")} testID="marriage-game-result"
       onPress={onResult} style={styles.resultButton}><Text style={styles.resultText}>{ui("marriage.game_result")}</Text></Pressable> : <View testID="marriage-card-spots" style={styles.spots}>
-      <View style={styles.spot}><Text style={styles.label}>{ui("marriage.last_discard")}</Text>
+      <View style={styles.spot}>
         <Pressable ref={discard} testID="marriage-discard-spot" accessibilityRole="button" accessibilityLabel={ui("marriage.take_discard")}
           disabled={!legalSource('discard')} accessibilityState={{ disabled: !legalSource('discard') }}
           onPress={() => onAction('DRAW_CARD', { source: 'discard' })} style={[styles.card, legalSource('discard') && styles.legal]}>
           {current?.kind !== 'CARD_DISCARDED' && (pub.top_discard ? <CompactCardFace rank={pub.top_discard.rank} suit={pub.top_discard.suit} joker={pub.top_discard.rank === null} /> : <Text style={styles.face}>—</Text>)}
         </Pressable>
+        <Text style={styles.label}>{ui("marriage.last_discard")}</Text>
         {legalSource('discard') && <ActionCue active style={styles.caption}>{ui("marriage.tap_draw")}</ActionCue>}
       </View>
-      <View style={styles.spot}><Text style={styles.label}>{ui("marriage.deck_count", { "count": pub.stock_count })}</Text>
+      <View style={styles.spot}>
         <Pressable ref={stock} testID="marriage-stock-spot" accessibilityRole="button" accessibilityLabel={ui("marriage.take_stock_count", { "count": pub.stock_count })}
           disabled={!legalSource('stock')} accessibilityState={{ disabled: !legalSource('stock') }}
           onPress={() => onAction('DRAW_CARD', { source: 'stock' })} style={[styles.card, styles.back, styles.stack, legalSource('stock') && styles.legal]}>
           <MarriageCardBack />
         </Pressable>
+        <Text style={styles.label}>{ui("marriage.deck_count", { "count": pub.stock_count })}</Text>
         {legalSource('stock') && <ActionCue active style={styles.caption}>{ui("marriage.tap_draw")}</ActionCue>}
       </View>
-      <View style={styles.spot}><Text style={styles.label}>{ui("marriage.maal")}</Text>
+      <View style={styles.spot}>
         <Pressable accessibilityRole="button" disabled={!privateMaal} aria-expanded={maalVisible} accessibilityState={{ disabled: !privateMaal, expanded: maalVisible }}
           onPress={() => onToggleMaal ? onToggleMaal() : setMaalFace({ key: maalKey, visible: !maalVisible })} testID="marriage-maal-spot"
           accessibilityLabel={privateMaal ? maalLabel : ui("marriage.maal_hidden")} style={[styles.card, !maalVisible && styles.back]}>
           {maalVisible && privateMaal ? <CompactCardFace rank={privateMaal.tiplu.rank} suit={privateMaal.tiplu.suit} /> : <MarriageCardBack />}
         </Pressable>
+        <Text style={styles.label}>{ui("marriage.maal")}</Text>
         <Text style={styles.caption}>{maalLabel}</Text>
       </View>
     </View>}
@@ -132,7 +135,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   dialogHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 }, heading: { flex: 1, color: colors.accent, fontFamily: fonts.medium, fontSize: 18 },
   sequence: { flexDirection: 'row', justifyContent: 'center', gap: 12 }, sequenceCard: { alignItems: 'center', gap: 8 }, largeCard: { width: 64, height: 92 },
   area: { flex: 1, minHeight: 360, justifyContent: 'center', position: 'relative', gap: 4 }, spots: { width: '100%', maxWidth: 260, flexDirection: 'row', gap: 8, justifyContent: 'center', alignItems: 'flex-start', paddingTop: 4 }, spot: { flex: 1, maxWidth: 150, alignItems: 'center', gap: 4 },
-  label: { backgroundColor: colors.surface, borderRadius: 6, paddingHorizontal: 5, color: colors.accent, fontFamily: fonts.medium, fontSize: 12 }, card: { width: 52, height: 72, backgroundColor: colors.cardFace, borderRadius: 7, borderWidth: 2, borderColor: colors.cardBorder, alignItems: 'center', justifyContent: 'center' },
+  label: { backgroundColor: colors.surface, borderRadius: 6, paddingHorizontal: 5, color: colors.accent, fontFamily: fonts.medium, fontSize: 12, textAlign: 'center' }, card: { width: 52, height: 72, backgroundColor: colors.cardFace, borderRadius: 7, borderWidth: 2, borderColor: colors.cardBorder, alignItems: 'center', justifyContent: 'center' },
   legal: { borderColor: colors.attention, borderWidth: 3, boxShadow: `0px 0px 9px ${colors.turnSurface}` },
   back: { backgroundColor: colors.cardBack, borderColor: colors.cardBorder }, stack: { boxShadow: `3px 3px 0 ${colors.cardBorder}` }, face: { fontFamily: fonts.medium, fontSize: 24, color: colors.cardInk }, red: { color: colors.cardRed },
   button: { minHeight: 44, padding: 7, justifyContent: 'center', backgroundColor: colors.surfaceRaised, borderRadius: radii.medium }, buttonText: { color: colors.text, fontFamily: fonts.medium, fontSize: 11, textAlign: 'center' },

@@ -50,7 +50,7 @@ export function CardThemePicker({ disabled = false, compact = false, device = fa
   </View>;
 }
 
-/** Expand in place inside the create form, so there is no nested native modal. */
+/** Float over the form without changing its measured height. */
 export function CreateCardThemeSelector({ disabled = false, device = false, overlay = false, onExpandedChange }: { disabled?: boolean; device?: boolean; overlay?: boolean; onExpandedChange?: (expanded: boolean) => void }) {
   useUiLanguage();
   const { colors: c } = useTheme();
@@ -58,7 +58,7 @@ export function CreateCardThemeSelector({ disabled = false, device = false, over
   const { id } = device ? deviceChoice : tableChoice;
   const [expanded, setExpanded] = useState(false);
   const expand = (next: boolean) => { setExpanded(next); onExpandedChange?.(next); };
-  return <View testID={device ? 'profile-card-theme' : undefined} style={{ gap: 12, zIndex: expanded ? 50 : 0 }}>
+  return <View testID={device ? 'profile-card-theme' : undefined} style={{ gap: 12, zIndex: expanded ? 100 : 0 }}>
     <Text style={{ fontFamily: fonts.medium }}>{ui('common.card_theme')}</Text>
     <Pressable testID="create-card-theme-selector" accessibilityRole="button" accessibilityLabel={ui('common.choose_card_theme')}
       accessibilityState={{ expanded, disabled }} disabled={disabled} onPress={() => expand(!expanded)}
@@ -69,7 +69,7 @@ export function CreateCardThemeSelector({ disabled = false, device = false, over
       <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={20} color={c.text} />
     </Pressable>
     {expanded && <View style={[{ borderWidth: 1, borderColor: c.border, borderRadius: radii.medium, overflow: 'hidden', backgroundColor: c.surface },
-      overlay && { position: 'absolute', bottom: '100%', marginBottom: 8, left: 0, right: 0, zIndex: 50, elevation: 12 }]}>
+      overlay && { position: 'absolute', top: '100%', marginTop: 4, left: 0, right: 0, zIndex: 100, elevation: 24 }]}>
       <CardThemePicker disabled={disabled} compact device={device} onSelected={() => expand(false)} />
     </View>}
   </View>;

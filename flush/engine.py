@@ -187,7 +187,7 @@ class FlushGameEngine:
         result = candidate.settlement
         payouts = {p.player_id: p.amount for p in result.payouts}
         ledger = RoundResult(candidate.round_number, result.winner_ids,
-            tuple(Payout(p.player_id, payouts.get(p.player_id, 0) - p.total_contribution)
+            tuple(Payout(p.player_id, payouts.get(p.player_id, 0) - p.total_contribution + next((t.amount for t in result.salami_transfers if t.player_id == p.player_id), 0))
                   for p in candidate.players))
         candidate = replace(candidate, round_results=candidate.round_results + (ledger,))
         return self._commit(candidate, events + [('ROUND_FINISHED', {
@@ -212,6 +212,18 @@ class FlushGameEngine:
             raise InvalidActionError('Only an active player in a dealt round can fold to leave.')
         candidate = self._replace_player(replace(player, status=PlayerStatus.FOLDED))
         events = [('PLAYER_FOLDED', {'player_id': player_id})]
+        if state.pending_show:
+            request = state.pending_show
+            if len(active_players(candidate)) == 1:
+                return self._finish(settle(candidate), events)
+            shown_ids = {h.player_id for h in candidate.revealed_hands}
+            remaining = tuple(p for p in active_players(candidate) if p.player_id not in shown_ids)
+            if not remaining:
+                return self._finish(settle(candidate, request.requester_id), events)
+            target = next((p.player_id for p in remaining if p.player_id == request.target_id), remaining[0].player_id)
+            candidate = replace(candidate, pending_show=ShowRequest(request.requester_id, target),
+                current_seat=state.config.player_ids.index(target))
+            return self._commit(candidate, events + [('TURN_CHANGED', {'player_id': target})])
         request = state.pending_side_show
         if request and (player_id in (request.requester_id, request.target_id) or len(active_players(candidate)) < 3):
             candidate = replace(candidate, pending_side_show=None,
@@ -250,14 +262,25 @@ class FlushGameEngine:
         state = self._state
         request = state.pending_show
         if state.status is not GameStatus.IN_PROGRESS or request is None or request.target_id != player_id:
-            raise InvalidActionError('Only the other final player can reveal or fold.')
+            raise InvalidActionError('Only the requested player can reveal or fold.')
         candidate = state
         events = []
         if not reveal:
             candidate = replace(state, players=tuple(replace(p, status=PlayerStatus.FOLDED)
                 if p.player_id == player_id else p for p in state.players))
             events.append(('PLAYER_FOLDED', {'player_id': player_id}))
-        candidate = settle(candidate, request.requester_id if reveal else None)
+        if reveal:
+            player = find_player(candidate, player_id)
+            candidate = replace(candidate, revealed_hands=candidate.revealed_hands + (ShownHand(player_id, player.cards),))
+            events.append(('CARDS_REVEALED', {'player_id': player_id, 'shown_hands': (ShownHand(player_id, player.cards),)}))
+        shown_ids = {h.player_id for h in candidate.revealed_hands}
+        remaining = tuple(p for p in active_players(candidate) if p.player_id not in shown_ids)
+        if remaining:
+            target = remaining[0].player_id
+            candidate = replace(candidate, pending_show=ShowRequest(request.requester_id, target),
+                current_seat=candidate.config.player_ids.index(target))
+            return self._commit(candidate, events + [('TURN_CHANGED', {'player_id': target})])
+        candidate = settle(candidate, request.requester_id if len(active_players(candidate)) > 1 else None)
         return self._finish(candidate, events)
 
     def can_side_show(self, player_id):

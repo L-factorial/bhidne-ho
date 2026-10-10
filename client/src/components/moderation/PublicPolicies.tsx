@@ -12,9 +12,9 @@ import { rulesText } from './CommunityRules';
 export type PolicyPage='privacy'|'support'|'community-rules'|'terms';
 export const PolicyNavigation=createContext<(page:PolicyPage)=>void>(()=>{});
 export const labels={en:{privacy:'Privacy',support:'Support', 'community-rules':'Community rules',terms:'Terms'},ne:{privacy:'गोपनीयता',support:'सहयोग','community-rules':'समुदाय नियम',terms:'सर्तहरू'}};
-export function PolicyLinks(){
+export function PolicyLinks({includeCommunityRules = true}:{includeCommunityRules?:boolean} = {}){
  const ne=useUiLanguage()==='ne',open=useContext(PolicyNavigation),{colors:c}=useTheme();
- const pages:PolicyPage[]=['privacy','terms','community-rules','support'];
+ const pages:PolicyPage[]=includeCommunityRules?['privacy','terms','community-rules','support']:['privacy','terms','support'];
  return <View style={{flexDirection:'row',flexWrap:'wrap',alignItems:'center',justifyContent:'center',columnGap:8,marginTop:20}}>{pages.map((p,i)=><View key={p} style={{flexDirection:'row',alignItems:'center',gap:8}}>
   {i>0&&<Text accessibilityElementsHidden style={{color:c.textMuted}}>·</Text>}
   <Pressable accessibilityRole="link" onPress={()=>open(p)} style={{minHeight:44,justifyContent:'center'}}><Text style={{fontFamily:fonts.body,fontSize:12,color:c.textMuted}}>{labels[ne?'ne':'en'][p]}</Text></Pressable>

@@ -161,6 +161,7 @@ class EventName(str, Enum):
     TURN_CHANGED = 'TURN_CHANGED'
     BET_PLACED = 'BET_PLACED'
     CARDS_SEEN = 'CARDS_SEEN'
+    CARDS_REVEALED = 'CARDS_REVEALED'
     PLAYER_FOLDED = 'PLAYER_FOLDED'
     SHOW_REQUESTED = 'SHOW_REQUESTED'
     ROUND_FINISHED = 'ROUND_FINISHED'
@@ -193,9 +194,11 @@ class OutboundEvent(BaseModel):
             e = parsed.event
             if e.kind != self.event.value or e.revision != self.revision:
                 raise ValueError('Domain identity/revision mismatch.')
+            if self.event is EventName.CARDS_REVEALED and (len(e.shown_hands) != 1 or e.shown_hands[0][0] != e.player_id):
+                raise ValueError("Reveal events identify only the responding player.")
             if self.event is EventName.SHOW_REQUESTED and (len(e.shown_hands) != 1 or e.shown_hands[0][0] != e.player_id):
                 raise ValueError('Final show reveals only the requester hand.')
-            if (self.event not in (EventName.ROUND_FINISHED, EventName.SHOW_REQUESTED) and e.shown_hands) or (self.event not in (EventName.ROUND_FINISHED, EventName.SIDE_SHOW_RESOLVED) and e.winner_ids):
+            if (self.event not in (EventName.ROUND_FINISHED, EventName.SHOW_REQUESTED, EventName.CARDS_REVEALED) and e.shown_hands) or (self.event not in (EventName.ROUND_FINISHED, EventName.SIDE_SHOW_RESOLVED) and e.winner_ids):
                 raise ValueError('Only a finished round can publish shown hands or winners.')
         return self
 

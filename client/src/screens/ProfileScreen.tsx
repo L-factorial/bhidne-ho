@@ -23,8 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DisplayNameField } from '../components/DisplayNameField';
 import type { Session } from '../multiplayer/session';
 import type { usePlayerPhrases } from '../multiplayer/usePlayerPhrases';
-import { FriendsPanel } from '../components/FriendsPanel';
-import { CreateCardThemeSelector } from '../components/CardThemePicker';
+import { SettingsTabs } from '../components/SettingsTabs';
 
 export function ProfileScreen({ session, onBack, onSignOut }: {
   session: Session; personal: ReturnType<typeof usePlayerPhrases>; onBack: () => void; onSignOut?: () => void;
@@ -36,7 +35,7 @@ export function ProfileScreen({ session, onBack, onSignOut }: {
   const insets = useSafeAreaInsets();
   const [identity, setIdentity] = useState<{ user_id: string; display_name: string; username?: string | null } | null>(null);
   const [identityError, setIdentityError] = useState('');
-  const [cardThemeExpanded, setCardThemeExpanded] = useState(false);
+  const [tab, setTab] = useState<'account' | 'information' | 'notifications'>('account');
   useEffect(() => {
     const controller = new AbortController();
     setIdentity(null); setIdentityError('');
@@ -45,11 +44,15 @@ export function ProfileScreen({ session, onBack, onSignOut }: {
       .catch(() => { if (!controller.signal.aborted) setIdentityError(ui("feedback.profile_load_help")); });
     return () => controller.abort();
   }, [userId, session.token]);
-  return <KeyboardFrame><FormScrollView testID="profile-screen" accessibilityViewIsModal style={styles.page} keyboardShouldPersistTaps="handled" scrollEnabled={!cardThemeExpanded}
+  return <KeyboardFrame><FormScrollView testID="profile-screen" accessibilityViewIsModal style={styles.page} keyboardShouldPersistTaps="handled"
     contentContainerStyle={{ padding: 20, paddingTop: Math.max(insets.top, 24), paddingBottom: Math.max(insets.bottom, 24) }}>
     <View style={styles.content}>
       <AppHeader title={ui("common.your_profile_title")} hideProfile inlineActions={<Pressable accessibilityRole="button" accessibilityLabel={ui("common.back_from_profile")} onPress={onBack} style={styles.back}><Ionicons name="arrow-back" size={22} color={styles.link.color} /></Pressable>} />
-      <View testID="profile-identity" style={{ gap: 6, paddingVertical: 12 }}>
+      <SettingsTabs selected={tab} onSelect={setTab} tabs={[
+        {id:'account',label:ui('common.profile_account')}, {id:'information',label:ui('common.profile_information')},
+        {id:'notifications',label:ui('common.profile_notifications')},
+      ]} />
+      {tab === 'account' && <><View testID="profile-identity" style={{ gap: 6, paddingVertical: 12 }}>
         <Text accessibilityRole="header" style={styles.title}>{identity?.display_name || identity?.username || (identityError ? ui("common.account_label") : ui("common.loading_profile"))}</Text>
         {!!identity?.username && <Text style={styles.description}>@{identity.username}</Text>}
         <Text selectable accessibilityLabel={ui("common.profile_id", {id: userId})} style={styles.description}>{ui("common.profile_id", {id: userId})}</Text>
@@ -59,13 +62,12 @@ export function ProfileScreen({ session, onBack, onSignOut }: {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Text style={styles.description}>{ui("common.theme")}</Text><ThemeAction /></View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Text style={styles.description}>{ui("common.language_label")}</Text><LanguageToggle /></View>
       </View>
-      <PushSettings />
-      <DisplayNameField session={session} onSaved={display_name => setIdentity(current => current ? { ...current, display_name } : { user_id: userId, display_name })} />
-      <CommunityRulesEntry session={session} /><ModerationEntry session={session} /><RecoveryEmailSettings session={session} /><BlockedPlayers session={session} />
-      <><PolicyLinks /><DeleteAccountLink /></>
-      <FriendsPanel session={session} friendLimit={6} />
+      <DisplayNameField label={ui("common.profile_name")} session={session} onSaved={display_name => setIdentity(current => current ? { ...current, display_name } : { user_id: userId, display_name })} />
+      <RecoveryEmailSettings session={session} />
       {onSignOut && <Pressable accessibilityRole="button" onPress={() => afterDismiss(onSignOut)} style={styles.signOut}><Text style={styles.signOutText}>{ui("common.sign_out_label")}</Text></Pressable>}
-      <CreateCardThemeSelector device overlay onExpandedChange={setCardThemeExpanded} />
+      <View style={styles.deletion}><DeleteAccountLink /></View></>}
+      {tab === 'information' && <><CommunityRulesEntry session={session} /><PolicyLinks includeCommunityRules={false} /><ModerationEntry session={session} /><BlockedPlayers session={session} /></>}
+      {tab === 'notifications' && <PushSettings />}
     </View>
   </FormScrollView></KeyboardFrame>;
 }
@@ -75,5 +77,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   back: { ...gameControlFinish(colors), minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center' },
   link: { fontFamily: fonts.medium, color: colors.accent, fontSize: 14 },
   signOut: { ...gameControlFinish(colors), minHeight: 46, borderWidth: 1, borderColor: colors.border, borderRadius: radii.medium, alignItems: 'center', justifyContent: 'center' }, signOutText: { fontFamily: fonts.medium, color: colors.textMuted, fontSize: 13 },
+  deletion: {borderTopWidth:1,borderColor:colors.border,paddingTop:16,marginTop:12},
   description: { fontFamily: fonts.body, color: colors.text, fontSize: 13, lineHeight: 22 },
 });

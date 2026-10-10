@@ -67,17 +67,20 @@ def evaluate_show_eligibility(state, player_id):
         player = require_turn(state, player_id)
         rules = state.config.rules
         count = len(active_players(state))
-        if count != 2:
+        multiplayer = count > 2 and player.visibility is Visibility.BLIND and rules.allow_multiplayer_blind_show
+        if count != 2 and not multiplayer:
             raise InvalidActionError('Show requires exactly two active players.')
+        if multiplayer and min(p.turn_bet_count for p in active_players(state)) < rules.minimum_rounds_before_multiplayer_blind_show:
+            raise InvalidActionError('Complete the required betting cycles before blind show.')
         if rules.require_minimum_bets_by_everyone and any(
                 p.turn_bet_count < rules.minimum_bets_before_show for p in active_players(state)):
             raise InvalidActionError('Every remaining player must complete the required minimum bets before showing.')
         if player.visibility is Visibility.BLIND:
             if not rules.allow_blind_show:
                 raise InvalidActionError('Blind show is disabled.')
-            if player.blind_bet_count < rules.minimum_blind_rounds_before_show:
+            if not multiplayer and player.blind_bet_count < rules.minimum_blind_rounds_before_show:
                 raise InvalidActionError('Complete the required personal blind bets before showing.')
-            if count > rules.maximum_active_players_for_blind_show:
+            if not multiplayer and count > rules.maximum_active_players_for_blind_show:
                 raise InvalidActionError('Too many active players for blind show.')
         elif not rules.allow_seen_show:
             raise InvalidActionError('Seen show is disabled.')

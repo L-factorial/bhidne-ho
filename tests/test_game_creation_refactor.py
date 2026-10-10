@@ -18,6 +18,8 @@ def test_available_numbers_reuse_gaps_and_respect_room_limit():
 def test_five_player_defaults_skip_review_without_overriding_saved_settings():
     game = HostedGame('room', 5, ['a'], game_type='callbreak')
     assert not game.settings['weak_hand_enabled'] and not game.settings['no_spades_enabled']
+    assert game.settings['payments'] == [1, 3, 5, 7]
+    assert HostedGame('room', 4, ['a'], game_type='callbreak').settings['payments'][:3] == [1, 3, 5]
     assert not create_callbreak_match(game, random.Random(1)).config.redeal_policy.enabled
     saved = {'weak_hand_enabled': True, 'no_spades_enabled': True, 'payments': [0,0,0,0]}
     restored = HostedGame('room', 5, ['a'], settings=saved, game_type='callbreak')

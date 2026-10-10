@@ -1,5 +1,11 @@
 // Editable English common copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "profile_notifications": "Notifications",
+  "profile_information": "Information & Support",
+  "profile_account": "Account",
+  "bet_value": "Bet value",
+  "bet_values": "Bet values",
+  "custom_rules": "Custom rules",
   "propose_changes": "Propose changes",
   "card_theme_saving": "Updating the table’s card theme…",
   "card_theme_controller_help": "Only the dealer can change this theme. The creator controls it when no dealer is assigned.",
@@ -554,8 +560,8 @@ export default {
   "stats_target": "With {{player}}",
   "stats_seat_previous": "{{bids}} bids • {{bonus}} bonus",
   "stats_seat_current": "{{bid}} bid / {{won}} won",
-  "game_rules": "Game rules",
-  "game_rules_config": "Game rules config",
+  "game_rules": "Basic Game Rules",
+  "game_rules_config": "Game rules and bet config",
   "close_game_rules": "Close game rules",
   "close_game_rules_config": "Close game rules config",
   "game_rules_variations": "Configurable variations",

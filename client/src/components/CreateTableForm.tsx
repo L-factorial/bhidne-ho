@@ -12,7 +12,7 @@ import type {Session} from '../multiplayer/session';
 import {useInviteSuggestions} from '../multiplayer/useInviteSuggestions';
 import type {InvitePlayer} from '../multiplayer/inviteSuggestions';
 export type CreateGame='flush'|'marriage'|'callbreak';
-export function CreateTableForm({session,game,setGame,callbreakPlayers,setCallbreakPlayers,invitees,setInvitees,busy,roomSelector}:{session:Session;game:CreateGame;setGame:(game:CreateGame)=>void;callbreakPlayers:4|5;setCallbreakPlayers:(count:4|5)=>void;invitees:InvitePlayer[];setInvitees:React.Dispatch<React.SetStateAction<InvitePlayer[]>>;busy:boolean;roomSelector?:ReactNode}){
+export function CreateTableForm({session,game,setGame,callbreakPlayers,setCallbreakPlayers,invitees,setInvitees,busy,roomSelector,onCardThemeExpandedChange}:{session:Session;game:CreateGame;setGame:(game:CreateGame)=>void;callbreakPlayers:4|5;setCallbreakPlayers:(count:4|5)=>void;invitees:InvitePlayer[];setInvitees:React.Dispatch<React.SetStateAction<InvitePlayer[]>>;busy:boolean;roomSelector?:ReactNode;onCardThemeExpandedChange?:(expanded:boolean)=>void}){
  const {colors:c}=useTheme();
  const [query,setQuery]=useState('');
  const suggestions=useInviteSuggestions(session,query,invitees,busy);
@@ -26,7 +26,7 @@ export function CreateTableForm({session,game,setGame,callbreakPlayers,setCallbr
         <Text style={{...text,fontFamily:fonts.medium}}>{ui('rooms.player_count')}</Text>
         <View style={{flexDirection:'row',gap:8}}>{([4,5] as const).map(count=><Pressable key={count} accessibilityRole="radio" accessibilityLabel={ui('rooms.players_option',{count})} accessibilityState={{checked:callbreakPlayers===count,disabled:busy}} aria-checked={callbreakPlayers===count} disabled={busy} onPress={()=>setCallbreakPlayers(count)} style={{minHeight:44,paddingHorizontal:16,justifyContent:'center',borderRadius: radii.medium,borderWidth:1,borderColor:callbreakPlayers===count?c.accent:c.border,backgroundColor:callbreakPlayers===count?c.surfaceSelected:c.surface}}><Text style={{...text,color:callbreakPlayers===count?c.accent:c.text}}>{ui('rooms.players_option',{count})}</Text></Pressable>)}</View>
       </View>}
-<CreateCardThemeSelector disabled={busy}/>
+<CreateCardThemeSelector disabled={busy} overlay onExpandedChange={onCardThemeExpandedChange}/>
 {roomSelector}
       <Text style={{...text,fontFamily:fonts.medium}}>{ui('rooms.invite_people_optional')}</Text>
       <View style={{gap:4}}>

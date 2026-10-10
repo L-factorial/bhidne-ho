@@ -257,12 +257,10 @@ the development fallback remains in memory and resets with the backend.
 The signed-in directory has a Nepali brand header with Profile and Sign out.
 Create room / Join with code and Available rooms are independent sections, both
 collapsed by default and reset to collapsed when returning from a room. Profile
-holds the display name and private phrase collection; visible game seats use each
+holds account identity and settings; visible game seats use each
 player's saved name and mark the local seat You.
-Profile also contains **Players and friends**. Users can search by username or
-display name, send and manage friend requests, remove friends, and open a persistent
-one-to-one conversation with an accepted friend. Friend lists poll every three
-seconds and an open conversation polls every 1.5 seconds; room chat remains separate.
+The directory provides friends and direct conversations; these are omitted from
+Profile. Room chat remains separate.
 `tests/browser/display-names.cjs` checks default collapsed sections, form toggles,
 four distinct profiles, and each saved name at all four tables using mocked data.
 
@@ -574,3 +572,22 @@ Call Break statistics sidebar.
 client on 8083 (override with `TEST_WEB_URL`); `TEST_GAME` optionally selects
 `marriage` or `callbreak`. It exercises real setup and play, card reveal persistence,
 rejected/confirmed actions, menu controls, paused chat and desktop resizing.
+
+### Profile and game configuration tabs
+
+Profile now groups Account, Information & Support, and Notifications. Account
+contains identity, profile-name editing, recovery email and separated account
+deletion. Community rules appear once under Information & Support. Friends and
+card-theme selection are omitted from Profile; creators choose card themes in a
+floating Create game dropdown and dealers use the table menu.
+
+The table drawer labels are Basic Game Rules and Game rules and bet config.
+Configuration uses Custom rules and Bet values with scrollable content and one
+fixed Propose changes footer submitting both tabs. Call Break placement defaults
+are 1, 3, 5 and (for five players) 7. Marriage retains point tables and presets in
+Bet values and rule eligibility in Custom rules. Flush exposes only the agreed
+side-show and multiplayer blind-show custom rules; see [Flush rules](../docs/flush.md).
+
+Call Break and Marriage surfaces fill the play viewport above the collapsed hand.
+Call Break omits the waiting/help text below its waiting table. Marriage aligns
+Last discard, Deck and Maal cards at their top edges, with labels below.

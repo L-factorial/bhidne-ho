@@ -1,5 +1,16 @@
 // Editable English flush copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "side_show_toggle": "Allow side-show",
+  "side_show_rounds": "Minimum betting rounds before side-show",
+  "blind_to_seen_multiplier": "Blind-to-seen bet multiplier",
+
+  "allow_multiplayer_blind_show": "Allow blind show with more than two players",
+  "minimum_rounds_before_multiplayer_blind_show": "Minimum betting rounds before blind show",
+  "trial_bonus": "Trial bonus (Salami)",
+  "ace_trial_bonus": "Ace trial (Salami)",
+  "minimum_bet": "Minimum bet",
+  "salami": "Salami",
+
   "pot": "Pot",
   "seen_bet": "Seen Bet", "blind_bet": "Blind Bet", "round_contribution": "Round bet", "session_net": "Session net",
   "reveal_side_show": "Side show", "reveal_side_show_prompt": "Reveal the accepted side-show",
@@ -8,7 +19,7 @@ export default {
   "side_show_requested_notice": "{{requester}} requested a side-show with {{player}}",
   "require_minimum_bets_by_everyone": "Require minimum bets by every remaining player", "minimum_bets_before_show": "Minimum bets per player before showdown",
   "boot_help": "Every player pays the boot each hand (0 disables it). Betting is unbounded. Contributions and winnings are recorded as points for settlement after play.",
-  "betting_help": "You can see your cards on your turn without prior bets. Side-show requires the configured number of completed betting cycles by all remaining players, excluding boot. Bet the minimum or double your current blind or seen minimum to raise. Blind bets set the seen minimum using the multiplier; seen bets set the blind minimum by dividing and rounding up. Show always requires exactly two active players. Requesting or rejecting a side-show is free. After acceptance, the requester reveals and pays the current Seen bet; only the two participants see the cards.",
+  "betting_help": "You can see your cards on your turn without prior bets. Side-show requires the configured number of completed betting cycles by all remaining players, excluding boot. Bet the minimum or double your current blind or seen minimum to raise. Blind bets set the seen minimum using the multiplier; seen bets set the blind minimum by dividing and rounding up. Seen show requires two active players. Blind show with more players can be enabled after the configured completed betting rounds. Each other player then reveals or folds. Requesting or rejecting a side-show is free. After acceptance, the requester reveals and pays the current Seen bet; only the two participants see the cards.",
   "blind": "Blind",
   "seen": "Seen",
   "blind_see_cards_when_eligible": "Blind · See cards when eligible",
@@ -97,7 +108,7 @@ export default {
   "stats_out": "Out",
   "stats_not_in_round": "Not seated in this round",
   "game_rules_help": "Each player receives three cards. Play proceeds in turns: bet, see your cards, fold, or request an eligible comparison. A blind player keeps their cards hidden; a seen player has revealed their own hand. The best eligible hand wins a show, or the last remaining player wins when everyone else folds.",
-  "show_variations_help": "Configure whether blind show, seen show and private side-show are allowed. Side-show eligibility uses completed betting cycles by the remaining players. A blind show can require personal blind bets and an active-player limit. Show always needs exactly two active players; an optional minimum-bet rule can require every remaining player to have bet enough. The show cost multiplier sets the comparison cost, with zero making it free.",
+  "show_variations_help": "Configure whether blind show, seen show and private side-show are allowed. Side-show eligibility uses completed betting cycles by the remaining players. A blind show can require personal blind bets and an active-player limit. Seen show needs exactly two active players; multiplayer blind show can be enabled after completed betting rounds; an optional minimum-bet rule can require every remaining player to have bet enough. The show cost multiplier sets the comparison cost, with zero making it free.",
   "ace_variations_help": "Choose how Ace sequences rank: AKQ first and A23 second, A23 first, or A23 lowest. This choice is agreed before locking.",
   "tie_variations_help": "For equal hands, choose whether the show requester loses or the pot is split. This policy is agreed before locking.",
   "hand_ranking": "Hand ranking",

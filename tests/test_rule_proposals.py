@@ -34,6 +34,23 @@ async def vote(host, game, who, accept, proposal_id=None):
         proposal_id=proposal_id or game.rule_proposal['id'], accept=accept))
 
 
+async def test_old_pending_flush_proposal_does_not_enable_new_rules_on_acceptance():
+    host, game, _ = await make('flush', capacity=4)
+    try:
+        await propose(host, game)
+        for settings in [game.rule_proposal['previous'], game.rule_proposal['proposed']]:
+            for field in ['allow_multiplayer_blind_show', 'minimum_rounds_before_multiplayer_blind_show', 'trial_bonus', 'ace_trial_bonus']:
+                settings['rules'].pop(field)
+        for user in game.users[1:]:
+            await vote(host, game, user, True)
+        assert game.rule_proposal['status'] == 'ACCEPTED'
+        assert game.flush_rules.allow_multiplayer_blind_show is False
+        assert game.flush_rules.ace_trial_bonus == 0
+        assert game.flush_rules.initial_blind_bet == 7
+    finally:
+        await host.close()
+
+
 @pytest.mark.parametrize('kind', ['callbreak', 'marriage', 'flush'])
 async def test_rules_require_every_seated_vote_and_viewers_cannot_vote(kind):
     host, game, _ = await make(kind, capacity=4)

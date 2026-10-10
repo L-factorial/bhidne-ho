@@ -24,7 +24,7 @@ from marriage.scoring_rules import ScoringRules
 
 from .checkpoints import (
     CheckpointError, Identity, Nonnegative, Positive, Record, canonical_json,
-    capture_checkpoint, decode_checkpoint, restore_table_state, checkpoint_content,
+    capture_checkpoint, decode_checkpoint, restore_table_state, checkpoint_content, _flush_rules_defaults,
 )
 from .hosted import HostedEngineDefinition
 
@@ -111,7 +111,7 @@ def rebuild_hosted_game(host, checkpoint: dict, *, receipt_snapshot: dict) -> Re
         values['log'] = list(values['log'])
         values['marriage_moves'] = list(values['marriage_moves'])
         values['flush_rules'] = TypeAdapter(FlushRulesConfig).validate_json(
-            canonical_json(values['flush_rules']), strict=True)
+            canonical_json(_flush_rules_defaults(values['flush_rules'])), strict=True)
         values['marriage_scoring'] = TypeAdapter(ScoringRules).validate_json(
             canonical_json(values['marriage_scoring']), strict=True)
         if values['durable_game_id'] is not None:

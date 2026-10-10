@@ -139,7 +139,7 @@ class GameSettings(JoinGame):
     weak_hand_enabled: Annotated[bool, Field(strict=True)] = True
     minimum_face_card: Literal['ANY', 'JACK', 'QUEEN'] | None = None
     no_spades_enabled: Annotated[bool, Field(strict=True)] = True
-    payments: Annotated[list[Annotated[int, Field(strict=True, ge=0, le=1000000)]], Field(min_length=4, max_length=4)] = [0, 0, 0, 0]
+    payments: Annotated[list[Annotated[int, Field(strict=True, ge=0, le=1000000)]], Field(min_length=4, max_length=4)] = [1, 3, 5, 7]
 
     @model_validator(mode='after')
     def face_requirement(self):

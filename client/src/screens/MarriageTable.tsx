@@ -189,10 +189,10 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       </Pressable>
       {button(ui('common.continue'), () => setSeenMaal(maalKey), flippedMaal !== maalKey)}
     </RoomSheet>
-    <View testID="marriage-play-area" style={[s.playArea, mine && activeGame && { paddingBottom: collapsedHandHeight + 2 }]}>
+    <View testID="marriage-play-area" style={[s.playArea, mine && activeGame && { paddingBottom: collapsedHandHeight }]}>
       <GameStats snapshot={snapshot} open={stats.open} onOpen={() => { setSnap('collapsed'); stats.show(); }} onClose={stats.close}>
-      {ended && !pub ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>{endedNotice}</View> : !pub ? <ScrollView contentContainerStyle={s.panel}>
-        <PreGameTable snapshot={snapshot}>{startCue}</PreGameTable>
+      {ended && !pub ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>{endedNotice}</View> : !pub ? <ScrollView contentContainerStyle={{flexGrow:1}}>
+        <PreGameTable fill snapshot={snapshot}>{startCue}</PreGameTable>
         {!snapshot.is_creator && <Text style={s.text}>{ui("common.waiting_for_the_creator_to_start")}</Text>}
       </ScrollView> : <>
         <View style={s.columns}>
@@ -200,7 +200,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
             <View style={s.table}>
               <MarriageAnnouncements key={snapshot.match_id} snapshot={snapshot} suspended={stats.open} />
               <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}><MarriageCardArea snapshot={snapshot} maalFaceUp={flippedMaal === maalKey} onToggleMaal={() => setFlippedMaal(value => value === maalKey ? '' : maalKey)} onResult={() => setDetails("points")} handAnchor={handAnchor} canAct={!busy && activeGame} onAction={cards.act} onPoke={activeGame || ended ? undefined : setPoke} /></ScrollView>
-              <View style={tableSocial?.canRead ? { marginBottom: 60 } : undefined}>{!isTurn && turnPrompt}</View>
+              {!isTurn && turnPrompt && <View style={{position:'absolute',bottom:8,left:0,right:0,alignItems:'center'}}>{turnPrompt}</View>}
               {snapshot.status === 'finished' && startCue}
               {ended && <View testID="ended-table-overlay" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center', zIndex: 70 }}>{endedNotice}</View>}
 
@@ -293,11 +293,11 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   previewBackdrop: { flex: 1, backgroundColor: colors.overlay, padding: 20, justifyContent: 'center', alignItems: 'center' },
   previewPanel: { width: '100%', maxWidth: 640, maxHeight: '90%', backgroundColor: colors.surface, borderRadius: 16, padding: 16, gap: 16 },
-  playArea: { backgroundColor: colors.table, flex: 1, minHeight: 0, padding: 8, gap: 6 }, handDock: { flexShrink: 0, padding: 12, gap: 6, backgroundColor: colors.surface, borderTopWidth: 1, borderColor: colors.tableTrim, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
+  playArea: { backgroundColor: colors.table, flex: 1, minHeight: 0, gap: 0 }, handDock: { flexShrink: 0, padding: 12, gap: 6, backgroundColor: colors.surface, borderTopWidth: 1, borderColor: colors.tableTrim, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
   page: { flex: 1, minHeight: 0, backgroundColor: colors.background }, header: { padding: 12, gap: 8, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
   title: { flex: 1, minWidth: 140, color: colors.accent, fontFamily: fonts.medium, fontSize: 18 }, content: { padding: 12, gap: 12, paddingBottom: 30 },
   columns: { flex: 1, minHeight: 0 }, main: { flex: 1, minHeight: 0, minWidth: 0 }, panel: { backgroundColor: colors.surface, borderRadius: radii.large, padding: 14, gap: 12 },
-  table: { flex: 1, minHeight: 0, padding: 4, gap: 4 },
+  table: { flex: 1, minHeight: 0, gap: 0 },
   seats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, seat: { flexGrow: 1, flexBasis: 130, minWidth: 0, padding: 10, borderRadius: radii.medium, borderWidth: 1, borderColor: colors.border, gap: 5 }, activeSeat: { borderColor: colors.turnText, borderWidth: 2 },
   player: { fontFamily: fonts.medium, color: colors.text, fontSize: 16 }, text: { fontFamily: fonts.body, color: colors.text, fontSize: 13, lineHeight: 21 },
   small: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 12, lineHeight: 19 }, heading: { fontFamily: fonts.medium, color: colors.accent, fontSize: 16 },

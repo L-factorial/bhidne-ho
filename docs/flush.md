@@ -41,16 +41,20 @@ implemented outside the engine; see [adapter and room controls](flush-adapter.md
 | --- | --- |
 | `boot_amount` | Required nonnegative integer; zero disables boot |
 | `initial_blind_bet` | Positive integer, default 1, independent of boot |
-| `minimum_bet_rounds_before_side_show` | 3 personal accepted bets (blind or seen); boot excluded |
+| `minimum_bet_rounds_before_side_show` | 3 completed betting cycles by every remaining active player; boot excluded |
 | `blind_to_seen_bet_multiplier` | 2 |
-| `minimum_blind_rounds_before_show` | 3 personal accepted bets (blind or seen); boot excluded |
+| `minimum_blind_rounds_before_show` | 3 personal blind bets for final-two show; boot excluded |
 | `maximum_active_players_for_blind_show` | 2, inclusive maximum |
 | `allow_blind_show` / `allow_seen_show` | Both true |
-| `allow_side_show` | False; opt in before start for private comparisons |
+| `allow_side_show` | True; private comparisons enabled by default |
 | `show_only_when_two_players_remain` | True; false is explicitly unsupported |
-| `minimum_players` / `maximum_players` | 2 / 5; configurable up to a 17-seat deck limit |
+| `minimum_players` / `maximum_players` | 2 / 10 |
 | `sequence_ace_policy` | `AKQ_FIRST_A23_SECOND` |
 | `tie_policy` | `REQUESTER_LOSES` |
+| `allow_multiplayer_blind_show` | True; blind requests can include more than two active players |
+| `minimum_rounds_before_multiplayer_blind_show` | 3 completed betting cycles by every remaining active player |
+| `trial_bonus` | 0; Salami per other player for a shown winning Trial |
+| `ace_trial_bonus` | `None` follows `initial_blind_bet`; replaces regular Trial Salami for three Aces |
 | `show_cost_multiplier` | 1 × requester's required bet; zero permits free show |
 
 Ace ordering, tie settlement, and show cost are explicit initial house-policy
@@ -77,7 +81,8 @@ neither betting counter. No player move is automated.
 | `request_side_show(player_id)` | Pay one seen bet and request the previous active seen player |
 | `accept_side_show(player_id)` / `decline_side_show(player_id)` | Only the requested target responds; play resumes after requester |
 | `can_side_show(player_id)` | Side-show eligibility |
-| `show(player_id)` | Validate final-two eligibility, record show cost, compare, settle |
+| `show(player_id)` | Validate eligibility, charge show cost, reveal requester and wait for responses |
+| `reveal_cards(player_id)` | Requested player reveals; continue responses or settle after all remaining players respond |
 | `apply_action(player_id, action)` | Dispatch typed `Bet`, `SeeCards`, `Fold`, or `Show` to the same methods |
 | `get_state()` | Immutable trusted authoritative state, including every hand and stock |
 | `get_public_view()` | Safe public snapshot, no private cards during play |
@@ -100,10 +105,14 @@ boot, seeing, folding, show costs, and rejected actions do not increment it.
 Players can bet and show without a bankroll. Turn, minimum-bet, and show
 eligibility rules still apply. No automatic folds or all-in states are needed.
 
-SHOW always requires exactly two active players. Blind show additionally checks
-the configured permission, personal threshold, and inclusive active-player maximum.
-Increasing the maximum never enables shows with three or more players. A single
-remaining player wins immediately by folds without comparing cards.
+Seen SHOW requires exactly two active players. A blind SHOW with more than two
+players is enabled by `allow_multiplayer_blind_show` and requires every remaining
+active player to complete `minimum_rounds_before_multiplayer_blind_show` betting
+turns. Boot, show charges and seeing cards do not count as betting rounds. The
+requester reveals first; each other active player reveals or folds in sequence.
+Only responding players' cards become public. Departures fold the leaving player
+and keep the next response actionable. With two players, the existing personal
+blind-bet threshold still applies.
 
 ## Evaluation and accounting
 
@@ -165,8 +174,7 @@ checks are needed for this domain-only increment.
 
 Adapter, waiting-room rules editor/lock, and basic manual UI are documented in
 [Flush integration](flush-adapter.md). Not implemented:
-general multiplayer showdown, all-in/side pots, multi-round
-bankrolls, persistent replay, or real-money settlement. Randomness is reproducible
+all-in/side pots, multi-round bankrolls, or real-money settlement. Randomness is reproducible
 within the supported runtime; cryptographic fairness and cross-version replay are
 separate contracts. No Call Break or Marriage gameplay changes are required.
 
@@ -239,3 +247,24 @@ The departing player’s seat remains reserved until the current round completes
 At completion, pending departures are removed from the next-round roster and
 reservations are released. Repeated leave requests do not fold again. Durable
 mode commits the fold before marking departure pending. Call Break is unchanged.
+
+## Salami and configuration tabs
+
+The client exposes Custom rules (side-show and multiplayer blind-show toggles and
+their completed-round thresholds) and Bet values (minimum bet, blind-to-seen
+multiplier, Trial bonus and Ace trial Salami). Other engine settings remain stored
+and enforced; they are omitted from this simplified editor. Both tabs share a
+single draft and one fixed Propose changes footer. All edits require the existing
+pre-start player approval.
+
+Every other player in the round roster, including folded players, pays Salami to
+a winning player whose Trial is shown through the final show/reveal. An unrevealed
+fold win earns no Salami. Three Aces use the Ace amount instead of the regular
+Trial amount. Each payment is capped at the current blind bet. Salami is recorded
+as separate signed `settlement.salami_transfers`; it never changes the pot or
+contributions and is included once in the zero-sum round ledger. Results display
+the transfer separately.
+
+Old checkpoints explicitly recover with multiplayer blind show disabled and zero
+Salami, preserving the rules and debts of existing rounds. New games receive the
+new defaults; stored rules and placement payments are not retroactively changed.

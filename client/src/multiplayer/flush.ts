@@ -1,4 +1,6 @@
 export type FlushRules = {
+  allow_multiplayer_blind_show: boolean; minimum_rounds_before_multiplayer_blind_show: number;
+  trial_bonus: number; ace_trial_bonus: number | null;
   require_minimum_bets_by_everyone: boolean; minimum_bets_before_show: number;
   boot_amount: number; initial_blind_bet: number;
   minimum_bet_rounds_before_side_show: number; blind_to_seen_bet_multiplier: number;
@@ -17,7 +19,7 @@ export type FlushView = {
   bets?: import('./flushTable').FlushBet[];
   public: { dealer_id?: string; pending_show: { requester_id: string; target_id: string } | null; revealed_hands: { player_id: string; cards: {rank: number; suit: string}[] }[]; round_number: number; next_dealer_id: string | null; round_results: { round_number: number; winner_ids: string[]; net_changes: { player_id: string; amount: number }[] }[]; pending_side_show: { requester_id: string; target_id: string; revision: number; accepted?: boolean } | null; status: string; current_player_id: string | null; current_blind_bet: number; current_seen_bet: number; pot: number;
     players: { player_id: string; status: string; visibility: string; blind_bet_count: number; turn_bet_count: number; total_contribution: number }[];
-    settlement: { winner_ids: string[]; payouts: { player_id: string; amount: number }[];
+    settlement: { salami_transfers?: {player_id:string;amount:number}[]; winner_ids: string[]; payouts: { player_id: string; amount: number }[];
       shown_hands: { player_id: string; cards: { rank: number; suit: string }[] }[] } | null };
   private: { side_show: { opponent_id: string; opponent_cards: string[]; won: boolean; revision: number } | null; cards: string[]; actions: { kinds: string[]; required_bet: number; show_cost: number;
     side_show_target_id: string | null; side_show: { allowed: boolean; reason: string | null };

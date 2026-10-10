@@ -26,40 +26,23 @@ async function profile(browser, width) {
   });
   await page.goto(site);
   await page.getByRole('button', { name: 'Open profile', exact: true }).click();
-  const screen = page.getByTestId('profile-screen'), selector = page.getByTestId('profile-card-theme');
-  await selector.scrollIntoViewIfNeeded();
-  const before = await screen.evaluate(n => ({ height: n.clientHeight, scroll: n.scrollHeight }));
-  await selector.getByRole('button', { name: 'Choose card theme', exact: true }).click();
-  const dropdown = page.getByTestId('card-theme-dropdown');
-  const after = await screen.evaluate(n => ({ height: n.clientHeight, scroll: n.scrollHeight }));
-  assert.deepEqual(after, before, 'opening dropdown must not enlarge the profile');
-  assert.equal(await selector.evaluate(n => n === n.parentElement.lastElementChild), true);
-  const dimensions = await dropdown.evaluate(n => ({ height: n.clientHeight, scroll: n.scrollHeight }));
-  assert.equal(dimensions.height, 234); assert.ok(dimensions.scroll > dimensions.height);
-  const profileScroll = await screen.evaluate(n => n.scrollTop);
-  await dropdown.hover(); await page.mouse.wheel(0, 300); await page.waitForTimeout(150);
-  assert.ok(await dropdown.evaluate(n => n.scrollTop>0), 'dropdown must scroll internally');
-  assert.equal(await screen.evaluate(n => n.scrollTop), profileScroll, 'dropdown scrolling must not move the profile');
-  assert.equal(await dropdown.getByRole('radio').count(), 10);
-  const previews = await selector.locator('img').evaluateAll(nodes => nodes.map(n => {
-    const r = n.parentElement.getBoundingClientRect(); return [r.width, r.height];
-  }));
-  assert.ok(previews.length >= 11 && previews.every(([w,h]) => w === 36 && h === 54));
-  if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/bhidne-profile-card-dropdown-${width}.png` });
-  await dropdown.getByRole('radio', { name: 'Rara Lake', exact: true }).click();
-  await page.waitForFunction(() => localStorage.getItem('bhidne.card-theme.v1') === 'rara');
-  await dropdown.waitFor({ state: 'hidden' });
-  await page.reload();
-  await page.getByRole('button', { name: 'Open profile', exact: true }).click();
-  await page.getByTestId('profile-card-theme').getByText('Rara Lake', { exact: true }).waitFor();
-  assert.equal(await page.evaluate(() => document.documentElement.dataset.themeFamily), 'pearl');
-  await page.evaluate(() => localStorage.setItem('bhidne.language', 'ne'));
-  await page.reload();
-  await page.waitForFunction(() => document.body.innerText.includes('खेल्नुहोस्'));
-  assert.equal(await page.evaluate(() => localStorage.getItem('bhidne.language')), 'ne');
+  const screen = page.getByTestId('profile-screen'); await screen.waitFor();
+  assert.equal(await screen.getByRole('tab').count(),3);
+  await screen.getByText('@sigma',{exact:true}).waitFor();
+  await screen.getByLabel('Profile name',{exact:true}).waitFor();
+  assert.equal(await screen.getByTestId('profile-card-theme').count(),0);
+  assert.equal(await screen.getByText('Friends',{exact:true}).count(),0);
+  await screen.getByRole('tab',{name:'Information & Support',exact:true}).click();
+  await screen.getByRole('link',{name:'Privacy',exact:true}).waitFor();
+  assert.equal(await screen.getByRole('link',{name:'Community rules',exact:true}).count(),0,'rules acceptance entry is the single rules entry');
+  await screen.getByRole('tab',{name:'Notifications',exact:true}).click();
+  assert.equal(await screen.getByLabel('Profile name',{exact:true}).count(),0);
+  await screen.getByRole('tab',{name:'Account',exact:true}).click();
+  await screen.getByText('@sigma',{exact:true}).waitFor();
+  if (process.env.SCREENSHOT_DIR) await page.screenshot({path:`${process.env.SCREENSHOT_DIR}/profile-tabs-${width}.png`});
   assert.deepEqual(writes, []); assert.deepEqual(errors, []);
   await context.close();
-  console.log(`PASS ${width}px profile: bottom selector, three compact rows, internal scroll, device preferences survive reload.`);
+  console.log(`PASS ${width}px profile: three tabs, account identity, policy links, no card themes or friends.`);
 }
 
 (async () => {
@@ -106,17 +89,6 @@ async function profile(browser, width) {
       }));
       assert.ok(images.length>0 && images.every(r=>[r.dx,r.dy,r.dw,r.dh].every(v=>Math.abs(v)<1)), 'artwork must fill its card');
       if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/bhidne-card-alignment-${kind}-${width}.png` });
-      if (width === 390) {
-        await page.getByRole('button', { name: 'Table menu', exact: true }).click();
-        await page.getByTestId(`${kind}-menu-settings`).getByRole('button', { name: 'Open profile', exact: true }).click();
-        const selector = page.getByTestId('profile-card-theme'); await selector.scrollIntoViewIfNeeded();
-        await selector.getByRole('button', { name: 'Choose card theme', exact: true }).click();
-        await selector.getByRole('radio', { name: 'Rara Lake', exact: true }).click();
-        await page.waitForFunction(() => localStorage.getItem('bhidne.card-theme.v1') === 'rara');
-        await page.getByRole('button', { name: 'Back from profile', exact: true }).click();
-        await art.waitFor({ state: 'attached' });
-        assert.equal(await art.getAttribute('data-testid'), 'card-back-art-kathmandu', 'personal default must not change the shared table');
-      }
       assert.deepEqual(f.errors,[]); assert.deepEqual(f.writes,[]);
       await f.context.close();
       console.log(`PASS ${kind} ${width}px: centered circular turn ring and aligned card artwork.`);

@@ -6,6 +6,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 from marriage.scoring_rules import ScoringRules
 from flush import FlushRulesConfig
+from flush.rules import legacy_rule_defaults
 from pydantic import TypeAdapter
 import json
 
@@ -36,7 +37,7 @@ class RuleProposals:
         elif game.game_type == 'marriage':
             game.marriage_scoring = ScoringRules.from_dict(settings)
         else:
-            game.flush_rules = TypeAdapter(FlushRulesConfig).validate_json(json.dumps(settings['rules']), strict=True)
+            game.flush_rules = TypeAdapter(FlushRulesConfig).validate_json(json.dumps(legacy_rule_defaults(settings['rules'])), strict=True)
             game.flush_rules_revision += 1
         proposal['status'] = 'ACCEPTED'
         game.table.emit('RULE_CHANGE_ACCEPTED', proposal_id=proposal['id'])

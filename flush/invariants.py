@@ -37,17 +37,20 @@ def validate_game_state(state):
     if state.status is GameStatus.FINISHED:
         payouts = {p.player_id: p.amount for p in state.settlement.payouts}
         require(tuple((p.player_id, p.amount) for p in state.round_results[-1].net_changes) ==
-                tuple((p.player_id, payouts.get(p.player_id, 0) - p.total_contribution) for p in state.players),
+                tuple((p.player_id, payouts.get(p.player_id, 0) - p.total_contribution + next((t.amount for t in state.settlement.salami_transfers if t.player_id == p.player_id), 0)) for p in state.players),
                 'Ledger differs from payouts minus contributions.')
     if state.pending_show:
         request = state.pending_show
         require(state.status is GameStatus.IN_PROGRESS and state.pending_side_show is None,
                 'Final show requires an active round without a side-show.')
-        require({request.requester_id, request.target_id} == {p.player_id for p in state.players if p.status is PlayerStatus.ACTIVE}
+        require(request.requester_id in state.config.player_ids and request.target_id in {p.player_id for p in state.players if p.status is PlayerStatus.ACTIVE}
                 and request.requester_id != request.target_id and state.current_player_id == request.target_id,
                 'Invalid final-show participants or turn.')
-        require(tuple(h.player_id for h in state.revealed_hands) == (request.requester_id,),
-                'Only requester cards may be public before the response.')
+        require(bool(state.revealed_hands) and state.revealed_hands[0].player_id == request.requester_id
+                and len({h.player_id for h in state.revealed_hands}) == len(state.revealed_hands)
+                and request.target_id not in {h.player_id for h in state.revealed_hands}
+                and {h.player_id for h in state.revealed_hands} <= set(state.config.player_ids),
+                'Only responding players may reveal their cards.')
     elif state.status is not GameStatus.FINISHED:
         require(not state.revealed_hands, 'Unexpected public cards.')
     require(all(h.cards == next(p.cards for p in state.players if p.player_id == h.player_id)
@@ -116,6 +119,12 @@ def validate_game_state(state):
         require(tuple(p.player_id for p in result.payouts) == result.winner_ids
                 and all(type(p.amount) is int and p.amount >= 0 for p in result.payouts)
                 and sum(p.amount for p in result.payouts) == state.pot, 'Invalid payouts.')
+        require(len({p.player_id for p in result.salami_transfers}) == len(result.salami_transfers)
+                and all(p.player_id in state.config.player_ids and type(p.amount) is int for p in result.salami_transfers)
+                and sum(p.amount for p in result.salami_transfers) == 0, 'Invalid Salami transfers.')
+        from .settlement import salami_transfers
+        require(result.salami_transfers == salami_transfers(state, result.winner_ids, result.shown_hands),
+                'Salami differs from the agreed rules and shown winners.')
         if result.reason is TerminationReason.LAST_PLAYER_REMAINING:
             require(len(active) == 1 and not result.shown_hands and result.winning_hand is None,
                     'Fold win must not show cards.')
@@ -123,11 +132,11 @@ def validate_game_state(state):
             request = next((e for e in reversed(state.history) if e.kind == 'SHOW_REQUESTED'
                             and e.revision >= state.round_start_revision), None)
             require(request is not None and len(active) == 1
-                    and active[0] in (request.player_id, request.target_player_id)
-                    and tuple(h.player_id for h in result.shown_hands) == (request.player_id,)
+                    and active[0] in state.config.player_ids
+                    and bool(result.shown_hands) and result.shown_hands[0].player_id == request.player_id
                     and result.winning_hand is None, 'A folded show only retains the already revealed requester.')
         else:
-            require(result.reason is TerminationReason.SHOW and len(active) == 2
+            require(result.reason is TerminationReason.SHOW and len(active) >= 2
                     and tuple(h.player_id for h in result.shown_hands) == active
                     and all(h.cards == next(p.cards for p in state.players if p.player_id == h.player_id)
                             for h in result.shown_hands), 'Invalid showdown.')

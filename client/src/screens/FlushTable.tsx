@@ -1,3 +1,4 @@
+import { FormScrollView } from '../components/FormInput';
 import {TurnGlow} from '../components/TurnGlow';
 import {AppText as Text} from '../components/AppText';
 import { gameAttention } from '../notifications/gameAttention';
@@ -32,23 +33,16 @@ import { PokeComposer } from '../components/PokeComposer';
 import type { PlayerPhrase } from '../multiplayer/pokes';
 import { GameRules } from '../components/GameRules';
 import { canConfigureGameRules } from '../multiplayer/gameRulesConfig';
+import { SettingsTabs, type RulesTab } from '../components/SettingsTabs';
 import type { FlushRules } from '../multiplayer/flush';
 
-const labels: Record<keyof FlushRules, string> = {
-  require_minimum_bets_by_everyone: 'Require minimum bets by every remaining player',
-  minimum_bets_before_show: 'Minimum bets per player before showdown',
-  allow_side_show: 'Allow private side-show',
-  boot_amount: 'Boot per player (0 disables)', initial_blind_bet: 'Blind bet',
-  minimum_bet_rounds_before_side_show: 'Betting cycles before side-show', blind_to_seen_bet_multiplier: 'Seen bet multiplier',
-  minimum_blind_rounds_before_show: 'Personal blind bets before show', maximum_active_players_for_blind_show: 'Blind show: at most N active players',
-  allow_blind_show: 'Allow blind show', allow_seen_show: 'Allow seen show', show_only_when_two_players_remain: 'Show only with two players',
-  minimum_players: 'Minimum players', maximum_players: 'Maximum players', show_cost_multiplier: 'Show cost multiplier (0 is free)',
-  sequence_ace_policy: 'Ace sequence order', tie_policy: 'Equal hands',
-};
-const choices = {
-  sequence_ace_policy: [['akq_first_a23_second', 'AKQ first, A23 second'], ['a23_first', 'A23 first'], ['a23_lowest', 'A23 lowest']],
-  tie_policy: [['requester_loses', 'Show requester loses'], ['split', 'Split pot']],
-};
+const labels = {
+  allow_side_show: 'Allow side-show', minimum_bet_rounds_before_side_show: 'Minimum betting rounds before side-show',
+  allow_multiplayer_blind_show: 'Allow blind show with more than two players',
+  minimum_rounds_before_multiplayer_blind_show: 'Minimum betting rounds before blind show',
+  initial_blind_bet: 'Minimum bet', blind_to_seen_bet_multiplier: 'Blind-to-seen bet multiplier',
+  trial_bonus: 'Trial bonus (Salami)', ace_trial_bonus: 'Ace trial (Salami)',
+} as const;
 
 export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onStart, onLock, onAction, onBack, onNewGame, endControl, lobbyControl, social, onFormationBlocked, tableControl }: {
   connectionReady: boolean;
@@ -74,13 +68,14 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   const stats = useGameStats(snapshot.match_id, snapshot.your_player_id);
   const [rulesExplanationOpen, setRulesExplanationOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [rulesTab, setRulesTab] = useState<RulesTab>('rules');
   const [betsOpen, setBetsOpen] = useState(false);
   const socialAnchor = useSocialHandAnchor();
   const chatOpen = useTableSocial()?.overlayOpen ?? false;
   const [pokeOpen, setPokeOpen] = useState(false);
   const [arenaHeight, setArenaHeight] = useState(280);
   const [collapsedHandHeight, setCollapsedHandHeight] = useState(92);
-  const [draft, setDraft] = useState<Record<string, string | number | boolean>>({ ...settings.rules });
+  const [draft, setDraft] = useState<Record<string, string | number | boolean | null>>({ ...settings.rules });
   const [baseRevision, setBaseRevision] = useState(settings.rules_revision);
   const [dirty, setDirty] = useState(false);
   const [localError, setLocalError] = useState('');
@@ -98,8 +93,8 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   const shownRules = canConfigureGameRules(snapshot) ? draft : { ...settings.rules };
   function edit(key: string, value: string | boolean) { setDraft(v => ({ ...v, [key]: value })); setDirty(true); setLocalError(''); }
   function save() {
-    const values: Record<string, string | number | boolean> = { ...draft };
-    for (const key of Object.keys(settings.rules).filter(k => typeof settings.rules[k as keyof FlushRules] === 'number')) {
+    const values: Record<string, string | number | boolean | null> = { ...draft };
+    for (const key of Object.keys(settings.rules).filter(k => typeof settings.rules[k as keyof FlushRules] === 'number' || k === 'ace_trial_bonus' && values[k] !== null)) {
       if (!/^\d+$/.test(String(values[key])) || !Number.isSafeInteger(Number(values[key]))) { setLocalError(ui("feedback.enter_whole_nonnegative_point_amounts_and_counts")); return; }
       values[key] = Number(values[key]);
     }
@@ -164,16 +159,20 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
     {mine?.actions.kinds.includes('skip_cut') && <FloatingTableAction label={ui("callbreak.skip_cut")} onPress={() => act('SKIP_CUT')} disabled={!can('skip_cut')} />}
   </View> : null;
   const rulesContent = <>
-      <Text style={s.title}>{settings.locked ? ui("rooms.rules_locked_for_this_game") : ui("rooms.rules_before_starting")}</Text>
       <Text style={s.text}>{ui(canConfigureGameRules(snapshot) ? 'common.rules_config_editable' : 'common.rules_config_read_only')}</Text>
       {stale && dirty && !settings.locked && <Text accessibilityRole="alert" style={s.error}>{ui("common.saved_rules_changed_reload_before_editing_or_starting")}</Text>}
-      {(Object.keys(labels) as (keyof FlushRules)[]).map(key => {
-        const value = shownRules[key]; const label = uiLabel(labels[key], 'flush');
+      {rulesTab === 'bets' && <Text style={s.title}>{ui('common.bet_value')}</Text>}
+      {(rulesTab === 'rules' ? [
+        'allow_side_show', ...(shownRules.allow_side_show ? ['minimum_bet_rounds_before_side_show'] : []),
+        'allow_multiplayer_blind_show', ...((shownRules.allow_multiplayer_blind_show ?? true) ? ['minimum_rounds_before_multiplayer_blind_show'] : []),
+      ] : ['initial_blind_bet','blind_to_seen_bet_multiplier','trial_bonus','ace_trial_bonus']).map(rawKey => {
+        const key = rawKey as keyof typeof labels;
+        const value = shownRules[key] ?? (key === 'allow_multiplayer_blind_show' ? true
+          : key === 'minimum_rounds_before_multiplayer_blind_show' ? 3 : key === 'ace_trial_bonus' ? shownRules.initial_blind_bet : 0);
+        const label = uiLabel(labels[key], 'flush');
         return <View key={key} style={s.field}><Text style={s.text}>{label}</Text>
-          {typeof value === 'boolean' ? button(ui('common.label_yes_no', { label, value: ui(value ? 'common.yes' : 'common.no') }), () => edit(key, !value), !editable || key === 'show_only_when_two_players_remain')
-            : key === 'sequence_ace_policy' || key === 'tie_policy' ? <View style={s.row}>{choices[key].map(([v, title]) => <Pressable key={v} accessibilityRole="radio" accessibilityLabel={uiLabel(title, 'flush')}
-              accessibilityState={{ checked: value === v, disabled: !editable }} disabled={!editable} onPress={() => edit(key, v)} style={[s.button, value === v && s.chosen]}><Text style={s.text}>{uiLabel(title, 'flush')}</Text></Pressable>)}</View>
-            : <NumericInput accessibilityLabel={label} value={String(value)} editable={!!editable && key !== 'minimum_players' && key !== 'maximum_players'} keyboardType="number-pad" onChangeText={v => edit(key, v)} style={s.input} />}
+          {typeof value === 'boolean' ? button(ui('common.label_yes_no', { label, value: ui(value ? 'common.yes' : 'common.no') }), () => edit(key, !value), !editable)
+            : <NumericInput accessibilityLabel={label} value={String(value)} editable={editable} keyboardType="number-pad" onChangeText={v => edit(key, v)} style={s.input} />}
         </View>;
       })}
 
@@ -197,7 +196,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
     : ui("rooms.seated_capacity_seated", {seated: snapshot.players?.length || 0, capacity: snapshot.capacity});
   return <View style={[s.page, mobile && { padding: 8, gap: 4 }]} testID="flush-table">
     <GameTableHeader showShare={showTableHeaderShare(snapshot)} tableName={snapshot.table_name} title={ui("rooms.flush")} compact path={snapshot.path} game="flush" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack} mobileTestIds drawerMetadata={<GameMenuMetadata snapshot={snapshot} />}>
-      {closeMenu => <FlushMenu snapshot={snapshot} close={closeMenu} rules={() => setRulesExplanationOpen(true)} rulesConfig={() => setRulesOpen(true)} history={() => setBetsOpen(true)}
+      {closeMenu => <FlushMenu snapshot={snapshot} close={closeMenu} rules={() => setRulesExplanationOpen(true)} rulesConfig={() => {setRulesTab('rules');setRulesOpen(true);}} history={() => setBetsOpen(true)}
         poke={() => setPokeOpen(true)} canPoke={social.connected} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl} />}
     </GameTableHeader>
     <View style={s.mainColumn} testID="flush-main-column">
@@ -264,9 +263,9 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
     {!ended && pokeOpen && <PokeComposer recipient={null} connected={social.connected} phrases={social.phrases} onSave={social.save}
       onSend={social.send} onClose={() => setPokeOpen(false)} />}
     <GameRules snapshot={snapshot} visible={rulesExplanationOpen} onClose={() => setRulesExplanationOpen(false)} />
-    <RoomSheet visible={rulesOpen} title={ui("common.game_rules_config")} closeLabel={ui("common.close_game_rules_config")} onClose={() => setRulesOpen(false)} testID="flush-rules-config"
+    <RoomSheet visible={rulesOpen} title={ui("common.game_rules_config")} closeLabel={ui("common.close_game_rules_config")} onClose={() => setRulesOpen(false)} testID="flush-rules-config" scrollable={false}
       footer={canConfigureGameRules(snapshot) ? <FormFooter>{!!(localError || error) && <Text accessibilityRole="alert" style={s.error}>{uiLabel(localError || error, 'feedback')}</Text>}<View style={{ gap: 8 }}><RuleProposalButton busy={busy} disabled={!dirty || stale || snapshot.rule_proposal?.status === 'PENDING'} onPress={save} />{button('Reload saved rules', reload, busy)}</View></FormFooter> : undefined}>
-      {rulesContent}
+      <SettingsTabs selected={rulesTab} onSelect={setRulesTab} tabs={[{id:'rules',label:ui('common.custom_rules')},{id:'bets',label:ui('common.bet_values')}]} /><FormScrollView style={{flex:1,minHeight:0}} keyboardShouldPersistTaps="handled" contentContainerStyle={{padding:20,gap:12}}>{rulesContent}</FormScrollView>
     </RoomSheet>
     {/* Automatic results wait for chat; a second modal would trap focus behind it. */}
     <Modal transparent visible={finalShowOpen && finalStage !== null && !chatOpen && !stats.open} animationType={Platform.OS === 'web' ? 'none' : 'fade'} onRequestClose={() => setFinalShowOpen(false)}>
@@ -284,12 +283,13 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
         <Text style={s.text}>{ui("flush.player_can_fold_or_reveal_their_cards", { "player": name(pub.pending_show.target_id) })}</Text>
         {can('reveal_cards') && <View style={s.row}>{button(ui("common.reveal_cards"), () => act('REVEAL_CARDS'), busy, true)}{button(ui("flush.fold"), () => act('FOLD'), busy, false, true)}</View>}
       </View>}
-      {pub?.settlement && <View style={s.panel} testID="flush-round-result"><RoundResultsTable subtitle={ui("marriage.winner_player", { "player": pub.settlement.winner_ids.map(name).join(', ') })} columns={['Payout', 'Net']} rows={(pub.round_results.find(r => r.round_number === pub.round_number)?.net_changes || pub.settlement.payouts).map(p => {
+      {pub?.settlement && <View style={s.panel} testID="flush-round-result"><RoundResultsTable subtitle={ui("marriage.winner_player", { "player": pub.settlement.winner_ids.map(name).join(', ') })} columns={['Payout', ui('flush.salami'), 'Net']} rows={(pub.round_results.find(r => r.round_number === pub.round_number)?.net_changes || pub.settlement.payouts).map(p => {
           const net = pub.round_results.find(r => r.round_number === pub.round_number)?.net_changes.find(row => row.player_id === p.player_id)?.amount;
           const payout = pub.settlement!.payouts.find(row => row.player_id === p.player_id)?.amount || 0;
+          const salami = pub.settlement!.salami_transfers?.find(row => row.player_id === p.player_id)?.amount || 0;
           return { id: p.player_id, name: name(p.player_id), avatarUrl: snapshot.players?.find(player => String(player.player_id) === p.player_id)?.avatar_url,
             own: p.player_id === String(snapshot.your_player_id), winner: pub.settlement!.winner_ids.includes(p.player_id),
-            values: [{ text: String(payout) }, { text: net === undefined ? '—' : `${net > 0 ? '+' : ''}${net}`, amount: net }] };
+            values: [{ text: String(payout) }, { text: `${salami > 0 ? '+' : ''}${salami}`, amount: salami }, { text: net === undefined ? '—' : `${net > 0 ? '+' : ''}${net}`, amount: net }] };
         })} />
         {pub.settlement.shown_hands.map(p => <View key={p.player_id}><Text style={s.text}>{ui("flush.player_s_shown_hand", { "player": name(p.player_id) })}</Text><FlushCards autoReveal key={`${pub.round_number}:${p.player_id}`} label={ui("common.player_card", {player: name(p.player_id)})} cards={p.cards.map(c => `${({11:'J',12:'Q',13:'K',14:'A'} as Record<number,string>)[c.rank] || c.rank}${c.suit}`)} /></View>)}
         <Text style={s.text}>{ui("rooms.next_deal_help")}</Text>

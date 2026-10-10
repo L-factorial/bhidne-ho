@@ -17,7 +17,7 @@ export function MarriageHandSheet({ mobile, anchor, snap, onSnap, instruction, a
   const { colors } = useTheme();
   const [headerHeight, setHeaderHeight] = useState(80);
   const open = snap !== 'collapsed';
-  const controls = <View onLayout={event => { const height = event.nativeEvent.layout.height; setHeaderHeight(height); onCollapsedHeight?.(Math.max(90, height + 2)); }}>
+  const controls = <View onLayout={event => { const height = event.nativeEvent.layout.height; setHeaderHeight(height); onCollapsedHeight?.(mobile ? Math.max(90, height + 2) : height); }}>
     <HandAreaBar cue={cue} open={open} onToggle={() => onSnap(open?'collapsed':'expanded')} count={cardCount} attention={attention} instruction={instruction}/>
   </View>;
   // RoomGameControl already keeps this whole sheet inside the device safe area.

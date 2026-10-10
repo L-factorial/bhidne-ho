@@ -1,5 +1,11 @@
 // Editable Nepali common copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "profile_notifications": "सूचनाहरू",
+  "profile_information": "जानकारी र सहयोग",
+  "profile_account": "खाता",
+  "bet_value": "बेट रकम",
+  "bet_values": "बेट रकम",
+  "custom_rules": "आफ्ना नियम",
   "propose_changes": "परिवर्तन प्रस्ताव गर्नुहोस्",
   "card_theme_saving": "टेबलको तास थिम बदलिँदैछ…",
   "card_theme_controller_help": "यो थिम डिलरले मात्र बदल्न सक्छन्। डिलर नतोकिएको बेला टेबल बनाउने व्यक्तिले बदल्न सक्छन्।",
@@ -554,8 +560,8 @@ export default {
   "stats_target": "{{player}} सँग",
   "stats_seat_previous": "बोल {{bids}} • बोनस {{bonus}}",
   "stats_seat_current": "बोल {{bid}} / जित {{won}}",
-  "game_rules": "खेलका नियम",
-  "game_rules_config": "खेलका नियमको सेटिङ",
+  "game_rules": "खेलका आधारभूत नियम",
+  "game_rules_config": "खेलका नियम र बेट सेटिङ",
   "close_game_rules": "खेलका नियम बन्द गर्ने",
   "close_game_rules_config": "खेलका नियमको सेटिङ बन्द गर्ने",
   "game_rules_variations": "बदल्न मिल्ने विकल्पहरू",

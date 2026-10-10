@@ -10,6 +10,7 @@ import { FormScrollView } from './FormInput';
 import { type ReactNode } from 'react';
 import { RuleProposalButton } from './RuleProposalButton';
 import { FormFooter } from './FormFooter';
+import { SettingsTabs, type RulesTab } from './SettingsTabs';
 import { NumericInput } from './NumericInput';
 import { useEffect, useState } from 'react';
 import {Pressable, StyleSheet, View} from 'react-native';
@@ -30,6 +31,7 @@ export function MarriageScoring({ snapshot, busy, error, onSave, introduction, c
   const source = snapshot.marriage?.public.scoring_rules || snapshot.marriage_scoring;
   const saved = source ? {...source, alter:source.alter || [0,0,0],initial_tunnela_declaration:source.initial_tunnela_declaration ?? false} : undefined;
   const [draftState, setDraft] = useState(saved);
+  const [tab, setTab] = useState<RulesTab>('rules');
   const savedKey = JSON.stringify(saved);
   useEffect(() => setDraft(saved), [savedKey, snapshot.rule_proposal?.id, snapshot.rule_proposal?.status]);
   const editable = canConfigureGameRules(snapshot);
@@ -46,10 +48,10 @@ export function MarriageScoring({ snapshot, busy, error, onSave, introduction, c
       editable={!busy} maxLength={4} onChangeText={text => update(/^\d+$/.test(text) ? Number(text) : NaN)} style={s.input} />
       : <Text style={[s.text, s.value]}>{value}</Text>;
   }
-  return <View testID="marriage-scoring-rules" style={{ flex: 1, minHeight: 0 }}><FormScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 12 }}>{introduction}
+  return <View testID="marriage-scoring-rules" style={{ flex: 1, minHeight: 0 }}><SettingsTabs selected={tab} onSelect={setTab} tabs={[{id:'rules',label:ui('common.custom_rules')},{id:'bets',label:ui('common.bet_values')}]} /><FormScrollView style={{flex:1,minHeight:0}} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 12 }}>{introduction}
     <Text style={s.heading}>{ui("marriage.scoring_rules")}</Text>
     <Text style={s.text}>{concise ? ui(editable ? 'common.rules_config_editable' : 'common.rules_config_read_only') : editable ? ui("marriage.preset_help") : ui("marriage.locked_rules_help")}</Text>
-    {editable && <View style={s.row}>{Object.entries(snapshot.marriage_scoring_presets || {}).map(([key, rules]) =>
+    {tab === 'bets' && <>{editable && <View style={s.row}>{Object.entries(snapshot.marriage_scoring_presets || {}).map(([key, rules]) =>
       <View key={uiLabel(key, 'marriage')}>{button(key === 'house' ? ui("marriage.house_bonus_default") : ui("marriage.simple_points"), () => setDraft({...rules,alter:rules.alter || [0,0,0],initial_tunnela_declaration:rules.initial_tunnela_declaration ?? false}), JSON.stringify(draft) === JSON.stringify(rules))}</View>)}</View>}
     <Text style={s.text}>{ui("marriage.totals_for_1_2_3_copies_or_combinations")}</Text>
     {tables.map(key => <View key={uiLabel(key, 'marriage')} style={s.row}><Text style={[s.text, s.label]}>{uiLabel(labels[key], 'marriage')}</Text>
@@ -58,7 +60,8 @@ export function MarriageScoring({ snapshot, busy, error, onSave, introduction, c
     {!concise && <Text style={s.text}>{ui("marriage.alter_help")}</Text>}
     {amounts.map(key => <View key={uiLabel(key, 'marriage')} style={s.row}><Text style={[s.text, s.label]}>{uiLabel(labels[key], 'marriage')}</Text>
       {input(uiLabel(labels[key], 'marriage'), draft[key], n => setDraft({ ...draft, [key]: n }))}</View>)}
-    {button(ui("marriage.initial_tunnela_declaration_count", { "count": uiLabel(draft.initial_tunnela_declaration?'On':'Off') }),()=>setDraft({...draft,initial_tunnela_declaration:!draft.initial_tunnela_declaration,tunnela_scope:!draft.initial_tunnela_declaration && draft.tunnela_scope === 'hand' ? 'shown' : draft.tunnela_scope}),!!draft.initial_tunnela_declaration,!editable)}
+    </>}
+    {tab === 'rules' && <>{button(ui("marriage.initial_tunnela_declaration_count", { "count": uiLabel(draft.initial_tunnela_declaration?'On':'Off') }),()=>setDraft({...draft,initial_tunnela_declaration:!draft.initial_tunnela_declaration,tunnela_scope:!draft.initial_tunnela_declaration && draft.tunnela_scope === 'hand' ? 'shown' : draft.tunnela_scope}),!!draft.initial_tunnela_declaration,!editable)}
     {!concise && <Text style={s.text}>{draft.initial_tunnela_declaration?ui("marriage.initial_declaration_help"):ui("marriage.tunnela_bonus_applies_to")}</Text>}
     <View style={s.row}>{(draft.initial_tunnela_declaration ? ["off",'shown'] as const : ["off", 'shown', 'hand'] as const).map(scope => <View key={scope}>{editable
       ? button(scope === 'off' ? ui("marriage.none") : scope === 'shown' ? draft.initial_tunnela_declaration?ui("marriage.initially_declared_tunnelas"):ui("marriage.shown_tunnelas") : ui("marriage.all_final_tunnelas"), () => setDraft({ ...draft, tunnela_scope: scope }), draft.tunnela_scope === scope)
@@ -66,6 +69,7 @@ export function MarriageScoring({ snapshot, busy, error, onSave, introduction, c
     {editable ? button(draft.maal_requires_seen ? ui("marriage.maal_points_seen_players_only") : ui("marriage.maal_points_all_players"), () => setDraft({ ...draft, maal_requires_seen: !draft.maal_requires_seen }))
       : <Text style={s.text}>{ui("marriage.maal_points_points", { "points": draft.maal_requires_seen ? uiLabel('seen players only', 'marriage') : uiLabel('all players', 'marriage') })}</Text>}
     {!concise && <Text style={s.text}>{ui("marriage.scoring_help")}</Text>}
+    </>}
     </FormScrollView><FormFooter>
     {editable && <><RuleProposalButton busy={busy} disabled={!valid || !changed} onPress={() => onSave(draft)} />
       <Text style={s.text}>{!valid ? ui("feedback.enter_whole_numbers_from_0_to_1000") : changed ? ui("rooms.unsaved_changes") : ui("rooms.rules_approval_help")}</Text></>}

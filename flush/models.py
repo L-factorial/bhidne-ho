@@ -57,9 +57,10 @@ class RoundSettlement:
     payouts: tuple[Payout, ...]
     shown_hands: tuple[ShownHand, ...] = ()
     winning_hand: FlushHandResult | None = None
+    salami_transfers: tuple[Payout, ...] = ()
 
     def __post_init__(self):
-        for name in ('winner_ids', 'payouts', 'shown_hands'):
+        for name in ('winner_ids', 'payouts', 'shown_hands', 'salami_transfers'):
             object.__setattr__(self, name, tuple(getattr(self, name)))
 
 

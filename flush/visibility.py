@@ -31,9 +31,9 @@ def visible_events(state, viewer=None, after=0):
         if event.sequence <= after:
             continue
         if event.kind not in ('ROUND_STARTED', 'DEAL_REQUESTED', 'DECK_CUT', 'CUT_SKIPPED', 'CARDS_DEALT', 'GAME_STARTED', 'BOOT_COLLECTED', 'TURN_CHANGED', 'BET_PLACED',
-                              'CARDS_SEEN', 'PLAYER_FOLDED', 'SHOW_REQUESTED', 'ROUND_FINISHED', 'SIDE_SHOW_REQUESTED', 'SIDE_SHOW_ACCEPTED', 'SIDE_SHOW_DECLINED', 'SIDE_SHOW_RESOLVED'):
+                              'CARDS_SEEN', 'CARDS_REVEALED', 'PLAYER_FOLDED', 'SHOW_REQUESTED', 'ROUND_FINISHED', 'SIDE_SHOW_REQUESTED', 'SIDE_SHOW_ACCEPTED', 'SIDE_SHOW_DECLINED', 'SIDE_SHOW_RESOLVED'):
             raise InvalidActionError('Event has no safe visibility projection.')
-        hands = tuple((h.player_id, tuple(str(c) for c in h.cards)) for h in event.shown_hands) if event.kind in ('ROUND_FINISHED', 'SHOW_REQUESTED') else ()
+        hands = tuple((h.player_id, tuple(str(c) for c in h.cards)) for h in event.shown_hands) if event.kind in ('ROUND_FINISHED', 'SHOW_REQUESTED', 'CARDS_REVEALED') else ()
         result.append(VisibleEvent(event.sequence, event.revision, event.kind, event.player_id,
                                    event.amount, event.winner_ids, hands, event.target_player_id, event.loser_player_id))
     return tuple(result)

@@ -72,6 +72,70 @@ def resign(value):
     return value
 
 
+async def test_multiplayer_flush_show_checkpoint_preserves_partial_reveals():
+    from flush import FlushGameEngine
+    host, game = await make_host('flush', 3)
+    try:
+        game.flush_rules = replace(game.flush_rules, minimum_rounds_before_multiplayer_blind_show=0)
+        await start(host, game)
+        await action(host, game, 'DEAL_CARDS'); await action(host, game, 'SKIP_CUT')
+        await action(host, game, 'SHOW'); await action(host, game, 'REVEAL_CARDS')
+        state = engine_state(game)
+        assert state.pending_show and len(state.revealed_hands) == 2
+        decoded = decode_checkpoint(capture_checkpoint(game, table_revision=3))
+        assert decoded.engine_state == state
+        restored = FlushGameEngine.__new__(FlushGameEngine)
+        restored._state = decoded.engine_state
+        restored.reveal_cards(state.pending_show.target_id)
+        assert len(restored.get_state().round_results) == 1
+    finally:
+        await host.close()
+
+
+async def test_old_flush_checkpoint_keeps_multiplayer_show_and_salami_disabled():
+    host, game = await make_host('flush', 2)
+    try:
+        await start(host, game)
+        await action(host, game, 'DEAL_CARDS'); await action(host, game, 'SKIP_CUT')
+        await action(host, game, 'FOLD')
+        record = capture_checkpoint(game, table_revision=3)
+        state = record['data']['engine']['state']
+        for rules in [record['data']['host']['flush_rules'], state['config']['rules']]:
+            for field in ['allow_multiplayer_blind_show', 'minimum_rounds_before_multiplayer_blind_show', 'trial_bonus', 'ace_trial_bonus']:
+                rules.pop(field)
+        state['settlement'].pop('salami_transfers')
+        decoded = decode_checkpoint(resign(record))
+        assert decoded.engine_state.config.rules.allow_multiplayer_blind_show is False
+        assert decoded.engine_state.config.rules.ace_trial_bonus == 0
+        assert decoded.engine_state.settlement.salami_transfers == ()
+    finally:
+        await host.close()
+
+
+async def test_flush_salami_settlement_survives_checkpoint_and_host_projection():
+    from card_utils import standard_52
+    host, game = await make_host('flush', 3)
+    try:
+        game.flush_rules = replace(game.flush_rules, minimum_rounds_before_multiplayer_blind_show=0)
+        await start(host, game)
+        await action(host, game, 'DEAL_CARDS'); await action(host, game, 'SKIP_CUT')
+        engine = game.flush_target.adapter.checkpoint()
+        trial = tuple(c for c in standard_52() if c.rank == 14)[:3]
+        rest = tuple(c for c in standard_52() if c not in trial)
+        holdings = (rest[:3], trial, rest[3:6])
+        engine._state = replace(engine.get_state(), players=tuple(
+            replace(p, cards=cards) for p, cards in zip(engine.get_state().players, holdings)), stock=rest[6:])
+        await action(host, game, 'SHOW')
+        await action(host, game, 'REVEAL_CARDS'); await action(host, game, 'REVEAL_CARDS')
+        state = engine_state(game)
+        assert {p.player_id: p.amount for p in state.settlement.salami_transfers} == {'1': -1, '2': 2, '3': -1}
+        snapshot = await host.snapshot('room', 'u0')
+        assert snapshot['flush']['public']['settlement']['salami_transfers']
+        assert decode_checkpoint(capture_checkpoint(game, table_revision=3)).engine_state == state
+    finally:
+        await host.close()
+
+
 @pytest.mark.parametrize('kind,count', [('callbreak', 4), ('callbreak', 5), ('marriage', 2), ('flush', 2)])
 async def test_waiting_and_active_engines_round_trip_without_side_effects(kind, count):
     host, game = await make_host(kind, count)

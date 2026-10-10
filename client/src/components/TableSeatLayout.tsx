@@ -16,9 +16,9 @@ export function TableSeatLayout<T extends { id: string }>({ players, viewerId, c
   const { colors: c } = useTheme();
   const [height, setHeight] = useState(360);
   const [width, setWidth] = useState(300);
-  const ordered = seatedOrder(players, viewerId), layout = geometry ? geometry(capacity || ordered.length, width) : tableSeatGeometry(capacity || ordered.length, width, compact, capacity ? 400 : fill ? height : undefined);
+  const ordered = seatedOrder(players, viewerId), layout = geometry ? geometry(capacity || ordered.length, width) : tableSeatGeometry(capacity || ordered.length, width, compact, fill ? height : capacity ? 400 : undefined);
   return <View testID={testID} onLayout={event => { setWidth(event.nativeEvent.layout.width); setHeight(event.nativeEvent.layout.height); }} style={{ width: '100%', maxWidth: 760, alignSelf: 'center', height: fill ? undefined : layout.height, flex: fill ? 1 : undefined, minHeight: fill ? 360 : undefined, maxHeight: undefined }}>
-    <View pointerEvents="none" style={{ position: 'absolute', top: 12, bottom: 12, left: 4, right: 4 }}><TableSurface game={game} /></View>
+    <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 4, right: 4 }}><TableSurface game={game} /></View>
     {ordered.map((player, index) => {
       const point = layout.positions[index];
       return <View key={player.id} testID={`table-seat-${player.id}`} style={{ position: 'absolute', width: layout.seatWidth, height: layout.seatHeight,

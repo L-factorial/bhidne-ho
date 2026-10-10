@@ -10,7 +10,7 @@ import type { Session } from '../multiplayer/session';
 import { pokeTextLength } from '../multiplayer/pokes';
 import { radii, fonts, gameControlFinish, useTheme } from '../theme';
 
-export function DisplayNameField({ session, onSaved }: { session: Session; onSaved?: (name: string) => void }) {
+export function DisplayNameField({ session, onSaved, label }: { session: Session; label?: string; onSaved?: (name: string) => void }) {
   useUiLanguage();
   const { colors } = useTheme();
   const [name, setName] = useState(''), [loaded, setLoaded] = useState(false);
@@ -37,10 +37,10 @@ export function DisplayNameField({ session, onSaved }: { session: Session; onSav
     } finally { pending.current = false; if (!signal.aborted) setBusy(false); }
   }
   return <View style={{ backgroundColor: colors.surface, padding: 20, borderRadius: 16, gap: 12 }}>
-    <Text style={{ color: colors.text, fontFamily: fonts.medium }}>{ui("common.display_name_label")}</Text>
+    <Text style={{ color: colors.text, fontFamily: fonts.medium }}>{label || ui("common.display_name_label")}</Text>
     <Text style={{ color: colors.textMuted, fontFamily: fonts.body, fontSize: 12, lineHeight: 20 }}>{ui("common.display_name_help")}</Text>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-    <FormInput accessibilityLabel={ui("common.game_display_name")} value={name} editable={loaded && !busy} maxLength={50}
+    <FormInput accessibilityLabel={label || ui("common.game_display_name")} value={name} editable={loaded && !busy} maxLength={50}
       onChangeText={value => { setName(Array.from(value).slice(0, 25).join('')); setMessage(''); }} placeholder={ui("common.name_nickname")}
       placeholderTextColor={colors.textMuted} autoCapitalize="words" returnKeyType="done" onSubmitEditing={() => void save()}
       style={{ flex: 1, minWidth: 0, backgroundColor: colors.surfaceRaised, borderRadius: radii.medium, padding: 12, minHeight: 46, fontFamily: fonts.body, color: colors.text }} />

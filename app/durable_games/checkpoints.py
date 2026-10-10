@@ -19,6 +19,7 @@ from flush.models import FlushGameState
 from flush.invariants import validate_game_state as validate_flush
 from flush.errors import FlushError
 from flush import FlushRulesConfig
+from flush.rules import legacy_rule_defaults
 from marriage.models import MarriageGameState
 from marriage.events import DomainEvent as MarriageEvent
 from marriage.invariants import validate_game_state as validate_marriage
@@ -274,7 +275,7 @@ class DecodedCheckpoint:
 def _flush_rules_defaults(value):
     # Additive v1 compatibility only. Stored envelopes are digest-checked first;
     # existing values and unknown fields still undergo strict/lossless validation.
-    return {"require_minimum_bets_by_everyone": False, "minimum_bets_before_show": 3, **value}
+    return legacy_rule_defaults(value)
 
 
 def _normalize_engine_sets(kind, state):
@@ -286,6 +287,7 @@ def _normalize_engine_sets(kind, state):
     if kind == 'flush':
         pending = state.get('pending_side_show')
         return {**state, 'config': {**state['config'], 'rules': _flush_rules_defaults(state['config']['rules'])},
+                'settlement': None if state.get('settlement') is None else {'salami_transfers': [], **state['settlement']},
                 'pending_side_show': None if pending is None else {'accepted': False, 'prepaid': True, **pending}}
     if kind == 'callbreak':
         return {'dealer_selection': None, **state,
@@ -315,7 +317,7 @@ def _decode_engine(data):
     # Stored rule sets must reconstruct independently of today's defaults.
     for rule_type, value in ((FlushRulesConfig, data.host.flush_rules), (ScoringRules, data.host.marriage_scoring)):
         rule_adapter = TypeAdapter(rule_type)
-        rules = rule_adapter.validate_json(canonical_json(value), strict=True)
+        rules = rule_adapter.validate_json(canonical_json(_flush_rules_defaults(value) if rule_type is FlushRulesConfig else value), strict=True)
         expected = _flush_rules_defaults(value) if rule_type is FlushRulesConfig else value
         if rule_adapter.dump_python(rules, mode='json') != expected:
             raise CheckpointError('Stored rules did not decode losslessly.')
@@ -323,7 +325,7 @@ def _decode_engine(data):
     if checkpoint is None:
         return None
     adapter = _STATES[data.game_type]
-    raw = dict(checkpoint.state)
+    raw = _normalize_engine_sets('flush', checkpoint.state) if data.game_type == 'flush' else dict(checkpoint.state)
     if data.game_type == 'marriage':
         history = raw.get('history', [])
         if len(history) != len(checkpoint.history_types):

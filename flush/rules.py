@@ -29,20 +29,27 @@ class FlushRulesConfig:
     sequence_ace_policy: AceSequencePolicy = AceSequencePolicy.AKQ_FIRST_A23_SECOND
     tie_policy: TiePolicy = TiePolicy.REQUESTER_LOSES
     show_cost_multiplier: int = 1
+    allow_multiplayer_blind_show: bool = True
+    minimum_rounds_before_multiplayer_blind_show: int = 3
+    trial_bonus: int = 0
+    ace_trial_bonus: int | None = None  # None follows the configured minimum bet.
     ruleset_id: ClassVar[str] = 'flush-v1'
 
     def __post_init__(self):
         for name in ('boot_amount', 'minimum_bet_rounds_before_side_show',
-                     'minimum_blind_rounds_before_show', 'minimum_bets_before_show', 'show_cost_multiplier'):
+                     'minimum_blind_rounds_before_show', 'minimum_bets_before_show', 'show_cost_multiplier',
+                     'minimum_rounds_before_multiplayer_blind_show', 'trial_bonus'):
             integer(getattr(self, name), name)
         for name in ('initial_blind_bet', 'blind_to_seen_bet_multiplier',
                      'maximum_active_players_for_blind_show'):
             integer(getattr(self, name), name, 1)
+        if self.ace_trial_bonus is not None:
+            integer(self.ace_trial_bonus, 'ace_trial_bonus')
         integer(self.minimum_players, 'minimum_players', 2)
         integer(self.maximum_players, 'maximum_players', self.minimum_players)
         if self.maximum_players > 10:
             raise ValueError('Flush supports at most 10 players.')
-        for name in ('allow_blind_show', 'allow_seen_show', 'allow_side_show', 'require_minimum_bets_by_everyone', 'show_only_when_two_players_remain'):
+        for name in ('allow_blind_show', 'allow_seen_show', 'allow_side_show', 'require_minimum_bets_by_everyone', 'show_only_when_two_players_remain', 'allow_multiplayer_blind_show'):
             if type(getattr(self, name)) is not bool:
                 raise ValueError(f'{name} must be a boolean.')
         if not self.show_only_when_two_players_remain:
@@ -53,3 +60,10 @@ class FlushRulesConfig:
             raise ValueError('Unsupported Ace sequence policy.')
         if not isinstance(self.tie_policy, TiePolicy):
             raise ValueError('Unsupported tie policy.')
+
+
+def legacy_rule_defaults(values):
+    """Restore additive fields without changing rules agreed before they existed."""
+    return {"require_minimum_bets_by_everyone": False, "minimum_bets_before_show": 3,
+            "allow_multiplayer_blind_show": False, "minimum_rounds_before_multiplayer_blind_show": 3,
+            "trial_bonus": 0, "ace_trial_bonus": 0, **values}

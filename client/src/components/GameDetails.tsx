@@ -7,19 +7,22 @@ import { FormScrollView } from './FormInput';
 import { RoomSheet } from './RoomSheet';
 import { RuleProposalButton } from './RuleProposalButton';
 import { FormFooter } from './FormFooter';
+import { SettingsTabs, type RulesTab } from './SettingsTabs';
 import { NumericInput } from './NumericInput';
 import { callBreakRuleGroups, defaultCallBreakRules, formatCallBreakScore } from '../multiplayer/callbreakRules';
 import { useEffect, useState } from 'react';
 import {Pressable, StyleSheet, Switch, View} from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 
-export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = false }: {
-  menu?: boolean; sidebar?: boolean; snapshot: RoomSnapshot; busy: boolean; onSave: (settings: NonNullable<RoomSnapshot['settings']>) => void;
+export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = false, configOpen = false, onCloseConfig }: {
+  configOpen?: boolean; onCloseConfig?: () => void; menu?: boolean; sidebar?: boolean; snapshot: RoomSnapshot; busy: boolean; onSave: (settings: NonNullable<RoomSnapshot['settings']>) => void;
 }) {
   useUiLanguage();
   const styles = useThemedStyles(createStyles);
   const [tab, setTab] = useState<'stats' | 'rules' | null>(null);
-  const selectedTab = tab ?? (sidebar ? 'stats' : null);
+  const selectedTab = configOpen ? 'rules' : tab ?? (sidebar ? 'stats' : null);
+  const [rulesTab, setRulesTab] = useState<RulesTab>('rules');
+  useEffect(() => { if (configOpen) setRulesTab('rules'); }, [configOpen]);
   const [draft, setDraft] = useState(snapshot.settings);
   useEffect(() => setDraft(snapshot.settings), [JSON.stringify(snapshot.settings), snapshot.rule_proposal?.id, snapshot.rule_proposal?.status]);
   const editable = canConfigureGameRules(snapshot);
@@ -82,13 +85,13 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = fa
       </> : <>
         <Text style={styles.text}>{ui(editable ? 'common.rules_config_editable' : 'common.rules_config_read_only')}</Text>
         {settings && <>
-          {callBreakRuleGroups.map(group => <View key={group.toggle} style={{ gap: 8 }}>
+          {rulesTab === 'rules' && <>{callBreakRuleGroups.map(group => <View key={group.toggle} style={{ gap: 8 }}>
             <View style={styles.row}>
               <Switch accessibilityLabel={group.toggle === 'instant_win_enabled' ? ui('callbreak.instant_toggle', { count: matchRules.instant_win_bid }) : ui(`callbreak.${group.toggle}`)} disabled={!editable || busy}
                 value={matchRules[group.toggle]} onValueChange={value => setDraft({ ...settings, match_rules: { ...matchRules, [group.toggle]: value, ...(group.toggle === 'perfect_bid_enabled' ? { perfect_bid: 1 } : {}) } })} />
               <Text style={styles.text}>{group.toggle === 'instant_win_enabled' ? ui('callbreak.instant_toggle', { count: matchRules.instant_win_bid }) : ui(`callbreak.${group.toggle}`)}</Text>
             </View>
-            {matchRules[group.toggle] && group.toggle !== 'perfect_bid_enabled' && group.toggle !== 'instant_win_enabled' && group.values.map(key => <View key={key} style={styles.row}>
+            {matchRules[group.toggle] && group.toggle !== 'perfect_bid_enabled' && group.values.filter(key => key !== 'winner_multiplier' && key !== 'negative_multiplier').map(key => <View key={key} style={styles.row}>
               <Text style={styles.text}>{ui(`callbreak.${key}`)}</Text>
               <NumericInput accessibilityLabel={ui(`callbreak.${key}`)} editable={!!editable && !busy} keyboardType={key === 'negative_threshold' ? 'numbers-and-punctuation' : 'number-pad'}
                 value={String(matchRules[key])} maxLength={5} onChangeText={text => {
@@ -106,6 +109,8 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = fa
             {(['ANY', 'JACK', 'QUEEN'] as const).map(value => <Pressable key={value} accessibilityRole="radio" aria-checked={(settings.minimum_face_card ?? (settings.weak_hand_enabled ? 'QUEEN' : 'ANY')) === value} accessibilityLabel={ui(`callbreak.minimum_${value}`)} accessibilityState={{ checked: (settings.minimum_face_card ?? (settings.weak_hand_enabled ? 'QUEEN' : 'ANY')) === value, disabled: !editable || busy }} disabled={!editable || busy}
               onPress={() => setDraft({ ...settings, minimum_face_card: value, weak_hand_enabled: value !== 'ANY' })} style={[styles.button, (settings.minimum_face_card ?? (settings.weak_hand_enabled ? 'QUEEN' : 'ANY')) === value && styles.selectedTab]}><Text style={styles.label}>{ui(`callbreak.minimum_${value}`)}</Text></Pressable>)}
           </View>
+          </>}
+          {rulesTab === 'bets' && <>
           <Text style={[styles.title, menu && { fontSize: 16 }]}>{ui("ledger.placement_bets_paid_to_first_place")}</Text>
           {editable ? settings.payments.slice(0, (snapshot.capacity || 4) - 1).map((amount, i) => <View key={i} style={styles.row}>
             <Text style={styles.text}>{ui("ledger.player_pays_first", { "player": ['2nd', '3rd', '4th', '5th'][i] })}</Text>
@@ -113,11 +118,21 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = fa
               onChangeText={text => { if (/^\d*$/.test(text)) setDraft({ ...settings, payments: settings.payments.map((v, index) => index === i ? Math.min(1000000, Number(text)) : v) }); }} style={styles.input} />
           </View>) : settings.payments.slice(0, (snapshot.capacity || 4) - 1).map((amount, i) =>
             <Text key={i} style={styles.text}>{ui("common.player_place_1st_amount_units", { "player": ['2nd', '3rd', '4th', '5th'][i], "amount": amount })}</Text>)}
-
-
+          {(['winner_multiplier', 'negative_multiplier'] as const).map(key => {
+            const enabled = key === 'winner_multiplier' ? matchRules.double_win_enabled : matchRules.negative_payment_enabled;
+            return enabled && <View key={key} style={styles.row}><Text style={styles.text}>{ui(`callbreak.${key}`)}</Text>
+              <NumericInput accessibilityLabel={ui(`callbreak.${key}`)} editable={editable && !busy} keyboardType="number-pad" value={String(matchRules[key])}
+                onChangeText={text => { if (/^\d*$/.test(text)) setDraft({...settings, match_rules:{...matchRules,[key]:Number(text)}}); }} style={styles.input}/></View>;
+          })}</>}
         </>}
       </>}
   </>;
+  if (onCloseConfig && !configOpen) return null;
+  const configTabs = <SettingsTabs selected={rulesTab} onSelect={setRulesTab} tabs={[{id:'rules',label:ui('common.custom_rules')},{id:'bets',label:ui('common.bet_values')}]} />;
+  if (configOpen) return <RoomSheet testID="callbreak-rules-config" visible title={ui('common.game_rules_config')} closeLabel={ui('common.close_game_rules_config')}
+    onClose={() => onCloseConfig?.()} scrollable={false} footer={ruleAction}>
+    {configTabs}<FormScrollView keyboardShouldPersistTaps="handled" style={{flex:1,minHeight:0}} contentContainerStyle={{padding:20,gap:12}}>{details}</FormScrollView>
+  </RoomSheet>;
   return <View testID={sidebar ? "game-details-sidebar" : "game-details-inline"} style={[styles.panel, sidebar && styles.sidebar, menu && styles.menu]}>
     <View style={[styles.row, menu && { flexDirection: 'column', alignItems: 'stretch', gap: 0 }]} accessibilityRole={sidebar ? 'tablist' : undefined}>{(menu ? ['rules'] as const : ["stats", "rules"] as const).map(value => <Pressable key={value} accessibilityRole={sidebar ? 'tab' : 'button'}
       accessibilityLabel={value === 'stats' ? ui("common.stats") : ui("common.game_rules_config")} aria-selected={sidebar ? selectedTab === value : undefined}
@@ -125,8 +140,8 @@ export function GameDetails({ snapshot, busy, onSave, sidebar = false, menu = fa
       <Text style={[styles.label, menu && styles.menuLabel]}>{value === 'stats' ? ui("common.stats") : ui("common.game_rules_config")}{sidebar ? '' : selectedTab === value ? ' -' : ' +'}</Text>
     </Pressable>)}</View>
     {selectedTab && (menu && selectedTab === 'rules'
-      ? <RoomSheet testID="callbreak-rules-config" visible title={ui("common.game_rules_config")} closeLabel={ui("common.close_game_rules_config")} onClose={() => setTab(null)} footer={ruleAction}>{details}</RoomSheet>
-      : <><FormScrollView keyboardShouldPersistTaps="handled" style={sidebar ? styles.sidebarDetails : styles.details} nestedScrollEnabled contentContainerStyle={{ gap: 12, paddingVertical: 12 }}>{details}</FormScrollView>{ruleAction}</>)}
+      ? <RoomSheet testID="callbreak-rules-config" visible title={ui("common.game_rules_config")} closeLabel={ui("common.close_game_rules_config")} onClose={() => setTab(null)} scrollable={false} footer={ruleAction}>{configTabs}<FormScrollView style={{flex:1,minHeight:0}} keyboardShouldPersistTaps="handled" contentContainerStyle={{padding:20,gap:12}}>{details}</FormScrollView></RoomSheet>
+      : <><FormScrollView keyboardShouldPersistTaps="handled" style={sidebar ? styles.sidebarDetails : styles.details} nestedScrollEnabled contentContainerStyle={{ gap: 12, paddingVertical: 12 }}>{selectedTab === 'rules' && configTabs}{details}</FormScrollView>{ruleAction}</>)}
 
   </View>;
 }

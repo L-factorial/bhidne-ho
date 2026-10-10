@@ -19,6 +19,35 @@
   checks pass. No production state changes yet.
 - Exact next step: push these release compatibility fixes, monitor all required
   CI gates, then verify one identical image and public health on both hosts.
+- Release follow-up: `3c4b40c` includes the compatibility fixes and `fe2e254`
+  corrects the original-UI gate's obsolete no-consent-at-signup assertion.
+  Final workflow was `38015621843`. User subsequently explicitly requested
+  direct deployment before GitHub finished. Canceled that still-testing workflow
+  and confirmed cancellation before manual activation to prevent a racing rollout.
+- Direct release completed on both hosts: revision
+  `fe2e25408eb4a75fe37deead683e64e38eabc816`, immutable image
+  `sha256:f71f32ba6dc3339c30918874de84acbeca9671bf5eae717e1a64fd6648a5d2be`.
+  Built committed backend source and a fresh production frontend using the
+  unchanged deployed dependency image; transferred the identical image with
+  archive checksum validation. Both preflights passed. Installed release receiver
+  hashes were verified, preserving locks, peer-health checks and guarded rollback.
+  Both backends became healthy before either matching frontend switched.
+- Verification: both hosts report identical revision/image and frontend index/JS
+  hashes. Public HTTPS health, APNs capability and exact frontend assets pass.
+  Local signup SQL checks pass all 20 cases; load-model checks pass all 12 cases;
+  development-console checks pass seven cases. Prior TypeScript and all 419 client
+  tests passed, and the fresh production export passes. Local Chrome verifies
+  unchecked/checked/revoked signup gating and the rules link at 390/1280px.
+- Limitation: GitHub's full native/backend suite was canceled while still running;
+  this release does not claim that unfinished gate passed. No migration, native
+  package release or production account/game writes were made for smoke checks.
+- Evidence: `/private/tmp/bhidne-fe2e254-direct/verification.json`,
+  `/private/tmp/bhidne-fe2e254-{production-build,direct-build,rollout}.log`,
+  `/private/tmp/bhidne-signup-rules-browser.log` and
+  `/private/tmp/bhidne-rules-release-signup.log`.
+- Updated exact next step: refresh the production web app and verify signup;
+  existing accounts without consent accept through Profile. Finish the full CI
+  gates separately; installed native apps need a new signed build for signup UI.
 
 ## 2026-10-09: Required community-rules acceptance at signup
 
@@ -8135,3 +8164,53 @@ implementation request before changing card rendering or Marriage turn behavior.
   notifications/pulse, rules, summary, hand overlays, dragging and invitation
   visibility with separate accounts. Observe the same-revision GitHub workflow
   independently; no further deployment is needed to make this release live.
+
+### 2026-10-09 — Profile, game configuration tabs and table fill (local only)
+
+- User explicitly expanded scope to the discussed UI/game-rule changes and
+  authorized implementation, with no push until separately requested. Existing
+  edits to this plan were preserved. No commit, push or deployment was performed.
+- Completed: Account / Information & Support / Notifications profile tabs;
+  single community-rules entry, separated account deletion, no Friends or card
+  themes in Profile. Create game card themes float over the form without
+  resizing it, with internal scrolling and selection dismissal.
+- Completed: Basic Game Rules / Game rules and bet config drawer labels, uniform
+  Call Break config row, and Custom rules / Bet values tabs for all three games.
+  One fixed proposal footer submits the whole shared draft, preserving edits
+  when switching tabs; existing locked/read-only and unanimous approval gates
+  remain enforced. Call Break defaults are placement payments 1/3/5/7 (last
+  value used only for five players); existing saved payments stay unchanged.
+- Marriage splits rule eligibility from scoring points/presets; its three table
+  cards align at their top edges with labels below. Call Break/Marriage fill the
+  play viewport, including waiting tables. Removed Call Break waiting/help text
+  below the waiting table and Marriage's empty 60-pixel status reservation.
+  Desktop Marriage reserves the actual collapsed hand height.
+- Flush custom editor exposes only side-show and multiplayer blind-show toggles
+  and conditional round thresholds. Both default enabled with three completed
+  betting rounds; minimum bet defaults 1 and blind-to-seen multiplier 2. Other
+  engine options remain stored/enforced but hidden in the simplified editor.
+- Flush blind shows with more than two players collect sequential reveal/fold
+  responses, maintain private cards until the respective reveal, and handle
+  off-turn departures. Trial Salami defaults zero, Ace Salami follows minimum
+  bet and replaces regular Trial. Every other original round participant pays
+  the revealed Trial winner; payment is capped at current blind bet. Separate
+  signed transfers preserve the pot and zero-sum ledger, are displayed in results,
+  and flow through existing local/durable finalization. Legacy checkpoints and
+  pending proposals recover with new rules/bonuses disabled rather than changing
+  previously agreed rules or debts. No database migration is required.
+- Verification: TypeScript, Expo web export and all 419 client tests passed.
+  Focused backend tests passed 238 cases with 13 optional SQL cases skipped.
+  Browser fixtures passed combined proposals/draft retention/fixed footer at
+  320/390/1280px for all games, locked configuration at 320/1280px, profile tabs
+  and card/ring regressions at 390/1280px, and table fill/Marriage label alignment
+  at 390/1280px. Create room and card-theme overlays preserve modal size at
+  390/1280px. Browser exports used explicit localhost API configuration.
+- Evidence: `/private/tmp/bhidne-tabs-{client,backend,web}.log`,
+  `/private/tmp/settings-tabs-*.png` and `/private/tmp/table-fill-*.png`.
+- Limitations: no physical native-device verification or production writes; the
+  skipped optional SQL cases are not claimed as passing. Existing exact-integer
+  Call Break custom-win payout constraints still apply to proposed payments.
+- Exact next step: review the local diff and try these flows on a native device.
+  Push only when the user explicitly requests it; any later release must include
+  the matching backend and client for the new Flush rules and transfers.
+  Capacity testing, observability, HA and operational work remain separate.

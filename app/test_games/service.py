@@ -85,7 +85,7 @@ class HostedGame:
     def __post_init__(self):
         if self.settings is None:
             review = self.game_type != 'callbreak' or self.capacity != 5
-            self.settings = {"weak_hand_enabled": review, "no_spades_enabled": review, "payments": [0, 0, 0, 0]}
+            self.settings = {"weak_hand_enabled": review, "no_spades_enabled": review, "payments": [1, 3, 5, 7]}
             if not review:
                 self.settings['minimum_face_card'] = 'ANY'
 
