@@ -19,8 +19,8 @@ export type TableView = {
     replacement_offer: { offer_id: string; seat_id: number; expires_at: number } | null };
 };
 
-export function TableControls({ table, members, userId, busy, act, start, formationBlocked = false, menuSection }: {
-  menuSection?: 'manage' | 'leave'; table: TableView; members: string[]; userId: string; busy: boolean; formationBlocked?: boolean;
+export function TableControls({ table, members, userId, busy, act, start, formationBlocked = false, starting = false, menuSection }: {
+  starting?: boolean; menuSection?: 'manage' | 'leave'; table: TableView; members: string[]; userId: string; busy: boolean; formationBlocked?: boolean;
   act: (command: string, payload?: object) => Promise<void>; start: () => Promise<void>;
 }) {
   useUiLanguage();
@@ -45,10 +45,9 @@ export function TableControls({ table, members, userId, busy, act, start, format
     <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
       {manage && me.can_queue && !me.can_join && button(ui("rooms.join_waitlist"), () => void act('join-queue'))}
       {manage && me.is_queued && button(ui("rooms.leave_waitlist"), () => void act('leave-queue'))}
-      {manage && table.requires_explicit_lock && table.phase === 'OPEN' && button(ui("rooms.lock_game"), () => void act('lock'), !me.can_lock || formationBlocked, true, true)}
-      {manage && table.requires_explicit_lock && table.phase === 'LOCKED' && button(ui("rooms.start_game"), () => void start(), !me.can_start || formationBlocked, true, true)}
+      {manage && (table.phase === 'OPEN' || table.phase === 'LOCKED') && me.is_seated && table.seated_players[0]?.seat_id === me.seat_id && button(ui(starting ? "rooms.starting_game" : "rooms.start_game"), () => void start(), !me.can_start || formationBlocked, true, true)}
       {leave && me.can_leave_seat && button(menuSection ? ui("rooms.leave_table") : ui("rooms.leave_seat"), () => void act('leave-seat'))}
-      {manage && me.can_next_match && button(ui("rooms.prepare_next_match"), () => void act('next-match'), false, true)}
+      {manage && me.can_next_match && button(ui(starting ? "rooms.starting_game" : "rooms.play_again"), () => void act('next-match'), table.seated_players.length < table.min_players || formationBlocked, true)}
       {leave && me.can_pause_match && button(ui('rooms.session_pause'), () => void act('pause-seat'))}
       {leave && me.can_abandon_match && button(menuSection ? ui("rooms.leave_table") : ui("rooms.abandon_match"), () => setAbandon(true))}
       {manage && me.can_invite_replacement && button(ui("rooms.invite_a_replacement"), () => setInvite(v => !v))}

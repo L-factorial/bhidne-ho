@@ -6,7 +6,7 @@ const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8108';
 const fixtures = process.env.FIXTURE_DIR || '/private/tmp/bhidne-stats-fixtures';
 const overlap = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 
-async function fixture(browser, kind, count, width, spectator = false, configure) {
+async function fixture(browser, kind, count, width, spectator = false, configure, messages = []) {
   const context = await browser.newContext({ viewport: { width, height: width === 320 ? 740 : width === 390 ? 844 : 900 }, reducedMotion: 'no-preference' });
   const page = await context.newPage(); page.setDefaultTimeout(12000);
   let snapshot = JSON.parse(fs.readFileSync(path.join(fixtures, `${kind}-${count}.json`)));
@@ -36,7 +36,8 @@ async function fixture(browser, kind, count, width, spectator = false, configure
     if (p === '/' || p.startsWith('/assets/') || p.startsWith('/_expo/') || p === '/favicon.ico') return route.continue();
     let body = [];
     if (request.method() !== 'GET') writes.push(p);
-    if (p === '/auth/me' || p === '/me/profile') body = { user_id: actor, display_name: actor, username: actor };
+    if (p === '/auth/safety/capabilities') body = {blocking:false,reporting:true};
+    else if (p === '/auth/me' || p === '/me/profile') body = { user_id: actor, display_name: actor, username: actor };
     else if (p === '/me/community-rules') body = { accepted: true, version: '2026-10-01', muted_until: null };
     else if (p === '/friends') body = { friends: [], incoming: [], outgoing: [], online_friend_ids: [] };
     else if (p === '/rooms') body = [room];
@@ -46,7 +47,7 @@ async function fixture(browser, kind, count, width, spectator = false, configure
   });
   await context.routeWebSocket(site.replace(/^http/,'ws') + '/**', ws => {
     ws.send(JSON.stringify({ type: 'CONNECTED' }));
-    ws.onMessage(raw => { const message = JSON.parse(raw); ws.send(JSON.stringify(message.type === 'HEARTBEAT' ? { type: 'HEARTBEAT_ACK' } : { type: 'TABLE_SOCIAL_ACK', room_id: 'room', match_id: snapshot.match_id, command_id: message.command_id, status: 'accepted', messages: [] })); });
+    ws.onMessage(raw => { const message = JSON.parse(raw); ws.send(JSON.stringify(message.type === 'HEARTBEAT' ? { type: 'HEARTBEAT_ACK' } : { type: 'TABLE_SOCIAL_ACK', room_id: 'room', match_id: snapshot.match_id, command_id: message.command_id, status: 'accepted', messages: messages.map(m=>({...m,room_id:'room',match_id:snapshot.match_id})) })); });
   });
   await page.goto(site);
   await page.getByRole('button', {name:/Return to table|Watch/}).first().click();

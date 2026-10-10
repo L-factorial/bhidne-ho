@@ -15,3 +15,13 @@ test('Dublee arrangement pairs three copies once and keeps the third with sorted
  assert.equal(groups.filter(g=>g.label==='Dublee').length,1);
  assert.deepEqual(groups.flatMap(g=>g.cards.map(c=>c.card_id)).sort(),hand.map(c=>c.card_id).sort());
 });
+
+test('both arrangements alternate black and red suit groups without losing copies',()=>{
+ for(const mode of ['sequence','dublee']) {
+  const hand=['D','C','H','S'].flatMap(suit=>[card(4,suit),card(4,suit,1),card(7,suit)]);
+  const groups=arrangeMarriageHand(hand,mode);
+  const ordered=groups.filter(g=>mode==='sequence'||g.label==='Dublee').map(g=>g.cards[0].suit);
+  assert.deepEqual(ordered,['S','H','C','D']);
+  assert.deepEqual(groups.flatMap(g=>g.cards.map(c=>c.card_id)).sort(),hand.map(c=>c.card_id).sort());
+ }
+});

@@ -34,9 +34,11 @@ def start_rejection(game, actor, payload, *, allow_finished_flush=False):
     if game.rule_proposal and game.rule_proposal['status'] == 'PENDING':
         return 'All seated players must accept the proposed rules before starting.'
     policy = GameTablePolicy.for_game(game.game_type, game.capacity)
-    required_phase = 'LOCKED' if policy.requires_explicit_lock else 'OPEN'
-    if game.table.phase != required_phase:
-        return 'Lock the roster before starting.' if policy.requires_explicit_lock else 'This roster is not open.'
+    allowed_phases = ('OPEN', 'LOCKED') if policy.requires_explicit_lock else ('OPEN',)
+    if game.table.phase not in allowed_phases:
+        return 'This roster is not open.'
+    if game.table.pending() or game.table.releases:
+        return 'Resolve seat transfers before starting.'
     if not policy.min_players <= len(game.users) <= policy.max_players:
         return 'Wait for enough players to take a seat.'
     if game.game_type == 'flush' and payload.rules_revision != game.flush_rules_revision:
@@ -81,6 +83,8 @@ def build_initial_engine(host, game, command_id):
     # The initial durable game uses the hosted match identity. Later Flush rounds
     # need a separate round identity contract and are not handled by this function.
     game.durable_game_id = UUID(game.match_id)
+    if game.table.phase == 'OPEN' and GameTablePolicy.for_game(game.game_type, game.capacity).requires_explicit_lock:
+        game.table.emit('GAME_LOCKED', match_id=game.match_id)
     game.table.phase = 'STARTED'
     game.table.emit('GAME_STARTED', match_id=game.match_id)
     return events

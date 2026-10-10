@@ -129,9 +129,7 @@ async def test_active_callbreak_never_promotes_on_navigation_disconnect_or_recon
 async def test_explicit_lock_then_start_freezes_roster_without_dealing(kind, players):
     host, game, life = await make(kind, 5, seated=players)
     try:
-        with pytest.raises(HTTPException) as error:
-            await host.start('r', 'u0', game.match_id, rules_revision=0)
-        assert error.value.detail['code'] == 'LOCK_REQUIRED'
+        assert game.table.view(game, 'u0')['current_user']['can_start']
         with pytest.raises(HTTPException):
             await cmd(host, game, 'u1', 'lock')
         for _ in range(2):
@@ -348,5 +346,22 @@ async def test_join_queue_and_room_departure_race_cannot_leave_orphaned_waiter(k
     try:
         await asyncio.gather(cmd(host, game, 'u8', 'join-queue'), life.leave('r', 'u8'), return_exceptions=True)
         assert 'u8' not in await host.rooms.members('r') and 'u8' not in game.table.queue
+    finally:
+        await host.close()
+
+@pytest.mark.parametrize('kind', ['callbreak', 'marriage', 'flush'])
+async def test_one_step_start_transfers_to_remaining_host_and_is_idempotent(kind):
+    host, game, life = await make(kind, 4, seated=4)
+    try:
+        await cmd(host, game, 'u0', 'leave-seat')
+        if kind == 'callbreak':
+            await host.join('r', 'u4', game.match_id)
+        assert not game.table.view(game, 'u2')['current_user']['can_start']
+        assert game.table.view(game, 'u1')['current_user']['can_start']
+        with pytest.raises(HTTPException):
+            await host.start('r', 'u2', game.match_id, rules_revision=0)
+        started = await host.start('r', 'u1', game.match_id, rules_revision=0)
+        assert started['table']['phase'] == 'STARTED'
+        assert (await host.start('r', 'u1', game.match_id, rules_revision=0))['game'] == started['game']
     finally:
         await host.close()

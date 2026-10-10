@@ -22,8 +22,8 @@ const categories = ['harassment','hate','sexual','spam','other'] as const;
 function failure(error: unknown) {
   return copy(error instanceof ApiError ? error.status === 403 ? 'denied' : error.status === 429 ? 'limited' : error.status === 409 ? 'conflict' : 'failed' : 'failed');
 }
-export function ReportButton({session,player,enabled,scope='player',messageId,renderTrigger}: {
-  session:Session;player:{user_id:string;display_name:string};enabled:boolean;scope?:'player'|'direct'|'chat';messageId?:string;renderTrigger?:(open:()=>void)=>ReactNode;
+export function ReportButton({session,player,enabled,scope='player',messageId,renderTrigger,menu = false}: {
+  session:Session;player:{user_id:string;display_name:string};enabled:boolean;scope?:'player'|'direct'|'chat';messageId?:string;renderTrigger?:(open:()=>void)=>ReactNode;menu?:boolean;
 }) {
   useUiLanguage();const {colors:c}=useTheme();
   const [open,setOpen]=useState(false),[busy,setBusy]=useState(false),[done,setDone]=useState(false),[error,setError]=useState('');
@@ -38,8 +38,8 @@ export function ReportButton({session,player,enabled,scope='player',messageId,re
   const launch=()=>{setOpen(true);setDone(false);setError('');};
   if(!allowed)return renderTrigger ? <>{renderTrigger(()=>{})}</> : null;
   return <>
-    {renderTrigger ? renderTrigger(launch) : scope==='player' ? <Button label={copy('report_player')} onPress={launch} /> : <ContextMenu label={ui('common.message_actions')}>{close=><MenuAction label={`🚩 ${copy('report_message')}`} onPress={()=>{close();launch();}} />}</ContextMenu>}
-    {open&&<RoomSheet visible presentation="dialog" title={copy(scope==='player'?'report_player':'report_message')} onClose={()=>{if(!busy)setOpen(false);}}>
+    {renderTrigger ? renderTrigger(launch) : scope==='player' && !menu ? <Button label={copy('report_player')} onPress={launch} /> : <ContextMenu label={ui('common.message_actions')}>{close=><MenuAction label={`🚩 ${copy(scope==='player'?'report_player':'report_message')}`} onPress={()=>{close();launch();}} />}</ContextMenu>}
+    {open&&<RoomSheet visible isolateKeyboard presentation="dialog" title={copy(scope==='player'?'report_player':'report_message')} onClose={()=>{if(!busy)setOpen(false);}}>
       <Copy>{player.display_name}</Copy>
       {done?<><Copy>{copy('submitted')}</Copy><Button label={copy('close')} onPress={()=>setOpen(false)} /></>:<>
         <Copy>{copy('private')}</Copy>

@@ -800,8 +800,8 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             if game.rule_proposal and game.rule_proposal['status'] == 'PENDING':
                 reject('RULE_APPROVAL_PENDING', 'All seated players must accept the proposed rules before starting.')
             policy = GameTablePolicy.for_game(game.game_type, game.capacity)
-            if policy.requires_explicit_lock and game.table.phase != 'LOCKED':
-                reject('LOCK_REQUIRED', 'Lock the roster before starting the game.')
+            if game.table.phase not in (('OPEN', 'LOCKED') if policy.requires_explicit_lock else ('OPEN',)):
+                reject('ROSTER_CLOSED', 'This roster is not open.')
             if not policy.min_players <= len(game.users) <= policy.max_players:
                 reject('NOT_ENOUGH_PLAYERS', 'Wait for enough players to take a seat.')
             if not set(game.users).issubset(await self.rooms.members(room_id)):

@@ -96,6 +96,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
   const [capacity, setCapacity] = useState<4|5>(4);
   const [selectedInvitees, setSelectedInvitees] = useState<InvitePlayer[]>([]);
   const [pendingAction, setBusy] = useState(false);
+  const [startingGame, setStartingGame] = useState(false);
   const [formationBlocked, setFormationBlocked] = useState(false);
   const base = `${apiUrl}/test-games/${encodeURIComponent(roomId)}`;
   const selectedMatch = useRef<string | undefined>(requestedMatchId);
@@ -336,18 +337,23 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
   async function lobbyAction(suffix: string, payload: object = {}) {
     if (!canSend.current || !snapshot || pending.current) return;
     pending.current = true; const version = ++generation.current; setBusy(true); setError('');
+    setStartingGame(suffix === '/start' || suffix === '/table/next-match');
     try {
-      const data = await api(suffix, { match_id: snapshot.match_id, ...payload });
+      let data = await api(suffix, { match_id: snapshot.match_id, ...payload });
+      if (suffix === "/table/next-match" && alive.current && generation.current === version) {
+        selectedMatch.current = data.match_id; snapshotRef.current = data; setSnapshot(data);
+        data = await api("/start", { match_id: data.match_id, play_mode: "manual", rules_revision: data.flush_settings?.rules_revision });
+      }
       if (alive.current && generation.current === version) {
         selectedMatch.current = data.match_id; setSnapshot(data);
         if (suffix === '/leave' || suffix === '/table/leave-seat' || suffix === '/table/abandon' || suffix === '/table/pause-seat') { setOpen(false); setLive(false); }
       }
     } catch (error) { if (alive.current && generation.current === version) setError(playerError(error, ui("feedback.could_not_update_game"))); }
-    finally { pending.current = false; if (alive.current) setBusy(false); }
+    finally { pending.current = false; if (alive.current) { setBusy(false); setStartingGame(false); } }
   }
   const endControl = canEnd
     ? <EndGameControl table={snapshot?.game_type === 'flush' || snapshot?.status === 'finished'} key={`end-${snapshot?.match_id}`} busy={busy} onEnd={() => lobbyAction('/end')} /> : null;
-  const lifecycleControl = snapshot?.table ? <TableControls menuSection="manage" table={snapshot.table} members={roomMembers} userId={userId} busy={busy} formationBlocked={formationBlocked}
+  const lifecycleControl = snapshot?.table ? <TableControls starting={startingGame} menuSection="manage" table={snapshot.table} members={roomMembers} userId={userId} busy={busy} formationBlocked={formationBlocked}
     act={(command, payload) => lobbyAction(`/table/${command}`, payload)}
     start={() => lobbyAction('/start', { play_mode: 'manual', rules_revision: snapshot.flush_settings?.rules_revision })} /> : null;
   const menuLeaveControl = snapshot?.table ? <TableControls menuSection="leave" table={snapshot.table} members={roomMembers} userId={userId} busy={busy}
@@ -440,16 +446,16 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
         backgroundColor: gameTheme.colors.background, paddingTop: insets.top, paddingBottom: insets.bottom,
         paddingLeft: insets.left, paddingRight: insets.right,
       }]}><View accessibilityViewIsModal testID="live-game-overlay" style={[styles.liveOverlay, (mobileGame || snapshot.game_type === 'flush') && !chat && { paddingBottom: 0 }]}>
-        {snapshot.game_type === 'flush' ? <FlushTable connectionReady={connected && synced} onLock={() => void lobbyAction('/table/lock')} tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onFormationBlocked={setFormationBlocked} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={uiLabel(error, 'feedback')}
+        {snapshot.game_type === 'flush' ? <FlushTable connectionReady={connected && synced} onLock={() => void lobbyAction('/table/lock')} tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onFormationBlocked={setFormationBlocked} key={snapshot.match_id} snapshot={{ ...(visibleSnapshot || snapshot), starting: startingGame }} busy={busy} error={uiLabel(error, 'feedback')}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: text => social.send(snapshot.match_id!, null, text) }}
           onSave={payload => lobbyAction('/flush-settings', payload)} onStart={rules_revision => lobbyAction('/start', { rules_revision })}
           onAction={gameAction} onBack={collapseGame} onNewGame={() => { setLive(false); setOpen(true); }} lobbyControl={<>{menuLeaveControl}{leaveControl}</>}
           endControl={canEnd ? <EndGameControl table compact busy={busy} onEnd={() => lobbyAction('/end')} /> : null} />
-        : snapshot.game_type === 'marriage' ? <MarriageTable tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onTableAction={command => void lobbyAction(`/table/${command}`)} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy} error={uiLabel(error, 'feedback')} lobbyControl={<>{menuLeaveControl}{leaveControl}</>} onSave={scoring => lobbyAction('/marriage-settings', { scoring })}
+        : snapshot.game_type === 'marriage' ? <MarriageTable tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onTableAction={command => void lobbyAction(`/table/${command}`)} key={snapshot.match_id} snapshot={{ ...(visibleSnapshot || snapshot), starting: startingGame }} busy={busy} error={uiLabel(error, 'feedback')} lobbyControl={<>{menuLeaveControl}{leaveControl}</>} onSave={scoring => lobbyAction('/marriage-settings', { scoring })}
           onAction={gameAction} onStart={() => lobbyAction('/start', { play_mode: 'manual' })} onBack={collapseGame}
           onNewGame={() => { setLive(false); setOpen(true); }} endControl={canEnd ? <EndGameControl table={snapshot.status === 'finished'} compact busy={busy} onEnd={() => lobbyAction('/end')} /> : null}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: (recipient, text) => social.send(snapshot.match_id!, recipient, text) }} />
-        : <LiveGameTable lobbyControl={<>{menuLeaveControl}{leaveControl}</>} tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onTableAction={command => void lobbyAction(`/table/${command}`)} endControl={canEnd ? <EndGameControl table={snapshot.status === 'finished'} compact busy={busy} onEnd={() => lobbyAction('/end')} /> : null} onNextDeal={() => lobbyAction('/next-deal', { deal_number: snapshot.round_review?.deal_number })} key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} busy={busy || !!autoPlay} error={uiLabel(error, 'feedback')} onAction={gameAction} onNewGame={() => { setCapacity(snapshot.capacity === 5 ? 5 : 4); setLive(false); setOpen(true); }} onStart={() => lobbyAction('/start', { play_mode: 'manual' })} onSave={settings => lobbyAction('/settings', settings)} onBack={collapseGame}
+        : <LiveGameTable lobbyControl={<>{menuLeaveControl}{leaveControl}</>} tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onTableAction={command => void lobbyAction(`/table/${command}`)} endControl={canEnd ? <EndGameControl table={snapshot.status === 'finished'} compact busy={busy} onEnd={() => lobbyAction('/end')} /> : null} onNextDeal={() => lobbyAction('/next-deal', { deal_number: snapshot.round_review?.deal_number })} key={snapshot.match_id} snapshot={{ ...(visibleSnapshot || snapshot), starting: startingGame }} busy={busy || !!autoPlay} error={uiLabel(error, 'feedback')} onAction={gameAction} onNewGame={() => { setCapacity(snapshot.capacity === 5 ? 5 : 4); setLive(false); setOpen(true); }} onStart={() => lobbyAction('/start', { play_mode: 'manual' })} onSave={settings => lobbyAction('/settings', settings)} onBack={collapseGame}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: (recipient, text) => social.send(snapshot.match_id!, recipient, text) }} />}
         <ScrollView testID="game-footer" style={[styles.gameFooter, mobileGame && { borderTopWidth: 0 }]} contentContainerStyle={{ gap: 4 }} nestedScrollEnabled>
           {snapshot.can_join && !snapshot.your_player_id && <View testID="in-game-invitation" style={[styles.invitation, { padding: 14, margin: 12, marginBottom: 0 }]}>
@@ -481,7 +487,7 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
       </View></KeyboardFrame></GameModalContent>}
     </GameModalRoot>
   </>;
-  return live && snapshot ? <TableCardThemeProvider id={snapshot.card_theme} canChange={snapshot.can_change_card_theme === true} pending={busy || !connected || !synced} select={theme => void lobbyAction('/card-theme', {card_theme:theme})}><TableSocialProvider key={snapshot.match_id} snapshot={visibleSnapshot || snapshot} channel={socialChannel} connected={connected} userId={userId} session={{user_id:userId,token}} pokes={pokes} phrases={personal.phrases} expanded={open} colors={gameTheme.colors}>{content}</TableSocialProvider></TableCardThemeProvider> : content;
+  return live && snapshot ? <TableCardThemeProvider id={snapshot.card_theme} canChange={snapshot.can_change_card_theme === true} pending={busy || !connected || !synced} select={theme => void lobbyAction('/card-theme', {card_theme:theme})}><TableSocialProvider key={snapshot.match_id} snapshot={{ ...(visibleSnapshot || snapshot), starting: startingGame }} channel={socialChannel} connected={connected} userId={userId} session={{user_id:userId,token}} pokes={pokes} phrases={personal.phrases} expanded={open} colors={gameTheme.colors}>{content}</TableSocialProvider></TableCardThemeProvider> : content;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   invitation: { backgroundColor: colors.surfaceSelected, borderWidth: 1, borderColor: colors.accent, borderRadius: 16, padding: 20, gap: 12, marginBottom: 20 },

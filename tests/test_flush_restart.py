@@ -143,12 +143,12 @@ async def test_restart_rollback_and_unknown_commit_do_not_duplicate_round_or_eve
         await host.close()
 
 
-@pytest.mark.parametrize('case', ['unlocked', 'actor', 'rules', 'payload', 'stale', 'missing_intent', 'expired'])
+@pytest.mark.parametrize('case', ['actor', 'rules', 'payload', 'stale', 'missing_intent', 'expired'])
 async def test_invalid_or_unsafe_restart_cannot_create_round(database, case):
     pool, store, fence, users = database
     host, game, inbox, lane, _, _, _ = await finished(database)
     try:
-        if case != 'unlocked': await table_action(database, game, inbox, lane, 'lock')
+        await table_action(database, game, inbox, lane, 'lock')
         _, before = await restore(store, game)
         body = dict(command_id=uuid4().hex, command='start', match_id=game.match_id,
                     expected_revision=before.checkpoint['data']['table_revision'], payload={'rules_revision': 0})
@@ -252,5 +252,23 @@ async def test_pending_old_round_request_rejects_after_restart_without_changing_
         assert (await inbox.enqueue(new_lane, actor, later)).outcome['status'] == 'rejected'
         with pytest.raises(DurableGameConflict, match='no longer'):
             await inbox.enqueue(old_lane, actor, {**later, 'command_id': uuid4().hex})
+    finally:
+        await host.close()
+
+async def test_restart_from_open_roster_without_separate_lock(database):
+    pool, store, fence, users = database
+    host, game, inbox, lane, _, _, _ = await finished(database)
+    try:
+        _, before = await restore(store, game)
+        assert before.checkpoint['data']['phase'] == 'OPEN'
+        body = dict(command_id=uuid4().hex, command='start', match_id=game.match_id,
+                    expected_revision=before.checkpoint['data']['table_revision'], payload={'rules_revision': 0})
+        await inbox.enqueue(lane, users[0], body)
+        result = await TableLaneExecutor(inbox).execute_one(lane, fence)
+        assert result.outcome['status'] == 'accepted'
+        after = await store.load(game.table.table_id)
+        assert after.checkpoint['data']['phase'] == 'STARTED'
+        assert (await pool.execute('SELECT count(*) FROM games')).rows == [(2,)]
+        assert (await inbox.enqueue(lane, users[0], body)).outcome == result.outcome
     finally:
         await host.close()

@@ -70,7 +70,7 @@ export function GameMenu({ snapshot, close, rules, rulesConfig, history, poke, c
     {section(ui("common.preferences"))}
     {row(ui("common.language"), () => setLanguage(language === 'en' ? 'ne' : 'en'), false, undefined, language === 'ne' ? 'नेपाली' : ui("common.english"), 'language-outline')}
     <View style={{ marginTop: 12, paddingTop: 8, borderTopWidth: 1, borderColor: colors.borderSubtle }}>
-      <View style={{ paddingTop: 8 }}>{ended ? <>{row(snapshot.game_type === 'flush' ? ui("rooms.end_table") : ui("rooms.end_game"), () => {}, true)}{row(ui("rooms.leave_table"), () => {}, true)}</> : <>{leaveControl}{endControl}</>}</View>
+      <View style={{ paddingTop: 8 }}>{ended ? <>{row(snapshot.game_type === 'flush' ? ui("rooms.end_table") : ui("rooms.end_game"), () => {}, true)}{row(ui("rooms.leave_table"), () => {}, true)}</> : <>{leaveControl}{endControl || row(ui("rooms.end_game"), () => {}, true, undefined, ui("rooms.only_creator_can_end"), "stop-circle-outline")}</>}</View>
     </View>
   </>;
 }

@@ -1,3 +1,4 @@
+import { KeyboardFocusBoundary } from './KeyboardFocusBoundary';
 import {AppText as Text} from './AppText';
 import { GameModal as Modal } from './GameModal';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -25,8 +26,10 @@ export function ContextMenu({label, children}: {label:string; children:ReactNode
       <Text style={{color:c.textMuted,fontSize:20,lineHeight:22}}>⋯</Text>
     </Pressable>
     <Modal transparent visible={!!position} animationType="none" onRequestClose={close} onShow={()=>{if(Platform.OS==='web')(menu.current as unknown as HTMLElement | null)?.querySelector<HTMLElement>('[role="button"]')?.focus();}}>
+      <KeyboardFocusBoundary enabled visible={!!position} label={label} onClose={close}>
       <Pressable accessibilityRole="button" accessibilityLabel={ui('common.close')} onPress={close} style={{position:'absolute',top:0,bottom:0,left:0,right:0}} />
       <View ref={menu} accessibilityViewIsModal onLayout={event=>setMenuHeight(event.nativeEvent.layout.height)} style={{position:'absolute',left:Math.max(8,Math.min((position?.x??0)-220,width-228)),top:Math.max(8,Math.min(position?.y??0,height-menuHeight-8)),width:220,padding:8,gap:4,backgroundColor:c.surface,borderWidth:1,borderColor:c.border,borderRadius: radii.medium,boxShadow:`0px 8px 24px ${c.shadow}`}}>{typeof children==='function'?children(close):children}</View>
+      </KeyboardFocusBoundary>
     </Modal>
   </>;
 }

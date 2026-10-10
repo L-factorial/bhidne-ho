@@ -43,7 +43,7 @@ export type RoomSnapshot = {
   room_id?: string; table_name?: string; path?: string;
   tables?: import('../multiplayer/tableNavigation').TableSummary[];
   can_create_new_game?: boolean; can_end_table?: boolean;
-  roster_open?: boolean;
+  roster_open?: boolean; starting?: boolean;
   table?: import('../components/TableControls').TableView;
   marriage_scoring?: import('../multiplayer/marriage').MarriageScoringRules;
   marriage_scoring_presets?: Record<string, import('../multiplayer/marriage').MarriageScoringRules>;

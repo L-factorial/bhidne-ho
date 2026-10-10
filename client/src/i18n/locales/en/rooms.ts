@@ -1,5 +1,12 @@
 // Editable English rooms copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "host": "the creator",
+  "play_again": "Play again",
+  "only_creator_can_end": "Only the creator can end the game.",
+  "starting_game": "Starting game…",
+  "waiting_for_creator_to_start": "Waiting for {{player}} to start.",
+  "waiting_for_more_players_one": "Waiting for {{count}} more player.",
+  "waiting_for_more_players": "Waiting for {{count}} more players.",
   "select_or_clear_invite_search": "Select a player from the results, or clear the search before continuing.",
   "invite_players": "Invite players",
   "send_invitations": "Send invitations",

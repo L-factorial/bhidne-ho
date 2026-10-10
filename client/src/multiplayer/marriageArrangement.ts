@@ -1,7 +1,7 @@
 import { ui, uiLabel } from '../i18n/copy.ts';
 import type { MarriageCard } from './marriage.ts';
 export type MarriageArrangement = 'sequence' | 'dublee';
-const suitOrder = ['S', 'C', 'H', 'D'];
+const suitOrder = ['S', 'H', 'C', 'D'];
 export function arrangeMarriageHand(hand: MarriageCard[], mode: MarriageArrangement) {
   const rank = (c: MarriageCard) => c.rank === 14 ? 1 : c.rank ?? 99;
   const sorted = [...hand].sort((a,b) => (a.card_type === 'man' ? 4 : suitOrder.indexOf(a.suit!)) - (b.card_type === 'man' ? 4 : suitOrder.indexOf(b.suit!))

@@ -8762,3 +8762,47 @@ implementation request before changing card rendering or Marriage turn behavior.
   verify adaptive layouts and two-account invitations, including a busy recipient
   leaving their seat before joining. Capacity/observability/database HA remain
   separate infrastructure work.
+
+## 2026-10-10 — Consistent chat actions and one-step game starts
+
+- User authorized the collected chat/start/end-menu/Marriage arrangement changes
+  across all games. Table chat now uses the same three-dot/flag report menu as
+  room/direct chat, including ephemeral messages that retain player-report scope.
+  Browser menus and report dialogs use keyboard focus isolation so they appear
+  above the chat's top-layer dialog and receive clicks. Native overlays retain
+  the existing shared game modal presentation.
+- Start game accepts an eligible OPEN roster and creates/reserves the engine in
+  the same durable transaction, freezing seats without a separate client Lock
+  players command. Explicit-lock compatibility remains for older clients. Host
+  authorization, minimum counts, rule approval/revisions, membership, pending
+  transfers, occupancy, fencing, rollback and same-ID recovery remain enforced.
+  Shared can_start now permits eligible OPEN rosters; legacy start follows suit.
+- Creator/first-seated host sees Start game and disabled minimum-player guidance;
+  other viewers see the named host-waiting cue in all games. Existing host
+  transfer on seat departure is verified. Initiator sees a spinner and Starting
+  game during the request. Other clients retain waiting until the atomic commit
+  publishes the started snapshot; no durable intermediate STARTING phase exists.
+- Play again restarts Flush directly. For Marriage/Call Break it prepares the next
+  roster then submits Start against the returned match identity. If the second
+  step is rejected, the new lobby remains available for retry. Controls prevent
+  repeated taps and gate play-again on the minimum roster. End permission remains
+  authoritative; unavailable menu action explains only the creator can end.
+- Marriage sequence/tunnela and Dublee arrangements order suits S/H/C/D, alternating
+  black/red while preserving pairing, Ace order and every physical card copy.
+  English/Nepali copy updated together.
+- Verification: 464 client tests, TypeScript and responsive browser cases pass.
+  All three games checked at 320/390/1280px for one-step start, pending/rejection
+  recovery, observer cues, disabled End and actual three-dot/report clicks.
+  Marriage/Call Break replay checks verify the new match reaches Start and
+  rejected starts leave a usable lobby. SQL initial-start suite: 19 passed;
+  Flush restart suite: 14 passed; formation/host-transfer suite: 30 passed.
+  Existing rematch SQL cases also passed in the initial combined run.
+- Evidence: `/private/tmp/bhidne-chat-start-{client,typecheck,browser,initial,
+  restart,formation,sql,production}.log`. Final production export verified.
+- Limitations: isolated browser/SQL checks, not physical iOS. No migration or
+  dependency change; no commit/push/deployment or signed native build performed
+  for this increment. Cross-client transient starting status would require a
+  separate server protocol; this change preserves atomic start publication.
+- Exact next step: review/release backend and client together, then verify the
+  start/host-transfer/report-menu/replay flows on tester devices. Capacity,
+  observability and database HA remain separate infrastructure work.

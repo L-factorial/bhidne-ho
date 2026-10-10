@@ -145,7 +145,7 @@ class TableState:
                 'can_queue': self.phase != 'ENDED' and not seated and user_id not in self.queue,
                 'can_lock': policy.requires_explicit_lock and open_ and host and valid and not rules_pending,
                 'can_start': host and valid and not rules_pending and not pending and not self.releases and
-                    (self.phase == 'LOCKED' if policy.requires_explicit_lock else open_),
+                    (self.phase in ('OPEN', 'LOCKED') if policy.requires_explicit_lock else open_),
                 'can_leave_seat': seated and self.phase in ('OPEN', 'COMPLETED', 'ENDED'),
                 'can_abandon_match': seated and self.phase == 'STARTED' and policy.supports_abandonment and not bool(game.session),
                 'can_pause_match': seated and self.phase == 'STARTED' and game.game_type == 'callbreak' and bool(game.session),

@@ -18,8 +18,6 @@ from test_game_lane_executor import command
 async def lobby(database, kind):
     pool, checkpoints, fence, users = database
     host, game = await host_game(users, kind, started=False)
-    if kind != 'callbreak':
-        await host.table_command('room', users[0], game.match_id, 'lock')
     await checkpoints.save(capture_checkpoint(game, table_revision=0), expected_revision=None, fence=fence)
     inbox = PostgresInboxStore(pool)
     lane = await inbox.ensure_lane(LaneTarget(kind='table', room_id='room', table_id=UUID(game.table.table_id)))
@@ -102,17 +100,23 @@ async def test_start_rejections_do_not_create_engines(database, failure):
         await host.close()
 
 
-async def test_start_requires_roster_lock(database):
+@pytest.mark.parametrize("kind", ["marriage", "flush"])
+async def test_start_automatically_locks_open_roster(database, kind):
     pool, checkpoints, fence, users = database
-    host, game = await host_game(users, 'marriage', started=False)
+    host, game = await host_game(users, kind, started=False)
     try:
         await checkpoints.save(capture_checkpoint(game, table_revision=0), expected_revision=None, fence=fence)
         inbox = PostgresInboxStore(pool)
         lane = await inbox.ensure_lane(LaneTarget(kind='table', room_id='room', table_id=UUID(game.table.table_id)))
-        body = {'command_id': 'start', 'command': 'start', 'match_id': game.match_id, 'expected_revision': 0, 'payload': {}}
+        body = {'command_id': 'start', 'command': 'start', 'match_id': game.match_id, 'expected_revision': 0, 'payload': {'rules_revision': 0} if kind == 'flush' else {}}
         await inbox.enqueue(lane, users[0], body)
         result = await TableLaneExecutor(inbox).execute_one(lane, fence)
-        assert result.outcome['status'] == 'rejected' and 'Lock' in result.outcome['detail']
+        assert result.outcome['status'] == 'accepted'
+        stored = await checkpoints.load(game.table.table_id)
+        assert stored.checkpoint['data']['phase'] == 'STARTED'
+        assert game.table.phase == 'OPEN'  # Detached commit never mutates the old host.
+        assert (await pool.execute('SELECT count(*) FROM active_game_players')).rows == [(len(game.users),)]
+        assert (await inbox.enqueue(lane, users[0], body)).outcome == result.outcome
     finally:
         await host.close()
 

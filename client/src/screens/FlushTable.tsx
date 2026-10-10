@@ -107,15 +107,15 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   const locking = snapshot.table?.phase === 'OPEN';
   const starting = snapshot.table?.phase === 'LOCKED';
   const formationDisabled = busy || dirty || stale || snapshot.rule_proposal?.status === 'PENDING'
-    || !(locking ? snapshot.table?.current_user.can_lock : snapshot.table?.current_user.can_start);
-  const centerLabel = starting ? ui("rooms.start_game") : ui("rooms.lock_players");
+    || !snapshot.table?.current_user.can_start;
+  const centerLabel = snapshot.starting ? ui("rooms.starting_game") : snapshot.flush?.public.status === "finished" ? ui("rooms.play_again") : ui("rooms.start_game");
   const formation = snapshot.status !== 'ended' && (locking || starting);
   const centerControl = formation ? <View style={{ backgroundColor: 'transparent', borderRadius: radii.large, padding: 12, gap: 8, alignItems: 'center', maxWidth: 220 }}>
     <Text style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 15, textAlign: 'center' }}>{starting ? ui("rooms.players_locked") : ui("rooms.waiting_for_players")}</Text>
     <Text style={{ color: colors.textMuted, fontSize: 12 }}>{ui("rooms.seated_of_capacity_seated", { "seated": snapshot.players?.length || 0, "capacity": snapshot.table?.max_players || snapshot.capacity })}</Text>
-    {snapshot.is_creator ? <FloatingTableAction testID="flush-center-start" label={centerLabel}
-      disabled={formationDisabled} onPress={() => locking ? onLock() : onStart(baseRevision)} /> : <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: 12 }}>{ui("rooms.waiting_for_the_host")}</Text>}
-    {(snapshot.players?.length || 0) < (snapshot.table?.min_players || 2) && <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: 11 }}>{ui("rooms.need_at_least_count_players", { "count": snapshot.table?.min_players || 2 })}</Text>}
+    {snapshot.is_creator ? <FloatingTableAction testID="flush-center-start" label={centerLabel} loading={snapshot.starting}
+      disabled={formationDisabled} onPress={() => onStart(baseRevision)} /> : <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: 12 }}>{ui("rooms.waiting_for_creator_to_start", { player: snapshot.players?.[0]?.display_name || ui("rooms.host") })}</Text>}
+    {(snapshot.players?.length || 0) < (snapshot.table?.min_players || 2) && <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: 11 }}>{ui("rooms.waiting_for_more_players", { "count": (snapshot.table?.min_players || 2) - (snapshot.players?.length || 0) })}</Text>}
     {formationDisabled && (snapshot.players?.length || 0) >= (snapshot.table?.min_players || 2) && <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: 11 }}>{dirty || stale ? ui("common.save_or_reload_rule_changes_first") : snapshot.rule_proposal?.status === 'PENDING' ? ui("rooms.waiting_for_rule_approval") : ui("rooms.waiting_for_eligible_players")}</Text>}
   </View> : null;
   const [finalShowOpen, setFinalShowOpen] = useState(false);
@@ -206,7 +206,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
         contentContainerStyle={s.playArea}>
         <FlushArena key={`${snapshot.match_id}:${pub?.round_number || 0}`} snapshot={snapshot}
           centerControl={ended ? endedNotice : centerControl || preparationControl || (!snapshot.table && snapshot.status === 'waiting'
-            ? snapshot.is_creator ? <FlushLockButton onPress={() => onStart(baseRevision)} disabled={busy || !snapshot.ready || dirty || stale} />
+            ? snapshot.is_creator ? <FlushLockButton loading={snapshot.starting} onPress={() => onStart(baseRevision)} disabled={busy || !snapshot.ready || dirty || stale} />
               : <Text style={s.text}>{ui("flush.waiting_for_the_creator_to_lock_the_table")}</Text> : undefined)}
           height={arenaHeight} />
       </ScrollView>

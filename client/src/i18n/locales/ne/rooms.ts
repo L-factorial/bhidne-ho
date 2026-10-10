@@ -1,5 +1,12 @@
 // Editable Nepali rooms copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "host": "खेल बनाउने",
+  "play_again": "फेरि खेल्ने",
+  "only_creator_can_end": "खेल बनाउनेले मात्र खेल अन्त्य गर्न सक्छ।",
+  "starting_game": "खेल सुरु हुँदैछ…",
+  "waiting_for_creator_to_start": "{{player}} ले सुरु गर्ने प्रतीक्षा।",
+  "waiting_for_more_players_one": "थप {{count}} खेलाडीको प्रतीक्षा।",
+  "waiting_for_more_players": "थप {{count}} खेलाडीको प्रतीक्षा।",
   "select_or_clear_invite_search": "खोजीको नतिजाबाट खेलाडी छान्नुहोस्, वा अघि बढ्न खोजी खाली गर्नुहोस्।",
   "invite_players": "खेलाडी बोलाउनुहोस्",
   "send_invitations": "निमन्त्रणा पठाउनुहोस्",

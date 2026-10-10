@@ -1,11 +1,11 @@
 import {AppText as Text} from './AppText';
 import { useEffect, useRef, useState } from 'react';
-import {AccessibilityInfo, Animated, Pressable} from 'react-native';
+import {AccessibilityInfo, ActivityIndicator, Animated, Pressable} from 'react-native';
 import { visualStates, fonts, gameButtonStyle, useTheme } from '../theme';
 
 /** Visual emphasis only. Eligibility and commands remain owned by each game. */
-export function FloatingTableAction({ label, disabled = false, onPress, testID }: {
-  label: string; disabled?: boolean; onPress: () => void; testID?: string;
+export function FloatingTableAction({ label, disabled = false, onPress, testID, loading = false }: {
+  label: string; disabled?: boolean; onPress: () => void; testID?: string; loading?: boolean;
 }) {
   const { colors } = useTheme();
   const pulse = useRef(new Animated.Value(0)).current;
@@ -29,8 +29,9 @@ export function FloatingTableAction({ label, disabled = false, onPress, testID }
   }, [disabled, reduceMotion, pulse]);
   return <Animated.View testID="floating-table-action" style={{ maxWidth: '100%', marginVertical: 5, transform: [{ translateY: pulse.interpolate({ inputRange: [0, 1], outputRange: [0, -3] }) }, { scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }) }] }}>
     {!disabled && <Animated.View pointerEvents="none" style={{ position: 'absolute', top: -5, bottom: -5, left: -5, right: -5, borderRadius: 15, borderWidth: 2, borderColor: colors.attention, opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.2, 0.7] }) }} />}
-    <Pressable testID={testID} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
+    <Pressable testID={testID} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled, busy: loading }} disabled={disabled} onPress={onPress}
       style={({ pressed }) => ({ ...gameButtonStyle(colors, 'primary', pressed), minHeight: 50, minWidth: 120, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center', opacity: disabled ? visualStates.disabledOpacity : 1, boxShadow: `0px 5px 12px ${colors.shadow}` })}>
+      {loading && <ActivityIndicator color={colors.onPrimary} />}
       <Text testID="action-cue" style={{ color: colors.onPrimary, fontFamily: fonts.medium, fontSize: 16, textAlign: 'center' }}>{label}</Text>
     </Pressable>
   </Animated.View>;
