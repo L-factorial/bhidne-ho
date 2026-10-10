@@ -8806,3 +8806,26 @@ implementation request before changing card rendering or Marriage turn behavior.
 - Exact next step: review/release backend and client together, then verify the
   start/host-transfer/report-menu/replay flows on tester devices. Capacity,
   observability and database HA remain separate infrastructure work.
+
+## 2026-10-10 — Direct chat/start UI production release
+
+- User requested direct server deployment of the verified increment. Committed
+  and pushed `858adf9416dfa3f727aefe4a9b597854c8bd631f` with CI skipped; exact
+  revision production-workflow check confirmed no competing GitHub rollout.
+- Fresh production web export passed. Built and transferred one immutable image
+  to both app hosts:
+  `sha256:93ee8830d41834812db101b2223f1758f2096f4d8039d0723f24eeac0e84c97a`.
+  Installed receiver hashes matched, both preflights passed, and sequential
+  backend/frontend activation retained locks, peer-health and rollback safeguards.
+- Verification: both hosts run the exact revision/image, report healthy and APNs
+  capability, and serve matching frontend index/JS bytes. Public HTTPS API health,
+  APNs capability and exact frontend assets passed. Evidence:
+  `/private/tmp/bhidne-858adf9-{production-build,direct-build,rollout}.log`,
+  `/private/tmp/bhidne-858adf9-direct/verification.json` and
+  `/private/tmp/bhidne-858adf9-cancellation.json`.
+- Limitations: installed iOS clients need a new signed build for the UI changes;
+  server/web rollout does not replace the native bundle. Physical-device checks
+  and cross-client transient-start limitations remain as documented above.
+- Exact next step: include these client changes in the next signed iOS build and
+  verify chat reporting, start/replay, host transfer and Marriage grouping on
+  tester devices. Capacity/observability/database HA remain separate work.
