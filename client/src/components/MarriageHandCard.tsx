@@ -5,8 +5,10 @@ import {Animated, PanResponder, Pressable, type StyleProp, type View, type ViewS
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 /** A drag takes over only after movement, leaving ordinary card taps intact. */
-export function MarriageHandCard({id, disabled, dragDisabled, selected, label, hint, style, children, register, onPress, onDragChange, onDrop, wrapperStyle, testID, pressDisabled = disabled, onHoverIn, onHoverOut, arcAngle}: {
+export function MarriageHandCard({id, disabled, dragDisabled, selected, label, hint, style, children, register, onPress, onDragChange, onDrop, wrapperStyle, testID, pressDisabled = disabled, allowDisabledDrag = false, onHoverIn, onHoverOut, arcAngle}: {
   arcAngle?:number;
+  // Keep the gesture surface interactive while independently guarding card taps.
+  allowDisabledDrag?:boolean;
   onHoverIn?:()=>void; onHoverOut?:()=>void;
   wrapperStyle?:StyleProp<ViewStyle>; testID?:string; pressDisabled?:boolean;
   id:string; disabled:boolean; dragDisabled:boolean; selected:boolean; label:string; hint?:string;
@@ -50,8 +52,8 @@ export function MarriageHandCard({id, disabled, dragDisabled, selected, label, h
     zIndex:dragging?10:0,transform:position.getTranslateTransform(),opacity:dragging?0.8:1}]}>
     <AnimatedPressable ref={node=>register(id,node as View | null)} testID={testID || `marriage-hand-card-${id}`} accessibilityRole="button"
       accessibilityLabel={label} accessibilityHint={hint} aria-pressed={selected}
-      accessibilityState={{selected,disabled:pressDisabled}} disabled={pressDisabled} onHoverIn={onHoverIn} onHoverOut={onHoverOut}
-      onPress={()=>{if(Date.now()>suppressedUntil.current)latest.current.onPress();}} style={[style,arcAngle!==undefined&&{transformOrigin:'bottom center',transform:[{rotate:rotation.interpolate({inputRange:[-90,90],outputRange:['-90deg','90deg']})}]}]}>
+      accessibilityState={{selected,disabled:pressDisabled && !allowDisabledDrag}} disabled={pressDisabled && !allowDisabledDrag} onHoverIn={onHoverIn} onHoverOut={onHoverOut}
+      onPress={()=>{if(!pressDisabled && Date.now()>suppressedUntil.current)latest.current.onPress();}} style={[style,arcAngle!==undefined&&{transformOrigin:'bottom center',transform:[{rotate:rotation.interpolate({inputRange:[-90,90],outputRange:['-90deg','90deg']})}]}]}>
       {children}
     </AnimatedPressable>
   </Animated.View>;

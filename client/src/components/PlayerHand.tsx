@@ -108,13 +108,12 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
       {cards.map(card => {
         const suit = suitOf(card), faceUp = isRevealed(card), enabled = faceUp && canPlay && legalCards.includes(card);
         return <MarriageHandCard key={card} id={card} testID={`callbreak-hand-card-${card}`} register={registerCard} onDragChange={dragChanged} onDrop={(id, x, y) => void dropCard(id, x, y)}
-          wrapperStyle={{ width: 56, height: 66, paddingTop: 0 }} disabled={false} dragDisabled={revealing} pressDisabled={!enabled} selected={selectedCard === card}
+          wrapperStyle={{ width: 56, height: 80, paddingTop: 0 }} allowDisabledDrag disabled={false} dragDisabled={revealing} pressDisabled={!enabled} selected={selectedCard === card}
           onHoverIn={() => { if (enabled) setHovered(card); }} onHoverOut={() => setHovered(null)}
           label={ui("common.select_card", { card })} hint={ui("common.drag_card_to_reorder")}
           onPress={() => { if (enabled) selectCard(card); }} style={[styles.gridCard, enabled && hovered === card && { transform: [{ translateY: -4 }] }, enabled && styles.legal, selectedCard === card && styles.chosenGrid, faceUp && canPlay && !enabled && { opacity: visualStates.disabledOpacity }]}>
           {faceUp ? <>
-          <Text style={[styles.gridRank, /[HD]/.test(suit) && styles.red, suit === 'C' && styles.club]}>{card.slice(0, -1)}{suits[suit]}</Text>
-          <Text style={[styles.suitName, /[HD]/.test(suit) && styles.red, suit === 'C' && styles.club]}>{uiLabel(suitNames[suit])}</Text>
+          <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.gridRank, /[HD]/.test(suit) && styles.red, suit === 'C' && styles.club]}>{card.slice(0, -1)}{suits[suit]}</Text>
           </> : <CardBack />}
         </MarriageHandCard>;
       })}
@@ -129,7 +128,7 @@ export function PlayerHand({ hand, legalCards, canPlay, onPlay, view = 'fan', on
           const red = /[HD]$/.test(card), club = suitOf(card) === 'C';
           return <MarriageHandCard key={card} id={card} testID={`callbreak-hand-card-${card}`} register={registerCard} onDragChange={dragChanged} onDrop={(id, x, y) => void dropCard(id, x, y)}
             arcAngle={angle} onHoverIn={() => { if (enabled) setHovered(card); }} onHoverOut={() => setHovered(null)}
-            disabled={false} dragDisabled={revealing} pressDisabled={!revealing && !enabled} selected={selectedCard === card}
+            allowDisabledDrag disabled={false} dragDisabled={revealing} pressDisabled={!revealing && !enabled} selected={selectedCard === card}
             label={revealing ? ui("common.reveal_next_card_from_position_position", { position: index + 1 }) : ui("common.select_card", { card })}
             hint={revealing ? (faceUp ? ui("common.reveal_card_hint", {card}) : ui("common.reveal_next_hint")) : ui("common.drag_card_to_reorder")}
             onPress={() => { if (revealing) revealNext(); else if (enabled) selectCard(card); }}
@@ -189,8 +188,8 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   cardBack: { backgroundColor: colors.cardBack, borderColor: colors.cardBorder },
   backMark: { color: colors.accent, fontSize: 25, fontWeight: 'bold' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingVertical: 8, justifyContent: 'center' },
-  gridCard: { width: 56, minHeight: 60, borderRadius: radii.medium, borderWidth: 2, borderColor: colors.cardBorder, backgroundColor: colors.cardFace, alignItems: 'center', justifyContent: 'center', padding: 4 },
-  gridRank: { fontFamily: fonts.medium, fontSize: 21, color: colors.cardInk }, suitName: { fontFamily: fonts.body, fontSize: 9, color: colors.cardInk },
+  gridCard: { width: 56, height: 80, borderRadius: radii.medium, borderWidth: 2, borderColor: colors.cardBorder, backgroundColor: colors.cardFace, alignItems: 'center', justifyContent: 'center', padding: 4 },
+  gridRank: { fontFamily: fonts.medium, fontSize: 21, color: colors.cardInk },
   selector: { flexDirection: 'row', gap: 4, marginTop: 6 }, option: { flex: 1, alignItems: 'center', justifyContent: 'center', ...gameButtonStyle(colors) },
   selected: { backgroundColor: colors.surfaceSelected, borderColor: colors.accent }, optionText: { fontFamily: fonts.medium, color: colors.onTableHeader, fontSize: 12 },
   empty: { color: colors.text, fontFamily: fonts.body, fontSize: 12, padding: 8 },
