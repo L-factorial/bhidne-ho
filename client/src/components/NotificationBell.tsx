@@ -2,7 +2,7 @@ import {AppText as Text} from './AppText';
 import { playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions} from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { request } from '../multiplayer/api';
@@ -28,8 +28,11 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
   const [tableInvitations, setTableInvitations] = useState<TableInvitation[]>([]);
   const [roomInvitations, setRoomInvitations] = useState<RoomInvitation[]>([]);
   const [error, setError] = useState('');
+  const refreshVersion = useRef(0);
+  const [clearing, setClearing] = useState(false);
 
   async function refresh(signal?: AbortSignal) {
+    const version = refreshVersion.current;
     try {
       const [value, friends, invitations, rooms] = await Promise.all([
         request<Notification[]>('/notifications', session, undefined, signal),
@@ -39,7 +42,7 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
       ]);
       const requests = friends.incoming.map(actor => ({ id: `request:${actor.user_id}`, kind: 'friend_request' as const,
         actor, created_at: Date.now(), read: false }));
-      if (!signal?.aborted) { setItems([...requests, ...value]); setTableInvitations(invitations); setRoomInvitations(rooms); setError(''); }
+      if (!signal?.aborted && version === refreshVersion.current) { setItems([...requests, ...value.filter(item => !item.read && item.kind !== 'friend_request')]); setTableInvitations(invitations); setRoomInvitations(rooms); setError(''); }
     } catch (failure) {
       if (!signal?.aborted) setError(playerError(failure, ui("feedback.could_not_load_notifications")));
     }
@@ -53,10 +56,16 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
   }, [session.token]);
 
   async function markAllRead() {
+    if (clearing) return;
+    setClearing(true);
+    refreshVersion.current++;
     try {
       await request('/notifications/read', session, {});
-      setItems(current => current.map(item => ({ ...item, read: true })));
+      refreshVersion.current++;
+      setItems(current => current.filter(item => item.kind === 'friend_request'));
+      setError('');
     } catch (failure) { setError(playerError(failure, ui("feedback.could_not_update_notifications"))); }
+    finally { setClearing(false); }
   }
   async function answerRequest(player: Player, accept: boolean) {
     try {
@@ -80,6 +89,8 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
       if (accept) { setOpen(false); onOpenRoom?.(invitation); }
     } catch (failure) { setError(playerError(failure, ui("feedback.could_not_update_the_room_invitation"))); }
   }
+  const clearable = items.some(item => item.kind !== 'friend_request');
+  const pending = items.some(item => item.kind === 'friend_request') || !!tableInvitations.length || !!roomInvitations.length;
   const unread = items.filter(item => !item.read).length + tableInvitations.length + roomInvitations.length;
   return <>
     <Pressable accessibilityRole="button" accessibilityLabel={`Notifications${unread ? `, ${unread} unread` : ''}`}
@@ -96,7 +107,8 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
             <View><Text accessibilityRole="header" style={styles.title}>{ui("common.notifications")}</Text><Text style={styles.detail}>{ui("social.requests_and_social_updates")}</Text></View>
             <Pressable accessibilityRole="button" accessibilityLabel={ui("common.close_notifications")} onPress={() => setOpen(false)} style={styles.close}><Text style={styles.link}>{ui("common.close")}</Text></Pressable>
           </View>
-          {!!unread && <Pressable accessibilityRole="button" onPress={() => void markAllRead()} style={styles.markRead}><Text style={styles.link}>{ui("common.mark_all_as_read")}</Text></Pressable>}
+          {clearable && <View style={{flexDirection:'row',flexWrap:'wrap',justifyContent:'flex-end',gap:16}}><Pressable disabled={clearing} accessibilityRole="button" onPress={() => void markAllRead()} style={styles.markRead}><Text style={styles.link}>{ui("common.mark_all_as_read")}</Text></Pressable><Pressable accessibilityRole="button" disabled={clearing} onPress={() => void markAllRead()} style={styles.markRead}><Text style={styles.link}>{ui("common.clear_notifications")}</Text></Pressable></View>}
+          {pending && <Text style={styles.detail}>{ui("common.pending_notifications_help")}</Text>}
           <ScrollView style={styles.list}>
             {!items.length && !tableInvitations.length && !roomInvitations.length && <View style={styles.empty}><Text style={styles.name}>{ui("common.you_re_all_caught_up")}</Text><Text style={styles.detail}>{ui("social.friend_and_room_activity_will_appear_here")}</Text></View>}
             {roomInvitations.map(invitation => <View key={invitation.id} style={[styles.notice, styles.unread]}>

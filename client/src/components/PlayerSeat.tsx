@@ -63,6 +63,6 @@ export function PlayerSeat({ name, mine = false, active = false, connected = tru
     {!statusRows && (!!presenceLabel||dealer||(!active && !!status))&&<Text numberOfLines={1} style={{ backgroundColor: active ? colors.turnSurface : colors.surface, paddingHorizontal: 5, borderRadius: 5, color: active ? colors.turnText : colors.textMuted, fontFamily: fonts.medium, fontSize: compact ? 8 : active && mine ? 9 : 10 }}>
       {presenceLabel ? presenceLabel : dealer ? ui("common.dealer") : uiLabel(status || '')}
     </Text>}
-    {!statusRows && (active || mine || !!presenceLabel || dealer) && !!status && <Text numberOfLines={1} style={{ backgroundColor: colors.surface, paddingHorizontal: 5, borderRadius: 5, color: colors.textMuted, fontSize: 10 }}>{connected === false && active ? ui("common.offline_player", { "player": uiLabel(status || '') }) : uiLabel(status || '')}</Text>}
+    {!statusRows && (active || !!presenceLabel || dealer) && !!status && <Text numberOfLines={1} style={{ backgroundColor: colors.surface, paddingHorizontal: 5, borderRadius: 5, color: colors.textMuted, fontSize: 10 }}>{connected === false && active ? ui("common.offline_player", { "player": uiLabel(status || '') }) : uiLabel(status || '')}</Text>}
   </Pressable>;
 }

@@ -130,6 +130,8 @@ export default {
   "recent_activity": "पछिल्लो गतिविधि",
   "recent_game_activity": "खेलका पछिल्ला गतिविधि",
   "notifications": "सूचनाहरू",
+  "clear_notifications": "सूचनाहरू हटाउनुहोस्",
+  "pending_notifications_help": "पढिएका सूचनाहरू हटाइन्छन्। अनुरोध र निमन्त्रणाहरू जवाफ नदिएसम्म रहन्छन्।",
   "mark_all_as_read": "सबै पढिएको बनाउने",
   "no_activity_yet": "अहिलेसम्म कुनै गतिविधि छैन।",
   "you_re_all_caught_up": "सबै सूचना हेरिसक्नुभयो",

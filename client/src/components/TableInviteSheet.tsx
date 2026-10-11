@@ -1,6 +1,7 @@
 import {useRef,useState} from 'react';
 import {ActivityIndicator,Pressable,View} from 'react-native';
 import {AppText as Text} from './AppText';
+import {CommunityRulesEntry} from './moderation/CommunityRules';
 import {RoomSheet} from './RoomSheet';
 import {FormInput} from './FormInput';
 import {useInviteSuggestions} from '../multiplayer/useInviteSuggestions';
@@ -42,6 +43,7 @@ export function TableInviteSheet({session,roomId,matchId,visible,onClose}:{sessi
     {suggestions.searching&&<ActivityIndicator color={c.accent}/>}
     {!suggestions.searching&&query.trim().length>=3&&!suggestions.players.length&&!suggestions.error&&<Text style={text}>{ui('rooms.no_matching_players')}</Text>}
     {query.trim().length<3&&<Text style={{...text,color:c.textMuted}}>{ui('rooms.select_invite_player_help')}</Text>}
+    {error===ui('feedback.community_rules_required')&&<CommunityRulesEntry session={session} onAccepted={()=>setError('')}/>}
     {!!(error||suggestions.error)&&<Text accessibilityRole="alert" style={{color:c.danger}}>{error||suggestions.error}</Text>}
     {sent&&<Text accessibilityLiveRegion="polite" style={{color:c.success}}>{ui('rooms.invitations_sent')}</Text>}
   </RoomSheet>;

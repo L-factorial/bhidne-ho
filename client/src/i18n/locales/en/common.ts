@@ -130,6 +130,8 @@ export default {
   "recent_activity": "Recent activity",
   "recent_game_activity": "Recent game activity",
   "notifications": "Notifications",
+  "clear_notifications": "Clear notifications",
+  "pending_notifications_help": "Read notifications are cleared. Requests and invitations stay until you respond.",
   "mark_all_as_read": "Mark all as read",
   "no_activity_yet": "No activity yet.",
   "you_re_all_caught_up": "You’re all caught up",
