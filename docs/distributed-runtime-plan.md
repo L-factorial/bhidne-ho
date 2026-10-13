@@ -9756,3 +9756,17 @@ implementation request before changing card rendering or Marriage turn behavior.
 - Exact next step: deploy the matching client/server release with migration 43,
   shared recovery-mail encryption keys and no explicit disabling flag, then
   validate deletion on a disposable account through its real email link.
+
+### Production deployment requested
+
+- User authorized server deployment of the committed pre-release changes.
+  Corrected the stale player-search test expectation to include the existing
+  avatar_url field; all four player tests and diff checks pass. No product
+  behavior was changed for this correction.
+- Deployment target: bhidne-ho-scalability-prod, both production app hosts,
+  matching backend/frontend image and migration 43. Use the constrained release
+  receiver and retain existing database/environment safeguards.
+- Initial check: public health is healthy and deletion is currently disabled.
+  Administrator SSH keys are rejected; the dedicated release key authenticates.
+  Exact next step: publish the corrected release, monitor the production workflow,
+  then verify both hosts and public endpoints before recording deployment complete.

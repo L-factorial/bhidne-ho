@@ -24,7 +24,7 @@ def test_player_search_friend_request_acceptance_and_removal():
         with patch.object(client.app.state.players.store, 'search',
                           side_effect=AssertionError('autocomplete must not query storage')):
             results = client.get('/players/search?q=bob', headers=ah).json()
-        assert results == [{'user_id': bob['user_id'], 'display_name': 'Bob Buddy', 'username': 'bob-friends'}]
+        assert results == [{'user_id': bob['user_id'], 'display_name': 'Bob Buddy', 'username': 'bob-friends', 'avatar_url': None}]
         assert client.get('/players/search?q=alice', headers=ah).json() == []
         exact = client.get(f"/players/{bob['user_id']}", headers=ah)
         assert exact.status_code == 200 and exact.json() == results[0]
