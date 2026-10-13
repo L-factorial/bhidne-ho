@@ -40,8 +40,15 @@ require('node:fs').mkdirSync(output,{recursive:true});
    const reveal=f.page.getByRole('button',{name:'Reveal cards',exact:true});if(await reveal.count())await reveal.click();
    const shown=f.page.getByRole('button',{name:'View shown sequence',exact:true});await shown.waitFor();
    const eligibility=f.page.getByTestId('marriage-win-eligibility');await eligibility.waitFor();
-   const a=await shown.boundingBox(),b=await eligibility.boundingBox();assert.ok(a.x+a.width<=b.x+1);assert.ok(Math.abs(a.y-b.y)<12);
+   const a=await shown.boundingBox(),b=await eligibility.boundingBox();assert.ok(a.x+a.width<=b.x+1);assert.ok(Math.abs(a.y-b.y)<1);assert.ok(Math.abs(a.height-b.height)<1,'Marriage controls must have equal heights');
+   const eligible=eligibility.getByRole('button',{name:'Marriage eligible',exact:true});assert.equal(await eligible.isDisabled(),true);
+   assert.equal(await eligibility.getByText('Marriage not eligible',{exact:true}).count(),0);
    if(width===390)await f.page.screenshot({path:`${output}/marriage-button-row.png`});
+   if(width===320){
+    await f.page.addStyleTag({content:'[data-testid="marriage-hand-controls"] [dir="auto"] {font-size:20px !important;line-height:29px !important}'});
+    const largeA=await shown.boundingBox(),largeB=await eligibility.boundingBox();assert.ok(Math.abs(largeA.height-largeB.height)<1,'larger text must retain equal heights');
+    assert.ok(largeA.height>=a.height,'controls grow for larger text');
+   }
    assert.deepEqual(f.errors,[]);await f.context.close();
   }
   for(const width of widths){

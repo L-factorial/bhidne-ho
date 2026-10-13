@@ -9315,3 +9315,85 @@ implementation request before changing card rendering or Marriage turn behavior.
 - Exact next step: review and release the matching pending server/client changes,
   applying avatar migration 42 and producing a native build with bundled avatars.
   Keep the deferred social-login and Game summary work outside that release.
+
+### Nepali scenery themes and equal Marriage controls — approved design implementation
+
+- Replaced the three display names with Chitwan Hariyali / Patan Sampada /
+  Himali Raat and added English/Nepali descriptions. Kept the existing classic /
+  heritage / dusk preference IDs, device storage and palettes so saved choices
+  continue to work. Charcoal Monochrome and Ivory Light remain scenery-free.
+- Generated three realistic decorative scenes with the built-in imagegen tool:
+  misty sal forest, Patan-inspired carved timber/terracotta courtyard and moonlit
+  Himalayan ridge. Bundled 1024 x 1536 JPEGs total approximately 968 KiB in
+  client/assets/theme-scenery; README.md records the exact final prompts and
+  illustrative provenance. No remote image service or dependency was added.
+- Added a shared noninteractive backdrop to Welcome, Account/Profile, room/lobby
+  and all three live game views. Center and lower fades keep the scenery subdued;
+  panels retain opaque semantic colors. Table surfaces and theme-picker previews
+  use the same clipped artwork with a radial fade, replacing the old simplified
+  heritage/mountain motifs without changing seats, cards or hit targets.
+- Marriage's shown-declaration and eligibility controls now stretch to the same
+  height, with a 50px minimum and room to grow for larger text. The eligibility
+  label stays Marriage eligible; ineligible, hidden or checking hands disable the
+  control. Existing eligibility calculation, off-turn eligible previews and
+  own-turn finish authorization remain unchanged. Screen-reader hints retain
+  reveal/checking/qualification and available-action details.
+- Verification: all 474 client tests and TypeScript passed. Isolated Chrome
+  fixtures passed all five themes in Call Break / Marriage / Flush at
+  320/390/1280px, bundled image decoding, saved selections after reload, retained
+  table instances, no horizontal overflow and no appearance-triggered game
+  commands. Profile/lobby selection and Nepali labels passed. Existing chat /
+  table-summary checks passed all widths, now also checking identical Marriage
+  control heights, disabled eligibility and larger text. The real-engine Marriage
+  browser check passed eligible off-turn preview, hidden-card privacy, rejection /
+  retry, own-turn FINISH and result points at mobile/desktop widths. Updated its
+  old fixture path, hand/announcement flow and sanitized-error expectation.
+- Review screenshots: /private/tmp/bhidne-nepali-themes and
+  /private/tmp/bhidne-chat-table-preview/marriage-button-row.png.
+- Production TypeScript and web export passed after restoring production build
+  configuration; git diff --check passed. No live service writes were used.
+- Limitations: local source only; no commit, deployment or database changes.
+  Native appearance still needs validation in a signed build containing the new
+  bundled assets. Earlier avatar migration/release requirements and the deferred
+  social-login / Game summary scopes remain unchanged.
+- Exact next step: include this client increment in the reviewed release and
+  validate scenery on native devices with the newly bundled assets.
+
+### Centered game-table clock — user-requested timer presentation
+
+- Moved the session countdown from the bottom status strip into a small rounded
+  stopwatch badge between Game summary and Table summary in all three games.
+  Equal-width side columns keep the badge centered; summary text can wrap and
+  grow at small widths or larger font sizes. The toolbar occupies normal layout
+  space above the table, rather than overlaying seats, cards or the play area.
+- Kept the summary toolbar visible above an open Game summary panel. Both summary
+  buttons remain accessible, with unchanged statistics/ledger calculations.
+  The former bottom countdown is removed; autoplay, disconnect, temporary-seat
+  offers and reclaim controls retain their existing bottom presentation/actions.
+- Countdown selection uses the existing server deadlines and observed clock
+  offset: prioritize the viewer's human action, otherwise the next required human
+  action; idle deadlines retain their existing priority. Tabular digits tick once
+  per second, the viewer's last 30 seconds use the existing warning color, and
+  elapsed deadlines display 0:00 while awaiting authoritative server resolution.
+  Accessible labels retain the player/action, inactivity or confirmation context.
+  No client-side seat removal, new duration or backend behavior was introduced.
+- The expiry browser check exposed an existing presentation race: ended-table
+  cleanup cleared the authoritative timeout explanation immediately after the
+  session-exit effect set it. Preserve expiry/action-timeout messages in that
+  cleanup while clearing other ended-table feedback as before.
+- Verification: all 476 client tests and TypeScript passed, including deadline
+  priority, auto-seat filtering, warning threshold, idle time and elapsed/expired
+  states. All 24 isolated session browser cases passed clock centering, spacing,
+  table separation, larger text, summary-panel visibility, countdown ticking,
+  warning color, temporary-seat/reclaim actions and server-driven exits/messages
+  at 320/390/1280px. The existing 10 game-layout and 15 chat/table-summary scenarios
+  passed, including four/five-player Call Break layouts and Marriage hand controls.
+  Updated the old game-config browser selector to the existing current label.
+- Review screenshots: /private/tmp/bhidne-summary-clock-{callbreak,marriage,flush}.png.
+- Production TypeScript and web export passed after restoring production build
+  configuration; git diff --check passed. All browser calls used local fixtures.
+- Limitations: local client changes only; no commit, deployment or database change.
+  Native appearance remains to be checked on device. Earlier release requirements
+  and deferred social-login / Game summary-tab scopes remain unchanged.
+- Exact next step: include this client increment in the reviewed release and
+  verify the clock on native devices.

@@ -149,10 +149,12 @@ export function RoomGameControl({ onReturnToTable, runtime, socialChannel, chat,
   useEffect(() => {
     if (snapshot?.status === 'ended') {
       selectedMatch.current = undefined;
-      setError(''); setRefreshError(''); setActionNotice('');
+      setError(snapshot.session?.expired_at ? ui('rooms.session_expired')
+        : snapshot.session?.removal_reason === 'ACTION_TIMEOUT' ? ui('rooms.session_removed') : '');
+      setRefreshError(''); setActionNotice('');
       setLive(false); setOpen(false);
     }
-  }, [snapshot?.status, snapshot?.match_id]);
+  }, [snapshot?.status, snapshot?.match_id, snapshot?.session?.expired_at, snapshot?.session?.removal_reason]);
   async function api(suffix = '', body?: object, signal?: AbortSignal): Promise<Snapshot> {
     const controller = new AbortController();
     requests.current.add(controller);
@@ -489,7 +491,7 @@ export function RoomGameControl({ onReturnToTable, runtime, socialChannel, chat,
         </ScrollView>
         {chat}
         {snapshot.status !== 'ended' && snapshot.rule_proposal?.status === 'PENDING' && ruleReview}
-        <GameSessionStatus snapshot={snapshot} userId={userId} busy={busy || !connected || !synced}
+        <GameSessionStatus snapshot={snapshot} busy={busy || !connected || !synced}
           act={command => lobbyAction(`/table/${command}`)} />
       </View></View></TableSocialPresentation></ThemeContext.Provider> :
       <GameModalContent><KeyboardFrame style={[styles.overlay, { paddingVertical: 16 }]}><View accessibilityViewIsModal style={styles.modal}>

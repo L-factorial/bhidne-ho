@@ -185,6 +185,7 @@ export default {
   "checking_marriage": "म्यारिज पुगेको जाँच्दै…",
   "reveal_cards_to_check_marriage": "म्यारिज जाँच्न तास खोल्ने",
   "marriage_not_eligible": "म्यारिज अझै पुगेन",
+  "marriage_eligible": "म्यारिज पुग्यो",
   "marriage_eligible_show_marriage": "म्यारिज पुग्यो · देखाउने",
   "marriage_eligible_view_options": "म्यारिज पुग्यो · विकल्प हेर्ने",
   "review_finish": "टुङ्ग्याउनुअघि जाँच्ने",

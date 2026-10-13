@@ -21,7 +21,7 @@ const {fixture} = require('./game-stats.cjs');
    assert.ok(values.some(v=>v.text.startsWith('−')),'fixture has negative scores');
    await page.screenshot({path:`/private/tmp/game-refactor-summary-${count}-${width}.png`});
    await page.getByTestId('game-stats-close').click();
-   const timer=await page.getByTestId('game-session-status').boundingBox(),header=await page.getByTestId('callbreak-header').boundingBox();assert.ok(timer.y>header.y+header.height);
+   const timer=await page.getByTestId('game-session-clock').boundingBox(),header=await page.getByTestId('callbreak-header').boundingBox();assert.ok(timer.y>=header.y+header.height);
    const collapsed=page.getByTestId('hand-attention-collapsed');if(await collapsed.isVisible())await collapsed.click();
    await page.getByTestId('callbreak-hand-trick-summary').waitFor();
    assert.equal(await page.getByTestId('hand-trick-2').textContent(),'J♠');
@@ -40,7 +40,7 @@ const {fixture} = require('./game-stats.cjs');
    });const {page}=f;
    await page.getByRole('button',{name:'Table menu',exact:true}).click();
    const drawer=page.getByTestId(kind+'-menu-drawer');assert.equal(await drawer.getByRole('button',{name:'Stats',exact:true}).count(),0);
-   await drawer.getByRole('button',{name:'Game rules config',exact:true}).click();
+   await drawer.getByRole('button',{name:'Game rules and bet config',exact:true}).click();
    const proposal=page.getByRole('button',{name:'Propose changes',exact:true});await proposal.waitFor();
    const bounds=await proposal.boundingBox();assert.ok(bounds.height>=52&&bounds.width>250);
    if(kind==='callbreak'){

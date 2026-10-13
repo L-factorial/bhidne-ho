@@ -1,4 +1,5 @@
 import { WaitingHandArea } from '../components/WaitingHandArea';
+import { ThemeBackdrop } from '../components/ThemeBackdrop';
 import { HandAreaOutline } from '../components/HandAreaOutline';
 import { FormScrollView } from '../components/FormInput';
 import {AppText as Text} from '../components/AppText';
@@ -195,6 +196,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
     : `${ownPlayer?.status === 'active' && !preparing ? `${visibility} · ` : ownPlayer?.status === 'folded' ? `${ui("flush.folded")} · ` : ''}${ui("rooms.waiting")}`
     : ui("rooms.seated_capacity_seated", {seated: snapshot.players?.length || 0, capacity: snapshot.capacity});
   return <View style={[s.page, mobile && { padding: 8, gap: 4 }]} testID="flush-table">
+    <ThemeBackdrop />
     <GameTableHeader showShare={showTableHeaderShare(snapshot)} tableName={snapshot.table_name} title={ui("rooms.flush")} compact path={snapshot.path} game="flush" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack} mobileTestIds drawerMetadata={<GameMenuMetadata snapshot={snapshot} />}>
       {closeMenu => <FlushMenu snapshot={snapshot} close={closeMenu} rules={() => setRulesExplanationOpen(true)} rulesConfig={() => {setRulesTab('rules');setRulesOpen(true);}} history={() => setBetsOpen(true)}
         poke={() => setPokeOpen(true)} canPoke={social.connected} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl} />}
@@ -316,7 +318,7 @@ const styles = (c: ThemeColors) => StyleSheet.create({
   page: { flex: 1, padding: 12, gap: 8, backgroundColor: c.background },
   mainColumn: { flex: 1, minWidth: 0, minHeight: 0 },
   playViewport: { flex: 1, minHeight: 0 },
-  playArea: { flexGrow: 1, backgroundColor: c.table },
+  playArea: { flexGrow: 1 },
   handDock: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, flexShrink: 0, borderTopWidth: 0, overflow:'hidden', borderColor: c.tableTrim, paddingTop: 4, paddingBottom: 8, gap: 6, alignItems: 'center' },
   handOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '94%', zIndex: 50, elevation: 20 },
   cards: { width: 224, height: 128, alignItems: 'center', justifyContent: 'center' },

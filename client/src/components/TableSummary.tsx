@@ -40,8 +40,8 @@ export function TableSummary({snapshot,onOpen}:{snapshot:RoomSnapshot;onOpen:()=
   }))} testID={id}/>;
   return <>
     <Pressable testID="table-summary-toggle" accessibilityRole="button" accessibilityLabel={ui('common.table_summary')} accessibilityState={{expanded:open,disabled:!session||!tableId}} disabled={!session||!tableId}
-      onPress={()=>{onOpen();setOpen(true);}} style={{minHeight:44,paddingHorizontal:10,flexDirection:'row',alignItems:'center',gap:6,borderRadius:radii.medium,backgroundColor:c.surface}}>
-      <Ionicons name="receipt-outline" size={18} color={c.accent}/><Text style={{color:c.text,fontFamily:fonts.medium,fontSize:14}}>{ui('common.table_summary')}</Text>
+      onPress={()=>{onOpen();setOpen(true);}} style={{minHeight:44,maxWidth:'100%',paddingHorizontal:4,flexDirection:'row',alignItems:'center',gap:4,borderRadius:radii.medium,backgroundColor:c.surface}}>
+      <Ionicons name="receipt-outline" size={18} color={c.accent}/><Text style={{color:c.text,fontFamily:fonts.medium,fontSize:14,flexShrink:1}}>{ui('common.table_summary')}</Text>
     </Pressable>
     <RoomSheet visible={open} title={ui('common.table_summary')} onClose={()=>setOpen(false)} closeLabel={ui('common.close')} testID="table-summary">
       <View style={{padding:12,gap:16}}>

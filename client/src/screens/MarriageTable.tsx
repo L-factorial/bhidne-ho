@@ -1,6 +1,7 @@
 import { TurnStatus } from '../components/TurnStatus';
 import { MarriageMeldCards } from '../components/MarriageMeldCards';
 import { WaitingHandArea } from '../components/WaitingHandArea';
+import { ThemeBackdrop } from '../components/ThemeBackdrop';
 import {CompactCardFace} from '../components/CompactCardFace';
 import { RoomSheet } from '../components/RoomSheet';
 import {AppText as Text} from '../components/AppText';
@@ -135,8 +136,8 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   useEffect(() => { setFinishPreview(false); setPreview(false); }, [snapshot.match_id, mine?.player_id]);
   function button(label: string, action: () => void, disabled = false, chosen = false, primary = false, compact = false) {
     return <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled}
-      accessibilityState={{ disabled, selected: chosen }} onPress={action} style={({ pressed }) => [s.button, gameButtonStyle(colors, primary ? 'primary' : 'secondary', pressed), chosen && s.chosen, disabled && s.disabled, compact && {minWidth:0,maxWidth:'100%',flexShrink:1,paddingHorizontal:8}]}>
-      <Text style={[s.buttonText, primary && { color: colors.onPrimary },compact && {textAlign:'center',flexShrink:1}]} >{label}</Text></Pressable>;
+      accessibilityState={{ disabled, selected: chosen }} onPress={action} style={({ pressed }) => [s.button, gameButtonStyle(colors, primary ? 'primary' : 'secondary', pressed), chosen && s.chosen, disabled && s.disabled, compact && {minWidth:0,minHeight:50,maxWidth:'100%',flex:1,paddingHorizontal:8}]}>
+      <Text style={[s.buttonText, primary && { color: colors.onPrimary },compact && {fontSize:14,textAlign:'center',flexShrink:1}]} >{label}</Text></Pressable>;
   }
   const handGroups = allRevealed && !hidden ? arrangeMarriageHand(availableHand, arrangement) : [{label:'', cards:availableHand}];
   const orderKey = JSON.stringify([snapshot.match_id,mine?.player_id]);
@@ -179,12 +180,13 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   useEffect(() => {
     if (!stats.open && error && !busy && selectedCard && decision === 'DISCARD_REQUIRED') setSnap('expanded');
   }, [error, busy, selectedCard?.card_id, decision]);
-  const recordedDeclarations = <View testID="marriage-recorded-declarations" style={[s.row,{minWidth:0}]}>
+  const recordedDeclarations = <View testID="marriage-recorded-declarations" style={[s.row,{minWidth:0,flex:1,alignItems:'stretch',flexWrap:'nowrap'}]}>
     {own?.route==='normal' && !!own.shown_melds.length && button(ui('marriage.view_shown_sequence'),()=>setShownSection('sequence'),false,false,false,true)}
     {own?.route==='dublee' && !!own.shown_melds.length && button(ui('marriage.view_shown_dublee'),()=>setShownSection('dublee'),false,false,false,true)}
     {!!recordedTunnelas.length && button(ui('marriage.view_shown_tunnela'),()=>setShownSection('tunnela'),false,false,false,true)}
   </View>;
   return <View style={s.page} testID="marriage-table">
+    <ThemeBackdrop />
     <GameTableHeader showShare={showTableHeaderShare(snapshot)} tableName={snapshot.table_name} compact title={ui("rooms.marriage")} path={snapshot.path} game="marriage" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack}
       drawerMetadata={<GameMenuMetadata snapshot={snapshot} />}>
       {close => <GameMenu snapshot={snapshot} close={close} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl}
@@ -320,7 +322,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   previewBackdrop: { flex: 1, backgroundColor: colors.overlay, padding: 20, justifyContent: 'center', alignItems: 'center' },
   previewPanel: { width: '100%', maxWidth: 640, maxHeight: '90%', backgroundColor: colors.surface, borderRadius: 16, padding: 16, gap: 16 },
-  playArea: { backgroundColor: colors.table, flex: 1, minHeight: 0, gap: 0 }, handDock: { flexShrink: 0, padding: 12, gap: 6, backgroundColor: colors.surface, borderTopWidth: 1, borderColor: colors.tableTrim, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
+  playArea: { flex: 1, minHeight: 0, gap: 0 }, handDock: { flexShrink: 0, padding: 12, gap: 6, backgroundColor: colors.surface, borderTopWidth: 1, borderColor: colors.tableTrim, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
   page: { flex: 1, minHeight: 0, backgroundColor: colors.background }, header: { padding: 12, gap: 8, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
   title: { flex: 1, minWidth: 140, color: colors.accent, fontFamily: fonts.medium, fontSize: 18 }, content: { padding: 12, gap: 12, paddingBottom: 30 },
   columns: { flex: 1, minHeight: 0 }, main: { flex: 1, minHeight: 0, minWidth: 0 }, panel: { backgroundColor: colors.surface, borderRadius: radii.large, padding: 14, gap: 12 },

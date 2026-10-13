@@ -1,4 +1,5 @@
 import {AppText as Text} from '../components/AppText';
+import { ThemeBackdrop } from '../components/ThemeBackdrop';
 import { PolicyLinks } from '../components/moderation/PublicPolicies';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { ui } from '../i18n/copy.ts';
@@ -25,6 +26,7 @@ export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
   const [notice, setNotice] = useState('');
   return (
     <LinearGradient colors={[colors.surface, colors.background, colors.background]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.page}>
+      <ThemeBackdrop />
       <ScrollView contentContainerStyle={[styles.scroll, {
         paddingTop: Math.max(insets.top, wide ? 40 : 24), paddingBottom: Math.max(insets.bottom, 24),
         paddingLeft: Math.max(insets.left, wide ? 40 : 16), paddingRight: Math.max(insets.right, wide ? 40 : 16),

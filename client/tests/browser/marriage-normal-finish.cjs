@@ -25,9 +25,9 @@ function roomIds(value) {
     ['player_id', 'current_player_id', 'winner'].includes(key) && item !== null ? String(Number(item) + 1) : roomIds(item)]));
 }
 const views = roomIds(fixtures);
-const base=JSON.parse(require('node:fs').readFileSync('/tmp/bhidne-social-marriage.json'));
+const base=JSON.parse(require('node:fs').readFileSync(path.join(process.env.FIXTURE_DIR || '/private/tmp/bhidne-stats-fixtures','marriage-4.json')));
 base.match_id='normal1';base.tables[0].match_id='normal1';base.active_game.game_id='normal1';
-const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8098';
+const site = process.env.TEST_WEB_URL || 'http://127.0.0.1:8108';
 const button = (page, name) => page.getByRole('button', { name, exact: true });
 
 (async () => {
@@ -89,12 +89,18 @@ print(json.dumps(asdict(g.get_player_view('0'))))
       await page.goto(site);
       await page.waitForTimeout(1200);
       if(await page.getByRole('button',{name:/Return to table/}).count())await page.getByRole('button',{name:/Return to table/}).first().click();
+      const initialAnnouncement=page.getByTestId('marriage-announcement');
+      if(await initialAnnouncement.count())await initialAnnouncement.getByRole('button',{name:'Back to table',exact:true}).click();
+      const maal=page.getByTestId('marriage-see-maal-step');await maal.waitFor();
+      await maal.getByTestId('marriage-see-maal-card').click();await maal.getByRole('button',{name:'Continue',exact:true}).click();
+      const handToggle=page.getByTestId('hand-attention-collapsed');if(await handToggle.count())await handToggle.click();
       assert.equal(await button(page,'Reveal cards').count(),0);
-      const eligible='Marriage eligible · Show Marriage';
+      const eligible='Marriage eligible';
       await button(page,eligible).waitFor();
       offTurn=true;
-      await button(page,'Expand your card area').waitFor(); await button(page,'Expand your card area').click();
-      await button(page,'Marriage eligible · View options').click();
+      await page.waitForResponse(async response => response.request().method()==='GET' && new URL(response.url()).pathname.startsWith('/test-games/') && (await response.json()).marriage?.public.current_player_id==='2');
+      const collapsed=page.getByTestId('hand-attention-collapsed');if(await collapsed.count())await collapsed.click();
+      await button(page,eligible).click();
       await page.getByTestId('marriage-win-preview').waitFor();
       assert.ok(await button(page,'Show Marriage').isDisabled());
       await button(page,'Next option').click();
@@ -102,6 +108,7 @@ print(json.dumps(asdict(g.get_player_view('0'))))
       await button(page,'Previous option').click();
       await button(page,'Back to your cards').click();
       offTurn=false;
+      await page.waitForResponse(async response => response.request().method()==='GET' && new URL(response.url()).pathname.startsWith('/test-games/') && (await response.json()).marriage?.public.current_player_id==='1');
       await button(page,eligible).waitFor();
       assert.equal(await page.getByRole('tab',{name:'Dublee',exact:true}).count(),0);
       assert.equal(await button(page,'Plan winning hand').count(),0);
@@ -117,13 +124,13 @@ print(json.dumps(asdict(g.get_player_view('0'))))
       await button(page,'Back to your cards').click();
       assert.equal(await page.getByTestId('marriage-hand').getByRole('button',{name:selected,exact:true}).getAttribute('aria-pressed'),'true');
       await button(page,'Hide cards').click();
-      assert.ok(await button(page,'Reveal cards to check Marriage').isDisabled());
+      assert.ok(await button(page,eligible).isDisabled());
       await button(page,'Show cards').click();
       await button(page,eligible).click();
       await button(page,'Next option').click();
       await page.screenshot({path:`/tmp/marriage-win-${width}.png`});
       await button(page,'Show Marriage').click();
-      await preview.getByText('Test rejection: try again.',{exact:true}).waitFor();
+      await preview.getByText('Something went wrong. Please check the latest screen before trying again.',{exact:true}).waitFor();
       assert.ok(await preview.isVisible());
       await button(page,'Show Marriage').click();
       await preview.waitFor({state:'hidden'});

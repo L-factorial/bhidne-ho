@@ -1,4 +1,5 @@
 import { WaitingHandArea } from '../components/WaitingHandArea';
+import { ThemeBackdrop } from '../components/ThemeBackdrop';
 import {AppText as Text} from '../components/AppText';
 import { gameAttention } from '../notifications/gameAttention';
 import { playerError } from '../multiplayer/playerError.ts';
@@ -141,21 +142,21 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
       setPokeNotice({ player: pokeTarget === null ? null : playerName(pokeTarget), at: Date.now() });
     }} />;
   const startCue = ended ? endedNotice : <TableStartCue snapshot={snapshot} busy={busy} onStart={onStart} onTableAction={onTableAction} onNewGame={onNewGame} />;
-  if (!ended && game?.phase === 'SELECTING_DEALER' && game.dealer_selection) return <View style={styles.page}>
+  if (!ended && game?.phase === 'SELECTING_DEALER' && game.dealer_selection) return <View style={styles.page}><ThemeBackdrop />
     {header}{gameRules}<GameStats snapshot={snapshot} open={stats.open} onOpen={stats.show} onClose={stats.close}><View style={{ flex:1, minHeight:0 }}>
       <DealerSelectionTable snapshot={snapshot} busy={busy} onPick={position => onAction('PICK_DEALER_CARD', { position })} />
       {!!error && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
     </View></GameStats>{socialOverlay}
   </View>;
-  if (ended && (!game || !deal)) return <View style={styles.page}>{header}{gameRules}<GameStats snapshot={snapshot} open={stats.open} onOpen={stats.show} onClose={stats.close}><View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>{endedNotice}</View></GameStats></View>;
-  if (!game || !deal) return <View style={styles.page}>
+  if (ended && (!game || !deal)) return <View style={styles.page}><ThemeBackdrop />{header}{gameRules}<GameStats snapshot={snapshot} open={stats.open} onOpen={stats.show} onClose={stats.close}><View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>{endedNotice}</View></GameStats></View>;
+  if (!game || !deal) return <View style={styles.page}><ThemeBackdrop />
     {header}{gameRules}
     <GameStats snapshot={snapshot} open={stats.open} onOpen={stats.show} onClose={stats.close}><ScrollView contentContainerStyle={{ flexGrow: 1 }}>
       <PreGameTable fill snapshot={snapshot}>{startCue}</PreGameTable>
       {!!error && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
     </ScrollView></GameStats>{snapshot.your_player_id && <WaitingHandArea />}{socialOverlay}
   </View>;
-  if (!ended && (snapshot.round_review || game.finished) && !reveal) return <View style={styles.page}>{header}{gameRules}<GameStats snapshot={snapshot} open={stats.open} onOpen={stats.show} onClose={stats.close}><RoundSummary
+  if (!ended && (snapshot.round_review || game.finished) && !reveal) return <View style={styles.page}><ThemeBackdrop />{header}{gameRules}<GameStats snapshot={snapshot} open={stats.open} onOpen={stats.show} onClose={stats.close}><RoundSummary
     snapshot={snapshot} busy={busy} error={error || (snapshot.error ? playerError(snapshot.error) : '')} onContinue={onNextDeal} onBack={onBack} onNewGame={onNewGame}
     hideNavigation controls={game.finished ? startCue : snapshot.round_review?.can_continue ? <View testID="callbreak-center-next-deal" style={{ minHeight: 160, alignItems: 'center', justifyContent: 'center' }}>
       <Pressable accessibilityRole="button" accessibilityLabel={ui("callbreak.start_next_deal")} disabled={busy} onPress={onNextDeal} style={styles.button}><ActionCue active={!busy} style={styles.buttonText}>{ui("callbreak.start_next_deal")}</ActionCue></Pressable>
@@ -177,6 +178,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     </View> : null;
   const showDealerNotice=game.phase==='AWAITING_SHUFFLE'&&deal.deal_number===1&&game.dealer_selection?.complete;
   return <View style={styles.page}>
+    <ThemeBackdrop />
     {header}{gameRules}
 
     <View style={[styles.workspace, wide && styles.wideBody]}>
@@ -253,7 +255,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   newGamePanel: { padding: 16, gap: 8, borderBottomWidth: 1, borderColor: colors.border },
   overlayHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderColor: colors.border, minHeight: 60 },
   overlayTitle: { fontFamily: fonts.display, fontSize: 23, color: colors.text, flexShrink: 1 },
-  body: { backgroundColor: colors.table, flex: 1, minHeight: 0 }, wideBody: { flexDirection: 'row', justifyContent: 'center' }, tableScroll: { flex: 1, minHeight: 0, minWidth: 0 },
+  body: { flex: 1, minHeight: 0 }, wideBody: { flexDirection: 'row', justifyContent: 'center' }, tableScroll: { flex: 1, minHeight: 0, minWidth: 0 },
   page: { flex: 1, backgroundColor: colors.background }, container: { flexGrow:1, alignItems: 'center' }, back: { minHeight: 44, justifyContent: 'center' }, link: { color: colors.accent, fontFamily: fonts.medium, fontSize: 12 },
   title: { fontFamily: fonts.display, fontSize: 28, color: colors.text, marginVertical: 12 }, meta: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 11, lineHeight: 20 }, status: { fontFamily: fonts.medium, fontSize: 13, color: colors.accent, marginVertical: 12 }, error: { color: colors.danger, fontFamily: fonts.body, fontSize: 12 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, paddingVertical: 10 }, button: { padding: 12, ...gameButtonStyle(colors, 'primary'), justifyContent: 'center', alignItems: 'center' }, buttonText: { color: colors.onPrimary, fontFamily: fonts.medium, fontSize: 12 },

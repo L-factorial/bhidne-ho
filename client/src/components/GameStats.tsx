@@ -1,4 +1,5 @@
 import {TableSummary} from './TableSummary';
+import { GameSessionClock } from './GameSessionClock';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, ScrollView, View } from 'react-native';
@@ -36,13 +37,19 @@ export function GameStats({ snapshot, open, onOpen, onClose, children }: {
   const callbreak = snapshot.game_type === 'callbreak' || !!snapshot.deal;
   const flushHistory = flushStatsHistory(snapshot, playerId);
   return <View style={{ flex: 1, minHeight: 0, minWidth: 0, position: 'relative' }}>
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 4, backgroundColor: c.table, flexShrink: 0 }}>
+    <View testID="game-summary-toolbar" style={{ flexDirection: 'row', alignItems: 'center', gap: 4, padding: 4, backgroundColor: c.table, flexShrink: 0 }}>
+      <View style={{ flex: 1, minWidth: 0, alignItems: 'flex-start' }}>
       <Pressable testID="game-stats-toggle" accessibilityRole="button" accessibilityLabel={ui('common.game_stats')} accessibilityState={{ expanded: open }}
-        onPress={open ? onClose : onOpen} style={{ minHeight: 44, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: radii.medium, backgroundColor: c.surface }}>
-        <Ionicons name="stats-chart-outline" size={18} color={c.accent} /><Text style={{ ...text, fontFamily: fonts.medium }}>{ui('common.game_stats')}</Text>
+        onPress={open ? onClose : onOpen} style={{ minHeight: 44, maxWidth: '100%', paddingHorizontal: 4, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: radii.medium, backgroundColor: c.surface }}>
+        <Ionicons name="stats-chart-outline" size={18} color={c.accent} /><Text style={{ ...text, fontFamily: fonts.medium, flexShrink: 1 }}>{ui('common.game_stats')}</Text>
       </Pressable>
+      </View>
+      <GameSessionClock snapshot={snapshot} />
+      <View style={{ flex: 1, minWidth: 0, alignItems: 'flex-end' }}>
       <TableSummary snapshot={snapshot} onOpen={onClose}/>
+      </View>
     </View>
+    <View style={{ flex: 1, minHeight: 0, position: 'relative' }}>
     <View style={{ flex: 1, minHeight: 0 }} accessibilityElementsHidden={open} importantForAccessibility={open ? 'no-hide-descendants' : 'auto'} aria-hidden={open} pointerEvents={open ? 'none' : 'auto'}>{children}</View>
     {open && <View testID="game-stats-overlay" accessibilityLabel={ui('common.game_stats')} style={{ position: 'absolute', inset: 0, zIndex: 40, elevation: 20, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radii.medium, overflow: 'hidden' }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 12, borderBottomWidth: 1, borderColor: c.border }}>
@@ -96,6 +103,7 @@ export function GameStats({ snapshot, open, onOpen, onClose, children }: {
         {!snapshot.marriage && !snapshot.flush && !snapshot.deal && <Text style={muted}>{ui('common.stats_not_started')}</Text>}
       </ScrollView>
     </View>}
+    </View>
   </View>;
 }
 

@@ -185,6 +185,7 @@ export default {
   "checking_marriage": "Checking Marriage…",
   "reveal_cards_to_check_marriage": "Reveal cards to check Marriage",
   "marriage_not_eligible": "Marriage not eligible",
+  "marriage_eligible": "Marriage eligible",
   "marriage_eligible_show_marriage": "Marriage eligible · Show Marriage",
   "marriage_eligible_view_options": "Marriage eligible · View options",
   "review_finish": "Review finish",

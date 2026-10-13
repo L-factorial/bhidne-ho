@@ -26,3 +26,13 @@ export function ownAction(session:TableSession|undefined,user:string) {
   if (control?.mode==='auto') return null;
   return session?.required_actions.find(t=>t.user_id===user)??null;
 }
+
+export function sessionCountdown(session: TableSession | undefined, user: string, now: number) {
+  if (!session || session.expired_at || session.removal_reason === 'ACTION_TIMEOUT') return null;
+  const own = ownAction(session, user);
+  const turn = own ?? session.required_actions.find(action => session.controls.find(control => control.seat_id === action.seat_id)?.mode !== 'auto');
+  const deadline = session.idle_deadline ?? turn?.deadline;
+  if (deadline == null) return null;
+  return { time: sessionTime(remaining(deadline, now)), idle: session.idle_deadline != null,
+    seatId: turn?.seat_id, warning: !!own && remaining(own.deadline, now) <= 30, waiting: deadline <= now };
+}

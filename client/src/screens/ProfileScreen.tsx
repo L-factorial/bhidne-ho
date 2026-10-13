@@ -1,6 +1,7 @@
 import {AppText as Text} from '../components/AppText';
 import { LanguageToggle } from '../components/LanguageToggle';
 import { ThemeAction } from '../components/ThemeAction';
+import { ThemeBackdrop } from '../components/ThemeBackdrop';
 import {PushSettings} from '../notifications/PushSettings';
 import { PolicyLinks } from '../components/moderation/PublicPolicies';
 import { CommunityRulesEntry } from '../components/moderation/CommunityRules';
@@ -46,7 +47,7 @@ export function ProfileScreen({ session, onBack, onSignOut }: {
       .catch(() => { if (!controller.signal.aborted) setIdentityError(ui("feedback.profile_load_help")); });
     return () => controller.abort();
   }, [userId, session.token]);
-  return <KeyboardFrame><FormScrollView testID="profile-screen" accessibilityViewIsModal style={styles.page} keyboardShouldPersistTaps="handled"
+  return <KeyboardFrame><ThemeBackdrop /><FormScrollView testID="profile-screen" accessibilityViewIsModal style={styles.page} keyboardShouldPersistTaps="handled"
     contentContainerStyle={{ padding: 20, paddingTop: Math.max(insets.top, 24), paddingBottom: Math.max(insets.bottom, 24) }}>
     <View style={styles.content}>
       <AppHeader title={ui("common.your_profile_title")} hideProfile inlineActions={<Pressable accessibilityRole="button" accessibilityLabel={ui("common.back_from_profile")} onPress={onBack} style={styles.back}><Ionicons name="arrow-back" size={22} color={styles.link.color} /></Pressable>} />
@@ -75,7 +76,7 @@ export function ProfileScreen({ session, onBack, onSignOut }: {
   </FormScrollView></KeyboardFrame>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.background }, content: { width: '100%', maxWidth: 680, alignSelf: 'center', gap: 16 },
+  page: { flex: 1 }, content: { width: '100%', maxWidth: 680, alignSelf: 'center', gap: 16 },
   title: { fontFamily: fonts.editorial, fontSize: typography.pageTitle, color: colors.text },
   back: { ...gameControlFinish(colors), minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center' },
   link: { fontFamily: fonts.medium, color: colors.accent, fontSize: 14 },

@@ -2,6 +2,7 @@ import {PlayerAvatar} from '../components/PlayerAvatar';
 import { SignupVerification } from './RecoveryScreen';
 import {SignupRules} from '../components/moderation/SignupRules';
 import {AppText as Text} from '../components/AppText';
+import { ThemeBackdrop } from '../components/ThemeBackdrop';
 import {PushProvider} from '../notifications/PushProvider';
 import { PolicyLinks } from '../components/moderation/PublicPolicies';
 import { isCurrentSession } from '../multiplayer/session';
@@ -303,7 +304,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
     return () => controller.abort();
   }, [session?.token, room?.room_id, roomPanel, memberKey, memberRetry]);
 
-  return <PushProvider session={expired ? null : session} viewedMatch={viewedMatch}><HeaderProfileContext.Provider value={session && !expired ? close => <ProfileScreen session={session} personal={personal} onBack={close} onSignOut={signOut} /> : null}><KeyboardFrame><FormScrollView accessibilityElementsHidden={transferring} importantForAccessibility={transferring?"no-hide-descendants":"auto"} aria-hidden={transferring} pointerEvents={transferring?"none":"auto"} keyboardShouldPersistTaps="handled" style={styles.page} contentContainerStyle={[styles.container, room && { flexGrow: 1 }, {
+  return <PushProvider session={expired ? null : session} viewedMatch={viewedMatch}><HeaderProfileContext.Provider value={session && !expired ? close => <ProfileScreen session={session} personal={personal} onBack={close} onSignOut={signOut} /> : null}><KeyboardFrame><ThemeBackdrop /><FormScrollView accessibilityElementsHidden={transferring} importantForAccessibility={transferring?"no-hide-descendants":"auto"} aria-hidden={transferring} pointerEvents={transferring?"none":"auto"} keyboardShouldPersistTaps="handled" style={styles.page} contentContainerStyle={[styles.container, room && { flexGrow: 1 }, {
     paddingTop: Math.max(insets.top, 16), paddingBottom: (room ? Math.max(insets.bottom, 28) + 64 : 24),
   }]}>
     <View style={[styles.content, !session && {maxWidth: 460}, room && { flexGrow: 1, maxWidth: 760 }]}>
@@ -563,7 +564,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
             </Pressable></View></FormFooter>}{room && !expired && !invitation && !gameOpen && chat.view}{lobbyRules.view}{transferring&&!gameOpen&&<TableTransfer />}</KeyboardFrame></HeaderProfileContext.Provider></PushProvider>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.background }, container: { alignItems: 'center', paddingHorizontal: 16 }, content: { width: '100%', maxWidth: 1120 },
+  page: { flex: 1 }, container: { alignItems: 'center', paddingHorizontal: 16 }, content: { width: '100%', maxWidth: 1120 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   roomMasthead: { ...gameSeparatorFinish(colors), flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 14, paddingVertical: 20, borderBottomWidth: 1, borderColor: colors.border },
   roomIdentity: { flex: 1, minWidth: 0, gap: 5 }, roomTitle: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 36, lineHeight: 42, color: colors.text }, mobileRoomTitle: { fontSize: 27, lineHeight: 33 },
