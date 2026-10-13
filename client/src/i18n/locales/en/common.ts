@@ -1,5 +1,7 @@
 // Editable English common copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  signup_avatar_help: 'Choose an avatar so friends can recognize you. You can change it anytime in Profile.',
+  skip_for_now: 'Skip for now',
   choose_avatar: "Choose avatar",
   avatar_male: "Male",
   avatar_female: "Female",
@@ -160,10 +162,10 @@ export default {
   "choose_theme": "Choose theme",
   "choose_table_theme": "Choose table theme",
   "current_theme_theme": "Current theme: {{theme}}",
-  "monochrome_noir": "Charcoal Monochrome",
-  "monochrome_pearl": "Ivory Light",
-  "soft_black_silver_edges_and_crisp_white_type": "Soft black, silver edges and crisp white type",
-  "soft_white_graphite_type_and_quiet_depth": "Soft white, graphite type and quiet depth",
+  "monochrome_noir": "Kathmandu Ink",
+  "monochrome_pearl": "Himali Bihan",
+  "soft_black_silver_edges_and_crisp_white_type": "Carved Newar windows, charcoal stone and silver mist",
+  "soft_white_graphite_type_and_quiet_depth": "Himalayan dawn, warm ivory and quiet bronze",
   "chitwan_hariyali": "Chitwan Hariyali",
   "patan_sampada": "Patan Sampada",
   "himali_raat": "Himali Raat",

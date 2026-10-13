@@ -1,5 +1,145 @@
 # Distributed runtime implementation plan
 
+## 2026-10-13: Optional avatar selection after sign-up
+
+- User approved adding avatar selection after account creation, with Skip for
+  now. Successful sign-up opens the existing preset picker in onboarding mode;
+  selecting the default or a preset saves through the existing authenticated
+  profile API and continues. Skip/close keeps the existing default without a
+  write. Added English/Nepali help explaining that Profile allows later changes.
+- Both original and integration account screens trigger the step only for
+  successful sign-up; sign-in and restored sessions do not prompt. Original UI
+  email verification follows the avatar step. No registration payload, consent,
+  avatar storage, database migration or backend behavior changed.
+- Reused picker loading/retry/filter/error handling. Failed saves leave the
+  account created and picker open for retry or skip. Close/skip is guarded during
+  an active save to avoid dismissing an unresolved avatar request.
+- Verification: TypeScript, all 478 client tests, fresh production web export
+  and diff checks passed. Isolated browser checks passed saving after an injected
+  failure, skipping with no avatar write, sign-in without onboarding and reload
+  without another prompt at 320/390/1280px. Existing email-verification checks
+  passed at 390/1280px after skipping. Profile load retry, filters, save/reset and
+  all three games' seat/chat avatars passed the existing browser regression.
+- Evidence: /private/tmp/bhidne-signup-avatar-{tests,browser,verification,profile,production}.log.
+- Limitations: local changes only, no commit/deployment/native build or live
+  account writes. Browser coverage uses original UI fixtures; integration-screen
+  wiring is typechecked but not covered by a separate browser flow.
+- Exact next step: include with pending UI changes in the next TestFlight build;
+  check new-account choose/skip and later Profile editing on iOS.
+
+## 2026-10-13: Private-chat dates, sender presentation and local time
+
+- User approved the private-chat presentation plan. Added local calendar-day
+  separators (Today / Yesterday / full older date), English/Nepali labels and a
+  local-time explanation. The open conversation refreshes relative dates every
+  30 seconds; yesterday uses calendar arithmetic rather than a 24-hour subtraction.
+- Private messages use consistent sender tints/borders across all themes, own
+  bubbles on the right and incoming bubbles on the left at 90% width. Names,
+  avatars, message actions and removal behavior remain present. Private timestamps
+  use 12px medium text with stronger contrast and explicit AM/PM; screen readers
+  receive the full local date/time including timezone. Room/table appearance is
+  retained. No timestamp tap interaction was added (optional in the earlier plan).
+- Existing backend timestamps already identify absolute instants and the
+  distributed adapter converts ISO timestamps to epoch milliseconds. No server
+  or persistence change; each viewer formats time/date in their device timezone.
+- Verification: TypeScript, all 478 client tests, fresh production web export and
+  diff checks passed. New date tests cover midnight, daylight saving, older years
+  and one instant displayed in California/Nepal. Local fixture browser checks
+  passed at 320/390/1280px, verifying two day separators, AM/PM, increased time
+  size, differing sender fills/alignment, no overflow, send/menu controls and
+  room/table-summary regressions. Visually inspected the private-chat screenshot.
+- Evidence: /private/tmp/bhidne-private-chat-{tests,browser,production}.log and
+  /private/tmp/bhidne-private-chat-screens/offline-friend-chat.png.
+- Limitations: local source only, no commit/deployment/native build or live writes.
+  Native timezone/appearance validation remains pending.
+- Exact next step: include with the pending themes/search-spacing changes in the
+  next signed TestFlight build; check a conversation spanning midnight on device.
+
+## 2026-10-13: Chat friend-search copy and spacing
+
+- User requested “Search friend” instead of “Searching friends” and a slightly
+  narrower field with more space after Conversations. Updated the English
+  placeholder/accessibility label and increased the row gap from 10px to 20px;
+  the flexible field gives up 10px of width within the existing panel.
+- Verification: TypeScript and git diff checks passed. Friend filtering and
+  conversation actions remain unchanged. No native visual check or deployment.
+- Exact next step: include this local UI change in the next build and check the
+  Chat header on iOS alongside the pending Nepali theme changes.
+
+## 2026-10-13: Kathmandu Ink and Himali Bihan — approved theme extension
+
+- User approved the two Nepali concepts and explicitly requested implementation.
+  Replaced Charcoal Monochrome / Ivory Light display names with Kathmandu Ink /
+  Himali Bihan, including English/Nepali descriptions. Preserved noir / pearl
+  preference IDs and storage so existing selections continue to work.
+- Generated two decorative 1024 x 1536 backgrounds with built-in imagegen:
+  grayscale Newar courtyard and warm Himalayan dawn. Bundled quality-78 JPEGs
+  add approximately 592 KiB; exact prompts and illustrative provenance are in
+  client/assets/theme-scenery/README.md. No remote assets or dependencies added.
+- Reused the existing faded backdrop, table scenery and picker previews across
+  the app. Kathmandu Ink retains its grayscale palette; Himali Bihan uses warm
+  ivory surfaces, brown text and bronze accents/card backs. Playing-card faces,
+  suits, game layout and behavior remain unchanged.
+- Verification: TypeScript, all 476 client tests, contrast checks, web export and
+  diff checks passed. Local Chrome fixtures passed all five themes for Call Break,
+  Marriage and Flush at 320/390/1280px, image decoding, retained tables, stored
+  choices after reload, no overflow/errors or appearance-triggered game actions.
+  Lobby/Profile selection and all five Nepali labels passed. Visually inspected
+  both new Call Break themes at 390px.
+- Evidence: /private/tmp/bhidne-ink-bihan-screens,
+  /private/tmp/bhidne-ink-bihan-tests.log and
+  /private/tmp/bhidne-ink-bihan-production.log. Browser export used a separate
+  temporary directory and isolated fixtures; production export is separate.
+- Limitations: local source only; no commit, deployment or native build. Actual
+  store download-size change and native appearance have not been measured.
+- Exact next step: review the theme screenshots and include the assets in the
+  next signed TestFlight build; validate both themes on device before release.
+  Deferred capacity, observability, database HA and operational work stay deferred.
+
+## 2026-10-13: Approved changes — direct production release
+
+- User explicitly requested deployment without waiting for GitHub. Released the
+  clean committed revision `a377c2a29033421e3ec7136f5a1eef6f15d33b24`, including
+  the earlier avatar/ledger/UI work, Nepali scenery themes and centered clock.
+  Canceled workflow `38371608376` while it was testing, confirmed completed /
+  cancelled with no deployment steps, and checked again for competing workflows
+  immediately before direct activation. No GitHub publication or rollout was used.
+- Built a fresh production frontend and exact committed backend source, using
+  the deployed dependency image after confirming unchanged dependency manifests
+  and production build configuration. Both application hosts now run image ID
+  `sha256:7704ab45e6cfaa3c35ac588a4c17c0ab7c89afd5f93d8242bdf023201a794d1d`.
+  Archive checksums and installed receiver hashes were verified; release locks,
+  peer readiness, container restrictions and phased frontend activation remained
+  in place. Both backends became healthy before either frontend switched.
+- Created the root-private database backup
+  `/var/backups/bhidne-release/pre-a377c2a.dump` on app1 and validated its archive
+  listing. Applied additive avatar migration 42 under the existing release and
+  database locks. Both hosts passed dependency/schema/frontend preflight. The
+  before/after account, credential, recovery, session and message counts matched.
+  The former schema-41 runtime cannot be restarted against schema 42; recovery
+  requires a schema-compatible forward fix, rather than an old-image restart.
+- Verification: production TypeScript/web export, 54 focused avatar/ledger/release
+  checks and 11 bootstrap checks passed. Earlier checks of the committed changes
+  passed 279 targeted backend cases, all 476 client tests and the recorded browser
+  suites. Both hosts report the exact revision/image and healthy APIs/APNs
+  capability. All 81 frontend files match the local production export on each
+  host. Public HTTPS index/JS hashes, all 30 avatars and three scenery images,
+  and anonymous rejection by the new protected avatar/ledger routes passed.
+  Read-only production Chrome checks passed at 390/1280px, including decoded
+  scenery, no horizontal overflow or JavaScript errors; server writes were blocked.
+- Evidence: `/private/tmp/bhidne-a377c2a-direct/{verification,asset-verification}.json`,
+  database before/after records, production screenshots and
+  `/private/tmp/bhidne-a377c2a-{production-build,release-tests,bootstrap-tests,backup,migration,rollout,assets,browser}.log`.
+- Limitations: the full GitHub gate was canceled, not passed. Previous workflow
+  `38366377614` failed ledger response/date parity, avatar response/schema and
+  own-turn Flush reveal expectations, plus native load-driver checks; those
+  failures remain unresolved. No native package or live account/game smoke writes
+  were made. This deployment note remains local and unpushed.
+- Exact next step: refresh production and review the approved UI. Resolve the
+  full-suite compatibility/native load-driver failures before the next automated
+  release; native appearance needs a signed build containing the bundled assets.
+  Deferred social-login, Game summary tabs and operational work remain deferred.
+
 ## 2026-10-09: Profile, rule tabs and table-layout direct production release
 
 - User pushed revision `5e6240f623b9294f9063b3beb2dbd584690740d3` and
@@ -9397,3 +9537,222 @@ implementation request before changing card rendering or Marriage turn behavior.
   and deferred social-login / Game summary-tab scopes remain unchanged.
 - Exact next step: include this client increment in the reviewed release and
   verify the clock on native devices.
+
+### Account deletion eligibility — user-requested implementation
+
+- Added server-authoritative preflight checks and actionable English/Nepali
+  deletion-page instructions for active play, seats, queues and watching,
+  unfinished owned tables, unsettled ledger balances/transfers, and pending
+  game/account work. Users can return to the app and check eligibility again.
+- Authenticated requests now verify the password and send a confirmation link
+  to the verified recovery email without revoking access. Final confirmation
+  requires the email token and DELETE, then rechecks blockers before revoking
+  access. Anonymous recovery responses remain generic.
+- Erasure rechecks eligibility and never cancels outstanding obligations.
+  Migration 43 adds identity-lock guards to new ledger entries, transfers,
+  watcher leases, owned table checkpoints and user commands to protect the
+  acceptance boundary against concurrent activity.
+- Verification: 55 backend integration tests, 9 focused eligibility tests and
+  4 real PostgreSQL runtime/race tests passed. All 478 client tests, TypeScript,
+  localization checks and production web export passed. Six isolated eligibility
+  browser cases passed at 320/390/1280px, including stale eligibility rejection,
+  retry with the same token and email issuance retaining the session. Six
+  existing deletion-dismissal/navigation scenarios passed. git diff --check
+  passed. The revised full mailbox/browser integration script was not run.
+- Limitations: local changes only; deletion activation flags remain unchanged.
+  This changes the authenticated request API, so release matching client/server
+  code and migration 43 together. Audit any previously accepted deletion jobs
+  with unsettled obligations before enabling this policy. Native email-link
+  handling still requires device validation. No deployment or live data changes.
+- Exact next step: review the matching release, apply migration 43 during its
+  deployment, validate the complete email-confirmation flow in TestFlight, then
+  enable deletion only when that release is ready. See account-deletion-design.md.
+
+### Avatar selection from game seats — user-requested implementation
+
+- Tapping the authenticated player's seat avatar opens the existing Profile
+  picker in Call Break, Marriage and Flush, including waiting/dealer-selection
+  seats. Other players retain their existing actions; spectators cannot edit
+  anyone else's avatar. Both original/distributed-original and integration
+  screen paths provide the authenticated session.
+- Reused loading, retry, preset categories, default reset and guarded save/close
+  behavior. Successful saves immediately update the own-seat image without
+  leaving or recreating the table. The picker mounts only when opened, avoiding
+  background profile requests on every table render. Account-token changes
+  reset the local override. Native overlays use the existing game modal layers.
+- Actual tap testing exposed Call Break's full-table trick wrapper intercepting
+  seat taps. Its empty regions and the shared center wrapper now allow touches
+  through while preserving child controls.
+- Verification: TypeScript, all 478 client tests and fresh production web export
+  passed. Nine isolated browser cases passed save failure/retry, immediate seat
+  updates, reset and dismissal across all games at 320/390/1280px. Six additional
+  waiting-seat/spectator cases passed. Existing seat/chat avatar and Profile
+  picker regressions passed. All 18 existing game-summary/layout/spectator
+  browser cases passed, including four/five-seat Call Break. No avatar
+  interaction emitted a game action.
+- The broader chat-start-controls browser script stops at its old disabled-end
+  button label expectation, unrelated to the avatar flow; no product change was
+  made to satisfy that stale assertion. Integration-screen wiring is typechecked
+  rather than covered by a separate browser fixture.
+- Limitations: local source only; no deployment, commit, backend/schema change or
+  live profile writes. Expanded Flush hands can cover seats; collapse the hand
+  drawer to expose the avatar. Native modal presentation needs device validation.
+- Exact next step: include in the reviewed client release and verify changing
+  avatars during a live game on iOS and Android, including close/back and retries.
+
+### Explicit invitation friendship — narrow user-requested bug fix
+
+- Accepting an explicitly addressed table invitation now queues the existing
+  automatic friendship command regardless of prior room membership. Ordinary
+  room-wide notifications retain their existing behavior. Pair-lane ordering,
+  acceptance proof, blocking checks and idempotency remain in place.
+- Extended the Flush acceptance regression to cover both existing room members
+  and new members, including delayed execution after checkpoint replacement and
+  duplicate acceptance. Earlier UI/account-deletion work was left untouched.
+- Verification: all 74 creation, invitation replacement, durable friendship
+  and player-block tests passed; git diff --check passed. Tests used isolated
+  PostgreSQL-compatible fixtures without live account writes.
+- Limitations: local backend fix only; no deployment, schema change or historical
+  friendship backfill. Already skipped friendships require a fresh accepted
+  explicit invitation or the normal friend-request flow.
+- Exact next step: include only this fix and its test in the reviewed backend
+  release, then verify accepted invitations between nonfriends in the same room.
+
+### Signup verification recovery-email action
+
+- Hide recovery-email removal and its confirmation in the signup verification
+  Change email form. Profile settings retain the existing removal action;
+  resend, replacement email verification and Continue to app are unchanged.
+- Verification: TypeScript and git diff --check passed. Local client-only change;
+  no backend changes or deployment. Next step: include in the client release
+  and check the signup Change email form on device.
+
+### Moderation message and conversation details
+
+- Show saved reported-message text, sender, private recipient or shared
+  room/table/game location, sent time and separately labeled report time.
+  Times include the moderator's local timezone. English/Nepali labels added.
+- New report evidence captures participant names and location at submission.
+  Existing server authorization remains enforced; old reports explicitly identify
+  missing context rather than inventing historical participants. No full chat
+  history is exposed and no schema migration is needed.
+- Verification: 26 moderation/enforcement backend tests, the existing client
+  moderation check, TypeScript and git diff --check passed. Added assertions for
+  room/table details, private participants and evidence surviving source-message
+  deletion. Browser/native presentation was not separately tested this increment.
+- Limitations: local client/server changes only, no deployment or historical
+  evidence backfill. Exact next step: review/release matching code and verify
+  private, room and table report details in the moderator UI on device.
+
+### Notifications follow related actions
+
+- Add targeted notification read IDs to the shared HTTP route and original-UI
+  adapter; omitting IDs retains Mark all read, while an empty list does nothing.
+  Reads are scoped to the authenticated recipient and preserve unrelated items.
+- Opening a notice acknowledges it and removes it from the bell with its badge
+  update. Successful invitation answers invalidate older refresh responses.
+  Viewing a loaded private conversation, visible room or table acknowledges only
+  matching chat/poke notices, with polling while that destination remains visible.
+  Friend actions acknowledge corresponding social notices. Integration screens
+  use their durable recipient commands and hide read notifications too.
+- Friend request acceptance/rejection/cancellation marks its stored notification
+  read under recipient-lane locks. Delayed request delivery checks the current
+  relationship so already-handled requests are materialized as read. Retained
+  read history remains available to the transport; user notification lists hide it.
+- Verification: 37 durable social/friendship/notification tests passed, plus four
+  focused delayed-delivery cases after the final lock-order placement. Targeted
+  HTTP ownership/empty-list/backward-compatibility checks passed; all 482 client
+  tests, TypeScript, production web export and diff checks passed. Three browser
+  widths verified failed acknowledgement retaining the item and successful reads
+  removing only its related notice, preserving another unread item and badge.
+- The broader legacy player test has a pre-existing expected-payload mismatch
+  for the avatar_url field; three other tests and the new focused HTTP test pass.
+  Integration notification wiring is typechecked, without a separate browser
+  fixture. No schema migration, deployment or live account writes.
+- Exact next step: review and release matching client/server code, then validate
+  notification actions and cross-device polling on native devices. Failed reads
+  retain unread state; visible destinations retry rather than silently clearing it.
+
+### Game icon backing/alignment correction
+
+- The three bundled game icons contain off-white export padding and have
+  different source dimensions. Crop their red artwork in the shared GameIcon
+  component and clip it with a size-proportional rounded frame. This applies
+  consistently to game selection and play cards without editing raster assets.
+- Verification: TypeScript, fresh local web export and git diff --check passed.
+  Visually inspected the actual Create game dialog after tightening Call Break's
+  bottom crop; screenshot: /private/tmp/bhidne-game-icon-preview.png.
+- Limitations: local UI-only correction; no deployment or native build. Exact
+  next step: include in the reviewed client release and check logo clipping on
+  iOS at chooser and play-card sizes.
+
+### User-supplied privacy policy presentation
+
+- Replace the English Privacy page paragraphs with the user's supplied wording;
+  add Privacy Policy, Lfactorial | Bhidne Ho, minimum age and six section headings.
+  Emphasize Profile and /delete-account and retain the shared support-email link.
+  Add corresponding Nepali headings and reporter-identity disclosure. Existing
+  environment-configured backup disclosure remains authoritative; the default
+  now reads Database backups are currently not configured.
+- Verification: TypeScript and git diff --check passed. Local content changes
+  only, no deployment. Exact next step: include the policy with the reviewed
+  release and inspect the page on device.
+
+### User-supplied Terms of Service
+
+- Replace Terms with the user's six sections and Contact section, Terms of
+  Service title, Lfactorial | Bhidne Ho and minimum-age line. Preserve the supplied
+  English wording; add matching Nepali content and headings. Emphasize Profile
+  and /delete-account and provide a single support-bhidne-ho@lfactorial.com email
+  link in Contact. Privacy and other policy-page content remain as previously set.
+- Verification: TypeScript and git diff --check passed. Local content-only change,
+  no deployment. Exact next step: include with the reviewed policy release and
+  inspect Terms in both languages on device.
+
+### User-supplied Community Rules
+
+- Use the supplied six rules sections and Appeals and Support section in both
+  the public Community Rules page and the rules acceptance dialog. Add brand,
+  minimum age, headings, emphasized Report/Block and a support email link.
+  Matching Nepali content shares the same renderer to keep both views aligned.
+- Verification: TypeScript and git diff --check passed. Local content-only update;
+  existing acceptance version remains unchanged and no account acceptance state
+  is reset. No deployment. Exact next step: include with the reviewed policy
+  release and inspect both languages and the acceptance dialog on device.
+
+### User-supplied Support page
+
+- Replace Support with the supplied five sections, brand and minimum-age line,
+  emphasized security warning and Report/Block/Profile/deletion labels, and the
+  support email link. Add matching Nepali text. Footer shows Privacy, Terms and
+  Community Rules and navigates to the app's own policies rather than the
+  chatgpt.com URLs in the pasted draft.
+- Verification: TypeScript and git diff --check passed. Local content-only update,
+  no deployment. Exact next step: include with the policy release and inspect
+  both languages, the email link and footer navigation on device.
+
+### Policy-page brand label
+
+- Change the displayed brand line to Bhidne Ho on Privacy, Terms, Community Rules,
+  Support and the rules acceptance dialog, in both language views. Operator
+  metadata remains unchanged. TypeScript and git diff --check passed.
+- Local content-only change; next step: include in the reviewed client release.
+
+### Account deletion activation — explicitly requested
+
+- Enable deletion by default in the distributed assembly when PostgreSQL and
+  configured recovery mail are available. An explicit
+  BHIDNE_HO_ACCOUNT_DELETION_ENABLED=0 still disables it. Legacy runtime remains
+  explicitly disabled. Set the release environment example to 1 and document
+  migration 43/matching-client requirements and staged-rollout override.
+- Verification: 33 deletion, eligibility and provider tests passed, including
+  new default/prerequisite/disable activation checks. Corrected the cross-gateway
+  mail test to use a shared encryption config, matching deployment requirements,
+  rather than unrelated random keys per gateway. git diff --check passed.
+- Limitations: enabled in local code/release configuration only; production flags
+  and current TestFlight binary are unchanged. Native email-link handling,
+  actual-provider revocation and large-account operational load remain unverified;
+  the supported cases are tested without claiming exhaustive scenario coverage.
+- Exact next step: deploy the matching client/server release with migration 43,
+  shared recovery-mail encryption keys and no explicit disabling flag, then
+  validate deletion on a disposable account through its real email link.

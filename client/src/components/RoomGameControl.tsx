@@ -1,3 +1,5 @@
+import {useNotificationAction} from '../multiplayer/useNotificationAction';
+import {TableAvatarProvider} from './TableAvatar';
 import { Ionicons } from '@expo/vector-icons';
 import { GameSessionStatus } from './GameSessionStatus';
 import {AppText as Text} from './AppText';
@@ -80,6 +82,7 @@ export function RoomGameControl({ onReturnToTable, runtime, socialChannel, chat,
   useEffect(() => { onOpenChange?.(open); }, [open, onOpenChange]);
   useEffect(() => () => onOpenChange?.(false), [onOpenChange]);
   const [live, setLive] = useState(false);
+  useNotificationAction({user_id:userId,token}, open && live && snapshot?.match_id ? {kind:'table',roomId,matchId:snapshot.match_id} : null);
   useEffect(() => {onViewChange?.(open && live ? snapshot?.match_id || null : null);return () => onViewChange?.(null);},[onViewChange,open,live,snapshot?.match_id]);
   const collapsed = !open && live && !!snapshot && snapshot.status !== 'empty';
   const notification = useGameNotification(snapshot, collapsed, false);
@@ -463,7 +466,7 @@ export function RoomGameControl({ onReturnToTable, runtime, socialChannel, chat,
     {/* Web registers modal focus after its animation. A late parent onShow can
         steal focus from chat opened during the transition and block typing. */}
     <GameModalRoot transparent visible={open} animationType={Platform.OS === 'web' ? 'none' : 'fade'} onRequestClose={collapseGame}>
-      {live && snapshot ? <ThemeContext.Provider value={gameTheme}><TableSocialPresentation>
+      {live && snapshot ? <ThemeContext.Provider value={gameTheme}><TableSocialPresentation><TableAvatarProvider key={`${snapshot.match_id}:${token}`} session={{user_id:userId,token}}>
       <View testID="live-game-backdrop" style={[styles.liveBackdrop, {
         backgroundColor: gameTheme.colors.background, paddingTop: insets.top, paddingBottom: insets.bottom,
         paddingLeft: insets.left, paddingRight: insets.right,
@@ -493,7 +496,7 @@ export function RoomGameControl({ onReturnToTable, runtime, socialChannel, chat,
         {snapshot.status !== 'ended' && snapshot.rule_proposal?.status === 'PENDING' && ruleReview}
         <GameSessionStatus snapshot={snapshot} busy={busy || !connected || !synced}
           act={command => lobbyAction(`/table/${command}`)} />
-      </View></View></TableSocialPresentation></ThemeContext.Provider> :
+      </View></View></TableAvatarProvider></TableSocialPresentation></ThemeContext.Provider> :
       <GameModalContent><KeyboardFrame style={[styles.overlay, { paddingVertical: 16 }]}><View accessibilityViewIsModal style={styles.modal}>
         <FormScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
           <Text accessibilityRole="header" style={styles.title}>{ui("rooms.create_table")}</Text>

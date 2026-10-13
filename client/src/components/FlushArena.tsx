@@ -1,3 +1,4 @@
+import {useTableAvatar} from './TableAvatar';
 import {ActiveTurnRing} from './ActiveTurnRing';
 import {Ionicons} from '@expo/vector-icons';
 import {AppText as Text} from './AppText';
@@ -17,6 +18,7 @@ import { flushPlayerNet, minimumArenaHeight, newBets, playerPosition, potBeforeF
 export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot: RoomSnapshot; height?: number; centerControl?: ReactNode }) {
   const uiLanguage = useUiLanguage();
   const social = useTableSocial();
+  const avatar = useTableAvatar();
   const s = useThemedStyles(styles);
   const { colors } = useTheme();
   const [width, setWidth] = useState(300);
@@ -55,15 +57,16 @@ export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot
       if (p.status === 'empty') return <View key={p.player_id} testID="flush-empty-seat" accessibilityLabel={ui("rooms.empty_seat")} style={[s.seat, { left: pos.x - 40, top: pos.y - 26 }]}><View style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.onTableHeader, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.onTableHeader, fontSize: 24 }}>+</Text></View><Text style={{ color: colors.onTableHeader, fontSize: 10 }}>{ui("flush.empty")}</Text></View>;
       const sessionNet=flushPlayerNet(pub?.round_results||[],p.player_id,p.total_contribution,!!pub?.settlement||pregame);
       const name = snapshot.players?.find(row => String(row.player_id) === p.player_id)?.display_name || ui("common.player_number", { "number": p.player_id });
+      const editAvatar = p.player_id === String(snapshot.your_player_id) && !!avatar;
       const target = !!social?.pokeMode && social.eligible(Number(p.player_id));
       return <Pressable key={p.player_id} ref={node => social?.registerSeat(Number(p.player_id), node)} collapsable={false}
-        testID={`flush-seat-${p.player_id}`} accessibilityLiveRegion="polite" accessibilityRole={target ? 'button' : undefined} accessibilityLabel={`${target ? ui("social.poke_player_2", { "player": name }) : name}${p.player_id === decision?.actor ? `, ${ui('common.current_turn')}` : ''}`} disabled={!target}
-        onTouchStart={event => { if (target) event.stopPropagation(); }} onPointerDown={event => { if (target) event.stopPropagation(); }} onPress={() => social?.poke(Number(p.player_id))}
+        testID={`flush-seat-${p.player_id}`} accessibilityLiveRegion="polite" accessibilityRole={target || editAvatar ? 'button' : undefined} accessibilityLabel={`${target ? ui("social.poke_player_2", { "player": name }) : editAvatar ? `${ui("common.choose_avatar")}, ${name}` : name}${p.player_id === decision?.actor ? `, ${ui('common.current_turn')}` : ''}`} disabled={!target && !editAvatar}
+        onTouchStart={event => { if (target || editAvatar) event.stopPropagation(); }} onPointerDown={event => { if (target || editAvatar) event.stopPropagation(); }} onPress={() => target ? social?.poke(Number(p.player_id)) : editAvatar && avatar!.open()}
         style={[s.seat, { left: pos.x - 40, top: pos.y - 38, opacity: folded ? 0.4 : 1, minHeight: 44 }]}>
         <PlayerSocialEffect playerId={Number(p.player_id)} />
         <View style={[s.icon, p.player_id === decision?.actor && s.current, target && {borderColor:colors.accent}]}>
           <ActiveTurnRing active={p.player_id===decision?.actor} size={48}/>
-          {target && <Text style={{position:'absolute',right:-8,top:-8}}>👋</Text>}<PlayerAvatar uri={snapshot.players?.find(row => String(row.player_id) === p.player_id)?.avatar_url} />{!pregame&&!folded&&<View style={[s.count,{padding:2}]}><Ionicons name={p.visibility==='seen'?'checkmark-circle':'eye-off-outline'} size={16} color={p.visibility==='seen'?colors.success:colors.textMuted} accessibilityLabel={ui(p.visibility==='seen'?'flush.seen':'flush.blind')}/></View>}
+          {target && <Text style={{position:'absolute',right:-8,top:-8}}>👋</Text>}<PlayerAvatar uri={editAvatar && avatar?.uri !== undefined ? avatar.uri ?? undefined : snapshot.players?.find(row => String(row.player_id) === p.player_id)?.avatar_url} />{!pregame&&!folded&&<View style={[s.count,{padding:2}]}><Ionicons name={p.visibility==='seen'?'checkmark-circle':'eye-off-outline'} size={16} color={p.visibility==='seen'?colors.success:colors.textMuted} accessibilityLabel={ui(p.visibility==='seen'?'flush.seen':'flush.blind')}/></View>}
           {p.player_id === pub?.dealer_id && <Text accessibilityLabel={ui("common.dealer")} style={s.dealer}>D</Text>}</View>
         <Text testID={`flush-turn-name-${p.player_id}`} numberOfLines={1} style={s.name}>{name}</Text>
         {pregame||folded?<Text style={s.caption}>{ui(pregame?'flush.seated':'flush.folded')}</Text>:null}

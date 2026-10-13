@@ -60,7 +60,7 @@ export function CardTable({ height, players, viewerId, activePlayerId, width, pl
     {(layout, ordered) => {
       const winnerIndex = ordered.findIndex(player => player.id === winnerPlayerId);
       const winner = layout.positions[winnerIndex];
-      return <View testID="current-trick-area" style={detailedStats ? { position: 'absolute', inset: 0 } : { position: 'absolute', left: layout.center.x - 72, width: 144, ...(centerControl ? { top: 0, bottom: 0, justifyContent: 'center' } : { top: layout.center.y - 57, height: 114 }) }}>
+      return <View pointerEvents="box-none" testID="current-trick-area" style={detailedStats ? { position: 'absolute', inset: 0 } : { position: 'absolute', left: layout.center.x - 72, width: 144, ...(centerControl ? { top: 0, bottom: 0, justifyContent: 'center' } : { top: layout.center.y - 57, height: 114 }) }}>
         {detailedStats && <View testID="callbreak-center-status" style={{ position: 'absolute', left: layout.center.x - (centerControl ? (width/fit-48)/2 : 64), top: layout.center.y - (centerControl ? 80 : 28), height: centerControl ? 160 : 56, width: centerControl ? width/fit-48 : 128, alignItems: 'center', justifyContent: 'center', gap: 4 }}>{centerControl || centerStatus}</View>}
         {(!detailedStats && centerControl) || <>
           {!detailedStats && !plays.length && <Text style={[styles.empty, { textAlign: 'center', paddingTop: 42, fontSize: 12 }]}>{ui("callbreak.current_trick")}</Text>}

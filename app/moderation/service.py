@@ -73,14 +73,25 @@ class ModerationService:
                     message = await (await c.execute('''SELECT text,sent_at FROM direct_messages
                         WHERE id=%s AND sender_id=%s AND recipient_id=%s''',(message_id,other,uid))).fetchone()
                     if not message: raise QueryAccessDenied('Message unavailable.')
-                    evidence.update(text=message[0], sent_at=message[1].isoformat())
+                    recipient = await (await c.execute('''SELECT p.display_name,a.username FROM users u
+                        LEFT JOIN user_profiles p ON p.user_id=u.id
+                        LEFT JOIN account_credentials a ON a.user_id=u.id WHERE u.id=%s''', (uid,))).fetchone()
+                    evidence.update(text=message[0], sent_at=message[1].isoformat(), context='conversation',
+                        sender_id=target, sender_name=row[0] or row[1] or target,
+                        recipient_id=actor, recipient_name=recipient[0] or recipient[1] or actor)
                 elif scope == 'chat':
                     message = await (await c.execute('''SELECT text,sent_at,lane_id FROM room_chat_messages
                         WHERE id=%s AND sender_id=%s''',(message_id,other))).fetchone()
                     if not message or not message[2]: raise QueryAccessDenied('Message unavailable.')
                     lane,_,_ = await PostgresInboxStore(self.pool)._lane(c,message[2])
                     await authorize_chat(c,lane,actor,checkpoints=PostgresCheckpointStore(self.pool))
-                    evidence.update(text=message[0],sent_at=message[1].isoformat(),context=lane.kind)
+                    room = await (await c.execute('SELECT name FROM rooms WHERE id=%s', (lane.room_id,))).fetchone() if lane.room_id else None
+                    table = await (await c.execute('SELECT name FROM room_tables WHERE table_id=%s', (lane.table_id,))).fetchone() if lane.table_id else None
+                    evidence.update(text=message[0],sent_at=message[1].isoformat(),context=lane.kind,
+                        sender_id=target,sender_name=row[0] or row[1] or target,
+                        room_id=lane.room_id,room_name=room[0] if room else None,
+                        table_id=str(lane.table_id) if lane.table_id else None,table_name=table[0] if table else None,
+                        game_id=str(lane.game_id) if lane.game_id else None)
                 duplicate = await (await c.execute('''SELECT id FROM moderation_reports WHERE reporter_id=%s AND reported_id=%s
                     AND scope=%s AND message_id IS NOT DISTINCT FROM %s::uuid AND category=%s
                     AND created_at>clock_timestamp()-interval '24 hours' ORDER BY created_at DESC LIMIT 1''',

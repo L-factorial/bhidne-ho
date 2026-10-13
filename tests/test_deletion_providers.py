@@ -38,3 +38,15 @@ async def test_google_retry_only_accepts_documented_terminal_error(error,termina
     if terminal:await runtime.revoke('google',b'encrypted')
     else:
         with pytest.raises(httpx.HTTPStatusError):await runtime.revoke('google',b'encrypted')
+
+
+def test_deletion_default_activation_requires_database_and_recovery_and_can_be_disabled(monkeypatch):
+    monkeypatch.delenv('BHIDNE_HO_ACCOUNT_DELETION_ENABLED', raising=False)
+    recovery=SimpleNamespace(enabled=True)
+    pool=object()
+    assert DeletionRuntime(pool,recovery,SimpleNamespace()).enabled
+    assert not DeletionRuntime(None,recovery,SimpleNamespace()).enabled
+    assert not DeletionRuntime(pool,SimpleNamespace(enabled=False),SimpleNamespace()).enabled
+    monkeypatch.setenv('BHIDNE_HO_ACCOUNT_DELETION_ENABLED','0')
+    assert not DeletionRuntime(pool,recovery,SimpleNamespace()).enabled
+    assert not DeletionRuntime(pool,recovery,SimpleNamespace(),enabled=False).enabled

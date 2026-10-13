@@ -87,7 +87,7 @@ export function ForgotPassword() {
 }
 
 type EmailStatus = {enabled: boolean; password_account: boolean; verified_email: string | null; pending_email: string | null};
-export function RecoveryEmailSettings({session}: {session: Session}) {
+export function RecoveryEmailSettings({session, allowRemoval = true}: {session: Session; allowRemoval?: boolean}) {
   useUiLanguage(); const { colors } = useTheme();
   const [status, setStatus] = useState<EmailStatus | null>(null); const [email,setEmail] = useState(''); const [password,setPassword] = useState('');
   const [busy,setBusy] = useState(false); const [error,setError] = useState(''); const [message,setMessage] = useState(''); const [removing,setRemoving] = useState(false);
@@ -115,8 +115,8 @@ export function RecoveryEmailSettings({session}: {session: Session}) {
       <FormInput accessibilityLabel={ui('common.email')} placeholder={ui('common.email')} value={email} onChangeText={setEmail} keyboardType="email-address" textContentType="emailAddress" autoCapitalize="none" autoCorrect={false} maxLength={254} editable={!busy} style={inputStyle} returnKeyType="next" onSubmitEditing={() => passwordRef.current?.focus()}/>
       <FormInput ref={passwordRef} accessibilityLabel={ui('recovery.currentPassword')} placeholder={ui('recovery.currentPassword')} value={password} onChangeText={setPassword} secureTextEntry textContentType="password" autoCapitalize="none" autoCorrect={false} maxLength={128} editable={!busy} style={inputStyle} returnKeyType="done" onSubmitEditing={() => {if(!removing)void save();}}/>
       <Action label={ui('recovery.save')} disabled={busy || !password || !validSignupEmail(email)} onPress={() => void save()}/>
-      {(!!status.verified_email || !!status.pending_email) && <Action label={ui('recovery.remove')} disabled={busy} onPress={() => setRemoving(true)}/>}
-      {removing && <><Text style={{color:colors.text}}>{ui('recovery.removeHelp')}</Text><Action label={ui('recovery.confirmRemove')} disabled={busy || !password} onPress={() => void save(true)}/><Action label={ui('recovery.back')} disabled={busy} onPress={() => setRemoving(false)}/></>}
+      {allowRemoval && (!!status.verified_email || !!status.pending_email) && <Action label={ui('recovery.remove')} disabled={busy} onPress={() => setRemoving(true)}/>}
+      {allowRemoval && removing && <><Text style={{color:colors.text}}>{ui('recovery.removeHelp')}</Text><Action label={ui('recovery.confirmRemove')} disabled={busy || !password} onPress={() => void save(true)}/><Action label={ui('recovery.back')} disabled={busy} onPress={() => setRemoving(false)}/></>}
     </>}
     {!!message && <Text accessibilityRole="alert" style={{color:colors.text}}>{message}</Text>}
     {!!error && <Text accessibilityRole="alert" style={{color:colors.danger}}>{error}</Text>}
@@ -172,7 +172,7 @@ export function SignupVerification({ session }: { session: Session }) {
         {!status.enabled && <Text accessibilityRole="alert" style={{color:colors.text}}>{ui('recovery.unavailable')}</Text>}
         <Action label={cooldown?ui('recovery.resendWait',{seconds:cooldown}):ui('recovery.resend')} disabled={busy || !!cooldown || !status.enabled} onPress={() => void resend()}/>
         <Action label={ui('recovery.changeEmail')} onPress={() => setChanging(value => !value)}/>
-        {changing && <RecoveryEmailSettings session={session}/>}
+        {changing && <RecoveryEmailSettings session={session} allowRemoval={false}/>}
       </>}
       {!!message && <Text accessibilityRole="alert" style={{color:colors.text}}>{message}</Text>}
       {!!error && <Text accessibilityRole="alert" style={{color:colors.danger}}>{error}</Text>}

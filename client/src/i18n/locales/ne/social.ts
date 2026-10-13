@@ -1,5 +1,6 @@
 // Editable social copy. Keep keys and placeholders in sync with the other locale.
 export default {
+  today: 'आज', yesterday: 'हिजो', times_local: 'समय तपाईंको स्थानीय समयअनुसार देखाइएको छ',
   "members_unavailable": "कोठाका सदस्यहरू लोड गर्न सकिएन।",
   no_matching_friends: 'मिल्ने साथी भेटिएनन्।',
   searching_friends: 'साथी खोज्नुहोस्',

@@ -63,6 +63,10 @@ def rewrite(value, old, replacement, *, owned=False, names=()):
 
 async def erase(c, job, recovery):
     job_id, uid = job
+    from .blockers import deletion_blockers, blocker_code
+    blockers=await deletion_blockers(c,'user-'+str(uid))
+    if blockers:
+        raise CleanupWaiting(blocker_code(blockers))
     # Lock before account rows in the worker (same order as social login).
     await c.execute('UPDATE account_identity_generation SET generation=generation+1')
     old, replacement = str(uid), str(uuid4())
@@ -152,13 +156,7 @@ async def erase(c, job, recovery):
         await c.execute("DELETE FROM social_login_attempts WHERE provider=%s AND data->'identity'->>'subject'=%s",(provider,subject))
     for table in ('account_provider_grants','external_identities','auth_sessions','account_credentials'):
         await c.execute(sql.SQL('DELETE FROM {} WHERE user_id=%s').format(sql.Identifier(table)).as_string(),(uid,))
-    # No absent account is required to confirm a future game-point transfer.
-    # Ledger amounts remain intact; only its unfinished transfers are cancelled.
-    batches = await (await c.execute("UPDATE settlement_transfers SET status='CANCELLED' WHERE (payer_id=%s OR payee_id=%s) AND status NOT IN ('RESOLVED','CANCELLED') RETURNING batch_id", (uid,uid))).fetchall()
-    for (batch_id,) in batches:
-        await c.execute("""UPDATE settlement_batches SET status=CASE
-            WHEN NOT EXISTS(SELECT 1 FROM settlement_transfers WHERE batch_id=%s AND status NOT IN ('RESOLVED','CANCELLED')) THEN 'CANCELLED'
-            ELSE 'PARTIALLY_RESOLVED' END WHERE batch_id=%s""", (batch_id,batch_id))
+    # Accepted deletion never cancels or forgives an unsettled transfer.
     # Transfer room management to the oldest remaining non-disabled member.
     await c.execute('''UPDATE rooms r SET creator_id=COALESCE((SELECT m.user_id FROM room_memberships m JOIN users u ON u.id=m.user_id
         WHERE m.room_id=r.id AND m.user_id<>%s AND NOT u.deletion_pending AND NOT u.erased ORDER BY m.joined_at,m.user_id LIMIT 1),r.creator_id)

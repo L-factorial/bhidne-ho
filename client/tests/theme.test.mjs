@@ -49,7 +49,7 @@ test('highlighted result names and scores remain readable in games and ledgers',
 });
 
 
-test('monochrome controls, status text and table surfaces retain contrast', () => {
+test('charcoal and ivory controls, status text and table surfaces retain contrast', () => {
   for (const id of ['noir', 'pearl']) {
     const c = tableThemes[id].colors;
     for (const [fg,bg] of [[c.onPrimary,c.primary],[c.onPrimary,c.primaryPressed],[c.onCoin,c.coin],
@@ -58,8 +58,9 @@ test('monochrome controls, status text and table surfaces retain contrast', () =
       assert.ok(contrast(fg,bg)>=4.5, `${id}: ${fg} on ${bg}`);
     }
     for (const bg of [c.background,c.surface]) assert.ok(contrast(c.border,bg)>=3);
-    for (const [key,value] of Object.entries(c)) {
-      if (!value.startsWith('#') || ['gain','loss','destructiveAction','onDestructive','danger','dangerSurface','cardFace','cardInk','cardRed','cardClub','cardBorder','cardSelected'].includes(key)) continue;
+    // Only Kathmandu Ink promises a grayscale interface; Himali Bihan uses bronze.
+    for (const [key,value] of Object.entries(id === 'noir' ? c : {})) {
+      if ( !value.startsWith('#') || ['gain','loss','destructiveAction','onDestructive','danger','dangerSurface','cardFace','cardInk','cardRed','cardClub','cardBorder','cardSelected'].includes(key)) continue;
       const rgb=value.slice(1,7).match(/../g);
       const channels=rgb.map(channel=>parseInt(channel,16));
       assert.ok(Math.max(...channels)-Math.min(...channels)<=8,`${id}: ${key} must stay neutral`);

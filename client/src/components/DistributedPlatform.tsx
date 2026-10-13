@@ -51,7 +51,7 @@ export function DistributedPlatform({root,session}:{root:DistributedRootRuntime;
     // Legacy has no delivery sequence; it stays a separate page/source until display.
     return [...legacy.items,...native].map(row=>({id:row.id,sender_id:String(row.sender_id),recipient_id:String(row.recipient_id),text:String(row.text),sent_at:Date.parse(String(row.sent_at))}));
   },[root,session.user_id]);
-  const transport:FriendsTransport={history,busy:!controller||state.busy,error:state.error,
+  const transport:FriendsTransport={notificationRoot:root,history,busy:!controller||state.busy,error:state.error,
     mutate:(other,action)=>requireAccepted(controller,()=>controller?.friendship(session.user_id,other,action)),
     send:(other,text)=>requireAccepted(controller,()=>controller?.chat(pair(session.user_id,other),text))};
   if(state.status==='accepted') {
@@ -79,7 +79,7 @@ export function DistributedPlatform({root,session}:{root:DistributedRootRuntime;
     <FriendsPanel session={session} transport={transport}/>
     {state.status==='pending'&&<Retry retry={()=>void controller?.recover()}/>}
     <Text style={{color:colors.text}}>{ui("common.notifications")}</Text>
-    {notifications.map(row=><View key={row.id}><Text style={{color:colors.text}}>{row.kind.replaceAll('_',' ')}</Text>
+    {notifications.filter(row=>!row.read).map(row=><View key={row.id}><Text style={{color:colors.text}}>{row.kind.replaceAll('_',' ')}</Text>
       {!row.read&&button(ui("common.mark_read"),()=>void controller?.read({kind:'recipient',recipient_id:session.user_id.replace(/^user-/,'')},[row.id]))}</View>)}
     <Text style={{color:colors.text}}>{ui("common.room_invitations")}</Text>
     {invitations.map(row=><View key={row.id}><Text style={{color:colors.text}}>{row.room_name}</Text>

@@ -3,17 +3,24 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.auth.email import normalize_recovery_email
 from app.transport.http import current_user
 from app.auth.recovery_http import no_store
+from app.auth.recovery import RecoveryRateLimited
 from .service import DeletionError
 
 router = APIRouter(prefix='/auth/deletion', dependencies=[Depends(no_store)])
 CONTRACTS = {('GET','/auth/deletion/capabilities'),('POST','/auth/deletion/request'),
-             ('POST','/auth/deletion/email'),('POST','/auth/deletion/confirm'),('POST','/auth/deletion/status')}
+             ('POST','/auth/deletion/email'),('POST','/auth/deletion/confirm'),('POST','/auth/deletion/status'),
+             ('GET','/auth/deletion/preflight'),('POST','/auth/deletion/preflight')}
 
 
 class Confirm(BaseModel):
     model_config = ConfigDict(extra='forbid')
     confirmation: str = Field(pattern=r'^DELETE$')
     current_password: str = Field(default='', max_length=128)
+
+
+class StartEmail(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    current_password: str = Field(max_length=128)
 
 
 class EmailRequest(BaseModel):
@@ -50,8 +57,12 @@ async def limited(request, scope='deletion-ip', maximum=20, seconds=600):
 async def guarded(operation):
     try:
         return await operation
+    except RecoveryRateLimited:
+        raise HTTPException(429,{'code':'deletion_limited'}) from None
     except DeletionError as error:
-        raise HTTPException(409,{'code':'deletion_'+str(error)}) from None
+        detail={'code':'deletion_'+str(error)}
+        if error.blockers is not None: detail['blockers']=error.blockers
+        raise HTTPException(409,detail) from None
 
 
 @router.get('/capabilities')
@@ -60,10 +71,21 @@ async def capabilities(request: Request):
 
 
 @router.post('/request',status_code=202)
-async def request_deletion(body: Confirm,request: Request,user=Depends(current_user)):
+async def request_deletion(body: StartEmail,request: Request,user=Depends(current_user)):
     value = await limited(request)
-    token = request.headers.get('authorization','').removeprefix('Bearer ')
-    return await guarded(value.service.request(user.user_id,password=body.current_password,session_token=token))
+    return await guarded(value.service.email_request(user.user_id,body.current_password))
+
+
+@router.get('/preflight')
+async def preflight(request: Request,user=Depends(current_user)):
+    value=await limited(request,'deletion-preflight-ip',120,60)
+    return await guarded(value.service.preflight(user.user_id))
+
+
+@router.post('/preflight')
+async def token_preflight(body: Token,request: Request):
+    value=await limited(request,'deletion-preflight-ip',120,60)
+    return await guarded(value.service.preflight(token=body.token))
 
 
 @router.post('/email',status_code=202)

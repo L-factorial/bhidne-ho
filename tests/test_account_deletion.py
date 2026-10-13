@@ -66,6 +66,9 @@ async def test_points_and_room_ownership_survive_erasure(recovery_database):
     await pool.execute("INSERT INTO room_memberships(room_id,user_id) VALUES ('points-room',%s),('points-room',%s)",(aid,bid))
     await pool.execute("INSERT INTO ledger_games(game_id,room_id,table_id,game_type) VALUES (%s,'points-room',%s,'callbreak')",(game,table))
     await pool.execute('INSERT INTO game_ledger_entries(game_id,player_id,amount) VALUES (%s,%s,10),(%s,%s,-10)',(game,aid,game,bid))
+    batch=uuid4()
+    await pool.execute("INSERT INTO settlement_batches(batch_id,room_id,table_id,scope,status,created_by,idempotency_key) VALUES (%s,'points-room',%s,'table','RESOLVED',%s,'settled')",(batch,table,bid))
+    await pool.execute('INSERT INTO settlement_games(batch_id,game_id) VALUES (%s,%s)',(batch,game))
     await deletion.request(a.user_id,password='original-password');await clean(pool,recovery,a.user_id)
     assert (await pool.execute("SELECT creator_id FROM rooms WHERE id='points-room'")).rows==[(bid,)]
     assert (await pool.execute('SELECT amount FROM game_ledger_entries WHERE player_id=%s',(bid,))).rows==[(-10,)]
@@ -217,16 +220,21 @@ async def test_old_social_handoff_cannot_recreate_erased_identity(recovery_datab
     assert (await auth.authenticate(session.token)).user_id==session.user_id
 
 
-async def test_unfinished_point_transfers_cancel_without_changing_ledger(recovery_database):
+async def test_unfinished_point_transfers_block_until_resolved_without_cancellation(recovery_database):
     pool=recovery_database;auth,a,recovery,deletion=await setup(pool)
     b=await auth.sign_up('other_player','original-password')
     uid,bid=UUID(a.user_id[5:]),UUID(b.user_id[5:]);table,batch,transfer=uuid4(),uuid4(),uuid4()
     await pool.execute("INSERT INTO rooms(id,creator_id,name,visibility) VALUES ('settle-room',%s,'Points','private')",(bid,))
     await pool.execute("INSERT INTO settlement_batches(batch_id,room_id,table_id,scope,status,created_by,idempotency_key) VALUES (%s,'settle-room',%s,'table','OPEN',%s,'once')",(batch,table,bid))
     await pool.execute("INSERT INTO settlement_transfers(transfer_id,batch_id,payer_id,payee_id,amount,status) VALUES (%s,%s,%s,%s,10,'OPEN')",(transfer,batch,uid,bid))
+    with pytest.raises(DeletionError,match='unsettled_ledger'):
+        await deletion.request(a.user_id,password='original-password')
+    assert (await auth.authenticate(a.token)).user_id==a.user_id
+    assert (await pool.execute('SELECT payee_id,amount,status FROM settlement_transfers')).rows==[(bid,10,'OPEN')]
+    await pool.execute("UPDATE settlement_transfers SET status='RESOLVED',resolved_at=clock_timestamp() WHERE transfer_id=%s",(transfer,))
+    await pool.execute("UPDATE settlement_batches SET status='RESOLVED' WHERE batch_id=%s",(batch,))
     await deletion.request(a.user_id,password='original-password');await clean(pool,recovery,a.user_id)
-    assert (await pool.execute('SELECT payee_id,amount,status FROM settlement_transfers')).rows==[(bid,10,'CANCELLED')]
-    assert (await pool.execute('SELECT status FROM settlement_batches')).rows==[('CANCELLED',)]
+    assert (await pool.execute('SELECT payee_id,amount,status FROM settlement_transfers')).rows==[(bid,10,'RESOLVED')]
 
 
 async def test_old_client_writes_fail_after_acceptance(recovery_database):
@@ -258,13 +266,20 @@ async def test_archived_game_remains_valid_after_deletion(database,kind):
         assert (await execute(inbox,lane,fence,a.user_id,request(await store.load(game.table.table_id))))['status']=='accepted'
         saved=await store.load(game.table.table_id)
         assert (await execute(inbox,lane,fence,a.user_id,request(saved,'end')))['status']=='accepted'
+        await MatchFinalizationWorker(pool).execute(await job_id(pool),fence)
+        # Finished ledger projections must be settled before erasure.
+        rows=(await pool.execute('SELECT game_id,table_id FROM ledger_games')).rows
+        for ledger_game,ledger_table in rows:
+            batch=uuid4()
+            await pool.execute("INSERT INTO settlement_batches(batch_id,room_id,table_id,scope,status,created_by,idempotency_key) VALUES (%s,'room',%s,'table','RESOLVED',%s,%s)",(batch,ledger_table,uid,str(batch)))
+            await pool.execute('INSERT INTO settlement_games(batch_id,game_id) VALUES (%s,%s)',(batch,ledger_game))
         await deletion.request(a.user_id,password='original-password');await clean(pool,recovery,a.user_id)
         archive=(await pool.execute('SELECT checkpoint FROM hosted_match_archives')).rows[0][0]
         assert a.user_id not in decode_checkpoint(archive).record.data.host.users
-        # Finalization can still derive shared point results from the archive.
+        # Finalization retry remains idempotent after anonymizing the archive.
         new_fence=replace(fence,epoch=fence.epoch+1)
         await pool.execute("UPDATE room_ownership SET owner_instance_id='one',fencing_token_hash=%s,lease_expires_at=clock_timestamp()+interval '1 hour',runtime_status='serving'",(_token_hash(fence.token),))
-        assert await MatchFinalizationWorker(pool).execute(await job_id(pool),new_fence) in ('projected','no_payment')
+        assert await MatchFinalizationWorker(pool).execute(await job_id(pool),new_fence) == 'already_completed'
     finally:await host.close()
 
 
@@ -293,15 +308,34 @@ async def test_distributed_gateways_share_deletion_revocation(database,monkeypat
     from app.auth.recovery_delivery import RecoveryConfig
     from test_distributed_platform import application,signup
     monkeypatch.setenv('BHIDNE_HO_ACCOUNT_DELETION_ENABLED','1')
-    monkeypatch.setattr(RecoveryConfig,'from_environment',classmethod(lambda cls:config()))
-    monkeypatch.setattr(RecoveryConfig,'send',lambda *args:None)
+    shared_config=config()
+    monkeypatch.setattr(RecoveryConfig,'from_environment',classmethod(lambda cls:shared_config))
+    delivered=[]
+    monkeypatch.setattr(RecoveryConfig,'send',lambda self,payload:delivered.append(payload))
     async with application(database[0]) as (first,_,_):
         async with application(database[0]) as (second,_,_):
             user,headers=await signup(first,'cross_gateway_delete')
             assert (await second.get('/auth/deletion/capabilities')).json()['enabled']
             assert (await second.get('/auth/me',headers=headers)).status_code==200
+            recovery=first._transport.app.state.recovery
+            import asyncio
+            for _ in range(100):
+                verification=next((m for m in delivered if m['purpose']=='verify_email'),None)
+                if verification:break
+                await asyncio.sleep(.05)
+            assert verification
+            await recovery.service.verify_email(verification['token'])
             reply=await first.post('/auth/deletion/request',headers=headers,
-                json={'confirmation':'DELETE','current_password':'long-password'})
+                json={'current_password':'long-password'})
+            assert reply.status_code==202,reply.text
+            assert (await second.get('/auth/me',headers=headers)).status_code==200
+            import asyncio
+            for _ in range(100):
+                mail=next((m for m in delivered if m['purpose']=='delete_account'),None)
+                if mail:break
+                await asyncio.sleep(.05)
+            assert mail
+            reply=await first.post('/auth/deletion/confirm',json={'token':mail['token'],'confirmation':'DELETE'})
             assert reply.status_code==202,reply.text
             assert (await second.get('/auth/me',headers=headers)).status_code==401
             assert (await second.get('/distributed/rooms',headers=headers)).status_code==401

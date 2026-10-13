@@ -5,7 +5,7 @@ const { fixture } = require('./game-stats.cjs');
 const fs = require('node:fs');
 const output = process.env.SCREENSHOT_DIR || '/private/tmp/bhidne-nepali-themes';
 fs.mkdirSync(output, { recursive: true });
-const choices = { classic: 'Chitwan Hariyali', heritage: 'Patan Sampada', dusk: 'Himali Raat', noir: 'Charcoal Monochrome', pearl: 'Ivory Light' };
+const choices = { classic: 'Chitwan Hariyali', heritage: 'Patan Sampada', dusk: 'Himali Raat', noir: 'Kathmandu Ink', pearl: 'Himali Bihan' };
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
@@ -29,7 +29,7 @@ const choices = { classic: 'Chitwan Hariyali', heritage: 'Patan Sampada', dusk: 
         const backdrop = page.getByTestId(`theme-backdrop-${id}`).last();
         await backdrop.waitFor();
         assert.equal(await backdrop.evaluate(el => getComputedStyle(el).pointerEvents), 'none');
-        const decorated = ['classic', 'heritage', 'dusk'].includes(id);
+        const decorated = true;
         assert.equal(await backdrop.getByTestId('theme-scenery-image').count(), decorated ? 1 : 0);
         assert.equal(await surface.locator('image').count(), decorated ? 1 : 0);
         if (decorated) {
@@ -66,7 +66,7 @@ const choices = { classic: 'Chitwan Hariyali', heritage: 'Patan Sampada', dusk: 
     await f.page.getByRole('radio', { name: 'नेपाली', exact: true }).click();
     await f.page.getByTestId('language-menu').waitFor({ state: 'hidden' });
     await f.page.getByRole('button', { name: 'थिम छान्ने', exact: true }).click();
-    for (const name of ['चितवन हरियाली', 'पाटन सम्पदा', 'हिमाली रात']) await f.page.getByRole('radio', { name, exact: true }).waitFor();
+    for (const name of ['चितवन हरियाली', 'पाटन सम्पदा', 'हिमाली रात', 'काठमाडौं इन्क', 'हिमाली बिहान']) await f.page.getByRole('radio', { name, exact: true }).waitFor();
     assert.deepEqual(f.errors, []);
     await f.context.close();
     console.log('PASS lobby/profile: theme selection and Nepali labels');

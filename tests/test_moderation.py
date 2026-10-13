@@ -98,6 +98,10 @@ async def test_message_evidence_requires_access_and_server_record(database):
     r=await svc.submit(users[1],users[0],'chat',mid,'harassment','context')
     stored=(await svc.reports(users[5],users[0]))['items'][0]
     assert stored['evidence']['text']==(await sql(pool,'SELECT text FROM room_chat_messages'))[0][0]
+    assert stored['evidence']['sender_id']==users[0]
+    assert stored['evidence']['room_id']==target.room_id
+    assert stored['evidence']['room_name']
+    assert stored['evidence']['sent_at']
     with pytest.raises(QueryAccessDenied):await svc.submit(users[1],users[2],'chat',mid,'spam','')
     await sql(pool,'DELETE FROM room_memberships WHERE user_id=%s',(UUID(users[2][5:]),))
     with pytest.raises(QueryAccessDenied):await svc.submit(users[2],users[0],'chat',mid,'spam','')
@@ -106,7 +110,14 @@ async def test_message_evidence_requires_access_and_server_record(database):
     await executor.execute_one(UUID(accepted['lane_id']))
     mid=(await sql(pool,'SELECT id FROM direct_messages'))[0][0]
     await svc.submit(users[1],users[0],'direct',mid,'spam','')
+    evidence=next(r['evidence'] for r in (await svc.reports(users[5],users[0]))['items'] if r['scope']=='direct')
+    assert evidence['sender_id']==users[0] and evidence['recipient_id']==users[1]
+    assert evidence['sender_name'] and evidence['recipient_name']
+    assert evidence['sent_at'] and evidence['text']
     with pytest.raises(QueryAccessDenied):await svc.submit(users[3],users[0],'direct',mid,'spam','')
+    await sql(pool,'DELETE FROM direct_messages')
+    retained=next(r['evidence'] for r in (await svc.reports(users[5],users[0]))['items'] if r['scope']=='direct')
+    assert retained==evidence
 
 async def test_report_limits(database):
     pool,_,_,users=database;svc=configured(pool,users[5])
@@ -161,3 +172,23 @@ async def test_self_review_disabled_account_and_permission_revocation(database):
     await sql(pool,'UPDATE users SET deletion_pending=true WHERE id=%s',(UUID(users[0][5:]),))
     assert (await svc.capabilities(users[0]))['moderator'] is False
     with pytest.raises(QueryAccessDenied):await svc.reports(users[0],users[1])
+
+async def test_table_report_captures_conversation_location(database):
+    from app.durable_games.chat import ChatIngress, ChatLaneExecutor
+    from app.durable_games.inbox import LaneTarget
+    from test_game_lane_executor import setup_game
+    pool,_,fence,users=database
+    host,game,inbox,_,_=await setup_game(database)
+    try:
+        target=LaneTarget(kind='table_chat',room_id='room',table_id=UUID(game.table.table_id))
+        accepted=await ChatIngress(inbox).submit(users[0],target,chat_request(users[0]))
+        await ChatLaneExecutor(inbox).execute_one(UUID(accepted['lane_id']),fence)
+        mid=(await sql(pool,'SELECT id FROM room_chat_messages'))[0][0]
+        svc=configured(pool,users[5])
+        await svc.submit(users[1],users[0],'chat',mid,'harassment','')
+        evidence=(await svc.reports(users[5],users[0]))['items'][0]['evidence']
+        assert UUID(evidence['table_id'])==UUID(game.table.table_id)
+        assert evidence['table_name'] and evidence['room_name']
+        assert evidence['sender_id']==users[0]
+    finally:
+        await host.close()

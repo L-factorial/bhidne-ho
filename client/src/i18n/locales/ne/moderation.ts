@@ -1,4 +1,13 @@
 export default {
+  reported_at: "रिपोर्ट गरिएको समय",
+  message_sender: "पठाउने",
+  message_recipient: "पाउने",
+  conversation_room: "कोठाको कुराकानी",
+  conversation_table: "टेबलको कुराकानी",
+  conversation_game: "खेलको कुराकानी",
+  message_sent_at: "सन्देश पठाइएको समय",
+  context_unavailable: "यो पुरानो रिपोर्टमा कुराकानीको विवरण सुरक्षित गरिएको थिएन।",
+
   "enforcement_help": "कारबाहीको कारण आवश्यक छ। खेलाडीले सक्रिय टेबल छोडेपछि खाता निलम्बन गर्न सकिन्छ; आवश्यक भए च्याट तुरुन्त रोक्नुहोस्।",
   "remove_message": "सन्देश हटाउनुहोस्",
   "mute": "च्याट र निमन्त्रणा रोक्नुहोस्",

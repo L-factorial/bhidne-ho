@@ -1,3 +1,5 @@
+import type {DistributedRootRuntime} from '../multiplayer/DistributedRoot';
+import {useNotificationAction, acknowledgeNotificationAction, acknowledgeDistributedNotificationAction} from '../multiplayer/useNotificationAction';
 import {ChatTableSeparator} from './ChatTableSeparator';
 import { OnlinePeopleStrip } from './OnlinePeopleStrip';
 import {AppText as Text} from './AppText';
@@ -17,7 +19,8 @@ import { FormInput } from './FormInput';
 import { RoomSheet } from './RoomSheet';
 import { ChatComposer } from './ChatComposer';
 import { FormFooter } from './FormFooter';
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
+import { chatDayLabel, localChatDay } from '../chatDates';
 import type { ReactNode } from 'react';
 import {Pressable, ScrollView, StyleSheet, View, Text as NativeText} from 'react-native';
 import { request } from '../multiplayer/api';
@@ -31,6 +34,7 @@ const empty: Snapshot = { friends: [], incoming: [], outgoing: [] };
 const label = (player: Player) => player.display_name || player.username || ui("common.player");
 
 export type FriendsTransport = {
+  notificationRoot?: DistributedRootRuntime;
   history(other: string, signal: AbortSignal): Promise<Message[]>;
   mutate(other: string, action: 'request-friend'|'accept-friend'|'remove-friend'): Promise<void>;
   send(other: string, text: string): Promise<void>; busy: boolean; error: string;
@@ -48,8 +52,16 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
   const [conversationError,setConversationError]=useState('');
   const [snapshot, setSnapshot] = useState<Snapshot>(empty);
   const [friendQuery,setFriendQuery]=useState('');
+  const [viewedConversation,setViewedConversation]=useState<string|null>(null);
   const [query, setQuery] = useState(''), [results, setResults] = useState<Player[]>([]);
   const [selected, setSelected] = useState<Player | null>(null);
+  const [chatNow, setChatNow] = useState(Date.now);
+  useEffect(() => {
+    if (!selected) return;
+    setChatNow(Date.now());
+    const timer = setInterval(() => setChatNow(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, [selected?.user_id]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const draft = selected ? drafts[selected.user_id] || '' : '';
@@ -95,12 +107,12 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
     void poll(); return () => { controller.abort(); clearTimeout(timer); };
   }, [session.token, onlineOnly, blocking.revision]);
   useEffect(() => {
-    if (!selected) { setMessages([]); return; }
+    if (!selected) { setMessages([]);setViewedConversation(null); return; }
     const controller = new AbortController(); let timer: ReturnType<typeof setTimeout>;
     async function poll() {
       try {
         const value = await (transport ? transport.history(selected!.user_id, controller.signal) : request<Message[]>(`/friends/${encodeURIComponent(selected!.user_id)}/messages`, session, undefined, controller.signal));
-        if (!controller.signal.aborted) { setMessages(current=>preserveRemovals(current,value)); setError(''); }
+        if (!controller.signal.aborted) { setMessages(current=>preserveRemovals(current,value));setViewedConversation(selected!.user_id); setError(''); }
       } catch (failure) { if (!controller.signal.aborted) setError(playerError(failure, ui("feedback.could_not_load_messages"))); }
       finally { if (!controller.signal.aborted) timer = setTimeout(poll, 1500); }
     }
@@ -119,7 +131,7 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
     const path = method ? `/friends/${encodeURIComponent(other)}` : `/friends/requests/${encodeURIComponent(other)}${action === 'accept-friend' ? '/accept' : ''}`;
     if (busy) return;
     setBusy(true); setError('');
-    try { if (transport) await transport.mutate(other, action); else await request(path, session, method ? undefined : {}, undefined, method); await refresh(); }
+    try { if (transport) await transport.mutate(other, action); else await request(path, session, method ? undefined : {}, undefined, method); await refresh(); await (transport?.notificationRoot ? acknowledgeDistributedNotificationAction(transport.notificationRoot,session,{kind:'friend',otherUserId:other},new AbortController().signal) : acknowledgeNotificationAction(session,{kind:'friend',otherUserId:other})).catch(()=>{}); }
     catch (failure) { setError(playerError(failure, ui("feedback.could_not_update_friendship"))); }
     finally { setBusy(false); }
   }
@@ -140,6 +152,7 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
     } catch (failure) { if (selectedId.current === recipientId) setSendError(playerError(failure, ui("feedback.could_not_send_message"))); }
     finally { sending.current = false; setBusy(false); }
   }
+  useNotificationAction(session, selected && viewedConversation===selected.user_id ? {kind:'direct',otherUserId:selected.user_id} : null,transport?.notificationRoot);
   const available = !!selected && snapshot.friends.some(friend=>friend.user_id===selected.user_id);
   const visibleFriends = onlineOnly ? snapshot.friends.filter(player => snapshot.online_friend_ids?.includes(player.user_id)) : snapshot.friends;
   const friendSearch = friendQuery.trim().toLocaleLowerCase();
@@ -191,7 +204,7 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
       <View style={styles.sectionHeading}><Text style={styles.heading}>{ui('social.online_friends')}</Text><Text style={styles.count}>{visibleFriends.length}</Text></View>
       {!visibleFriends.length ? <Text style={styles.detail}>{ui('social.no_online_friends')}</Text> : <OnlinePeopleStrip people={visibleFriends} onlineIds={snapshot.online_friend_ids || []} onPress={player=>void rules.run(()=>{setMessages([]);setSendError('');setSelected(player);})}/>}
       <ChatTableSeparator/>
-      <View style={{flexDirection:'row',alignItems:'center',gap:10}}><Text accessibilityRole="header" style={styles.heading}>{ui('social.conversations')}</Text>
+      <View style={{flexDirection:'row',alignItems:'center',gap:20}}><Text accessibilityRole="header" style={styles.heading}>{ui('social.conversations')}</Text>
         <View style={styles.searchField}><Ionicons name="search-outline" size={16} color={colors.textMuted}/><FormInput testID="chat-friend-search" accessibilityLabel={ui('social.searching_friends')} placeholder={ui('social.searching_friends')} placeholderTextColor={colors.textMuted} value={friendQuery} onChangeText={setFriendQuery} maxLength={50} autoCapitalize="none" style={[styles.input,{padding:8,fontSize:12}]}/></View>
       </View>
       {!!conversationError && <Text accessibilityRole="alert" style={styles.error}>{conversationError}</Text>}
@@ -233,10 +246,18 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
           onSend={() => void send()} disabled={busy || !available} placeholder={ui("social.write_a_private_message")} label={ui("social.message_player", {player: label(selected)})} sendLabel={ui("common.send_privately")} />
       </FormFooter>}>
       <ScrollView style={{ flex: 1, minHeight: 0 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+        <Text style={[styles.detail,{textAlign:'center',marginBottom:12}]}>{ui('social.times_local')}</Text>
         {!messages.length && <Text style={styles.detail}>{ui("common.no_messages_yet")}</Text>}
-        {messages.map(message => <ChatMessage tableStyle key={message.id} own={message.sender_id===session.user_id}
+        {messages.map((message,index) => <Fragment key={message.id}>
+          {(index === 0 || localChatDay(message.sent_at) !== localChatDay(messages[index-1].sent_at)) &&
+            <View testID="private-chat-date-separator" style={{flexDirection:'row',alignItems:'center',gap:10,marginVertical:12}}>
+              <View style={{flex:1,height:1,backgroundColor:colors.borderSubtle}}/>
+              <Text style={[styles.detail,{fontFamily:fonts.medium,fontSize:12}]}>{chatDayLabel(message.sent_at,chatNow,ui('social.today'),ui('social.yesterday'))}</Text>
+              <View style={{flex:1,height:1,backgroundColor:colors.borderSubtle}}/>
+            </View>}
+          <ChatMessage tableStyle privateChat own={message.sender_id===session.user_id}
           message={{...message,sender_name:message.sender_id===session.user_id?ui('common.you'):label(selected)}}
-          action={<ReportButton menu session={session} enabled={blocking.reporting && !message.removed} scope="direct" messageId={message.id} player={{user_id:message.sender_id,display_name:label(selected)}}/>}/>)}
+          action={<ReportButton menu session={session} enabled={blocking.reporting && !message.removed} scope="direct" messageId={message.id} player={{user_id:message.sender_id,display_name:label(selected)}}/>}/></Fragment>)}
       </ScrollView>
     </RoomSheet>}
     {!!error && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}

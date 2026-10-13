@@ -119,3 +119,16 @@ async def test_offline_direct_message_persists_and_notifies_once_on_retry(databa
     assert len(providers.sent) == 1
     assert providers.sent[0][1]['data']['other_user_id'] == users[0]
     assert not await worker.send_one()
+
+async def test_selected_legacy_notification_reads_are_scoped_to_owner(database):
+    from app.players.store import PostgresPlayerStore
+    pool,_,_,users=database
+    identities=[uuid4(),uuid4(),uuid4()]
+    for identity,recipient in zip(identities,[users[0],users[0],users[1]]):
+        await pool.execute("INSERT INTO friend_notifications(id,user_id,actor_id,kind) VALUES(%s,%s,%s,'friend_accepted')",(identity,UUID(recipient[5:]),UUID(users[2][5:])))
+    store=PostgresPlayerStore(pool)
+    await store.read_notifications(users[0],[str(identities[0]),str(identities[2])])
+    rows=(await pool.execute('SELECT id,read_at IS NOT NULL FROM friend_notifications')).rows
+    assert {str(identity) for identity,read in rows if read}=={str(identities[0])}
+    await store.read_notifications(users[0],[])
+    assert (await pool.execute('SELECT count(*) FROM friend_notifications WHERE read_at IS NOT NULL')).rows==[(1,)]

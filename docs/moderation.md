@@ -147,3 +147,11 @@ is not implemented.
 No live settings, permissions, deployment, commits or pushes were changed. After
 configuration/deployment, verify public URLs without login and run physical
 Android/iOS acceptance. Push notifications remain deferred.
+
+Reported-message review now displays the saved message, its sender, private-chat
+recipient or shared room/table/game location, and separately labeled message and
+report timestamps with the moderator's local timezone. New reports capture the
+participant names and location in evidence at submission; original-message
+removal and later profile changes do not rewrite that snapshot. Older reports
+still show their saved text/time and identify unavailable conversation details.
+The existing moderator authorization and report access checks remain required.

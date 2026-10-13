@@ -114,3 +114,25 @@ def test_player_endpoints_require_authentication_and_reject_unknown_users():
         assert client.get('/players/not-a-user-id', headers=headers).status_code == 404
         assert client.post(f'/friends/requests/{unknown}', headers=headers).status_code == 404
         assert client.post('/friends/requests/not-an-id', headers=headers).status_code == 404
+
+
+def test_selected_notification_reads_preserve_unrelated_and_other_users():
+    with TestClient(create_app()) as client:
+        alice, ah = account(client, 'alice-notice', 'Alice')
+        bob, bh = account(client, 'bob-notice', 'Bob')
+        carol, ch = account(client, 'carol-notice', 'Carol')
+        for other, headers in [(bob, bh), (carol, ch)]:
+            client.post(f"/friends/requests/{other['user_id']}", headers=ah)
+            client.post(f"/friends/requests/{alice['user_id']}/accept", headers=headers)
+        notices=client.get('/notifications',headers=ah).json()
+        assert len(notices)==2
+        assert client.post('/notifications/read',headers=bh,json={'ids':[notices[0]['id']]}).status_code==204
+        assert not any(n['read'] for n in client.get('/notifications',headers=ah).json())
+        assert client.post('/notifications/read',headers=ah,json={'ids':[]}).status_code==204
+        assert not any(n['read'] for n in client.get('/notifications',headers=ah).json())
+        assert client.post('/notifications/read',headers=ah,json={'ids':[notices[0]['id']]}).status_code==204
+        updated=client.get('/notifications',headers=ah).json()
+        assert {n['id'] for n in updated if n['read']}=={notices[0]['id']}
+        assert client.post('/notifications/read',headers=ah,json={'ids':['invalid']}).status_code==422
+        assert client.post('/notifications/read',headers=ah).status_code==204
+        assert all(n['read'] for n in client.get('/notifications',headers=ah).json())

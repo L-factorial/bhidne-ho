@@ -1,5 +1,7 @@
 // Editable Nepali common copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  signup_avatar_help: 'साथीहरूले तपाईंलाई चिन्न अवतार छान्नुहोस्। पछि प्रोफाइलबाट परिवर्तन गर्न सक्नुहुन्छ।',
+  skip_for_now: 'अहिलेलाई छोड्नुहोस्',
   choose_avatar: "अवतार छान्नुहोस्",
   avatar_male: "पुरुष",
   avatar_female: "महिला",
@@ -160,10 +162,10 @@ export default {
   "choose_theme": "थिम छान्ने",
   "choose_table_theme": "टेबल थिम छान्ने",
   "current_theme_theme": "हालको थिम: {{theme}}",
-  "monochrome_noir": "चारकोल मोनोक्रोम",
-  "monochrome_pearl": "आइभोरी लाइट",
-  "soft_black_silver_edges_and_crisp_white_type": "नरम कालो, चाँदीका किनारा र स्पष्ट सेतो अक्षर",
-  "soft_white_graphite_type_and_quiet_depth": "नरम सेतो, गाढा अक्षर र सूक्ष्म गहिराइ",
+  "monochrome_noir": "काठमाडौं इन्क",
+  "monochrome_pearl": "हिमाली बिहान",
+  "soft_black_silver_edges_and_crisp_white_type": "नेवारी झ्याल, गाढा ढुङ्गा र चाँदीजस्तो कुहिरो",
+  "soft_white_graphite_type_and_quiet_depth": "हिमाली बिहान, न्यानो हात्तीदाँते रङ र सूक्ष्म कांस्य",
   "chitwan_hariyali": "चितवन हरियाली",
   "patan_sampada": "पाटन सम्पदा",
   "himali_raat": "हिमाली रात",

@@ -271,10 +271,12 @@ async def test_play_creation_notifies_members_decline_hides_only_play_feed(creat
     assert len((await queries.activity(users[1], memberships=True))['items'][0]['tables']) == 1
 
 
-async def test_invited_nonmember_acceptance_orders_friendship_on_pair_lane(creation):
+@pytest.mark.parametrize('existing_member', [False, True])
+async def test_explicit_invitation_acceptance_orders_friendship_on_pair_lane(creation, existing_member):
     from app.durable_games.social import SocialIngress, SocialLaneExecutor, conversation
     pool, checkpoints, fence, users, inbox, _, _ = creation
-    await pool.execute('DELETE FROM room_memberships WHERE user_id=%s', (UUID(users[1][5:]),))
+    if not existing_member:
+        await pool.execute('DELETE FROM room_memberships WHERE user_id=%s', (UUID(users[1][5:]),))
     body = request(game_type='flush', capacity=10)
     body['payload'].update(notify_room=True, invitees=[users[1]])
     result = await create(creation, users[0], body)

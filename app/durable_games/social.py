@@ -233,16 +233,23 @@ class SocialLaneExecutor:
                     if origin is not None:
                         from app.player_blocks.service import require_contact
                         await require_contact(claim.connection,f'user-{origin}',f'user-{target.recipient_id}',lane=lane_id,sequence=claim.entry.sequence)
+                    handled = False
+                    if data.kind == 'friend_requested' and origin is not None:
+                        low,high=sorted((origin,target.recipient_id))
+                        pending=await (await claim.connection.execute('''SELECT 1 FROM friendships
+                            WHERE user_low=%s AND user_high=%s AND status='pending' AND requested_by=%s''',
+                            (low,high,origin))).fetchone()
+                        handled = not bool(pending)
                     identity = uuid5(NAMESPACE_URL, canonical_json(['notification',str(target.recipient_id),data.key]))
                     seq = await self._next(claim)
                     now = (await (await claim.connection.execute('SELECT clock_timestamp()')).fetchone())[0]
                     message = dict(type='NOTIFICATION',id=str(identity),kind=data.kind,actor_id=f'user-{origin}' if origin else None,
-                        payload=data.payload,created_at=now.isoformat(),sequence=seq)
+                        payload=data.payload,created_at=now.isoformat(),sequence=seq,read=handled)
                     await append_lane_events(claim, [OutgoingEvent(message, f'user-{target.recipient_id}')])
                     await claim.connection.execute('''INSERT INTO friend_notifications
-                        (id,user_id,source_actor_id,kind,payload,created_at,lane_id,sequence,deduplication_key)
-                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)''',
-                        (identity,target.recipient_id,origin,data.kind,Jsonb(data.payload),now.isoformat(),lane_id,seq,data.key))
+                        (id,user_id,source_actor_id,kind,payload,created_at,lane_id,sequence,deduplication_key,read_at)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)''',
+                        (identity,target.recipient_id,origin,data.kind,Jsonb(data.payload),now.isoformat(),lane_id,seq,data.key,now if handled else None))
                 elif target.kind == 'recipient' and request.command == 'discard-table' and actor != SYSTEM:
                     data = DiscardTable.model_validate_json(canonical_json(request.payload))
                     visible = await (await claim.connection.execute('''SELECT 1 FROM room_tables t

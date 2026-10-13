@@ -1,6 +1,6 @@
 import { gameColors, type ThemeColors } from './theme.ts';
 
-// Neutral interface palettes; playing-card suit colors remain recognizable.
+// Charcoal and warm ivory palettes; playing-card suit colors remain recognizable.
 const noir: ThemeColors = {
   ...gameColors,
   background:'#101112',header:'#101112',table:'#1E1F22',surface:'#1E1F22',surfaceRaised:'#292C30',surfaceSelected:'#2B2B2B',
@@ -15,18 +15,21 @@ const noir: ThemeColors = {
 };
 const pearl: ThemeColors = {
   ...noir,
-  background:'#F8F6F2',header:'#F8F6F2',table:'#EAE9E5',surface:'#FFFFFF',surfaceRaised:'#EAE9E5',surfaceSelected:'#E6E6E6',
-  text:'#1A1A1A',textMuted:'#626262',accent:'#222222',border:'#858585',borderSubtle:'#D6D6D6',disabled:'#999999',
-  primary:'#1A1A1A',primaryPressed:'#363636',onPrimary:'#FFFFFF',primarySoft:'#EEEEEE',
+  disabled:'#999999',
+  onPrimary:'#FFFFFF',
   attention:'#444444',turnText:'#1A1A1A',turnSurface:'#E6E6E6',
   success:'#353535',successSurface:'#EEEEEE',gain:'#167344',loss:'#B42335',danger:'#B42335',dangerSurface:'#FBE8EA',warning:'#353535',warningSoft:'#EEEEEE',
   maalSeen:'#1A1A1A',maalUnseen:'#626262',overlay:'#00000066',shadow:'rgba(0,0,0,0.08)',
-  tableHeader:'#F2F2F2',onTableHeader:'#1A1A1A',tableTrim:'#858585',tableGreen:'#E6E6E6',
-  ownMessage:'#E6E6E6',resultOwnSurface:'#E6E6E6',coin:'#252525',coinBorder:'#555555',onCoin:'#FFFFFF',
+  ownMessage:'#EDE3D3',resultOwnSurface:'#EDE3D3',coin:'#624526',coinBorder:'#805D36',onCoin:'#FFFFFF',
+  background:'#F8F3E9',header:'#F8F3E9',table:'#EAE0D0',surface:'#FFFCF5',surfaceRaised:'#EFE6D8',surfaceSelected:'#E8DCC9',
+  text:'#30261D',textMuted:'#685A49',accent:'#624526',border:'#96764D',borderSubtle:'#D6C7B0',
+  primaryBorder:'#805D36',primary:'#624526',primaryPressed:'#49321D',primarySoft:'#EFE6D8',
+  tableHeader:'#F2EADC',onTableHeader:'#30261D',tableTrim:'#96764D',tableGreen:'#EAE0D0',
+  cardBack:'#624526',cardPattern:'#805D36',cardBackBorder:'#96764D',cardInnerBorder:'#EAD5AE',cardMark:'#EAD5AE',cardSelectedBorder:'#805D36',
 };
 export const tableThemes = {
-  noir: { name: 'Charcoal Monochrome', description: 'Soft black, silver edges and crisp white type', felt: ['#242424', '#101010'], trim: '#858585', colors: noir },
-  pearl: { name: 'Ivory Light', description: 'Soft white, graphite type and quiet depth', felt: ['#FFFFFF', '#E5E5E5'], trim: '#858585', colors: pearl },
+  noir: { name: 'Kathmandu Ink', description: 'Carved Newar windows, charcoal stone and silver mist', felt: ['#242424', '#101010'], trim: '#858585', colors: noir },
+  pearl: { name: 'Himali Bihan', description: 'Himalayan dawn, warm ivory and quiet bronze', felt: ['#FFF9EE', '#EAE0D0'], trim: '#96764D', colors: pearl },
   classic: { name: 'Chitwan Hariyali', description: 'Misty sal forests and deep green foliage', felt: ['#0E3A2E', '#062B23'], trim: '#B88A53', colors: gameColors },
   heritage: { name: 'Patan Sampada', description: 'Carved timber, terracotta and warm brass', felt: ['#32251E', '#32251E'], trim: '#D4AD69', colors: {
     ...gameColors, background: '#241B16', header: '#241B16', table: '#32251E', surface: '#32251E', surfaceRaised: '#3B2B21', surfaceSelected: '#3B2B21',

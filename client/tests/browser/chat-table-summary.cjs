@@ -74,7 +74,7 @@ require('node:fs').mkdirSync(output,{recursive:true});
     else if(p==='/friends/conversations')body=[{id:'old',user_id:'u1',sender_id:'u1',text:'Hello Ekraj',sent_at:Date.now()}];
     else if(p==='/friends/u1/messages'){
      if(req.method()==='POST'){writes.push(req.postDataJSON());body={id:'sent',sender_id:'u0',recipient_id:'u1',text:req.postDataJSON().text,sent_at:Date.now()};}
-     else body=[{id:'old',sender_id:'u1',recipient_id:'u0',text:'Hello Ekraj',sent_at:Date.now()}];
+     else body=[{id:'old',sender_id:'u1',recipient_id:'u0',text:'Hello Ekraj',sent_at:new Date(new Date().setDate(new Date().getDate()-1)).getTime()}];
     }
     await route.fulfill({json:body});
    });
@@ -94,7 +94,13 @@ require('node:fs').mkdirSync(output,{recursive:true});
    const input=page.getByRole('textbox',{name:'Message Sigma',exact:true});await input.fill('Offline hello');
    const send=page.getByRole('button',{name:'Send privately',exact:true});assert.equal(await send.isDisabled(),false);const response=page.waitForResponse(r=>r.url()===site+'/friends/u1/messages'&&r.request().method()==='POST');await send.click();await response;
    await page.getByText('Offline hello',{exact:true}).waitFor();assert.deepEqual(writes,[{text:'Offline hello'}]);
-   const time=page.getByTestId('chat-message-time').first();assert.equal(await time.evaluate(el=>getComputedStyle(el).fontSize),'10px');
+   const time=page.getByTestId('chat-message-time').first();assert.equal(await time.evaluate(el=>getComputedStyle(el).fontSize),'12px');
+   assert.equal(await page.getByTestId('private-chat-date-separator').count(),2);
+   await page.getByText('Yesterday',{exact:true}).waitFor();await page.getByText('Today',{exact:true}).waitFor();
+   await page.getByText('Times shown in your local time',{exact:true}).waitFor();
+   const bubbles=await page.getByTestId('chat-message-time').evaluateAll(els=>els.map(el=>({color:getComputedStyle(el.parentElement).backgroundColor,x:el.parentElement.getBoundingClientRect().x,time:el.textContent})));
+   assert.notEqual(bubbles[0].color,bubbles[1].color);assert.ok(bubbles[1].x>bubbles[0].x);assert.match(bubbles[0].time,/AM|PM/);
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
    const timeBox=await time.boundingBox(),menuBox=await page.getByRole('button',{name:'Message actions',exact:true}).boundingBox();assert.ok(timeBox.y>=menuBox.y+menuBox.height);
    if(width===390)await page.screenshot({path:`${output}/offline-friend-chat.png`});
    await context.addInitScript(site=>sessionStorage.setItem('bhidne.session.v1:'+site,JSON.stringify({session:{user_id:'u0',token:'fixture'},room:{room_id:'room',name:'Chat room',creator_id:'u0',members:['u0','u1']}})),site);

@@ -363,3 +363,13 @@ test('pending ledger discovery uses distributed reads and preserves its paginati
  assert.equal(f.shared.length,0);assert.equal(f.sent.length,0);
  f.api.close();
 });
+
+test('targeted notification reads use only supplied IDs without fetching all unread notices',async()=>{
+ const f=setup();
+ f.root.reads.recipient=async()=>{throw new Error('must not fetch notifications');};
+ await f.api.request('/notifications/read',account,{ids:['selected','selected']});
+ assert.equal(f.sent.length,1);
+ assert.deepEqual(f.sent[0].body.payload.ids,['selected']);
+ await f.api.request('/notifications/read',account,{ids:[]});
+ assert.equal(f.sent.length,1);
+});

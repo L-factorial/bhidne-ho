@@ -235,3 +235,16 @@ async def test_http_friendship_worker_notification_catchup_and_legacy_boundary(d
         assert {item['kind'] for item in items} == {'friendship_changed', 'friend_accepted'}
         assert (await client.post('/friends/requests/' + second['user_id'], headers=first_headers)).status_code == 409
         assert await sql(database[0], 'SELECT count(*) FROM friend_notifications WHERE lane_id IS NULL') == [(0,)]
+
+@pytest.mark.parametrize('materialize_before', [False, True])
+@pytest.mark.parametrize('answer', ['accept-friend','remove-friend'])
+async def test_answered_request_notifications_are_read_even_with_delayed_delivery(database, materialize_before, answer):
+    pool=database[0]
+    inbox,ingress,executor,target,users=await setup(database)
+    assert (await run(ingress,executor,users[0],target,request('request-friend')))[0]['status']=='accepted'
+    if materialize_before:
+        await materialize(inbox,executor,users)
+        assert await sql(pool,"SELECT read_at IS NOT NULL FROM friend_notifications WHERE kind='friend_requested'")==[(False,)]
+    assert (await run(ingress,executor,users[1],target,request(answer)))[0]['status']=='accepted'
+    await materialize(inbox,executor,users)
+    assert await sql(pool,"SELECT read_at IS NOT NULL FROM friend_notifications WHERE kind='friend_requested'")==[(True,)]

@@ -16,7 +16,15 @@ export function BrandIcon({ size = headerLogoSize }: { size?: number }) {
 }
 export function GameIcon({ game, size = 56 }: { game: keyof typeof gameIcons; size?: number }) {
   useUiLanguage();
-  return <Image source={gameIcons[game]} accessible={false} resizeMode="contain" style={{ width: size, height: size, borderRadius: 12 }} />;
+  // The bundled artwork includes off-white export padding. Crop its red face
+  // inside a proportional rounded frame instead of displaying that backing.
+  const crop = game === 'flush' ? {width:161,x:7,y:3,w:147,h:141}
+    : game === 'marriage' ? {width:160,x:7,y:3,w:146,h:143}
+    : {width:154,x:6,y:4,w:144,h:137};
+  return <View testID={`game-icon-${game}`} style={{width:size,height:size,flexShrink:0,borderRadius:size*0.21,overflow:'hidden'}}>
+    <Image source={gameIcons[game]} accessible={false} resizeMode="stretch" style={{position:'absolute',
+      width:size*crop.width/crop.w,height:size*155/crop.h,left:-size*crop.x/crop.w,top:-size*crop.y/crop.h}} />
+  </View>;
 }
 export function BrandBanner() {
   useUiLanguage();

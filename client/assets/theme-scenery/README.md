@@ -1,10 +1,22 @@
 # Nepali theme scenery
 
-These three decorative scenes were generated with the built-in imagegen tool for the approved theme design. They are illustrative scenery, not verified documentary photographs of named monuments. JPEG encoding uses quality 78; each asset is 1024 × 1536. Sources are bundled for web and native, with no remote download. The shared backdrop and table surface apply additional fades at render time; panels, card faces and hit targets retain their existing colors and geometry.
+These five decorative scenes were generated with the built-in imagegen tool for the approved theme design. They are illustrative scenery, not verified documentary photographs of named monuments. JPEG encoding uses quality 78; each asset is 1024 × 1536. Sources are bundled for web and native, with no remote download. The shared backdrop and table surface apply additional fades at render time; panels use opaque semantic colors and cards and hit targets retain their geometry.
 
-Stable preference IDs: `classic` → Chitwan Hariyali, `heritage` → Patan Sampada, `dusk` → Himali Raat. Charcoal Monochrome and Ivory Light have no scenery.
+Stable preference IDs: `classic` → Chitwan Hariyali, `heritage` → Patan Sampada, `dusk` → Himali Raat, `noir` → Kathmandu Ink, `pearl` → Himali Bihan. Existing noir/pearl selections remain valid; Himali Bihan uses warm ivory and bronze interface colors.
 
 ## Final generation prompts
+
+### Kathmandu Ink — kathmandu-ink.jpg
+
+```text
+Use case: photorealistic-natural. Decorative portrait background for Nepali mobile card game theme Kathmandu Ink. Strictly grayscale black and white atmospheric Newar courtyard in Kathmandu, carved timber lattice window frames and old stone along outer edges, distant pagoda rooftops at upper corners, soft mist. Realistic architectural photography, charcoal black graphite silver, refined muted contrast. 1024x1536 portrait full bleed. Central 55 percent dark quiet negative space low detail for UI, edge details more visible. No UI, playing cards, table, text, people, logos, watermarks, borders or device. Not fantasy architecture.
+```
+
+### Himali Bihan — himali-bihan.jpg
+
+```text
+Use case: photorealistic-natural. Decorative portrait background for Nepali mobile card game theme Himali Bihan. Realistic distant snowy Nepal Himalayan peaks at top quarter under gentle warm dawn, pale hazy foothills along outer edges, subtle warm stone terrace details at bottom corners. Warm ivory cream soft stone muted bronze palette, airy photographic natural scenery. 1024x1536 portrait full bleed. Central 55 percent quiet warm cream mist negative space low detail for readable UI. No UI, cards, table, people, text, flags, religious symbols, logos, watermarks, borders or devices. No dominant peak across center.
+```
 
 ### Chitwan Hariyali — chitwan-hariyali.jpg
 

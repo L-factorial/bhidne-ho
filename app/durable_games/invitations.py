@@ -121,12 +121,13 @@ async def answer(claim, game, invitations, payload, *, inbox=None):
             return 'Room access is no longer available.'
         await claim.connection.execute('INSERT INTO room_memberships(room_id,user_id) VALUES (%s,%s) ON CONFLICT DO NOTHING', (game.room_id, user_uuid(actor)))
         await claim.connection.execute("UPDATE room_invitations SET status='accepted' WHERE room_id=%s AND recipient_id=%s AND status='pending'", (game.room_id, actor))
-        if not member and item.get('auto_friend') and inbox is not None:
+        if item.get('auto_friend') and inbox is not None:
             # Queue on the pair lane, preserving ordering with removals and blocks.
             from .inbox import LaneTarget
             low,high=sorted((user_uuid(actor),user_uuid(item['inviter_id'])))
             lane=await inbox.ensure_lane_in_transaction(claim.connection,LaneTarget(kind='conversation',user_low=low,user_high=high))
-            item['accepted_nonmember']=True
+            if not member:
+                item['accepted_nonmember']=True
             await inbox.enqueue_in_transaction(claim.connection,lane,actor,dict(
                 command_id=uuid5(NAMESPACE_URL,'invitation-friend:'+item['id']).hex,
                 command='accept-invitation-friend',payload=dict(table_id=game.table.table_id,invitation_id=item['id'],

@@ -728,6 +728,41 @@ MIGRATIONS = (
         ALTER TABLE user_profiles ADD CONSTRAINT user_profiles_avatar_id_valid
             CHECK (avatar_id IS NULL OR avatar_id ~ '^(male|female)_(0[1-9]|1[0-5])$');
     """),
+    (43, """
+        -- Account acceptance holds users FOR UPDATE; these write guards acquire
+        -- FOR SHARE through reject_disabled_identity, fencing concurrent admission.
+        CREATE TRIGGER deletion_ledger_guard BEFORE INSERT ON game_ledger_entries
+            FOR EACH ROW EXECUTE FUNCTION reject_disabled_identity('player_id');
+        CREATE TRIGGER deletion_transfer_payer BEFORE INSERT ON settlement_transfers
+            FOR EACH ROW EXECUTE FUNCTION reject_disabled_identity('payer_id');
+        CREATE TRIGGER deletion_transfer_payee BEFORE INSERT ON settlement_transfers
+            FOR EACH ROW EXECUTE FUNCTION reject_disabled_identity('payee_id');
+        CREATE TRIGGER deletion_watcher_guard BEFORE INSERT OR UPDATE ON game_connection_leases
+            FOR EACH ROW EXECUTE FUNCTION reject_disabled_identity('user_id');
+        CREATE FUNCTION deletion_table_owner_guard() RETURNS trigger LANGUAGE plpgsql AS $$
+        DECLARE target uuid; blocked boolean;
+        BEGIN
+            IF deletion_write_allowed() OR NEW.phase='ENDED' THEN RETURN NEW; END IF;
+            target := replace(NEW.state->'data'->'host'->'users'->>0,'user-','')::uuid;
+            IF target IS NULL THEN RETURN NEW; END IF;
+            SELECT deletion_pending OR erased INTO blocked FROM users WHERE id=target FOR SHARE;
+            IF NOT FOUND OR blocked THEN RAISE EXCEPTION 'Account unavailable' USING ERRCODE='23514'; END IF;
+            RETURN NEW;
+        END; $$;
+        CREATE TRIGGER deletion_table_owner BEFORE INSERT OR UPDATE ON table_recovery_state
+            FOR EACH ROW EXECUTE FUNCTION deletion_table_owner_guard();
+        CREATE FUNCTION deletion_command_guard() RETURNS trigger LANGUAGE plpgsql AS $$
+        DECLARE blocked boolean;
+        BEGIN
+            IF deletion_write_allowed() OR NEW.actor_id NOT LIKE 'user-%%' THEN RETURN NEW; END IF;
+            SELECT deletion_pending OR erased INTO blocked FROM users
+                WHERE id=replace(NEW.actor_id,'user-','')::uuid FOR SHARE;
+            IF NOT FOUND OR blocked THEN RAISE EXCEPTION 'Account unavailable' USING ERRCODE='23514'; END IF;
+            RETURN NEW;
+        END; $$;
+        CREATE TRIGGER deletion_command_admission BEFORE INSERT ON command_inbox
+            FOR EACH ROW EXECUTE FUNCTION deletion_command_guard();
+    """),
 )
 
 

@@ -6,11 +6,13 @@ import secrets
 from uuid import UUID, uuid4
 
 from app.auth.postgres import PostgresAuthService
-from .inventory import inspect_account
+from .blockers import deletion_blockers, blocker_code
 
 
 class DeletionError(ValueError):
-    pass
+    def __init__(self, code, blockers=None):
+        super().__init__(code)
+        self.blockers = blockers
 
 
 def digest(value):
@@ -20,6 +22,42 @@ def digest(value):
 class DeletionService:
     def __init__(self, pool, recovery):
         self.pool, self.recovery = pool, recovery
+
+    async def preflight(self, user_id=None, *, token=None):
+        async with self.pool.connection() as c:
+            async with c.transaction():
+                if token:
+                    row = await (await c.execute("SELECT user_id FROM account_recovery_challenges WHERE token_hash=%s AND purpose='delete_account' AND expires_at>clock_timestamp()",(digest(token),))).fetchone()
+                    if not row: raise DeletionError('invalid_proof')
+                    user_id='user-'+str(row[0])
+                row = await (await c.execute('SELECT id FROM users WHERE id=%s AND NOT deletion_pending AND NOT erased', (UUID(user_id.removeprefix('user-')),))).fetchone()
+                if not row: raise DeletionError('invalid_proof')
+                items=await deletion_blockers(c,user_id)
+                contact=await (await c.execute('SELECT email FROM account_recovery_contacts WHERE user_id=%s',(row[0],))).fetchone()
+                return dict(ready=not items,blockers=items,email_verified=bool(contact))
+
+    async def email_request(self, user_id, password):
+        uid=UUID(user_id.removeprefix('user-'))
+        async with self.pool.connection() as c:
+            async with c.transaction():
+                credentials=await (await c.execute('SELECT password_salt,password_hash FROM account_credentials WHERE user_id=%s FOR UPDATE',(uid,))).fetchone()
+                user=await (await c.execute('SELECT id FROM users WHERE id=%s AND NOT deletion_pending AND NOT erased FOR UPDATE',(uid,))).fetchone()
+                if not user or not credentials: raise DeletionError('reauthenticate')
+                candidate=await asyncio.to_thread(PostgresAuthService._password_hash,password,bytes(credentials[0]))
+                if not hmac.compare_digest(candidate,bytes(credentials[1])): raise DeletionError('invalid_proof')
+                items=await deletion_blockers(c,user_id)
+                if items: raise DeletionError(blocker_code(items),items)
+                contact=await (await c.execute('SELECT email FROM account_recovery_contacts WHERE user_id=%s',(uid,))).fetchone()
+                if not contact: raise DeletionError('verify_email')
+                challenge=await self.recovery.service._issue(c,uid,'delete_account',contact[0])
+                if challenge is None:
+                    from app.auth.recovery import RecoveryRateLimited
+                    raise RecoveryRateLimited()
+                queued=await (await c.execute("SELECT 1 FROM recovery_mail_outbox WHERE user_id=%s AND purpose='delete_account' AND token_hash=%s",(uid,digest(challenge.token)))).fetchone()
+                if not queued:
+                    from app.auth.recovery import RecoveryRateLimited
+                    raise RecoveryRateLimited()
+        return dict(accepted=True)
 
     async def request(self, user_id=None, *, password='', token=None, session_token=None):
         status_token = secrets.token_urlsafe(32)
@@ -54,11 +92,8 @@ class DeletionService:
                     grant = await (await c.execute("SELECT 1 FROM account_provider_grants WHERE user_id=%s AND provider=%s AND verified_at>clock_timestamp()-interval '5 minutes'", (uid,provider))).fetchone()
                     if not grant:
                         raise DeletionError('reauthenticate')
-                inventory = await inspect_account(c, user_id)
-                if inventory.active_games or inventory.reserved_tables or inventory.table_positions:
-                    raise DeletionError('leave_games')
-                if inventory.pending_commands:
-                    raise DeletionError('pending_actions')
+                items=await deletion_blockers(c,user_id)
+                if items: raise DeletionError(blocker_code(items),items)
                 await c.execute('UPDATE users SET deletion_pending=true WHERE id=%s', (uid,))
                 await c.execute('DELETE FROM auth_sessions WHERE user_id=%s', (uid,))
                 await c.execute('DELETE FROM account_recovery_challenges WHERE user_id=%s', (uid,))

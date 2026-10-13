@@ -1,4 +1,13 @@
 export default {
+  reported_at: "Reported at",
+  message_sender: "From",
+  message_recipient: "To",
+  conversation_room: "Room conversation",
+  conversation_table: "Table conversation",
+  conversation_game: "Game conversation",
+  message_sent_at: "Message sent at",
+  context_unavailable: "Conversation details were not captured in this older report.",
+
   "enforcement_help": "Actions require a reason. Suspension is available after the player finishes and leaves active tables; mute chat immediately if needed.",
   "remove_message": "Remove message",
   "mute": "Mute chat and invitations",

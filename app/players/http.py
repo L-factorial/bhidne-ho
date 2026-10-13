@@ -1,6 +1,9 @@
 import asyncio
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from uuid import UUID
+from pydantic import BaseModel, Field
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, Response
 
 from app.models.chat import ChatInput
 from app.models.user import UserIdentity
@@ -94,9 +97,13 @@ async def notifications(request: Request, response: Response, user: UserIdentity
     return await request.app.state.players.notifications(user.user_id)
 
 
+class NotificationReadInput(BaseModel):
+    ids: list[UUID] | None = Field(default=None, max_length=100)
+
+
 @router.post("/notifications/read", status_code=204)
-async def read_notifications(request: Request, user: UserIdentity = Depends(current_user)):
-    await request.app.state.players.read_notifications(user.user_id)
+async def read_notifications(request: Request, body: NotificationReadInput = Body(default=NotificationReadInput()), user: UserIdentity = Depends(current_user)):
+    await request.app.state.players.read_notifications(user.user_id, None if body.ids is None else [str(v) for v in body.ids])
 
 
 @router.get("/friends/{friend_id}/messages", response_model=list[DirectMessage])

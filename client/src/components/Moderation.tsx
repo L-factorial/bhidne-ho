@@ -54,7 +54,7 @@ export function ReportButton({session,player,enabled,scope='player',messageId,re
 }
 
 type Group={user_id:string;display_name:string;username:string|null;count:number;latest:string};
-type Report={id:string;scope:string;category:string;explanation:string;evidence:{text?:string;display_name:string;username:string|null;sent_at?:string;context?:string};created_at:string;decision:string|null;reason:string|null;moderator_id:string|null;decided_at:string|null};
+type Report={id:string;scope:string;category:string;explanation:string;evidence:{text?:string;display_name:string;username:string|null;sent_at?:string;context?:string;sender_id?:string;sender_name?:string;recipient_id?:string;recipient_name?:string;room_id?:string;room_name?:string;table_id?:string;table_name?:string;game_id?:string};created_at:string;decision:string|null;reason:string|null;moderator_id:string|null;decided_at:string|null};
 type Page<T>={items:T[];next_id:string|null};
 function ReportGroup({group,session,reviewed,onDecision,onDenied}: {group:Group;session:Session;reviewed:boolean;onDecision:()=>void;onDenied:()=>void}) {
   const {colors:c}=useTheme();
@@ -93,12 +93,23 @@ function ReportGroup({group,session,reviewed,onDecision,onDenied}: {group:Group;
       {!busy&&!error&&!page.items.length&&<Copy>{copy('empty')}</Copy>}
       {page.items.map(report=><View key={report.id} style={{borderTopWidth:1,borderColor:c.borderSubtle,paddingTop:12,gap:10}}>
         <Text style={{color:c.accent,fontFamily:fonts.medium}}>{copy(report.category)} · {copy(report.scope==='player'?'report_player':'report_message')}</Text>
-        <Copy>{new Date(report.created_at).toLocaleString()}</Copy>
+        <Copy>{copy('reported_at')}: {new Date(report.created_at).toLocaleString(undefined,{timeZoneName:'short'})}</Copy>
         {report.scope==='player'&&<View style={{padding:12,borderRadius: radii.medium,backgroundColor:c.surfaceRaised}}>
           <Copy>{copy('profile_evidence')}</Copy><Copy>{report.evidence.display_name}</Copy>
           {!!report.evidence.username&&<Copy>@{report.evidence.username}</Copy>}
         </View>}
-        {report.evidence.text&&<View style={{padding:12,borderRadius: radii.medium,backgroundColor:c.surfaceRaised}}><Copy>{copy('message_evidence')}</Copy><Copy>{report.evidence.text}</Copy></View>}
+        {report.evidence.text!==undefined&&<View style={{padding:12,borderRadius: radii.medium,backgroundColor:c.surfaceRaised,gap:6}}>
+          <Copy>{copy('message_evidence')}</Copy><Copy>{report.evidence.text}</Copy>
+          <Copy>{copy('message_sender')}: {report.evidence.sender_name || report.evidence.display_name || report.evidence.username || group.user_id}</Copy>
+          {report.scope==='direct'&&<Copy>{copy('message_recipient')}: {report.evidence.recipient_name || report.evidence.recipient_id || copy('context_unavailable')}</Copy>}
+          {report.scope==='chat'&&<>
+            {!!report.evidence.room_id&&<Copy>{copy('conversation_room')}: {report.evidence.room_name || report.evidence.room_id}</Copy>}
+            {!!report.evidence.table_id&&<Copy>{copy('conversation_table')}: {report.evidence.table_name || report.evidence.table_id}</Copy>}
+            {!!report.evidence.game_id&&<Copy>{copy('conversation_game')}: {report.evidence.game_id}</Copy>}
+            {!report.evidence.room_id&&!report.evidence.table_id&&!report.evidence.game_id&&<Copy>{copy('context_unavailable')}</Copy>}
+          </>}
+          {!!report.evidence.sent_at&&<Copy>{copy('message_sent_at')}: {new Date(report.evidence.sent_at).toLocaleString(undefined,{timeZoneName:'short'})}</Copy>}
+        </View>}
         {!!report.explanation&&<View><Copy>{copy('reporter_details')}</Copy><Copy>{report.explanation}</Copy></View>}
         {report.decision==='accepted'&&<EnforcementActions session={session} reportId={report.id} scope={report.scope} target={group.user_id} />}
         {report.decision?<><Copy>{copy(report.decision)}</Copy><Copy>{report.reason}</Copy><Copy>{report.moderator_id} · {report.decided_at&&new Date(report.decided_at).toLocaleString()}</Copy></>:

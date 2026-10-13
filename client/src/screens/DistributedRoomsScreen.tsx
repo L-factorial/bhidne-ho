@@ -1,3 +1,6 @@
+import {NotificationActionView} from '../components/NotificationActionView';
+import {TableAvatarProvider} from '../components/TableAvatar';
+import {AvatarPicker} from '../components/AvatarPicker';
 import {SignupRules,SIGNUP_RULES_VERSION} from '../components/moderation/SignupRules';
 import {AppText as Text} from '../components/AppText';
 import {PushProvider} from '../notifications/PushProvider';
@@ -56,6 +59,7 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
   useUiLanguage();
   const {colors} = useTheme();
   const authStyles = accountStyles(colors);
+  const [signupAvatar,setSignupAvatar]=useState(false);
   const [account,setAccount] = useState<Session|null>(()=>readSession(apiUrl)?.session??null);
   const [username,setUsername] = useState(''), [password,setPassword] = useState('');
   const [email,setEmail] = useState('');
@@ -177,7 +181,7 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
   async function login(signup: boolean) {
     if (authBusy || (signup && (!confirmPassword || password !== confirmPassword || (!validSignupEmail(email) || !rulesAccepted)))) return;
     setAuthBusy(true);setError('');
-    try {const session=await request<Session>(signup?'/auth/signup':'/auth/signin',null,{username,password,...(signup?{email:email.trim(),community_rules_version:SIGNUP_RULES_VERSION}:{})});saveSession(apiUrl,{session,room:null,game:null});setSessionNotice(apiUrl,'auth');setPassword('');setConfirmPassword('');setEmail('');setAccount(session);}
+    try {const session=await request<Session>(signup?'/auth/signup':'/auth/signin',null,{username,password,...(signup?{email:email.trim(),community_rules_version:SIGNUP_RULES_VERSION}:{})});saveSession(apiUrl,{session,room:null,game:null});setSessionNotice(apiUrl,'auth');setPassword('');setConfirmPassword('');setEmail('');setSignupAvatar(signup);setAccount(session);}
     catch(e){setError(playerError(e && typeof e === 'object' && 'status' in e && e.status === 401 ? Error(ui("common.invalid_credentials")) : e));}finally{setAuthBusy(false);}
   }
   async function logout() {
@@ -186,6 +190,7 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
     setSelected(null);setAccount(null);setProjection(null);setMessages({});setMembers([]);setPokes([]);setText('');setError('');
     await pending;
   }
+  if(account&&signupAvatar)return <AvatarPicker session={account} onboarding onSaved={()=>{}} onDone={()=>setSignupAvatar(false)}/>;
   if (!account) return <AccountPage compact footer={accountFormOpen ? <>
     {!signupMode && <PolicyLinks />}
     <Pressable accessibilityRole="button" disabled={authBusy || (signupMode && (!confirmPassword || password !== confirmPassword || (!validSignupEmail(email) || !rulesAccepted)))}
@@ -236,7 +241,7 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
   if(snapshot&&selected?.table) {
     const common={snapshot,busy,error:action.error||error,onBack:back,onNewGame:back,endControl,tableControl:controls,
       onAction:(command:string,data?:object)=>{void game(command,data);}};
-    return <PushProvider session={account} viewedMatch={snapshot.match_id}><View style={{flex:1}}>
+    return <PushProvider session={account} viewedMatch={snapshot.match_id}><TableAvatarProvider key={account.token} session={account}><NotificationActionView root={runtime??undefined} session={account} action={{kind:'table',roomId:selected.room,matchId:snapshot.match_id!}}/><View style={{flex:1}}>
       {action.status==='pending'&&button(ui("common.pending_action"),()=>void controller.current?.recover())}
       {button(chatOpen?ui("common.close_chat"):ui("social.chat"),()=>setChatOpen(v=>!v))}
       {chatOpen&&runtime&&<DistributedChat root={runtime} view={{...snapshot,room_id:selected.room}}/>}
@@ -247,7 +252,7 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
       :<LiveGameTable {...common} social={social} onSave={settings=>void table('settings',settings)} onStart={()=>start()}
         onNextDeal={()=>void game('NEXT_DEAL',{deal_number:snapshot.round_review?.deal_number})} onTableAction={command=>void table(command)}/>}
       <PokeOverlay pokes={pokes} matchId={snapshot.match_id}/>
-    </View></PushProvider>;
+    </View></TableAvatarProvider></PushProvider>;
   }
   return <PushProvider session={account} viewedMatch={null}><ScrollView style={{backgroundColor:colors.background}} contentContainerStyle={{padding:20,gap:12}}>
     <AppHeader hideProfile />

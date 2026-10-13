@@ -19,6 +19,29 @@ from test_account_deletion import setup
 from test_account_recovery_concurrency import postgres_pool
 
 
+async def test_ledger_insert_racing_acceptance_cannot_create_new_obligation(postgres_pool,monkeypatch):
+    from uuid import uuid4
+    from psycopg.errors import CheckViolation
+    import app.account_deletion.service as module
+    pool=postgres_pool;_,a,_,deletion=await setup(pool);uid=UUID(a.user_id[5:]);game,table=uuid4(),uuid4()
+    async with pool.connection() as c:
+        await c.execute("INSERT INTO rooms(id,creator_id,name,visibility) VALUES ('race-ledger',%s,'Race','public')",(uid,))
+        await c.execute("INSERT INTO ledger_games(game_id,room_id,table_id,game_type) VALUES (%s,'race-ledger',%s,'callbreak')",(game,table))
+    checked,proceed=asyncio.Event(),asyncio.Event();original=module.deletion_blockers
+    async def pause(c,actor):
+        items=await original(c,actor);checked.set();await proceed.wait();return items
+    monkeypatch.setattr(module,'deletion_blockers',pause)
+    acceptance=asyncio.create_task(deletion.request(a.user_id,password='original-password'))
+    await asyncio.wait_for(checked.wait(),5)
+    async def write():
+        async with pool.connection() as c:
+            await c.execute('INSERT INTO game_ledger_entries(game_id,player_id,amount) VALUES (%s,%s,10)',(game,uid))
+    insertion=asyncio.create_task(write());await asyncio.sleep(.1)
+    assert not insertion.done();proceed.set()
+    await acceptance
+    with pytest.raises(CheckViolation):await insertion
+
+
 async def test_worker_retries_provider_failure_and_preserves_other_accounts(postgres_pool):
     pool=postgres_pool;auth,a,recovery,deletion=await setup(pool)
     b=await auth.sign_up('surviving_player','original-password')
@@ -74,11 +97,18 @@ async def test_http_proof_validation_public_privacy_and_status_capability(postgr
             response=await client.post('/auth/deletion/email',json={'username':username,'email':'private@example.test'})
             replies.append((response.status_code,response.json()))
         assert replies==[(202,{'accepted':True})]*2
-        wrong=await client.post('/auth/deletion/request',headers=headers,json={'confirmation':'DELETE','current_password':'wrong'})
+        wrong=await client.post('/auth/deletion/request',headers=headers,json={'current_password':'wrong'})
         assert wrong.status_code==409
-        done=await client.post('/auth/deletion/request',headers=headers,json={'confirmation':'DELETE','current_password':'original-password'})
+        proof=await recovery.service.enroll_email(a.user_id,'original-password','verified@example.test')
+        await recovery.service.verify_email(proof.token)
+        done=await client.post('/auth/deletion/request',headers=headers,json={'current_password':'original-password'})
         assert done.status_code==202,done.text
         assert done.headers['cache-control']=='no-store'
+        assert (await auth.authenticate(a.token)).user_id==a.user_id
+        async with pool.connection() as c:
+            envelope=await (await c.execute("SELECT envelope FROM recovery_mail_outbox WHERE user_id=%s AND purpose='delete_account'",(UUID(a.user_id[5:]),))).fetchone()
+        done=await client.post('/auth/deletion/confirm',json={'token':recovery.decrypt(envelope[0])['token'],'confirmation':'DELETE'})
+        assert done.status_code==202,done.text
         assert (await client.post('/auth/deletion/status',json={'token':'x'*43})).status_code==409
         assert (await client.post('/auth/deletion/status',json={'token':done.json()['status_token']})).json()['status']=='pending'
         with pytest.raises(AuthenticationError):await auth.authenticate(a.token)

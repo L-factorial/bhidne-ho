@@ -1,4 +1,6 @@
+import {NotificationActionView} from '../components/NotificationActionView';
 import {PlayerAvatar} from '../components/PlayerAvatar';
+import {AvatarPicker} from '../components/AvatarPicker';
 import { SignupVerification } from './RecoveryScreen';
 import {SignupRules} from '../components/moderation/SignupRules';
 import {AppText as Text} from '../components/AppText';
@@ -89,6 +91,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const [accountFormOpen, setAccountFormOpen] = useState(false);
   const [rulesAccepted,setRulesAccepted] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [signupAvatar,setSignupAvatar]=useState(false);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [lobbyProfileOpen, setLobbyProfileOpen] = useState(false);
@@ -101,9 +104,13 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const roomCreating=creation.cards.some(card=>card.kind==='room');
   const authDisabled = username.trim().length < 3 || password.length < 8 || passwordMismatch || shared.loggingIn || (authMode === 'signup' && (!validSignupEmail(email) || !rulesAccepted));
   function submitAccount() {
-    if (!authDisabled) void shared.loginAccount(username, password, authMode === 'signup', email, rulesAccepted);
+    if (!authDisabled) {
+      const signup=authMode === 'signup';
+      void shared.loginAccount(username, password, signup, email, rulesAccepted).then(success=>{if(success&&signup)setSignupAvatar(true);});
+    }
   }
   const { session, rooms, room, game, setGame, expired } = shared;
+  useEffect(()=>{if(!session||expired)setSignupAvatar(false);},[session?.token,expired]);
   const [roomTablesLoading, setRoomTablesLoading] = useState(true);
   useEffect(() => { if (!room) setRoomTablesLoading(true); }, [room?.room_id]);
   useEffect(()=>{
@@ -304,7 +311,9 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
     return () => controller.abort();
   }, [session?.token, room?.room_id, roomPanel, memberKey, memberRetry]);
 
-  return <PushProvider session={expired ? null : session} viewedMatch={viewedMatch}><HeaderProfileContext.Provider value={session && !expired ? close => <ProfileScreen session={session} personal={personal} onBack={close} onSignOut={signOut} /> : null}><KeyboardFrame><ThemeBackdrop /><FormScrollView accessibilityElementsHidden={transferring} importantForAccessibility={transferring?"no-hide-descendants":"auto"} aria-hidden={transferring} pointerEvents={transferring?"none":"auto"} keyboardShouldPersistTaps="handled" style={styles.page} contentContainerStyle={[styles.container, room && { flexGrow: 1 }, {
+  if(signupAvatar&&session&&!expired)return <AvatarPicker session={session} onboarding onSaved={()=>{}} onDone={()=>setSignupAvatar(false)}/>;
+
+  return <PushProvider session={expired ? null : session} viewedMatch={viewedMatch}>{session&&!expired&&current&&room&&!viewedMatch&&<NotificationActionView session={session} action={{kind:'room',roomId:room.room_id}}/>}<HeaderProfileContext.Provider value={session && !expired ? close => <ProfileScreen session={session} personal={personal} onBack={close} onSignOut={signOut} /> : null}><KeyboardFrame><ThemeBackdrop /><FormScrollView accessibilityElementsHidden={transferring} importantForAccessibility={transferring?"no-hide-descendants":"auto"} aria-hidden={transferring} pointerEvents={transferring?"none":"auto"} keyboardShouldPersistTaps="handled" style={styles.page} contentContainerStyle={[styles.container, room && { flexGrow: 1 }, {
     paddingTop: Math.max(insets.top, 16), paddingBottom: (room ? Math.max(insets.bottom, 28) + 64 : 24),
   }]}>
     <View style={[styles.content, !session && {maxWidth: 460}, room && { flexGrow: 1, maxWidth: 760 }]}>

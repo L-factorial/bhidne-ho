@@ -16,6 +16,7 @@ assert.ok(['localhost','127.0.0.1'].includes(new URL(site).hostname));
    if(p==='/'||p.startsWith('/assets/')||p.startsWith('/_expo/')||p==='/favicon.ico')return route.continue();
    let json=[];
    if(p==='/auth/signup') json={user_id:'signup-user',username:'signup_player',token:'local-fixture'};
+   else if(p==='/me/profile/avatar')json={avatar_id:null,avatar_url:null};
    else if(p==='/auth/me'||p==='/me/profile')json={user_id:'signup-user',display_name:'Signup Player',username:'signup_player'};
    else if(p==='/auth/recovery/email'&&route.request().method()==='POST'){
     assert.equal(route.request().postDataJSON().current_password,'original-password');
@@ -37,6 +38,7 @@ assert.ok(['localhost','127.0.0.1'].includes(new URL(site).hostname));
   for(const [label,value] of [['Username','signup_player'],['Email',pending],['Password','original-password'],['Confirm password','original-password']])await page.getByLabel(label,{exact:true}).fill(value);
   await page.getByRole('checkbox',{name:'I agree to the community rules',exact:true}).click();
   await page.getByRole('button',{name:'Create account',exact:true}).click();
+  await page.getByRole('button',{name:'Skip for now',exact:true}).click();
   await page.getByRole('heading',{name:'Check your email',exact:true}).waitFor({timeout:10000}).catch(async e=>{console.log(errors);console.log(await page.locator('body').innerText());throw e;});
   assert.ok(await page.getByRole('button',{name:/Resend in/}).isDisabled());
   await page.waitForFunction(()=>{const button=Array.from(document.querySelectorAll('[role=button]')).find(el=>el.textContent==='Continue to app');return button && button.getBoundingClientRect().bottom<=innerHeight;});

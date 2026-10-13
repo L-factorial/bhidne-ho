@@ -1,4 +1,4 @@
-"""Opt-in deletion worker. Only generic failure codes leave this module."""
+"""Distributed deletion worker. Only generic failure codes leave this module."""
 import asyncio
 import os
 import logging
@@ -15,7 +15,7 @@ class DeletionRuntime:
     def __init__(self, pool, recovery, browser, *, enabled=None, cache=None, profiles=None):
         self.pool, self.recovery, self.browser = pool, recovery, browser
         self.cache, self.profiles = cache, profiles
-        selected = os.getenv('BHIDNE_HO_ACCOUNT_DELETION_ENABLED') == '1' if enabled is None else enabled
+        selected = os.getenv('BHIDNE_HO_ACCOUNT_DELETION_ENABLED', '1') == '1' if enabled is None else enabled
         self.enabled = bool(selected and pool and recovery.enabled)
         self.service = DeletionService(pool,recovery) if pool else None
         self.task = None

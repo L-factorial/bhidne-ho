@@ -176,6 +176,9 @@ class RecoveryRuntime:
             WHERE lower(a.username)=%s AND r.email=%s AND NOT u.deletion_pending AND NOT u.erased FOR UPDATE OF a""",
             (payload['username'],payload['email']))).fetchone()
         if row:
+            from app.account_deletion.blockers import deletion_blockers
+            if await deletion_blockers(c,'user-'+str(row[0])):
+                return
             await self.service._issue(c,row[0],'delete_account',row[1])
 
     async def enqueue_username(self, c, email):

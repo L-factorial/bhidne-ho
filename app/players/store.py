@@ -88,9 +88,9 @@ class InMemoryPlayerStore:
         return [{key: value for key, value in item.items() if key != "user_id"}
                 for item in reversed(self.notifications) if item["user_id"] == user_id][:50]
 
-    async def read_notifications(self, user_id):
+    async def read_notifications(self, user_id, ids=None):
         for item in self.notifications:
-            if item["user_id"] == user_id: item["read"] = True
+            if item["user_id"] == user_id and (ids is None or any(UUID(item["id"]) == UUID(v) for v in ids)): item["read"] = True
 
     def accepted(self, user_id, friend_id):
         return self.friendships.get(frozenset((user_id, friend_id)), {}).get("status") == "accepted"
@@ -246,9 +246,9 @@ class PostgresPlayerStore:
                  "actor": self.player((row[2], row[3], row[4], row[7])),
                  "created_at": int(row[5]), "read": row[6]} for row in rows]
 
-    async def read_notifications(self, user_id):
+    async def read_notifications(self, user_id, ids=None):
         async with self.pool.connection() as connection:
-            await connection.execute("UPDATE friend_notifications SET read_at=now() WHERE user_id=%s AND read_at IS NULL", (internal_id(user_id),))
+            await connection.execute("UPDATE friend_notifications SET read_at=now() WHERE user_id=%s AND read_at IS NULL" + (" AND id=ANY(%s::uuid[])" if ids is not None else ""), (internal_id(user_id), ids) if ids is not None else (internal_id(user_id),))
 
     async def _require_friend(self, connection, user_id, friend_id):
         current, friend = internal_id(user_id), internal_id(friend_id); low, high = sorted((current, friend))

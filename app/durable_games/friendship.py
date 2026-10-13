@@ -121,6 +121,12 @@ async def execute_friendship(claim, inbox, existing):
                 payload=dict(other_user_id=f'user-{other}', status=state,
                              requested_by=f'user-{requested_by}' if requested_by else None,
                              change=change, command_id=request.command_id))
+        # Recipient lanes are locked above, serializing this with delivery.
+        if request.command != 'request-friend':
+            await connection.execute('''UPDATE friend_notifications SET read_at=COALESCE(read_at,clock_timestamp())
+                WHERE user_id=ANY(%s::uuid[]) AND kind='friend_requested' AND
+                COALESCE(source_actor_id,actor_id)=CASE WHEN user_id=%s::uuid THEN %s::uuid ELSE %s::uuid END''',
+                ([str(v) for v in pair],pair[0],pair[1],pair[0]))
     if sender in existing:
         await append_lane_events(claim, [OutgoingEvent(dict(type='SOCIAL_COMMAND_ACK', **outcome), actor)])
     await claim.complete(outcome)

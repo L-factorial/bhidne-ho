@@ -1,8 +1,9 @@
 // Editable social copy. Keep keys and placeholders in sync with the other locale.
 export default {
+  today: 'Today', yesterday: 'Yesterday', times_local: 'Times shown in your local time',
   "members_unavailable": "Could not load room members.",
   no_matching_friends: 'No matching friends.',
-  searching_friends: 'Searching friends',
+  searching_friends: 'Search friend',
   conversations: 'Conversations', most_recent: 'Most recent', no_conversations: 'No conversations yet. Search for a friend to start chatting.', conversations_unavailable: 'Could not load conversations. Please try again.',
 
   "player_created_table": '{{player}} created “{{tableName}}” in room “{{roomName}}”.',

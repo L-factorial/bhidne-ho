@@ -1,3 +1,4 @@
+import {useTableAvatar} from './TableAvatar';
 import {PlayerAvatar} from './PlayerAvatar';
 import {ActiveTurnRing} from './ActiveTurnRing';
 import {AppText as Text} from './AppText';
@@ -21,8 +22,10 @@ export function PlayerSeat({ name, mine = false, active = false, connected = tru
   useUiLanguage();
   const presenceLabel = connected === false ? ui('rooms.offline') : connected === null ? ui('rooms.connection_unknown') : '';
   const social = useTableSocial();
+  const avatar = useTableAvatar();
+  const editAvatar = mine && !!avatar;
   const target = !!social?.pokeMode && playerId !== undefined && social.eligible(playerId);
-  const press = target ? () => social!.poke(playerId!) : onPress;
+  const press = target ? () => social!.poke(playerId!) : editAvatar ? avatar!.open : onPress;
   const { colors } = useTheme();
   const scale = useRef(new Animated.Value(1)).current;
   const wasActive = useRef(active);
@@ -41,8 +44,8 @@ export function PlayerSeat({ name, mine = false, active = false, connected = tru
   }, [active, scale]);
   const size = compact ? 28 : 44;
   return <Pressable accessibilityLiveRegion="polite" onLayout={onLayout} ref={node => { registerSeat?.(node); if (playerId !== undefined) social?.registerSeat(playerId, node); }} collapsable={false} testID={testID} accessibilityRole={press ? 'button' : undefined}
-    onTouchStart={event => { if (target) event.stopPropagation(); }} onPointerDown={event => { if (target) event.stopPropagation(); }}
-    onPress={press} disabled={!press} accessibilityLabel={`${target ? ui("social.poke") : ''}${name}${mine ? `, ${ui("common.you")}` : ''}${active ? `, ${ui("common.current_turn")}` : ''}${dealer ? `, ${ui("common.dealer")}` : ''}${status ? `, ${status}` : ''}${presenceLabel ? `, ${presenceLabel}` : ''}`}
+    onTouchStart={event => { if (target || editAvatar) event.stopPropagation(); }} onPointerDown={event => { if (target || editAvatar) event.stopPropagation(); }}
+    onPress={press} disabled={!press} accessibilityLabel={`${target ? ui("social.poke") : editAvatar ? `${ui("common.choose_avatar")}, ` : ''}${name}${mine ? `, ${ui("common.you")}` : ''}${active ? `, ${ui("common.current_turn")}` : ''}${dealer ? `, ${ui("common.dealer")}` : ''}${status ? `, ${status}` : ''}${presenceLabel ? `, ${presenceLabel}` : ''}`}
     style={{ width: '100%', alignItems: 'center', gap: 2, minHeight:44 }}>
     <PlayerSocialEffect playerId={playerId} />
     {target && <Text pointerEvents="none" style={{position:'absolute',right:0,top:0,fontSize:14}}>👋</Text>}
@@ -51,7 +54,7 @@ export function PlayerSeat({ name, mine = false, active = false, connected = tru
       borderColor: target ? colors.accent : active ? colors.attention : colors.borderSubtle, borderStyle: connected ? 'solid' : 'dashed',
       backgroundColor: active ? colors.turnSurface : colors.surface, alignItems: 'center', justifyContent: 'center' }}>
       <ActiveTurnRing active={active} size={size}/>
-      <PlayerAvatar uri={avatarUrl} size={size-6}/>
+      <PlayerAvatar uri={mine && avatar?.uri !== undefined ? avatar.uri ?? undefined : avatarUrl} size={size-6}/>
     </Animated.View>
     {inlineStatus && statusRows && <Text testID={`callbreak-seat-stats-${playerId}`} style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 12, backgroundColor: colors.surface, borderRadius: 4, padding: 3 }}>{statusRows[0]}</Text>}
     </View>

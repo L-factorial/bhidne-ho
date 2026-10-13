@@ -21,6 +21,8 @@ async function mail(purpose, username) {
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   const username='delete_'+Date.now(),password='Delete-test-123';
   const user=await(await request('/auth/signup',{username,password,email:username+'@example.test',display_name:'Deletion Player'})).json();
+  const initialVerification=await mail('verify_email',username);
+  assert.equal((await request('/auth/recovery/verify',{token:initialVerification.token})).status,200);
   await page.goto(site);await page.getByRole('button',{name:'Sign in or sign up',exact:true}).click();await page.getByRole('button',{name:'Continue with username or email',exact:true}).click();
   await page.getByLabel('Username or email',{exact:true}).fill(username);await page.getByLabel('Password',{exact:true}).fill(password);
   await page.getByRole('button',{name:'Sign in',exact:true}).last().click();
@@ -34,12 +36,15 @@ async function mail(purpose, username) {
   await page.getByRole('button',{name:'Choose theme',exact:true}).last().click();
   await page.getByTestId('table-theme-heritage').click();
   await page.getByRole('button',{name:'Close themes',exact:true}).last().click();
-  const confirm=page.getByRole('button',{name:'Confirm account deletion',exact:true});
-  assert.equal(await confirm.isDisabled(),true);
+  const send=page.getByRole('button',{name:'Send deletion link',exact:true});
+  assert.equal(await send.isDisabled(),true);
   await page.getByLabel('Current password',{exact:true}).fill('incorrect');
+  await send.click();await page.getByText('The password or confirmation link is invalid or expired.',{exact:true}).waitFor();
+  await page.getByLabel('Current password',{exact:true}).fill(password);await send.click();
+  const signedProof=await mail('delete_account',username);
+  await page.goto(site+'/delete-account#delete_account='+signedProof.token);
   await page.getByLabel('Type DELETE to confirm',{exact:true}).fill('DELETE');
-  await confirm.click();await page.getByText('The password or confirmation link is invalid or expired.',{exact:true}).waitFor();
-  await page.getByLabel('Current password',{exact:true}).fill(password);await confirm.click();
+  await page.getByRole('button',{name:'Confirm account deletion',exact:true}).click();
   await page.getByText('Deletion requested. Account access has been disabled. Cleanup is pending; keep this page to check its status.',{exact:true}).waitFor();
   assert.equal((await fetch(site+'/auth/me',{headers:{Authorization:`Bearer ${user.token}`}})).status,401);
   await page.reload();await page.goto(site+'/delete-account');

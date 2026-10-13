@@ -39,6 +39,7 @@ async function fixture(browser, inRoom) {
     } else if (path === '/friends') body = { friends: [], incoming: [], outgoing: [] };
     else if (path === '/me/community-rules') body = { version: 'fixture-rules', accepted: true, rules: [] };
     else if (path === '/auth/deletion/capabilities') body = { enabled: true };
+    else if (path === '/auth/deletion/preflight') body = {ready:true,blockers:[],email_verified:true};
     else if (path === '/auth/deletion/status') body = { status: 'pending' };
     else if (path === '/auth/deletion/request') {
       state.accountCalls++;
@@ -46,7 +47,7 @@ async function fixture(browser, inRoom) {
       if (route.request().postDataJSON().current_password !== 'fixture-password') {
         return route.fulfill({ status: 400, json: { detail: { code: 'deletion_invalid_proof' } } });
       }
-      body = { status_token: 'fixture-status-token' };
+      body = { accepted: true };
     } else if (path === '/auth/signout') {
       state.signOutCalls++;
       assert.equal(await page.getByTestId('profile-screen').isVisible(), false);
@@ -105,6 +106,7 @@ async function openProfile(page) {
     try {
       const { page, state } = card;
       await page.getByTestId('lobby-navigation').getByRole('tab', { name: 'Home', exact: true }).tap();
+      await page.getByRole('tab',{name:'Rooms',exact:true}).tap();
       await page.getByRole('button', { name: 'Delete Deletion fixture', exact: true }).tap();
       await page.getByRole('button', { name: 'Cancel', exact: true }).tap(); assert.equal(state.roomCalls, 0);
       await page.getByRole('button', { name: 'Delete Deletion fixture', exact: true }).tap();
@@ -127,29 +129,29 @@ async function openProfile(page) {
         const { page, state } = profile;
         await openProfile(page);
         await page.getByTestId('profile-name-edit').click();
-        await page.getByRole('textbox', { name: 'Profile name', exact: true }).fill('Updated Owner');
+        await page.getByRole('textbox', { name: 'Display name', exact: true }).fill('Updated Owner');
         await page.getByRole('button', { name: 'Save display name', exact: true }).tap();
         await page.getByTestId('profile-identity').getByRole('heading', { name: 'Updated Owner', exact: true }).waitFor();
+        await page.getByRole('tab',{name:'Information & Support',exact:true}).tap();
         await page.getByRole('link', { name: 'Privacy', exact: true }).tap();
         await page.getByTestId('profile-screen').waitFor({ state: 'hidden' });
         await page.getByRole('button', { name: 'Back', exact: true }).tap();
         await openProfile(page);
         await page.getByRole('button', { name: 'Delete account', exact: true }).tap();
         await page.getByTestId('profile-screen').waitFor({ state: 'hidden' });
-        const confirm = page.getByRole('button', { name: 'Confirm account deletion', exact: true });
+        const confirm = page.getByRole('button', { name: 'Send deletion link', exact: true });
         await confirm.waitFor(); assert.equal(await confirm.isDisabled(), true); assert.equal(state.accountCalls, 0);
         await page.getByRole('button', { name: 'Back', exact: true }).tap();
         await openProfile(page);
         await page.getByRole('button', { name: 'Delete account', exact: true }).tap();
         await page.getByRole('textbox', { name: 'Current password', exact: true }).fill('incorrect');
-        await page.getByRole('textbox', { name: 'Type DELETE to confirm', exact: true }).fill('DELETE');
         await confirm.tap();
         await page.getByText('The password or confirmation link is invalid or expired.', { exact: true }).waitFor();
         await page.getByRole('textbox', { name: 'Current password', exact: true }).fill('fixture-password');
         await confirm.tap();
-        await page.getByText('Deletion requested. Account access has been disabled. Cleanup is pending; keep this page to check its status.', { exact: true }).waitFor();
+        await page.getByText('Check your verified recovery email for the deletion link. Your account stays active until you open the link and confirm deletion.', { exact: true }).waitFor();
         await page.getByRole('button', { name: 'Back', exact: true }).tap();
-        await page.getByRole('button', { name: 'Continue with username or email', exact: true }).waitFor();
+        await openProfile(page);
         assert.equal(state.accountCalls, 2); assert.deepEqual(state.accountHiddenAtRequest, [true, true]);
         assert.deepEqual(profile.errors, []); assert.deepEqual(profile.external, []);
         console.log(`PASS ${inRoom ? 'room' : 'lobby'} profile: edit, policy/back, deletion/back, proof failure and success`);

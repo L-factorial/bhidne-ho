@@ -264,7 +264,10 @@ export class OriginalUiApi {
         'discard-table',{table_id:table,match_id:data.match_id},signal);
     }
     if(path==='/notifications/read'&&body) {
-      const ids=(await this.notificationRows(signal)).filter(r=>r.read!==true).map(r=>String(r.id));
+      const saved=this.root.session.command('ui-notifications').request;
+      if(saved?.body.command==='read-notifications'&&!this.intents.isActive('ui-notifications'))
+        await this.intents.run('ui-notifications',saved.target,saved.body,signal,async()=>undefined);
+      const ids=Array.isArray(data.ids) ? [...new Set(data.ids.map(String))] : (await this.notificationRows(signal)).filter(r=>r.read!==true).map(r=>String(r.id));
       for(let offset=0;offset<ids.length;offset+=100)await this.command('ui-notifications',
         {kind:'recipient',recipient_id:this.account.user_id.replace(/^user-/,'')},'read-notifications',{ids:ids.slice(offset,offset+100)},signal);
       return;

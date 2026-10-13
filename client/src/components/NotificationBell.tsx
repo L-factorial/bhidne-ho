@@ -1,3 +1,4 @@
+import {acknowledgeNotificationAction, onNotificationsAcknowledged} from '../multiplayer/useNotificationAction';
 import {AppText as Text} from './AppText';
 import { playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
@@ -55,6 +56,11 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
     return () => { controller.abort(); clearTimeout(timer); };
   }, [session.token]);
 
+  useEffect(()=>onNotificationsAcknowledged((account,ids)=>{
+    if(account.user_id!==session.user_id||account.token!==session.token)return;
+    refreshVersion.current++;setItems(current=>current.filter(item=>!ids.includes(item.id)));
+  }),[session.user_id,session.token]);
+
   async function markAllRead() {
     if (clearing) return;
     setClearing(true);
@@ -72,22 +78,36 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
       const id = encodeURIComponent(player.user_id);
       await request(accept ? `/friends/requests/${id}/accept` : `/friends/${id}`, session,
         accept ? {} : undefined, undefined, accept ? undefined : 'DELETE');
+      refreshVersion.current++;
       setItems(current => current.filter(item => item.kind !== 'friend_request' || item.actor.user_id !== player.user_id));
     } catch (failure) { setError(playerError(failure, ui("feedback.could_not_update_the_request"))); }
   }
   async function answerTable(invitation: TableInvitation, accept: boolean) {
     try {
       await request(`/test-games/invitations/${encodeURIComponent(invitation.id)}/${accept ? 'accept' : 'decline'}`, session, {});
+      refreshVersion.current++;
       setTableInvitations(current => current.filter(item => item.id !== invitation.id));
+      await acknowledgeNotificationAction(session,{kind:'table',roomId:invitation.room_id,matchId:invitation.match_id}).catch(()=>{});
       if (accept) { setOpen(false); onOpenTable?.(invitation); }
     } catch (failure) { setError(playerError(failure, ui("feedback.could_not_update_the_table_invitation"))); }
   }
   async function answerRoom(invitation: RoomInvitation, accept: boolean) {
     try {
       await request(`/room-invitations/${encodeURIComponent(invitation.id)}/${accept ? 'accept' : 'decline'}`, session, {});
+      refreshVersion.current++;
       setRoomInvitations(current => current.filter(item => item.id !== invitation.id));
+      await acknowledgeNotificationAction(session,{kind:'room',roomId:invitation.room_id}).catch(()=>{});
       if (accept) { setOpen(false); onOpenRoom?.(invitation); }
     } catch (failure) { setError(playerError(failure, ui("feedback.could_not_update_the_room_invitation"))); }
+  }
+  async function openActivity(item:Notification){
+    try{
+      await request('/notifications/read',session,{ids:[item.id]});
+      refreshVersion.current++;setItems(current=>current.filter(row=>row.id!==item.id));
+      setOpen(false);onOpenActivity?.(item.payload?.scope==='direct'
+        ? {roomId:'',otherUserId:item.actor.user_id}
+        : {roomId:item.payload?.room_id??'',matchId:item.payload?.match_id});
+    }catch(failure){setError(playerError(failure,ui('feedback.could_not_update_notifications')));}
   }
   const clearable = items.some(item => item.kind !== 'friend_request');
   const pending = items.some(item => item.kind === 'friend_request') || !!tableInvitations.length || !!roomInvitations.length;
@@ -136,9 +156,7 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
                 <Pressable accessibilityRole="button" onPress={() => void answerRequest(item.actor, false)} style={styles.decline}><Text style={styles.link}>{ui("common.decline")}</Text></Pressable>
               </View>}
               {(item.kind==='chat'||item.kind==='poke')&&onOpenActivity&&<Pressable accessibilityRole="button"
-                onPress={()=>{setOpen(false);onOpenActivity(item.payload?.scope==='direct'
-                  ? {roomId:'',otherUserId:item.actor.user_id}
-                  : {roomId:item.payload?.room_id??'',matchId:item.payload?.match_id});}}
+                onPress={()=>void openActivity(item)}
                 style={styles.accept}><Text style={styles.acceptText}>{ui(item.payload?.scope==='direct'?'social.chat':item.payload?.match_id?'common.open_table':'common.open_room')}</Text></Pressable>}
             </View>)}
           </ScrollView>
