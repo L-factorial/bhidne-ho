@@ -4,14 +4,14 @@ import { useUiLanguage } from '../i18n/useUiLanguage';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { playerError } from '../multiplayer/playerError.ts';
 import { FormInput } from './FormInput';
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import {Pressable, View} from 'react-native';
 import { request } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 import { pokeTextLength } from '../multiplayer/pokes';
 import { radii, fonts, gameControlFinish, useTheme } from '../theme';
 
-export function DisplayNameField({ session, onSaved, label }: { session: Session; label?: string; onSaved?: (name: string) => void }) {
+export function DisplayNameField({ session, onSaved, label, avatarControl, showHelp = true }: { session: Session; avatarControl?: ReactNode; label?: string; showHelp?: boolean; onSaved?: (name: string) => void }) {
   useUiLanguage();
   const { colors } = useTheme();
   const [name, setName] = useState(''), [loaded, setLoaded] = useState(false);
@@ -40,8 +40,9 @@ export function DisplayNameField({ session, onSaved, label }: { session: Session
   }
   return <View style={{ backgroundColor: colors.surface, padding: 20, borderRadius: 16, gap: 12 }}>
     <Text style={{ color: colors.text, fontFamily: fonts.medium }}>{label || ui("common.display_name_label")}</Text>
-    <Text style={{ color: colors.textMuted, fontFamily: fonts.body, fontSize: 12, lineHeight: 20 }}>{ui("common.display_name_help")}</Text>
+    {showHelp && <Text style={{ color: colors.textMuted, fontFamily: fonts.body, fontSize: 12, lineHeight: 20 }}>{ui("common.display_name_help")}</Text>}
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+    {avatarControl}
     {editing ? <>
     <FormInput testID="profile-name-input" autoFocus accessibilityLabel={label || ui("common.game_display_name")} value={name} editable={loaded && !busy} maxLength={50}
       onChangeText={value => { setName(Array.from(value).slice(0,25).join('')); setMessage(''); }} placeholder={ui("common.name_nickname")}

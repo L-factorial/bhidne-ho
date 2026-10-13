@@ -1,5 +1,16 @@
 // Editable English common copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  choose_avatar: "Choose avatar",
+  avatar_male: "Male",
+  avatar_female: "Female",
+  default_avatar: "Default avatar",
+
+  table_summary: "Table summary",
+  table_totals: "Table totals",
+  game_records: "Game records",
+  table_game_number: "Game {{number}}",
+  table_no_results: "No completed games yet.",
+
   "profile_notifications": "Notifications",
   "profile_information": "Information & Support",
   "profile_account": "Account",

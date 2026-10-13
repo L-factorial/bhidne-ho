@@ -154,3 +154,36 @@ async def test_invitation_preview_does_not_join_room_or_grant_member_profiles(da
     assert next_page['next_user_id'] is None
     await pool.execute("UPDATE room_invitations SET status='declined' WHERE id='i'")
     assert (await query.room('room', users[-1], invitation_preview=True))['snapshot'] is None
+
+
+@pytest.mark.parametrize('kind', ['callbreak', 'marriage', 'flush'])
+async def test_completed_reserved_seat_stays_in_play_until_leave_or_close(database, kind):
+    from test_flush_restart import table_action
+    from app.durable_games.inbox import LaneTarget
+    pool, store, fence, users = database
+    if kind == 'flush':
+        from test_flush_restart import finished
+        host, game, inbox, lane, *_ = await finished(database)
+    else:
+        from test_rematch import completed
+        host, game, inbox, *_ = await completed(database, kind)
+        lane = await inbox.ensure_lane(LaneTarget(kind='table', room_id='room', table_id=UUID(game.table.table_id)))
+    try:
+        query = PostgresHostedQueries(pool)
+        results = (await query.activity(users[1]))['items']
+        assert len(results) == 1
+        assert results[0]['phase'] == ('OPEN' if kind == 'flush' else 'COMPLETED')
+        assert results[0]['current_user']['is_seated'] is True
+        assert any(t['match_id'] == game.match_id for t in (await query.room('room', users[1]))['tables'])
+        # Room member with no seat must not discover unrelated completed games.
+        if kind != 'flush':
+            assert (await query.activity(users[-1]))['items'] == []
+        assert (await table_action(database, game, inbox, lane, 'leave-seat', actor=users[1]))[0]['status'] == 'accepted'
+        after_leave = (await query.activity(users[1]))['items']
+        assert not any(t['current_user']['is_seated'] for t in after_leave)
+        if kind != 'flush':
+            assert after_leave == []
+        assert (await table_action(database, game, inbox, lane, 'end', actor=users[0]))[0]['status'] == 'accepted'
+        assert (await query.activity(users[0]))['items'] == []
+    finally:
+        await host.close()

@@ -33,12 +33,12 @@ let lobbySignals=0;const stopLobby=guest.rt.root.observeActivity(()=>lobbySignal
 await guest.rt.root.reconnect();await new Promise(r=>setTimeout(r,1000));
 const waitSignal=async(previous:number)=>{const end=Date.now()+5000;while(lobbySignals<=previous){assert.ok(Date.now()<end,'Lobby signal missing');await new Promise(r=>setTimeout(r,20));}};
 let before=lobbySignals;
-const publicRoom=await host.rt.roomActions.create(host.a,{name:'Public signal',visibility:'public',invitees:[]});host.rt.acknowledgeRoomAction(host.rt.roomCommandId!);
+const publicRoom=await host.rt.roomActions.create(host.a,{name:'Public signal',visibility:'public',invitees:[]});
 await waitSignal(before);before=lobbySignals;
 await host.rt.roomActions.remove(host.a,publicRoom.room_id);host.rt.acknowledgeRoomAction(host.rt.roomCommandId!);await waitSignal(before);
 stopLobby();
 for(const kind of ['marriage','flush','callbreak']){
- const room=await retry(()=>host.rt.roomActions.create(host.a,{name:'Adapter '+kind,visibility:'private',invitees:players.slice(1).map(p=>p.a.user_id)}));host.rt.acknowledgeRoomAction(host.rt.roomCommandId!);
+ const room=await retry(()=>host.rt.roomActions.create(host.a,{name:'Adapter '+kind,visibility:'private',invitees:players.slice(1).map(p=>p.a.user_id)}));
  for(const p of players.slice(1)){await retry(()=>p.rt.roomActions.enter(p.a,room.room_id));p.rt.acknowledgeRoomAction(p.rt.roomCommandId!);}
  let v=await host.request('/test-games/'+room.room_id,{game_type:kind,player_count:kind==='callbreak'?4:kind==='flush'?10:2,name:'Original '+kind});
  const participants=kind==='callbreak'?players:players.slice(0,2);

@@ -5,6 +5,7 @@ class PlayerSummary(BaseModel):
     user_id: str
     display_name: str
     username: str | None = None
+    avatar_url: str | None = None
 
 
 class FriendshipSnapshot(BaseModel):
@@ -15,6 +16,7 @@ class FriendshipSnapshot(BaseModel):
 
 
 class DirectMessage(BaseModel):
+    sender_avatar_url: str | None = None
     id: str
     sender_id: str
     recipient_id: str

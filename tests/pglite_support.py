@@ -62,6 +62,14 @@ class PGlitePool:
             yield self
 
     @asynccontextmanager
+    async def cursor(self):
+        # Exercise psycopg bulk-write callers using the same real SQL bridge.
+        async def executemany(sql, parameters):
+            for params in parameters:
+                await self.execute(sql, params)
+        yield SimpleNamespace(executemany=executemany)
+
+    @asynccontextmanager
     async def transaction(self):
         assert self.depth == 0
         self.depth = 1

@@ -13,8 +13,24 @@ from test_durable_social import setup, request as direct_request
 def configured(pool, admin):
     return ModerationService(pool, ModeratorConfig(frozenset([UUID(admin[5:])]),frozenset()))
 
-async def test_moderator_config_and_verified_unique_email(database, monkeypatch):
-    pool,_,_,users=database
+@pytest.fixture
+async def legacy_mailboxes():
+    from app.database import MIGRATIONS
+    from pglite_support import PGlitePool
+    pool=await PGlitePool.open()
+    try:
+        for version,statement in MIGRATIONS:
+            if version<41:await pool.execute(statement,script=True)
+        users=[f'user-{UUID(int=i)}' for i in range(1,7)]
+        for user in users:
+            await pool.execute("INSERT INTO users(id,kind) VALUES (%s,'account')",(UUID(user[5:]),))
+        yield pool,users
+    finally:
+        await pool.close()
+
+
+async def test_moderator_config_and_verified_unique_email(legacy_mailboxes, monkeypatch):
+    pool,users=legacy_mailboxes
     svc=ModerationService(pool,ModeratorConfig(emails=frozenset(['admin@example.test'])))
     for user in users[:2]:
         await sql(pool,"INSERT INTO account_credentials(user_id,username,password_salt,password_hash,unverified_email) VALUES (%s,%s,'a','b','admin@example.test')",(UUID(user[5:]),user))
@@ -23,6 +39,15 @@ async def test_moderator_config_and_verified_unique_email(database, monkeypatch)
     assert (await svc.capabilities(users[0]))['moderator'] is True
     await sql(pool,"INSERT INTO account_recovery_contacts(user_id,email) VALUES (%s,'admin@example.test')",(UUID(users[1][5:]),))
     assert (await svc.capabilities(users[0]))['moderator'] is False
+    # Legacy shared addresses survive the uniqueness migration as unassigned
+    # claims and must never grant email-based moderator access.
+    from app.auth.email_claim_schema import EMAIL_CLAIM_SCHEMA
+    from psycopg.errors import UniqueViolation
+    await pool.execute(EMAIL_CLAIM_SCHEMA,script=True)
+    assert await sql(pool,"SELECT user_id FROM account_email_claims WHERE email='admin@example.test'")==[(None,)]
+    assert (await svc.capabilities(users[0]))['moderator'] is False
+    with pytest.raises(UniqueViolation):
+        await sql(pool,"INSERT INTO account_credentials(user_id,username,password_salt,password_hash,unverified_email) VALUES (%s,'new-admin','a','b','admin@example.test')",(UUID(users[2][5:]),))
     assert (await configured(pool,users[0]).capabilities(users[0]))['moderator'] is True
     await sql(pool,'DELETE FROM account_recovery_contacts WHERE user_id=%s',(UUID(users[1][5:]),))
     await sql(pool,"UPDATE account_recovery_contacts SET email='changed@example.test' WHERE user_id=%s",(UUID(users[0][5:]),))

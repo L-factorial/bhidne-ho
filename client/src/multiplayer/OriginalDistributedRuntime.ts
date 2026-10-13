@@ -71,7 +71,23 @@ export class OriginalDistributedRuntime {
     };
   }
   clearCreationFeedback(kind:'room'|'table') { for(const [id,item] of this.creationFeedback)if(item.kind===kind)this.creationFeedback.delete(id); }
+  clearSeatConflict(room:string,match:string) {
+    for(const [id,item] of this.creationFeedback)
+      if(item.context?.room_id===room&&item.context.match_id===match)this.creationFeedback.delete(id);
+  }
   recordCreationFeedback(item:CreationFeedback) {this.clearCreationFeedback(item.kind);this.creationFeedback.set(item.id,item);}
+  async reservedTable(room:string,match:string,signal:AbortSignal) {
+    if(!this.api)throw Error('Session is unavailable.');
+    const [view,preview]=await Promise.all([
+      this.api.request<import('../screens/LiveGameTable').RoomSnapshot>(`/test-games/${encodeURIComponent(room)}?match_id=${encodeURIComponent(match)}`,this.account,undefined,signal),
+      this.api.request<{name:string}>(`/rooms/${encodeURIComponent(room)}`,this.account,undefined,signal),
+    ]);
+    return {...view,room_name:preview.name};
+  }
+  async leaveReservedTable(room:string,match:string,abandon=false) {
+    if(!this.api)throw Error('Session is unavailable.');
+    return this.api.request(`/test-games/${encodeURIComponent(room)}/${abandon?'table/abandon':'leave'}`,this.account,{match_id:match});
+  }
   connectRequests(shared: UiRequest) {
     if (this.closed || this.api) throw Error('API runtime already connected or closed.');
     const api = new OriginalUiApi(this.root,this.account,shared);
@@ -111,7 +127,7 @@ export class OriginalDistributedRuntime {
       if(this.closed)return null;
       const flow=this.creationFlow;
       if(error instanceof GameRequestError||error instanceof RoomActionRejected){
-        if(flow)this.recordCreationFeedback({id:flow.id,kind:'table',roomId:flow.room?.room_id,error:(error as Error).message});
+        if(flow)this.recordCreationFeedback({id:flow.id,kind:'table',roomId:flow.room?.room_id,error:(error as Error).message,context:error instanceof GameRequestError?error.detail:undefined});
         this.finishCreationFlow();
         throw error;
       }

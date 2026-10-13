@@ -21,7 +21,7 @@ export function runtimeRequest(session:Session|null):UiRequest|null {
 }
 export function sharedPlatformPath(path:string,body?:object,method?:string) {
   const p=path.split('?')[0];
-  return p.startsWith('/me/push/') || p.startsWith('/auth/') || p==='/me/profile' || p==='/me/appearance'
+  return p.startsWith('/me/push/') || p.startsWith('/auth/') || p==='/me/profile' || p==='/me/profile/avatar' || p==='/me/appearance'
     || p==='/me/phrases'||p.startsWith('/me/phrases/')
     || (!body&&!method&&(p==='/friends'||p==='/friends/conversations'||p.startsWith('/players/')));
 }

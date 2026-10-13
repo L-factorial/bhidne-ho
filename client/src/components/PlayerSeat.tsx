@@ -1,11 +1,12 @@
+import {PlayerAvatar} from './PlayerAvatar';
 import {ActiveTurnRing} from './ActiveTurnRing';
 import {AppText as Text} from './AppText';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { Ionicons } from '@expo/vector-icons';
 import { PlayerSocialEffect, useTableSocial } from './TableSocial';
-import { useEffect, useRef, useState } from 'react';
-import {AccessibilityInfo, Animated, Image, Pressable, View, type LayoutChangeEvent} from 'react-native';
+import { useEffect, useRef } from 'react';
+import {AccessibilityInfo, Animated, Pressable, View, type LayoutChangeEvent} from 'react-native';
 import { fonts, useTheme } from '../theme';
 
 export function PlayerSeat({ name, mine = false, active = false, connected = true, status, avatarUrl, compact = false, dealer = false,
@@ -23,7 +24,6 @@ export function PlayerSeat({ name, mine = false, active = false, connected = tru
   const target = !!social?.pokeMode && playerId !== undefined && social.eligible(playerId);
   const press = target ? () => social!.poke(playerId!) : onPress;
   const { colors } = useTheme();
-  const [failedImage, setFailedImage] = useState<string | null>(null);
   const scale = useRef(new Animated.Value(1)).current;
   const wasActive = useRef(active);
   useEffect(() => {
@@ -51,8 +51,7 @@ export function PlayerSeat({ name, mine = false, active = false, connected = tru
       borderColor: target ? colors.accent : active ? colors.attention : colors.borderSubtle, borderStyle: connected ? 'solid' : 'dashed',
       backgroundColor: active ? colors.turnSurface : colors.surface, alignItems: 'center', justifyContent: 'center' }}>
       <ActiveTurnRing active={active} size={size}/>
-      {avatarUrl && failedImage !== avatarUrl ? <Image source={{ uri: avatarUrl }} onError={() => setFailedImage(avatarUrl)}
-        style={{ width: size - 6, height: size - 6, borderRadius: size / 2 }} /> : <View style={{ width: size - 6, height: size - 6, borderRadius: size / 2, backgroundColor: colors.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}><Ionicons accessibilityLabel={ui("common.anonymous_profile")} name="person" size={compact ? 18 : 28} color={colors.textMuted} /></View>}
+      <PlayerAvatar uri={avatarUrl} size={size-6}/>
     </Animated.View>
     {inlineStatus && statusRows && <Text testID={`callbreak-seat-stats-${playerId}`} style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 12, backgroundColor: colors.surface, borderRadius: 4, padding: 3 }}>{statusRows[0]}</Text>}
     </View>

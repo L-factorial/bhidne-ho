@@ -1,3 +1,4 @@
+import { PlayerAvatar } from './PlayerAvatar';
 import {AppText as Text} from './AppText';
 import { playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
@@ -39,7 +40,7 @@ export function RoomCard({ room, member, busy, activeTables, onPress, owner, onR
   const online = room.connected_members?.length || 0;
   const tables = room.table_count ?? activeTables ?? 0;
   const previews = room.member_previews || [];
-  const shown = previews.length ? previews.slice(0, 4) : room.members.slice(0, 4).map(user_id => ({ user_id, display_name: '', username: '' }));
+  const shown = previews.length ? previews.slice(0, 4) : room.members.slice(0, 4).map(user_id => ({ user_id, display_name: '', username: '', avatar_url: null }));
   const extra = Math.max(0, room.members.length - shown.length);
   if (removed) return null;
   return <View testID={`room-card-${room.room_id}`} style={{ ...gamePanelFinish(c), padding: 10, borderRadius: radii.large, backgroundColor: c.surface,
@@ -69,10 +70,9 @@ export function RoomCard({ room, member, busy, activeTables, onPress, owner, onR
           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 }}>
             {shown.map((player, index) => {
               const name = player.display_name || player.username || ui("rooms.room_member");
-              const initials = player.display_name || player.username ? name.trim().split(/\s+/).slice(0, 2).map(part => Array.from(part)[0]).join('').toUpperCase() : null;
               return <View key={player.user_id} accessible accessibilityLabel={name} style={{ width: 33, height: 33, borderRadius: 17,
                 marginLeft: index ? -7 : 0, borderWidth: 2, borderColor: c.surface, backgroundColor: index % 2 ? c.surfaceSelected : c.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}>
-                {initials ? <Text style={{ color: c.text, fontFamily: fonts.medium, fontSize: 11 }}>{initials}</Text> : <Ionicons name="person" size={15} color={c.textMuted} />}
+                <PlayerAvatar size={29} uri={player.avatar_url ?? undefined} />
               </View>;
             })}
             {!!extra && <View accessible accessibilityLabel={ui("rooms.count_more_members", { "count": extra })} style={{ marginLeft: -6, width: 33, height: 33, borderRadius: 17,

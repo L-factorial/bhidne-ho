@@ -205,7 +205,7 @@ async def test_http_friendship_worker_notification_catchup_and_legacy_boundary(d
         for headers in (first_headers, second_headers):
             rules = await client.get('/me/community-rules', headers=headers)
             assert rules.status_code == 200, rules.text
-            assert rules.json()['accepted'] is False
+            assert rules.json()['accepted'] is True
             accepted = await client.post('/me/community-rules', headers=headers,
                 json={'version': rules.json()['version'], 'accepted': True})
             assert accepted.status_code == 200, accepted.text

@@ -1,5 +1,12 @@
 // Editable English ledger copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "table_balances": "Table Balances",
+  "my_settlement": "My settlement",
+  "one_game": "1 game",
+  "no_pending_rooms": "No rooms with pending balances.",
+  "loading_rooms": "Loading ledgers…",
+  "pending_rooms": "Rooms with pending balances",
+
   "bets_help": "Zero means no bet. Amounts record your agreement; no money is transferred. Tied placements require agreement between players.",
   "ledger": "Ledger",
   "ledger_settlements": "Ledger & settlements",

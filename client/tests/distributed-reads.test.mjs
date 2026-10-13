@@ -40,8 +40,8 @@ test('native platform reads preserve each independent pagination cursor and auth
   calls.push(url);assert.equal(opts.headers.Authorization,'Bearer token');assert.equal(opts.cache,'no-store');return {ok:true,json:async()=>({items:[]})};
  });
  await reader.catalog('r/a',signal());await reader.members('r/a','user-b',signal());
- await reader.roomInvitations('invite/a',signal());await reader.tableInvitations('table-a',signal());await reader.ledger('r/a',signal());
- assert.deepEqual(calls.map(u=>u.replace('https://host/distributed','')),['/rooms?limit=50&after_room_id=r%2Fa','/rooms/r%2Fa/members?limit=100&after_user_id=user-b','/room-invitations?limit=50&after_id=invite%2Fa','/table-invitations?limit=50&after_table_id=table-a','/rooms/r%2Fa/ledger']);
+ await reader.roomInvitations('invite/a',signal());await reader.tableInvitations('table-a',signal());await reader.ledger('r/a',signal());await reader.pendingLedgerRooms('r/a',signal());
+ assert.deepEqual(calls.map(u=>u.replace('https://host/distributed','')),['/rooms?limit=50&after_room_id=r%2Fa','/rooms/r%2Fa/members?limit=100&after_user_id=user-b','/room-invitations?limit=50&after_id=invite%2Fa','/table-invitations?limit=50&after_table_id=table-a','/rooms/r%2Fa/ledger','/ledger/rooms?after_room_id=r%2Fa']);
 });
 test('friend and settlement intents capture canonical scope and cannot change on retry',async()=>{
  const {friendshipControl,settlementControl}=await import('../src/multiplayer/DistributedControls.ts');

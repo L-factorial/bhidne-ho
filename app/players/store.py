@@ -3,6 +3,7 @@ from uuid import UUID, uuid4
 
 from psycopg.errors import UniqueViolation
 
+from app.multiplayer.avatars import avatar_url
 from app.players.service import FriendshipConflict, FriendshipDenied, PlayerNotFound
 
 
@@ -26,7 +27,7 @@ class InMemoryPlayerStore:
 
     def player(self, user_id):
         return {"user_id": user_id, "display_name": self.profiles.get(user_id)["display_name"],
-                "username": self.usernames.get(user_id)}
+                "username": self.usernames.get(user_id), "avatar_url": self.profiles.avatar(user_id)}
 
     async def get_player(self, user_id):
         if user_id not in self.users: raise PlayerNotFound("Player not found.")
@@ -123,12 +124,12 @@ class PostgresPlayerStore:
 
     @staticmethod
     def player(row):
-        return {"user_id": public_id(row[0]), "display_name": row[1], "username": row[2]}
+        return {"user_id": public_id(row[0]), "display_name": row[1], "username": row[2], "avatar_url": avatar_url(row[3])}
 
     async def _get_player(self, user_id):
         async with self.pool.connection() as connection:
             result = await connection.execute("""
-                SELECT u.id,p.display_name,a.username FROM users u
+                SELECT u.id,p.display_name,a.username,p.avatar_id FROM users u
                 JOIN user_profiles p ON p.user_id=u.id
                 LEFT JOIN account_credentials a ON a.user_id=u.id WHERE u.id=%s
             """, (internal_id(user_id),))
@@ -145,7 +146,7 @@ class PostgresPlayerStore:
             return []
         async with self.pool.connection() as connection:
             rows = await (await connection.execute("""
-                SELECT u.id,p.display_name,a.username FROM users u
+                SELECT u.id,p.display_name,a.username,p.avatar_id FROM users u
                 JOIN user_profiles p ON p.user_id=u.id
                 LEFT JOIN account_credentials a ON a.user_id=u.id
                 WHERE u.id = ANY(%s)
@@ -160,7 +161,7 @@ class PostgresPlayerStore:
                     UNION
                     SELECT user_id FROM account_credentials WHERE lower(username)=lower(%s)
                 )
-                SELECT u.id, p.display_name, a.username FROM matches m
+                SELECT u.id, p.display_name, a.username, p.avatar_id FROM matches m
                 JOIN users u ON u.id=m.user_id
                 JOIN user_profiles p ON p.user_id = u.id
                 LEFT JOIN account_credentials a ON a.user_id = u.id
@@ -173,7 +174,7 @@ class PostgresPlayerStore:
     async def search(self, user_id, query):
         async with self.pool.connection() as connection:
             result = await connection.execute("""
-                SELECT u.id, p.display_name, a.username FROM users u
+                SELECT u.id, p.display_name, a.username, p.avatar_id FROM users u
                 JOIN user_profiles p ON p.user_id = u.id
                 LEFT JOIN account_credentials a ON a.user_id = u.id
                 WHERE NOT COALESCE((to_jsonb(u)->>'deletion_pending')::boolean,false) AND u.id <> %s AND (p.display_name ILIKE %s OR a.username ILIKE %s)
@@ -186,7 +187,7 @@ class PostgresPlayerStore:
         current = internal_id(user_id)
         async with self.pool.connection() as connection:
             result = await connection.execute("""
-                SELECT u.id, p.display_name, a.username, f.status, f.requested_by
+                SELECT u.id, p.display_name, a.username, p.avatar_id, f.status, f.requested_by
                 FROM friendships f
                 JOIN users u ON u.id = CASE WHEN f.user_low = %s THEN f.user_high ELSE f.user_low END
                 JOIN user_profiles p ON p.user_id = u.id
@@ -196,7 +197,7 @@ class PostgresPlayerStore:
             rows = await result.fetchall()
         output = {"friends": [], "incoming": [], "outgoing": []}
         for row in rows:
-            bucket = "friends" if row[3] == "accepted" else "outgoing" if row[4] == current else "incoming"
+            bucket = "friends" if row[4] == "accepted" else "outgoing" if row[5] == current else "incoming"
             output[bucket].append(self.player(row))
         return output
 
@@ -235,14 +236,14 @@ class PostgresPlayerStore:
         async with self.pool.connection() as connection:
             rows = await (await connection.execute("""
                 SELECT n.id,n.kind,u.id,p.display_name,a.username,
-                       extract(epoch from n.created_at)*1000,n.read_at IS NOT NULL
+                       extract(epoch from n.created_at)*1000,n.read_at IS NOT NULL,p.avatar_id
                 FROM friend_notifications n JOIN users u ON u.id=n.actor_id
                 JOIN user_profiles p ON p.user_id=u.id
                 LEFT JOIN account_credentials a ON a.user_id=u.id
                 WHERE n.user_id=%s ORDER BY n.created_at DESC LIMIT 50
             """, (internal_id(user_id),))).fetchall()
         return [{"id": str(row[0]), "kind": row[1],
-                 "actor": self.player((row[2], row[3], row[4])),
+                 "actor": self.player((row[2], row[3], row[4], row[7])),
                  "created_at": int(row[5]), "read": row[6]} for row in rows]
 
     async def read_notifications(self, user_id):

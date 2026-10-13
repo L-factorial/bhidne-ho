@@ -303,4 +303,5 @@ export default {
   "session_expired": "This table expired after 30 minutes without activity. Everyone has returned to the room.",
   "session_removed": "Your required action timed out after 3 minutes. You were folded and removed from the table.",
   "session_pause": "Step away · use Auto play",
+  "completed_seat_reserved": "Completed · Seat reserved",
 } as const;

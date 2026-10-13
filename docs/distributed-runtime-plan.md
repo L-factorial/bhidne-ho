@@ -8879,3 +8879,439 @@ implementation request before changing card rendering or Marriage turn behavior.
   the next signed native build, and verify chat presence/composer plus simultaneous
   Flush reveals on tester devices. Capacity, observability, database HA and
   operational readiness remain separate infrastructure work.
+
+
+## 2026-10-12 — Direct signup/chat/gameplay production deployment
+
+- User explicitly requested direct deployment to both application servers.
+  Deployed committed revision `b3ff237fea83f3941488747fb1046482e3d00577` and the
+  production `distributed-original` web export using the established administrator
+  sideload procedure. No application changes were added during this rollout.
+- Verified both SSH keys against the previously console-approved fingerprints and
+  matched both installed release-receiver hashes. Confirmed no competing GitHub
+  production workflow was active before migration/activation.
+- The GitHub run for b3ff237 failed on an obsolete second acknowledgment after
+  room creation, which now acknowledges itself. Corrected that acceptance test
+  locally. Also corrected explicit-signup-consent fixtures and moved the shared
+  moderator mailbox case to a genuine pre-41 dataset, then tested its migration
+  into reserved conflicts. These test-only corrections remain local for review;
+  they do not change the deployed application.
+- Verification: 465 client tests, production type check/export, seven real native
+  PostgreSQL 17/Redis/nginx UI/process tests passed. Broad backend run: 2037 passed,
+  30 optional cases skipped, three outdated-fixture failures and one sandboxed
+  localhost-listener failure. All four failed cases passed in the final rerun
+  after fixture correction and granting the listener its temporary local port:
+  2041 backend cases verified overall. Optional skips were not claimed as passes.
+- Built one immutable image on app1 using unchanged production dependencies and
+  transferred/verified the exact archive on app2:
+  `sha256:0bee18c8bef7a5021f79d8629083dd22d35e53c537f7fd40c207e60274ead427`.
+- Created protected `/var/backups/bhidne-release/pre-b3ff237.dump` on app1 and
+  validated its PostgreSQL archive listing before migration (2963592 bytes,
+  SHA256 `120beb57a5e1751619bd55d19b214b86f9842f28f4e2546ffcd579f0e204e348`).
+  Applied additive migration 41 through the existing locked migration receiver.
+  Before/after audits retained 19 users, 19 password accounts, four verified
+  contacts, 61 sessions and 29 direct messages. Two legacy shared-email claims
+  remain unassigned/reserved; accounts are preserved and username sign-in remains
+  available. Do not automatically assign or merge those shared addresses.
+- Both hosts passed schema/dependency/frontend preflight. Backends were activated
+  sequentially with release locks and peer-health checks; matching frontends were
+  activated only after both backends were healthy. Both serve the exact revision
+  and image and retain APNs capability. Public HTTPS health, APNs capability,
+  frontend index and exact JavaScript asset hashes matched both hosts.
+- Evidence: `/private/tmp/bhidne-b3ff237-direct/verification.json`,
+  `/private/tmp/bhidne-b3ff237-{backup,migration,rollout,browser}.log`,
+  `/tmp/bhidne-direct-{backend-tests,final-rerun,native-tests,client-tests,
+  production-build}.log`. Database count-only audit and workflow-clear records
+  are in the direct-release directory. Mobile/desktop public browser verification
+  is recorded separately from isolated gameplay/UI fixture checks.
+- Limitations: a signed native build and physical-device checks were not performed;
+  installed native bundles need a new build for the visual changes. No live user
+  account was created and no chat/email was sent as a deployment smoke test.
+  This schema-41 release cannot rely on restarting a strict schema-40 image for
+  rollback; use a schema-compatible forward fix and the retained backup as needed.
+- Exact next step: review/commit the local test-only corrections and this handoff,
+  include the UI in the next signed native build, and verify on tester devices.
+  Resolve the two legacy email conflicts only after their owners select distinct
+  verified addresses. Capacity, observability, database HA and operational
+  readiness remain separate infrastructure work.
+
+### October 12: Restore Flush reveal to the player's own turn
+
+- User superseded the off-turn reveal request after the Ekraj/Sigma incident.
+  Read-only production receipts confirmed Ekraj SEE_CARDS advanced revision 3
+  to 4 at 03:01:54 UTC October 13; Sigma BET with revision 3 was rejected
+  immediately afterward. Sigma's later revision-4 BET succeeded.
+- Restored engine turn eligibility for SEE_CARDS. Allowed-actions projection
+  disables the existing button off-turn; the server enforces the same rule.
+- Restored exact revision checks for round-bound reveal requests. Kept optional
+  round payload compatibility, green seen indicator, and unchanged turn deadline
+  on a reveal. Call Break review and Marriage Tunnela scopes are unchanged.
+- Updated engine, adapter, HTTP, checkpoint receipt, and serialized durable-lane
+  coverage to assert own-turn acceptance and off-turn rejection without leaking
+  cards or changing the turn/deadline. Duplicate accepted/rejected lane outcomes
+  remain recoverable.
+- Verification: 190 targeted tests passed (Flush engine suite, adapter, room,
+  game lane executor, checkpoint store); engine suite rerun after adding explicit
+  allowed-action assertions: 55 passed. git diff --check passed.
+- Limitation: this increment is local and has not been deployed. No live game
+  state or production data was changed by the incident inspection.
+- Exact next step: review/commit this reversal and deploy the resulting immutable
+  release to both application servers; verify production off-turn eligibility.
+
+### October 12: Chat refinements, Marriage controls, and shared Table summary
+
+- Implemented the approved chat and table-summary plan. Existing Game summary
+  content and tabs are unchanged; social login and preset avatars were discussion
+  only and are not part of this increment.
+- Lobby Chat now has a centered title with the online-only help sentence removed.
+  Search uses only the accepted-friends snapshot (including friends without a
+  prior conversation), and does not call global player search. Added the same
+  themed gold table-trim separator below online people in lobby and room chat.
+- Removed the client's recipient-presence requirement for private messages.
+  Friendship is still rechecked before lobby sending, and the server continues
+  to enforce friendship, blocking, posting consent and rate limits. Existing
+  durable notification and push paths work without recipient presence; tests
+  cover message persistence, recipient notification, push routing and retries
+  without duplication. Push delivery requires an enabled registered device.
+- Shared direct/room/table message rendering puts the action menu at top-right
+  and a 10px muted timestamp at bottom-right, retaining system font scaling.
+  Conversation cards use the same arrangement. Menu triggers stop propagation
+  so opening their menu does not also open the containing conversation.
+- Marriage's shown-card controls and Marriage eligibility now share one compact
+  row after Maal is seen. Labels wrap within their allocated width; previews
+  continue to have their full-width layout. Earlier pre-Maal controls remain.
+- Added Table summary opposite Game summary through the shared game viewport
+  toolbar. A read-only sheet shows completed-result totals for this table and
+  numbered Game records with per-game nets, using profile names, positive/negative
+  colors and zero-net participants. Former participants remain in the records.
+- The ledger adds display-only record_balances without changing financial totals
+  or settlement behavior. Distributed record_tables also include validated,
+  finalized tied Call Break results with zero payment, using current or archived
+  checkpoints without write side effects. Distributed records sort by game play
+  order rather than finalization-worker order; legacy records retain their ledger
+  chronology. Flush records use the existing completed-round ledger identity.
+- Verification: 465 client tests passed; typecheck and production web build passed.
+  45 targeted backend tests passed across ledger, distributed ledger queries,
+  social notifications, durable social and match finalization. After the history
+  ordering change, distributed ledger queries and Flush finalization: 16 passed.
+  The earlier own-turn Flush reversal passed 190 targeted tests and remains local.
+- Isolated browser fixtures passed at 320, 390 and 1280px for all game summary
+  launchers, table-only results, offline friend sending, friend search, menu
+  behavior, room separator and the Marriage row. A final 390px check additionally
+  verified timestamp geometry. No live accounts, messages or game state were used.
+  Review screenshots: /private/tmp/bhidne-chat-table-preview/{lobby-chat,room-chat,
+  offline-friend-chat,marriage-button-row,callbreak-table-summary,
+  marriage-table-summary,flush-table-summary}.png.
+- Limitations: completed results appear after durable finalization and refresh
+  every five seconds while the summary is open. Existing bounded ledger/history
+  reads fail rather than silently truncate totals. No schema migration is needed.
+  Changes are not committed or deployed; client/dist is a production web export.
+- Exact next step: review/commit this increment alongside the own-turn Flush
+  reversal, then deploy its immutable release to both app servers and produce a
+  new signed native build for installed apps. Operational readiness and capacity
+  testing remain separate tasks.
+
+### October 12: Game table header location length
+
+- Shared Marriage, Flush and Call Break header locations now fit 25 Unicode
+  code points, including spaces, the arrow and literal three-dot truncation.
+  Labels within the limit stay unchanged. Longer room names lose trailing
+  characters while preserving the table name and reserving room for all dots.
+  Snapshot path fallbacks follow the same rule. An exceptionally long table
+  name is also shortened when it cannot fit alongside the room and separator.
+- Verification: five boundary, Unicode and fallback tests passed; client
+  typecheck and whitespace checks passed. Game titles are unchanged.
+- Limitations: this is local source only; the earlier production web export
+  predates this increment. No server or schema changes are needed.
+- Exact next step: review/commit with the pending UI release, rebuild the web
+  export and deploy to both app servers; ship a new native build for installed
+  apps. Capacity and operational readiness remain separate tasks.
+
+### October 12: Play-tab table card location length
+
+- All Play-tab table cards now use the shared room → table formatter beneath
+  the game title, replacing separate room/table lines with one compact line.
+  The 25-character total includes spaces, arrow and three dots; the room is
+  shortened as needed using the same rules as the in-game header.
+- Verification: client typecheck and five shared formatter tests passed;
+  whitespace checks passed. No game state or entry actions changed.
+- Limitations: local source only; not committed, rebuilt or deployed.
+- Exact next step: review/commit with the pending UI changes, rebuild and deploy
+  the web release to both app servers and ship a new native build.
+
+### October 12: Profile identity and avatar-picker handoff
+
+- Account profile identity now shows the existing empty-head thumbnail beside
+  the display name, with the same 22px editorial font as Your profile.
+- Verification: client typecheck and whitespace checks passed. Local only.
+- Avatar picker remains incomplete: macOS denies reading the supplied Downloads
+  avatar folder, including an elevated read attempt. No image assets were copied
+  and no selection or persistence behavior is enabled.
+- Exact next step: obtain readable copies of the 30 supplied WebP files inside
+  the project, then implement avatar editing in the profile-name section using
+  an overlay with Male/Female radio filters, empty/default selection and saved
+  preference, without expanding the underlying section. Verify selection,
+  cancellation, persistence and layout before committing or deployment.
+
+### October 12: Hidden completed-table seat incident (production diagnosis)
+
+- Read-only production receipts confirm ekraj's create-table rejection at
+  2026-10-13 05:31:55 UTC (October 12, 22:31:55 Pacific daylight time).
+  The returned departure context identified Marriage Hamro family / Table-1,
+  table 8a7b1a54-a8b0-566e-b99a-239128515d86, match
+  ad6952d3-b8b0-5867-a5c6-9fe934ffa14d, with a leave action.
+- Initial inspection showed phase COMPLETED, table revision 6 and ekraj's seat
+  reservation still present. The activity query excludes completed tables even
+  for seated actors, and ActiveGames independently filters them again. Room
+  projections can retain completed tables for seated actors, but active-room
+  counts and active-game panels exclude them; the exact user's room UI state
+  was not captured. No evidence of a second hidden live game was found.
+- A normal session-tick committed revision 7 at 05:37:12 UTC; a subsequent read
+  showed closed / ENDED and no remaining ekraj table-seat reservation. No
+  production data was modified during investigation.
+- Creation rejection also sends a persistent recovery notice containing only
+  the error message, while the detailed departure context exists in the receipt.
+  The screenshot shows this message twice. Reservation release does not itself
+  clear the historical notice.
+- Exact next step: make reserved completed tables accessible in Play without
+  exposing unrelated completed games; preserve departure/replacement rules,
+  and provide clear navigation/recovery for creation conflicts. Reconcile stale
+  and duplicated creation notices after refresh/release. Add targeted lifecycle
+  and UI regressions before deployment. No incident fix is implemented yet.
+
+### October 12: Reserved completed-table visibility and creation recovery
+
+- Implemented the incident fix in local source. The distributed Play activity
+  feed now includes completed tables for actors who still hold seats. Client
+  filtering preserves those cards without exposing unrelated completed games.
+  Room cards retain their existing seated-player visibility and now include a
+  Completed · Seat reserved label and a direct Leave action, as do Play cards.
+  Flush's existing open lobby between rounds remains available as before.
+- Creation rejection/recovery preserves the receipt's actor-specific departure
+  context, including across the default-room workflow. A single notice names
+  the blocking room/table and offers Return and the existing Leave/Abandon
+  action. Active-game abandonment has a second confirmation and its existing
+  consequence warning. End-required cases allow returning to the table rather
+  than silently ending someone else's game. The server remains authoritative
+  for all departure, revision, replacement and one-seat rules.
+- Removed the duplicate global creation-rejection banner. Confirmed departure
+  clears only feedback for the matching room/match. Visible conflict notices
+  recheck on activity, foreground and a five-second timer, and disappear only
+  after a successful read confirms release/closure. Failed reads retain them.
+  Resolution immediately refreshes the Play or room table list.
+- Verification: 473 client tests passed; 15 distributed lobby/lifecycle tests
+  passed. Related creation, invitations, notifications and cache tests verified
+  64 cases; the two cache tests encoding the previous hidden-table behavior
+  were updated, and all eight cache tests passed on rerun. Typecheck passed.
+  Isolated browser scenarios at 320/390/1280px cover one creation rejection,
+  named conflict, Return, Leave, automatic cleanup, and failed-refresh retention.
+  The final nine browser scenarios also passed immediate list removal after
+  release; production typecheck/export and whitespace checks passed afterward.
+  No live accounts, commands, messages or games were used for these tests.
+- Limitations: changes are not committed or deployed; installed apps need a
+  new native build. No migration, production seat cleanup or timer-policy change
+  is required. Review screenshot: /private/tmp/bhidne-seat-preview/conflict-390.png.
+- Exact next step: review/commit this fix with the pending UI release and deploy to
+  both app servers. Operational readiness and capacity work remain separate.
+
+### Avatar integration — user-requested UI/profile scope
+
+- Added the supplied 30 bundled WebP avatars (approximately 396 KiB total).
+  Account profile-name editing now includes an avatar thumbnail and an overlay
+  picker with Male/Female radio filters and a default empty-head option. The
+  identity heading keeps the existing profile-title size.
+- Migration 42 stores only a validated nullable preset ID in user_profiles.
+  Authenticated GET/PATCH /me/profile/avatar are reviewed shared-platform routes;
+  arbitrary URLs, other users' identifiers and invalid preset IDs are rejected.
+  Images stay in the app bundle. Existing avatar URLs still render normally.
+- Player DTOs, distributed game projections, room/member/table previews, financial
+  summaries, friends, notifications and chat sender profiles carry the preset
+  reference. The shared avatar component now renders all three games' player
+  circles and chat messages. Room member and table/room card circles use it too.
+  Missing or failed images keep the empty-head fallback; turn/dealer/presence
+  indicators remain around their existing circles.
+- Avatar writes participate in the existing profile-version cache invalidation
+  across gateways. Client profile cache entries invalidate after own-avatar edits;
+  other cached profiles refresh within the existing 30-second cache lifetime.
+  Durable room chat pushes carry the avatar without adding directory/history reads.
+- Verification: all 473 client tests passed; production typecheck/export passed.
+  Isolated browser checks passed seats and table-chat avatars in Call Break,
+  Marriage and Flush, plus picker filtering, saving and reset at 320px. Picker
+  fixture navigation uses a programmatic lobby return; this does not validate
+  the unrelated game-header navigation layout. Database tests exercise migration
+  constraints, cross-gateway refresh and avatar persistence; chat tests exercise
+  saved sender avatars, default reset and unchanged name behavior. Final related
+  backend regressions: 112 passed, 1 skipped, 2 warnings in 90.05s (0:01:30).
+- Limitations: local changes only, no live account/game/message writes, no commit
+  or deployment. Apply migration 42 before deploying the server release. Native
+  clients require a new build containing the bundled avatars.
+- Exact next step: review/commit with the pending UI release, apply migration 42,
+  and deploy the reviewed release to both app servers; publish the updated client
+  bundle/native build. Capacity/operational-readiness work remains separate.
+
+### Hide social sign-in options — user-requested release scope
+
+- Removed the Google/Facebook/Apple buttons, unavailable-provider message and
+  associated OR separator from the shared sign-in/sign-up method chooser.
+  Both shared and distributed screens now show only the account method.
+- Kept the provider components and authentication implementation for a future
+  release. Account forms, recovery and verification behavior are unchanged.
+- Verification: client TypeScript check and whitespace check passed; inspected
+  both screens' use of the shared chooser. No additional tests were added for
+  this presentation-only removal.
+- Limitations: local source change only; not deployed.
+- Exact next step: include this change in the pending client release; retain the
+  avatar release's migration 42/server/native-build requirements above.
+
+### Account display-name copy — user-requested UI scope
+
+- Renamed the Account tab's profile-name section to the existing localized
+  Display name label and hid its explanatory paragraph. Avatar/name editing
+  remains in the same section. Other uses of the name field retain their help.
+- Verification: client TypeScript and whitespace checks passed.
+- Limitations: local source change only; not deployed.
+- Exact next step: include in the pending client release alongside the previous
+  avatar and sign-in presentation changes.
+
+### Recovery-email copy — user-requested UI scope
+
+- Removed the explanatory paragraph from the Recovery email settings section.
+  Email status, inputs, actions and confirmation feedback remain available.
+- Verification: client TypeScript and whitespace checks passed.
+- Limitations: local source change only; not deployed.
+- Exact next step: include this copy change in the pending client release.
+
+### Account identity presentation — user-requested UI scope
+
+- Removed the secondary @username and Profile ID lines beneath the Account
+  tab's avatar/name heading. The heading still uses the username as a fallback
+  when no display name is set.
+- Verification: client TypeScript and whitespace checks passed.
+- Limitations: local source change only; not deployed.
+- Exact next step: include this change in the pending client release.
+
+### Room table loading presentation — user-requested UI scope
+
+- Replaced the initial table-loading content with a small muted spinner and
+  centered localized Loading tables text at 12px. Creation controls and table
+  cards appear after the first snapshot rather than during the initial request.
+- Shared room entry suppresses connection/status banners and chat navigation
+  during this initial load. Room navigation remains available. Existing table
+  views remain visible during background refresh; initial failures still show
+  retry controls, and creation drafts retain their previous retry behavior.
+- Verification: TypeScript and whitespace checks passed. Isolated browser checks
+  at 320/390/1280px passed the pending loader, hidden creation controls, small
+  centered text, transition to empty/populated room views and failure/retry.
+  Production typecheck/export passed; the local fixture export is restored to
+  production configuration before handing off.
+- Limitations: local changes only; no live room/table/account writes or deployment.
+- Exact next step: include in the pending reviewed client release, alongside the
+  profile/sign-in changes and the avatar migration/server/native-build requirements.
+
+### Branded table transition — user-requested UI scope
+
+- Replaced the pulsing transition sentence with the existing web landing-page
+  artwork, a small muted spinner and a compact 12px localized caption. Artwork
+  uses contain sizing with safe-area and viewport bounds for portrait/landscape.
+- Reused the shared TableTransfer component for both Play-tab table entry and
+  the handoff after game creation. Existing readiness/error dismissal behavior
+  remains in place; no minimum splash duration or artificial delay was added.
+  Actual waiting still depends on room membership and table snapshot requests;
+  no runtime/network performance change is claimed for this presentation update.
+- Verification: TypeScript and whitespace checks passed. Four isolated browser
+  scenarios passed Play entry at 320x740/1280x900 and creation at 390x844/844x390,
+  checking loaded artwork, viewport fit, compact caption, one creation mutation
+  and dismissal when the table opens. No live account, room or table writes.
+  Review screenshot: /private/tmp/bhidne-table-transfer-preview/390.png.
+- Limitations: local changes only; not committed or deployed. The image is reused
+  from the existing bundled branding assets. Production export verification is
+  completed before handoff, restoring the local fixture export configuration.
+- Exact next step: include in the pending reviewed client release; retain the
+  earlier avatar migration 42/server/native-build requirements.
+
+### Lobby ledger and room ledger tabs — user-requested UI scope
+
+- Added bottom lobby navigation in the order Home / Ledger / Friends / Chat.
+  Ledger lists joined, non-deleted rooms that have unallocated nonzero table
+  balances or settlement transfers still awaiting resolution. It includes room
+  obligations even when the current member has no personal debt. Fully settled
+  rooms disappear; a later result makes the room eligible again.
+- Pending discovery uses authenticated, cursor-paginated GET /ledger/rooms in
+  legacy mode and GET /distributed/ledger/rooms through the original UI adapter
+  in distributed mode. PostgreSQL checks membership and pending amounts per
+  table in SQL; offsetting results in different tables do not hide obligations.
+  Distributed reads use a read-only repeatable-read transaction, with no
+  read-triggered result finalization or settlement writes. The client follows
+  pages, refreshes every 15 seconds, cancels reads when unmounted, and shows
+  compact loading, empty and error/retry states.
+- Selecting a listed room enters the existing room view and opens its ledger
+  panel directly on Balances. Returning to the lobby retains Ledger selection.
+  Room ledger now has underline tabs Balances / Table Balances / My settlement;
+  the overall balances, table history and personal settlement actions retain
+  their existing behavior and calculation rules.
+- Collapsed table cards show localized game-prefixed names (Flush-Table-1) and
+  centered singular/plural game count plus the latest recorded result date.
+  Result timestamps come from existing ledger_games.created_at; in-memory
+  results retain their initial timestamp on idempotent replay. No new database
+  migration is needed for this increment. English and Nepali copy are included.
+- Verification: 19 ledger/pending-discovery backend checks and 18 distributed
+  transport checks passed, including PostgreSQL/WASM SQL, privacy, pagination,
+  zero/offsetting totals, replay dates and two-party settlement completion.
+  All 474 client tests passed; production TypeScript and web export passed.
+  Isolated browser scenarios at 320/390/1280px passed direct room navigation,
+  tabs, dates, table expansion, settlement controls, empty state and retry.
+  Review screenshots: /private/tmp/bhidne-lobby-ledger-390.png and
+  /private/tmp/bhidne-table-balances-390.png. Production export configuration
+  was restored after browser checks. No live accounts, rooms or tables mutated.
+- Limitations: local changes only, not committed or deployed. The date is the
+  latest result-recording timestamp, not table creation time. Pending rooms are
+  ordered by stable room ID for pagination. Existing historical balance totals
+  and settlement calculations are unchanged; no capacity claim is made.
+- Exact next step: include matching server and client changes in the reviewed
+  release. Earlier avatar migration 42 and native bundled-asset requirements
+  still apply to the pending release; this ledger increment adds no migration.
+
+### Earlier approved plans — completion audit and avatar load recovery
+
+- User requested completion of the earlier plans after the lobby ledger work.
+  Audited the current source against the conversation and the prior handoffs;
+  most requested behavior was already implemented locally, rather than awaiting
+  implementation. Retained those changes and their existing runtime boundaries.
+- Confirmed the completed scope: own-turn Flush card reveal; offline friend
+  messaging and durable notification/push routing; centered lobby Chat title,
+  friend-only search, room/lobby table separators and consistent message menus
+  and small timestamps; Marriage's compact shown-card/eligibility row; shared
+  Table summary with table totals and per-game records; 25-character room/table
+  labels in game headers and Play cards; bundled avatar selection and game/chat
+  integration; hidden social sign-in choices; simplified Account display-name,
+  identity and recovery-email presentation; reserved completed-table visibility
+  and creation conflict recovery; centered room loading and branded table entry.
+  The room/lobby ledger changes from the preceding increment remain included.
+- Fixed the remaining avatar-picker recovery gap: an initial failed avatar read
+  now offers Retry in the overlay, with compact loading feedback and disabled
+  choices until the read succeeds. Selected radio states are explicit for web
+  accessibility. Existing save/reset behavior and bundled assets are unchanged.
+- Verification: 279 targeted backend checks passed against the combined source,
+  including PostgreSQL/WASM queries, notifications, avatar persistence/cache
+  invalidation, completed-seat recovery, ledger routes and own-turn Flush rules.
+  All 474 client tests and TypeScript passed. Isolated browser checks passed
+  table/chat avatars for all three games, avatar initial-load retry, filter radio
+  states, persistence after closing/reopening Profile, reset, compact Account
+  identity/copy and both account-only sign-in/signup presentations at 320px.
+  Chat/table-summary/Marriage checks passed at 320/390/1280px, as did room-loading
+  checks. Four table-transition viewport/flow scenarios passed. All nine
+  distributed-original reserved-seat scenarios passed return/leave/automatic
+  cleanup, including retention when refresh fails. No live service writes.
+  Production TypeScript and web export passed after restoring build settings.
+- Release exclusions remain unchanged: no new Game summary tabs, social-login
+  enablement, social-account linking, uploaded profile pictures, capacity testing
+  or operational-readiness work. Existing Call Break/Marriage off-turn scopes
+  are unchanged; the requested reversal applies to Flush.
+- Limitations: local source only, not committed or deployed; native device
+  validation still needs a signed build. Push delivery requires an enabled
+  registered device. Migration 42 remains required for the earlier avatar work;
+  this recovery increment adds no migration. Browser fixture exports are restored
+  to production configuration and verified before final handoff.
+- Exact next step: review and release the matching pending server/client changes,
+  applying avatar migration 42 and producing a native build with bundled avatars.
+  Keep the deferred social-login and Game summary work outside that release.

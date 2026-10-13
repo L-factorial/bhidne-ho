@@ -54,7 +54,7 @@ def show_cost(state, player):
 
 def evaluate_see_eligibility(state, player_id):
     try:
-        player = find_player(state, player_id)
+        player = require_turn(state, player_id)
         if state.status is not GameStatus.IN_PROGRESS or player.status is not PlayerStatus.ACTIVE:
             raise InvalidActionError('Player cannot see cards outside an active hand.')
         if state.pending_show is not None or state.pending_side_show is not None:

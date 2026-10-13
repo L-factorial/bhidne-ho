@@ -51,13 +51,14 @@ class CachedProfiles(PostgresPlayerProfileService):
         async def load(pool):
             profiles = PostgresPlayerProfileService(pool)
             value = await getattr(profiles, method)(user_id)
-            return {'profile': value, 'username': profiles.usernames.get(user_id)}
+            return {'profile': value, 'username': profiles.usernames.get(user_id), 'avatar_id':profiles.avatars.get(user_id)}
         return await self.reads.read('profile-' + method, user_id,
             PROFILE_VERSIONS + ' WHERE u.id=%s', (self._uuid(user_id),),
             load)
 
     async def get(self, user_id):
         cached = await self._read('get', user_id)
+        self.avatars[user_id] = cached.get('avatar_id')
         value = cached['profile']
         self.names[user_id] = value['display_name']
         if cached['username']:

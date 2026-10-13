@@ -160,3 +160,19 @@ def test_ledger_profiles_are_batched_and_only_available_to_room_members(monkeypa
         assert response.json()['player_profiles'][friend['user_id']]['avatar_url'] is None
         assert client.get(f"/rooms/{room['room_id']}/ledger", headers=outsider).status_code == 403
         assert len(calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_table_records_retain_zero_totals_former_players_and_game_specific_nets():
+    service = LedgerService(InMemoryLedgerStore(), Rooms())
+    await service.record_game(result('game-1', 'table-1', {'alice': 20, 'bob': -20, 'carol': 0}))
+    await service.record_game(result('game-2', 'table-1', {'alice': -20, 'bob': 20}))
+    await service.record_game(result('other-table', 'table-2', {'alice': 100, 'carol': -100}))
+    view = await service.snapshot('room', 'alice')
+    table = next(row for row in view['tables'] if row['table_id'] == 'table-1')
+    assert table['record_balances'] == [dict(player_id=p, amount=0) for p in ('alice', 'bob', 'carol')]
+    assert [g['game_id'] for g in table['games']] == ['game-1', 'game-2']
+    assert {r['player_id']: r['amount'] for r in table['games'][0]['record_balances']} == {'alice': 20, 'bob': -20, 'carol': 0}
+    assert {r['player_id']: r['amount'] for r in table['games'][1]['record_balances']} == {'alice': -20, 'bob': 20}
+    # Settlement accounting continues to omit zero balances.
+    assert table['balances'] == [] and table['suggested_transfers'] == []

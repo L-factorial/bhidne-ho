@@ -83,7 +83,7 @@ class TableSocialService:
                     seats, viewers = await self.access(room_id, user_id, command.match_id, True)
                     message = dict(type='TABLE_CHAT_MESSAGE', id=uuid4().hex, room_id=room_id,
                         match_id=command.match_id, sender_id=user_id, sender_player_id=seats[user_id],
-                        sender_name=name, text=payload.text, sent_at=int(time.time()*1000))
+                        sender_name=name, sender_avatar_url=self.profiles.avatar(user_id), text=payload.text, sent_at=int(time.time()*1000))
                     state['messages'].append(message)
                     del state['messages'][:-100]
                     state['last'] = {u: t for u, t in state['last'].items() if now-t < 1}

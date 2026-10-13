@@ -10,7 +10,7 @@ import { DeleteAccountLink } from './DeletionScreen';
 import { RecoveryEmailSettings } from './RecoveryScreen';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { ui } from '../i18n/copy.ts';
-import { radii, gameControlFinish, gameHeadingFinish, fonts, useThemedStyles, type ThemeColors } from '../theme';
+import { radii, typography, gameControlFinish, fonts, useThemedStyles, type ThemeColors } from '../theme';
 import { FormScrollView } from '../components/FormInput';
 import { KeyboardFrame } from '../components/KeyboardFrame';
 import { useContext, useEffect, useState } from 'react';
@@ -24,6 +24,8 @@ import { DisplayNameField } from '../components/DisplayNameField';
 import type { Session } from '../multiplayer/session';
 import type { usePlayerPhrases } from '../multiplayer/usePlayerPhrases';
 import { SettingsTabs } from '../components/SettingsTabs';
+import { AvatarPicker } from '../components/AvatarPicker';
+import { PlayerAvatar } from '../components/PlayerAvatar';
 
 export function ProfileScreen({ session, onBack, onSignOut }: {
   session: Session; personal: ReturnType<typeof usePlayerPhrases>; onBack: () => void; onSignOut?: () => void;
@@ -33,13 +35,13 @@ export function ProfileScreen({ session, onBack, onSignOut }: {
   const styles = useThemedStyles(createStyles);
   const userId = session.user_id;
   const insets = useSafeAreaInsets();
-  const [identity, setIdentity] = useState<{ user_id: string; display_name: string; username?: string | null } | null>(null);
+  const [identity, setIdentity] = useState<{ user_id: string; display_name: string; username?: string | null; avatar_url?: string | null } | null>(null);
   const [identityError, setIdentityError] = useState('');
   const [tab, setTab] = useState<'account' | 'information' | 'notifications'>('account');
   useEffect(() => {
     const controller = new AbortController();
     setIdentity(null); setIdentityError('');
-    void request<{ user_id: string; display_name: string; username?: string | null }>('/auth/me', session, undefined, controller.signal)
+    void request<{ user_id: string; display_name: string; username?: string | null; avatar_url?: string | null }>('/auth/me', session, undefined, controller.signal)
       .then(value => { if (!controller.signal.aborted) setIdentity(value); })
       .catch(() => { if (!controller.signal.aborted) setIdentityError(ui("feedback.profile_load_help")); });
     return () => controller.abort();
@@ -53,16 +55,17 @@ export function ProfileScreen({ session, onBack, onSignOut }: {
         {id:'notifications',label:ui('common.profile_notifications')},
       ]} />
       {tab === 'account' && <><View testID="profile-identity" style={{ gap: 6, paddingVertical: 12 }}>
-        <Text accessibilityRole="header" style={styles.title}>{identity?.display_name || identity?.username || (identityError ? ui("common.account_label") : ui("common.loading_profile"))}</Text>
-        {!!identity?.username && <Text style={styles.description}>@{identity.username}</Text>}
-        <Text selectable accessibilityLabel={ui("common.profile_id", {id: userId})} style={styles.description}>{ui("common.profile_id", {id: userId})}</Text>
+        <View style={{flexDirection:'row',alignItems:'center',gap:12}}>
+          <PlayerAvatar size={48} uri={identity?.avatar_url ?? undefined} />
+          <Text accessibilityRole="header" style={[styles.title,{flex:1,minWidth:0}]}>{identity?.display_name || identity?.username || (identityError ? ui("common.account_label") : ui("common.loading_profile"))}</Text>
+        </View>
         {!!identityError && <Text accessibilityRole="alert" style={styles.description}>{identityError}</Text>}
       </View>
       <View testID="profile-preferences" style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 20 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Text style={styles.description}>{ui("common.theme")}</Text><ThemeAction /></View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Text style={styles.description}>{ui("common.language_label")}</Text><LanguageToggle /></View>
       </View>
-      <DisplayNameField label={ui("common.profile_name")} session={session} onSaved={display_name => setIdentity(current => current ? { ...current, display_name } : { user_id: userId, display_name })} />
+      <DisplayNameField showHelp={false} avatarControl={<AvatarPicker session={session} onSaved={avatar_url => setIdentity(current => current ? {...current,avatar_url} : current)} />} label={ui("common.display_name_label")} session={session} onSaved={display_name => setIdentity(current => current ? { ...current, display_name } : { user_id: userId, display_name })} />
       <RecoveryEmailSettings session={session} />
       {onSignOut && <Pressable accessibilityRole="button" onPress={() => afterDismiss(onSignOut)} style={styles.signOut}><Text style={styles.signOutText}>{ui("common.sign_out_label")}</Text></Pressable>}
       <View style={styles.deletion}><DeleteAccountLink /></View></>}
@@ -73,7 +76,7 @@ export function ProfileScreen({ session, onBack, onSignOut }: {
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.background }, content: { width: '100%', maxWidth: 680, alignSelf: 'center', gap: 16 },
-  title: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 36, color: colors.text },
+  title: { fontFamily: fonts.editorial, fontSize: typography.pageTitle, color: colors.text },
   back: { ...gameControlFinish(colors), minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center' },
   link: { fontFamily: fonts.medium, color: colors.accent, fontSize: 14 },
   signOut: { ...gameControlFinish(colors), minHeight: 46, borderWidth: 1, borderColor: colors.border, borderRadius: radii.medium, alignItems: 'center', justifyContent: 'center' }, signOutText: { fontFamily: fonts.medium, color: colors.textMuted, fontSize: 13 },

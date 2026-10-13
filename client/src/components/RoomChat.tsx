@@ -21,7 +21,7 @@ import { fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { useTranslation } from 'react-i18next';
 import { observeRuntimeChat } from '../multiplayer/RuntimeRequests';
 
-type Message = { id: string; sender_id: string; sender_name: string; text: string; removed?: boolean; sent_at: number };
+type Message = { id: string; sender_id: string; sender_avatar_url?: string | null; sender_name: string; text: string; removed?: boolean; sent_at: number };
 
 export function useRoomChat({ roomId, session, connected, onlineIds, hideWhenBlocked = false, expanded, onExpandedChange, renderLauncher, bottomOffset = 0, launcherVisible = true }: { onlineIds?: string[]; launcherVisible?: boolean; expanded?: boolean; onExpandedChange?: (open: boolean) => void; renderLauncher?: (state: { open: boolean; unread: number; blocked: boolean; toggle: () => void }) => ReactNode; bottomOffset?: number; hideWhenBlocked?: boolean; roomId: string; session: Session; connected: boolean }) {
   const blocking = useBlocking(session);
@@ -119,7 +119,7 @@ export function useRoomChat({ roomId, session, connected, onlineIds, hideWhenBlo
           onScroll={({ nativeEvent: { contentOffset, contentSize, layoutMeasurement } }) => { followLatest.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 40; }}
           onContentSizeChange={() => { if (followLatest.current) scroll.current?.scrollToEnd({ animated: false }); }}>
           {!messages.length && <View style={{ paddingVertical: 32, gap: 8, alignItems: 'center' }}><Ionicons name="chatbubbles-outline" size={30} color={colors.textMuted} /><Text style={styles.heading}>{ui("social.no_messages_yet")}</Text><Text style={styles.note}>{ui("social.say_something_to_get_the_table_going")}</Text></View>}
-          {messages.map(message => <ChatMessage tableStyle key={message.id} message={message} own={message.sender_id === session.user_id} action={<ReportButton session={session} enabled={blocking.reporting} scope="chat" messageId={message.id} player={{user_id: message.sender_id, display_name: message.sender_name}} />} />)}
+          {messages.map(message => <ChatMessage tableStyle key={message.id} message={message} own={message.sender_id === session.user_id} action={<ReportButton menu session={session} enabled={blocking.reporting} scope="chat" messageId={message.id} player={{user_id: message.sender_id, display_name: message.sender_name}} />} />)}
         </ScrollView>
         {reconnecting && <Text style={styles.note}>{t('chat.reconnecting')}</Text>}
         {!!visibleError && <Text accessibilityRole="alert" style={styles.error}>{visibleError}</Text>}

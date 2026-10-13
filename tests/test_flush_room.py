@@ -62,22 +62,12 @@ def test_flush_room_settings_lock_privacy_turns_and_retries(capacity):
         assert seen.json()['action_ack']['status'] == 'accepted'
         assert len(seen.json()['flush']['private']['cards']) == 3
         assert post('/action', actor, command).json()['game']['revision'] == 4
-        game = client.app.state.test_games.games['flush-room']
-        deadline = game.deadline
-        other_actor = (actor + 1) % capacity
-        reveal = {**command, 'command_id': 'off-turn-see', 'payload': {'round_number': state['flush']['public']['round_number']}}
-        off_turn = post('/action', other_actor, reveal).json()
-        assert off_turn['action_ack']['status'] == 'accepted'
-        assert len(off_turn['flush']['private']['cards']) == 3
-        assert off_turn['game']['turn'] == seen.json()['game']['turn']
-        assert game.deadline == deadline
-        assert post('/action', other_actor, reveal).json()['game']['revision'] == 5
         other = client.get(root, headers=headers[(actor + 1) % capacity]).json()
-        assert len(other['flush']['private']['cards']) == 3
+        assert other['flush']['private']['cards'] == []
         assert all('cards' not in p for p in other['flush']['public']['players'])
         stale = post('/action', actor, {**command, 'command_id': 'stale', 'command': 'BET', 'payload': {'amount': 20}})
         assert stale.json()['action_ack']['status'] == 'rejected'
-        query = post('/action', actor, {**command, 'command_id': 'query', 'expected_revision': 5, 'command': 'GET_STATE'})
+        query = post('/action', actor, {**command, 'command_id': 'query', 'expected_revision': 4, 'command': 'GET_STATE'})
         assert query.json()['query_result']['result']['player_id'] == str(actor + 1)
         assert client.get(root, headers=headers[(actor + 1) % capacity]).json()['query_result'] is None
         game = client.app.state.test_games.games['flush-room']

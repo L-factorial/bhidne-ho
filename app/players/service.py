@@ -107,7 +107,9 @@ class PlayerSocialService:
         return await self.store.conversations(user_id)
 
     async def history(self, user_id, friend_id):
-        return await self.store.history(user_id, friend_id)
+        messages = await self.store.history(user_id, friend_id)
+        profiles = {p['user_id']: p for p in await self.store.get_players([m['sender_id'] for m in messages])}
+        return [{**m, 'sender_avatar_url': profiles.get(m['sender_id'], {}).get('avatar_url')} for m in messages]
 
     async def send(self, user_id, friend_id, text):
         now = self.clock()
@@ -116,4 +118,5 @@ class PlayerSocialService:
             raise DirectMessageRateLimited("Wait a moment before sending another message.")
         message = await self.store.send(user_id, friend_id, text)
         self.last_message[key] = now
-        return message
+        sender = await self.store.get_player(user_id)
+        return {**message, 'sender_avatar_url': sender.get('avatar_url') if sender else None}

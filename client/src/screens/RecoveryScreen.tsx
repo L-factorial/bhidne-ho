@@ -110,7 +110,6 @@ export function RecoveryEmailSettings({session}: {session: Session}) {
     {!status && !error && <Text style={{color:colors.text}}>{ui('recovery.loading')}</Text>}
     {status && !status.enabled && <Text style={{color:colors.text}}>{ui('recovery.unavailable')}</Text>}
     {status?.enabled && status.password_account && <>
-      <Text style={{color:colors.text}}>{ui('recovery.help')}</Text>
       <Text style={{color:colors.text}}>{status.verified_email?ui('recovery.verifiedAddress',{email:status.verified_email}):ui('recovery.none')}</Text>
       {!!status.pending_email && <Text style={{color:colors.text}}>{ui('recovery.pendingAddress',{email:status.pending_email})}</Text>}
       <FormInput accessibilityLabel={ui('common.email')} placeholder={ui('common.email')} value={email} onChangeText={setEmail} keyboardType="email-address" textContentType="emailAddress" autoCapitalize="none" autoCorrect={false} maxLength={254} editable={!busy} style={inputStyle} returnKeyType="next" onSubmitEditing={() => passwordRef.current?.focus()}/>

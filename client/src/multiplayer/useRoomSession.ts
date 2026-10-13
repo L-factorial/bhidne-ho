@@ -88,12 +88,12 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
         if(!live || !isCurrentSession(apiUrl, active))return;
         if(notice.command==='create-table'){
 
-          if(notice.status==='rejected')value!.recordCreationFeedback({id:notice.commandId??'table',kind:'table',roomId:notice.roomId,error:notice.message});
+          if(notice.status==='rejected')value!.recordCreationFeedback({id:notice.commandId??'table',kind:'table',roomId:notice.roomId,error:notice.message,context:notice.context});
           else if(notice.skipped?.length)value!.recordCreationFeedback({id:notice.commandId??'table',kind:'table',roomId:notice.roomId,skipped:notice.skipped});
           else value!.clearCreationFeedback('table');
         }
         if(notice.status==='accepted')setError(confirmedActionError);
-        else setError(playerError(notice.message));
+        else if(notice.command!=='create-table')setError(playerError(notice.message));
       });setRuntime(value);
       void value.root.reconnect().catch(error=>{
         if (!live) return;

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Query
 
 from app.models.user import UserIdentity
 from app.transport.http import current_user
@@ -42,3 +42,12 @@ async def settlement_action(room_id: str, batch_id: str, transfer_id: str, actio
     try: return await request.app.state.ledger.act(room_id, batch_id, transfer_id, user.user_id,
                                                    action, body.idempotency_key)
     except (PermissionError, KeyError, ValueError) as error: raise mapped(error) from None
+
+
+pending_router = APIRouter(tags=["Ledger"])
+
+
+@pending_router.get("/ledger/rooms")
+async def pending_rooms(request: Request, user: UserIdentity = Depends(current_user),
+                        after_room_id: str = Query("", max_length=128), limit: int = Query(50, ge=1, le=100)):
+    return await request.app.state.ledger.pending_rooms(user.user_id, after_room_id=after_room_id, limit=limit)

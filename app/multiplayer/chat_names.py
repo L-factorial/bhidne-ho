@@ -14,10 +14,11 @@ async def restore_guest_names(messages, profiles):
     names = {}
     result = []
     for message in messages:
+        user_id = message['sender_id']
+        if user_id not in names:
+            names[user_id] = await sender_name(profiles, user_id)
+        message = {**message, 'sender_avatar_url': profiles.avatar(user_id)}
         if not message.get('sender_name') or message['sender_name'] == 'Guest':
-            user_id = message['sender_id']
-            if user_id not in names:
-                names[user_id] = await sender_name(profiles, user_id)
             message = {**message, 'sender_name': names[user_id]}
         result.append(message)
     return result

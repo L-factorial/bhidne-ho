@@ -217,6 +217,12 @@ def create_router(*, auth, hosted, chat, social, gateway, allowed_origins, reads
             who = await http_actor(request)
             return await execute(lambda: reads.hosted.members(room_id, who, after_user_id=after_user_id, limit=limit))
 
+        @router.get('/ledger/rooms')
+        async def pending_ledger_rooms(request: Request, after_room_id: str = Query("", max_length=128),
+                                       limit: int = Query(50, ge=1, le=100)):
+            who = await http_actor(request)
+            return await execute(lambda: reads.ledger.pending_rooms(who, after_room_id=after_room_id, limit=limit))
+
         @router.get('/rooms/{room_id}/ledger')
         async def ledger(request: Request, room_id: str):
             who = await http_actor(request)

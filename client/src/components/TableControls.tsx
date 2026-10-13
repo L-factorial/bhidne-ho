@@ -11,7 +11,7 @@ import { visualStates, radii, fonts, primaryAction, useTheme } from '../theme';
 export type TableView = {
   table_id: string; phase: 'OPEN' | 'LOCKED' | 'STARTED' | 'COMPLETED' | 'ENDED';
   min_players: number; max_players: number; requires_explicit_lock: boolean; requires_replacement: boolean;
-  seated_players: { seat_id: number; user_id: string; display_name?: string }[]; queue: string[];
+  seated_players: { seat_id: number; user_id: string; display_name?: string; avatar_url?:string }[]; queue: string[];
   released_seats: { seat_id: number; leaving_player_id: string }[];
   current_user: { is_seated: boolean; seat_id: number | null; is_queued: boolean; queue_position: number | null;
     can_join: boolean; can_queue: boolean; can_lock: boolean; can_start: boolean; can_next_match: boolean;

@@ -1,5 +1,7 @@
 """Loss-tolerant in-game chat/reactions. SQL authorizes; Redis holds only TTL data."""
 import asyncio
+from app.multiplayer.avatars import avatar_url
+
 from dataclasses import dataclass
 import hashlib
 import time
@@ -121,7 +123,7 @@ class EphemeralService:
                 if recipient:
                     from app.player_blocks.service import require_contact
                     await require_contact(c,actor,recipient)
-            row = await (await c.execute('''SELECT COALESCE(NULLIF(p.display_name,''),a.username)
+            row = await (await c.execute('''SELECT COALESCE(NULLIF(p.display_name,''),a.username),p.avatar_id
                 FROM users u LEFT JOIN user_profiles p ON p.user_id=u.id
                 LEFT JOIN account_credentials a ON a.user_id=u.id WHERE u.id=%s''', (user_uuid(actor),))).fetchone()
             duplicate = await self.limits.consume(actor, request, poke=not chat, connection=c)
@@ -136,6 +138,7 @@ class EphemeralService:
         payload = dict(type='TABLE_CHAT_MESSAGE' if chat else 'ROOM_POKE',id=request.command_id,
             room_id=target.room_id,table_id=str(target.table_id),match_id=game.match_id,
             sender_id=actor,sender_player_id=seats[actor],sender_name=(row[0] if row else None) or actor,
+            sender_avatar_url=avatar_url(row[1] if row else None),
             text=value.text,sent_at=now,expires_at=now+(30000 if chat else 5000))
         payload['ephemeral']=True
         if not chat:

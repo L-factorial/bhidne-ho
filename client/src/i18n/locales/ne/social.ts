@@ -1,7 +1,9 @@
 // Editable social copy. Keep keys and placeholders in sync with the other locale.
 export default {
   "members_unavailable": "कोठाका सदस्यहरू लोड गर्न सकिएन।",
-  conversations: 'कुराकानीहरू', most_recent: 'सबैभन्दा नयाँ', no_conversations: 'अहिलेसम्म कुराकानी छैन। सुरु गर्न अनलाइन साथी छान्नुहोस्।', conversations_unavailable: 'कुराकानी लोड भएन। फेरि प्रयास गर्नुहोस्।',
+  no_matching_friends: 'मिल्ने साथी भेटिएनन्।',
+  searching_friends: 'साथी खोज्नुहोस्',
+  conversations: 'कुराकानीहरू', most_recent: 'सबैभन्दा नयाँ', no_conversations: 'अहिलेसम्म कुराकानी छैन। सुरु गर्न साथी खोज्नुहोस्।', conversations_unavailable: 'कुराकानी लोड भएन। फेरि प्रयास गर्नुहोस्।',
 
   "player_created_table": '{{player}} ले “{{roomName}}” कोठामा “{{tableName}}” टेबल बनाए।',
   "sent_you_a_chat_message": "ले तपाईंलाई च्याट सन्देश पठाए",

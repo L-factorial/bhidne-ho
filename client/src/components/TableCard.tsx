@@ -1,3 +1,4 @@
+import { PlayerAvatar } from './PlayerAvatar';
 import {AppText as Text} from './AppText';
 import { gameLabel } from '../i18n/display';
 import { ui } from '../i18n/copy.ts';
@@ -7,9 +8,9 @@ import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {Pressable, View} from 'react-native';
 import { TableShareSheet } from './ShareLink';
-import { tableEntry, tablePhase, type TableEntry, type TableSummary } from '../multiplayer/tableNavigation';
+import { hasCompletedSeat, tableEntry, tablePhase, type TableEntry, type TableSummary } from '../multiplayer/tableNavigation';
 
-export function TableCard({ table, roomId, busy, enter, compact = false, roomName }: { compact?: boolean; roomName?: string; roomId: string; table: TableSummary; busy: boolean; enter: (action: TableEntry) => void }) {
+export function TableCard({ table, roomId, busy, enter, compact = false, roomName, leave }: { leave?:()=>void; compact?: boolean; roomName?: string; roomId: string; table: TableSummary; busy: boolean; enter: (action: TableEntry) => void }) {
   useUiLanguage();
   const { colors: c } = useTheme();
   const [sharing, setSharing] = useState(false);
@@ -22,10 +23,10 @@ export function TableCard({ table, roomId, busy, enter, compact = false, roomNam
     <Pressable accessibilityRole="button" accessibilityLabel={`${primary.label} · ${table.name}`} disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => enter(primary.action)} style={({ pressed }) => ({ padding: space.lg, gap: space.md, backgroundColor: pressed ? c.surfaceRaised : c.surface })}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <View style={{ flex: 1, minWidth: 0, gap: 4 }}><Text numberOfLines={2} style={{ color: c.text, fontFamily: fonts.medium, fontSize: typography.cardTitle }}>{table.name}</Text><Text style={{ color: c.textMuted, fontFamily: fonts.body, fontSize: typography.metadata }}>{roomName ? `${roomName} · ` : ''}{gameLabel(table.game_type)} · {table.players}/{table.capacity} {ui("flush.seated")}</Text></View>
-        <View style={{ backgroundColor: table.phase === 'STARTED' ? c.successSurface : c.surfaceRaised, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radii.medium }}><Text style={{ color: table.phase === 'STARTED' ? c.success : c.textMuted, fontFamily: fonts.medium, fontSize: typography.caption }}>{tablePhase(table)}</Text></View>
+        <View style={{maxWidth:'45%', backgroundColor: table.phase === 'STARTED' ? c.successSurface : c.surfaceRaised, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radii.medium }}><Text style={{ color: table.phase === 'STARTED' ? c.success : c.textMuted, fontFamily: fonts.medium, fontSize: typography.caption }}>{hasCompletedSeat(table)?ui('rooms.completed_seat_reserved'):tablePhase(table)}</Text></View>
       </View>
       <View testID={`table-preview-${table.match_id}`} style={{ height: compact ? 44 : 72, backgroundColor: compact ? 'transparent' : c.table, borderRadius: radii.xl, borderWidth: compact ? 0 : 3, borderColor: c.tableTrim, justifyContent: compact ? 'flex-start' : 'center', alignItems: 'center', flexDirection: 'row', gap: compact ? 4 : 10 }}>
-        {players.slice(0, compact ? 3 : 5).map(player => <View key={player.seat_id} style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surfaceRaised, borderWidth: 1, borderColor: c.tableTrim }}><Text style={{ fontFamily: fonts.medium, color: c.text }}>{player.display_name.trim().slice(0, 1).toUpperCase() || '•'}</Text></View>)}
+        {players.slice(0, compact ? 3 : 5).map(player => <View key={player.seat_id} style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surfaceRaised, borderWidth: 1, borderColor: c.tableTrim }}><PlayerAvatar size={28} uri={player.avatar_url ?? undefined} /></View>)}
         {!players.length && <Text style={{ color: compact ? c.textMuted : c.onTableHeader, fontFamily: fonts.body }}>{ui("rooms.waiting_for_players")}</Text>}
         {players.length > (compact ? 3 : 5) && <Text style={{ color: compact ? c.textMuted : c.onTableHeader }}>+{players.length - (compact ? 3 : 5)}</Text>}
         {compact && <View style={{ ...gameControlFinish(c), marginLeft: 'auto', minHeight: 44, paddingHorizontal: 10, backgroundColor: c.successSurface, borderRadius: radii.medium, justifyContent: 'center' }}><Text style={{ color: c.success, fontFamily: fonts.medium, fontSize: 13 }}>{actionLabel} →</Text></View>}
@@ -36,6 +37,7 @@ export function TableCard({ table, roomId, busy, enter, compact = false, roomNam
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', borderTopWidth: 1, borderColor: c.borderSubtle, paddingHorizontal: 4 }}>
       {!ended && <Pressable accessibilityRole="button" accessibilityLabel={ui("common.share_name", { "name": table.name })} onPress={() => setSharing(true)} style={{ minHeight: 44, paddingHorizontal: 12, flexDirection: 'row', gap: 6, alignItems: 'center' }}><Ionicons name="share-outline" size={17} color={c.accent} /><Text style={{ color: c.accent, fontFamily: fonts.medium }}>{ui("common.share")}</Text></Pressable>}
       {primary.action !== 'watch' && secondary(ui("rooms.watch"), 'watch')}
+      {hasCompletedSeat(table)&&me?.can_leave_seat&&leave&&<Pressable accessibilityRole="button" disabled={busy} onPress={leave} style={{minHeight:44,paddingHorizontal:12,justifyContent:'center'}}><Text style={{color:c.accent}}>{ui('rooms.leave_table')}</Text></Pressable>}
       {primary.action === 'watch' && !me?.is_queued && !me?.is_seated && me?.can_queue && !ended && secondary(ui("rooms.join_queue"), 'queue')}
     </View>
     <TableShareSheet roomId={roomId} matchId={table.match_id} visible={sharing} onClose={() => setSharing(false)} />

@@ -40,7 +40,7 @@ from app.players.http import router as players_router
 from app.players.service import PlayerSocialService
 from app.players.store import InMemoryPlayerStore, PostgresPlayerStore
 from app.ledger import LedgerService, InMemoryLedgerStore, PostgresLedgerStore
-from app.ledger.http import router as ledger_router
+from app.ledger.http import router as ledger_router, pending_router as pending_ledger_router
 
 
 def create_app(*, runtime_mode="legacy", distributed_server=None) -> FastAPI:
@@ -172,6 +172,7 @@ def create_app(*, runtime_mode="legacy", distributed_server=None) -> FastAPI:
     app.include_router(player_profiles.router)
     app.include_router(test_game_router)
     app.include_router(ledger_router)
+    app.include_router(pending_ledger_router)
     static = Path(__file__).parent / "test_ui"
     app.mount("/test-ui", StaticFiles(directory=static), name="test-ui")
 

@@ -255,6 +255,9 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             raise HTTPException(404, "No test game in this room.")
         return game
 
+    def _avatar(self, user_id):
+        return getattr(self.profiles, 'avatar', lambda _: None)(user_id)
+
     def table_previews(self, room_id, user_id):
         summaries = []
         for hosted in self._room_games(room_id):
@@ -267,7 +270,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                 "players": len(view["seated_players"]), "capacity": hosted.capacity,
                 "phase": view["phase"], "queue_size": len(view["queue"]),
                 "current_user": view["current_user"],
-                "seated_players": [{"seat_id": seat["seat_id"], "display_name":
+                "seated_players": [{"seat_id": seat["seat_id"], "user_id":seat["user_id"], "avatar_url":self._avatar(seat["user_id"]), "display_name":
                     self.profiles.name(seat["user_id"], seat["seat_id"]) if self.profiles else f"Player {seat['seat_id']}"}
                     for seat in view["seated_players"]],
             })
@@ -289,6 +292,8 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         result["table"] = game.table.view(game, user_id)
         for player in result["table"]["seated_players"]:
             player["display_name"] = self.profiles.name(player["user_id"], player["seat_id"]) if self.profiles else f"Player {player['seat_id']}"
+        for player in result.get("players", []) + result["table"]["seated_players"]:
+            player["avatar_url"] = self._avatar(player["user_id"])
         result["can_join"] = result["table"]["current_user"]["can_join"]
         result["ready"] = result["table"]["min_players"] <= len(result["table"]["seated_players"]) <= result["table"]["max_players"]
         if game.table.next_seats is not None:

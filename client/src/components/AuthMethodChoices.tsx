@@ -17,14 +17,7 @@ export function DisabledSocialOptions() {
 }
 export function AuthMethodChoices({signup = false, disabled = false, onContinue}: {signup?: boolean; disabled?: boolean; onContinue: () => void}) {
   useUiLanguage();
-  const { colors } = useTheme();
   return <View style={{gap: 12}}>
-    <DisabledSocialOptions />
-    <View style={{flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 2}}>
-      <View style={{flex: 1, height: 1, backgroundColor: colors.border}} />
-      <Text style={{color: colors.textMuted, fontFamily: fonts.body, fontSize: 12}}>{ui('common.auth_or')}</Text>
-      <View style={{flex: 1, height: 1, backgroundColor: colors.border}} />
-    </View>
     <SignInButton compact method="account" disabled={disabled} label={ui(signup ? 'common.signup_username_email' : 'common.continue_username_email')} onPress={onContinue} />
   </View>;
 }

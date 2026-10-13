@@ -17,10 +17,11 @@ async def signup(client, base, name):
     value=response.json()
     headers={'Authorization':'Bearer '+value['token']}
     # These scenarios exercise delivery/failover, so complete posting setup before
-    # stopping services or starting latency measurements. Signup itself stays opt-in.
+    # stopping services or starting latency measurements. Signup explicitly accepts
+    # the current rules; posting setup remains idempotent.
     rules=await client.get(base+'/me/community-rules',headers=headers)
     assert rules.status_code==200,rules.text
-    assert rules.json()['accepted'] is False
+    assert rules.json()['accepted'] is True
     accepted=await client.post(base+'/me/community-rules',headers=headers,
         json={'version':rules.json()['version'],'accepted':True})
     assert accepted.status_code==200,accepted.text

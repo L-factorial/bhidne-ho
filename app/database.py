@@ -723,6 +723,11 @@ MIGRATIONS = (
     (39, SOCIAL_PUSH_SCHEMA),
     (40, GAME_CONNECTION_SCHEMA),
     (41, EMAIL_CLAIM_SCHEMA),
+    (42, """
+        ALTER TABLE user_profiles ADD COLUMN avatar_id text;
+        ALTER TABLE user_profiles ADD CONSTRAINT user_profiles_avatar_id_valid
+            CHECK (avatar_id IS NULL OR avatar_id ~ '^(male|female)_(0[1-9]|1[0-5])$');
+    """),
 )
 
 

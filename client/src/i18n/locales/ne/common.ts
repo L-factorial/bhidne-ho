@@ -1,5 +1,16 @@
 // Editable Nepali common copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  choose_avatar: "अवतार छान्नुहोस्",
+  avatar_male: "पुरुष",
+  avatar_female: "महिला",
+  default_avatar: "पूर्वनिर्धारित अवतार",
+
+  table_summary: "टेबल सारांश",
+  table_totals: "टेबलको कुल नतिजा",
+  game_records: "खेल अभिलेख",
+  table_game_number: "खेल {{number}}",
+  table_no_results: "अहिलेसम्म कुनै खेल पूरा भएको छैन।",
+
   "profile_notifications": "सूचनाहरू",
   "profile_information": "जानकारी र सहयोग",
   "profile_account": "खाता",

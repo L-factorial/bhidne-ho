@@ -5,7 +5,7 @@ export type TableSummary = {
   status: string; players: number; capacity: number;
   phase?: TableView['phase']; queue_size?: number;
   can_end_table?: boolean;
-  seated_players?: { seat_id: number; display_name: string }[];
+  seated_players?: { seat_id: number; display_name: string; avatar_url?:string }[];
   current_user?: TableView['current_user'];
 };
 export function isActiveTable(table: Pick<TableSummary, 'status' | 'phase'>): boolean {
@@ -17,6 +17,14 @@ export function isVisibleRoomTable(table: Pick<TableSummary, 'status' | 'phase' 
   return table.status !== 'ended' && table.phase !== 'ENDED'
     && (table.status === 'finished' || table.phase === 'COMPLETED')
     && (table.current_user?.is_seated === true || table.can_end_table === true);
+}
+export function hasCompletedSeat(table: Pick<TableSummary, 'status' | 'phase' | 'current_user'>): boolean {
+  return table.status !== 'ended' && table.status !== 'closed' && table.phase !== 'ENDED'
+    && (table.status === 'finished' || table.phase === 'COMPLETED')
+    && table.current_user?.is_seated === true;
+}
+export function isVisiblePlayTable(table: TableSummary): boolean {
+  return isActiveTable(table) || hasCompletedSeat(table);
 }
 export type TableEntry = 'watch' | 'seat' | 'queue';
 export function tableEntry(table: TableSummary): { label: string; action: TableEntry } {

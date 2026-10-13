@@ -59,3 +59,32 @@ async def update_appearance(body: AppearanceInput, request: Request, response: R
     response.headers["Cache-Control"] = "no-store"
     result = request.app.state.player_profiles.update_appearance(user.user_id, body.theme, body.mode)
     return await result if isawaitable(result) else result
+
+
+class AvatarInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    avatar_id: str | None
+
+    @field_validator("avatar_id")
+    @classmethod
+    def valid_avatar(cls, value):
+        from app.multiplayer.avatars import AVATAR_IDS
+        if value is not None and value not in AVATAR_IDS:
+            raise ValueError("Choose one of the available avatars.")
+        return value
+
+
+@router.get("/me/profile/avatar")
+async def avatar(request: Request, response: Response, user: UserIdentity = Depends(current_user)):
+    response.headers["Cache-Control"] = "no-store"
+    result = request.app.state.player_profiles.get_avatar(user.user_id)
+    return await result if isawaitable(result) else result
+
+
+@router.patch("/me/profile/avatar")
+async def update_avatar(body: AvatarInput, request: Request, response: Response, user: UserIdentity = Depends(current_user)):
+    response.headers["Cache-Control"] = "no-store"
+    result = request.app.state.player_profiles.update_avatar(user.user_id, body.avatar_id)
+    saved = await result if isawaitable(result) else result
+    await request.app.state.players.refresh_player(user.user_id)
+    return saved

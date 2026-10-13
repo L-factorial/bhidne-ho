@@ -9,7 +9,7 @@ export type HistoryItem = { id: string; sequence: number; [key: string]: unknown
 export type LegacyCursor = { at: string; id: string };
 export type LegacyPage = { source: 'legacy'; items: { id: string; [key: string]: unknown }[]; next_before: LegacyCursor | null };
 export type CatalogRoom = {room_id:string;name:string;creator_id:string;visibility:string;created_at:string;open_table_count:number;is_member:boolean};
-export type MemberProfile = {user_id:string;display_name:string;username:string|null};
+export type MemberProfile = {user_id:string;display_name:string;username:string|null;avatar_url?:string|null};
 export type TableInvitation = {id:string;room_id:string;room_name:string;table_id:string;table_name:string;table_revision:number;match_id:string};
 
 // Read routes never mutate game state or advance delivery ACKs. Caller owns the
@@ -124,6 +124,9 @@ export class DistributedReadClient {
   }
   tableInvitations(after: string | null, signal: AbortSignal) {
     return this.request<{items:TableInvitation[];next_table_id:string|null}>(`/table-invitations?limit=50${after ? `&after_table_id=${encodeURIComponent(after)}`:''}`,signal);
+  }
+  pendingLedgerRooms<T>(after: string, signal: AbortSignal): Promise<T> {
+    return this.request(`/ledger/rooms?after_room_id=${encodeURIComponent(after)}`,signal);
   }
   ledger<T>(room: string, signal: AbortSignal): Promise<T> {
     return this.request(`/rooms/${encodeURIComponent(room)}/ledger`,signal);

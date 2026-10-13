@@ -1,3 +1,4 @@
+import {tableHeaderLocation} from '../multiplayer/tableHeaderLocation';
 import {AppText as Text} from './AppText';
 import { GameModal as Modal } from './GameModal';
 import { ui } from '../i18n/copy.ts';
@@ -66,7 +67,7 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
       </View>
       <View testID={`${game}-header-location`} style={{flex:1,minWidth:0,alignItems:'center'}}>
         <Text numberOfLines={1} accessibilityRole="header" style={{fontFamily:fonts.medium,fontSize:small?16:20,color:colors.text}}>{title}</Text>
-        <Text numberOfLines={1} style={{fontFamily:fonts.body,fontSize:11,color:colors.textMuted}}>{roomName ? `${roomName} → ${tableName || title}` : path || tableName || ''}</Text>
+        <Text numberOfLines={1} style={{fontFamily:fonts.body,fontSize:11,color:colors.textMuted}}>{tableHeaderLocation(roomName, tableName || (roomName ? title : ''), path)}</Text>
       </View>
       <View style={{flexShrink:0,flexDirection:'row',alignItems:'center',justifyContent:'flex-end',gap:4,minWidth:88}}>
       <Pressable accessibilityRole="button" accessibilityLabel={t('common.backToLobby')} onPress={onBack}

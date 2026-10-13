@@ -8,6 +8,7 @@ after it. No timers, settlements, ownership, or durable state advance on a read.
 
 from .telemetry import observe
 from copy import deepcopy
+from app.multiplayer.avatars import avatar_url
 from uuid import UUID
 from psycopg.types.json import Jsonb
 
@@ -31,8 +32,12 @@ async def require_member(connection, room_id, actor):
 
 
 class _Profiles:
-    def __init__(self, names):
+    def __init__(self, names, avatars=None):
         self.names = names
+        self.avatars = avatars or {}
+
+    def avatar(self, user):
+        return avatar_url(self.avatars.get(user))
 
     def name(self, user, seat):
         return self.names.get(user) or user
@@ -108,7 +113,7 @@ class PostgresHostedQueries:
                 # each room's 1001-row overflow sentinel without fetching its full history.
                 page = rows[:limit]
                 member_rows = await (await connection.execute('''SELECT selected.room_id,m.user_id,
-                    COALESCE(NULLIF(p.display_name,''),a.username),a.username
+                    COALESCE(NULLIF(p.display_name,''),a.username),a.username,p.avatar_id
                     FROM unnest(%s::text[]) AS selected(room_id)
                     CROSS JOIN LATERAL (
                         SELECT user_id FROM room_memberships WHERE room_id=selected.room_id
@@ -131,7 +136,7 @@ class PostgresHostedQueries:
                         visibility=visibility, created_at=created.timestamp(), table_count=tables,
                         members=[f'user-{m[0]}' for m in members], creator_is_friend=friend,
                         member_previews=[dict(user_id=f'user-{m[0]}', display_name=m[1] or f'user-{m[0]}',
-                                              username=m[2]) for m in members[:4]],
+                                              username=m[2],avatar_url=avatar_url(m[3])) for m in members[:4]],
                         feed_source='you' if creator == user else 'joined' if joined else 'friend' if friend else 'public'))
                 return dict(items=items, next_room_id=rows[limit - 1][0] if len(rows) > limit else None)
 
@@ -139,11 +144,11 @@ class PostgresHostedQueries:
         if len(users) > 100:
             raise ValueError('Too many profile summaries.')
         async with self.pool.connection() as connection:
-            rows = await (await connection.execute('''SELECT u.id,COALESCE(NULLIF(p.display_name,''),a.username),a.username
+            rows = await (await connection.execute('''SELECT u.id,COALESCE(NULLIF(p.display_name,''),a.username),a.username,p.avatar_id
                 FROM users u LEFT JOIN user_profiles p ON p.user_id=u.id
                 LEFT JOIN account_credentials a ON a.user_id=u.id WHERE u.id=ANY(%s::uuid[])''',
                 ([str(user_uuid(user)) for user in users],))).fetchall()
-            profiles = {f'user-{r[0]}': dict(user_id=f'user-{r[0]}',display_name=r[1] or f'user-{r[0]}',username=r[2]) for r in rows}
+            profiles = {f'user-{r[0]}': dict(user_id=f'user-{r[0]}',display_name=r[1] or f'user-{r[0]}',username=r[2],avatar_url=avatar_url(r[3])) for r in rows}
             return [profiles[user] for user in users if user in profiles]
 
     @observe('read.members')
@@ -304,11 +309,12 @@ class PostgresHostedQueries:
                     users.update(game.users)
                     users.update(game.table.queue)
                     users.update(u for u in game.table.seats(game) if u is not None)
-                names = await (await connection.execute('''SELECT u.id,COALESCE(NULLIF(p.display_name,''),a.username)
+                names = await (await connection.execute('''SELECT u.id,COALESCE(NULLIF(p.display_name,''),a.username),p.avatar_id
                     FROM users u LEFT JOIN user_profiles p ON p.user_id=u.id
                     LEFT JOIN account_credentials a ON a.user_id=u.id WHERE u.id=ANY(%s::uuid[])''',
                     ([str(user_uuid(u)) for u in sorted(users)],))).fetchall()
-                host.profiles = _Profiles({f'user-{user}': name for user, name in names})
+                host.profiles = _Profiles({f'user-{user}': name for user, name, avatar in names},
+                    {f'user-{user}':avatar for user,name,avatar in names})
                 previews = host.table_previews(room_id, actor)
                 for preview in previews:
                     game = next(g for g in host._room_games(room_id) if g.match_id == preview['match_id'])
@@ -367,13 +373,13 @@ class PostgresHostedQueries:
                 await connection.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
                 await require_member(connection, room_id, actor)
                 rows = await (await connection.execute('''SELECT m.user_id,
-                    COALESCE(NULLIF(p.display_name,''),a.username),a.username
+                    COALESCE(NULLIF(p.display_name,''),a.username),a.username,p.avatar_id
                     FROM room_memberships m LEFT JOIN user_profiles p ON p.user_id=m.user_id
                     LEFT JOIN account_credentials a ON a.user_id=m.user_id
                     WHERE m.room_id=%s AND m.user_id>%s ORDER BY m.user_id LIMIT %s''',
                     (room_id, after, limit + 1))).fetchall()
                 return dict(items=[dict(user_id=f'user-{r[0]}', display_name=r[1] or f'user-{r[0]}',
-                                        username=r[2]) for r in rows[:limit]],
+                                        username=r[2],avatar_url=avatar_url(r[3])) for r in rows[:limit]],
                     next_user_id=f'user-{rows[limit - 1][0]}' if len(rows) > limit else None)
 
     async def activity(self, actor, *, memberships=False, after_room_id='', limit=20):
@@ -419,7 +425,8 @@ class PostgresHostedQueries:
                 items.append(dict(room_id=room, tables=view['tables'], active_game=view['active_game']))
             else:
                 items.extend(dict(table, room_id=room, room_name=view['name']) for table in view['tables']
-                    if table['status'] != 'finished' and table['phase'] != 'COMPLETED'
+                    if (table['current_user']['is_seated'] or
+                        table['status'] != 'finished' and table['phase'] != 'COMPLETED')
                     and (table['current_user']['is_seated'] or
                          table['table_id'] not in declined and (table['table_id'],table['match_id']) not in dismissed))
         return dict(items=items, next_room_id=rows[limit - 1][0] if len(rows) > limit else None)

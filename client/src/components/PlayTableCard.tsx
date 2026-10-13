@@ -1,15 +1,18 @@
+import { PlayerAvatar } from './PlayerAvatar';
 import {AppText as Text} from './AppText';
 import {Pressable, View} from 'react-native';
 import {gameLabel} from '../i18n/display';
 import {ui} from '../i18n/copy';
 import { visualStates, actionFinish, radii, fonts,useTheme} from '../theme';
 import {playEntry,playCardActions,type PlayTable} from '../multiplayer/playFeed';
+import {hasCompletedSeat} from '../multiplayer/tableNavigation';
 import type {TableEntry} from '../multiplayer/tableNavigation';
 import {GameIcon} from './BrandArt';
+import {tableHeaderLocation} from '../multiplayer/tableHeaderLocation';
 
-export function PlayTableCard({table,busy,enter,declineInvitation}:{table:PlayTable;busy:boolean;enter:(action:TableEntry)=>void;declineInvitation:()=>void}){
+export function PlayTableCard({table,busy,enter,declineInvitation,leave}:{table:PlayTable;busy:boolean;enter:(action:TableEntry)=>void;declineInvitation:()=>void;leave?:()=>void}){
   const {colors:c}=useTheme(),action=playEntry(table);
-  const players=table.seated_players?.length?table.seated_players:Array.from({length:Math.min(table.players,table.capacity)},(_,seat_id)=>({seat_id,display_name:''}));
+  const players=table.seated_players?.length?table.seated_players:Array.from({length:Math.min(table.players,table.capacity)},(_,seat_id)=>({seat_id,display_name:'',avatar_url:null}));
   const {label,canDeclineInvitation}=playCardActions(table);
   const button={minHeight:44,minWidth:80,paddingHorizontal:10,borderRadius: radii.medium,alignItems:'center' as const,justifyContent:'center' as const,opacity:busy?visualStates.disabledOpacity:1};
   return <View testID={`play-table-${table.match_id}`} style={{padding:14,gap:12,borderRadius: radii.large,borderWidth:1,borderColor:c.borderSubtle,backgroundColor:c.surface,flexDirection:'row',alignItems:'center'}}>
@@ -18,19 +21,20 @@ export function PlayTableCard({table,busy,enter,declineInvitation}:{table:PlayTa
         <GameIcon game={table.game_type} size={48}/>
         <View style={{flex:1,minWidth:0,gap:4}}>
           <Text accessibilityRole="header" style={{color:c.accent,fontFamily:fonts.editorial,fontSize:20,lineHeight:26}}>{gameLabel(table.game_type)}</Text>
-          <Text style={{color:c.textMuted,fontFamily:fonts.body,fontSize:15,lineHeight:22}}>{ui('common.room')} : {table.room_name}</Text>
-          <Text style={{color:c.text,fontFamily:fonts.body,fontSize:15,lineHeight:22}}>{ui('common.table')} : {table.name}</Text>
+          <Text numberOfLines={1} style={{color:c.textMuted,fontFamily:fonts.body,fontSize:15,lineHeight:22}}>{tableHeaderLocation(table.room_name,table.name)}</Text>
         </View>
       </View>
       {!!players.length&&<View testID={`play-players-${table.match_id}`} style={{flexDirection:'row',flexWrap:'wrap',gap:6}}>
-        {players.map(player=><View key={player.seat_id} accessibilityLabel={player.display_name} style={{width:30,height:30,borderRadius:15,borderWidth:2,borderColor:c.tableTrim,backgroundColor:c.surfaceRaised,alignItems:'center',justifyContent:'center'}}><Text style={{color:c.text,fontFamily:fonts.medium}}>{player.display_name.trim().slice(0,1).toUpperCase()||'•'}</Text></View>)}
+        {players.map(player=><View key={player.seat_id} accessibilityLabel={player.display_name} style={{width:30,height:30,borderRadius:15,borderWidth:2,borderColor:c.tableTrim,backgroundColor:c.surfaceRaised,alignItems:'center',justifyContent:'center'}}><PlayerAvatar size={26} uri={player.avatar_url ?? undefined} /></View>)}
       </View>}
       <Text style={{color:c.textMuted}}>{table.players}/{table.capacity} {ui('flush.seated')}</Text>
+      {hasCompletedSeat(table)&&<Text style={{color:c.accent}}>{ui('rooms.completed_seat_reserved')}</Text>}
     </View>
     <View style={{gap:8}}>
       <Pressable accessibilityRole="button" accessibilityLabel={`${label} · ${table.name}`} disabled={busy} accessibilityState={{disabled:busy}} onPress={()=>enter(action)} style={({pressed})=>({...button,...actionFinish(c,'primary',pressed,busy)})}>
         <Text style={{color:c.onPrimary,fontFamily:fonts.medium}}>{label}</Text>
       </Pressable>
+      {hasCompletedSeat(table)&&table.current_user?.can_leave_seat&&leave&&<Pressable accessibilityRole="button" accessibilityLabel={`${ui('rooms.leave_table')} · ${table.name}`} disabled={busy} onPress={leave} style={({pressed})=>({...button,...actionFinish(c,'secondary',pressed,busy)})}><Text style={{color:c.text}}>{ui('rooms.leave_table')}</Text></Pressable>}
       {canDeclineInvitation && <Pressable accessibilityRole="button" accessibilityLabel={`${ui('common.decline_invitation')} · ${table.name}`} disabled={busy} accessibilityState={{disabled:busy}} onPress={declineInvitation} style={({pressed})=>({...button,maxWidth:124,...actionFinish(c,'secondary',pressed,busy)})}>
         <Text style={{color:c.textMuted,fontFamily:fonts.medium,textAlign:'center'}}>{ui('common.decline_invitation')}</Text>
       </Pressable>}

@@ -46,7 +46,7 @@ class RoomChatService:
         if last and now - last["sent_at"] < 1000:
             raise ChatRateLimited("Wait a moment before sending another message.")
         message = {"id": uuid4().hex, "sender_id": user_id,
-                   "sender_name": name,
+                   "sender_name": name, "sender_avatar_url": self.profiles.avatar(user_id),
                    "text": text, "sent_at": now}
         messages.append(message)
         del messages[:-100]

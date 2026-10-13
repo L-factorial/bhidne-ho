@@ -5,6 +5,8 @@ Read authorization shares the query snapshot. Deletion closes normal access; no
 purge or application endpoint is installed here.
 """
 
+from app.multiplayer.avatars import avatar_url
+
 from .telemetry import observe, submitted, event
 import asyncio
 from uuid import UUID, uuid5, NAMESPACE_URL
@@ -153,7 +155,7 @@ class ChatLaneExecutor:
                 detail = str(error)
             except ValidationError:
                 detail = 'Invalid chat text.'
-            sender = await (await claim.connection.execute('''SELECT u.id,COALESCE(NULLIF(p.display_name,''),a.username)
+            sender = await (await claim.connection.execute('''SELECT u.id,COALESCE(NULLIF(p.display_name,''),a.username),p.avatar_id
                 FROM users u LEFT JOIN user_profiles p ON p.user_id=u.id
                 LEFT JOIN account_credentials a ON a.user_id=u.id WHERE u.id=%s FOR KEY SHARE OF u''',
                 (user_uuid(actor),))).fetchone()
@@ -170,7 +172,7 @@ class ChatLaneExecutor:
                     room_id=target.room_id, table_id=str(target.table_id) if target.table_id else None,
                     game_id=str(target.game_id) if target.game_id else None, sender_id=actor,
                     text=text, sent_at=now.isoformat(), command_id=request.command_id,
-                    sender_name=sender[1] or actor)
+                    sender_name=sender[1] or actor, sender_avatar_url=avatar_url(sender[2]))
                 outgoing.append(OutgoingEvent(message))
                 # Allocate outbox sequence and write message in this same transaction.
                 # The lane lock makes the message's first emitted sequence stable.

@@ -66,23 +66,17 @@ def test_failed_projection_does_not_install_mutation(monkeypatch):
     assert a.checkpoint() is before and a.revision == 3
 
 
-def test_same_round_reveals_accept_shared_revision_and_hide_other_cards():
+def test_reveal_requires_own_turn_and_current_revision():
     a = adapter()
     send(a, 'START_GAME'); send(a, 'DEAL_CARDS'); send(a, 'SKIP_CUT', '2')
-    original = a.checkpoint().get_state()
-    for seat in ('1', '2'):
-        result = send(a, 'SEE_CARDS', seat, {'round_number': original.round_number}, original.revision)
-        assert isinstance(result, AdapterResult)
-        assert a.checkpoint().get_state().current_player_id == original.current_player_id
-        assert a.checkpoint().get_state().pot == original.pot
-        for routed in result.messages:
-            if routed.recipient_player_id and routed.recipient_player_id != seat and seat == '1':
-                assert routed.message.payload['view']['cards'] == []
-            if not routed.recipient_player_id:
-                assert not routed.message.payload['event']['shown_hands']
-    assert a.revision == original.revision + 2
-    assert send(a, 'SEE_CARDS', '1', {'round_number': original.round_number + 1}, original.revision).code == 'STALE_REVISION'
-    assert send(a, 'BET', '2', {'amount':20}, original.revision).code == 'STALE_REVISION'
+    state = a.checkpoint().get_state()
+    assert state.current_player_id == '2'
+    assert isinstance(send(a, 'SEE_CARDS', '1', {'round_number': state.round_number}), CommandRejected)
+    assert a.revision == state.revision
+    assert a.snapshot('1')['view']['cards'] == []
+    assert isinstance(send(a, 'SEE_CARDS', '2', {'round_number': state.round_number}), AdapterResult)
+    assert send(a, 'SEE_CARDS', '1', {'round_number': state.round_number}, state.revision).code == 'STALE_REVISION'
+    assert a.checkpoint().get_state().current_player_id == '2'
 
 
 @pytest.mark.parametrize('extra', [{'player_id': '2'}, {'recipient': '2'}, {'room_id': 'other'}, {'protocol_version': True}])

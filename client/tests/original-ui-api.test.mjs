@@ -340,3 +340,26 @@ test('in-game invites use the current table identity and revision with durable s
  assert.equal(f.shared.length,0);
  f.api.close();
 });
+
+test('creation rejection retains the occupied table context for Return and Leave recovery',async()=>{
+ const context={code:'PLAYER_ALREADY_AT_TABLE',room_id:'previous-room',match_id:'previous-match',requires_leave_game:true,departure_command:'leave'};
+ const f=setup(r=>({...receipt(r,'rejected'),outcome:{command_id:r.body.command_id,status:'rejected',detail:'Leave your existing seat before creating another table.',context}}));
+ const notices=[];f.api.recover(notice=>notices.push(notice));
+ try{
+  await assert.rejects(f.api.request('/test-games/r',account,{game_type:'marriage',name:'Table'}),error=>error.detail?.match_id==='previous-match');
+  assert.equal(notices.length,1);
+  assert.deepEqual(notices[0].context,context);
+  assert.equal(notices[0].status,'rejected');
+ }finally{f.api.close();}
+});
+
+test('pending ledger discovery uses distributed reads and preserves its pagination cursor', async()=>{
+ const f=setup(), calls=[];
+ f.root.reads.pendingLedgerRooms=async(cursor,abortSignal)=>{calls.push({cursor,abortSignal});return {items:[{room_id:'member-room',name:'Friday cards'}],next_room_id:null};};
+ const response=await f.api.request('/ledger/rooms?after_room_id=Friday%20%26%20cards',account);
+ assert.equal(response.items[0].room_id,'member-room');
+ assert.equal(calls[0].cursor,'Friday & cards');
+ assert.ok(calls[0].abortSignal instanceof AbortSignal);
+ assert.equal(f.shared.length,0);assert.equal(f.sent.length,0);
+ f.api.close();
+});

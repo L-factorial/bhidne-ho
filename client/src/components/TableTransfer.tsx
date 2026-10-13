@@ -1,17 +1,27 @@
-import {AppText} from './AppText';
-import {useEffect,useRef,useState} from 'react';
-import {AccessibilityInfo,Animated,View} from 'react-native';
+import {ActivityIndicator, Image, Text, View, useWindowDimensions} from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {branding} from '../branding';
 import {ui} from '../i18n/copy';
 import {useUiLanguage} from '../i18n/useUiLanguage';
 import {fonts,useTheme} from '../theme';
-const AnimatedText=Animated.createAnimatedComponent(AppText);
-export function TableTransfer(){
- useUiLanguage();const {colors}=useTheme(),opacity=useRef(new Animated.Value(1)).current;
- const [reduce,setReduce]=useState(true);
- useEffect(()=>{let live=true;void AccessibilityInfo.isReduceMotionEnabled().then(value=>{if(live)setReduce(value);}).catch(()=>{});const listener=AccessibilityInfo.addEventListener('reduceMotionChanged',setReduce);return()=>{live=false;listener.remove();};},[]);
- useEffect(()=>{if(reduce){opacity.setValue(1);return;}const pulse=Animated.loop(Animated.sequence([Animated.timing(opacity,{toValue:.45,duration:700,useNativeDriver:true}),Animated.timing(opacity,{toValue:1,duration:700,useNativeDriver:true})]));pulse.start();return()=>{pulse.stop();opacity.setValue(1);};},[reduce,opacity]);
- return <View testID="table-transfer" accessibilityViewIsModal style={{position:'absolute',inset:0,backgroundColor:colors.background,alignItems:'center',justifyContent:'center',gap:24,zIndex:20}}>
-  <AnimatedText accessibilityLiveRegion="polite" style={{opacity,color:colors.text,fontFamily:fonts.medium,fontSize:18,textAlign:'center',padding:24}}>{ui('feedback.taking_you_to_table')}</AnimatedText>
 
- </View>;
+export function TableTransfer(){
+  useUiLanguage();
+  const {colors}=useTheme();
+  const {width,height}=useWindowDimensions();
+  const insets=useSafeAreaInsets();
+  const artworkWidth=Math.max(0,Math.min(440,width-insets.left-insets.right-48,
+    (height-insets.top-insets.bottom-132)*1090/650));
+  return <View testID="table-transfer" accessibilityViewIsModal style={{position:'absolute',inset:0,
+    backgroundColor:colors.background,alignItems:'center',justifyContent:'center',gap:24,zIndex:20,
+    paddingTop:Math.max(24,insets.top),paddingBottom:Math.max(24,insets.bottom),
+    paddingLeft:Math.max(24,insets.left),paddingRight:Math.max(24,insets.right)}}>
+    <Image testID="table-transfer-art" source={branding.landing} accessibilityLabel={ui('common.brand_art')}
+      resizeMode="contain" style={{width:artworkWidth,height:artworkWidth*650/1090}} />
+    <View style={{alignItems:'center',gap:10}}>
+      <ActivityIndicator size="small" color={colors.textMuted} />
+      <Text accessibilityLiveRegion="polite" style={{color:colors.textMuted,fontFamily:fonts.body,
+        fontSize:12,lineHeight:18,textAlign:'center',maxWidth:280}}>{ui('feedback.taking_you_to_table')}</Text>
+    </View>
+  </View>;
 }

@@ -35,6 +35,7 @@ async def _executemany(connection, query, params):
 class InMemoryLedgerStore:
     def __init__(self):
         self.games: dict[str, dict] = {}
+        self.game_dates: dict[str, str] = {}
         self.batches: dict[str, dict] = {}
         self.request_ids: dict[tuple[str, str], str] = {}
         self.action_ids: set[tuple[str, str, str]] = set()
@@ -44,10 +45,12 @@ class InMemoryLedgerStore:
         old = self.games.get(result.game_id)
         if old is not None and old != value:
             raise ValueError("Game result already exists with different values.")
+        if old is None:
+            self.game_dates[result.game_id] = now()
         self.games[result.game_id] = value
 
     async def room_games(self, room_id):
-        return deepcopy([game for game in self.games.values() if game["room_id"] == room_id])
+        return deepcopy([{**game, "created_at": self.game_dates.get(game["game_id"])} for game in self.games.values() if game["room_id"] == room_id])
 
     async def room_batches(self, room_id):
         return deepcopy([batch for batch in self.batches.values() if batch["room_id"] == room_id])
@@ -111,6 +114,23 @@ class PostgresLedgerStore:
     def __init__(self, pool):
         self.pool = pool
 
+    async def pending_rooms(self, actor, *, after_room_id="", limit=50):
+        async with self.pool.connection() as connection:
+            rows = await (await connection.execute("""SELECT r.id,r.name,
+                (SELECT max(g.created_at) FROM ledger_games g WHERE g.room_id=r.id)
+                FROM rooms r JOIN room_memberships m ON m.room_id=r.id AND m.user_id=%s
+                WHERE r.id>%s AND NOT EXISTS (SELECT 1 FROM deleted_rooms d WHERE d.id=r.id)
+                AND (EXISTS (
+                    SELECT 1 FROM ledger_games g JOIN game_ledger_entries e USING(game_id)
+                    WHERE g.room_id=r.id AND NOT EXISTS (SELECT 1 FROM settlement_games s WHERE s.game_id=g.game_id)
+                    GROUP BY g.table_id,e.player_id HAVING sum(e.amount)<>0
+                ) OR EXISTS (
+                    SELECT 1 FROM settlement_batches b JOIN settlement_transfers t USING(batch_id)
+                    WHERE b.room_id=r.id AND t.status<>'RESOLVED'
+                )) ORDER BY r.id LIMIT %s""", (_database_user_id(actor),after_room_id,limit+1))).fetchall()
+        return dict(items=[dict(room_id=r[0],name=r[1],latest_game_at=r[2].isoformat() if r[2] else None) for r in rows[:limit]],
+                    next_room_id=rows[limit-1][0] if len(rows)>limit else None)
+
     async def record_game(self, result):
         async with self.pool.connection() as connection, connection.transaction():
             await self.record_game_in_transaction(connection, result)
@@ -143,14 +163,14 @@ class PostgresLedgerStore:
     async def room_games(self, room_id):
         async with self.pool.connection() as connection:
             rows = await (await connection.execute(
-                "SELECT g.game_id,g.room_id,g.table_id,g.game_type,e.player_id,e.amount,g.table_name "
+                "SELECT g.game_id,g.room_id,g.table_id,g.game_type,e.player_id,e.amount,g.table_name,g.created_at "
                 "FROM ledger_games g JOIN game_ledger_entries e USING(game_id) WHERE g.room_id=%s "
-                "ORDER BY g.created_at,e.player_id", (room_id,))).fetchall()
+                "ORDER BY g.created_at,g.game_id,e.player_id", (room_id,))).fetchall()
         games = {}
-        for game_id, room, table, kind, player, amount, table_name in rows:
+        for game_id, room, table, kind, player, amount, table_name, created in rows:
             games.setdefault(_application_object_id(game_id), {"game_id": _application_object_id(game_id),
                 "room_id": room, "table_id": _application_object_id(table),
-                "game_type": kind, "table_name": table_name, "amounts": []})["amounts"].append({
+                "game_type": kind, "table_name": table_name, "created_at": created.isoformat(), "amounts": []})["amounts"].append({
                     "player_id": _application_user_id(player), "amount": amount})
         return list(games.values())
 

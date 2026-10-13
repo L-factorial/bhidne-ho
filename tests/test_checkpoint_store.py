@@ -83,7 +83,7 @@ async def advance(host, game, command=None, expected=None, command_id=None):
             'fingerprint': request_fingerprint(request), 'outcome': result['action_ack']}
 
 
-async def test_flush_same_revision_reveals_commit_durable_receipts(database):
+async def test_flush_turn_bound_reveals_commit_durable_receipts(database):
     pool, store, fence, users = database
     host, game = await host_game(users, 'flush')
     try:
@@ -91,16 +91,17 @@ async def test_flush_same_revision_reveals_commit_durable_receipts(database):
         state=engine_state(game)
         await store.save(capture_checkpoint(game,table_revision=0),expected_revision=None,fence=fence)
         deadline=game.deadline
+        active = next(u for u in game.users if str(game.flush_seats[u]) == state.current_player_id)
         for index,actor in enumerate(game.users):
             command=GameAction(match_id=game.match_id,command_id=uuid4().hex,
                 expected_revision=state.revision,command='SEE_CARDS',payload={'round_number':state.round_number})
             result=await host.action('room',actor,command)
-            assert result['action_ack']['status']=='accepted'
+            assert result['action_ack']['status']==('accepted' if actor == active else 'rejected')
             receipt={'actor_id':actor,'request':command.model_dump(mode='json'),
                 'fingerprint':request_fingerprint(command),'outcome':result['action_ack']}
             await store.save(capture_checkpoint(game,table_revision=index+1),expected_revision=index,fence=fence,receipt=receipt)
             assert game.deadline==deadline
-        assert engine_state(game).revision==state.revision+2
+        assert engine_state(game).revision==state.revision+1
     finally:
         await host.close()
 

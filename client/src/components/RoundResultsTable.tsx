@@ -18,11 +18,11 @@ export function RoundResultsTable({ title = ui('flush.round_complete') + '!', su
   const [width, setWidth] = useState(0);
   const cellWidth = columns.length === 1 ? 88 : columns.length > 3 ? 48 : 58;
   return <View testID={testID} onLayout={event => setWidth(event.nativeEvent.layout.width)} style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: compact ? c.borderSubtle : c.tableTrim, borderRadius: radii.large, overflow: 'hidden' }}>
-    <View style={{ backgroundColor: compact ? c.surface : c.tableHeader, padding: compact ? 12 : 18, gap: 6, alignItems: compact ? 'flex-start' : 'center' }}>
+    {(!!title || !!subtitle || !compact) && <View style={{ backgroundColor: compact ? c.surface : c.tableHeader, padding: compact ? 12 : 18, gap: 6, alignItems: compact ? 'flex-start' : 'center' }}>
       {!compact && <Ionicons name={icon} size={28} color={c.cardInnerBorder} accessible={false} />}
       <Text accessibilityRole="header" style={{ fontFamily: compact ? fonts.medium : fonts.editorial, fontSize: compact ? 20 : 30, textAlign: 'center', color: compact ? c.text : c.onTableHeader }}>{title}</Text>
       {!!subtitle && <Text style={{ fontFamily: fonts.body, fontSize: 13, textAlign: 'center', color: c.onTableHeader }}>{subtitle}</Text>}
-    </View>
+    </View>}
     <ScrollView horizontal contentContainerStyle={{ flexGrow: 1 }}>
       <View style={{ width: Math.max(width - 2, 132 + columns.length * cellWidth) }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: c.surfaceRaised, paddingVertical: 12 }}>

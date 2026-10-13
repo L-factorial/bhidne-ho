@@ -1,5 +1,5 @@
 import {AppText as Text} from './AppText';
-import { isActiveTable } from '../multiplayer/tableNavigation';
+import { isVisiblePlayTable } from '../multiplayer/tableNavigation';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { visualStates, radii, gameTabFinish, typography, fonts, useTheme } from '../theme';
@@ -40,7 +40,7 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable
           try {
             const version=requestVersion.current;
             const [active,invitations] = await Promise.all([request<ActiveTable[]>('/active-tables', session, undefined, controller.signal),request<PlayInvitation[]>('/test-games/invitations',session,undefined,controller.signal)]);
-            const data=playFeed(active.filter(isActiveTable),invitations);
+            const data=playFeed(active.filter(isVisiblePlayTable),invitations);
             if (!controller.signal.aborted && version===requestVersion.current) { setTables(data); setLoaded(true); setError(false); }
             return;
           } catch {
@@ -62,6 +62,18 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable
     return () => { controller.abort(); unsubscribe?.(); clearInterval(timer); clearTimeout(retryTimer); cancelDelay?.(); subscription.remove(); };
   }, [session.token, refresh, activity]);
   const visible = tables.filter(table => filter === 'all' || table.game_type === filter);
+  async function leaveTable(table:ActiveTable){
+    if(discarding||busy||!table.current_user?.can_leave_seat)return;
+    setDiscarding(true);setActionError('');
+    try{
+      await request(`/test-games/${encodeURIComponent(table.room_id)}/leave`,session,{match_id:table.match_id});
+      runtime?.clearSeatConflict(table.room_id,table.match_id);
+      requestVersion.current++;
+      setTables(current=>current.filter(item=>item.room_id!==table.room_id||item.match_id!==table.match_id));
+      setRefresh(value=>value+1);
+    }catch(error){setActionError(playerError(error));}
+    finally{setDiscarding(false);}
+  }
   async function declineInvitation(table:ActiveTable){
     if(discarding||busy||!table.invitation_id||table.current_user?.is_seated)return;
     setDiscarding(true);setActionError('');
@@ -102,7 +114,7 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable
       <Pressable accessibilityRole="button" onPress={onCreateTable} style={{minHeight:44,paddingHorizontal:16,borderRadius: radii.medium,backgroundColor:c.primary,justifyContent:'center'}}><Text style={{color:c.onPrimary,fontFamily:fonts.medium}}>{ui("rooms.create_table")}</Text></Pressable>
       <Pressable accessibilityRole="button" onPress={() => filter === 'all' ? onBrowseRooms() : setFilter('all')} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: c.accent, fontFamily: fonts.medium }}>{filter === 'all' ? ui("rooms.browse_rooms") : ui("rooms.view_all_games")}</Text></Pressable>
     </View>}
-    <CreationCards runtime={runtime} kind="table" matches={tables.map(table=>table.match_id)}/>
-    {visible.map(table => <PlayTableCard key={`${table.room_id}:${table.match_id}`} table={table} busy={busy||discarding} enter={action => enter(table, action)} declineInvitation={()=>void declineInvitation(table)}/>)}
+    <CreationCards runtime={runtime} onReleased={()=>setRefresh(value=>value+1)} onReturn={table=>enter(table,'watch')} kind="table" matches={tables.map(table=>table.match_id)}/>
+    {visible.map(table => <PlayTableCard key={`${table.room_id}:${table.match_id}`} table={table} busy={busy||discarding} enter={action => enter(table, action)} declineInvitation={()=>void declineInvitation(table)} leave={()=>void leaveTable(table)}/>)}
   </View>;
 }

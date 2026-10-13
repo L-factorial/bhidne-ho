@@ -119,7 +119,7 @@ async def test_public_cache_remains_public_after_legacy_privacy_request(database
 
 
 @pytest.mark.parametrize('kind', ['callbreak', 'marriage'])
-async def test_completed_games_returnable_for_seated_players_but_hidden_from_active_tabs(database, kind):
+async def test_completed_games_returnable_in_play_until_reserved_seat_is_released(database, kind):
     from test_rematch import completed, execute, request
     pool, store, fence, users = database
     host, game, inbox, lane, _ = await completed(database, kind)
@@ -135,7 +135,10 @@ async def test_completed_games_returnable_for_seated_players_but_hidden_from_act
         assert (await query.game_view('room', users[0]))['match_id'] == game.match_id
         assert view['active_game'] is None
         assert view['snapshot']['status'] == 'finished'
-        assert (await query.activity(users[0]))['items'] == []
+        play = (await query.activity(users[0]))['items']
+        assert len(play) == 1
+        assert play[0]['phase'] == 'COMPLETED'
+        assert play[0]['current_user']['is_seated'] is True
         # Explicit departure releases the reservation and invalidates cached
         # visibility without closing the other players' completed table.
         outcome = await execute(inbox, lane, fence, users[0],
@@ -143,6 +146,7 @@ async def test_completed_games_returnable_for_seated_players_but_hidden_from_act
         assert outcome['status'] == 'accepted'
         owner_view = await query.room('room', users[0])
         assert owner_view['tables'][0]['current_user']['is_seated'] is False
+        assert (await query.activity(users[0]))['items'] == []
         assert owner_view['tables'][0]['can_end_table'] is True
         assert (await query.room('room', users[1]))['tables'][0]['phase'] == 'COMPLETED'
     finally:

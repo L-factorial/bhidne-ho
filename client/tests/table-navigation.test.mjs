@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { tableEntry, isVisibleRoomTable, isActiveTable } from '../src/multiplayer/tableNavigation.ts';
+import { tableEntry, isVisibleRoomTable, isActiveTable, isVisiblePlayTable, hasCompletedSeat } from '../src/multiplayer/tableNavigation.ts';
 const table = (phase, me = {}) => ({ phase, current_user: me });
 test('table entry follows server permissions and lifecycle', () => {
   assert.deepEqual(tableEntry(table('OPEN', { can_join: true })), { label: 'Take seat', action: 'seat' });
@@ -22,4 +22,16 @@ test('completed room tables remain reachable only while the viewer holds a seat'
   assert.equal(isVisibleRoomTable({ ...completed, phase: 'ENDED' }), false);
   assert.equal(isVisibleRoomTable({ ...completed, status: 'ended' }), false);
   assert.equal(isVisibleRoomTable({ status: 'waiting', ...table('OPEN') }), true);
+});
+
+test('Play keeps only the actor reserved completed seat, without exposing other finished games',()=>{
+  for(const game_type of ['callbreak','marriage','flush']){
+    const completed={game_type,status:'finished',phase:'COMPLETED',current_user:{is_seated:true,can_leave_seat:true}};
+    assert.equal(isVisiblePlayTable(completed),true);
+    assert.equal(hasCompletedSeat(completed),true);
+    assert.equal(isVisiblePlayTable({...completed,current_user:{is_seated:false},can_end_table:true}),false);
+    assert.equal(isVisiblePlayTable({...completed,phase:'ENDED'}),false);
+    assert.equal(isVisiblePlayTable({...completed,status:'closed'}),false);
+    assert.equal(isVisiblePlayTable({...completed,status:'waiting',phase:'OPEN'}),true);
+  }
 });

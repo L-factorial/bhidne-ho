@@ -11,6 +11,7 @@ import {request,apiUrl} from '../multiplayer/api';
 import {isCurrentSession,type Room,type Session} from '../multiplayer/session';
 import type {RoomActions} from '../multiplayer/RoomActions';
 import {playerError} from '../multiplayer/playerError';
+import {GameRequestError} from '../multiplayer/PendingGameAction';
 import type {InvitePlayer} from '../multiplayer/inviteSuggestions';
 import {useCreationProgress} from './CreationCards';
 import type {OriginalDistributedRuntime} from '../multiplayer/OriginalDistributedRuntime';
@@ -60,7 +61,11 @@ export function CreateTableSheet({visible=true,runtime,session,rooms,playerName,
       const result=await request<{match_id:string}>(`/test-games/${encodeURIComponent(room.room_id)}`,session,
         {game_type:game,card_theme:cardTheme,...(game==='callbreak'?{player_count:callbreakPlayers}:{}),invitees:invitees.map(player=>player.user_id),notify_room:true});
       if(formVisible.current&&isCurrentSession(apiUrl,session))onCreated(room,game,result.match_id);
-    }catch(error){setError(playerError(error,ui('rooms.create_failed')));}
+    }catch(error){
+      if(runtime&&error instanceof GameRequestError&&error.detail?.code==='PLAYER_ALREADY_AT_TABLE'){
+        setError('');if(formVisible.current)onClose();
+      }else setError(playerError(error,ui('rooms.create_failed')));
+    }
     finally{creating.current=false;setBusy(false);}
   }
   const [inviteSuggestionsExpanded,setInviteSuggestionsExpanded]=useState(false);

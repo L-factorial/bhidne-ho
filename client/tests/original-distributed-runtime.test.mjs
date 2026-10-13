@@ -91,3 +91,15 @@ test('root workflow blocks duplicate creation and logout ignores late success',a
  await assert.rejects(r.value.createGame(null,'Another',{game_type:'flush'}),/confirmation/);
  r.close();finish();assert.equal(await pending,null);
 });
+
+test('leaving a reserved table clears only its matching creation conflict',()=>{
+ const r=runtime(store(),async()=>assert.fail('no network needed'));
+ try{
+  const feedback=r.value.creationFeedback;
+  feedback.set('occupied',{id:'occupied',kind:'table',error:'occupied',context:{room_id:'old-room',match_id:'old-match'}});
+  feedback.set('different',{id:'different',kind:'table',error:'other',context:{room_id:'old-room',match_id:'new-match'}});
+  feedback.set('limit',{id:'limit',kind:'room',error:'room limit'});
+  r.value.clearSeatConflict('old-room','old-match');
+  assert.deepEqual([...feedback.keys()],['different','limit']);
+ }finally{r.close();}
+});

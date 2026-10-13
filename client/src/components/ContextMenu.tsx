@@ -21,7 +21,7 @@ export function ContextMenu({label, children}: {label:string; children:ReactNode
   },[position]);
   return <>
     <Pressable ref={anchor} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{expanded:!!position}} hitSlop={8}
-      onPress={()=>anchor.current?.measureInWindow((x,y,w,h)=>setPosition({x:x+w,y:y+h}))}
+      onPress={event=>{event.stopPropagation();anchor.current?.measureInWindow((x,y,w,h)=>setPosition({x:x+w,y:y+h}));}}
       style={{width:28,height:28,alignItems:'center',justifyContent:'center'}}>
       <Text style={{color:c.textMuted,fontSize:20,lineHeight:22}}>⋯</Text>
     </Pressable>

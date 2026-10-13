@@ -363,3 +363,27 @@ def test_room_creation_returns_actionable_rules_denial_without_exposing_other_de
         }
         catalog.error = QueryAccessDenied('Private account detail')
         assert submit().json() == {'detail': 'Access denied.'}
+
+
+def test_pending_ledger_discovery_binds_actor_cursor_and_page_bounds():
+    calls = []
+    class LedgerReads:
+        async def pending_rooms(self, actor, **options):
+            calls.append((actor, options))
+            return dict(items=[dict(room_id='member-room', name='Friday cards')], next_room_id=None)
+    app = FastAPI()
+    ingress = Ingress()
+    app.include_router(create_router(auth=Auth(), hosted=ingress, chat=ingress, social=ingress,
+        gateway=Gateway(), allowed_origins=set(), reads=SimpleNamespace(ledger=LedgerReads())))
+    with TestClient(app) as client:
+        path = '/distributed/ledger/rooms'
+        headers = {'Authorization': 'Bearer valid'}
+        assert client.get(path).status_code == 401
+        assert calls == []
+        response = client.get(path + '?after_room_id=Friday%20%26%20cards&limit=2', headers=headers)
+        assert response.status_code == 200 and response.headers['cache-control'] == 'no-store'
+        assert calls == [('user-00000000-0000-0000-0000-000000000001', dict(after_room_id='Friday & cards', limit=2))]
+        assert response.json()['items'][0]['room_id'] == 'member-room'
+        assert client.get(path + '?limit=101', headers=headers).status_code == 422
+        assert client.get(path + '?after_room_id=' + 'a' * 129, headers=headers).status_code == 422
+        assert len(calls) == 1 and ingress.calls == []

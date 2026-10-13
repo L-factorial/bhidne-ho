@@ -92,3 +92,30 @@ async def test_previous_dismissal_cannot_hide_reserved_seat_and_stale_discard_is
         assert await store.load(game.table.table_id)==before
         assert len((await query.activity(actor))['items'])==1
     finally:await host.close()
+
+
+async def test_offline_direct_message_persists_and_notifies_once_on_retry(database):
+    from app.durable_games.social_history import SocialHistory
+    from test_durable_social import setup, request
+    pool, _, _, users = database
+    inbox, ingress, executor, target = await setup(database)
+    # No live socket or presence registration for either user.
+    _, providers, _ = await devices(pool, users[:2])
+    body = request(payload={'text': 'Hello while you are offline'})
+    pending = await ingress.submit(users[0], target, body)
+    lane = UUID(pending['lane_id'])
+    assert (await executor.execute_one(lane)).outcome['status'] == 'accepted'
+    recipient = await inbox.ensure_lane(LaneTarget(kind='recipient', recipient_id=UUID(users[1][5:])))
+    assert (await executor.execute_one(recipient)).outcome['status'] == 'accepted'
+    history = await SocialHistory(pool).page(users[1], lane)
+    assert [row['text'] for row in history['items']] == ['Hello while you are offline']
+    assert (await ingress.submit(users[0], target, body))['status'] == 'accepted'
+    assert await executor.execute_one(lane) is None
+    assert await executor.execute_one(recipient) is None
+    assert (await pool.execute('SELECT count(*) FROM direct_messages')).rows == [(1,)]
+    assert (await pool.execute("SELECT count(*) FROM friend_notifications WHERE kind='chat'")).rows == [(1,)]
+    worker = PushWorker(pool, providers)
+    assert await worker.send_one()
+    assert len(providers.sent) == 1
+    assert providers.sent[0][1]['data']['other_user_id'] == users[0]
+    assert not await worker.send_one()

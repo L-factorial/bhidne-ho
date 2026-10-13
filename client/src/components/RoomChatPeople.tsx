@@ -1,3 +1,4 @@
+import {ChatTableSeparator} from './ChatTableSeparator';
 import {useEffect, useState} from 'react';
 import {View} from 'react-native';
 import {AppText as Text} from './AppText';
@@ -26,9 +27,10 @@ export function RoomChatPeople({roomId,session,onlineIds}: {roomId:string;sessio
     return ()=>{controller.abort();clearTimeout(timer);};
   },[roomId,session.token]);
   const people=onlineIds===undefined?members:members.filter(member=>onlineIds.includes(member.user_id));
-  return <View testID="room-chat-people" style={{borderBottomWidth:1,borderColor:colors.border,paddingBottom:8}}>
+  return <View testID="room-chat-people" style={{paddingBottom:0}}>
     <Text style={{fontFamily:fonts.medium,fontSize:13,color:colors.text}}>{ui('common.online')}{onlineIds===undefined?' · —':` · ${people.length}`}</Text>
     {people.length>0&&<OnlinePeopleStrip people={people} onlineIds={onlineIds}/>}
+    <ChatTableSeparator/>
     {failed&&<Text accessibilityRole="alert" style={{fontFamily:fonts.body,fontSize:12,color:colors.textMuted}}>{ui('social.members_unavailable')}</Text>}
   </View>;
 }

@@ -13,7 +13,7 @@ import type { LeaveView } from './DistributedScreenController.ts';
 import { GameRequestError } from './PendingGameAction.ts';
 
 type Payload = {[key:string]:Json};
-export type UiRecoveryNotice = {status:'accepted';command:string;commandId?:string;roomId?:string;skipped?:string[]} | {status:'rejected';message:string;command?:string;commandId?:string;roomId?:string};
+export type UiRecoveryNotice = {status:'accepted';command:string;commandId?:string;roomId?:string;skipped?:string[]} | {status:'rejected';message:string;command?:string;commandId?:string;roomId?:string;context?: import('./PendingGameAction').GameRequestDetail};
 const uiSlots=['ui-table-control','ui-room-settings','ui-ledger','ui-invitations','ui-friendship','ui-notifications','ui-direct-chat','ui-room-chat','ui-table-chat'];
 export class OriginalUiApi {
   readonly request:UiRequest;
@@ -28,7 +28,7 @@ export class OriginalUiApi {
   private closed=new AbortController();
   private channel:TableSocialChannel|null=null;
   private chatTail:Promise<void>=Promise.resolve();
-  private profiles=new Map<string,{value:{user_id:string;display_name:string;username?:string|null};until:number}>();
+  private profiles=new Map<string,{value:{user_id:string;display_name:string;username?:string|null;avatar_url?:string|null};until:number}>();
   private chatScopes=new Map<string,{room:string;match:string;seen:Set<string>;ready:boolean}>();
   private roomChatListeners=new Map<string,Set<(rows:any[])=>void>>();
   readonly observeChat=(path:string,listener:(rows:any[])=>void)=>{
@@ -60,7 +60,7 @@ export class OriginalUiApi {
       try {return await this.route(path,body,abort.signal,method) as T;}
       catch(error){
         const saved=this.root.session.command('ui-table-control').request;
-        if(body&&/^\/test-games\/[^/?]+$/.test(path)&&error instanceof GameRequestError)this.recoveryNotify?.({status:'rejected',message:error.message,command:'create-table',roomId:path.split('/')[2],commandId:saved?.body.command_id});
+        if(body&&/^\/test-games\/[^/?]+$/.test(path)&&error instanceof GameRequestError)this.recoveryNotify?.({status:'rejected',message:error.message,command:'create-table',roomId:path.split('/')[2],commandId:saved?.body.command_id,context:error.detail});
         if(error instanceof DistributedRequestError)throw new ApiError(error.status,error.message);throw error;}
       finally {this.closed.signal.removeEventListener('abort',cancel);signal?.removeEventListener('abort',cancel);}
     };
@@ -94,7 +94,7 @@ export class OriginalUiApi {
         } catch(error) {
           if(this.closed.signal.aborted)return;
           if(error instanceof GameRequestError) {
-            notify({status:'rejected',message:error.message,command:body.command,commandId:id,roomId:saved.target.room_id});this.restored.delete(slot);
+            notify({status:'rejected',message:error.message,command:body.command,commandId:id,roomId:saved.target.room_id,context:error.detail});this.restored.delete(slot);
           }
           // Transport uncertainty keeps the original journal and is retried.
         }
@@ -142,6 +142,7 @@ export class OriginalUiApi {
     const target=this.root.targetForLane(lane);
     if(target?.kind==='room_chat'&&Array.isArray(value)&&target.room_id){
       const rows=await Promise.all(value.map(async row=>({...row,
+        sender_avatar_url:row.sender_avatar_url??(row.sender_name?undefined:(await this.player(String(row.sender_id),this.closed.signal)).avatar_url),
         sender_name:row.sender_name??(await this.player(String(row.sender_id),this.closed.signal)).display_name,
         sent_at:Date.parse(String(row.sent_at))})));
       if(!this.closed.signal.aborted)for(const listener of this.roomChatListeners.get(`/rooms/${encodeURIComponent(target.room_id)}/chat`)??[])listener(rows);
@@ -155,7 +156,7 @@ export class OriginalUiApi {
       scope.seen.add(row.id);
       if(scope.seen.size>10000)scope.seen.delete(scope.seen.values().next().value!);
       this.channel?.receive({...row,type:'TABLE_CHAT_MESSAGE',room_id:scope.room,match_id:scope.match,
-        sender_name:player.display_name,sent_at:Date.parse(String(row.sent_at))});
+        sender_name:player.display_name,sender_avatar_url:player.avatar_url,sent_at:Date.parse(String(row.sent_at))});
     }
   }
   close(){clearTimeout(this.recoveryTimer);this.closed.abort();if(this.channel)this.channel.transport=undefined;this.channel=null;this.chatScopes.clear();this.roomChatListeners.clear();this.ephemeralHistory.clear();}
@@ -172,7 +173,7 @@ export class OriginalUiApi {
   private async player(user:string,signal:AbortSignal) {
     const cached=this.profiles.get(user);
     if(cached&&cached.until>Date.now())return cached.value;
-    const value=await this.shared<{user_id:string;display_name:string;username?:string|null}> (user===this.account.user_id?'/auth/me':`/players/${encodeURIComponent(user)}`,this.account,undefined,signal);
+    const value=await this.shared<{user_id:string;display_name:string;username?:string|null;avatar_url?:string|null}> (user===this.account.user_id?'/auth/me':`/players/${encodeURIComponent(user)}`,this.account,undefined,signal);
     if(signal.aborted)throw Error('Profile load cancelled.');
     if(this.profiles.size>=512)this.profiles.delete(this.profiles.keys().next().value!);
     this.profiles.set(user,{value,until:Date.now()+30000});return value;
@@ -197,15 +198,15 @@ export class OriginalUiApi {
   }
   async messages(target:CommandTarget,signal:AbortSignal) {
     const lane=await this.root.reads.open(target,signal);
-    const rows=await this.root.reads.history(target.kind==='conversation'?'social':'chat',lane.lane_id,signal);
+    let rows:Array<Record<string,unknown>>=await this.root.reads.history(target.kind==='conversation'?'social':'chat',lane.lane_id,signal);
     if(target.kind==='conversation') {
       const other='user-'+(target.user_low===this.account.user_id.replace(/^user-/,'')?target.user_high:target.user_low);
       const legacy=await this.root.reads.legacy('direct',other,null,signal);
-      return [...legacy.items,...rows].map(r=>({...r,sent_at:Date.parse(String(r.sent_at))}));
+      rows=[...legacy.items,...rows];
     }
-    const profiles=new Map<string,string>();
-    for(const sender of new Set(rows.map(r=>String(r.sender_id))))profiles.set(sender,(await this.player(sender,signal)).display_name);
-    return rows.map(r=>({...r,sender_name:profiles.get(String(r.sender_id)),sent_at:Date.parse(String(r.sent_at))}));
+    const profiles=new Map<string,{display_name:string;avatar_url?:string|null}>();
+    for(const sender of new Set(rows.map(r=>String(r.sender_id))))profiles.set(sender,await this.player(sender,signal));
+    return rows.map(r=>({...r,sender_name:profiles.get(String(r.sender_id))?.display_name,sender_avatar_url:profiles.get(String(r.sender_id))?.avatar_url,sent_at:Date.parse(String(r.sent_at))}));
   }
   async sendMessage(target:CommandTarget,text:Json,signal:AbortSignal) {
     return this.intents.run(target.kind==='conversation'?'ui-direct-chat':target.kind==='table_chat'?'ui-table-chat':'ui-room-chat',target,
@@ -215,6 +216,7 @@ export class OriginalUiApi {
           while(!signal.aborted&&Date.now()<deadline){
             const pushed=this.root.cachedChat(target)?.find(row=>row.command_id===request.body.command_id);
             if(pushed)return {...pushed,sent_at:Date.parse(String(pushed.sent_at)),
+              sender_avatar_url:pushed.sender_avatar_url??(pushed.sender_name?undefined:(await this.player(String(pushed.sender_id),signal)).avatar_url),
               sender_name:pushed.sender_name??(await this.player(String(pushed.sender_id),signal)).display_name};
             await new Promise<void>(resolve=>setTimeout(resolve,50));
           }
@@ -226,7 +228,7 @@ export class OriginalUiApi {
       });
   }
   private async route(path:string,body:object|undefined,signal:AbortSignal,method?:string):Promise<unknown> {
-    if(sharedPlatformPath(path,body,method))return this.shared(path,this.account,body,signal,method as 'DELETE'|'PATCH'|undefined);
+    if(sharedPlatformPath(path,body,method)){const result=await this.shared(path,this.account,body,signal,method as 'DELETE'|'PATCH'|undefined);if(path==='/me/profile/avatar'&&method==='PATCH')this.profiles.delete(this.account.user_id);return result;}
     const url=new URL(path,'https://ui.invalid'), parts=url.pathname.split('/').filter(Boolean).map(decodeURIComponent);
     const data=JSON.parse(JSON.stringify(body??{})) as Payload, reads=this.root.reads;
     if(!body&&!method) {
@@ -252,6 +254,7 @@ export class OriginalUiApi {
       if(path==='/active-tables')return reads.activity('active-tables',signal);
       if(parts[0]==='rooms'&&parts.length===2)return reads.preview(parts[1],signal);
       if(parts[0]==='rooms'&&parts[2]==='members')return reads.memberProfiles(parts[1],signal);
+      if(parts[0]==='ledger'&&parts[1]==='rooms')return reads.pendingLedgerRooms(url.searchParams.get('after_room_id')??'',signal);
       if(parts[0]==='rooms'&&parts[2]==='ledger')return reads.ledger(parts[1],signal);
       if(parts[0]==='test-games'&&parts.length===2&&parts[1]!=='invitations')return this.game(parts[1],url.searchParams.get('match_id'),signal,false);
     }

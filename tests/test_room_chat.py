@@ -9,6 +9,9 @@ from app.multiplayer.room_service import RoomService
 
 
 class AsyncProfiles:
+    def avatar(self, user_id):
+        return None
+
     async def get(self, user_id):
         return {"display_name": "Database Player"}
 

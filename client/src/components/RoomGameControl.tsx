@@ -24,7 +24,7 @@ import type { TableEntry } from '../multiplayer/tableNavigation';
 import { RuleProposal } from './RuleProposal';
 import { TableControls } from './TableControls';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import {AppState, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions} from 'react-native';
+import {ActivityIndicator, AppState, Modal, Platform, Pressable, ScrollView, StyleSheet, Text as NativeText, View, useWindowDimensions} from 'react-native';
 import { useGameNotification } from '../notifications/useGameNotification';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LiveGameTable, RoomSnapshot as Snapshot } from '../screens/LiveGameTable';
@@ -44,10 +44,12 @@ import { request } from '../multiplayer/api';
 
 type InvitePlayer = { user_id: string; display_name: string; username?: string | null; eligible?: boolean; reason?: string | null };
 
-export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, onViewChange, requestedMatchId, requestedEntry, onEntryError, roomId, apiUrl, token, connected, sessionActive = true, members, presenceKnown = true, roomMembers = members, connectionMessage, userId, pokes, personal, onGameTypeChange, creationEnabled = true, gameType = 'callbreak' }: {
+export function RoomGameControl({ onReturnToTable, runtime, socialChannel, chat, onOpenChange, onViewChange, onLoadingChange, requestedMatchId, requestedEntry, onEntryError, roomId, apiUrl, token, connected, sessionActive = true, members, presenceKnown = true, roomMembers = members, connectionMessage, userId, pokes, personal, onGameTypeChange, creationEnabled = true, gameType = 'callbreak' }: {
+  onReturnToTable?: (table:import('../multiplayer/playFeed').PlayTable)=>void;
   runtime?: OriginalDistributedRuntime | null;
   presenceKnown?: boolean;
   socialChannel?: TableSocialChannel; chat?: ReactNode; onOpenChange?: (open: boolean) => void; onViewChange?: (match:string|null)=>void;
+  onLoadingChange?: (loading: boolean) => void;
   requestedMatchId?: string; requestedEntry?: TableEntry; onEntryError?:()=>void;
   gameType?: 'callbreak' | 'marriage' | 'flush';
   onGameTypeChange?: (game:'callbreak'|'marriage'|'flush')=>void; creationEnabled?: boolean;
@@ -288,9 +290,10 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
     } catch (error) {
       if (alive.current && generation.current === version) {
         if (error instanceof GameRequestError && error.detail?.code === 'PLAYER_ALREADY_AT_TABLE') {
-          setSeatConflict(error.detail); setOpen(false);
+          if(join||!runtime)setSeatConflict(error.detail);
+          setOpen(false);
         }
-        setError(playerError(error, ui("feedback.cannot_update_game")));
+        if(!runtime||join||!(error instanceof GameRequestError))setError(playerError(error, ui("feedback.cannot_update_game")));
       }
     }
     finally { pending.current = false; if (alive.current) setBusy(false); }
@@ -318,6 +321,17 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
     } catch (error) {
       setError(playerError(error, ui("feedback.could_not_leave_the_previous_table")));
     } finally { pending.current = false; setBusy(false); }
+  }
+  async function leaveCompletedTable(matchId:string){
+    if(pending.current||!canSend.current)return;
+    pending.current=true;setBusy(true);setError('');
+    try{
+      await request(`/test-games/${encodeURIComponent(roomId)}/leave`,{user_id:userId,token},{match_id:matchId});
+      runtime?.clearSeatConflict(roomId,matchId);
+      const data=await api();
+      if(alive.current){setSnapshot(data);setLive(false);}
+    }catch(failure){if(alive.current)setError(playerError(failure));}
+    finally{pending.current=false;if(alive.current)setBusy(false);}
   }
   const mobileGame = mobile;
   const canCreate = snapshot?.status === 'empty' || (snapshot?.status === 'finished' && !snapshot.table?.requires_replacement) || snapshot?.status === 'ended';
@@ -402,6 +416,12 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
     enteredFromLobby.current = key;
     void enterTable(requestedMatchId, requestedEntry);
   }, [requestedMatchId, requestedEntry, busy, snapshot?.match_id]);
+  const loadingTables = !snapshot && !refreshError && sessionActive;
+  useEffect(() => { onLoadingChange?.(loadingTables); }, [loadingTables, onLoadingChange]);
+  if (loadingTables && !open && !seatConflict) return <View testID="room-tables-loading" style={{flex:1,minHeight:260,alignItems:'center',justifyContent:'center',padding:24,gap:12}}>
+    <ActivityIndicator size="small" color={colors.textMuted} />
+    <NativeText accessibilityLiveRegion="polite" style={{color:colors.textMuted,fontFamily:fonts.body,fontSize:12,lineHeight:18,textAlign:'center'}}>{ui('rooms.loading_tables')}</NativeText>
+  </View>;
   const content = <>
     {!snapshot && !refreshError && <Text accessibilityLiveRegion="polite" style={styles.text}>{sessionActive ? ui("rooms.loading_tables") : ui("feedback.sign_in_again_to_load_tables")}</Text>}
     {refreshError && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.retry_loading_tables")} disabled={pendingAction || !sessionActive}
@@ -416,8 +436,8 @@ export function RoomGameControl({ runtime, socialChannel, chat, onOpenChange, on
         <Text style={[styles.buttonText, { color: colors.onPrimary, fontSize: 15 }]}>{ui("rooms.create_table_2")}</Text>
       </Pressable>
     </View>}
-    <CreationCards runtime={runtime} kind="table" roomId={roomId} matches={visibleTables.map(table=>table.match_id)}/>
-    {visibleTables.map(table => <TableCard key={table.match_id} roomId={roomId} table={table} busy={busy} enter={action => void enterTable(table.match_id, action)} />)}
+    <CreationCards runtime={runtime} onReleased={()=>{void api().then(data=>{if(alive.current)setSnapshot(data);}).catch(()=>{});}} onReturn={onReturnToTable} kind="table" roomId={roomId} matches={visibleTables.map(table=>table.match_id)}/>
+    {visibleTables.map(table => <TableCard key={table.match_id} roomId={roomId} table={table} busy={busy} leave={()=>void leaveCompletedTable(table.match_id)} enter={action => void enterTable(table.match_id, action)} />)}
       {!!visibleTables.length && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_table")} disabled={pendingAction || !sessionActive || !creationEnabled} onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 52, marginBottom: 16 }]}>
         <Text style={[styles.buttonText, { color: colors.onPrimary }]}>{ui("rooms.create_new_table")}</Text>
       </Pressable>}

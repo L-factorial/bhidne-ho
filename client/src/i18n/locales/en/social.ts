@@ -1,7 +1,9 @@
 // Editable social copy. Keep keys and placeholders in sync with the other locale.
 export default {
   "members_unavailable": "Could not load room members.",
-  conversations: 'Conversations', most_recent: 'Most recent', no_conversations: 'No conversations yet. Choose an online friend to start chatting.', conversations_unavailable: 'Could not load conversations. Please try again.',
+  no_matching_friends: 'No matching friends.',
+  searching_friends: 'Searching friends',
+  conversations: 'Conversations', most_recent: 'Most recent', no_conversations: 'No conversations yet. Search for a friend to start chatting.', conversations_unavailable: 'Could not load conversations. Please try again.',
 
   "player_created_table": '{{player}} created “{{tableName}}” in room “{{roomName}}”.',
   "sent_you_a_chat_message": "sent you a chat message",

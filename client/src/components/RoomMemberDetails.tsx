@@ -10,7 +10,7 @@ import { visualStates, radii, fonts, useTheme } from '../theme';
 import { request } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 
-type Member = { user_id: string; display_name: string; username?: string | null; avatar_url?: string };
+type Member = { user_id: string; display_name: string; username?: string | null; avatar_url?: string | null };
 export function RoomMemberDetails({ member, session, online, onClose }: { member: Member | null; session: Session; online: boolean; onClose: () => void }) {
   useUiLanguage();
   const { colors: c } = useTheme();
@@ -33,7 +33,7 @@ export function RoomMemberDetails({ member, session, online, onClose }: { member
     catch (e) { setError(playerError(e)); } finally { setBusy(false); }
   }
   return <RoomSheet visible={!!member} title={ui("common.player_profile")} closeLabel={ui("common.close_player_profile")} onClose={onClose}>
-    {member && <><View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><PlayerAvatar uri={member.avatar_url} /><View style={{ flex: 1, gap: 4 }}><Text style={{ color: c.text, fontFamily: fonts.medium, fontSize: 20 }}>{member.display_name}</Text>{!!member.username && <Text style={{ color: c.textMuted }}>@{member.username}</Text>}<Text style={{ color: online ? c.success : c.textMuted }}>{online ? ui("rooms.online") : ui("rooms.offline")}</Text></View></View>
+    {member && <><View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><PlayerAvatar uri={member.avatar_url ?? undefined} /><View style={{ flex: 1, gap: 4 }}><Text style={{ color: c.text, fontFamily: fonts.medium, fontSize: 20 }}>{member.display_name}</Text>{!!member.username && <Text style={{ color: c.textMuted }}>@{member.username}</Text>}<Text style={{ color: online ? c.success : c.textMuted }}>{online ? ui("rooms.online") : ui("rooms.offline")}</Text></View></View>
       {['none', 'incoming'].includes(relationship) && <Pressable accessibilityRole="button" disabled={busy} onPress={() => void add()} style={{ minHeight: 48, backgroundColor: c.primary, borderRadius: radii.medium, justifyContent: 'center', alignItems: 'center', opacity: busy ? visualStates.disabledOpacity : 1 }}><Text style={{ color: c.onPrimary, fontFamily: fonts.medium }}>{relationship === 'incoming' ? ui("common.accept_friend_request") : ui("social.add_friend")}</Text></Pressable>}
       {relationship === 'friend' && <Text style={{ color: c.success }}>{ui("social.friends_status_help")}</Text>}
       {relationship === 'outgoing' && <Text style={{ color: c.textMuted }}>{ui("social.request_sent_label")}</Text>}

@@ -1,3 +1,5 @@
+import {SeatReservationNotice} from './SeatReservationNotice';
+import type {PlayTable} from '../multiplayer/playFeed';
 import {useEffect,useState} from 'react';
 import {ActivityIndicator,View} from 'react-native';
 import {AppText as Text} from './AppText';
@@ -25,13 +27,13 @@ export function useCreationProgress(runtime?:OriginalDistributedRuntime|null){
   },[runtime]);
   return state;
 }
-export function CreationCards({runtime,kind,roomId,matches=[]}:{runtime?:OriginalDistributedRuntime|null;kind:'room'|'table';roomId?:string;matches?:string[]}){
+export function CreationCards({runtime,kind,roomId,matches=[],onReturn,onReleased}:{runtime?:OriginalDistributedRuntime|null;kind:'room'|'table';roomId?:string;matches?:string[];onReturn?:(table:PlayTable)=>void;onReleased?:()=>void}){
   useUiLanguage();const {colors}=useTheme();const {cards,feedback}=useCreationProgress(runtime);
   return <View style={{gap:10}}>
     {cards.filter(card=>card.kind===kind&&(!roomId||card.roomId===roomId)&&(!card.matchId||!matches.includes(card.matchId))).map(card=><View key={card.id} testID={`creating-${kind}`} accessibilityLiveRegion="polite" style={{padding:20,gap:10,borderRadius:radii.medium,borderWidth:1,borderColor:colors.border,backgroundColor:colors.surface}}>
       <Text style={{color:colors.text,fontFamily:fonts.medium,fontSize:20}}>{card.name}</Text>
       <View style={{flexDirection:'row',alignItems:'center',gap:10}}><ActivityIndicator color={colors.accent}/><Text style={{color:colors.textMuted}}>{ui(kind==='room'||card.stage==='room'?'rooms.creating_room':'rooms.creating_table')}</Text></View>
     </View>)}
-    {feedback.filter(item=>item.kind===kind&&(!roomId||item.roomId===roomId)).map(item=><Text key={item.id} accessibilityRole={item.error?'alert':undefined} accessibilityLiveRegion="polite" style={{color:item.error?colors.danger:colors.textMuted,padding:12}}>{item.error?playerError(item.error):ui('rooms.busy_invitees_skipped',{players:item.skipped?.join(', ')??''})}</Text>)}
+    {feedback.filter(item=>item.kind===kind&&(!roomId||item.roomId===roomId)).map(item=>runtime&&item.context?.code==='PLAYER_ALREADY_AT_TABLE'&&item.context.room_id&&item.context.match_id?<SeatReservationNotice key={item.id} runtime={runtime} item={item} onReturn={onReturn} onReleased={onReleased}/>:<Text key={item.id} accessibilityRole={item.error?'alert':undefined} accessibilityLiveRegion="polite" style={{color:item.error?colors.danger:colors.textMuted,padding:12}}>{item.error?playerError(item.error):ui('rooms.busy_invitees_skipped',{players:item.skipped?.join(', ')??''})}</Text>)}
   </View>;
 }

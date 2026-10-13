@@ -26,7 +26,7 @@ async def setup_game(database, kind='marriage', *, receipt_limit=10000):
     return host, game, inbox, lane, GameLaneExecutor(inbox)
 
 
-async def test_flush_reveals_share_revision_in_serialized_durable_lane(database):
+async def test_flush_only_current_player_can_reveal_in_serialized_durable_lane(database):
     import asyncio
     pool,checkpoints,fence,users=database
     host,game=await host_game(users,'flush')
@@ -45,12 +45,13 @@ async def test_flush_reveals_share_revision_in_serialized_durable_lane(database)
         await asyncio.gather(*(inbox.enqueue(lane,user,request) for user,request in zip(game.users,requests)))
         executor=GameLaneExecutor(inbox)
         outcomes=[await executor.execute_one(lane,fence) for _ in requests]
-        assert all(result.outcome['status']=='accepted' for result in outcomes)
+        active = next(u for u in game.users if str(game.flush_seats[u]) == state.current_player_id)
+        assert [r.outcome['status'] for r in outcomes] == ['accepted' if u == active else 'rejected' for u in game.users]
         loaded=await checkpoints.load(game.table.table_id)
-        assert loaded.checkpoint['data']['engine']['revision']==state.revision+2
+        assert loaded.checkpoint['data']['engine']['revision']==state.revision+1
         assert loaded.checkpoint['data']['host']['session']['turns']==original['data']['host']['session']['turns']
         for user,request in zip(game.users,requests):
-            assert (await inbox.enqueue(lane,user,request)).outcome['status']=='accepted'
+            assert (await inbox.enqueue(lane,user,request)).outcome['status']==('accepted' if user == active else 'rejected')
         assert await executor.execute_one(lane,fence) is None
     finally:
         await host.close()

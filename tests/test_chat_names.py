@@ -29,5 +29,6 @@ async def test_history_resolves_each_guest_identity_once_and_preserves_named_mes
     messages.append({'id': 'named', 'sender_id': 'bob', 'sender_name': 'Bob'})
     repaired = await restore_guest_names(messages, profiles)
     assert [item['sender_name'] for item in repaired] == ['alice-account'] * 3 + ['Bob']
-    assert profiles.calls == 1
+    assert profiles.calls == 2
+    assert all("sender_avatar_url" in message for message in repaired)
     assert messages[0]['sender_name'] == 'Guest'
