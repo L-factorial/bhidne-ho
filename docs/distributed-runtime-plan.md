@@ -8829,3 +8829,53 @@ implementation request before changing card rendering or Marriage turn behavior.
 - Exact next step: include these client changes in the next signed iOS build and
   verify chat reporting, start/replay, host transfer and Marriage grouping on
   tester devices. Capacity/observability/database HA remain separate work.
+
+
+## 2026-10-12 — Marriage layout, chat presence and independent Flush reveals
+
+- User explicitly authorized the previously planned UI/gameplay increment, including
+  the corrected Marriage turn display: no timer in the card area. Prior auth/logo
+  changes already present in the workspace were preserved.
+- Marriage expanded hand places Sequence/Tunnela, Dublee and Maal eligibility in
+  one compact row. Discard/deck no longer repeat Unavailable. The card panel shows
+  the turn owner with a pulsing golden dot; reduced-motion preferences disable
+  the pulse. No turn label appears when no player owns the turn.
+- Lobby Chat retains the selected theme and navigation, with horizontal online
+  friend avatars and recent conversation previews/timestamps. The authenticated,
+  no-store GET /friends/conversations is included in the distributed platform
+  allowlist. Production SQL returns one latest message per accepted friendship,
+  excludes blocked/deleting/erased users, and redacts moderated messages. No new
+  unread tracking or group-chat behavior is fabricated.
+- Room Chat shows actual online members above shared messages, with the composer
+  below. Unknown/stale presence does not display green online dots or a numeric
+  online count. Membership refresh is limited to the open room chat and cancelled
+  on close/account changes.
+- Flush ACTIVE blind players may see their own cards without owning the turn.
+  Show/side-show responses, folded players and completed rounds retain their
+  existing safeguards. Seen indicators use a green check.
+- SEE_CARDS captures round_number in both legacy and distributed client commands.
+  Commands within the same dealt round may share a captured revision; the runtime
+  still serializes mutations and deduplicates command IDs. The durable receipt
+  validator checks the prior round and authenticated Flush seat mapping. Betting
+  and other commands retain exact revision checks, and old-round reveals cannot
+  reveal a subsequent hand. Each accepted reveal increments revision once.
+- Durable reveals record activity without renewing the active seat's betting
+  deadline, including when that seat reveals its own cards. Private card routing
+  remains unchanged.
+- Verification: 162 Flush/adapter/room/player/concurrent-host/privacy checks;
+  46 checkpoint/recovery/platform checks; 18 durable game-lane SQL checks;
+  49 client command/recovery tests; TypeScript check and clean web export passed.
+  PostgreSQL checks used the production SQL through PostgreSQL/WASM (PGlite).
+  Browser layout checks passed at widths 390 and 1280 for lobby chat, room chat
+  and Marriage, including three controls sharing a row and no Unavailable labels.
+  Evidence: /private/tmp/bhidne-chat-preview.cjs,
+  /private/tmp/bhidne-marriage-preview.cjs and
+  /private/tmp/bhidne-{chat,room-chat,marriage-layout}-{390,1280}.png.
+- Limitations: browser fixture previews, not physical iOS verification. No schema
+  migration or dependency is needed for this increment. No commit, push,
+  deployment or signed native build was performed. Conversation unread counts
+  and group chats remain outside scope.
+- Exact next step: review/release backend and client together, include the UI in
+  the next signed native build, and verify chat presence/composer plus simultaneous
+  Flush reveals on tester devices. Capacity, observability, database HA and
+  operational readiness remain separate infrastructure work.

@@ -1,3 +1,4 @@
+import { SignupVerification } from './RecoveryScreen';
 import {SignupRules} from '../components/moderation/SignupRules';
 import {AppText as Text} from '../components/AppText';
 import {PushProvider} from '../notifications/PushProvider';
@@ -124,7 +125,9 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const lobbyRules=useCommunityRulesGate(session||{user_id:'',token:''});
   useEffect(()=>{if(room&&linkedMatch)setTransferring(true);else if(!linkedMatch)setTransferring(false);},[room?.room_id,linkedMatch]);
   useEffect(()=>{if(gameOpen || !session || expired)setTransferring(false);},[gameOpen,session?.token,expired]);
+  const current = rooms.find(item => item.room_id === room?.room_id) || room;
   const chat = useRoomChat({ roomId: room?.room_id || '', session: session || { token: '', user_id: '' }, connected: !!room && !!session && !expired && !gameOpen && shared.status === 'connected',
+    onlineIds: shared.presenceFresh && (current?.presence_status ? current.presence_status === 'observed' : !shared.runtime) ? current?.connected_members : undefined,
     launcherVisible: false, expanded: roomPanel === 'chat', onExpandedChange: open => setRoomPanel(current => open ? 'chat' : current === 'chat' ? null : current), bottomOffset: 56,
     renderLauncher: ({ unread, blocked, toggle }) => <RoomToolbar inline={roomPanel === null} onLedger={() => setRoomPanel("ledger")} panel={roomPanel} unread={unread} chatBlocked={blocked} onTables={() => setRoomPanel(null)} onChat={toggle} onMembers={() => setRoomPanel("members")} onMore={() => setRoomPanel("more")} />,
   });
@@ -257,7 +260,6 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
     } catch (failure) { setRoomInviteError(playerError(failure, ui("feedback.could_not_search_the_player_directory"))); }
     finally { setRoomInviteSearching(false); }
   }
-  const current = rooms.find(item => item.room_id === room?.room_id) || room;
   const enterRooms = rooms.filter(item => item.creator_id === session?.user_id || item.members.includes(session?.user_id || ''));
   const ownedRooms = rooms.filter(item => item.creator_id === session?.user_id);
   const joinedRooms = enterRooms.filter(item => item.creator_id !== session?.user_id);
@@ -300,6 +302,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
     paddingTop: Math.max(insets.top, 16), paddingBottom: (room ? Math.max(insets.bottom, 28) + 64 : 24),
   }]}>
     <View style={[styles.content, !session && {maxWidth: 460}, room && { flexGrow: 1, maxWidth: 760 }]}>
+      {session && !expired && <SignupVerification key={session.token} session={session} />}
       <AppHeader logoSize={!session ? (wide ? 60 : 52) : undefined} lobby={!room && !!session} onOpenProfile={!room ? () => setLobbyProfileOpen(true) : undefined} inlineActions={session && !expired ? <NotificationBell session={session} onOpenActivity={target=>{
         if(target.otherUserId){setChatPlayer(target.otherUserId);setLobbyTab('chat');shared.exitRoom();}
         else if(target.roomId)setCodeInvitation(target);

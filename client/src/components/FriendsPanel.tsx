@@ -1,3 +1,4 @@
+import { OnlinePeopleStrip } from './OnlinePeopleStrip';
 import {AppText as Text} from './AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { PlayerAvatar } from './PlayerAvatar';
@@ -24,6 +25,7 @@ import type { Session } from '../multiplayer/session';
 type Player = { user_id: string; display_name: string; username?: string | null; avatar_url?: string | null };
 type Snapshot = { online_friend_ids?: string[] | null; friends: Player[]; incoming: Player[]; outgoing: Player[] };
 export type Message = { id: string; sender_id: string; recipient_id: string; text: string; removed?: boolean; sent_at: number };
+type Conversation = Pick<Message,'id'|'sender_id'|'text'|'removed'|'sent_at'> & {user_id:string};
 const empty: Snapshot = { friends: [], incoming: [], outgoing: [] };
 const label = (player: Player) => player.display_name || player.username || ui("common.player");
 
@@ -41,6 +43,8 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
   useEffect(()=>setExpandedFriends(false),[session.token,onlineOnly]);
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
+  const [conversations,setConversations]=useState<Conversation[]>([]);
+  const [conversationError,setConversationError]=useState('');
   const [snapshot, setSnapshot] = useState<Snapshot>(empty);
   const [query, setQuery] = useState(''), [results, setResults] = useState<Player[]>([]);
   const [selected, setSelected] = useState<Player | null>(null);
@@ -70,6 +74,12 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
     if (!signal?.aborted) {
       setSnapshot(value);
       setSelected(current => current && !value.friends.some(friend => friend.user_id === current.user_id) ? null : current);
+    }
+    if (onlineOnly && !signal?.aborted) {
+      try {
+        const rows=await request<Conversation[]>('/friends/conversations',session,undefined,signal);
+        if(!signal?.aborted){setConversations(rows);setConversationError('');}
+      } catch(failure){if(!signal?.aborted)setConversationError(playerError(failure,ui('social.conversations_unavailable')));}
     }
     return value;
   }
@@ -170,7 +180,25 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
     {!!snapshot.outgoing.length && <><Text style={styles.heading}>{ui("social.requests_sent")}</Text>{snapshot.outgoing.map(player => row(player,
       <Pressable accessibilityRole="button" onPress={() => void mutate(player.user_id, 'remove-friend')} style={styles.linkButton}><Text style={styles.link}>{ui("common.cancel")}</Text></Pressable>))}</>}
     </>}
-    <View style={styles.sectionHeading}><Text style={styles.heading}>{onlineOnly ? ui("social.online_friends") : ui("social.your_friends")}</Text><Text style={styles.count}>{visibleFriends.length}</Text></View>
+    {onlineOnly ? <>
+      <View style={styles.sectionHeading}><Text style={styles.heading}>{ui('social.online_friends')}</Text><Text style={styles.count}>{visibleFriends.length}</Text></View>
+      {!visibleFriends.length ? <Text style={styles.detail}>{ui('social.no_online_friends')}</Text> : <OnlinePeopleStrip people={visibleFriends} onlineIds={snapshot.online_friend_ids || []} onPress={player=>void rules.run(()=>{setMessages([]);setSendError('');setSelected(player);})}/>}
+      <View style={[styles.sectionHeading,{justifyContent:'space-between'}]}><Text accessibilityRole="header" style={styles.heading}>{ui('social.conversations')}</Text><Text style={styles.detail}>{ui('social.most_recent')}</Text></View>
+      {!!conversationError && <Text accessibilityRole="alert" style={styles.error}>{conversationError}</Text>}
+      {!conversationError && !conversations.length && <Text style={styles.detail}>{ui('social.no_conversations')}</Text>}
+      <View testID="chat-conversations" style={{gap:10}}>{conversations.map(message=>{
+        const player=snapshot.friends.find(friend=>friend.user_id===message.user_id);
+        if(!player)return null;
+        const online=!!snapshot.online_friend_ids?.includes(player.user_id);
+        return <Pressable key={player.user_id} accessibilityRole="button" accessibilityLabel={ui('social.chat_with_player',{player:label(player)})}
+          onPress={()=>void rules.run(()=>{setMessages([]);setSendError('');setSelected(player);})}
+          style={{flexDirection:'row',alignItems:'center',gap:12,padding:14,minHeight:86,borderRadius:radii.large,backgroundColor:colors.surfaceRaised,borderWidth:1,borderColor:colors.borderSubtle}}>
+          <View><PlayerAvatar size={48} uri={player.avatar_url || undefined}/>{online && <View style={{position:'absolute',right:0,bottom:0,width:10,height:10,borderRadius:5,backgroundColor:colors.success,borderWidth:2,borderColor:colors.surfaceRaised}}/>}</View>
+          <View style={{flex:1,minWidth:0,gap:5}}><Text numberOfLines={1} style={styles.name}>{label(player)}</Text><Text numberOfLines={1} style={styles.detail}>{message.removed?ui('moderation.removed'):message.text}</Text></View>
+          <Text style={styles.detail}>{new Date(message.sent_at).toDateString()===new Date().toDateString()?new Date(message.sent_at).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):new Date(message.sent_at).toLocaleDateString(undefined,{month:'short',day:'numeric'})}</Text>
+        </Pressable>;
+      })}</View>
+    </> : <>    <View style={styles.sectionHeading}><Text style={styles.heading}>{onlineOnly ? ui("social.online_friends") : ui("social.your_friends")}</Text><Text style={styles.count}>{visibleFriends.length}</Text></View>
     {!visibleFriends.length && <Text style={styles.detail}>{onlineOnly ? ui("social.no_online_friends") : ui("social.no_friends_yet")}</Text>}
     <ScrollView testID="friends-list" nestedScrollEnabled style={expandedFriends ? {maxHeight:420} : undefined} scrollEnabled={expandedFriends}>
     {(friendLimit && !expandedFriends ? visibleFriends.slice(0,friendLimit) : visibleFriends).map(player => row(player, <View style={styles.actions}>
@@ -179,7 +207,8 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
     </View>))}
 
     </ScrollView>
-    {!!friendLimit && visibleFriends.length>friendLimit && !expandedFriends && <Pressable accessibilityRole="button" onPress={()=>setExpandedFriends(true)} style={styles.linkButton}><Text style={styles.link}>{ui("common.more")}</Text></Pressable>}
+    {!!friendLimit && visibleFriends.length>friendLimit && !expandedFriends && <Pressable accessibilityRole="button" onPress={()=>setExpandedFriends(true)} style={styles.linkButton}><Text style={styles.link}>{ui("common.more")}</Text></Pressable>}</>}
+
     {rules.view}
     {selected && <RoomSheet visible title={ui("social.chat_with_player", { "player": label(selected) })} closeLabel={ui("common.close_private_chat")} onClose={() => setSelected(null)} scrollable={false}
       footer={<FormFooter>

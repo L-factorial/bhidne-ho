@@ -71,6 +71,16 @@ class PostgresRecoveryService:
             await self.outbox.enqueue(connection, user_id, challenge)
         return challenge
 
+    async def resend_email(self, user_id):
+        user = UUID(user_id.removeprefix('user-'))
+        async with self.pool.connection() as connection:
+            async with connection.transaction():
+                row = await (await connection.execute('SELECT unverified_email FROM account_credentials WHERE user_id=%s FOR UPDATE', (user,))).fetchone()
+                if row is None or row[0] is None:
+                    return
+                if await self._issue(connection, user, 'verify_email', row[0]) is None:
+                    raise RecoveryRateLimited()
+
     async def enroll_email(self, user_id: str, current_password: str, email: str):
         """Fresh password proof; existing verified contact survives until confirmation."""
         email = normalize_recovery_email(email)

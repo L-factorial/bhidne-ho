@@ -9,8 +9,16 @@ verified email, and no ownership inference or account merge from a claimed addre
 Social-only accounts continue using their identity provider.
 
 When enabled, password signup saves an unverified address and queues verification
-atomically. Profile supports status, resend/replacement with password proof, and
-confirmed removal. Verification does not prevent ordinary gameplay. Forgot password
+atomically. Both client runtime entrypoints show a Check your email screen with the
+address, inbox/spam instructions, a resend countdown, Change email, and Continue to
+app. Resend uses the existing account's pending address and authenticated session;
+changing the address requires the current password. Existing verified addresses
+remain active until the replacement is confirmed. The verification screen refreshes
+pending status every five seconds while open, then shows success without another
+login. After Continue, a pending-email reminder lets the user reopen verification.
+Profile supports status, resend/replacement with password proof, and confirmed
+removal. Verification does not prevent username sign-in or ordinary gameplay.
+Only verified, uniquely associated email addresses enable email/password sign-in. Forgot password
 uses the username; only the verified mailbox receives a reset. Reset revokes every
 server session and requires a fresh sign-in. Existing verified addresses remain
 active until a replacement is confirmed. Confirmation also invalidates old resets.
@@ -152,3 +160,42 @@ reminders and indexes verified email lookup; existing accounts, sessions and que
 verification/reset messages are preserved. Apply migration 31 before the new
 backend; complete both gateway upgrades before exposing the updated client, since
 old workers do not understand username reminders. No database reset is required.
+
+
+## Signup uniqueness and migration 41
+
+Migration 41 creates `account_email_claims` and triggers spanning signup addresses
+and verified recovery contacts. Email keys are lowercase, while the original mailbox
+spelling is preserved for delivery. Pending replacement and current verified emails
+are both reserved until verification or removal releases an unused address.
+Duplicate signup/replacement returns a readable conflict instead of creating or
+merging another account. Verification remains single-use with 30-minute expiry;
+resend shares the existing one-per-minute/five-per-hour budgets and invalidates the
+previous link. No token is returned from signup or resend.
+
+Before rollout, apply migration 41, then release both gateways and the client.
+Backfill keeps all account rows, passwords, sessions, contacts and queued messages.
+A previously shared address gets a claim with `user_id=NULL`, deliberately preventing
+new signup and email sign-in for that address. Username sign-in remains available.
+These legacy conflict claims require a reviewed resolution after affected users
+select and verify separate addresses; they are not automatically assigned to one
+account. Conflict claims are removed when no account references the address; a
+remaining single owner still requires reviewed resolution. A count-only audit is:
+
+```sql
+SELECT count(*) AS legacy_email_conflicts FROM account_email_claims WHERE user_id IS NULL;
+```
+
+Mail delivery still requires the existing recovery configuration on both gateways.
+If disabled, the UI reports that verification delivery is unavailable; it does not
+claim that mail was sent. Production acceptance must verify real inbox delivery and
+physical-device link handling separately from fixture tests.
+
+Validation: `tests/test_signup_verification.py` covers case-insensitive uniqueness,
+rollback, pending/verified reservations, replacement/removal, legacy migration,
+authenticated resend limits, invalidated links, and verified-only email sign-in.
+`client/tests/browser/signup-verification.cjs` checks signup, resend cooldown, address
+correction, automatic success refresh and Continue at 390/1280 pixels using local
+API fixtures. Existing SQL recovery/delivery and account/room regression suites
+remain applicable. PGlite serializes connections; it does not prove independent
+PostgreSQL concurrency or live email delivery.

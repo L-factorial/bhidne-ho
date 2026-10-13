@@ -19,7 +19,7 @@ comes from the authenticated user-to-seat roster, never payload fields.
 | --- | --- | --- |
 | START_GAME | `{}` | `start_game()`; owner only, room startup uses this internally |
 | BET | `{amount: positive integer}` | `bet(seat, amount)` |
-| SEE_CARDS | `{}` | `see_cards(seat)` |
+| SEE_CARDS | `{round_number}` (optional for legacy exact-revision clients) | `see_cards(seat)` |
 | FOLD | `{}` | `fold(seat)` |
 | REQUEST_SIDE_SHOW | `{}` | `request_side_show(seat)`; target selected by engine |
 | ACCEPT_SIDE_SHOW / DECLINE_SIDE_SHOW | `{}` | Target-only response |
@@ -171,3 +171,5 @@ may FOLD (requester wins; responder cards stay private) or REVEAL_CARDS (both ha
 public and the engine compares them using the configured tie policy). No additional fee
 is charged for revealing. Other actions and roster changes remain blocked while waiting.
 The pending response and revealed requester hand survive reconnects.
+
+Round-scoped SEE_CARDS commands allow a captured revision from the same dealt round. The reliable runtime still serializes mutations and deduplicates command IDs; each accepted reveal increments the game revision once. Durable receipts validate against the preceding checkpoint and authenticated Flush seat. Other gameplay commands retain their revision checks. Old-round reveals are rejected with refreshed state, and private cards remain visible only to their owner.

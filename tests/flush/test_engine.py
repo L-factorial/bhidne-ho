@@ -56,13 +56,19 @@ def test_start_conservation_boot_turn_and_privacy(n):
 @pytest.mark.parametrize('threshold', [0, 1, 3, 5])
 def test_seeing_is_immediate_regardless_of_side_show_threshold_and_retains_turn(threshold):
     e = engine(minimum_bet_rounds_before_side_show=threshold)
-    unchanged(e, lambda: e.see_cards('p0'))
+    before = e.get_state()
+    assert 'see_cards' in e.get_allowed_actions('p0').kinds
+    e.see_cards('p0')
+    after = e.get_state()
+    assert after.current_player_id == before.current_player_id
+    assert after.pot == before.pot and after.current_blind_bet == before.current_blind_bet
+    assert after.revision == before.revision + 1
     result = e.apply_action('p1', SeeCards())
     assert result.events[0].kind == 'CARDS_SEEN'
     assert e.get_state().current_player_id == 'p1'
     own = e.get_player_view('p1')
     assert len(own.cards) == 3 and own.actions.required_bet == 20
-    assert e.get_player_view('p0').cards == ()
+    assert len(e.get_player_view('p0').cards) == 3
     assert not e.get_visible_events()[-1].shown_hands
     unchanged(e, lambda: e.see_cards('p1'))
     unchanged(e, lambda: e.bet('p1', 10))

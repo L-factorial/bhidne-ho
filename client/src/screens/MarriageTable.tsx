@@ -1,3 +1,4 @@
+import { TurnStatus } from '../components/TurnStatus';
 import { MarriageMeldCards } from '../components/MarriageMeldCards';
 import { WaitingHandArea } from '../components/WaitingHandArea';
 import {CompactCardFace} from '../components/CompactCardFace';
@@ -241,7 +242,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
                 <TurnGlow active={allowed} radius={7}/>
               </Pressable>
               <Text style={s.small}>{source === 'discard' ? ui("marriage.discard_pile") : ui("marriage.deck_count", { "count": pub.stock_count })}</Text>
-              <Text style={[s.small, {color:allowed ? colors.accent : colors.textMuted, textAlign:'center'}]}>{allowed ? label : busy ? ui("marriage.taking_card") : social.connected ? ui("feedback.unavailable") : ui("feedback.reconnecting")}</Text>
+
             </View>;
           })}
           <View style={s.drawSource}>
@@ -251,6 +252,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
             </Pressable>
             <Text style={s.small}>{ui('marriage.maal')}</Text>
           </View>
+          {pub.current_player_id && <TurnStatus text={isTurn?ui('common.your_turn'):ui('common.player_s_turn', {player:name(pub.current_player_id)})}/>}
         </View>}
 
       <View testID="marriage-recorded-declarations" style={s.row}>
@@ -265,21 +267,24 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       </View>}
       {declaring && <MarriageTunnelaPanel onEligibility={reportTunnela} hand={hand} visible={allRevealed&&!hidden} busy={busy} connected={social.connected} submit={onAction}/>}
       {declarationsPending && !declaring && <Text style={s.text}>{ui("marriage.declaration_recorded_waiting_for_other_players")}</Text>}
-      {!declaring && !own?.folded && (own?.has_seen_maal && mine.maal ? <MarriageWinPanel onEligibility={reportMarriage} hand={hand} shown={own.shown_melds} initialTunnelas={own.initial_tunnelas} maal={mine.maal} route={own.route}
+      <View testID="marriage-hand-controls" style={{flexDirection:preview||finishPreview||own?.has_seen_maal?'column':'row',gap:6,alignItems:'stretch'}}>
+        {!preview && !finishPreview && !declaring && allRevealed && !own?.has_seen_maal && <View accessibilityRole="tablist" style={{flexDirection:'row',flex:2,gap:6,minWidth:0}}>
+          {(["sequence","dublee"] as const).map(value=><Pressable key={value} accessibilityRole="tab" accessibilityLabel={value==='sequence'?ui("marriage.sequence_tunnela"):ui("marriage.dublee")}
+            accessibilityState={{selected:arrangement===value}} onPress={()=>{setArrangement(value);setManualOrder({key:orderKey,ids:[]});}} style={[s.button,{flex:1,minWidth:0,paddingHorizontal:6},arrangement===value&&s.chosen]}>
+            <Text style={[s.buttonText,{fontSize:11,textAlign:'center'}]}>{value==='sequence'?ui("marriage.sequence_tunnela"):ui("marriage.dublee")}</Text>
+          </Pressable>)}
+        </View>}
+        <View style={{flex:preview||finishPreview||own?.has_seen_maal?undefined:1,minWidth:0}}>{!declaring && !own?.folded && (own?.has_seen_maal && mine.maal ? <MarriageWinPanel onEligibility={reportMarriage} hand={hand} shown={own.shown_melds} initialTunnelas={own.initial_tunnelas} maal={mine.maal} route={own.route}
         visible={allRevealed && !hidden} enabled={canAct && isTurn && social.connected} busy={busy} canFinish={!!actions?.kinds.includes('finish')}
         preview={finishPreview && !hidden} setPreview={setFinishPreview} error={uiLabel(error, 'feedback')} submit={onAction} /> :
       <MarriageMaalPanel onEligibility={reportMaal} hand={availableHand} shown={own?.shown_melds || []} unlocked={false} maal={mine.maal}
         enabled={canAct && isTurn && pub.phase === 'must_discard' && social.connected} visible={allRevealed && !hidden} busy={busy} actions={actions?.kinds || []}
-        preview={preview && !hidden} setPreview={setPreview} arrangement={arrangement} error={uiLabel(error, 'feedback')} submit={onAction} />)}
+        preview={preview && !hidden} setPreview={setPreview} arrangement={arrangement} error={uiLabel(error, 'feedback')} submit={onAction} />)}</View>
+      </View>
       {!preview && !finishPreview && <>
 
 
-        {!declaring && allRevealed && !own?.has_seen_maal && <View accessibilityRole="tablist" style={s.row}>
-          {(["sequence","dublee"] as const).map(value=><Pressable key={value} accessibilityRole="tab" accessibilityLabel={value==='sequence'?ui("marriage.sequence_tunnela"):ui("marriage.dublee")}
-            accessibilityState={{selected:arrangement===value}} onPress={()=>{setArrangement(value);setManualOrder({key:orderKey,ids:[]});}} style={[s.button,arrangement===value&&s.chosen]}>
-            <Text style={s.buttonText}>{value==='sequence'?ui("marriage.sequence_tunnela"):ui("marriage.dublee")}</Text>
-          </Pressable>)}
-        </View>}
+
         {!hidden && allRevealed && drawnCard && <Text testID="marriage-drawn-card" accessibilityLiveRegion="polite" style={s.heading}>{ui("marriage.you_drew_card", { "card": physicalLabel(drawnCard.card_id) })}</Text>}
         {canDiscard && <Text testID="marriage-discard-prompt" accessibilityLiveRegion="polite" style={s.heading}>{selectedCard ? ui("marriage.confirm_your_discard_below") : ui("marriage.select_a_card_to_discard")}</Text>}
         <View style={{position:'relative',borderRadius: radii.medium}}>
@@ -323,7 +328,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   small: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 12, lineHeight: 19 }, heading: { fontFamily: fonts.medium, color: colors.accent, fontSize: 16 },
   row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }, button: { ...gameButtonStyle(colors), alignItems: 'center', justifyContent: 'center' },
   chosen: { backgroundColor: colors.surfaceSelected }, buttonText: { fontFamily: fonts.medium, color: colors.onTableHeader, fontSize: 12 }, disabled: { opacity: visualStates.disabledOpacity },
-  drawSection: { flexDirection:'row', alignItems:'flex-start', gap:8, justifyContent:'center', padding:10, borderWidth:1, borderColor:colors.border, borderRadius: radii.medium, backgroundColor:colors.tableHeader },
+  drawSection: { flexDirection:'row', flexWrap:'wrap', alignItems:'flex-start', gap:8, justifyContent:'center', padding:10, borderWidth:1, borderColor:colors.border, borderRadius: radii.medium, backgroundColor:colors.tableHeader },
   drawSource: { flex:1, alignItems:'center', gap:6 },
   piles: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 24, minHeight: 130 }, pileFace: { fontSize: 32, backgroundColor: colors.cardFace, color: colors.cardRed, borderRadius: radii.medium, padding: 14 },
   hand: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, position: 'relative', paddingVertical: 6 }, card: { width: 49, height: 78, borderRadius: 7, borderWidth: 2, borderColor: colors.cardBorder, backgroundColor: colors.cardFace, alignItems: 'center', justifyContent: 'center', gap: 3 },

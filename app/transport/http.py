@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.auth.models import AccountCredentials, SignInInput, GuestCredentials, GuestInput, SignUpInput
-from app.auth.service import AuthenticationError, UsernameTakenError
+from app.auth.service import AuthenticationError, UsernameTakenError, EmailTakenError
 from app.models.room import CreateRoom, RoomSummary, UpdateRoom, InviteRoom
 from app.models.user import UserIdentity
 from app.players.service import PlayerNotFound
@@ -65,7 +65,7 @@ async def sign_up(body: SignUpInput, request: Request, response: Response):
             await saved
         await request.app.state.players.refresh_player(credentials.user_id)
         return credentials
-    except UsernameTakenError as error:
+    except (UsernameTakenError, EmailTakenError) as error:
         raise HTTPException(409, str(error)) from None
 
 

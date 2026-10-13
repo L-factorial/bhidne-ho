@@ -35,7 +35,7 @@ class SignInInput(BaseModel):
             return normalize_recovery_email(value)
         import re
         if not re.fullmatch(r'[a-zA-Z0-9_-]{3,32}', value):
-            raise ValueError('Enter your username or verified email address.')
+            raise ValueError('Enter your username or email address.')
         return value.lower()
 
 

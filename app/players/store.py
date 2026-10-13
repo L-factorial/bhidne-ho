@@ -96,6 +96,15 @@ class InMemoryPlayerStore:
 
     async def are_friends(self, user_id, friend_id): return self.accepted(user_id, friend_id)
 
+    async def conversations(self, user_id):
+        latest = {}
+        for message in self.messages:
+            if user_id not in (message['sender_id'], message['recipient_id']): continue
+            other = message['recipient_id'] if message['sender_id'] == user_id else message['sender_id']
+            if self.accepted(user_id, other):
+                latest[other] = dict(message, user_id=other)
+        return sorted(latest.values(), key=lambda row: (row['sent_at'],row['id']), reverse=True)[:100]
+
     async def history(self, user_id, friend_id):
         if not self.accepted(user_id, friend_id): raise FriendshipDenied("Only friends can message each other.")
         return [message for message in self.messages if {message["sender_id"], message["recipient_id"]} == {user_id, friend_id}][-100:]
@@ -253,6 +262,24 @@ class PostgresPlayerStore:
         async with self.pool.connection() as connection:
             row = await (await connection.execute("SELECT 1 FROM friendships WHERE user_low=%s AND user_high=%s AND status='accepted'", (low, high))).fetchone()
         return row is not None
+
+    async def conversations(self, user_id):
+        current = internal_id(user_id)
+        async with self.pool.connection() as connection:
+            rows = await (await connection.execute("""
+                SELECT other.id AS friend_id,m.id AS message_id,m.sender_id,m.text,(extract(epoch from m.sent_at)*1000)::bigint
+                FROM friendships f
+                JOIN users other ON other.id=CASE WHEN f.user_low=%s THEN f.user_high ELSE f.user_low END
+                JOIN LATERAL (SELECT id,sender_id,text,sent_at FROM direct_messages
+                    WHERE (sender_id=%s AND recipient_id=other.id) OR (sender_id=other.id AND recipient_id=%s)
+                    ORDER BY sent_at DESC,id DESC LIMIT 1) m ON true
+                WHERE (f.user_low=%s OR f.user_high=%s) AND f.status='accepted'
+                    AND NOT other.deletion_pending AND NOT other.erased AND NOT social_blocked(%s,other.id)
+                ORDER BY m.sent_at DESC,m.id DESC LIMIT 100
+            """, (current,current,current,current,current,current))).fetchall()
+            items = [dict(user_id=public_id(r[0]),id=str(r[1]),sender_id=public_id(r[2]),text=r[3],sent_at=int(r[4])) for r in rows]
+            from app.moderation.visibility import redact_messages
+            return await redact_messages(connection,'direct',items)
 
     async def history(self, user_id, friend_id):
         async with self.pool.connection() as connection:

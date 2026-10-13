@@ -15,7 +15,7 @@ import { useUiLanguage } from '../i18n/useUiLanguage';
 
 function recoveryError(error: unknown) {
   const code = error instanceof ApiError ? error.detail?.code : undefined;
-  return ui((['recovery_unavailable','recovery_rate_limited','recovery_password_incorrect','recovery_link_invalid'].includes(String(code))
+  return ui((['recovery_unavailable','recovery_rate_limited','recovery_password_incorrect','recovery_link_invalid','recovery_email_taken'].includes(String(code))
     ? `recovery.${code}` : 'recovery.failure') as UiKey);
 }
 function Action({ label, onPress, disabled = false, primary = false }: {label: string; onPress: () => void; disabled?: boolean; primary?: boolean}) {
@@ -47,10 +47,14 @@ export function RecoveryScreen({ link, onDone, recoverUsername = false }: {link?
   const inputStyle = styles.input;
   return <AccountPage footer={<>
       {!done && <Action primary label={ui(verify ? 'recovery.verify' : reset ? 'recovery.reset' : recoverUsername ? 'recovery.sendUsername' : 'recovery.request')} onPress={() => void submit()} disabled={disabled}/>}
-      <Action label={ui(done && reset ? 'recovery.done' : 'recovery.back')} disabled={busy} onPress={() => onDone(done && reset)}/>
+      <Action primary={done && !!verify} label={ui(done && verify ? 'recovery.continueBrowser' : done && reset ? 'recovery.done' : 'recovery.back')} disabled={busy} onPress={() => onDone(done && reset)}/>
     </>}>
-      <Text accessibilityRole="header" style={styles.title}>{ui(verify ? 'recovery.verify' : reset ? 'recovery.reset' : recoverUsername ? 'recovery.forgotUsername' : 'recovery.title')}</Text>
+      <Text accessibilityRole="header" style={styles.title}>{ui(verify ? (done ? 'recovery.verifiedTitle' : 'recovery.verify') : reset ? 'recovery.reset' : recoverUsername ? 'recovery.forgotUsername' : 'recovery.title')}</Text>
       <Text style={styles.description}>{ui(done ? (verify ? 'recovery.verified' : reset ? 'recovery.resetDone' : recoverUsername ? 'recovery.usernameRequested' : 'recovery.requested') : (verify ? 'recovery.verifyHelp' : reset ? 'recovery.resetHelp' : recoverUsername ? 'recovery.usernameHelp' : 'recovery.requestHelp'))}</Text>
+      {done && verify && <View style={{gap:12,marginTop:12}}>
+        <Text style={styles.description}>{ui('recovery.returnApp')}</Text>
+        <Text style={styles.description}>{ui('recovery.returnBrowser')}</Text>
+      </View>}
       {!done && <>
         {enabled === null && <Text style={{color:colors.text}}>{ui('recovery.loading')}</Text>}
         {enabled === false && <Text accessibilityRole="alert" style={{color:colors.text}}>{ui('recovery.unavailable')}</Text>}
@@ -118,4 +122,61 @@ export function RecoveryEmailSettings({session}: {session: Session}) {
     {!!message && <Text accessibilityRole="alert" style={{color:colors.text}}>{message}</Text>}
     {!!error && <Text accessibilityRole="alert" style={{color:colors.danger}}>{error}</Text>}
   </View>;
+}
+
+// Shared by both runtime entrypoints; only password accounts with pending email appear.
+export function SignupVerification({ session }: { session: Session }) {
+  useUiLanguage(); const { colors } = useTheme();
+  const [status, setStatus] = useState<EmailStatus | null>(null);
+  const [dismissed, setDismissed] = useState(false);
+  const [changing, setChanging] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [cooldown, setCooldown] = useState(60);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [sawPending, setSawPending] = useState(false);
+  useEffect(() => {
+    let active = true; const abort = new AbortController();
+    async function refresh() {
+      try {
+        const value = await sharedRequest<EmailStatus>('/auth/recovery/email', session, undefined, abort.signal);
+        if (active) { setStatus(value); if (value.pending_email) setSawPending(true); }
+      } catch (e) { if (active) setError(recoveryError(e)); }
+    }
+    void refresh();
+    const timer = !dismissed && status?.pending_email ? setInterval(() => void refresh(), 5000) : undefined;
+    return () => { active = false; abort.abort(); if (timer) clearInterval(timer); };
+  }, [session.token, dismissed, status?.pending_email]);
+  useEffect(() => {
+    if (!cooldown) return;
+    const timer = setTimeout(() => setCooldown(value => Math.max(0, value - 1)), 1000);
+    return () => clearTimeout(timer);
+  }, [cooldown]);
+  async function resend() {
+    if (busy || cooldown || !status?.enabled) return;
+    setBusy(true); setError('');
+    try { await sharedRequest('/auth/recovery/email/resend', session, {}); setCooldown(60); setMessage(ui('recovery.sent')); }
+    catch (e) { setError(recoveryError(e)); } finally { setBusy(false); }
+  }
+  if (!status?.password_account || (!status.pending_email && (!sawPending || !status.verified_email))) return null;
+  if (dismissed) return status.pending_email ? <View style={{padding:12,gap:8}}>
+    <Text style={{color:colors.text}}>{ui('recovery.pendingAddress',{email:status.pending_email})}</Text>
+    <Action label={ui('recovery.verify')} onPress={() => setDismissed(false)}/>
+  </View> : null;
+  const verified = !status.pending_email && !!status.verified_email;
+  return <Modal visible animationType="slide" onRequestClose={() => setDismissed(true)}>
+    <AccountPage compact footer={<Action primary label={ui('recovery.continueApp')} onPress={() => setDismissed(true)}/>}>
+      <Text accessibilityRole="header" style={{fontSize:28,color:colors.text}}>{ui(verified?'recovery.verifiedTitle':'recovery.checkEmail')}</Text>
+      <Text style={{color:colors.text}}>{ui(verified?'recovery.verified':'recovery.signupHelp')}</Text>
+      <Text style={{color:colors.text}}>{status.pending_email || status.verified_email}</Text>
+      {!verified && <>
+        {!status.enabled && <Text accessibilityRole="alert" style={{color:colors.text}}>{ui('recovery.unavailable')}</Text>}
+        <Action label={cooldown?ui('recovery.resendWait',{seconds:cooldown}):ui('recovery.resend')} disabled={busy || !!cooldown || !status.enabled} onPress={() => void resend()}/>
+        <Action label={ui('recovery.changeEmail')} onPress={() => setChanging(value => !value)}/>
+        {changing && <RecoveryEmailSettings session={session}/>}
+      </>}
+      {!!message && <Text accessibilityRole="alert" style={{color:colors.text}}>{message}</Text>}
+      {!!error && <Text accessibilityRole="alert" style={{color:colors.danger}}>{error}</Text>}
+    </AccountPage>
+  </Modal>;
 }

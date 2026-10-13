@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { GameCommandClient, createHttpGameTransport } from '../src/multiplayer/GameCommandClient.ts';
+import { GameCommandClient, captureGamePayload, createHttpGameTransport } from '../src/multiplayer/GameCommandClient.ts';
 import { PendingGameAction } from '../src/multiplayer/PendingGameAction.ts';
 
 const signal = () => new AbortController().signal;
@@ -148,3 +148,11 @@ for (const command of ['ACCEPT_HAND', 'CLAIM_REDEAL']) {
     assert.deepEqual(bodies[0].payload,{hand_review_phase_id:'match:1:1:hand-review'});
   });
 }
+
+ test('Flush reveal captures its dealt round; betting remains revision bound',()=>{
+ const snapshot={match_id:'match',game_type:'flush',game:{revision:3},flush:{public:{round_number:2}}};
+ const payload=captureGamePayload(snapshot,'SEE_CARDS',{});
+ snapshot.flush.public.round_number=3;
+ assert.deepEqual(payload,{round_number:2});
+ assert.deepEqual(captureGamePayload(snapshot,'BET',{amount:20}),{amount:20});
+ });

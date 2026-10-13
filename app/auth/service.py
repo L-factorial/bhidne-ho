@@ -51,6 +51,10 @@ class UsernameTakenError(Exception):
     pass
 
 
+class EmailTakenError(Exception):
+    pass
+
+
 class InMemoryAuthService(GuestAuthService):
     """Development accounts. Password hashes and sessions disappear on restart."""
 
@@ -80,6 +84,8 @@ class InMemoryAuthService(GuestAuthService):
         # Check after hashing: concurrent signups cannot overwrite an account.
         if username in self._accounts:
             raise UsernameTakenError("Username is already taken")
+        if email is not None and any(value.lower() == email.lower() for value in self._unverified_emails.values()):
+            raise EmailTakenError("Email is already associated with an account. Sign in or recover your account.")
         identity = UserIdentity(user_id=f"user-{uuid4()}")
         self._accounts[username] = (identity, salt, hashed)
         if email is not None:
@@ -87,6 +93,10 @@ class InMemoryAuthService(GuestAuthService):
         return self._session(username, identity)
 
     async def sign_in(self, username: str, password: str) -> AccountCredentials:
+        username = username.strip().lower()
+        # Process-local development accounts cannot verify email ownership.
+        if '@' in username:
+            username = ''
         account = self._accounts.get(username)
         salt = account[1] if account else bytes(16)
         hashed = await asyncio.to_thread(self._hash, password, salt)

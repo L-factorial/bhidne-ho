@@ -9,7 +9,7 @@ from psycopg.errors import UniqueViolation
 
 from app.auth.models import AccountCredentials, GuestCredentials
 from app.auth.email import normalize_recovery_email
-from app.auth.service import AuthenticationError, InMemoryAuthService, UsernameTakenError
+from app.auth.service import AuthenticationError, EmailTakenError, InMemoryAuthService, UsernameTakenError
 from app.models.user import UserIdentity
 
 
@@ -94,7 +94,9 @@ class PostgresAuthService:
                         await connection.execute('INSERT INTO community_acceptance(user_id,version) VALUES (%s,%s)',
                                                  (user_id, community_rules_version))
                     return await self._session(connection, user_id, username)
-        except UniqueViolation:
+        except UniqueViolation as error:
+            if error.diag.constraint_name == 'account_email_claims_pkey' or 'Email is already associated' in str(error):
+                raise EmailTakenError("Email is already associated with an account. Sign in or recover your account.") from None
             raise UsernameTakenError("Username is already taken") from None
 
     async def sign_in(self, username: str, password: str) -> AccountCredentials:
@@ -104,13 +106,16 @@ class PostgresAuthService:
             async with connection.transaction():
                 identifier = username.strip()
                 if '@' in identifier:
-                    # Only verified contacts can identify a password account.
-                    # Shared recovery addresses remain supported, but cannot
-                    # ambiguously choose which account is being signed into.
+                    # Only verified contacts enable email sign-in. Legacy shared
+                    # addresses still require a username.
                     result = await connection.execute('''SELECT a.user_id,a.password_salt,a.password_hash,a.username
-                        FROM account_credentials a JOIN account_recovery_contacts r ON r.user_id=a.user_id
-                        WHERE lower(r.email)=lower(%s) ORDER BY a.user_id LIMIT 2 FOR UPDATE OF a,r''',
-                        (normalize_recovery_email(identifier),))
+                        FROM account_credentials a
+                        WHERE EXISTS(SELECT 1 FROM account_email_claims c
+                            WHERE c.user_id=a.user_id AND c.email=lower(%s))
+                        AND EXISTS(SELECT 1 FROM account_recovery_contacts r
+                            WHERE r.user_id=a.user_id AND lower(r.email)=lower(%s))
+                        ORDER BY a.user_id LIMIT 2 FOR UPDATE OF a''',
+                        (normalize_recovery_email(identifier), normalize_recovery_email(identifier)))
                     rows = await result.fetchall()
                     row = rows[0] if len(rows) == 1 else None
                 else:

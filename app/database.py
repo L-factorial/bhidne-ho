@@ -5,6 +5,7 @@ Migrations are append-only and run under a PostgreSQL advisory lock so concurren
 application starts cannot race schema installation.
 """
 
+from app.auth.email_claim_schema import EMAIL_CLAIM_SCHEMA
 from psycopg_pool import AsyncConnectionPool
 from app.push.schema import PUSH_SCHEMA
 from app.push.social_schema import SOCIAL_PUSH_SCHEMA
@@ -721,6 +722,7 @@ MIGRATIONS = (
     (38, PUSH_SCHEMA),
     (39, SOCIAL_PUSH_SCHEMA),
     (40, GAME_CONNECTION_SCHEMA),
+    (41, EMAIL_CLAIM_SCHEMA),
 )
 
 

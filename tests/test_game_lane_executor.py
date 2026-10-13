@@ -26,6 +26,36 @@ async def setup_game(database, kind='marriage', *, receipt_limit=10000):
     return host, game, inbox, lane, GameLaneExecutor(inbox)
 
 
+async def test_flush_reveals_share_revision_in_serialized_durable_lane(database):
+    import asyncio
+    pool,checkpoints,fence,users=database
+    host,game=await host_game(users,'flush')
+    try:
+        await advance(host,game,'DEAL_CARDS'); await advance(host,game,'SKIP_CUT')
+        state=engine_state(game)
+        from app.multiplayer.table_session import sync
+        import time
+        sync(game,time.time())
+        original=capture_checkpoint(game,table_revision=0)
+        await checkpoints.save(original,expected_revision=None,fence=fence)
+        inbox=PostgresInboxStore(pool)
+        lane=await inbox.ensure_lane(LaneTarget(kind='game',room_id='room',table_id=UUID(game.table.table_id),game_id=game.durable_game_id))
+        requests=[ReliableActionCommand(match_id=game.match_id,command_id=uuid4().hex,
+            expected_revision=state.revision,command='SEE_CARDS',payload={'round_number':state.round_number}).model_dump(mode='json') for _ in game.users]
+        await asyncio.gather(*(inbox.enqueue(lane,user,request) for user,request in zip(game.users,requests)))
+        executor=GameLaneExecutor(inbox)
+        outcomes=[await executor.execute_one(lane,fence) for _ in requests]
+        assert all(result.outcome['status']=='accepted' for result in outcomes)
+        loaded=await checkpoints.load(game.table.table_id)
+        assert loaded.checkpoint['data']['engine']['revision']==state.revision+2
+        assert loaded.checkpoint['data']['host']['session']['turns']==original['data']['host']['session']['turns']
+        for user,request in zip(game.users,requests):
+            assert (await inbox.enqueue(lane,user,request)).outcome['status']=='accepted'
+        assert await executor.execute_one(lane,fence) is None
+    finally:
+        await host.close()
+
+
 def command(game, kind=None, *, expected=None, command_id=None, payload=None):
     state = engine_state(game)
     name = kind or {'marriage': 'DRAW_CARD', 'flush': 'DEAL_CARDS', 'callbreak': 'SHUFFLE_DECK'}[game.game_type]

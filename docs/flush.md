@@ -76,7 +76,7 @@ neither betting counter. No player move is automated.
 | `deal_cards(player_id)` | Dealer shuffles and passes to the next seat for cutting |
 | `cut_deck(player_id, position)` / `skip_cut(player_id)` | Next seat cuts or skips, then cards are dealt and boot collected |
 | `bet(player_id, amount)` | Contribute at least the current minimum, update blind/seen minimums, and advance one active seat |
-| `see_cards(player_id)` | Current blind player qualifies after personal blind threshold; retain turn |
+| `see_cards(player_id)` | Any ACTIVE blind player can reveal during normal play; retain the current turn |
 | `fold(player_id)` | Mark folded, skip future turns; settle immediately if one remains |
 | `request_side_show(player_id)` | Pay one seen bet and request the previous active seen player |
 | `accept_side_show(player_id)` / `decline_side_show(player_id)` | Only the requested target responds; play resumes after requester |
@@ -97,7 +97,7 @@ turn, history, revision, and RNG remain unchanged. Invalid construction raises
 `ValueError`; unsupported rules raise `UnsupportedRuleError`. Audit failures
 raise `InvariantError` and prevent a candidate state from being committed.
 
-Only the current ACTIVE seat may act, including SEE_CARDS. Seen players pay
+Only the current ACTIVE seat may bet, fold, or initiate a show. SEE_CARDS is available to any ACTIVE blind player during normal play, without changing the turn or its deadline. Reveals wait while a show or side-show response is pending. Seen players pay
 `current_blind_bet * blind_to_seen_bet_multiplier`; blind players pay the blind
 stake. Bets may meet or exceed the current minimum. `turn_bet_count` counts all successful BET actions;
 `blind_bet_count` counts only those made while blind. Other players' actions,

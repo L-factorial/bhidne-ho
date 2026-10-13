@@ -3,7 +3,7 @@ import { GameModal as Modal } from './GameModal';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { Ionicons } from '@expo/vector-icons';
-import { BrandIcon } from './BrandArt';
+import { BrandLogo } from './BrandArt';
 import { KeyboardFrame } from './KeyboardFrame';
 import { type ReactNode, createContext, useContext, useEffect, useState } from 'react';
 import {Platform, Pressable, ScrollView, View, useWindowDimensions} from 'react-native';
@@ -62,7 +62,7 @@ export function GameTableHeader({ title, tableName, path, game, roomId, matchId,
     </RoomSheet>
     <View testID={`${game}-${mobile && mobileTestIds ? 'mobile-' : ''}header`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 8, backgroundColor: colors.surface, borderBottomWidth: 1, borderColor: colors.borderSubtle }}>
       <View style={{flexDirection:'row',alignItems:'center',flexShrink:0}}>
-        <BrandIcon />
+        <BrandLogo />
       </View>
       <View testID={`${game}-header-location`} style={{flex:1,minWidth:0,alignItems:'center'}}>
         <Text numberOfLines={1} accessibilityRole="header" style={{fontFamily:fonts.medium,fontSize:small?16:20,color:colors.text}}>{title}</Text>

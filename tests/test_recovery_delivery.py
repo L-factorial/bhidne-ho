@@ -115,7 +115,7 @@ async def test_public_routes_status_proof_replace_remove_reset_and_no_token_resp
         assert (await client.get('/auth/recovery/email')).status_code == 401
         user, headers = await signup(client, 'route_player')
         pending = (await client.get('/auth/recovery/email',headers=headers)).json()
-        assert pending['pending_email'] == 'signup@example.test' and pending['verified_email'] is None
+        assert pending['pending_email'] == 'route_player@example.test' and pending['verified_email'] is None
         verification = await envelope(pool,runtime)
         response = await client.post('/auth/recovery/verify',json={'token':verification['token']})
         assert response.json() == {'verified':True} and response.headers['cache-control'] == 'no-store'
@@ -126,14 +126,14 @@ async def test_public_routes_status_proof_replace_remove_reset_and_no_token_resp
         response = await client.post('/auth/recovery/email',headers=headers,json={'email':'new@example.test','current_password':'long-password'})
         assert response.status_code == 202 and response.json() == {'accepted':True}
         pending = (await client.get('/auth/recovery/email',headers=headers)).json()
-        assert pending['verified_email']=='signup@example.test' and pending['pending_email']=='new@example.test'
+        assert pending['verified_email']=='route_player@example.test' and pending['pending_email']=='new@example.test'
         for name in ('unknown_player','route_player'):
             response = await client.post('/auth/recovery/reset/request',json={'username':name})
             assert response.status_code == 202 and response.json() == {'accepted':True}
             assert response.headers['cache-control'] == 'no-store'
             await runtime.process_reset()
         reset = await envelope(pool,runtime,'reset_password')
-        assert reset['email'] == 'signup@example.test'
+        assert reset['email'] == 'route_player@example.test'
         response = await client.post('/auth/recovery/reset/complete',json={'token':reset['token'],'password':'new-password'})
         assert response.json() == {'reset':True}
         assert (await client.get('/auth/me',headers=headers)).status_code == 401
@@ -195,9 +195,11 @@ async def test_worker_lifecycle_and_recipient_budget(recovery_database, monkeypa
     pool = recovery_database
     auth = PostgresAuthService(pool)
     runtime = RecoveryRuntime(pool,auth,config())
-    for index in range(11):
-        await auth.sign_up(f'recipient_{index}','old-password',email='same@example.test')
-    assert (await pool.execute('SELECT count(*) FROM recovery_mail_outbox')).rows == [(10,)]
+    await auth.sign_up('recipient_player','old-password',email='same@example.test')
+    async with pool.connection() as c:
+        assert all([await runtime.budget(c, 'recipient', 'same@example.test', 10, 3600) for _ in range(9)])
+        assert not await runtime.budget(c, 'recipient', 'same@example.test', 10, 3600)
+    assert (await pool.execute('SELECT count(*) FROM recovery_mail_outbox')).rows == [(1,)]
     delivered = []
     monkeypatch.setattr(RecoveryConfig,'send',lambda self,payload: delivered.append(payload))
     await runtime.start()

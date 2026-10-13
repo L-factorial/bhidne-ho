@@ -82,6 +82,8 @@ def allowed_actions(state, player_id):
     side_show = evaluate_side_show_eligibility(state, player_id)
     target = previous_seen_player(state, player_id)
     kinds = []
+    if see.allowed:
+        kinds.append('see_cards')
     if (state.status is GameStatus.FINISHED and player_id == state.settlement.winner_ids[0]):
         kinds.append('start_next_round')
     if state.current_player_id == player_id:
@@ -93,8 +95,6 @@ def allowed_actions(state, player_id):
             and state.current_player_id == player_id and state.pending_side_show is None and state.pending_show is None):
         kinds.append('fold')
         kinds.append('bet')
-        if see.allowed:
-            kinds.append('see_cards')
         if show.allowed:
             kinds.append('show')
         if side_show.allowed:

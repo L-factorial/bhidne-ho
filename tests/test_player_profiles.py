@@ -33,7 +33,7 @@ def test_profile_names_are_owned_validated_and_visible_at_table():
 
 def test_signup_username_is_saved_as_initial_profile_and_game_name():
     with TestClient(create_app()) as client:
-        accounts = [client.post('/auth/signup', json={'community_rules_version': '2026-10-01', 'email': 'signup@example.test',
+        accounts = [client.post('/auth/signup', json={'community_rules_version': '2026-10-01', 'email': username+'@example.test',
             'username': username, 'password': 'test-password-123'}).json()
             for username in ('table-alice', 'table-bob')]
         headers = [{'Authorization': f"Bearer {account['token']}"} for account in accounts]

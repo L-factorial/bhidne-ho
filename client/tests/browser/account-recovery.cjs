@@ -56,9 +56,12 @@ async function checkAccountHeader(page, nepaliTitle) {
     await page.getByRole('button',{name:'Back',exact:true}).click();
     await page.getByRole('button',{name:'Sign up with username or email',exact:true}).click();
     for(const [label,value] of [['Username',username],['Password','Original-pass-123'],['Confirm password','Original-pass-123'],['Email','browser@example.test']]) assert.equal(await page.getByLabel(label,{exact:true}).inputValue(),value);
+    await page.getByRole('checkbox',{name:'I agree to the community rules',exact:true}).click();
     const signed=page.waitForResponse(r=>r.url().endsWith('/auth/signup')&&r.status()===201);
     await page.getByRole('button',{name:'Create account',exact:true}).click();
     const user=await(await signed).json();
+    await page.getByRole('heading',{name:'Check your email',exact:true}).waitFor();
+    await page.getByRole('button',{name:'Continue to app',exact:true}).click();
     await page.getByRole('button',{name:'Open profile',exact:true}).click();
     await page.getByText('Awaiting verification: browser@example.test',{exact:true}).waitFor();
     const link=await mail('verify_email');
@@ -71,9 +74,9 @@ async function checkAccountHeader(page, nepaliTitle) {
     const headers={Authorization:`Bearer ${user.token}`};
     assert.equal((await(await fetch(site+'/auth/recovery/email',{headers})).json()).verified_email,null,'opening the link does not consume it');
     await verify.getByRole('button',{name:'Verify email',exact:true}).click();
-    await verify.getByText('Email verified. You can now use it to recover your account.',{exact:true}).waitFor();
-    await checkAccountHeader(verify,'इमेल प्रमाणित गर्नुहोस्');
-    await verify.getByRole('button',{name:'Back',exact:true}).last().click();
+    await verify.getByText('Email verified. You can now sign in with this email and your existing password, or recover your account.',{exact:true}).waitFor();
+    await checkAccountHeader(verify,'इमेल प्रमाणित भयो');
+    await verify.getByRole('button',{name:'Continue in browser',exact:true}).last().click();
     await verify.getByRole('button',{name:'Continue with username or email',exact:true}).click();
     await verify.getByRole('button',{name:'Forgot username or password?',exact:true}).click();
     await verify.screenshot({path:'/tmp/auth-recovery-choices-mobile.png'});

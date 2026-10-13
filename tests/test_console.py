@@ -8,7 +8,7 @@ from app.main import create_app
 
 
 def register(client, username="alice"):
-    response = client.post('/auth/signup', json={'community_rules_version': '2026-10-01', 'email': 'signup@example.test', 'username': username, 'password': 'testing-password'})
+    response = client.post('/auth/signup', json={'community_rules_version': '2026-10-01', 'email': username+'@example.test', 'username': username, 'password': 'testing-password'})
     assert response.status_code == 201
     return response.json()
 
@@ -61,7 +61,7 @@ def test_signup_signin_identity_and_validation():
         for username, password in [('alice', 'wrong-password'), ('missing', 'testing-password')]:
             assert client.post('/auth/signin', json={'username': username, 'password': password}).status_code == 401
         for username, password in [('x', 'testing-password'), ('valid', 'short'), ('<script>', 'testing-password')]:
-            assert client.post('/auth/signup', json={'community_rules_version': '2026-10-01', 'email': 'signup@example.test', 'username': username, 'password': password}).status_code == 422
+            assert client.post('/auth/signup', json={'community_rules_version': '2026-10-01', 'email': username+'@example.test', 'username': username, 'password': password}).status_code == 422
 
 
 def test_created_room_is_public_and_accounts_can_chat():

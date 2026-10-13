@@ -65,8 +65,10 @@ Reject NaN, infinity, fractional amounts, negative contributions, and unknown ID
 
 Additional proposed decisions:
 
-- `SEE_CARDS` is current-player-only, does not advance the turn, and is rejected
-  when already seen. No existing Flush convention overrides the supplied example.
+- `SEE_CARDS` is available to any ACTIVE blind player during normal play, does
+  not advance the turn, and is rejected when already seen or while a show response
+  is pending. The October 2026 user-approved change supersedes the original
+  current-player-only proposal.
 - Caller supplies the seated player IDs and a dealer ID; default dealer is
   the first roster seat. First betting player is the next seat after the dealer,
   matching Call Break's circular betting convention. Deal three passes beginning

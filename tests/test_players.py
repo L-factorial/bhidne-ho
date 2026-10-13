@@ -6,7 +6,7 @@ from app.main import create_app
 
 
 def account(client, username, name):
-    credentials = client.post('/auth/signup', json={'community_rules_version': '2026-10-01', 'email': 'signup@example.test',
+    credentials = client.post('/auth/signup', json={'community_rules_version': '2026-10-01', 'email': username+'@example.test',
         'username': username, 'password': 'testing-password-123',
     }).json()
     headers = {'Authorization': f"Bearer {credentials['token']}"}
@@ -94,7 +94,13 @@ def test_direct_messages_are_private_friend_only_validated_and_rate_limited():
         assert [m['text'] for m in history] == ['Hello Bob', 'Second']
         assert all(m['sender_id'] == alice['user_id'] and m['recipient_id'] == bob['user_id'] for m in history)
         assert client.get(f"/friends/{alice['user_id']}/messages", headers=ch).status_code == 403
+        summaries = client.get('/friends/conversations', headers=ah)
+        assert summaries.status_code == 200 and summaries.headers['cache-control'] == 'no-store'
+        assert [(row['user_id'], row['text']) for row in summaries.json()] == [(bob['user_id'], 'Second')]
+        assert client.get('/friends/conversations', headers=ch).json() == []
+        assert client.get('/friends/conversations').status_code == 401
         assert client.delete(f"/friends/{alice['user_id']}", headers=bh).status_code == 204
+        assert client.get('/friends/conversations', headers=ah).json() == []
         assert client.get(path, headers=ah).status_code == 403
 
 

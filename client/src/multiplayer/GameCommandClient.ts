@@ -4,9 +4,11 @@ import { PendingGameAction, GameRequestError } from './PendingGameAction.ts';
 import type { ActionAck, ActionRequest } from './PendingGameAction.ts';
 
 export type GameSnapshot = { match_id?: string; game?: { revision: number; hand_review_phase_id?: string | null }; action_ack?: ActionAck;
-  game_type?: string; marriage?: { public: { declaration_phase_id?: string | null } } };
+  game_type?: string; flush?: {public: {round_number: number}}; marriage?: { public: { declaration_phase_id?: string | null } } };
 
 export function captureGamePayload(snapshot: GameSnapshot, command: string, payload: object): object {
+  if (snapshot.game_type === 'flush' && command === 'SEE_CARDS' && snapshot.flush?.public.round_number)
+    return JSON.parse(JSON.stringify({...payload,round_number:snapshot.flush.public.round_number}));
   const reviewPhase = snapshot.game?.hand_review_phase_id;
   if (snapshot.game_type === 'callbreak' && reviewPhase && ['ACCEPT_HAND','CLAIM_REDEAL'].includes(command))
     return JSON.parse(JSON.stringify({...payload,hand_review_phase_id:reviewPhase}));

@@ -32,7 +32,7 @@ export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
         <View style={[styles.layout, wide && styles.wideLayout]}>
           <View style={[styles.brandSide, wide && styles.wideBrand]}>
             <View style={{ flexDirection: 'row', gap: 8 }}><LanguageToggle /><ThemeAction /></View>
-            {wide ? <Image source={branding.splash} accessibilityLabel={ui("common.brand_art")} resizeMode="contain" style={{ width: '100%', aspectRatio: 507 / 953, maxHeight: 760, marginTop: 16, borderRadius: radii.large }} /> : <>
+            {wide ? <Image source={branding.landing} accessibilityLabel={ui("common.brand_art")} resizeMode="contain" style={{ width: '100%', aspectRatio: 1090 / 650, marginTop: 16 }} /> : <>
               <BrandBanner />
               <View style={styles.mobileIntro}>
                 <Text accessibilityRole="header" style={styles.mobileHeading}>{t('welcome.heading')}</Text>

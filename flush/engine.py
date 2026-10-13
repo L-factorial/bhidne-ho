@@ -179,7 +179,7 @@ class FlushGameEngine:
 
     def see_cards(self, player_id):
         require_eligible(self.can_see_cards(player_id))
-        p = require_turn(self._state, player_id)
+        p = find_player(self._state, player_id)
         return self._commit(self._replace_player(replace(p, visibility=Visibility.SEEN)),
                             [('CARDS_SEEN', {'player_id': player_id})])
 

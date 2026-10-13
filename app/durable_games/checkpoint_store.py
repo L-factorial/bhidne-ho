@@ -170,6 +170,13 @@ class PostgresCheckpointStore:
                     seat = str(old.host.users.index(actor) + 1) if actor in old.host.users else None
                     valid = seat is not None and declaration_scope_matches(
                         prior_state, old.match_id, receipt.request, seat)
+                elif (data.game_type == 'flush' and receipt.request.command == 'SEE_CARDS'
+                      and receipt.request.payload.get('round_number') is not None):
+                    from app.adapters.flush.concurrency import reveal_scope_matches
+                    prior_state = decode_checkpoint(previous.checkpoint).engine_state
+                    actor = receipt.actor_id
+                    seat = str(old.host.flush_seats[actor]) if actor in old.host.flush_seats else None
+                    valid = seat is not None and reveal_scope_matches(prior_state, old.match_id, receipt.request, seat)
                 elif (data.game_type == 'callbreak' and receipt.request.command in ('ACCEPT_HAND', 'CLAIM_REDEAL')
                       and receipt.request.payload.get('hand_review_phase_id') is not None):
                     from app.adapters.callbreak.concurrency import review_scope_matches

@@ -95,6 +95,7 @@ const messages: Record<string, UiKey> = {
   'Invalid username or password.': 'feedback.credentials_incorrect',
   'Invalid username or password': 'feedback.credentials_incorrect',
   'Username already exists.': 'feedback.name_taken',
+  'Email is already associated with an account. Sign in or recover your account.': 'recovery.recovery_email_taken',
   'Username is already taken': 'feedback.name_taken',
   'Username already taken.': 'feedback.name_taken',
   'Action rejected.': 'feedback.action_unavailable',

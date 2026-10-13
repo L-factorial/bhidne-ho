@@ -68,9 +68,9 @@ async def test_distributed_signup_email_is_durable_private_and_untrusted(recover
         for path in ('/auth/me', '/players/' + credentials['user_id']):
             public = (await client.get(path, headers=headers)).json()
             assert 'email' not in public and 'unverified_email' not in public
-        # A shared email address does not silently merge accounts.
+        # A duplicate email cannot create another account.
         other = await client.post('/auth/signup', json=dict(community_rules_version='2026-10-01', username='other_player', password='original-password', email='Player@example.com'))
-        assert other.status_code == 201 and other.json()['user_id'] != credentials['user_id']
+        assert other.status_code == 409
         proof = await recovery.enroll_email(credentials['user_id'], 'original-password', 'Player@example.com')
         await recovery.verify_email(proof.token)
         assert (await query(pool, 'SELECT unverified_email FROM account_credentials WHERE user_id=%s', (user_id,))).rows == [(None,)]

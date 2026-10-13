@@ -3,9 +3,9 @@ import { ui } from '../i18n/copy.ts';
 import { Image, StyleSheet, View } from 'react-native';
 import { branding, gameIcons } from '../branding';
 
-export function BrandLogo() {
+export function BrandLogo({ size = headerLogoSize }: { size?: number }) {
   useUiLanguage();
-  return <Image source={branding.logo} accessibilityLabel={ui("common.brand_name")} resizeMode="contain" style={styles.logo} />;
+  return <Image source={branding.logo} accessibilityLabel={ui("common.brand_name")} resizeMode="contain" style={{ width: size * 727 / 385, height: size, flexShrink: 0 }} />;
 }
 // One in-app size, approximately 10% larger than the former 52px mobile logo.
 export const headerLogoSize = 57;
@@ -20,13 +20,11 @@ export function GameIcon({ game, size = 56 }: { game: keyof typeof gameIcons; si
 }
 export function BrandBanner() {
   useUiLanguage();
-  // Show only the central artwork: the supplied banner has painted navigation controls.
   return <View style={styles.banner} accessibilityLabel={ui("common.brand_name")} accessible>
-    <Image source={branding.header} accessible={false} resizeMode="stretch" style={styles.bannerImage} />
+    <Image source={branding.landing} accessible={false} resizeMode="contain" style={styles.bannerImage} />
   </View>;
 }
 const styles = StyleSheet.create({
-  logo: { width: 112, height: 74, borderRadius: 8 },
-  banner: { width: '100%', maxWidth: 440, aspectRatio: 440 / 216, alignSelf: 'center', overflow: 'hidden', borderRadius: 16 },
-  bannerImage: { position: 'absolute', width: '227.273%', height: '100%', left: '-63.636%' },
+  banner: { width: '100%', maxWidth: 440, aspectRatio: 1090 / 650, alignSelf: 'center' },
+  bannerImage: { width: '100%', height: '100%' },
 });

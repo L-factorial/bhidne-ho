@@ -6,6 +6,20 @@ from test_recovery_delivery import config, async_noop
 from test_distributed_platform import application
 
 
+@pytest.fixture
+async def legacy_shared_database():
+    from app.database import MIGRATIONS
+    from pglite_support import PGlitePool
+    pool = await PGlitePool.open()
+    try:
+        for version, sql in MIGRATIONS:
+            if version < 41:
+                await pool.execute(sql, script=True)
+        yield pool
+    finally:
+        await pool.close()
+
+
 async def verified_user(pool, runtime, auth, name, email):
     user = await auth.sign_up(name, 'original-password', email=email)
     async with pool.connection() as c:
@@ -14,14 +28,16 @@ async def verified_user(pool, runtime, auth, name, email):
     return user
 
 
-async def test_only_current_verified_usernames_are_delivered_together(recovery_database, monkeypatch):
-    pool = recovery_database
+async def test_only_current_verified_usernames_are_delivered_together(legacy_shared_database, monkeypatch):
+    pool = legacy_shared_database
     auth = PostgresAuthService(pool)
     runtime = RecoveryRuntime(pool, auth, config())
     first = await verified_user(pool,runtime,auth,'first_player','player@example.test')
     await verified_user(pool,runtime,auth,'second_player','player@example.test')
     await auth.sign_up('unverified_player','original-password',email='player@example.test')
     await verified_user(pool,runtime,auth,'other_player','other@example.test')
+    from app.database import MIGRATIONS
+    await pool.execute(dict(MIGRATIONS)[41], script=True)
     await runtime.request_username(' player@EXAMPLE.test ', '127.0.0.1')
     raw = (await pool.execute('SELECT envelope FROM recovery_reset_requests')).rows[0][0]
     assert b'player@example.test' not in raw
@@ -41,10 +57,12 @@ async def test_only_current_verified_usernames_are_delivered_together(recovery_d
     assert (await auth.sign_in('first_player','original-password')).user_id == first.user_id
 
 
-async def test_shared_mailbox_lists_all_verified_accounts(recovery_database, monkeypatch):
-    pool=recovery_database;auth=PostgresAuthService(pool);runtime=RecoveryRuntime(pool,auth,config())
+async def test_shared_mailbox_lists_all_verified_accounts(legacy_shared_database, monkeypatch):
+    pool=legacy_shared_database;auth=PostgresAuthService(pool);runtime=RecoveryRuntime(pool,auth,config())
     for name in ['alice_player','bob_player']:
         await verified_user(pool,runtime,auth,name,'shared@example.test')
+    from app.database import MIGRATIONS
+    await pool.execute(dict(MIGRATIONS)[41], script=True)
     await runtime.request_username('shared@example.test','127.0.0.1')
     await runtime.process_reset()
     sent=[]

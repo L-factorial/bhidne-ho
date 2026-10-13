@@ -18,6 +18,10 @@ class Empty(Payload):
     pass
 
 
+class SeePayload(Payload):
+    round_number: Annotated[int, Field(strict=True, ge=1)] | None = None
+
+
 class BetPayload(Payload):
     amount: Annotated[int, Field(strict=True, gt=0)]
 
@@ -74,7 +78,7 @@ COMMAND_SPECS = {
     CommandName.CAN_SIDE_SHOW: CommandSpec(Empty, 'can_side_show', False),
     CommandName.START_GAME: CommandSpec(Empty, 'start_game', True),
     CommandName.BET: CommandSpec(BetPayload, 'bet', True),
-    CommandName.SEE_CARDS: CommandSpec(Empty, 'see_cards', True),
+    CommandName.SEE_CARDS: CommandSpec(SeePayload, 'see_cards', True),
     CommandName.FOLD_FOR_LEAVE: CommandSpec(Empty, 'fold_for_leave', True),
     CommandName.FOLD: CommandSpec(Empty, 'fold', True),
     CommandName.SHOW: CommandSpec(Empty, 'show', True),

@@ -97,7 +97,7 @@ class SharedPlatform:
             (player_profiles.router, {('GET', '/me/profile'), ('PATCH', '/me/profile'),
                 ('GET', '/me/profile/appearance'), ('PATCH', '/me/profile/appearance')}),
             (players.router, {('GET', '/players/search'), ('GET', '/players/directory'),
-                              ('GET', '/players/{player_id}'), ('GET', '/friends')}),
+                              ('GET', '/players/{player_id}'), ('GET', '/friends'), ('GET', '/friends/conversations')}),
             (room_pokes.router, {('GET', '/me/phrases'), ('POST', '/me/phrases'),
                 ('PATCH', '/me/phrases/{phrase_id}'), ('DELETE', '/me/phrases/{phrase_id}')}),
             (browser_http.router, {('GET', '/auth/social/browser/providers'),

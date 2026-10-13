@@ -43,9 +43,9 @@ export function MarriageMaalPanel({ hand, shown, unlocked, maal, enabled, visibl
   if (!preview) {
     const label=unlocked?ui("marriage.view_maal"):!visible?ui("marriage.reveal_cards_to_check_maal"):checking?ui("marriage.checking_maal"):eligible?(actions.includes('draw')?ui("marriage.maal_eligible_draw_first"):canShow?ui("marriage.maal_eligible_show_for_maal"):ui("marriage.maal_eligible_view_options")):ui("marriage.maal_not_eligible");
     return <View testID="marriage-maal-eligibility" style={{borderRadius: radii.medium,borderWidth:1,borderColor:eligible||unlocked?c.accent:c.border,overflow:'hidden'}}>
-      <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled:unlocked? !visible : !canPreview}} disabled={unlocked?!visible:!canPreview} onPress={()=>setPreview(true)} style={{minHeight:48,padding:10,flexDirection:'row',alignItems:'center',gap:8,opacity:eligible||unlocked?1:0.5}}>
-        <Ionicons name={eligible||unlocked?'bulb':'bulb-outline'} size={22} color={eligible||unlocked?c.accent:c.textMuted}/>
-        <Text accessibilityLiveRegion="polite" style={{...text,color:eligible||unlocked?c.accent:c.textMuted,flexShrink:1}}>{label}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled:unlocked? !visible : !canPreview}} disabled={unlocked?!visible:!canPreview} onPress={()=>setPreview(true)} style={{minHeight:48,padding:6,flexDirection:'row',alignItems:'center',gap:8,opacity:eligible||unlocked?1:0.5}}>
+        <Ionicons name={eligible||unlocked?'bulb':'bulb-outline'} size={16} color={eligible||unlocked?c.accent:c.textMuted}/>
+        <Text accessibilityLiveRegion="polite" style={{...text,fontSize:11,color:eligible||unlocked?c.accent:c.textMuted,flexShrink:1}}>{label}</Text>
       </Pressable>
       <TurnGlow active={canPreview} radius={12}/>
     </View>;

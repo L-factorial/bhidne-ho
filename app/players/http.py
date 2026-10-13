@@ -44,6 +44,12 @@ async def player(player_id: str, request: Request, response: Response,
     except PlayerNotFound as error: raise translate(error) from None
 
 
+@router.get('/friends/conversations')
+async def conversations(request: Request, response: Response, user: UserIdentity = Depends(current_user)):
+    response.headers['Cache-Control'] = 'no-store'
+    return await request.app.state.players.conversations(user.user_id)
+
+
 @router.get("/friends", response_model=FriendshipSnapshot, response_model_exclude_unset=True)
 async def friends(request: Request, response: Response, user: UserIdentity = Depends(current_user),
                   include_presence: bool = False):

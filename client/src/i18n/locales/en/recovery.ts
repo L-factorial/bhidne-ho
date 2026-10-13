@@ -1,4 +1,9 @@
 export default {
+  continueBrowser: 'Continue in browser',
+  returnApp: 'Return to the Bhidne Ho app. If you are still signed in, tap Continue to app on the verification screen. Otherwise, sign in with your username or verified email and the same password. You can close this tab.',
+  returnBrowser: 'Prefer to play here? Choose Continue in browser below. If this browser is not signed in, you will be asked to sign in.',
+  checkEmail: 'Check your email', signupHelp: 'Verify your email to sign in with it and recover your password. Check your inbox and spam folder. The link expires in 30 minutes. You can continue using your username while you wait.', verifiedTitle: 'Email verified', continueApp: 'Continue to app', resend: 'Resend email', resendWait: 'Resend in {{seconds}}s', changeEmail: 'Change email', recovery_email_taken: 'Email is already associated with an account. Use a different address or recover that account.',
+
   forgotUsername: 'Forgot username?', sendUsername: 'Send username',
   usernameHelp: 'Enter your verified recovery email. We will email the usernames associated with it.',
   usernameRequested: 'If this email is linked to a verified account, we will send your username. Check your spam folder too.',
@@ -8,7 +13,7 @@ export default {
   requestHelp: 'Enter your username. A reset link can only be sent to a verified recovery email.',
   requested: 'If that username has a verified recovery email, a reset link will arrive shortly. Check your spam folder too.',
   verify: 'Verify email', verifyHelp: 'Confirm this email address for password recovery.',
-  verified: 'Email verified. You can now use it to recover your account.',
+  verified: 'Email verified. You can now sign in with this email and your existing password, or recover your account.',
   reset: 'Reset password', resetHelp: 'Choose a new password with 8–128 characters. This signs out all existing sessions.',
   resetDone: 'Password changed. Sign in again with your new password.',
   newPassword: 'New password', currentPassword: 'Current password',

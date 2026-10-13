@@ -6,8 +6,9 @@
     "orientation": "default",
     "userInterfaceStyle": "light",
     "backgroundColor": "#4B0D0D",
+    "icon": "./assets/branding/bhidneho-app-icon.png",
     "ios": {
-      "icon": "./assets/branding/BhidneHoAppLogo.png",
+      "icon": "./assets/branding/bhidneho-app-icon.png",
       "supportsTablet": true,
       "bundleIdentifier": "com.lfactorial.bhidne-ho",
       "infoPlist": {
@@ -23,7 +24,7 @@
     "web": {
       "bundler": "metro",
       "name": "Bhidne Ho",
-      "favicon": "./assets/branding/06_bhidne_ho_favicon.png"
+      "favicon": "./assets/branding/bhidneho-app-icon.png"
     },
     "plugins": [
       "expo-font",

@@ -13,7 +13,7 @@ import { setSessionNotice } from '../auth/sessionNotice';
 import { AccountPage, accountStyles } from '../components/AccountPage';
 import { AppHeader } from '../components/AppHeader';
 import { FormInput } from '../components/FormInput';
-import { ForgotPassword, RecoveryEmailSettings } from './RecoveryScreen';
+import { ForgotPassword, RecoveryEmailSettings, SignupVerification } from './RecoveryScreen';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { validSignupEmail } from '../auth/email';
 import { ui, uiLabel } from '../i18n/copy.ts';
@@ -252,7 +252,7 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
   return <PushProvider session={account} viewedMatch={null}><ScrollView style={{backgroundColor:colors.background}} contentContainerStyle={{padding:20,gap:12}}>
     <AppHeader hideProfile />
     <PushSettings />
-    <CommunityRulesEntry session={account} /><ModerationEntry session={account} /><RecoveryEmailSettings session={account} /><BlockedPlayers session={account} /><><PolicyLinks /><DeleteAccountLink /></>
+    <SignupVerification key={account.token} session={account} /><CommunityRulesEntry session={account} /><ModerationEntry session={account} /><RecoveryEmailSettings session={account} /><BlockedPlayers session={account} /><><PolicyLinks /><DeleteAccountLink /></>
     <Text accessibilityRole="header" style={{color:colors.text,fontSize:24}}>{projection?.name||ui("rooms.your_rooms")}</Text>
     {!!(error||action.error)&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(action.error||error, 'feedback')}</Text>}
     {action.status==='pending'&&button(ui("common.pending_action"),()=>void controller.current?.recover())}

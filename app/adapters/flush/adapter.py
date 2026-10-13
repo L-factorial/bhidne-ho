@@ -7,6 +7,7 @@ from pydantic import TypeAdapter
 
 from flush import FlushGameEngine, FlushError, InvariantError
 
+from .concurrency import reveal_scope_matches
 from .contracts import (COMMAND_SPECS, CommandName, CommandRejected, Identifier, OutboundEvent,
                         PlayerCommand, RoutedEvent)
 
@@ -59,6 +60,11 @@ class FlushAdapter:
     def restore(self, checkpoint):
         self._engine = checkpoint
 
+    def validate_concurrency(self, request, player_id):
+        if request.command == 'SEE_CARDS' and request.payload.get('round_number') is not None:
+            return reveal_scope_matches(self._engine.get_state(), self.match_id, request, player_id)
+        return request.expected_revision == self.revision
+
     def dispatch_player(self, request: PlayerCommand, *, player_id: str) -> AdapterResult | CommandRejected:
         request = PlayerCommand.model_validate(request.model_dump(mode="json"))
 
@@ -70,7 +76,7 @@ class FlushAdapter:
             return reject("MATCH_MISMATCH", "Request belongs to another match.")
         if player_id not in self._engine.get_state().config.player_ids:
             return reject("UNKNOWN_PLAYER", "Spectators cannot submit player commands.")
-        if request.expected_revision != self.revision:
+        if not self.validate_concurrency(request, player_id):
             return reject("STALE_REVISION", "Refresh the game before retrying.")
         if request.command is CommandName.START_GAME and player_id != self.owner_player_id:
             return reject("OWNER_REQUIRED", "Only the game owner can start this round.")

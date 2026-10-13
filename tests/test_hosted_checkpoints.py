@@ -92,6 +92,29 @@ async def test_multiplayer_flush_show_checkpoint_preserves_partial_reveals():
         await host.close()
 
 
+async def test_concurrent_flush_reveals_preserve_turn_and_retry_receipts():
+    import asyncio
+    host,game=await make_host('flush',3)
+    try:
+        await start(host,game)
+        await action(host,game,'DEAL_CARDS'); await action(host,game,'SKIP_CUT')
+        state=engine_state(game)
+        deadline=game.deadline
+        commands=[GameAction(match_id=game.match_id,command_id=uuid4().hex,
+            expected_revision=state.revision,command='SEE_CARDS',payload={'round_number':state.round_number}) for _ in game.users]
+        results=await asyncio.gather(*(host.action('room',user,command) for user,command in zip(game.users,commands)))
+        assert all(result['action_ack']['status']=='accepted' for result in results)
+        assert engine_state(game).revision==state.revision+3
+        assert engine_state(game).current_player_id==state.current_player_id
+        assert game.deadline==deadline
+        retry=await host.action('room',game.users[0],commands[0])
+        assert retry['action_ack']==results[0]['action_ack']
+        assert engine_state(game).revision==state.revision+3
+        assert all(len(result['flush']['private']['cards'])==3 for result in results)
+    finally:
+        await host.close()
+
+
 async def test_old_flush_checkpoint_keeps_multiplayer_show_and_salami_disabled():
     host, game = await make_host('flush', 2)
     try:

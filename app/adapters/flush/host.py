@@ -31,6 +31,10 @@ class FlushCommandTarget:
     def revision(self):
         return self.adapter.revision
 
+    def validate_concurrency(self, user_id, command):
+        if not self.adapter.validate_concurrency(command, self.seat_by_user[user_id]):
+            raise GameCommandRejected('STALE_REVISION', 'The hand changed. Your view has been refreshed; try again.')
+
     def checkpoint(self):
         return self.adapter.checkpoint()
 

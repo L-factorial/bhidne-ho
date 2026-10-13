@@ -5,13 +5,13 @@ import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image, View } from 'react-native';
 
-export function PlayerAvatar({ uri }: { uri?: string }) {
+export function PlayerAvatar({ uri, size = 34 }: { uri?: string; size?: number }) {
   useUiLanguage();
   const { colors: c } = useTheme();
   const [failed, setFailed] = useState<string>();
-  return <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: c.surfaceRaised, borderWidth: 1, borderColor: c.borderSubtle, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-    {uri && failed !== uri ? <Image accessibilityLabel={ui("common.player_photo")} source={{ uri }} onError={() => setFailed(uri)} style={{ width: 32, height: 32, borderRadius: 16 }} />
-      : <Ionicons accessibilityLabel={ui("common.anonymous_profile")} name="person" size={24} color={c.textMuted} />}
+  return <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c.surfaceRaised, borderWidth: 1, borderColor: c.borderSubtle, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+    {uri && failed !== uri ? <Image accessibilityLabel={ui("common.player_photo")} source={{ uri }} onError={() => setFailed(uri)} style={{ width: size - 2, height: size - 2, borderRadius: (size - 2) / 2 }} />
+      : <Ionicons accessibilityLabel={ui("common.anonymous_profile")} name="person" size={size * 0.7} color={c.textMuted} />}
   </View>;
 }
 

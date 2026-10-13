@@ -147,7 +147,10 @@ class GameLaneExecutor:
                 from app.multiplayer.table_session import sync as sync_session
                 from .seat_offers import now as db_now
                 mutates = target.revision != data['engine']['revision'] or request.command == 'FOLD_AND_LEAVE'
-                sync_session(game, await db_now(claim.connection), actor=actor if mutates else None, activity=mutates)
+                # Seeing cards is independent of the betting turn: record activity
+                # without renewing the active seat's action deadline.
+                reveal = game.game_type == 'flush' and request.command == 'SEE_CARDS'
+                sync_session(game, await db_now(claim.connection), actor=actor if mutates and not reveal else None, activity=mutates)
                 game.table.sync(game)
                 # Offer creation/expiry belongs to table lanes and durable timers;
                 # never invoke the legacy async _publish/_advance_table here.

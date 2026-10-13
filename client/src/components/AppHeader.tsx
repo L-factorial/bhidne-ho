@@ -5,7 +5,7 @@ import { createContext, useContext, useState, type ReactNode } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {Pressable, View, useWindowDimensions} from 'react-native';
 import { ProfileModal } from './ProfileModal';
-import { BrandIcon, headerLogoSize } from './BrandArt';
+import { BrandLogo, headerLogoSize } from './BrandArt';
 import { HeaderAction } from './HeaderAction';
 import { useTranslation } from 'react-i18next';
 
@@ -24,7 +24,7 @@ export function AppHeader({ title, actions, inlineActions, hideProfile = false, 
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: compact ? 8 : 12 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: compact ? 6 : 10, flex: 1, minWidth: 0 }}>
         {onBack && <Pressable accessibilityRole="button" accessibilityLabel={ui('common.back')} onPress={onBack} style={{minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center'}}><Ionicons name="arrow-back" size={22} color={colors.textMuted} /></Pressable>}
-        <BrandIcon size={logoSize} />
+        <BrandLogo size={logoSize} />
         {!!title && <Text accessibilityRole="header" style={{ flexShrink: 1, color: colors.text, fontFamily: fonts.editorial, fontSize: typography.pageTitle }}>{title}</Text>}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 0, gap: compact ? 6 : 10 }}>

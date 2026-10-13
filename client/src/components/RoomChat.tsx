@@ -9,6 +9,7 @@ import { ui } from '../i18n/copy.ts';
 import { Ionicons } from '@expo/vector-icons';
 import { ChatMessage } from './ChatMessage';
 import { RoomSheet } from './RoomSheet';
+import { RoomChatPeople } from './RoomChatPeople';
 import { ChatComposer } from './ChatComposer';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import {Keyboard, Pressable, ScrollView, StyleSheet, View} from 'react-native';
@@ -22,7 +23,7 @@ import { observeRuntimeChat } from '../multiplayer/RuntimeRequests';
 
 type Message = { id: string; sender_id: string; sender_name: string; text: string; removed?: boolean; sent_at: number };
 
-export function useRoomChat({ roomId, session, connected, hideWhenBlocked = false, expanded, onExpandedChange, renderLauncher, bottomOffset = 0, launcherVisible = true }: { launcherVisible?: boolean; expanded?: boolean; onExpandedChange?: (open: boolean) => void; renderLauncher?: (state: { open: boolean; unread: number; blocked: boolean; toggle: () => void }) => ReactNode; bottomOffset?: number; hideWhenBlocked?: boolean; roomId: string; session: Session; connected: boolean }) {
+export function useRoomChat({ roomId, session, connected, onlineIds, hideWhenBlocked = false, expanded, onExpandedChange, renderLauncher, bottomOffset = 0, launcherVisible = true }: { onlineIds?: string[]; launcherVisible?: boolean; expanded?: boolean; onExpandedChange?: (open: boolean) => void; renderLauncher?: (state: { open: boolean; unread: number; blocked: boolean; toggle: () => void }) => ReactNode; bottomOffset?: number; hideWhenBlocked?: boolean; roomId: string; session: Session; connected: boolean }) {
   const blocking = useBlocking(session);
   const rules = useCommunityRulesGate(session);
   const { colors } = useTheme();
@@ -112,7 +113,7 @@ export function useRoomChat({ roomId, session, connected, hideWhenBlocked = fals
     {open && !blocked && <RoomSheet visible title={t('chat.title')} onClose={() => setOpen(false)} scrollable={false}
       headerActions={<Pressable accessibilityRole="button" accessibilityLabel={t(muted ? 'chat.soundOff' : 'chat.soundOn')} accessibilityState={{ selected: !muted }} onPress={() => { prepare(); setMuted(value => !value); }} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Ionicons name={muted ? 'volume-mute-outline' : 'volume-high-outline'} size={20} color={colors.textMuted} /></Pressable>}
       footer={renderLauncher ? <View style={{ height: 64 + Math.max(8, insets.bottom) }}>{launcher}</View> : undefined}>
-      <View testID="room-chat-window" style={[styles.chatBody, { flex: 1, minHeight: 0 }]}>
+      <View testID="room-chat-window" style={[styles.chatBody, { flex: 1, minHeight: 0 }]}><RoomChatPeople roomId={roomId} session={session} onlineIds={connected?onlineIds:undefined}/>
 
         <ScrollView ref={scroll} testID="room-chat-history" keyboardShouldPersistTaps="always" style={{ flex: 1, minHeight: 0 }} scrollEventThrottle={16}
           onScroll={({ nativeEvent: { contentOffset, contentSize, layoutMeasurement } }) => { followLatest.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 40; }}

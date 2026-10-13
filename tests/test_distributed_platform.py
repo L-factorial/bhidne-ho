@@ -26,7 +26,7 @@ async def application(pool, **options):
 
 
 async def signup(client, name):
-    reply = await client.post('/auth/signup', json=dict(community_rules_version='2026-10-01', email='signup@example.test', username=name, password='long-password', display_name=name))
+    reply = await client.post('/auth/signup', json=dict(community_rules_version='2026-10-01', email=name+'@example.test', username=name, password='long-password', display_name=name))
     assert reply.status_code == 201, reply.text
     value = reply.json()
     return value, {'Authorization': 'Bearer ' + value['token']}

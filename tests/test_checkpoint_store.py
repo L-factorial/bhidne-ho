@@ -83,6 +83,28 @@ async def advance(host, game, command=None, expected=None, command_id=None):
             'fingerprint': request_fingerprint(request), 'outcome': result['action_ack']}
 
 
+async def test_flush_same_revision_reveals_commit_durable_receipts(database):
+    pool, store, fence, users = database
+    host, game = await host_game(users, 'flush')
+    try:
+        await advance(host,game,'DEAL_CARDS'); await advance(host,game,'SKIP_CUT')
+        state=engine_state(game)
+        await store.save(capture_checkpoint(game,table_revision=0),expected_revision=None,fence=fence)
+        deadline=game.deadline
+        for index,actor in enumerate(game.users):
+            command=GameAction(match_id=game.match_id,command_id=uuid4().hex,
+                expected_revision=state.revision,command='SEE_CARDS',payload={'round_number':state.round_number})
+            result=await host.action('room',actor,command)
+            assert result['action_ack']['status']=='accepted'
+            receipt={'actor_id':actor,'request':command.model_dump(mode='json'),
+                'fingerprint':request_fingerprint(command),'outcome':result['action_ack']}
+            await store.save(capture_checkpoint(game,table_revision=index+1),expected_revision=index,fence=fence,receipt=receipt)
+            assert game.deadline==deadline
+        assert engine_state(game).revision==state.revision+2
+    finally:
+        await host.close()
+
+
 @pytest.mark.parametrize('kind', ['callbreak', 'marriage', 'flush'])
 async def test_database_roundtrip_retries_rejections_and_detached_rebuild(database, kind):
     pool, store, fence, users = database

@@ -50,11 +50,11 @@ async def test_login_accepts_only_unambiguous_verified_email(recovery_database):
         await auth.sign_in('Player@example.com', 'wrong-password')
     assert (await auth.sign_in(credentials.username.upper(), 'original-password')).user_id == credentials.user_id
     other_auth, other, other_recovery = await account(pool, 'second_player')
-    other_challenge = await other_recovery.enroll_email(other.user_id, 'original-password', 'player@example.com')
-    await other_recovery.verify_email(other_challenge.token)
-    with pytest.raises(AuthenticationError):
-        await auth.sign_in('Player@example.com', 'original-password')
-    assert (await auth.sign_in(credentials.username, 'original-password')).user_id == credentials.user_id
+    from psycopg.errors import UniqueViolation
+    with pytest.raises(UniqueViolation):
+        await other_recovery.enroll_email(other.user_id, 'original-password', 'player@example.com')
+    assert (await auth.sign_in('Player@example.com', 'original-password')).user_id == credentials.user_id
+
 
 
 def test_signin_identifier_does_not_relax_signup_username_rules():

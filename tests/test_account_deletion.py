@@ -51,6 +51,7 @@ async def test_password_proof_revokes_sessions_and_cleanup_preserves_other_accou
     assert (await deletion.status(result['status_token']))['status']=='completed'
     assert (await pool.execute('SELECT count(*) FROM users WHERE id=%s',(UUID(a.user_id[5:]),))).rows==[(0,)]
     assert (await pool.execute('SELECT count(*) FROM account_credentials WHERE username=%s',('deletion_player',))).rows==[(0,)]
+    assert (await pool.execute("SELECT count(*) FROM account_email_claims WHERE email='private@example.test'")).rows==[(0,)]
     assert (await pool.execute('SELECT count(*) FROM push_devices')).rows==[(0,)]
     assert (await pool.execute('SELECT count(*) FROM push_preferences')).rows==[(0,)]
     assert (await auth.authenticate(b.token)).user_id==b.user_id

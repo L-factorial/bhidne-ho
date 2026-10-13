@@ -103,6 +103,9 @@ class PlayerSocialService:
     async def read_notifications(self, user_id):
         return await self.store.read_notifications(user_id)
 
+    async def conversations(self, user_id):
+        return await self.store.conversations(user_id)
+
     async def history(self, user_id, friend_id):
         return await self.store.history(user_id, friend_id)
 

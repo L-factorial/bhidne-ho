@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field, field_validator
 from app.auth.email import normalize_recovery_email
 from app.auth.recovery import InvalidRecoveryChallenge, RecoveryRateLimited
+from psycopg.errors import UniqueViolation
 from app.auth.service import AuthenticationError
 from app.transport.http import current_user
 
@@ -13,7 +14,7 @@ def no_store(response: Response):
 
 router = APIRouter(prefix='/auth/recovery', dependencies=[Depends(no_store)])
 CONTRACTS = {('GET', '/auth/recovery/capabilities'), ('GET', '/auth/recovery/email'),
-    ('POST', '/auth/recovery/email'), ('DELETE', '/auth/recovery/email'),
+    ('POST', '/auth/recovery/email'), ('POST', '/auth/recovery/email/resend'), ('DELETE', '/auth/recovery/email'),
     ('POST', '/auth/recovery/verify'), ('POST', '/auth/recovery/reset/request'),
     ('POST', '/auth/recovery/reset/complete'), ('POST', '/auth/recovery/username/request')}
 
@@ -84,8 +85,20 @@ async def enroll(body: Enroll, request: Request, user=Depends(current_user)):
     value = await limited(request, 'email-ip', user.user_id)
     try:
         await value.service.enroll_email(user.user_id, body.current_password, body.email)
+    except UniqueViolation:
+        failure(409, 'recovery_email_taken')
     except AuthenticationError:
         failure(403, 'recovery_password_incorrect')
+    except RecoveryRateLimited:
+        failure(429, 'recovery_rate_limited')
+    return {'accepted': True}
+
+
+@router.post('/email/resend', status_code=202)
+async def resend(request: Request, user=Depends(current_user)):
+    value = await limited(request, 'email-ip', user.user_id)
+    try:
+        await value.service.resend_email(user.user_id)
     except RecoveryRateLimited:
         failure(429, 'recovery_rate_limited')
     return {'accepted': True}
@@ -105,6 +118,8 @@ async def verify(body: Challenge, request: Request):
     value = await limited(request, 'verify-ip')
     try:
         await value.service.verify_email(body.token)
+    except UniqueViolation:
+        failure(409, 'recovery_email_taken')
     except InvalidRecoveryChallenge:
         failure(400, 'recovery_link_invalid')
     return {'verified': True}

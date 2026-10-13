@@ -78,8 +78,20 @@ accounts immediately eligible for chat and invitations under the other policy ch
 Existing accounts continue to accept rules through Profile. Older clients that omit
 the acceptance field can sign in but must update before creating an account.
 The original client also requires profile name and matching password confirmation.
-The API rejects missing, blank and malformed email. Sign-in remains username/password
-only, including for existing accounts without email; social/guest login is unchanged.
+The API rejects missing, blank and malformed email. Username and email are unique
+(case-insensitive) for new password accounts. Migration 41 reserves signup and
+verified recovery addresses across both tables using database-enforced claims;
+concurrent registrations cannot claim the same address. Existing shared addresses
+are preserved as reserved conflicts, without merging accounts or changing sessions.
+Those accounts continue to sign in by username, but shared-address email sign-in is
+blocked until the conflict is resolved. Removing/replacing a unique address releases
+its claim once neither pending nor verified contact references it.
+
+Password sign-in accepts a username, or a verified associated email, with the same
+password. Signup email alone does not enable email sign-in or password recovery.
+Accounts without email continue using usernames. Social/guest login is unchanged.
+The process-local development runtime enforces signup uniqueness but cannot verify
+email; its accounts use username sign-in.
 
 Migration 29 adds nullable `account_credentials.unverified_email` without backfilling
 or deleting existing data. Signup saves the normalized address in the same transaction
