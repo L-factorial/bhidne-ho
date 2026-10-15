@@ -108,7 +108,7 @@ def test_configuration_is_frozen_and_validated_by_facade():
     engine.start_game()
     assert engine.get_state().config.player_ids == ("a", "b")
     assert engine.get_state().current_player_id == "a"
-    for invalid in ([], ["a"], ["a", "a"], ["a", ""], list("abcdef")):
+    for invalid in ([], ["a"], ["a", "a"], ["a", ""], list("abcdefg")):
         with pytest.raises(ValueError):
             MarriageGameEngine(invalid)
     with pytest.raises(ValueError):
@@ -134,7 +134,7 @@ def test_views_omit_hidden_cards_history_rng_and_indicator():
         assert set(data) == {"public", "player_id", "hand", "actions", "maal"}
         assert set(data["public"]) == {
             "revision", "status", "players", "current_player_id", "phase",
-            "stock_count", "top_discard", "winner", "scores", "scoring_rules", "normal_finish", "winning_pair", "won_by_fold", "tunnela_declaration_pending",
+            "stock_count", "top_discard", "winner", "scores", "scoring_rules", "normal_finish", "winning_pair", "won_by_fold", "tunnela_declaration_pending", "maal_selected", "manual_maal_cut",
         }
         assert data["public"]["winning_pair"] == ()
         hidden = state.stock + tuple(card for p in state.players if p.player_id != seat for card in p.hand)

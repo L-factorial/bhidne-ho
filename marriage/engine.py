@@ -13,14 +13,14 @@ from .events import (ActionResult, CardDiscarded, CardDrawn, DiscardPileRecycled
 from .invariants import validate_game_state, validate_initial_state
 from .models import MarriageConfig, MarriageGameState, Meld, PlayerState, NormalFinish
 from .cards import PhysicalCard
-from .completion import Capability, eighth_pair, normal_finish, valid_normal_finish, valid_eighth_pair
-from .maal import MaalView, maal_view, select_tiplu
+from .completion import Capability, eighth_pair, normal_finish, valid_normal_finish, valid_eighth_pair, unseen_normal_finish, unseen_dublee_finish, valid_unseen_normal_finish, valid_unseen_dublee_finish
+from .maal import MaalView, maal_view, select_tiplu, cut_tiplu
 from .melds import validate_declaration, validate_meld
 from .visibility import VisibleEvent, visible_events
 from .queries import AllowedActions, PlayerView, PublicGameView, allowed_actions, player_view, public_view
 from .rules import MarriageRules
 from .scoring import RoundScore, calculate_scores
-from .turns import discardable_ids, draw_source_block, find_player, recycle_discards, tunnela_declarations_pending
+from .turns import discardable_ids, draw_source_block, find_player, recycle_discards, tunnela_declarations_pending, first_draw_pending, first_turn
 
 
 class MarriageGameEngine:
@@ -65,6 +65,10 @@ class MarriageGameEngine:
             stock=stock[:-1], discard=stock[-1:], current_seat=config.player_ids.index(config.first_player_id),
             phase=TurnPhase.MUST_DRAW, status=GameStatus.IN_PROGRESS, revision=1, history=events,
         )
+        if config.rules.manual_maal_cut and len(config.player_ids) == 6:
+            tiplu, stock, discard, _ = cut_tiplu(candidate.stock, candidate.discard, staged_rng)
+            events = events + (TipluRevealed(3, 1, tiplu),)
+            candidate = replace(candidate, tiplu=tiplu, stock=stock, discard=discard, history=events)
         validate_initial_state(candidate)
         result = ActionResult(candidate.revision, events)
         self._rng = staged_rng
@@ -152,21 +156,33 @@ class MarriageGameEngine:
         revision, sequence = self._state.revision + 1, len(self._state.history) + 1
         events = []
         staged_rng = None
+        tiplu = self._state.tiplu
+        grant_maal = False
+        if tiplu is None and player.route is not QualificationRoute.UNQUALIFIED:
+            # Resume a saved pending-cut state through the regular move flow.
+            staged_rng = Random(0); staged_rng.setstate(self._rng.getstate())
+            tiplu, stock, discard, recycled = select_tiplu(stock, discard, staged_rng)
+            if recycled:
+                events.append(DiscardPileRecycled(sequence + len(events), revision, recycled))
+            events.append(TipluRevealed(sequence + len(events), revision, tiplu))
+            events.append(PlayerSawMaal(sequence + len(events), revision, player_id))
+            grant_maal = True
         if source is DrawSource.STOCK:
             if not stock:
-                staged_rng = Random(0)
-                staged_rng.setstate(self._rng.getstate())
+                if staged_rng is None:
+                    staged_rng = Random(0)
+                    staged_rng.setstate(self._rng.getstate())
                 stock, discard = recycle_discards(discard, staged_rng)
-                events.append(DiscardPileRecycled(sequence, revision, len(stock)))
+                events.append(DiscardPileRecycled(sequence + len(events), revision, len(stock)))
             card, stock = stock[-1], stock[:-1]
         else:
             card, discard = discard[-1], discard[:-1]
         events.append(CardDrawn(sequence + len(events), revision, player_id, source, card))
-        players = tuple(replace(p, hand=p.hand + (card,)) if p.player_id == player_id else p
+        players = tuple(replace(p, hand=p.hand + (card,), has_seen_maal=p.has_seen_maal or grant_maal) if p.player_id == player_id else p
                         for p in self._state.players)
         forced = (source is DrawSource.DISCARD and player.route is QualificationRoute.DUBLEE
                   and not self._state.config.rules.dublee_player_can_draw_discard)
-        candidate = replace(self._state, players=players, stock=stock, discard=discard,
+        candidate = replace(self._state, players=players, stock=stock, discard=discard, tiplu=tiplu,
                             phase=TurnPhase.MUST_DISCARD, must_finish=forced)
         return self._commit_turn(candidate, tuple(events), staged_rng)
 
@@ -177,17 +193,28 @@ class MarriageGameEngine:
             raise InvalidActionError("Card must be owned and uncommitted.")
         card = next(card for card in player.hand if card.card_id == card_id)
         hand = tuple(card for card in player.hand if card.card_id != card_id)
-        players = tuple(replace(p, hand=hand) if p.player_id == player_id else p for p in self._state.players)
+        tiplu, stock, discard = self._state.tiplu, self._state.stock, self._state.discard
+        staged_rng = None
+        selected_events = []
+        if tiplu is None and player.route is not QualificationRoute.UNQUALIFIED:
+            staged_rng = Random(0); staged_rng.setstate(self._rng.getstate())
+            tiplu, stock, discard, recycled = select_tiplu(stock, discard, staged_rng)
+            sequence, revision = len(self._state.history)+1, self._state.revision+1
+            if recycled:
+                selected_events.append(DiscardPileRecycled(sequence, revision, recycled))
+            selected_events.append(TipluRevealed(sequence+len(selected_events), revision, tiplu))
+        grant_maal = tiplu is not None and player.route is not QualificationRoute.UNQUALIFIED and not player.has_seen_maal
+        players = tuple(replace(p, hand=hand, has_seen_maal=p.has_seen_maal or grant_maal) if p.player_id == player_id else p for p in self._state.players)
         next_seat = next((self._state.current_seat + offset) % len(players) for offset in range(1, len(players) + 1)
                          if not players[(self._state.current_seat + offset) % len(players)].folded)
         revision, sequence = self._state.revision + 1, len(self._state.history) + 1
-        events = (
-            CardDiscarded(sequence, revision, player_id, card),
-            TurnChanged(sequence + 1, revision, players[next_seat].player_id, TurnPhase.MUST_DRAW),
-        )
-        candidate = replace(self._state, players=players, discard=self._state.discard + (card,),
+        events = selected_events + [CardDiscarded(sequence+len(selected_events), revision, player_id, card)]
+        if grant_maal:
+            events.append(PlayerSawMaal(sequence + len(events), revision, player_id))
+        events.append(TurnChanged(sequence + len(events), revision, players[next_seat].player_id, TurnPhase.MUST_DRAW))
+        candidate = replace(self._state, players=players, stock=stock, tiplu=tiplu, discard=discard + (card,),
                             current_seat=next_seat, phase=TurnPhase.MUST_DRAW)
-        return self._commit_turn(candidate, events)
+        return self._commit_turn(candidate, tuple(events), staged_rng)
 
     def get_allowed_actions(self, player_id: str) -> AllowedActions:
         """Return legal moves and declaration submission windows, not automatic meld discovery."""
@@ -216,7 +243,10 @@ class MarriageGameEngine:
         return self._show(player_id, pairs, QualificationRoute.DUBLEE)
 
     def _show(self, player_id: str, melds: Sequence[Meld], route: QualificationRoute) -> ActionResult:
-        player = self._require_turn(player_id, TurnPhase.MUST_DISCARD)
+        before_draw = self._state.phase is TurnPhase.MUST_DRAW and first_draw_pending(self._state, player_id)
+        player = self._require_turn(player_id, TurnPhase.MUST_DRAW if before_draw else TurnPhase.MUST_DISCARD)
+        if route is QualificationRoute.DUBLEE and len(self._state.players) < 4:
+            raise InvalidActionError("Dublee qualification requires at least four players.")
         if player.route is not QualificationRoute.UNQUALIFIED:
             raise InvalidActionError("Player has already qualified; routes cannot be changed.")
         values = validate_declaration(player, melds, route, self._state.config.rules)
@@ -236,10 +266,12 @@ class MarriageGameEngine:
                                 tuple(m.meld_type for m in values), tuple(m.card_ids for m in values)))
         if created:
             events.append(TipluRevealed(seq + len(events), rev, tiplu))
-        events.append(PlayerSawMaal(seq + len(events), rev, player_id))
+        grant_maal = tiplu is not None and first_turn(self._state, player_id)
+        if grant_maal:
+            events.append(PlayerSawMaal(seq + len(events), rev, player_id))
         qualified = replace(player, route=route, shown_melds=values,
                             committed_card_ids=frozenset(i for m in values for i in m.card_ids),
-                            has_seen_maal=True)
+                            has_seen_maal=grant_maal)
         players = tuple(qualified if p.player_id == player_id else p for p in self._state.players)
         return self._commit_turn(replace(self._state, players=players, tiplu=tiplu, stock=stock,
                                          discard=discard), tuple(events), rng)
@@ -251,7 +283,7 @@ class MarriageGameEngine:
     def can_finish_normal_hand(self, player_id: str) -> Capability:
         """Supported rule and hand verdict; allowed actions additionally enforce turn."""
         player = find_player(self._state, player_id)
-        possible = normal_finish(player, self._state.tiplu, self._state.config.rules) is not None
+        possible = (normal_finish(player, self._state.tiplu, self._state.config.rules) if player.has_seen_maal else unseen_normal_finish(player,self._state.config.rules)) is not None
         return Capability(True, "Valid normal-hand partition." if possible else
                           "Requires normal qualification and a 21-card partition after drawing.", possible)
 
@@ -280,9 +312,13 @@ class MarriageGameEngine:
         return self._commit_turn(candidate, tuple(events))
 
     def finish(self, player_id: str, melds: tuple[Meld, ...] | None = None,
-               discard_card_id: str | None = None, winning_pair: tuple[str, ...] | None = None) -> ActionResult:
+               discard_card_id: str | None = None, winning_pair: tuple[str, ...] | None = None, pairs: tuple[Meld, ...] | None = None) -> ActionResult:
         """Revalidate and finish; normal wins atomically discard their 22nd card."""
         player = self._require_turn(player_id, TurnPhase.MUST_DISCARD, finishing=True)
+        if not player.has_seen_maal:
+            return self._finish_unseen(player, melds, discard_card_id, winning_pair, pairs)
+        if pairs is not None:
+            raise InvalidActionError("Eight-pair selection is for an unseen finish.")
         if player.route is QualificationRoute.NORMAL:
             if winning_pair is not None or (melds is None) != (discard_card_id is None):
                 raise InvalidActionError("Invalid normal finish selection.")
@@ -310,6 +346,41 @@ class MarriageGameEngine:
         event = PlayerFinished(len(self._state.history) + 1, self._state.revision + 1, player_id, pair)
         return self._commit_turn(replace(self._state, players=players, status=GameStatus.FINISHED,
                                          winner=player_id, winning_pair=pair, must_finish=False), (event,))
+
+    def _finish_unseen(self, player, melds, discard, winning_pair, pairs):
+        if winning_pair is not None or (melds is not None and pairs is not None):
+            raise InvalidActionError("Select a natural hand or eight natural pairs and a final discard.")
+        rules = self._state.config.rules
+        witness = NormalFinish(melds, discard) if melds is not None and discard is not None else None
+        if melds is not None and discard is None:
+            raise InvalidActionError("An unseen finish requires a final discard.")
+        if melds is None and pairs is None and discard is None:
+            witness = unseen_normal_finish(player, rules)
+            if witness is None:
+                choice = unseen_dublee_finish(player,rules,len(self._state.players))
+                if choice:
+                    pairs,discard = choice
+        if witness is not None:
+            if not valid_unseen_normal_finish(player,rules,witness):
+                raise InvalidActionError("Unseen finish requires 21 cards in natural sequences/Tunnelas and a discard.")
+            groups,discard,route = witness.melds,witness.discard_card_id,QualificationRoute.NORMAL
+            shown = player.shown_melds
+            pair = ()
+        else:
+            if pairs is None or discard is None or not valid_unseen_dublee_finish(player,rules,len(self._state.players),pairs,discard):
+                raise InvalidActionError("Unseen Dublee finish requires four players, eight natural pairs and a discard.")
+            groups,route,shown,pair = tuple(pairs),QualificationRoute.DUBLEE,tuple(pairs[:7]),tuple(pairs[7].card_ids)
+        card = next(c for c in player.hand if c.card_id==discard)
+        winner = replace(player,finished=True,route=route,shown_melds=shown,
+                         committed_card_ids=frozenset(i for g in shown for i in g.card_ids),
+                         hand=tuple(c for c in player.hand if c.card_id!=discard))
+        players = tuple(winner if p.player_id==player.player_id else p for p in self._state.players)
+        seq,rev = len(self._state.history)+1,self._state.revision+1
+        events = (CardDiscarded(seq,rev,player.player_id,card),
+                  PlayerFinished(seq+1,rev,player.player_id,pair,tuple(g.meld_type for g in groups),tuple(g.card_ids for g in groups),discard))
+        return self._commit_turn(replace(self._state,players=players,status=GameStatus.FINISHED,
+                winner=player.player_id,normal_finish=witness,winning_pair=pair,
+                discard=self._state.discard+(card,),must_finish=False),events)
 
     def can_see_maal(self, player_id: str) -> bool:
         """Check qualification-based entitlement without revealing indicator information."""

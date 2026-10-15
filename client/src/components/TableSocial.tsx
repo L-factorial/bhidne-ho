@@ -228,7 +228,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
         footer={<FormFooter><ChatComposer value={punchline} onChange={value=>setPunchline(Array.from(value).slice(0,PUNCHLINE_LIMIT).join(''))} onSend={() => void sendReaction('punchline')}
           disabled={sendingPoke || targetPlayer === null || !enabled} editable={!sendingPoke} maxLength={PUNCHLINE_LIMIT}
           label={ui('social.punchline_message')} sendLabel={ui('social.send_punchline')} placeholder={ui('social.your_own_little_punchline')} />
-          {!!error && <Text accessibilityRole="alert" style={{ color: c.danger }}>{uiLabel(error, 'feedback')}</Text>}
+          {!!error && <Text activity accessibilityRole="alert" style={{ color: c.danger }}>{uiLabel(error, 'feedback')}</Text>}
         </FormFooter>}>
         <Text style={{ color: c.textMuted, fontFamily: fonts.body }}>{ui("social.choose_a_player")}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8}}>
@@ -248,7 +248,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
         </View>
       </RoomSheet>
       {presentationExpanded && canRead && (!handCollapsed || !!error) && <View testID="game-social-controls" onTouchStart={event => event.stopPropagation()} onPointerDown={event => event.stopPropagation()} style={{position:'absolute',right:14,bottom,zIndex:45,alignItems:'flex-end',maxWidth:240}}>
-        {!!error && !open && <Pressable accessibilityRole="button" accessibilityLabel={ui("common.dismiss_social_error")} onPress={() => setError('')}><Text style={{color:c.danger,backgroundColor:c.surface,padding:6}}>{uiLabel(error, 'feedback')}</Text></Pressable>}
+        {!!error && !open && <Pressable accessibilityRole="button" accessibilityLabel={ui("common.dismiss_social_error")} onPress={() => setError('')}><Text activity style={{color:c.danger,backgroundColor:c.surface,padding:6}}>{uiLabel(error, 'feedback')}</Text></Pressable>}
         {!handCollapsed && <View style={{flexDirection:'row',backgroundColor:c.tableHeader,borderColor:c.tableTrim,borderWidth:1,borderRadius: radii.large}}>
           <Pressable accessibilityRole="button" accessibilityLabel={unread ? ui('common.chat_unread', { count: unread }) : ui('common.table_chat')} onPress={openChat} style={[iconStyle,{flexDirection:'row',paddingHorizontal:8}]}>
             <Ionicons name="chatbubble-outline" size={22} color={c.onTableHeader} />{unread > 0 && <Text testID="table-chat-unread" style={{color:c.onPrimary,backgroundColor:c.primary,borderRadius: radii.medium,fontSize:11,paddingHorizontal:5}}>{unread > 99 ? '99+' : unread}</Text>}
@@ -264,12 +264,12 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
             {!messages.length && <Text style={{color:c.textMuted}}>{ui("social.start_the_table_conversation")}</Text>}
             {messages.map(message => <ChatMessage tableStyle key={message.id} message={message} own={message.sender_id === userId} action={<ReportButton menu session={session} enabled={blocking.reporting} scope={message.ephemeral ? 'player' : 'chat'} messageId={message.ephemeral ? undefined : message.id} player={{user_id: message.sender_id, display_name: message.sender_name}} />} />)}
           </ScrollView>
-          {!!error && <Text accessibilityRole="alert" style={{color:c.danger}}>{uiLabel(error, 'feedback')}</Text>}
-          {reconnecting && <Text style={{color:c.textMuted}}>{ui("feedback.reconnecting")}</Text>}
+          {!!error && <Text activity accessibilityRole="alert" style={{color:c.danger}}>{uiLabel(error, 'feedback')}</Text>}
+          {reconnecting && <Text activity style={{color:c.textMuted}}>{ui("feedback.reconnecting")}</Text>}
           {seated ? <View testID="table-chat-composer" style={{flexShrink:0}}>
             <CommunityRulesEntry session={session} />
             <ChatComposer value={draft} onChange={setDraft} onSend={() => void send()} disabled={!enabled || sending}
-              label={ui("social.table_message")} sendLabel={ui("common.send_table_message")} placeholder={t('chat.placeholder')} />
+              label={ui("social.table_message")} sendLabel={ui("common.send_table_message")} placeholder={t('chat.tablePlaceholder')} />
             <ChatInputDiagnostics />
           </View> : <Text style={{color:c.textMuted}}>{ui("social.waiting_players_can_read_take_a_seat_to_chat")}</Text>}
         </View>

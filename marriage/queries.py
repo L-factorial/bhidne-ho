@@ -7,9 +7,9 @@ from .scoring_rules import ScoringRules
 from .enums import ActionKind, DrawSource, GameStatus, QualificationRoute, TurnPhase
 from .errors import InvalidActionError
 from .models import MarriageGameState, Meld, NormalFinish
-from .completion import eighth_pair, normal_finish
+from .completion import eighth_pair, normal_finish, unseen_normal_finish, unseen_dublee_finish
 from .maal import MaalView, maal_view
-from .turns import discardable_ids, draw_source_block, find_player, turn_block, tunnela_declarations_pending
+from .turns import discardable_ids, draw_source_block, find_player, turn_block, tunnela_declarations_pending, first_draw_pending, show_actions
 
 
 @dataclass(frozen=True)
@@ -53,14 +53,16 @@ def allowed_actions(state: MarriageGameState, player_id: str) -> AllowedActions:
                 blocked.append(BlockedDrawSource(source, reason))
             else:
                 sources.append(source)
-        return AllowedActions(kinds=((ActionKind.DRAW,) if sources else ()) + fold,
+        return AllowedActions(kinds=((ActionKind.DRAW,) if sources else ()) + fold +
+                              (show_actions(state) if player.route is QualificationRoute.UNQUALIFIED and first_draw_pending(state, player_id) else ()),
                               drawable_sources=tuple(sources), blocked_sources=tuple(blocked))
     ids = discardable_ids(state, player)
-    witness = normal_finish(player, state.tiplu, state.config.rules)
+    witness = normal_finish(player, state.tiplu, state.config.rules) if player.has_seen_maal else unseen_normal_finish(player,state.config.rules)
     kinds = [ActionKind.FOLD] + ([ActionKind.DISCARD] if ids else [])
     if player.route is QualificationRoute.UNQUALIFIED:
-        kinds.extend((ActionKind.SHOW_INITIAL_MELDS, ActionKind.SHOW_DUBLEES))
-    elif eighth_pair(player) or witness is not None:
+        kinds.extend(show_actions(state))
+    if (player.has_seen_maal and (eighth_pair(player) or witness is not None) or
+            not player.has_seen_maal and (witness is not None or unseen_dublee_finish(player,state.config.rules,len(state.players)) is not None)):
         kinds.append(ActionKind.FINISH)
     return AllowedActions(kinds=tuple(kinds), discardable_card_ids=ids, normal_finish=witness)
 
@@ -90,6 +92,8 @@ class PublicGameView:
     winner: str | None
     scoring_rules: ScoringRules
     scores: RoundScore | None
+    maal_selected: bool = False
+    manual_maal_cut: bool = False
     normal_finish: NormalFinish | None = None
     winning_pair: tuple[str, ...] = ()
     won_by_fold: bool = False
@@ -107,7 +111,7 @@ class PlayerView:
 
 def public_view(state: MarriageGameState) -> PublicGameView:
     return PublicGameView(
-        revision=state.revision, status=state.status,
+        revision=state.revision, status=state.status, maal_selected=state.tiplu is not None, manual_maal_cut=state.config.rules.manual_maal_cut,
         players=tuple(PublicPlayerView(p.player_id, len(p.hand), p.route,
                                       p.shown_melds, p.has_seen_maal, p.finished, p.folded, p.tunnela_declared, p.initial_tunnelas)
                       for p in state.players),

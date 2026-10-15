@@ -1,5 +1,9 @@
 // Editable English flush copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  betting_round: 'Betting round {{number}}',
+  "allow_raise": "Allow raise",
+  "max_doubles_per_hand": "Max doubles per hand (1–5)",
+  "max_raise": "Max doubles per hand (1–5)",
   "side_show_toggle": "Allow side-show",
   "side_show_rounds": "Minimum betting rounds before side-show",
   "blind_to_seen_multiplier": "Blind-to-seen bet multiplier",

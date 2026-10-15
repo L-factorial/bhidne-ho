@@ -8,8 +8,8 @@ import { type ReactNode, useEffect, useRef } from 'react';
 import { AccessibilityInfo, Animated, Pressable, ScrollView, View } from 'react-native';
 import { useTheme } from '../theme';
 
-export function MobileGameHand({ mobile, open, onToggle, docked = false, overlay = false, onCollapsedHeight, desktopDrawer = false, myTurn, attention = myTurn, attentionText, children, game = 'flush', keepMounted = false, header, cardCount, cue, draggingCard = false }: {
-  overlay?: boolean; onCollapsedHeight?: (height: number) => void;
+export function MobileGameHand({ mobile, open, onToggle, docked = false, overlay = false, onCollapsedHeight, onOccupiedHeight, desktopDrawer = false, myTurn, attention = myTurn, attentionText, children, game = 'flush', keepMounted = false, header, cardCount, cue, draggingCard = false }: {
+  onOccupiedHeight?: (height:number)=>void; overlay?: boolean; onCollapsedHeight?: (height: number) => void;
   draggingCard?: boolean;
   cue?: GameAttention|null; cardCount?: number; header?: ReactNode; docked?: boolean; desktopDrawer?: boolean;
   attention?: boolean; attentionText?: string;
@@ -34,7 +34,7 @@ export function MobileGameHand({ mobile, open, onToggle, docked = false, overlay
   return <>
     {open && !docked && <Pressable testID={`${game}-hand-backdrop`} accessibilityRole="button" accessibilityLabel={ui("common.close_your_card_area")}
       onPress={onToggle} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 29, backgroundColor: colors.overlay }} />}
-    <Animated.View ref={socialAnchor.ref} onLayout={socialAnchor.onLayout} testID={`${game}-mobile-hand`} style={{ position: docked && !overlay ? 'relative' : 'absolute', bottom: 0, left: 0, right: 0,
+    <Animated.View ref={socialAnchor.ref} onLayout={event=>{socialAnchor.onLayout();onOccupiedHeight?.(event.nativeEvent.layout.height);}} testID={`${game}-mobile-hand`} style={{ position: docked && !overlay ? 'relative' : 'absolute', bottom: 0, left: 0, right: 0,
     maxHeight: '94%', flexShrink: 0, zIndex: 30, elevation: 16, transform: [{ translateY: slide }],
     borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden', backgroundColor: colors.surface }}>
     <View style={{ alignItems: 'center', paddingTop: 7, backgroundColor: colors.tableHeader }}>
@@ -47,6 +47,6 @@ export function MobileGameHand({ mobile, open, onToggle, docked = false, overlay
     {(open || keepMounted) && <ScrollView scrollEnabled={!draggingCard} ref={content} style={!open && { display: 'none' }} accessibilityElementsHidden={!open} importantForAccessibility={open ? 'auto' : 'no-hide-descendants'} testID={`${game}-hand-content`} contentContainerStyle={{ padding: 8, paddingBottom: 18 }} nestedScrollEnabled>
       {header}{children}
     </ScrollView>}
-    <HandAreaOutline />
+    <HandAreaOutline active={!!cue} />
   </Animated.View></>;
 }

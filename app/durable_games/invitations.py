@@ -138,6 +138,8 @@ async def answer(claim, game, invitations, payload, *, inbox=None):
 
 
 def reconcile(game, invitations):
+    occupied = set(game.table.seat_positions.values())
+    invitations = [dict(item, reserved_position=None) if item.get('reserved_position') in occupied else item for item in invitations]
     return [dict(item, status='cancelled' if game.ended else 'accepted')
         if item.get('status') == 'pending' and (game.ended or item.get('recipient_id') in game.table.seats(game)
                                               or item.get('recipient_id') in game.table.queue)

@@ -156,16 +156,17 @@ def test_deterministic_partition_independent_of_hand_order_and_cache():
 def test_long_qualification_can_finish_and_final_discard_is_not_scored():
     game = normal_round()
     state = game.get_state()
-    groups = tuple(Meld(MeldType.PURE_SEQUENCE, tuple(f'D0:{r}{s}' for r in range(2, 9))) for s in 'CDH')
-    hand = tuple(CARDS[i] for m in groups for i in m.card_ids)
+    groups = tuple(Meld(MeldType.PURE_SEQUENCE, tuple(f'D0:{r}{s}' for r in range(2, 7))) for s in 'CDH')
+    hand = tuple(CARDS[i] for m in groups for i in m.card_ids) + tuple(CARDS[f'D0:{r}S'] for r in range(2,8))
     tiplu, discard = CARDS['D2:8H'], CARDS['MAN:0']
     rest = tuple(c for c in create_deck() if c not in hand + (tiplu, discard))
     game._state = replace(state, players=(PlayerState('0', hand), PlayerState('1', rest[:21])),
                           discard=(), stock=rest[21:] + (tiplu, discard))
     game.draw_card('0', DrawSource.STOCK)
     game.show_initial_melds('0', groups)
-    assert game.get_allowed_actions('0').normal_finish.discard_card_id == 'MAN:0'
-    game.finish('0')
+    assert game.get_allowed_actions('0').normal_finish is not None
+    remainder = Meld(MeldType.PURE_SEQUENCE, tuple(f'D0:{r}S' for r in range(2,8)))
+    game.finish('0', groups + (remainder,), 'MAN:0')
     assert all(item.label != 'Man' for item in game.get_scores().players[0].items)
     validate_game_state(game.get_state())
 
@@ -209,15 +210,15 @@ def test_selected_partition_is_validated_and_broadcast_exactly():
 
 
 def test_selected_eighth_pair_validates_ownership_and_preserves_other_cards():
-    game = MarriageGameEngine(('0', '1'), rng=Random(27), rules=MarriageRules(scoring=ScoringRules(initial_tunnela_declaration=False)))
+    game = MarriageGameEngine(('0', '1', '2', '3'), rng=Random(27), rules=MarriageRules(scoring=ScoringRules(initial_tunnela_declaration=False)))
     game.start_game()
     pairs = tuple(Meld(MeldType.DUBLEE, (f'D0:{rank}C', f'D1:{rank}C')) for rank in range(2, 9))
     ids = tuple(i for m in pairs for i in m.card_ids) + (
         'D0:10H', 'D1:10H', 'D2:10H', 'D0:QH', 'D1:QH', 'D0:2S', 'D0:4S', 'MAN:0')
     hand = tuple(CARDS[i] for i in ids)
     remaining = tuple(c for c in create_deck() if c not in hand)
-    game._state = replace(game.get_state(), players=(PlayerState('0', hand[:-1]), PlayerState('1', remaining[:21])),
-                          discard=(), stock=remaining[21:] + (hand[-1],))
+    game._state = replace(game.get_state(), players=(PlayerState('0', hand[:-1]), *(PlayerState(str(i),remaining[(i-1)*21:i*21]) for i in range(1,4))),
+                          discard=(), stock=remaining[63:] + (hand[-1],))
     game.draw_card('0', DrawSource.STOCK)
     game.show_dublees('0', pairs)
     before = game.get_state()

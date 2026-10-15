@@ -1,13 +1,13 @@
 import { CardBack } from './CardBack';
 import {AppText as Text} from './AppText';
 import {useEffect, useRef, useState, type ReactNode} from 'react';
-import {AccessibilityInfo, Animated, Pressable, View} from 'react-native';
+import {AccessibilityInfo, Animated, Pressable, View, Text as SmallText} from 'react-native';
 import { radii, fonts, useTheme} from '../theme';
 import {ui} from '../i18n/copy';
 import {useUiLanguage} from '../i18n/useUiLanguage';
 import type {GameAttention} from '../notifications/gameAttention';
 
-export function GameAttentionBanner({attention, onPress, idleContent, endControl, expanded, disabled = false}: {attention:GameAttention|null; onPress?:()=>void; idleContent?:ReactNode; endControl?:ReactNode; expanded?:boolean; disabled?:boolean}) {
+export function GameAttentionBanner({attention, onPress, idleContent, endControl, expanded, disabled = false, cardsTitle = false}: {cardsTitle?:boolean; attention:GameAttention|null; onPress?:()=>void; idleContent?:ReactNode; endControl?:ReactNode; expanded?:boolean; disabled?:boolean}) {
   useUiLanguage();
   const {colors:c} = useTheme();
   const pulse = useRef(new Animated.Value(1)).current;
@@ -31,16 +31,17 @@ export function GameAttentionBanner({attention, onPress, idleContent, endControl
     animation.start(({finished}) => { if (finished) setPulsating(false); });
     return () => {animation.stop();pulse.setValue(1);};
   },[attention?.key,attention?.required,reduced,pulse]);
-  const title = attention ? ui(attention.title) : ui('common.your_cards');
+  const title = cardsTitle ? ui('common.your_cards') : attention ? ui(attention.title) : ui('common.your_cards');
   const detail = attention ? ui(attention.detail) : '';
   const opportunities = attention?.opportunities.filter(key => attention.required || key !== attention.title) || [];
+  const inlineMaal = (cardsTitle && (attention?.title==='common.attention_maal' || attention?.opportunities.includes('common.attention_maal'))) || (attention?.title === 'common.attention_turn' && opportunities.includes('common.attention_maal'));
   const body = <View style={{flexDirection:'row',alignItems:'center',gap:4,minHeight:64}}>
     <View style={{flex:1,minWidth:0,borderRadius: radii.large,borderWidth:1,borderColor:attention ? c.tableTrim : c.border,backgroundColor:c.tableHeader,paddingHorizontal:12,paddingVertical:9,flexDirection:'row',alignItems:'center',gap:10}}>
-      {pulsating && <Animated.View testID="attention-glow" pointerEvents="none" style={{position:'absolute',inset:0,borderRadius: radii.large,borderWidth:1,borderColor:c.tableTrim,opacity:pulse,boxShadow:`0 0 12px ${c.tableTrim}`}} />}
-      {!attention && idleContent ? <View style={{flex:1,minWidth:0}}>{idleContent}</View> : <><View style={{width:24,height:34}}><CardBack /></View>
-      <View style={{flex:1,minWidth:0}}><Text accessibilityLiveRegion="polite" numberOfLines={2} style={{fontFamily:fonts.medium,color:attention ? c.tableTrim : c.onTableHeader,fontSize:15}}>{title}</Text>
-        {!!detail && <Text style={{fontFamily:fonts.body,color:c.onTableHeader,fontSize:12}}>{detail}</Text>}
-        {!!opportunities.length && <Text numberOfLines={1} style={{color:c.tableTrim,fontSize:11}}>{opportunities.map(key=>ui(key)).join(' · ')}</Text>}
+      {pulsating && <Animated.View testID="attention-glow" pointerEvents="none" style={{position:'absolute',inset:0,borderRadius: radii.large,borderWidth:3,borderColor:c.tableTrim,opacity:pulse,boxShadow:`0 0 12px ${c.tableTrim}`}} />}
+      {!attention && idleContent ? <View style={{flex:1,minWidth:0}}>{idleContent}</View> : <>{!inlineMaal && <View style={{width:24,height:34}}><CardBack /></View>}
+      <View style={{flex:1,minWidth:0}}><View style={{flexDirection:'row',alignItems:'baseline',gap:6}}><Text accessibilityLiveRegion="polite" numberOfLines={inlineMaal ? 1 : 2} style={{fontFamily:fonts.medium,color:attention ? c.tableTrim : c.onTableHeader,fontSize:15,flexShrink:1}}>{title}</Text>{inlineMaal && <SmallText testID="inline-maal-eligible" numberOfLines={1} style={{fontFamily:fonts.body,color:c.tableTrim,fontSize:11,flexShrink:1}}>{cardsTitle ? '- ' : ''}{ui('common.attention_maal')}</SmallText>}</View>
+        {!!detail && <Text numberOfLines={inlineMaal ? 1 : undefined} adjustsFontSizeToFit={inlineMaal} minimumFontScale={0.85} style={{fontFamily:fonts.body,color:c.onTableHeader,fontSize:12}}>{detail}</Text>}
+        {!!opportunities.length && !inlineMaal && <Text numberOfLines={1} style={{color:c.tableTrim,fontSize:11}}>{opportunities.map(key=>ui(key)).join(' · ')}</Text>}
       </View></>}{endControl}
     </View>
   </View>;

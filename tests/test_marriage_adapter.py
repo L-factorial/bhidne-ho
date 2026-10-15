@@ -18,8 +18,8 @@ from marriage import MarriageRules, ScoringRules, ActionKind, DrawSource, GameSt
 from examples.marriage_round import pairs_in
 
 
-def adapter():
-    return MarriageAdapter(MarriageGameEngine(("a", "b"), rng=Random(42), rules=MarriageRules(scoring=ScoringRules(initial_tunnela_declaration=False))),
+def adapter(count=2):
+    return MarriageAdapter(MarriageGameEngine(tuple("abcde"[:count]), rng=Random(42), rules=MarriageRules(scoring=ScoringRules(initial_tunnela_declaration=False))),
                            match_id="match", owner_player_id="a")
 
 
@@ -130,7 +130,7 @@ def test_public_draw_redacted_query_results_private_and_read_only():
 
 
 def test_complete_adapter_round_projects_qualification_and_finish():
-    game = adapter()
+    game = adapter(4)
     command(game, "START_GAME")
     observed = set()
     for _ in range(1000):

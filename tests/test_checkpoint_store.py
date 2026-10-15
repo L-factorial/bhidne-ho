@@ -46,12 +46,12 @@ async def database():
         await pool.close()
 
 
-async def host_game(users, kind='marriage', started=True, select_dealer=True):
+async def host_game(users, kind='marriage', started=True, select_dealer=True, count=None):
     rooms = RoomService()
     for user in users:
         await rooms.join('room', user)
     host = GameHost(rooms, Delivery())
-    count = 4 if kind == 'callbreak' else 2
+    count = count or (4 if kind == 'callbreak' else 2)
     waiting = await host.create('room', users[0], count, kind)
     for user in users[1:count]:
         await host.join('room', user, waiting['match_id'])
@@ -83,7 +83,7 @@ async def advance(host, game, command=None, expected=None, command_id=None):
             'fingerprint': request_fingerprint(request), 'outcome': result['action_ack']}
 
 
-async def test_flush_turn_bound_reveals_commit_durable_receipts(database):
+async def test_flush_off_turn_reveals_commit_durable_receipts(database):
     pool, store, fence, users = database
     host, game = await host_game(users, 'flush')
     try:
@@ -91,17 +91,16 @@ async def test_flush_turn_bound_reveals_commit_durable_receipts(database):
         state=engine_state(game)
         await store.save(capture_checkpoint(game,table_revision=0),expected_revision=None,fence=fence)
         deadline=game.deadline
-        active = next(u for u in game.users if str(game.flush_seats[u]) == state.current_player_id)
         for index,actor in enumerate(game.users):
             command=GameAction(match_id=game.match_id,command_id=uuid4().hex,
-                expected_revision=state.revision,command='SEE_CARDS',payload={'round_number':state.round_number})
+                expected_revision=engine_state(game).revision,command='SEE_CARDS',payload={'round_number':state.round_number})
             result=await host.action('room',actor,command)
-            assert result['action_ack']['status']==('accepted' if actor == active else 'rejected')
+            assert result['action_ack']['status']=='accepted'
             receipt={'actor_id':actor,'request':command.model_dump(mode='json'),
                 'fingerprint':request_fingerprint(command),'outcome':result['action_ack']}
             await store.save(capture_checkpoint(game,table_revision=index+1),expected_revision=index,fence=fence,receipt=receipt)
             assert game.deadline==deadline
-        assert engine_state(game).revision==state.revision+1
+        assert engine_state(game).revision==state.revision+len(game.users)
     finally:
         await host.close()
 
@@ -164,6 +163,7 @@ async def test_legacy_marriage_set_order_survives_table_save_and_next_move(datab
     data['table_revision'] = 0
     data['host']['durable_game_id'] = str(UUID(data['match_id']))
     data['engine']['state']['players'][0]['committed_card_ids'].reverse()
+    data['engine']['state']['config']['rules'].pop('manual_maal_cut', None)
     resign(original)
     await store.save(original, expected_revision=None, fence=fence)
     before = (await pool.execute('SELECT state,state_digest FROM game_snapshots')).rows
@@ -385,5 +385,24 @@ async def test_flush_round_rollover_retains_match_receipts(database):
         assert (await pool.execute('SELECT status FROM games WHERE id=%s', (old_id,))).rows == [('completed',)]
         assert await store.lookup_receipt(game.table.table_id, receipts[0]['actor_id'],
             ReliableActionCommand(**receipts[0]['request'])) == receipts[0]['outcome']
+    finally:
+        await host.close()
+
+
+async def test_six_player_marriage_indicator_survives_checkpoint_and_private_projection(database):
+    from app.durable_games.queries import PostgresHostedQueries
+    pool, store, fence, users = database
+    host, game = await host_game(users, 'marriage', count=6)
+    try:
+        before = engine_state(game)
+        assert before.tiplu is not None and len(before.players)==6
+        await store.save(capture_checkpoint(game,table_revision=0),expected_revision=None,fence=fence)
+        saved=await store.load(game.table.table_id)
+        recovered=rebuild_hosted_game(GameHost(RoomService(),Delivery()),saved.checkpoint,receipt_snapshot=saved.receipt_snapshot).game
+        assert engine_state(recovered).tiplu == before.tiplu
+        view=(await PostgresHostedQueries(pool).room('room',users[0],table_id=game.table.table_id))['snapshot']
+        assert view['marriage']['public']['maal_selected']
+        assert view['marriage']['private']['maal'] is None
+        assert len(view['players'])==6
     finally:
         await host.close()

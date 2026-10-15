@@ -11,7 +11,7 @@ test('turns are immediate and keep their animation identity through polls',()=>{
   assert.equal(gameAttention({...base,game:{...base.game,phase:'PLAYING'}}).detail,'common.attention_play');
 });
 const card=(rank,copy=0)=>({card_id:`${copy}:${rank}`,card_type:'standard',rank,suit:'S'});
-const marriage=(hand,kinds=[],extra={})=>({...base,game_type:'marriage',game:null,marriage:{public:{current_player_id:'2',players:[{player_id:'1',route:'unqualified',shown_melds:[],has_seen_maal:false}],...extra},private:{player_id:'1',hand,actions:{kinds},maal:null}}});
+const marriage=(hand,kinds=[],extra={})=>({...base,game_type:'marriage',game:null,marriage:{public:{current_player_id:'2',players:['1','2','3','4'].map(player_id=>({player_id,route:'unqualified',shown_melds:[],has_seen_maal:false})),...extra},private:{player_id:'1',hand,actions:{kinds},maal:null}}});
 test('declaration is required even out of turn; declaration gate suppresses suggestions',()=>{
   const s=marriage([],['declare_tunnelas'],{tunnela_declaration_pending:true});
   assert.equal(gameAttention(s).detail,'common.attention_declare_detail');
@@ -81,4 +81,13 @@ test('local detection cannot expose cues for spectators, folded players or ended
   s.marriage.public.players[0].folded=false;
   assert.equal(gameAttention({...s,status:'ended'},local),null);
   assert.equal(gameAttention({...s,marriage:{...s.marriage,private:null}},local),null);
+});
+
+test('small Marriage games suppress Dublee opportunities and first-turn cues prioritize showing',()=>{
+  const pairs=[2,4,6,8,10,12,14].flatMap(r=>[card(r),card(r,1)]);
+  const s=marriage(pairs);s.marriage.public.players=s.marriage.public.players.slice(0,3);
+  assert.equal(gameAttention(s),null);
+  const eligible=marriage([1,2,3,4,5,6,7,8,9].map(r=>card(r)),['draw','show_initial_melds'],{current_player_id:'1'});
+  assert.equal(gameAttention(eligible).detail,'marriage.show_then_draw');
+  assert.equal(gameAttention(eligible,{maal:true,marriage:false,tunnela:false}).detail,'marriage.show_then_draw');
 });

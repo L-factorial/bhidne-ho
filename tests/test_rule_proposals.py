@@ -34,83 +34,47 @@ async def vote(host, game, who, accept, proposal_id=None):
         proposal_id=proposal_id or game.rule_proposal['id'], accept=accept))
 
 
-async def test_old_pending_flush_proposal_does_not_enable_new_rules_on_acceptance():
-    host, game, _ = await make('flush', capacity=4)
-    try:
-        await propose(host, game)
-        for settings in [game.rule_proposal['previous'], game.rule_proposal['proposed']]:
-            for field in ['allow_multiplayer_blind_show', 'minimum_rounds_before_multiplayer_blind_show', 'trial_bonus', 'ace_trial_bonus']:
-                settings['rules'].pop(field)
-        for user in game.users[1:]:
-            await vote(host, game, user, True)
-        assert game.rule_proposal['status'] == 'ACCEPTED'
-        assert game.flush_rules.allow_multiplayer_blind_show is False
-        assert game.flush_rules.ace_trial_bonus == 0
-        assert game.flush_rules.initial_blind_bet == 7
-    finally:
-        await host.close()
+async def test_legacy_flush_rules_restore_defaults_without_enabling_old_bonuses():
+    from flush.rules import legacy_rule_defaults
+    from flush import FlushRulesConfig
+    rules = FlushRulesConfig(**legacy_rule_defaults({'boot_amount':7,'initial_blind_bet':7}))
+    assert rules.allow_multiplayer_blind_show is False
+    assert rules.ace_trial_bonus == 0
 
 
 @pytest.mark.parametrize('kind', ['callbreak', 'marriage', 'flush'])
-async def test_rules_require_every_seated_vote_and_viewers_cannot_vote(kind):
+async def test_creator_config_applies_immediately_and_notifies_without_votes(kind):
     host, game, _ = await make(kind, capacity=4)
     try:
-        before = deepcopy(current(await host.snapshot('r', 'u0')))
-        proposed = await propose(host, game)
-        assert current(proposed) == before
-        assert proposed['rule_proposal']['status'] == 'PENDING'
-        waiter = await cmd(host, game, 'u4', 'join-queue')
-        assert waiter['rule_proposal']['proposed'] == proposed['rule_proposal']['proposed']
-        assert not waiter['rule_proposal']['can_vote']
-        for observer in ('u4', 'u5'):
-            with pytest.raises(HTTPException) as error:
-                await vote(host, game, observer, True)
-            assert error.value.status_code == 403
+        before = deepcopy(current(await host.snapshot('r','u0')))
+        saved = await propose(host,game)
+        assert current(saved) != before
+        assert saved['rule_proposal']['status'] == 'ACCEPTED'
+        assert not saved['rule_proposal']['can_vote']
+        assert any(e['event']=='GAME_CONFIG_UPDATED' for e in game.table.events)
+        assert current(await host.snapshot('r','u1')) == current(saved)
         with pytest.raises(HTTPException):
-            await host.start('r', 'u0', game.match_id, rules_revision=0)
-        if kind != 'callbreak':
-            with pytest.raises(HTTPException): await cmd(host, game, 'u0', 'lock')
-        with pytest.raises(HTTPException): await propose(host, game)
-        await vote(host, game, 'u1', True)
-        await vote(host, game, 'u1', True)  # Retry does not count twice.
-        assert game.rule_proposal['accepted'] == ['u0', 'u1']
-        await vote(host, game, 'u2', True)
-        assert current(await host.snapshot('r', 'u2')) == before
-        accepted = await vote(host, game, 'u3', True)
-        assert accepted['rule_proposal']['status'] == 'ACCEPTED'
-        assert current(accepted) != before
-        if kind == 'marriage':
-            assert tuple(current(accepted)['alter']) == (2, 5, 10)
-            assert current(accepted)['initial_tunnela_declaration'] is False
-        assert (await vote(host, game, 'u3', True))['rule_proposal']['status'] == 'ACCEPTED'
-        if kind != 'callbreak': await cmd(host, game, 'u0', 'lock')
-        await host.start('r', 'u0', game.match_id, rules_revision=game.flush_rules_revision)
-        if kind == 'marriage':
-            running = await host.snapshot('r', 'u0')
-            assert running['marriage']['public']['tunnela_declaration_pending'] is False
+            await host.configure('r','u1',GameSettings(match_id=game.match_id,weak_hand_enabled=True))
+        if kind != 'callbreak': await cmd(host,game,'u0','lock')
+        await host.start('r','u0',game.match_id,rules_revision=game.flush_rules_revision)
+        with pytest.raises(HTTPException): await propose(host,game)
     finally:
         await host.close()
 
 
 @pytest.mark.parametrize('kind', ['callbreak', 'marriage', 'flush'])
-async def test_rejection_keeps_rules_and_roster_change_cancels_pending_vote(kind):
-    host, game, _ = await make(kind, capacity=4)
+async def test_saved_config_survives_departure_and_cannot_be_rejected(kind):
+    host, game, _ = await make(kind,capacity=4)
     try:
-        before = deepcopy(current(await host.snapshot('r', 'u0')))
-        await propose(host, game)
-        old_id = game.rule_proposal['id']
-        await asyncio.gather(vote(host, game, 'u1', True), vote(host, game, 'u2', False))
-        assert game.rule_proposal['status'] == 'REJECTED'
-        assert current(await host.snapshot('r', 'u0')) == before
-        await vote(host, game, 'u2', False)
-        await propose(host, game)
-        with pytest.raises(HTTPException): await vote(host, game, 'u3', True, old_id)
-        await cmd(host, game, 'u1', 'leave-seat')
-        assert game.rule_proposal['status'] == 'CANCELLED'
-        with pytest.raises(HTTPException): await vote(host, game, 'u2', True)
-        assert current(await host.snapshot('r', 'u0')) == before
+        saved = await propose(host,game)
+        with pytest.raises(HTTPException): await vote(host,game,'u2',False)
+        await host.leave('r','u1',game.match_id)
+        assert game.rule_proposal['status']=='ACCEPTED'
+        assert current(await host.snapshot('r','u0')) == current(saved)
     finally:
         await host.close()
+
+
 
 
 @pytest.mark.parametrize('kind', ['callbreak', 'marriage', 'flush'])
@@ -149,5 +113,40 @@ async def test_callbreak_chat_reopens_after_deal_until_next_deal_starts():
         assert (await host.snapshot('r', 'u0'))['chat_enabled']
         await host.next_deal('r', 'u0', game.match_id, 1)
         with pytest.raises(ChatAccessDenied): await chat.history('r', 'u0')
+    finally:
+        await host.close()
+
+
+async def test_completed_callbreak_host_can_save_next_config_without_changing_results():
+    from tests.test_table_formation import completed
+    host, game, _ = await completed()
+    try:
+        state = game.state
+        await host.leave('r', 'u0', game.match_id)
+        saved = await host.configure('r', 'u1', GameSettings(match_id=game.match_id, weak_hand_enabled=False))
+        assert saved['is_creator']
+        assert saved['rule_proposal']['status'] == 'ACCEPTED'
+        assert game.state is state
+        assert game.settings['weak_hand_enabled'] is False
+    finally:
+        await host.close()
+
+
+async def test_flush_between_hands_config_is_used_by_the_next_deal():
+    from dataclasses import replace
+    host, game, _ = await make('flush',capacity=4)
+    try:
+        await start(host,game)
+        engine=game.flush_target.adapter.checkpoint()
+        engine.deal_cards(engine.get_state().current_player_id);engine.skip_cut(engine.get_state().current_player_id)
+        while engine.get_state().settlement is None:engine.fold(engine.get_state().current_player_id)
+        before=engine.get_state()
+        saved=await propose(host,game)
+        assert saved['rule_proposal']['status']=='ACCEPTED'
+        assert engine.get_state() is before
+        await cmd(host,game,'u0','lock')
+        await host.start('r','u0',game.match_id,rules_revision=game.flush_rules_revision)
+        assert game.flush_target.adapter.checkpoint().get_state().config.rules.initial_blind_bet==7
+        assert game.flush_target.adapter.checkpoint().get_state().config.rules.boot_amount==7
     finally:
         await host.close()

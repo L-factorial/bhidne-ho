@@ -1,4 +1,5 @@
-import {ActivityIndicator, Image, Text, View, useWindowDimensions} from 'react-native';
+import {ActivityLine} from './ActivityLine';
+import {Image, Text, View, useWindowDimensions} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {branding} from '../branding';
 import {ui} from '../i18n/copy';
@@ -19,7 +20,7 @@ export function TableTransfer(){
     <Image testID="table-transfer-art" source={branding.landing} accessibilityLabel={ui('common.brand_art')}
       resizeMode="contain" style={{width:artworkWidth,height:artworkWidth*650/1090}} />
     <View style={{alignItems:'center',gap:10}}>
-      <ActivityIndicator size="small" color={colors.textMuted} />
+      <ActivityLine />
       <Text accessibilityLiveRegion="polite" style={{color:colors.textMuted,fontFamily:fonts.body,
         fontSize:12,lineHeight:18,textAlign:'center',maxWidth:280}}>{ui('feedback.taking_you_to_table')}</Text>
     </View>

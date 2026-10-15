@@ -45,9 +45,9 @@ export function PokeComposer({ recipient, recipientName, phrases, connected, onC
         {!alreadySaved && <Pressable accessibilityRole="button" disabled={busy || !connected || !text.trim() || phrases.length >= PLAYER_PHRASE_LIMIT} onPress={() => void submit(true)} style={[styles.save, (busy || !connected || !text.trim() || phrases.length >= PLAYER_PHRASE_LIMIT) && { opacity: visualStates.disabledOpacity }]}>
           <Text style={styles.saveText}>{ui("social.save_phrase")}</Text>
         </Pressable>}</View>
-      {!!notice && <Text accessibilityLiveRegion="polite" style={styles.success}>{notice}</Text>}
-      {!!error && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
-      {!connected && <Text style={styles.error}>{ui("feedback.reconnecting_send_when_you_re_back")}</Text>}
+      {!!notice && <Text activity accessibilityLiveRegion="polite" style={styles.success}>{notice}</Text>}
+      {!!error && <Text activity accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
+      {!connected && <Text activity style={styles.error}>{ui("feedback.reconnecting_send_when_you_re_back")}</Text>}
     </FormFooter>}>
       <Text style={styles.note}>{recipient === null ? ui("social.everyone_in_this_room_will_see_it") : ui("social.only_player_will_see_this_message", { "player": target })}</Text>
       <View style={styles.phrases}>

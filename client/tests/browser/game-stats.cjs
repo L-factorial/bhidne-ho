@@ -50,7 +50,7 @@ async function fixture(browser, kind, count, width, spectator = false, configure
     ws.onMessage(raw => { const message = JSON.parse(raw); ws.send(JSON.stringify(message.type === 'HEARTBEAT' ? { type: 'HEARTBEAT_ACK' } : { type: 'TABLE_SOCIAL_ACK', room_id: 'room', match_id: snapshot.match_id, command_id: message.command_id, status: 'accepted', messages: messages.map(m=>({...m,room_id:'room',match_id:snapshot.match_id})) })); });
   });
   await page.goto(site);
-  await page.getByRole('button', {name:/Return to table|Watch/}).first().click();
+  await page.getByRole('button', {name:/Return to table|Watch/}).first().click().catch(async error=>{if(process.env.DEBUG_UI){await page.screenshot({path:'/private/tmp/game-ux-fixture-failure.png'});console.error(await page.locator('body').innerText());console.error(errors);console.error(await page.evaluate(()=>({url:location.href,storage:{...sessionStorage}}))); }throw error;});
   await page.getByTestId('game-stats-toggle').waitFor();
   return {page, context, errors, writes, change: update => { snapshot = structuredClone(snapshot); update(snapshot); }, notify: () => {
     snapshot = structuredClone(snapshot); snapshot.game.revision++;

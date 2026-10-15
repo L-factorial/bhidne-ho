@@ -8,7 +8,7 @@ from flush import (FlushGameEngine, FlushRulesConfig, GameStatus, FlushError,
 
 def game():
     return FlushGameEngine(['a', 'b', 'c'],
-                           rules=FlushRulesConfig(5), rng=Random(4), dealer_id='c')
+                           rules=FlushRulesConfig(5, allow_raise=True, max_raise=5), rng=Random(4), dealer_id='c')
 
 
 def reject(engine, fn):
@@ -69,7 +69,7 @@ def test_shuffle_failure_rolls_back_randomness(monkeypatch):
 def test_winner_continues_same_table_with_net_history():
     e = game()
     e.start_game(); e.deal_cards('c'); e.skip_cut('a')
-    e.bet('a', 3); e.fold('b'); e.fold('c')
+    e.bet('a', 2); e.fold('b'); e.fold('c')
     first = e.get_state()
     assert first.settlement.winner_ids == ('a',)
     assert [p.amount for p in first.round_results[0].net_changes] == [10, -5, -5]

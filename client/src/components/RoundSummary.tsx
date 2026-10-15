@@ -9,8 +9,8 @@ import { ActionCue } from './ActionCue';
 import {Pressable, ScrollView, StyleSheet, View} from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 
-export function RoundSummary({ snapshot, busy, error, onContinue, onBack, onNewGame, controls, hideNavigation = false }: {
-  controls?: ReactNode; hideNavigation?: boolean;
+export function RoundSummary({ snapshot, busy, error, onContinue, onBack, onNewGame, controls, formation, hideNavigation = false }: {
+  formation?: ReactNode; controls?: ReactNode; hideNavigation?: boolean;
   snapshot: RoomSnapshot; busy: boolean; error: string; onContinue: () => void; onBack: () => void; onNewGame: () => void;
 }) {
   useUiLanguage();
@@ -22,6 +22,7 @@ export function RoundSummary({ snapshot, busy, error, onContinue, onBack, onNewG
   const name = (id: number) => snapshot.players?.find(p => p.player_id === id)?.display_name || ui("common.player_number", { "number": id });
   const score = (n: number | null | undefined) => n == null ? '—' : `${n > 0 ? '+' : ''}${formatCallBreakScore(n, snapshot.game?.score_scale ?? 10)}`;
   return <ScrollView testID="round-summary" style={styles.page} contentContainerStyle={styles.body}>
+    {formation}
     {snapshot.game?.win_reason === 'instant_bid' && <Text style={styles.note}>{ui('callbreak.instant_result')}</Text>}
     {snapshot.game?.win_reason === 'perfect_bid' && <Text style={styles.note}>{ui('callbreak.perfect_result')}</Text>}
     <RoundResultsTable title={final ? ui("callbreak.final_scores") : ui("callbreak.deal_number_complete", { "number": round?.deal_number })}
@@ -35,7 +36,7 @@ export function RoundSummary({ snapshot, busy, error, onContinue, onBack, onNewG
           ] };
       })} />
     {controls}
-    {!!error && <Text accessibilityRole="alert" style={styles.note}>{uiLabel(error, 'feedback')}</Text>}
+    {!!error && <Text activity accessibilityRole="alert" style={styles.note}>{uiLabel(error, 'feedback')}</Text>}
     {controls === undefined && (final && snapshot.table?.requires_replacement ? <Text style={styles.note}>{ui("rooms.next_match_help")}</Text> : (final || snapshot.round_review?.can_continue) ? <Pressable accessibilityRole="button" disabled={busy} onPress={final ? onNewGame : onContinue}
       style={[styles.button, busy && { opacity: visualStates.disabledOpacity }]}><ActionCue active={!busy} style={styles.name}>{final ? ui("rooms.start_a_new_game") : ui("callbreak.start_next_deal")}</ActionCue></Pressable>
       : <Text style={styles.note}>{ui("common.waiting_for_the_creator_to_start_the_next_deal")}</Text>)}

@@ -141,3 +141,132 @@ def valid_eighth_pair(player: PlayerState, pair: tuple[str, ...]) -> bool:
     owned = {c.card_id: c for c in player.hand if c.card_id not in player.committed_card_ids}
     return (all(i in owned and owned[i].identity is not None for i in pair)
             and owned[pair[0]].identity == owned[pair[1]].identity)
+
+
+def natural_candidates(cards, rules):
+    """Enumerate only owned natural runs/Tunnelas, rather than 2**22 subsets."""
+    from itertools import product
+    faces = {}
+    for card in cards:
+        if card.identity is not None:
+            faces.setdefault((card.suit, card.rank), []).append(card)
+    result, seen = [], set()
+    def add(kind, held):
+        ids = tuple(sorted(c.card_id for c in held))
+        if ids not in seen:
+            seen.add(ids); result.append(Meld(kind, ids))
+    for held in faces.values():
+        if len(held) == 3:
+            add(MeldType.TUNNELA, held)
+    for suit in {c.suit for c in cards if c.identity is not None}:
+        for order in sequence_rank_orders(rules.ace_sequence):
+            for start in range(len(order)):
+                for size in range(3, len(order)-start+1):
+                    buckets = [faces.get((suit, rank), ()) for rank in order[start:start+size]]
+                    if not all(buckets):
+                        break
+                    for held in product(*buckets):
+                        add(MeldType.PURE_SEQUENCE, held)
+    return tuple(sorted(result, key=lambda g:(len(g.card_ids),g.meld_type.value,g.card_ids)))
+
+
+@lru_cache(maxsize=128)
+def unseen_normal_finish(player: PlayerState, rules: MarriageRules) -> NormalFinish | None:
+    if (player.folded or player.has_seen_maal or len(player.hand) != 22
+            or player.route is QualificationRoute.DUBLEE):
+        return None
+    cards = tuple(sorted((c for c in player.hand if c.card_id not in player.committed_card_ids),key=lambda c:c.card_id))
+    positions = {c.card_id:i for i,c in enumerate(cards)}
+    candidates = [[] for _ in cards]
+    for group in natural_candidates(cards,rules):
+        mask = sum(1<<positions[i] for i in group.card_ids)
+        for i in group.card_ids:
+            candidates[positions[i]].append((mask,group))
+    @lru_cache(maxsize=None)
+    def cover(mask):
+        if not mask:
+            return ()
+        first = (mask & -mask).bit_length()-1
+        for group_mask,group in candidates[first]:
+            if mask & group_mask == group_mask:
+                rest = cover(mask ^ group_mask)
+                if rest is not None:
+                    return (group,)+rest
+        return None
+    protected = {i for g in player.initial_tunnelas for i in g.card_ids}
+    for i,card in enumerate(cards):
+        if card.card_id in protected:
+            continue
+        groups = cover(((1<<len(cards))-1) ^ (1<<i))
+        if groups is not None:
+            witness = NormalFinish(player.shown_melds+groups,card.card_id)
+            if valid_unseen_normal_finish(player,rules,witness):
+                return witness
+    return None
+
+
+def valid_unseen_normal_finish(player, rules, witness):
+    from .melds import validate_meld
+    from .errors import InvalidMeldError
+    if (player.folded or player.has_seen_maal or len(player.hand)!=22
+            or player.route is QualificationRoute.DUBLEE
+            or witness.melds[:len(player.shown_melds)]!=player.shown_melds):
+        return False
+    ids = tuple(i for group in witness.melds for i in group.card_ids)
+    owned = {c.card_id for c in player.hand}
+    protected = {i for g in player.initial_tunnelas for i in g.card_ids}
+    if (len(ids)!=21 or len(set(ids))!=21 or witness.discard_card_id in ids
+            or set(ids)|{witness.discard_card_id}!=owned or witness.discard_card_id in protected):
+        return False
+    try:
+        for group in witness.melds:
+            if group.meld_type not in (MeldType.PURE_SEQUENCE,MeldType.TUNNELA):
+                return False
+            validate_meld(player,group,rules,allow_committed=True)
+    except InvalidMeldError:
+        return False
+    return True
+
+
+@lru_cache(maxsize=128)
+def unseen_dublee_finish(player, rules, player_count):
+    if (player_count<4 or player.folded or player.has_seen_maal or len(player.hand)!=22
+            or player.route is QualificationRoute.NORMAL):
+        return None
+    protected = {i for g in player.initial_tunnelas for i in g.card_ids}
+    for card in sorted(player.hand,key=lambda c:c.card_id):
+        if card.card_id in player.committed_card_ids|protected:
+            continue
+        faces = {}
+        for held in sorted(player.hand,key=lambda c:c.card_id):
+            if held.identity is not None and held.card_id not in player.committed_card_ids and held!=card:
+                faces.setdefault(held.identity,[]).append(held.card_id)
+        pairs = list(player.shown_melds)
+        pairs.extend(Meld(MeldType.DUBLEE,tuple(ids[:2])) for ids in faces.values() if len(ids)>=2)
+        if len(pairs)>=8:
+            chosen = tuple(pairs[:8])
+            if valid_unseen_dublee_finish(player,rules,player_count,chosen,card.card_id):
+                return chosen,card.card_id
+    return None
+
+
+def valid_unseen_dublee_finish(player,rules,player_count,pairs,discard):
+    from .melds import validate_meld
+    from .errors import InvalidMeldError
+    if (player_count<4 or player.folded or player.has_seen_maal or len(player.hand)!=22
+            or player.route is QualificationRoute.NORMAL or len(pairs)!=8
+            or tuple(pairs[:len(player.shown_melds)])!=player.shown_melds):
+        return False
+    ids = tuple(i for g in pairs for i in g.card_ids)
+    protected = {i for g in player.initial_tunnelas for i in g.card_ids}
+    if (len(ids)!=16 or len(set(ids))!=16 or discard in ids or discard in protected
+            or discard not in {c.card_id for c in player.hand}):
+        return False
+    try:
+        for pair in pairs:
+            if pair.meld_type is not MeldType.DUBLEE:
+                return False
+            validate_meld(player,pair,rules,allow_committed=True)
+    except InvalidMeldError:
+        return False
+    return True

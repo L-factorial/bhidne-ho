@@ -61,7 +61,7 @@ function CopyCode({ value, kind, menu = false, inline = false }: { value: string
       <Text style={{ color: menu ? colors.text : colors.accent, fontFamily: fonts.medium, fontSize: 14 }}>{inline ? value : ui("common.copy_kind_code", { "kind": uiLabel(kind) })}</Text>
     </Pressable>
     {showCode && <Text selectable accessibilityLabel={ui("common.game_code_code", { "game": uiLabel(kind), "code": value })} style={{ color: colors.textMuted, fontSize: 11 }}>{value}</Text>}
-    {!!notice && <Text accessibilityLiveRegion="polite" style={{ color: colors.text, fontSize: 12 }}>{notice}</Text>}
+    {!!notice && <Text activity accessibilityLiveRegion="polite" style={{ color: colors.text, fontSize: 12 }}>{notice}</Text>}
   </View>;
 }
 
@@ -107,6 +107,6 @@ function TableShareContent({ roomId, matchId, visible, onClose }: TableShareProp
   return <RoomSheet visible={visible} title={ui("rooms.share_table")} closeLabel={ui("common.close_table_sharing")} onClose={onClose}>
     <TableShareActions roomId={roomId} matchId={matchId} />
     <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.share_table_invitation")} onPress={() => void share()} style={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10 }}><Ionicons name="share-outline" size={20} color={c.accent} /><Text style={{ color: c.accent, fontFamily: fonts.medium }}>{ui("common.share_2")}</Text></Pressable>
-    {!!error && <Text accessibilityLiveRegion="polite" style={{ color: c.textMuted }}>{uiLabel(error, 'feedback')}</Text>}
+    {!!error && <Text activity accessibilityLiveRegion="polite" style={{ color: c.textMuted }}>{uiLabel(error, 'feedback')}</Text>}
   </RoomSheet>;
 }

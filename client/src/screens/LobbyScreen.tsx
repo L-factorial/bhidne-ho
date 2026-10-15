@@ -98,7 +98,7 @@ export function LobbyScreen({ onLeave, onBack, roomCode }: { onLeave: () => void
             <View style={styles.panel}>
               <Text accessibilityRole="header" style={styles.panelTitle}>{ui("rooms.invite_your_friends")}</Text>
               <Text style={styles.description}>{ui("common.preview_share_help")}</Text>
-              {!!error && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
+              {!!error && <Text activity accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
               <Action label={ui("common.go_to_room_list_to_enter_a_code")} secondary onPress={onLeave} />
             </View>
           </View>

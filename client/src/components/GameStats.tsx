@@ -1,3 +1,4 @@
+import { flushPlayerName } from '../multiplayer/flush';
 import {TableSummary} from './TableSummary';
 import { GameSessionClock } from './GameSessionClock';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -26,8 +27,8 @@ export function GameStats({ snapshot, open, onOpen, onClose, children }: {
   const { colors: c } = useTheme();
   const [selected, setSelected] = useState<string | null>(null);
   useEffect(() => { if (open) setSelected(null); }, [open, snapshot.match_id, snapshot.your_player_id]);
-  const roster = snapshot.flush?.participants || (snapshot.players || []).map(player => ({ player_id: String(player.player_id), display_name: player.display_name || ui('common.player_number', { number: player.player_id }) }));
-  const name = (id: string | number | null | undefined) => roster.find(player => player.player_id === String(id))?.display_name || ui('common.player_number', { number: id ?? '—' });
+  const roster = (snapshot.flush?.participants?.length ? snapshot.flush.participants : undefined) || (snapshot.players || []).map(player => ({ player_id: String(player.player_id), display_name: player.display_name || ui('common.player_number', { number: player.player_id }) }));
+  const name = (id: string | number | null | undefined) => flushPlayerName(id ?? '—', snapshot.flush?.participants, snapshot.players || []) || ui('common.player_number', { number: id ?? '—' });
   // A departing player's tab cannot silently turn into another player's stats.
   const playerId = selected && roster.some(player => player.player_id === selected) ? selected : null;
   const players = roster.filter(player => playerId === null || player.player_id === playerId);
@@ -93,7 +94,7 @@ export function GameStats({ snapshot, open, onOpen, onClose, children }: {
           <Text accessibilityRole="header" style={text}>{ui('common.stats_action_history')}</Text>
           {!flushHistory.length && <Text style={muted}>{ui('common.stats_no_actions')}</Text>}
           {flushHistory.map(event => <View key={event.sequence} style={section}>
-            <Text style={muted}>{ui('flush.round_number', { number: event.round_number })}{event.bet_number ? ` · ${ui('flush.stats_bet_number', { number: event.bet_number })}` : ''}{event.visibility ? ` · ${ui(event.visibility === 'seen' ? 'flush.seen' : 'flush.blind')}` : ''}</Text>
+            <Text style={muted}>{ui('flush.round_number', { number: event.round_number })}{event.betting_round ? ` · ${ui('flush.betting_round', {number:event.betting_round})}` : ''}{event.bet_number ? ` · ${ui('flush.stats_bet_number', { number: event.bet_number })}` : ''}{event.visibility ? ` · ${ui(event.visibility === 'seen' ? 'flush.seen' : 'flush.blind')}` : ''}</Text>
             <Text style={text}>{event.player_id ? `${name(event.player_id)} · ` : ''}{flushEventLabel(event.kind)}{event.amount ? ` · ${event.amount}` : ''}</Text>
             {!!event.target_player_id && <Text style={muted}>{ui('common.stats_target', { player: name(event.target_player_id) })}</Text>}
             {!!event.loser_player_id && <Text style={muted}>{name(event.loser_player_id)} · {ui('flush.folded')}</Text>}

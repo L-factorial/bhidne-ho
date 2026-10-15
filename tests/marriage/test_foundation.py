@@ -74,7 +74,7 @@ def test_configuration_freezes_seat_order(count):
         config.first_player_id = 'different'
 
 
-@pytest.mark.parametrize('ids', [[], ['p'], list('abcdef'), ['p', 'p'], ['', 'q'], ['  ', 'q'], ['p\n', 'q'], [1, 'q'], 'pq'])
+@pytest.mark.parametrize('ids', [[], ['p'], list('abcdefg'), ['p', 'p'], ['', 'q'], ['  ', 'q'], ['p\n', 'q'], [1, 'q'], 'pq'])
 def test_bad_seats_rejected(ids):
     with pytest.raises(ValueError):
         MarriageConfig(ids)

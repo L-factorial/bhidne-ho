@@ -160,7 +160,7 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
                 style={styles.accept}><Text style={styles.acceptText}>{ui(item.payload?.scope==='direct'?'social.chat':item.payload?.match_id?'common.open_table':'common.open_room')}</Text></Pressable>}
             </View>)}
           </ScrollView>
-          {!!error && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
+          {!!error && <Text activity accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
         </Pressable>
       </Pressable>
     </Modal>

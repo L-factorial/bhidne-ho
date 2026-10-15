@@ -1,6 +1,6 @@
 """Detached rule proposals and votes; caller holds the durable table transaction."""
 from copy import deepcopy
-from dataclasses import asdict, fields
+from dataclasses import asdict, fields, replace
 import json
 from uuid import NAMESPACE_URL, uuid5
 
@@ -25,15 +25,13 @@ def apply_rules(game, actor, request, lane_id):
             return 'This match is no longer current.'
         if request.command == 'rule-vote':
             return vote(game, actor, body)
-        if not game.users or actor != game.users[0]:
+        if actor != next((u for u in game.table.seats(game) if u is not None), None):
             return 'Only the game creator can propose rules.'
-        if game.started or game.ended:
+        if (game.started and not (game.finished or game.flush_open)) or game.ended:
             return 'Settings are only available before the game begins.'
         expected_kind = {'settings': 'callbreak', 'marriage-settings': 'marriage', 'flush-settings': 'flush'}[request.command]
         if game.game_type != expected_kind:
             return 'Settings do not match this game type.'
-        if game.rule_proposal and game.rule_proposal['status'] == 'PENDING':
-            return 'Resolve the pending rule proposal first.'
         if game.game_type == 'callbreak':
             from callbreak.match_rules import rules_from_settings
             current, proposed = game.settings, body.model_dump(exclude={'match_id'}, exclude_none=True)
@@ -47,9 +45,13 @@ def apply_rules(game, actor, request, lane_id):
         else:
             if body.rules_revision != game.flush_rules_revision:
                 return 'Flush rules changed. Reload them before saving.'
+            body.rules.setdefault('allow_raise', False)
+            body.rules.setdefault('max_raise', 1)
+            body.rules['max_raise'] = body.rules['max_raise'] if type(body.rules['max_raise']) is int and 1 <= body.rules['max_raise'] <= 5 else 1
             if set(body.rules) != {f.name for f in fields(FlushRulesConfig)}:
                 return 'Supply the complete Flush ruleset.'
             rules = TypeAdapter(FlushRulesConfig).validate_json(json.dumps(body.rules), strict=True)
+            rules = replace(rules, boot_amount=rules.initial_blind_bet)
             if rules.minimum_players != 2 or rules.maximum_players != 10:
                 return 'Flush tables require limits of 2 to 10 players.'
             current, proposed = {'rules': asdict(game.flush_rules)}, {'rules': asdict(rules)}
@@ -58,8 +60,7 @@ def apply_rules(game, actor, request, lane_id):
             match_id=game.match_id, proposer=actor, status='PENDING', voters=list(game.users),
             accepted=[actor], rejected_by=None, previous=deepcopy(current), proposed=deepcopy(proposed))
         game.table.emit('RULE_CHANGE_PROPOSED', proposal_id=game.rule_proposal['id'])
-        if len(game.users) == 1:
-            RuleProposals._apply_proposal(None, game)
+        RuleProposals._apply_proposal(None, game)
     except (ValidationError, ValueError, TypeError, KeyError, FlushError):
         return 'Invalid settings or vote payload.'
     return None

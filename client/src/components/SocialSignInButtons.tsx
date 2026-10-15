@@ -46,6 +46,6 @@ export function SocialSignInButtons({ onSession, disabled = false, onBusyChange 
     {(['google', 'apple', 'facebook'] as const).filter(provider => providers.includes(provider)).map(provider =>
       <SignInButton key={provider} method={labels[provider]} disabled={disabled || busy !== null}
         label={busy === provider ? ui("common.signing_in_with_provider", { "provider": labels[provider] }) : undefined} onPress={() => void signIn(provider)} />)}
-    {!!error && <Text accessibilityRole="alert" style={{ color: colors.danger }}>{uiLabel(error, 'feedback')}</Text>}
+    {!!error && <Text activity accessibilityRole="alert" style={{ color: colors.danger }}>{uiLabel(error, 'feedback')}</Text>}
   </View>;
 }

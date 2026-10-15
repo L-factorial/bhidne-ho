@@ -1,5 +1,16 @@
 // Editable English marriage copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "win_without_maal": "Win without seeing maal",
+  "unseen_finish_help": "Show 21 cards in natural sequences/Tunnelas, or eight natural dublees with 4+ players. One final discard is required; maal stays hidden.",
+  "show_or_discard": "Show for Maal or discard a card",
+  "option_compact_label": "Option {{number}}/{{total}} ({{sizes}})",
+  "maal_empty": "Maal not selected yet",
+  "show_then_draw": "Show for Maal or draw a card",
+  "option_size_label": "Option {{number}} ({{sizes}})",
+  "suboption_size_label": "{{number}} ({{sizes}})",
+  "combinations_count": "Combinations ({{count}})",
+  "show_on_your_turn": "Show on your turn",
+  "discard_then_see_maal": "Discard, then see maal.",
   "view_shown_sequence": "View shown sequence",
   "view_shown_dublee": "View shown Dublee",
   "view_shown_tunnela": "View shown Tunnela",

@@ -14,6 +14,8 @@ def integer(value, name, minimum=0):
 class FlushRulesConfig:
     boot_amount: int
     initial_blind_bet: int = 1
+    allow_raise: bool = False
+    max_raise: int = 1
     minimum_bet_rounds_before_side_show: int = 3
     blind_to_seen_bet_multiplier: int = 2
     minimum_blind_rounds_before_show: int = 3
@@ -36,6 +38,8 @@ class FlushRulesConfig:
     ruleset_id: ClassVar[str] = 'flush-v1'
 
     def __post_init__(self):
+        if type(self.max_raise) is not int or not 1 <= self.max_raise <= 5:
+            object.__setattr__(self, "max_raise", 1)
         for name in ('boot_amount', 'minimum_bet_rounds_before_side_show',
                      'minimum_blind_rounds_before_show', 'minimum_bets_before_show', 'show_cost_multiplier',
                      'minimum_rounds_before_multiplayer_blind_show', 'trial_bonus'):
@@ -49,7 +53,7 @@ class FlushRulesConfig:
         integer(self.maximum_players, 'maximum_players', self.minimum_players)
         if self.maximum_players > 10:
             raise ValueError('Flush supports at most 10 players.')
-        for name in ('allow_blind_show', 'allow_seen_show', 'allow_side_show', 'require_minimum_bets_by_everyone', 'show_only_when_two_players_remain', 'allow_multiplayer_blind_show'):
+        for name in ('allow_raise', 'allow_blind_show', 'allow_seen_show', 'allow_side_show', 'require_minimum_bets_by_everyone', 'show_only_when_two_players_remain', 'allow_multiplayer_blind_show'):
             if type(getattr(self, name)) is not bool:
                 raise ValueError(f'{name} must be a boolean.')
         if not self.show_only_when_two_players_remain:
@@ -64,6 +68,6 @@ class FlushRulesConfig:
 
 def legacy_rule_defaults(values):
     """Restore additive fields without changing rules agreed before they existed."""
-    return {"require_minimum_bets_by_everyone": False, "minimum_bets_before_show": 3,
+    return {"allow_raise": False, "max_raise": 1, "require_minimum_bets_by_everyone": False, "minimum_bets_before_show": 3,
             "allow_multiplayer_blind_show": False, "minimum_rounds_before_multiplayer_blind_show": 3,
             "trial_bonus": 0, "ace_trial_bonus": 0, **values}

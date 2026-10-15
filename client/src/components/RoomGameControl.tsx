@@ -1,3 +1,5 @@
+import {SeatArrangementProvider} from './SeatArrangement';
+import {ActivityLine} from './ActivityLine';
 import {useNotificationAction} from '../multiplayer/useNotificationAction';
 import {TableAvatarProvider} from './TableAvatar';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,7 +28,7 @@ import type { TableEntry } from '../multiplayer/tableNavigation';
 import { RuleProposal } from './RuleProposal';
 import { TableControls } from './TableControls';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import {ActivityIndicator, AppState, Modal, Platform, Pressable, ScrollView, StyleSheet, Text as NativeText, View, useWindowDimensions} from 'react-native';
+import {AppState, Modal, Platform, Pressable, ScrollView, StyleSheet, Text as NativeText, View, useWindowDimensions} from 'react-native';
 import { useGameNotification } from '../notifications/useGameNotification';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LiveGameTable, RoomSnapshot as Snapshot } from '../screens/LiveGameTable';
@@ -353,7 +355,7 @@ export function RoomGameControl({ onReturnToTable, runtime, socialChannel, chat,
     setBusy(true); setError(''); setActionNotice(runtime ? '' : ui("feedback.sending_your_action"));
     setActionTick(value => value + 1);
   }
-  async function lobbyAction(suffix: string, payload: object = {}) {
+  async function performLobbyAction(suffix: string, payload: object = {}) {
     if (!canSend.current || !snapshot || pending.current) return;
     pending.current = true; const version = ++generation.current; setBusy(true); setError('');
     setStartingGame(suffix === '/start' || suffix === '/table/next-match');
@@ -366,9 +368,13 @@ export function RoomGameControl({ onReturnToTable, runtime, socialChannel, chat,
       if (alive.current && generation.current === version) {
         selectedMatch.current = data.match_id; setSnapshot(data);
         if (suffix === '/leave' || suffix === '/table/leave-seat' || suffix === '/table/abandon' || suffix === '/table/pause-seat') { setOpen(false); setLive(false); }
+        return true;
       }
-    } catch (error) { if (alive.current && generation.current === version) setError(playerError(error, ui("feedback.could_not_update_game"))); }
+    } catch (error) { if (alive.current && generation.current === version) setError(playerError(error, ui("feedback.could_not_update_game"))); return false; }
     finally { pending.current = false; if (alive.current) { setBusy(false); setStartingGame(false); } }
+  }
+  async function lobbyAction(suffix: string, payload: object = {}): Promise<void> {
+    await performLobbyAction(suffix, payload);
   }
   const endControl = canEnd
     ? <EndGameControl table={snapshot?.game_type === 'flush' || snapshot?.status === 'finished'} key={`end-${snapshot?.match_id}`} busy={busy} onEnd={() => lobbyAction('/end')} /> : null;
@@ -424,13 +430,12 @@ export function RoomGameControl({ onReturnToTable, runtime, socialChannel, chat,
   const loadingTables = !snapshot && !refreshError && sessionActive;
   useEffect(() => { onLoadingChange?.(loadingTables); }, [loadingTables, onLoadingChange]);
   if (loadingTables && !open && !seatConflict) return <View testID="room-tables-loading" style={{flex:1,minHeight:260,alignItems:'center',justifyContent:'center',padding:24,gap:12}}>
-    <ActivityIndicator size="small" color={colors.textMuted} />
-    <NativeText accessibilityLiveRegion="polite" style={{color:colors.textMuted,fontFamily:fonts.body,fontSize:12,lineHeight:18,textAlign:'center'}}>{ui('rooms.loading_tables')}</NativeText>
+    <ActivityLine />
   </View>;
   const content = <>
-    {!snapshot && !refreshError && <Text accessibilityLiveRegion="polite" style={styles.text}>{sessionActive ? ui("rooms.loading_tables") : ui("feedback.sign_in_again_to_load_tables")}</Text>}
+    {!snapshot && !refreshError && <Text accessibilityLiveRegion="polite" style={styles.text}>{sessionActive ? '' : ui("feedback.sign_in_again_to_load_tables")}</Text>}
     {refreshError && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.retry_loading_tables")} disabled={pendingAction || !sessionActive}
-      onPress={() => setActionTick(value => value + 1)} style={styles.choice}><Text style={styles.text}>{ui("rooms.retry_loading_tables")}</Text></Pressable>}
+      onPress={() => setActionTick(value => value + 1)} style={styles.choice}><Text activity style={styles.text}>{ui("rooms.retry_loading_tables")}</Text></Pressable>}
     {!snapshot && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_table")} disabled={pendingAction || !sessionActive || !creationEnabled}
       onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 48 }]}>
       <Text style={[styles.buttonText, { color: colors.onPrimary }]}>{ui("rooms.create_table_2")}</Text>
@@ -446,8 +451,8 @@ export function RoomGameControl({ onReturnToTable, runtime, socialChannel, chat,
       {!!visibleTables.length && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_table")} disabled={pendingAction || !sessionActive || !creationEnabled} onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 52, marginBottom: 16 }]}>
         <Text style={[styles.buttonText, { color: colors.onPrimary }]}>{ui("rooms.create_new_table")}</Text>
       </Pressable>}
-    {!!actionNotice && !open && <Text accessibilityLiveRegion="polite" style={styles.note}>{actionNotice}</Text>}
-    {!!error && !open && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
+    {!open && <ActivityLine active={pendingAction || !!actionNotice} />}
+    {!!error && !open && <Text activity accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
     {!open && snapshot?.status !== 'ended' && snapshot?.rule_proposal?.status === 'PENDING' && ruleReview}
     {!open && <PokeOverlay pokes={pokes} matchId={snapshot?.match_id} />}
     <Modal transparent visible={!!seatConflict} animationType="fade" onRequestClose={() => setSeatConflict(null)}>
@@ -466,7 +471,7 @@ export function RoomGameControl({ onReturnToTable, runtime, socialChannel, chat,
     {/* Web registers modal focus after its animation. A late parent onShow can
         steal focus from chat opened during the transition and block typing. */}
     <GameModalRoot transparent visible={open} animationType={Platform.OS === 'web' ? 'none' : 'fade'} onRequestClose={collapseGame}>
-      {live && snapshot ? <ThemeContext.Provider value={gameTheme}><TableSocialPresentation><TableAvatarProvider key={`${snapshot.match_id}:${token}`} session={{user_id:userId,token}}>
+      {live && snapshot ? <ThemeContext.Provider value={gameTheme}><TableSocialPresentation><SeatArrangementProvider snapshot={snapshot} session={{user_id:userId,token}} busy={busy} act={(command,payload) => performLobbyAction(`/table/${command}`,payload)}><TableAvatarProvider key={`${snapshot.match_id}:${token}`} session={{user_id:userId,token}}>
       <View testID="live-game-backdrop" style={[styles.liveBackdrop, {
         backgroundColor: gameTheme.colors.background, paddingTop: insets.top, paddingBottom: insets.bottom,
         paddingLeft: insets.left, paddingRight: insets.right,
@@ -489,22 +494,21 @@ export function RoomGameControl({ onReturnToTable, runtime, socialChannel, chat,
               <Text style={styles.buttonText}>{ui("common.join_tablename", { "tableName": noun })}</Text>
             </Pressable>
           </View>}
-          {(!connected || !synced) && <Text accessibilityRole="alert" style={styles.connectionNotice}>{connectionMessage || (!connected ? ui("feedback.reconnecting_your_seat_is_saved") : ui("feedback.updating_game"))}</Text>}
-          {!!actionNotice && <Text accessibilityLiveRegion="polite" style={styles.connectionNotice}>{actionNotice}</Text>}
+          <ActivityLine active={pendingAction || !connected || !synced || !!actionNotice} />
         </ScrollView>
         {chat}
         {snapshot.status !== 'ended' && snapshot.rule_proposal?.status === 'PENDING' && ruleReview}
         <GameSessionStatus snapshot={snapshot} busy={busy || !connected || !synced}
           act={command => lobbyAction(`/table/${command}`)} />
-      </View></View></TableAvatarProvider></TableSocialPresentation></ThemeContext.Provider> :
+      </View></View></TableAvatarProvider></SeatArrangementProvider></TableSocialPresentation></ThemeContext.Provider> :
       <GameModalContent><KeyboardFrame style={[styles.overlay, { paddingVertical: 16 }]}><View accessibilityViewIsModal style={styles.modal}>
         <FormScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
           <Text accessibilityRole="header" style={styles.title}>{ui("rooms.create_table")}</Text>
           <CreateTableForm onUnselectedInviteQueryChange={setUnselectedInviteQuery} session={{user_id:userId,token}} game={gameType} setGame={value=>onGameTypeChange?.(value)} callbreakPlayers={capacity} setCallbreakPlayers={setCapacity} invitees={selectedInvitees} setInvitees={setSelectedInvitees} busy={busy || !creationEnabled}/>
         </FormScrollView>
         <FormFooter>
-          {!!error && <Text accessibilityRole="alert" style={styles.modalError}>{uiLabel(error, 'feedback')}</Text>}
-          {!synced && <Text accessibilityLiveRegion="polite" style={styles.note}>{sessionActive ? ui("common.waiting_for_the_table_service_your_form_will_stay_open_while_it_retries") : ui("feedback.sign_in_again_before_creating_a_table")}</Text>}
+          {!!error && <Text activity accessibilityRole="alert" style={styles.modalError}>{uiLabel(error, 'feedback')}</Text>}
+          {!synced && <Text activity accessibilityLiveRegion="polite" style={styles.note}>{sessionActive ? ui("common.waiting_for_the_table_service_your_form_will_stay_open_while_it_retries") : ui("feedback.sign_in_again_before_creating_a_table")}</Text>}
           {refreshError && sessionActive && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.retry_table_service")} onPress={() => setActionTick(value => value + 1)} style={styles.choice}><Text style={styles.text}>{ui("rooms.retry_table_service")}</Text></Pressable>}
           <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_this_table")} disabled={busy || creationPending || unselectedInviteQuery || !creationEnabled} accessibilityState={{ disabled: busy || creationPending || unselectedInviteQuery || !creationEnabled }} onPress={() => void act(false)} style={[styles.button, {minHeight:52,borderWidth:1,borderColor:colors.onPrimary}, (busy || !creationEnabled) && { opacity: visualStates.disabledOpacity }]}><Text style={styles.buttonText}>{ui("rooms.create_table")}</Text></Pressable>
           <Pressable accessibilityRole="button" onPress={() => setOpen(false)} style={styles.choice}><Text style={styles.text}>{ui("common.back_to_room")}</Text></Pressable>

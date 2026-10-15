@@ -30,14 +30,18 @@ export type MaalChoice = { route: 'normal' | 'dublee'; groups: MarriageMeld[] };
  * Nondecreasing pattern indices remove group-order duplicates while permitting
  * repeated sequences when the hand contains enough physical copies.
  */
-export function maalChoices(hand: MarriageCard[]): MaalChoice[] {
+const qualificationPatterns: Pattern[] = suits.flatMap((_, suit) => [
+  ...[5,4,3].flatMap(size => Array.from({length:15-size}, (_, start) => ({kind:'pure_sequence' as const, faces:Array.from({length:size}, (_, offset)=>suit*13+(start+offset)%13)}))),
+  ...Array.from({length:13}, (_, rank)=>({kind:'tunnela' as const, faces:Array(3).fill(suit*13+rank) as number[]})),
+]);
+export function maalChoices(hand: MarriageCard[], allowDublee = true): MaalChoice[] {
   const buckets = cardBuckets(hand);
   const choices: MaalChoice[] = [];
   function enumerate(route: MaalChoice['route'], candidates: Pattern[], count: number, repeat: boolean) {
     const remaining = buckets.map(cards => [...cards]);
     const chosen: MarriageMeld[] = [];
     function visit(start: number) {
-      if (chosen.length === count) { choices.push({ route, groups: [...chosen] }); return; }
+      if (chosen.length === count) { choices.push({ route, groups: [...chosen].sort((a,b)=>b.card_ids.length-a.card_ids.length||a.meld_type.localeCompare(b.meld_type)||a.card_ids[0].localeCompare(b.card_ids[0])) }); return; }
       for (let i = start; i < candidates.length; i++) {
         const pattern = candidates[i];
         const taken: { face: number; card: MarriageCard }[] = [];
@@ -56,9 +60,49 @@ export function maalChoices(hand: MarriageCard[]): MaalChoice[] {
     }
     visit(0);
   }
-  enumerate('normal', patterns.filter(p => p.faces.every(f => buckets[f].length >= (p.kind === 'tunnela' ? 3 : 1))), 3, true);
-  enumerate("dublee", buckets.flatMap((cards, f) => cards.length >= 2 ? [{ kind: "dublee" as const, faces: [f, f] }] : []), 7, false);
+  enumerate('normal', qualificationPatterns.filter(p => p.faces.every(f => buckets[f].length >= (p.kind === 'tunnela' ? 3 : 1))), 3, true);
+  if(allowDublee) enumerate("dublee", buckets.flatMap((cards, f) => cards.length >= 2 ? [{ kind: "dublee" as const, faces: [f, f] }] : []), 7, false);
   return choices;
+}
+
+export type MaalOption = {choice:MaalChoice; variants:MaalChoice[]};
+const choiceKey=(choice:MaalChoice)=>choice.route+'|'+choice.groups.map(g=>g.meld_type+':'+[...g.card_ids].sort().join(',')).sort().join('|');
+export const maalChoiceSizes=(choice:MaalChoice)=>choice.groups.map(g=>g.card_ids.length).join('-');
+
+/** Prefer the fullest feasible groups; put each unique shorter choice under one
+ * parent only. Deck copies are interchangeable for eligibility, as in maalChoices.
+ */
+export function maalOptions(hand:MarriageCard[], allowDublee=true):MaalOption[]{
+  const choices=maalChoices(hand,allowDublee).sort((a,b)=>
+    b.groups.reduce((sum,g)=>sum+g.card_ids.length,0)-a.groups.reduce((sum,g)=>sum+g.card_ids.length,0)
+    || maalChoiceSizes(b).localeCompare(maalChoiceSizes(a)) || choiceKey(a).localeCompare(choiceKey(b)));
+  const byId=new Map(hand.map(c=>[c.card_id,c]));
+  const faceKey=(id:string)=>{const c=byId.get(id)!;return `${c.suit}:${c.rank}`;};
+  const signature=(choice:MaalChoice)=>choice.route+'|'+choice.groups.map(g=>g.meld_type+':'+g.card_ids.map(faceKey).sort().join(',')).sort().join('|');
+  function within(child:MaalChoice,parent:MaalChoice):MaalChoice|null{
+    if(child.route!==parent.route)return null;
+    function match(index:number,used:Set<number>,groups:MarriageMeld[]):MarriageMeld[]|null{
+      if(index===child.groups.length)return groups;
+      const group=child.groups[index];
+      for(let i=0;i<parent.groups.length;i++){
+        const full=parent.groups[i];if(used.has(i)||full.meld_type!==group.meld_type)continue;
+        const available=[...full.card_ids],ids:string[]=[];
+        for(const id of group.card_ids){const j=available.findIndex(c=>faceKey(c)===faceKey(id));if(j<0)break;ids.push(available.splice(j,1)[0]);}
+        if(ids.length!==group.card_ids.length)continue;
+        const result=match(index+1,new Set([...used,i]),[...groups,{meld_type:group.meld_type,card_ids:ids}]);if(result)return result;
+      }
+      return null;
+    }
+    const groups=match(0,new Set(),[]);return groups?{route:child.route,groups:groups.sort((a,b)=>parent.groups.findIndex(p=>a.card_ids.every(id=>p.card_ids.includes(id)))-parent.groups.findIndex(p=>b.card_ids.every(id=>p.card_ids.includes(id))))}:null;
+  }
+  const options:MaalOption[]=[],seen=new Set<string>();
+  for(const choice of choices){
+    const key=signature(choice);if(seen.has(key))continue;seen.add(key);
+    let placed=false;
+    if(choice.route==='normal')for(const option of options){const variant=within(choice,option.choice);if(variant){option.variants.push(variant);placed=true;break;}}
+    if(!placed)options.push({choice,variants:[choice]});
+  }
+  return options;
 }
 
 export function maalProgress(hand: MarriageCard[]) {

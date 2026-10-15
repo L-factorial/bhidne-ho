@@ -1,3 +1,4 @@
+import {ActivityLine} from './ActivityLine';
 import { Ionicons } from '@expo/vector-icons';
 import {AppText as Text} from './AppText';
 import { phaseLabel } from '../i18n/display';
@@ -11,7 +12,8 @@ import { visualStates, radii, fonts, primaryAction, useTheme } from '../theme';
 export type TableView = {
   table_id: string; phase: 'OPEN' | 'LOCKED' | 'STARTED' | 'COMPLETED' | 'ENDED';
   min_players: number; max_players: number; requires_explicit_lock: boolean; requires_replacement: boolean;
-  seated_players: { seat_id: number; user_id: string; display_name?: string; avatar_url?:string }[]; queue: string[];
+  seated_players: { position_id?: number; seat_id: number; user_id: string; display_name?: string; avatar_url?:string }[]; queue: string[];
+  reserved_positions?: {position_id: number}[];
   released_seats: { seat_id: number; leaving_player_id: string }[];
   current_user: { is_seated: boolean; seat_id: number | null; is_queued: boolean; queue_position: number | null;
     can_join: boolean; can_queue: boolean; can_lock: boolean; can_start: boolean; can_next_match: boolean;
@@ -35,6 +37,7 @@ export function TableControls({ table, members, userId, busy, act, start, format
     {pulse ? <ActionCue active={!busy && !disabled} style={{ color: colors.onPrimary, fontFamily: fonts.medium }}>{label}</ActionCue> : <Text style={{ color: danger ? colors.danger : prominent ? colors.onPrimary : colors.text, fontFamily: fonts.medium }}>{label}</Text>}
   </Pressable>;
   return <View testID="table-lifecycle" style={{ backgroundColor: colors.surface, padding: 8, gap: 4 }}>
+    <ActivityLine active={busy || starting}/>
     {!menuSection && <Text style={{ color: colors.textMuted, fontFamily: fonts.body }}>
       {table.phase === 'COMPLETED' ? ui("rooms.match_completed_seats_for_the_next_match") : table.phase === 'LOCKED' ? ui("rooms.roster_locked_ready_to_start") : ui("rooms.seat_summary", { "seated": table.seated_players.length, "capacity": table.max_players, "phase": phaseLabel(table.phase) })}
       {me.is_seated ? ui("rooms.your_seat", { "seat": me.seat_id }) : me.is_queued ? ui("rooms.queue_suffix", { "position": me.queue_position }) : ui("rooms.observing_suffix")}
@@ -45,9 +48,9 @@ export function TableControls({ table, members, userId, busy, act, start, format
     <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
       {manage && me.can_queue && !me.can_join && button(ui("rooms.join_waitlist"), () => void act('join-queue'))}
       {manage && me.is_queued && button(ui("rooms.leave_waitlist"), () => void act('leave-queue'))}
-      {manage && (table.phase === 'OPEN' || table.phase === 'LOCKED') && me.is_seated && table.seated_players[0]?.seat_id === me.seat_id && button(ui(starting ? "rooms.starting_game" : "rooms.start_game"), () => void start(), !me.can_start || formationBlocked, true, true)}
+      {manage && (table.phase === 'OPEN' || table.phase === 'LOCKED') && me.is_seated && table.seated_players[0]?.seat_id === me.seat_id && button(ui("rooms.start_game"), () => void start(), !me.can_start || formationBlocked, true, true)}
       {leave && me.can_leave_seat && button(menuSection ? ui("rooms.leave_table") : ui("rooms.leave_seat"), () => void act('leave-seat'))}
-      {manage && me.can_next_match && button(ui(starting ? "rooms.starting_game" : "rooms.play_again"), () => void act('next-match'), table.seated_players.length < table.min_players || formationBlocked, true)}
+      {manage && me.can_next_match && button(ui("rooms.play_again"), () => void act('next-match'), table.seated_players.length < table.min_players || formationBlocked, true)}
       {leave && me.can_pause_match && button(ui('rooms.session_pause'), () => void act('pause-seat'))}
       {leave && me.can_abandon_match && button(menuSection ? ui("rooms.leave_table") : ui("rooms.abandon_match"), () => setAbandon(true))}
       {manage && me.can_invite_replacement && button(ui("rooms.invite_a_replacement"), () => setInvite(v => !v))}

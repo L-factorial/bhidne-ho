@@ -55,7 +55,8 @@ class WinningMeldPayload(MeldPayload):
 
 
 class FinishPayload(Payload):
-    melds: Annotated[list[WinningMeldPayload], Field(min_length=3, max_length=7)] | None = None
+    pairs: Annotated[list[MeldPayload], Field(min_length=8, max_length=8)] | None = None
+    melds: Annotated[list[WinningMeldPayload], Field(min_length=1, max_length=7)] | None = None
     discard_card_id: str | None = None
     winning_pair: Annotated[list[str], Field(min_length=2, max_length=2)] | None = None
 

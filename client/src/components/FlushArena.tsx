@@ -1,3 +1,5 @@
+import { flushPlayerName } from '../multiplayer/flush';
+import {ArrangementSeat,ArrangementHint,useSeatArrangement} from './SeatArrangement';
 import {useTableAvatar} from './TableAvatar';
 import {ActiveTurnRing} from './ActiveTurnRing';
 import {Ionicons} from '@expo/vector-icons';
@@ -21,6 +23,8 @@ export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot
   const avatar = useTableAvatar();
   const s = useThemedStyles(styles);
   const { colors } = useTheme();
+  const [rowHeight,setRowHeight]=useState(120);
+  const [centerHeight,setCenterHeight]=useState(90);
   const [width, setWidth] = useState(300);
   const [pending, setPending] = useState<FlushBet[]>([]);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -38,35 +42,43 @@ export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot
     last.current = newest;
   }, [newest, reduceMotion]);
   useEffect(() => { if (reduceMotion) setPending([]); }, [reduceMotion]);
+  const arrangement = useSeatArrangement();
   const own = roster.findIndex(p => p.player_id === String(snapshot.your_player_id));
   const seated = own < 0 ? roster : [...roster.slice(own), ...roster.slice(0, own)];
-  const players = pregame ? [...seated, ...Array.from({ length: Math.max(0, (snapshot.table?.max_players || snapshot.capacity || seated.length) - seated.length) }, (_, index) => ({ player_id: `empty-${index}`, status: 'empty', visibility: '', turn_bet_count: 0, total_contribution: 0 }))] : seated;
-  const minimumHeight = useMemo(() => minimumArenaHeight(players.length, width), [players.length, width, uiLanguage]);
+  const originalPlayers = pregame ? [...seated, ...Array.from({ length: Math.max(0, (snapshot.table?.max_players || snapshot.capacity || seated.length) - seated.length) }, (_, index) => ({ player_id: `empty-${index}`, status: 'empty', visibility: '', turn_bet_count: 0, total_contribution: 0 }))] : seated;
+  const placement = (id:string) => {const user=snapshot.players?.find(p=>String(p.player_id)===id)?.user_id;return snapshot.table?.seated_players.find(p=>p.user_id===user)?.position_id;};
+  const slots = pregame ? snapshot.table?.max_players || snapshot.capacity || originalPlayers.length : originalPlayers.length;
+  const ownPosition=placement(String(snapshot.your_player_id))??1;
+  const players = pregame && snapshot.table?.seated_players.some(p=>p.position_id) ? Array.from({length:slots},(_,index)=>{const position=(index+ownPosition-1)%slots+1;return originalPlayers.find(p=>p.status!=='empty'&&placement(p.player_id)===position)??{player_id:`empty-${position}`,status:'empty',visibility:'',turn_bet_count:0,total_contribution:0};}) : originalPlayers;
+  const positionAt = (index:number) => (index+ownPosition-1)%slots+1;
+  const seatInset=Math.max(92,rowHeight-24);
+  const measureRow=(height:number)=>setRowHeight(current=>Math.max(current,Math.ceil(height)+8));
+  const minimumHeight = useMemo(() => Math.max(minimumArenaHeight(players.length, width, seatInset, rowHeight), 2*seatInset+rowHeight+centerHeight+28), [players.length, width, uiLanguage,seatInset,rowHeight,centerHeight]);
   height = Math.max(height - 8, minimumHeight);
   const current = pending[0];
   const index = current ? players.findIndex(p => p.player_id === current.player_id) : -1;
   return <View style={[s.arena, { height }]} onLayout={e => setWidth(e.nativeEvent.layout.width)} testID="flush-arena">
     <View pointerEvents="none" style={{ position: 'absolute', top: 12, bottom: 12, left: 4, right: 4 }}><TableSurface game="flush" /></View>
-    {!centerControl && <View style={[s.pot,{left:width/2-58,top:height/2-36}]}>
+    {!centerControl && <View onLayout={event=>setCenterHeight(current=>Math.max(current,Math.ceil(event.nativeEvent.layout.height)))} style={[s.pot,{left:width/2-58,top:height/2+rowHeight/2-38-centerHeight/2}]}>
       <Text testID="flush-pot" numberOfLines={1} adjustsFontSizeToFit style={{color:colors.text,fontFamily:fonts.medium,fontSize:18}}>{ui('flush.pot')} = {potBeforeFlights(pub?.pot||0,pending)}</Text>
       <Text style={{color:colors.textMuted,fontSize:13}}>{ui('flush.seen_bet')} = {pub?.current_seen_bet||0}</Text>
       <Text style={{color:colors.textMuted,fontSize:13}}>{ui('flush.blind_bet')} = {pub?.current_blind_bet||0}</Text>
     </View>}
     {players.map((p, i) => {
-      const pos = playerPosition(i, players.length, width, height), folded = p.status !== 'active';
-      if (p.status === 'empty') return <View key={p.player_id} testID="flush-empty-seat" accessibilityLabel={ui("rooms.empty_seat")} style={[s.seat, { left: pos.x - 40, top: pos.y - 26 }]}><View style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.onTableHeader, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.onTableHeader, fontSize: 24 }}>+</Text></View><Text style={{ color: colors.onTableHeader, fontSize: 10 }}>{ui("flush.empty")}</Text></View>;
+      const pos = playerPosition(i, players.length, width, height, seatInset), folded = p.status !== 'active';
+      if (p.status === 'empty') return <View key={p.player_id} testID="flush-empty-seat" accessibilityLabel={ui("rooms.empty_seat")} style={[s.seat, { left: pos.x - 40, top: pos.y - 26 }]}><ArrangementSeat onHeight={measureRow} position={positionAt(i)}><View style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.onTableHeader, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.onTableHeader, fontSize: 24 }}>+</Text></View><Text style={{ color: colors.onTableHeader, fontSize: 10 }}>{ui("flush.empty")}</Text></ArrangementSeat></View>;
       const sessionNet=flushPlayerNet(pub?.round_results||[],p.player_id,p.total_contribution,!!pub?.settlement||pregame);
-      const name = snapshot.players?.find(row => String(row.player_id) === p.player_id)?.display_name || ui("common.player_number", { "number": p.player_id });
+      const name = flushPlayerName(p.player_id, snapshot.flush?.participants, snapshot.players || []) || ui("common.player_number", { "number": p.player_id });
       const editAvatar = p.player_id === String(snapshot.your_player_id) && !!avatar;
       const target = !!social?.pokeMode && social.eligible(Number(p.player_id));
-      return <Pressable key={p.player_id} ref={node => social?.registerSeat(Number(p.player_id), node)} collapsable={false}
+      return <View key={p.player_id} style={[s.seat,{left:pos.x-40,top:pos.y-38}]}><ArrangementSeat onHeight={measureRow} position={placement(p.player_id)??positionAt(i)} userId={snapshot.players?.find(row=>String(row.player_id)===p.player_id)?.user_id}><Pressable ref={node => social?.registerSeat(Number(p.player_id), node)} collapsable={false}
         testID={`flush-seat-${p.player_id}`} accessibilityLiveRegion="polite" accessibilityRole={target || editAvatar ? 'button' : undefined} accessibilityLabel={`${target ? ui("social.poke_player_2", { "player": name }) : editAvatar ? `${ui("common.choose_avatar")}, ${name}` : name}${p.player_id === decision?.actor ? `, ${ui('common.current_turn')}` : ''}`} disabled={!target && !editAvatar}
         onTouchStart={event => { if (target || editAvatar) event.stopPropagation(); }} onPointerDown={event => { if (target || editAvatar) event.stopPropagation(); }} onPress={() => target ? social?.poke(Number(p.player_id)) : editAvatar && avatar!.open()}
-        style={[s.seat, { left: pos.x - 40, top: pos.y - 38, opacity: folded ? 0.4 : 1, minHeight: 44 }]}>
+        style={[{width:80,alignItems:"center",gap:3}, { opacity: folded ? 0.4 : 1, minHeight: 44 }]}>
         <PlayerSocialEffect playerId={Number(p.player_id)} />
         <View style={[s.icon, p.player_id === decision?.actor && s.current, target && {borderColor:colors.accent}]}>
           <ActiveTurnRing active={p.player_id===decision?.actor} size={48}/>
-          {target && <Text style={{position:'absolute',right:-8,top:-8}}>👋</Text>}<PlayerAvatar uri={editAvatar && avatar?.uri !== undefined ? avatar.uri ?? undefined : snapshot.players?.find(row => String(row.player_id) === p.player_id)?.avatar_url} />{!pregame&&!folded&&<View style={[s.count,{padding:2}]}><Ionicons name={p.visibility==='seen'?'checkmark-circle':'eye-off-outline'} size={16} color={p.visibility==='seen'?colors.success:colors.textMuted} accessibilityLabel={ui(p.visibility==='seen'?'flush.seen':'flush.blind')}/></View>}
+          {target && <Text style={{position:'absolute',right:-8,top:-8}}>👋</Text>}<PlayerAvatar uri={editAvatar && avatar?.uri !== undefined ? avatar.uri ?? undefined : snapshot.players?.find(row => String(row.player_id) === p.player_id)?.avatar_url} />{!pregame&&!folded&&<View style={[s.count,{padding:2,width:26,height:26,borderRadius:13,backgroundColor:colors.successSurface,alignItems:"center",justifyContent:"center"}]}><Ionicons name={p.visibility==='seen'?'checkmark-circle':'eye-off-outline'} size={22} color={p.visibility==='seen'?colors.success:colors.textMuted} accessibilityLabel={ui(p.visibility==='seen'?'flush.seen':'flush.blind')}/></View>}
           {p.player_id === pub?.dealer_id && <Text accessibilityLabel={ui("common.dealer")} style={s.dealer}>D</Text>}</View>
         <Text testID={`flush-turn-name-${p.player_id}`} numberOfLines={1} style={s.name}>{name}</Text>
         {pregame||folded?<Text style={s.caption}>{ui(pregame?'flush.seated':'flush.folded')}</Text>:null}
@@ -75,10 +87,10 @@ export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot
           <Text testID={`flush-session-net-${p.player_id}`} accessibilityLabel={`${ui('flush.session_net')}: ${sessionNet}`} style={{color:sessionNet>0?colors.gain:sessionNet<0?colors.loss:colors.textMuted,fontSize:14}}>{sessionNet>0?'+':''}{sessionNet}</Text>
         </View>}
 
-      </Pressable>;
+      </Pressable></ArrangementSeat></View>;
     })}
-    {!!centerControl && <View pointerEvents="box-none" style={{ position: 'absolute', left: 56, right: 56, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>{centerControl}</View>}
-    {current && <CoinFlight key={current.sequence} bet={current} from={playerPosition(Math.max(0, index), players.length, width, height)} to={{ x: width / 2, y: height / 2 }}
+    {!!centerControl && <View pointerEvents="box-none" style={{ position: 'absolute', left: 56, right: 56, top: rowHeight-76, bottom: 0, alignItems: 'center', justifyContent: 'center' }}><View pointerEvents="box-none" onLayout={event=>setCenterHeight(current=>Math.max(current,Math.ceil(event.nativeEvent.layout.height)))} style={{alignItems:"center",width:"100%"}}>{centerControl}<ArrangementHint /></View></View>}
+    {current && <CoinFlight key={current.sequence} bet={current} from={playerPosition(Math.max(0, index), players.length, width, height, seatInset)} to={{ x: width / 2, y: height / 2 }}
       onFinish={() => setPending(items => items.filter(b => b.sequence !== current.sequence))} />}
   </View>;
 }

@@ -54,11 +54,9 @@ def show_cost(state, player):
 
 def evaluate_see_eligibility(state, player_id):
     try:
-        player = require_turn(state, player_id)
+        player = find_player(state, player_id)
         if state.status is not GameStatus.IN_PROGRESS or player.status is not PlayerStatus.ACTIVE:
             raise InvalidActionError('Player cannot see cards outside an active hand.')
-        if state.pending_show is not None or state.pending_side_show is not None:
-            raise InvalidActionError('Wait for the pending show response.')
         if player.visibility is Visibility.SEEN:
             raise InvalidActionError('Cards have already been seen.')
         return Eligibility(True)
@@ -98,3 +96,33 @@ def require_eligible(result):
         error = {'INVALID_TURN': InvalidTurnError}.get(
             result.code, InvalidActionError)
         raise error(result.reason)
+
+
+def raises_used(state):
+    """Count table-wide doubles in the current hand from durable public events."""
+    blind = state.config.rules.initial_blind_bet
+    multiplier = state.config.rules.blind_to_seen_bet_multiplier
+    seen = blind * multiplier
+    visible = set()
+    count = 0
+    events = []
+    for event in reversed(state.history):
+        if event.revision < state.round_start_revision:
+            break
+        events.append(event)
+    for event in reversed(events):
+        if event.kind == 'CARDS_SEEN':
+            visible.add(event.player_id)
+        elif event.kind == 'BET_PLACED':
+            minimum = seen if event.player_id in visible else blind
+            if event.amount > minimum:
+                count += 1
+            seen = event.amount if event.player_id in visible else event.amount * multiplier
+            blind = (seen + multiplier - 1) // multiplier
+    return count
+
+
+def maximum_bet(state, player):
+    minimum = required_bet(state, player)
+    can_raise = state.config.rules.allow_raise and raises_used(state) < state.config.rules.max_raise
+    return minimum * (2 if can_raise else 1)

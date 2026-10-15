@@ -66,17 +66,14 @@ def test_failed_projection_does_not_install_mutation(monkeypatch):
     assert a.checkpoint() is before and a.revision == 3
 
 
-def test_reveal_requires_own_turn_and_current_revision():
-    a = adapter()
-    send(a, 'START_GAME'); send(a, 'DEAL_CARDS'); send(a, 'SKIP_CUT', '2')
+def test_reveal_is_independent_of_turn_and_scoped_to_round():
+    a = adapter(); send(a, 'START_GAME'); send(a, 'DEAL_CARDS', '1'); send(a, 'SKIP_CUT', '2')
     state = a.checkpoint().get_state()
-    assert state.current_player_id == '2'
-    assert isinstance(send(a, 'SEE_CARDS', '1', {'round_number': state.round_number}), CommandRejected)
-    assert a.revision == state.revision
-    assert a.snapshot('1')['view']['cards'] == []
-    assert isinstance(send(a, 'SEE_CARDS', '2', {'round_number': state.round_number}), AdapterResult)
-    assert send(a, 'SEE_CARDS', '1', {'round_number': state.round_number}, state.revision).code == 'STALE_REVISION'
-    assert a.checkpoint().get_state().current_player_id == '2'
+    assert isinstance(send(a, 'SEE_CARDS', '1', {'round_number': state.round_number}), AdapterResult)
+    assert isinstance(send(a, 'SEE_CARDS', '2', {'round_number': state.round_number}, state.revision), AdapterResult)
+    assert a.checkpoint().get_state().current_player_id == state.current_player_id
+    assert len(a.snapshot('1')['view']['cards']) == len(a.snapshot('2')['view']['cards']) == 3
+    assert send(a, 'SEE_CARDS', '1', {'round_number': state.round_number+1}).code == 'STALE_REVISION'
 
 
 @pytest.mark.parametrize('extra', [{'player_id': '2'}, {'recipient': '2'}, {'room_id': 'other'}, {'protocol_version': True}])

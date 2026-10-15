@@ -3,7 +3,7 @@
 import asyncio
 from contextlib import AsyncExitStack, asynccontextmanager
 from copy import deepcopy
-from dataclasses import asdict, dataclass, field, fields
+from dataclasses import replace, asdict, dataclass, field, fields
 import json
 import logging
 from random import SystemRandom
@@ -69,7 +69,7 @@ class HostedGame:
     flush_target: object | None = None
     flush_queries: dict = field(default_factory=dict)
     flush_seats: dict = field(default_factory=dict)
-    flush_rules: FlushRulesConfig = field(default_factory=lambda: FlushRulesConfig(5, 1))
+    flush_rules: FlushRulesConfig = field(default_factory=lambda: FlushRulesConfig(1, 1))
     flush_rules_revision: int = 0
     marriage_target: object | None = None
     marriage_queries: dict = field(default_factory=dict)
@@ -290,6 +290,9 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         result["active_game"] = self.membership(game.room_id, user_id)
         result["chat_enabled"] = not self.chat_blocked(game.room_id, user_id)
         result["table"] = game.table.view(game, user_id)
+        from app.durable_games.seating import reservations
+        result['table']['reserved_positions'] = [dict(position_id=i['reserved_position']) for i in reservations([i for i in self.table_invitations.values() if i['match_id']==game.match_id])]
+        result['is_creator'] = next((u for u in game.table.seats(game) if u is not None), None) == user_id
         for player in result["table"]["seated_players"]:
             player["display_name"] = self.profiles.name(player["user_id"], player["seat_id"]) if self.profiles else f"Player {player['seat_id']}"
         for player in result.get("players", []) + result["table"]["seated_players"]:
@@ -383,7 +386,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             "can_join": not game.ended and game.flush_open and seat is None and len(game.users) < game.capacity,
             "play_mode": "manual", "remaining_ms": None, "error": game.error,
             "flush_settings": {"rules": asdict(game.flush_rules), "rules_revision": game.flush_rules_revision,
-                "locked": game.started or game.ended},
+                "locked": (game.started and not game.flush_open) or game.ended},
         }
         if game.flush_target:
             adapter = game.flush_target.adapter
@@ -412,15 +415,19 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         game = self._get(room_id, body.match_id)
         async with game.lock:
             await self._member(room_id, user_id, game)
-            self._creator(game, user_id, body.match_id)
+            self._creator(game, user_id, body.match_id, relock=True)
             if game.game_type != "flush":
                 raise HTTPException(409, "Flush settings only apply to Flush.")
             if body.rules_revision != game.flush_rules_revision:
                 raise HTTPException(409, "Flush rules changed. Reload them before saving.")
             try:
+                body.rules.setdefault('allow_raise', False)
+                body.rules.setdefault('max_raise', 1)
+                body.rules['max_raise'] = body.rules['max_raise'] if type(body.rules['max_raise']) is int and 1 <= body.rules['max_raise'] <= 5 else 1
                 if set(body.rules) != {f.name for f in fields(FlushRulesConfig)}:
                     raise ValueError("Supply the complete Flush ruleset without unknown fields.")
                 rules = TypeAdapter(FlushRulesConfig).validate_json(json.dumps(body.rules), strict=True)
+                rules = replace(rules, boot_amount=rules.initial_blind_bet)
                 if rules.minimum_players != 2 or rules.maximum_players != 10:
                     raise ValueError("Flush tables require limits of 2 to 10 players.")
                 if not rules.minimum_players <= game.capacity <= rules.maximum_players:
@@ -463,7 +470,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             raise HTTPException(409, blocked["reason"])
         if game_type not in ("callbreak", "marriage", "flush"):
             raise HTTPException(422, "Choose a supported game.")
-        if type(capacity) is not int or capacity not in (tuple(range(2, 11)) if game_type == "flush" else (2, 3, 4, 5) if game_type == "marriage" else (4, 5)):
+        if type(capacity) is not int or capacity not in (tuple(range(2, 11)) if game_type == "flush" else (2, 3, 4, 5, 6) if game_type == "marriage" else (4, 5)):
             raise HTTPException(422, "Choose 2-10 players for Flush, 2-5 for Marriage or 4-5 for Call Break.")
         async with self._catalog_lock:
             await self._member(room_id, user_id)
@@ -666,12 +673,15 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                     reject('GAME_CHANGED', 'Game changed. Refresh and join again.')
                 if user_id in game.table.seats(game):
                     return self._snapshot(game, user_id)
-                if game.table.phase != 'OPEN':
+                if game.table.phase not in ('OPEN', 'COMPLETED'):
                     reject('GAME_LOCKED', 'The roster is closed. You can join the waitlist.')
-                if len(game.users) >= game.capacity:
+                if sum(u is not None for u in game.table.seats(game)) >= game.capacity:
                     reject('GAME_FULL', 'The game is full. You can join the waitlist.')
                 self._ensure_available(user_id, game)
-                self._seat_user(game, user_id)
+                from app.durable_games.seating import join_position
+                invitations = [i for i in self.table_invitations.values() if i['match_id'] == match_id]
+                detail = join_position(self, game, user_id, invitations)
+                if detail: reject('SEAT_CHANGED', detail)
                 await self._publish(game)
                 return self._snapshot(game, user_id)
 
@@ -787,9 +797,9 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             return self._snapshot(game, user_id)
 
     def _creator(self, game, user_id, match_id, *, relock=False):
-        if not game.users or user_id != game.users[0]:
+        if user_id != next((u for u in game.table.seats(game) if u is not None), None):
             raise HTTPException(403, "Only the game creator can do this.")
-        if match_id != game.match_id or (game.started and not (relock and game.flush_open)) or game.ended:
+        if match_id != game.match_id or (game.started and not (game.finished or relock and game.flush_open)) or game.ended:
             raise HTTPException(409, "Settings and start are only available before this game begins.")
 
     async def start(self, room_id, user_id, match_id, play_mode=None, rules_revision=None):
@@ -801,6 +811,8 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             if game.table.phase == 'STARTED' and match_id == game.match_id and user_id == game.users[0]:
                 return self._snapshot(game, user_id)
             self._creator(game, user_id, match_id, relock=True)
+            from app.durable_games.seating import clockwise_roster
+            game.users[:] = clockwise_roster(game, game.users)
             self._sync_proposal(game)
             if game.rule_proposal and game.rule_proposal['status'] == 'PENDING':
                 reject('RULE_APPROVAL_PENDING', 'All seated players must accept the proposed rules before starting.')
@@ -828,7 +840,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
                     old = engine.get_state()
                     dealer = next((p for p in old.settlement.winner_ids if p in seats), owner)
                     try:
-                        engine.prepare_next_round(dealer, player_ids=seats)
+                        engine.prepare_next_round(dealer, player_ids=seats, rules=game.flush_rules)
                     except (FlushError, ValueError) as error:
                         raise HTTPException(409, str(error)) from error
                     adapter = FlushAdapter(engine, match_id=game.match_id, owner_player_id=owner)
@@ -849,7 +861,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             if game.game_type == "marriage":
                 from app.adapters.marriage import PlayerCommand as MarriageCommand, AdapterResult as MarriageResult
                 adapter = MarriageAdapter(MarriageGameEngine(tuple(str(i + 1) for i in range(len(game.users))),
-                                          rules=MarriageRules(scoring=game.marriage_scoring)),
+                                          rules=MarriageRules(scoring=game.marriage_scoring, manual_maal_cut=True)),
                                           match_id=game.match_id, owner_player_id="1")
                 outcome = adapter.dispatch_player(MarriageCommand(match_id=game.match_id, command_id=uuid4().hex,
                     expected_revision=0, command="START_GAME"), player_id="1")

@@ -9,7 +9,7 @@ import { type MarriageMove } from '../multiplayer/marriage';
 import { MarriagePlayers } from './MarriagePlayers';
 import {CompactCardFace} from './CompactCardFace';
 import { MarriageCardBack } from './MarriageCardBack';
-import { visualStates, radii, fonts, gameButtonStyle, useThemedStyles, type ThemeColors } from '../theme';
+import { visualStates, radii, fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 
 type Point = { x: number; y: number };
 function center(node: View): Promise<Point> {
@@ -37,7 +37,8 @@ function FlyingCard({ move, origin, destination, done }: { move: MarriageMove; o
     }]}>{move.card ? <CompactCardFace rank={move.card.rank} suit={move.card.suit} joker={move.card.rank === null} /> : <MarriageCardBack />}</Animated.View>;
 }
 
-export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAnchor, onResult, maalFaceUp, onToggleMaal }: {
+export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAnchor, onResult, maalFaceUp, onToggleMaal, compact = false }: {
+  compact?: boolean;
   maalFaceUp?: boolean; onToggleMaal?: () => void;
   onResult?: () => void;
   handAnchor?: RefObject<View | null>;
@@ -53,6 +54,7 @@ export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAncho
   const [queue, setQueue] = useState<MarriageMove[]>([]);
   const [flight, setFlight] = useState<{ sequence: number; origin: Point; destination: Point } | null>(null);
   const [reduced, setReduced] = useState(false);
+  const {colors} = useTheme();
   const marriage = snapshot.marriage!, pub = marriage.public, mine = marriage.private;
   const moves = marriage.moves || [], current = queue[0];
   const finish = useRef(() => { setQueue(q => q.slice(1)); setFlight(null); }).current;
@@ -67,8 +69,8 @@ export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAncho
     if (cursor.current === null) { cursor.current = latest; return; }
     const fresh = moves.filter(m => m.sequence > cursor.current!);
     cursor.current = Math.max(cursor.current, latest);
-    if (fresh.length && !reduced) setQueue(q => [...q, ...fresh].slice(-20));
-  }, [moves, reduced]);
+    if (fresh.length && !reduced && !compact) setQueue(q => [...q, ...fresh].slice(-20));
+  }, [moves, reduced, compact]);
   useEffect(() => {
     if (!current) return;
     if (reduced) { setQueue([]); setFlight(null); return; }
@@ -88,42 +90,43 @@ export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAncho
   const legalSource = (source: string) => canAct && !!mine?.actions.kinds.includes('draw') && !!mine.actions.drawable_sources.includes(source);
   const maalKey = `${snapshot.match_id}:${mine?.player_id}:${privateMaal?.tiplu.rank}:${privateMaal?.tiplu.suit}`;
   const maalVisible = !!privateMaal && (maalFaceUp ?? (maalFace.key === maalKey && maalFace.visible));
-  const maalLabel = !privateMaal ? ui("common.hidden") : maalVisible ? ui("marriage.tap_to_hide_the_maal") : ui("marriage.tap_to_see_the_maal");
+  const maalLabel = pub.maal_selected === false ? ui('marriage.maal_empty') : !privateMaal ? ui("common.hidden") : maalVisible ? ui("marriage.tap_to_hide_the_maal") : ui("marriage.tap_to_see_the_maal");
   useEffect(() => { if (!privateMaal) setMaalFace({ key: '', visible: false }); }, [!!privateMaal]);
-  return <View ref={area} style={styles.area}>
-    <MarriagePlayers snapshot={snapshot} onPoke={onPoke} registerSeat={(id, node) => { if (node) seats.current.set(id, node); else seats.current.delete(id); }}>
+  const piles = <>
     {snapshot.status === 'finished' && onResult ? <Pressable accessibilityRole="button" accessibilityLabel={ui("marriage.game_result")} testID="marriage-game-result"
       onPress={onResult} style={styles.resultButton}><Text style={styles.resultText}>{ui("marriage.game_result")}</Text></Pressable> : <View testID="marriage-card-spots" style={styles.spots}>
       <View style={styles.spot}>
         <Pressable ref={discard} testID="marriage-discard-spot" accessibilityRole="button" accessibilityLabel={ui("marriage.take_discard")}
           disabled={!legalSource('discard')} accessibilityState={{ disabled: !legalSource('discard') }}
-          onPress={() => onAction('DRAW_CARD', { source: 'discard' })} style={[styles.card, legalSource('discard') && styles.legal]}>
+          onPress={() => onAction('DRAW_CARD', { source: 'discard' })} style={[styles.card, compact && {width:38,height:52}, legalSource('discard') && styles.legal]}>
           {current?.kind !== 'CARD_DISCARDED' && (pub.top_discard ? <CompactCardFace rank={pub.top_discard.rank} suit={pub.top_discard.suit} joker={pub.top_discard.rank === null} /> : <Text style={styles.face}>—</Text>)}
         </Pressable>
         <Text style={styles.label}>{ui("marriage.last_discard")}</Text>
-        {legalSource('discard') && <ActionCue active style={styles.caption}>{ui("marriage.tap_draw")}</ActionCue>}
+        {!compact && legalSource('discard') && <ActionCue active style={styles.caption}>{ui("marriage.tap_draw")}</ActionCue>}
       </View>
       <View style={styles.spot}>
         <Pressable ref={stock} testID="marriage-stock-spot" accessibilityRole="button" accessibilityLabel={ui("marriage.take_stock_count", { "count": pub.stock_count })}
           disabled={!legalSource('stock')} accessibilityState={{ disabled: !legalSource('stock') }}
-          onPress={() => onAction('DRAW_CARD', { source: 'stock' })} style={[styles.card, styles.back, styles.stack, legalSource('stock') && styles.legal]}>
+          onPress={() => onAction('DRAW_CARD', { source: 'stock' })} style={[styles.card, compact && {width:38,height:52}, styles.back, styles.stack, legalSource('stock') && styles.legal]}>
           <MarriageCardBack />
         </Pressable>
         <Text style={styles.label}>{ui("marriage.deck_count", { "count": pub.stock_count })}</Text>
-        {legalSource('stock') && <ActionCue active style={styles.caption}>{ui("marriage.tap_draw")}</ActionCue>}
+        {!compact && legalSource('stock') && <ActionCue active style={styles.caption}>{ui("marriage.tap_draw")}</ActionCue>}
       </View>
       <View style={styles.spot}>
         <Pressable accessibilityRole="button" disabled={!privateMaal} aria-expanded={maalVisible} accessibilityState={{ disabled: !privateMaal, expanded: maalVisible }}
           onPress={() => onToggleMaal ? onToggleMaal() : setMaalFace({ key: maalKey, visible: !maalVisible })} testID="marriage-maal-spot"
-          accessibilityLabel={privateMaal ? maalLabel : ui("marriage.maal_hidden")} style={[styles.card, !maalVisible && styles.back]}>
-          {maalVisible && privateMaal ? <CompactCardFace rank={privateMaal.tiplu.rank} suit={privateMaal.tiplu.suit} /> : <MarriageCardBack />}
+          accessibilityLabel={pub.maal_selected===false?ui("marriage.maal_empty"):privateMaal ? maalLabel : ui("marriage.maal_hidden")} style={[styles.card, compact && {width:38,height:52}, pub.maal_selected===false&&{backgroundColor:colors.surface,borderStyle:'dashed'}, !maalVisible && !(pub.maal_selected === false) && styles.back]}>
+          {maalVisible && privateMaal ? <CompactCardFace rank={privateMaal.tiplu.rank} suit={privateMaal.tiplu.suit} /> : pub.maal_selected === false ? null : <MarriageCardBack />}
         </Pressable>
         <Text style={styles.label}>{ui("marriage.maal")}</Text>
-        <Text style={styles.caption}>{maalLabel}</Text>
+        {!compact && <Text style={styles.caption}>{maalLabel}</Text>}
       </View>
     </View>}
-    </MarriagePlayers>
-    {flight && current && flight.sequence === current.sequence && <FlyingCard key={current.sequence} move={current} origin={flight.origin} destination={flight.destination} done={finish} />}
+    </>;
+  return <View ref={area} style={compact ? {paddingVertical:4} : styles.area}>
+    {compact ? piles : <MarriagePlayers snapshot={snapshot} onPoke={onPoke} registerSeat={(id, node) => { if (node) seats.current.set(id, node); else seats.current.delete(id); }}>{piles}</MarriagePlayers>}
+    {!compact && flight && current && flight.sequence === current.sequence && <FlyingCard key={current.sequence} move={current} origin={flight.origin} destination={flight.destination} done={finish} />}
   </View>;
 }
 

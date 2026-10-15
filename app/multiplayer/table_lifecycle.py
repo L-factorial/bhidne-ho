@@ -52,7 +52,18 @@ class GameTableLifecycle:
             self._seat_user(game, user)
             game.table.emit('QUEUE_PROMOTED', user_id=user, match_id=game.match_id)
 
-    def _seat_user(self, game, user):
+    def _seat_user(self, game, user, *, position=None):
+        from app.durable_games.seating import allocate_position
+        invitations = getattr(self, 'seating_invitations', None)
+        if invitations is None:
+            invitations = [i for i in getattr(self, 'table_invitations', {}).values() if i['match_id'] == game.match_id]
+        allocation = allocate_position(game, user, invitations) if position is None else (position, [i for i in invitations if i.get('reserved_position') == position])
+        if allocation:
+            position, pending = allocation
+            game.table.seat_positions[user] = position
+            for invitation in pending:
+                if invitation['reserved_position'] == position:
+                    invitation['reserved_position'] = None
         if game.game_type == 'flush' and user not in game.flush_seats:
             game.flush_seats[user] = max(game.flush_seats.values(), default=0) + 1
         if user in game.table.queue:
@@ -110,7 +121,7 @@ class GameTableLifecycle:
                 offer.status = 'CANCELLED'
                 game.table.emit('SEAT_OFFER_CANCELLED', offer_id=offer.offer_id)
 
-    async def table_command(self, room_id, user_id, match_id, command, *, offer_id=None, seat_id=None, recipient=None):
+    async def table_command(self, room_id, user_id, match_id, command, *, offer_id=None, seat_id=None, recipient=None, position_id=None, moving_user=None, source_position=None, target_user=None):
         async with self._catalog_lock:
             if command == 'next-match':
                 replacement = next((g for g in self._room_games(room_id) if g.previous_match_id == match_id), None)
@@ -129,7 +140,37 @@ class GameTableLifecycle:
                 view = table.view(game, user_id)
                 me = view['current_user']
                 host = next((u for u in table.seats(game) if u is not None), None) == user_id
-                if command == 'join-queue':
+                if command in ('invite-position', 'move-player'):
+                    from app.durable_games.seating import editable, creator, reservations, MovePlayer, move_position
+                    if not editable(game) or user_id != creator(game):
+                        reject('SEATING_CLOSED', 'Only the game creator can arrange seats between games.')
+                    if type(position_id) is not int or not 1 <= position_id <= game.capacity:
+                        reject('INVALID_SEAT', 'Choose an existing table seat.')
+                    table.ensure_positions(game)
+                    invitations = [i for i in self.table_invitations.values() if i['match_id'] == game.match_id]
+                    if command == 'move-player':
+                        from pydantic import ValidationError
+                        try:
+                            body = MovePlayer(user_id=moving_user, position_id=position_id, source_position=source_position, target_user=target_user)
+                        except ValidationError:
+                            reject('INVALID_SEAT', 'Invalid seating request.')
+                        detail = move_position(game, body, invitations)
+                        if detail: reject('SEAT_CHANGED', detail)
+                    else:
+                        if position_id in table.seat_positions.values() or recipient in table.seats(game):
+                            reject('SEAT_CHANGED', 'That seat or player is already seated.')
+                        eligibility = await self.invitation_eligibility(room_id, user_id, [recipient])
+                        if not eligibility[0]['eligible']: reject('INVITATION_NOT_ALLOWED', eligibility[0]['reason'])
+                        existing = next((i for i in invitations if i['recipient_id'] == recipient and i['status'] in ('pending','accepted')), None)
+                        if not existing:
+                            existing, = await self._invite_players(game, user_id, [recipient])
+                        for invitation in reservations(invitations):
+                            if invitation['reserved_position'] == position_id or invitation['recipient_id'] == recipient:
+                                invitation['reserved_position'] = None
+                        existing['reserved_position'] = position_id
+                        existing['reservation_sequence'] = len(table.events)
+                        table.emit('SEAT_INVITED', position_id=position_id, recipient=recipient)
+                elif command == 'join-queue':
                     self._ensure_available(user_id, game)
                     if me['is_seated']:
                         reject('ALREADY_SEATED', 'You already have a seat.')
@@ -219,7 +260,8 @@ class GameTableLifecycle:
                     if not me['can_next_match']:
                         reject('NEXT_MATCH_NOT_READY', 'Fill all required seats and resolve replacement offers first.')
                     members = await self.rooms.members(room_id)
-                    roster = [u for u in table.seats(game) if u is not None]
+                    from app.durable_games.seating import clockwise_roster
+                    roster = clockwise_roster(game, [u for u in table.seats(game) if u is not None])
                     if not set(roster).issubset(members):
                         reject('INVALID_ROSTER', 'Every seat must belong to a room member.')
                     new = type(game)(room_id, game.capacity, roster, name=game.name, game_type=game.game_type,

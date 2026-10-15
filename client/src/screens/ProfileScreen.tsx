@@ -58,7 +58,7 @@ export function ProfileScreen({ session, onBack, onSignOut }: {
       {tab === 'account' && <><View testID="profile-identity" style={{ gap: 6, paddingVertical: 12 }}>
         <View style={{flexDirection:'row',alignItems:'center',gap:12}}>
           <PlayerAvatar size={48} uri={identity?.avatar_url ?? undefined} />
-          <Text accessibilityRole="header" style={[styles.title,{flex:1,minWidth:0}]}>{identity?.display_name || identity?.username || (identityError ? ui("common.account_label") : ui("common.loading_profile"))}</Text>
+          <Text accessibilityRole="header" style={[styles.title,{flex:1,minWidth:0}]}>{identity?.display_name || identity?.username || ui("common.account_label")}</Text>
         </View>
         {!!identityError && <Text accessibilityRole="alert" style={styles.description}>{identityError}</Text>}
       </View>

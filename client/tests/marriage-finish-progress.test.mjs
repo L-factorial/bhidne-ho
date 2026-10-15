@@ -132,3 +132,43 @@ test('Ace-high wildcard sequences do not permit wraparound or mixed fixed suits'
   assert.equal(completionKind([card(13), card(14), card(2)], maal), null);
   assert.equal(completionKind([card(12), card(13, 'D'), card(14)], maal), null);
 });
+
+test('long shown sequences reduce the remaining winning target below twelve cards', () => {
+  for(const sizes of [[5,5,3],[4,5,3]]){
+    const groups=sizes.map((size,i)=>({meld_type:'pure_sequence',card_ids:Array.from({length:size},(_,j)=>card(j+2,['C','H','S'][i]).card_id)}));
+    const shownCards=groups.flatMap(g=>g.card_ids).map(id=>{const found=/D(\d):(.+)([SCHD])/.exec(id);return card(Number(found[2]),found[3],Number(found[1]));});
+    const target=21-sizes.reduce((a,b)=>a+b,0);
+    const hand=[...shownCards,...Array.from({length:target},(_,i)=>card(i+5,'S')),man()];
+    const progress=normalFinishProgress(hand,groups,maal);
+    assert.equal(progress.target,target);assert.equal(progress.covered,target);assert.equal(progress.ready,true);assert.equal(progress.unused.length,1);
+  }
+});
+
+test('unseen finishes cover 21 natural cards with one discard and never use Maal wildcards', async()=>{
+  const {unseenMarriageWinChoices}=await import('../src/multiplayer/marriageFinishProgress.ts');
+  const hand=[...[2,3,4,5,6].map(r=>card(r,'C')),...[2,3,4,5,6].map(r=>card(r,'H')),...Array.from({length:11},(_,i)=>card(i+2,'S')),man()];
+  const choices=unseenMarriageWinChoices(hand,[],'unqualified',2);
+  assert.ok(choices.length>0);
+  for(const c of choices){
+    assert.equal(c.discard_card_id,'MAN:0');assert.equal(c.melds.flatMap(g=>g.card_ids).length,21);
+    assert.equal(new Set(c.melds.flatMap(g=>g.card_ids)).size,21);
+    assert.ok(c.melds.every(g=>g.meld_type==='pure_sequence'||g.meld_type==='tunnela'));
+  }
+  assert.deepEqual(unseenMarriageWinChoices(hand.slice(0,21),[],'unqualified',2),[]);
+  assert.deepEqual(unseenMarriageWinChoices(hand,[],'unqualified',2,['MAN:0']),[]);
+  const broken=hand.map(c=>c.card_id===card(9,'S').card_id?man(1):c);
+  assert.deepEqual(unseenMarriageWinChoices(broken,[],'unqualified',2),[]);
+});
+
+test('eight natural Dublees require 4+ players, a discard and leave five unused cards', async()=>{
+  const {marriageWinChoices}=await import('../src/multiplayer/marriageFinishProgress.ts');
+  const pairs=Array.from({length:8},(_,i)=>({meld_type:'dublee',card_ids:[card(i+2,'C').card_id,card(i+2,'C',1).card_id]}));
+  const hand=[...Array.from({length:8},(_,i)=>[card(i+2,'C'),card(i+2,'C',1)]).flat(),...[2,4,6,8,10].map(r=>card(r,'D')),man()];
+  assert.deepEqual(marriageWinChoices(hand,[],null,'unqualified',[],3),[]);
+  const options=marriageWinChoices(hand,[],null,'unqualified',[],4);
+  assert.ok(options.length>0);
+  for(const c of options){assert.equal(c.pairs.length,8);assert.equal(new Set(c.pairs.flatMap(g=>g.card_ids)).size,16);assert.ok(!c.pairs.flatMap(g=>g.card_ids).includes(c.discard_card_id));assert.equal(hand.filter(card=>card.card_id!==c.discard_card_id&&!c.pairs.flatMap(g=>g.card_ids).includes(card.card_id)).length,5);}
+  const pending=marriageWinChoices(hand,pairs.slice(0,7),null,'dublee',[],4);
+  assert.ok(pending.length>0);assert.deepEqual(pending[0].pairs.slice(0,7),pairs.slice(0,7));
+  assert.deepEqual(marriageWinChoices(hand,pairs.slice(0,7),null,'normal',[],4),[]);
+});

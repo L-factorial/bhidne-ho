@@ -72,7 +72,7 @@ export function DeletionScreen({session,token,onClose}: {session:Session|null;to
     <Text style={styles.description}>{ui('deletion.backups')}</Text>
     <Text style={styles.description}>{ui('deletion.requirements')}</Text>
     {!statusToken&&!sent&&enabled&&(session||token)&&<>
-      {checking&&<Text accessibilityRole="alert" style={styles.description}>{ui('deletion.checking')}</Text>}
+      {checking&&<Text activity accessibilityRole="alert" style={styles.description}>{ui('deletion.checking')}</Text>}
       {preflight?.blockers.map((item,index)=><View key={`${item.kind}-${item.table_id||index}`} style={{gap:4,paddingVertical:8}}>
         <Text style={{color:colors.danger}}>{ui(`deletion.${item.kind}`)}</Text>
         {!!(item.name||item.room_name)&&<Text style={styles.description}>{[item.name,item.room_name].filter(Boolean).join(' · ')}</Text>}
@@ -89,6 +89,6 @@ export function DeletionScreen({session,token,onClose}: {session:Session|null;to
         {session&&!token&&<><Text style={styles.description}>{ui('deletion.passwordHelp')}</Text><FormInput accessibilityLabel={ui('recovery.currentPassword')} placeholder={ui('recovery.currentPassword')} value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" style={styles.input}/></>}
         {confirming&&<><Text style={styles.description}>{ui('deletion.typeDelete')}</Text><FormInput accessibilityLabel={ui('deletion.typeDelete')} value={confirmation} onChangeText={setConfirmation} autoCapitalize="characters" style={styles.input}/></>}
       </>}
-    {!!error&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{error}</Text>}
+    {!!error&&<Text activity accessibilityRole="alert" style={{color:colors.danger}}>{error}</Text>}
   </AccountPage>;
 }

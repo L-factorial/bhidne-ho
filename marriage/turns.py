@@ -5,6 +5,7 @@ from .cards import PhysicalCard
 from .completion import winning_discard
 from .enums import DrawSource, GameStatus, QualificationRoute, TurnPhase
 from .errors import InvalidActionError
+from .events import CardDrawn, CardDiscarded
 from .models import MarriageGameState, PlayerState
 
 
@@ -32,6 +33,20 @@ def turn_block(state: MarriageGameState, player_id: str) -> str | None:
     if state.must_finish:
         return "Player must finish the round."
     return None
+
+
+def first_draw_pending(state: MarriageGameState, player_id: str) -> bool:
+    """Each player's own first turn, derived from durable history across recovery."""
+    return not any(isinstance(event, CardDrawn) and event.player_id == player_id for event in state.history)
+
+
+def first_turn(state: MarriageGameState, player_id: str) -> bool:
+    return not any(isinstance(event, CardDiscarded) and event.player_id == player_id for event in state.history)
+
+
+def show_actions(state: MarriageGameState) -> tuple:
+    from .enums import ActionKind
+    return (ActionKind.SHOW_INITIAL_MELDS,) + ((ActionKind.SHOW_DUBLEES,) if len(state.players) >= 4 else ())
 
 
 def draw_source_block(state: MarriageGameState, player: PlayerState, source: DrawSource) -> str | None:

@@ -4,9 +4,9 @@ from .deck import validate_deck
 from .enums import GameStatus, QualificationRoute, TurnPhase, MeldType
 from .errors import CardConservationError, InvalidMeldError
 from .events import CardDrawn, TunnelasDeclared, GameStarted, PlayerFinished, TipluRevealed, TurnChanged
-from .completion import eighth_pair, valid_normal_finish, valid_eighth_pair
+from .completion import eighth_pair, valid_normal_finish, valid_eighth_pair, valid_unseen_normal_finish, valid_unseen_dublee_finish
 from .melds import validate_declaration, validate_meld
-from .models import MarriageGameState
+from .models import MarriageGameState, Meld
 
 
 def validate_card_conservation(state: MarriageGameState) -> None:
@@ -29,7 +29,7 @@ def validate_initial_state(state: MarriageGameState) -> None:
     require(all(p.route == QualificationRoute.UNQUALIFIED and not p.shown_melds
                 and not p.tunnela_declared and not p.initial_tunnelas and not p.committed_card_ids and not p.has_seen_maal and not p.finished and not p.folded
                 for p in state.players), "Startup players must be unqualified and unfinished.")
-    require(state.tiplu is None and state.winner is None and not state.winning_pair
+    require((state.tiplu is None or state.status is GameStatus.IN_PROGRESS and state.config.rules.manual_maal_cut and len(state.players)==6) and state.winner is None and not state.winning_pair
             and state.normal_finish is None and not state.won_by_fold and state.must_finish is False,
             "Startup cannot have an indicator, winner, or forced finish.")
     if state.status is GameStatus.WAITING:
@@ -52,6 +52,8 @@ def validate_initial_state(state: MarriageGameState) -> None:
         GameStarted(1, 1, state.config.player_ids, state.config.rules.cards_per_player),
         TurnChanged(2, 1, state.config.first_player_id, TurnPhase.MUST_DRAW),
     )
+    if state.tiplu is not None:
+        expected += (TipluRevealed(3, 1, state.tiplu),)
     require(state.revision == 1 and state.history == expected, "Invalid startup history.")
 
 
@@ -92,6 +94,28 @@ def validate_game_state(state: MarriageGameState) -> None:
             require(sum(not p.folded for p in state.players) == 1 and state.normal_finish is None
                     and not state.winning_pair and not event.meld_types and not event.card_groups
                     and event.discard_card_id is None, "Fold victory requires one remaining player.")
+        elif not winner.has_seen_maal:
+            require(event.discard_card_id is not None and bool(state.discard)
+                    and state.discard[-1].card_id==event.discard_card_id,
+                    "Unseen finish requires its final discard on the pile.")
+            before = replace(winner,finished=False,hand=winner.hand+(state.discard[-1],))
+            if winner.route is QualificationRoute.NORMAL:
+                witness = state.normal_finish
+                require(witness is not None and not state.winning_pair
+                        and valid_unseen_normal_finish(before,state.config.rules,witness),
+                        "Unseen normal winner requires a natural 21-card partition.")
+                groups = witness.melds
+                require(witness.discard_card_id==event.discard_card_id,"Unseen discard must match its witness.")
+            else:
+                require(winner.route is QualificationRoute.DUBLEE and state.normal_finish is None,
+                        "Unseen winner requires a normal or Dublee route.")
+                require(len(state.winning_pair)==2,"Unseen Dublee winner requires its eighth pair.")
+                groups = winner.shown_melds+(Meld(MeldType.DUBLEE,state.winning_pair),)
+                require(valid_unseen_dublee_finish(before,state.config.rules,len(state.players),groups,event.discard_card_id),
+                        "Unseen Dublee winner requires eight natural pairs.")
+            require(event.meld_types==tuple(g.meld_type for g in groups)
+                    and event.card_groups==tuple(g.card_ids for g in groups),
+                    "Unseen finish event must match its winning cards.")
         elif winner.route is QualificationRoute.NORMAL:
             witness = state.normal_finish
             require(witness is not None and not state.winning_pair and bool(state.discard),
@@ -116,7 +140,7 @@ def validate_game_state(state: MarriageGameState) -> None:
                 "Forced finish requires a winning hand after drawing.")
     for seat, player in enumerate(state.players):
         extra = int(seat == state.current_seat and state.phase is TurnPhase.MUST_DISCARD
-                    and state.normal_finish is None)
+                    and not (state.status is GameStatus.FINISHED and state.history[-1].discard_card_id is not None))
         require(len(player.hand) in (21, 22) if player.folded or state.won_by_fold else
                 len(player.hand) == state.config.rules.cards_per_player + extra,
                 "Hands must contain 21 cards, or 22 for the player who drew.")
@@ -140,16 +164,23 @@ def validate_game_state(state: MarriageGameState) -> None:
         require(isinstance(player.route, QualificationRoute), "Invalid qualification route.")
         if player.route is QualificationRoute.UNQUALIFIED:
             require(not shown and not player.has_seen_maal, "Unqualified player cannot show melds or see Maal.")
+        elif player.finished and not player.has_seen_maal and not state.won_by_fold:
+            # The terminal witness above proves a direct win without granting access.
+            require(player.route in (QualificationRoute.NORMAL,QualificationRoute.DUBLEE),
+                    "Unseen finish route is invalid.")
         else:
-            require(bool(shown) and player.has_seen_maal and state.tiplu is not None,
-                    "Qualified player requires shown melds and Maal access.")
+            pending_maal = (not player.has_seen_maal and
+                            (state.config.rules.manual_maal_cut or player.folded or state.won_by_fold or
+                             (player.player_id == state.current_player_id and state.phase is TurnPhase.MUST_DISCARD)))
+            require(bool(shown) and (player.has_seen_maal or pending_maal) and (state.tiplu is not None or state.config.rules.manual_maal_cut and not player.has_seen_maal),
+                    "Qualified player requires shown melds and authorized or pending Maal access.")
             try:
                 validate_declaration(player, player.shown_melds, player.route, state.config.rules,
                                      allow_committed=True)
             except InvalidMeldError as error:
                 raise CardConservationError("Qualified melds are invalid.") from error
     if state.tiplu is not None:
-        require(state.tiplu.identity is not None and any(p.has_seen_maal for p in state.players),
+        require(state.tiplu.identity is not None and (any(p.route is not QualificationRoute.UNQUALIFIED for p in state.players) or state.config.rules.manual_maal_cut and len(state.players)==6),
                 "Indicator must be a standard card with an authorized player.")
     require(type(state.revision) is int and state.revision >= 1 and bool(state.history),
             "Active round requires revisioned history.")

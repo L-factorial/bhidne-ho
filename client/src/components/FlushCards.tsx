@@ -1,3 +1,4 @@
+import { sortedFlushCards } from '../multiplayer/flush';
 import {CompactCardFace} from './CompactCardFace';
 import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
@@ -8,24 +9,27 @@ import { CardBack } from './CardBack';
 import { useTheme } from '../theme';
 
 const symbols: Record<string, string> = { S: '♠', H: '♥', D: '♦', C: '♣' };
-export function FlushCards({ cards, hidden = false, label = ui("flush.your_card"), onComplete, autoReveal = false, autoHideMs = 0, tapToToggle = false }: {
+export function FlushCards({ cards, hidden = false, label = ui("flush.your_card"), onComplete, autoReveal = false, autoHideMs = 0, tapToToggle = false, shown, onShownChange }: {
+  shown?: boolean; onShownChange?: (shown: boolean) => void;
   cards: string[]; tapToToggle?: boolean; autoHideMs?: number; autoReveal?: boolean; hidden?: boolean; label?: string; onComplete?: () => void;
 }) {
   const uiLanguage = useUiLanguage();
-  const [peekAll, setPeekAll] = useState(false);
+  const [localShown, setPeekAll] = useState(false);
+  const peekAll = shown ?? localShown;
+  const orderedCards = sortedFlushCards(cards);
   const [revealed, setRevealed] = useState<number[]>([]);
   const { colors } = useTheme();
   useEffect(() => { setPeekAll(false); }, [cards.join('|'), hidden]);
   useEffect(() => { if (hidden && autoHideMs > 0) setRevealed([]); }, [hidden, autoHideMs]);
   return <View testID="flush-card-arc" style={{ height: 172, width: 280, alignSelf: 'center' }}>
-    {[0, 1, 2].map(index => <FlipCard key={index} card={cards[index]} index={index} label={label}
-      revealed={!hidden && (autoReveal || (tapToToggle ? peekAll : revealed.includes(index)))} disabled={tapToToggle || autoReveal || hidden || !cards[index] || revealed.includes(index)}
+    {[0, 1, 2].map(index => <FlipCard key={index} card={orderedCards[index]} index={index} label={label}
+      revealed={!hidden && (autoReveal || (tapToToggle ? peekAll : revealed.includes(index)))} disabled={tapToToggle || autoReveal || hidden || !orderedCards[index] || revealed.includes(index)}
       autoHideMs={autoReveal ? 0 : autoHideMs} onConceal={() => setRevealed(current => current.filter(i => i !== index))}
       onFlip={() => { const next = [...revealed, index]; setRevealed(next); if (next.length === 3) onComplete?.(); }} />)}
     {tapToToggle && !hidden && cards.length === 3 && <Pressable accessibilityRole="button"
       accessibilityLabel={peekAll ? ui("common.hide_cards") : ui("flush.tap_to_see_cards")}
       accessibilityState={{ expanded: peekAll }}
-      onPress={() => setPeekAll(value => !value)}
+      onPress={() => { setPeekAll(!peekAll); onShownChange?.(!peekAll); }}
       style={[StyleSheet.absoluteFill, { justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 4 }]}>
       <Text style={{ color: colors.textMuted, fontSize: 12 }}>{peekAll ? ui("flush.tap_to_hide_cards") : ui("flush.tap_to_see_cards")}</Text>
     </Pressable>}

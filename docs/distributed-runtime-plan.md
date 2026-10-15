@@ -9770,3 +9770,459 @@ implementation request before changing card rendering or Marriage turn behavior.
   Administrator SSH keys are rejected; the dedicated release key authenticates.
   Exact next step: publish the corrected release, monitor the production workflow,
   then verify both hosts and public endpoints before recording deployment complete.
+
+### Direct application-server deployment handoff
+
+- Production run 38476934353 failed before image publication: 14 backend test
+  failures, 2089 passed and five skipped; deployment was skipped. Logs saved at
+  /private/tmp/bhidne-release-job-115570005094.log. Current servers were not updated.
+- User requested direct application-server deployment instead. Administrator
+  root SSH with production-servers and id_ed25519 keys is rejected. Dedicated
+  github-production key authenticates but permits only release phases for an
+  existing registry image. Local Docker socket has no running daemon. Requested
+  working administrator username/key-file path; no private key contents needed.
+- Prepared committed source archive at
+  /private/tmp/bhidne-direct-release-3cb1a78-source.tar.gz and a fresh production
+  frontend export at /private/tmp/bhidne-direct-release-3cb1a78-web. Latest 482
+  client tests and TypeScript passed. No server/environment changes were made.
+- Exact next step: obtain working administrator access, resolve or classify the
+  failed backend checks before activating this release, build the matching image,
+  apply migration 43 and deploy/verify sequentially on both app hosts.
+
+### Direct production deployment completed — 2026-10-13
+
+- Administrator access resumed after the user unlocked the production-server key.
+  App2 ED25519 host fingerprint was verified against the user's console output:
+  SHA256:zXnyMvVkfCTZlmTTxFKY69Gss9EzcGb4Qtl0OaHf7HQ.
+- Built committed revision 3cb1a787a12540c11916e8f2e63ff822466066ff on app1 using
+  Dockerfile.production; its 482 client tests, TypeScript and production export
+  passed. Exported and loaded the identical immutable image on app2:
+  sha256:6862e4a603397b5892471cb14cc3b216fb38c0a59c7db82f19e51b22ad7410e2.
+- Direct helper retains the repository receiver's release lock, sandbox, schema/
+  dependency checks, peer readiness, sequential backend replacement and delayed
+  frontend activation. It uses the verified local image ID instead of a registry
+  pull; helper/source/artifacts remain under /srv/bhidne-prod/builds/3cb1a78.
+- Created /srv/bhidne-prod/backups/before-3cb1a78.dump on app1 (3,321,489 bytes),
+  checked archive parsing, and confirmed zero unfinished deletion jobs. Both
+  hosts have enabled recovery and matching encryption-key fingerprints. Applied
+  migrations through 43, checked both hosts, upgraded both backends sequentially,
+  then activated both frontends. Existing runtime secrets were not changed.
+- Verified identical active image and frontend paths on both hosts. Each private
+  listener and public deletion capability returns enabled=true; public health is
+  healthy, /delete-account returns HTTPS 200, and public support metadata contains
+  support-bhidne-ho@lfactorial.com. All four updated policy pages passed production
+  browser checks at 390/1280px with no JavaScript errors.
+- Limitations: GitHub run 38476934353 remains failed, with 14 failures / 2089 passes
+  and five skips; direct deployment does not resolve those failures. Several are
+  stale metadata/schema expectations; the concurrent-reveal case exercises the
+  legacy in-memory runtime and expects off-turn reveals, while two native load
+  scenarios fail at room setup and still require investigation. The distributed
+  original-UI test passed in CI. No claim of a completely passing backend suite.
+- Exact next step: resolve the CI failures and build/validate a new TestFlight /
+  Android release for bundled UI changes, including real email-link deletion on
+  a disposable account. Existing native binaries were not replaced by this rollout.
+
+
+### Local investigation of 14 production CI failures — 2026-10-13
+
+- User authorized investigation and local fixes only; no push or deployment.
+  Investigated the exact 14 failures in run 38476934353/job 115570005094.
+- Eight settlement failures compared independently assigned insertion timestamps.
+  Compare all remaining ledger fields and require valid timezone-aware timestamps
+  in both stores; preserve identity, historical-player, amounts and restart checks.
+- Two directory/member failures omitted the new public avatar and seat-user fields.
+  Update exact expected shapes while retaining access and private-hand checks.
+- The search-index test ran the current avatar-aware reader against schema 26.
+  Apply the complete reader schema while withholding migration 27, then assert
+  adding those indexes preserves results and both indexes appear in EXPLAIN.
+- The legacy concurrent Flush SEE_CARDS test still expected off-turn reveals.
+  The engine and durable lane both enforce current-turn/revision eligibility.
+  Assert only the active player succeeds, one revision advance, unchanged actor/
+  deadline, hidden off-turn hands and stable accepted/rejected retry receipts.
+- Both native load scenarios acknowledged room creation a second time after the
+  OriginalDistributedRuntime facade had retired the confirmed command. Update
+  the driver to acknowledge only a remaining command ID; other room actions
+  retain their required acknowledgement. No application/runtime behavior changed.
+- Verification: all 97 affected SQL/game/host/query tests passed, including the
+  serialized durable Flush lane. Both real PostgreSQL/Redis two-gateway native
+  load tests passed (496.81s): complete Call Break/Marriage/Flush matches and
+  three concurrent Flush cohorts with deliberately delayed moves, ledger
+  validation and cleanup. All 482 client tests and 12 load-model tests passed.
+  All 14 formerly failing cases are covered by these passing local runs.
+- Evidence: /private/tmp/bhidne-ci-{verified,load-fixed,client,load-model}.log.
+  git diff --check passed. The full 2,000+ test CI suite was not rerun; the remote
+  workflow remains failed until a future authorized push/run. No server changes.
+- Exact next step: review the uncommitted local changes; commit/push and rerun
+  the full production workflow only when the user authorizes it.
+
+## 2026-10-14: Approved testing issues — implementation and handoff
+
+User explicitly authorized the consolidated account, configuration, Flush,
+invitation/seating, activity-feedback and layout changes. Existing uncommitted CI
+compatibility fixes and earlier plan entries are preserved. Work remains local:
+no commit, push, deployment, native package or production account/game writes.
+
+### Increment 1 — shared physical seating and soft invitations
+
+- Added durable `seat_positions`, `invite-position` and atomic `move-player`.
+  Creation-window invitations stay general; seat invitations reuse/upgrade their
+  identity without duplicate delivery. Joins claim their own reservation, then an
+  unreserved vacancy, then the oldest soft reservation when no other vacancy exists.
+  Displaced invitations remain general and occupants are never evicted.
+- Preserved FIFO queue/replacement priority, membership/contact checks, cross-table
+  exclusivity, durable lane ordering, user locks, fencing, transaction/outbox writes
+  and request-ID deduplication. Current-match stale joins revalidate; moves/invites
+  require current revisions and moves validate source/destination occupants. Drag/tap
+  selection retains its original roster expectations; drop targets stay stationary
+  while the avatar animates, preventing stale gestures from overwriting other moves.
+- Physical positions never renumber historical players/hands. The next engine uses
+  clockwise placement rotated to retain the host. Moves reopen locked formation;
+  active play rejects rearrangement. Local catalog/game locks use the same policy.
+  Existing checkpoints accept an optional map; new maps survive recovery. No SQL
+  migration. See docs/table-seating.md section 19 for commands and policy.
+- Verification: all 12 new PostgreSQL/WASM cases passed across three games, including
+  spare preservation, takeover, recipient preference, duplicates, stale swaps,
+  concurrent claims, Start boundaries, observer privacy, notification deduplication
+  and recovered clockwise engine order. Open waitlists reserve only needed FIFO
+  vacancies, allowing independent joins into spare positions. A final 26-case SQL
+  run covered seating, queues and offers; 56 local formation/table/config cases passed.
+  Earlier 61 invitation/lifecycle SQL cases
+  passed; a combined 74-case SQL run passed queue/rules/start/restart/offers/durability.
+  These suites overlap and their counts must not be added as unique cases.
+- Exact next step after this increment: wire shared controls and verify browser
+  gestures, empty-seat invitations and the Start control in all three games.
+
+### Increment 2 — creator config and Flush behavior
+
+- Creator/remaining host saves Game Config directly before play and between games.
+  No vote is created; GAME_CONFIG_UPDATED events and a transient notice inform table
+  players. Legacy pending proposals can be superseded without voting. Completed
+  engines/results stay unchanged and the next engine uses the saved configuration.
+- Flush See Cards works off-turn, including pending show responses, without changing
+  the active actor/deadline. Round-scoped reveals accept a nonfuture captured revision
+  from that same dealt hand; old-round/future requests reject and retries deduplicate.
+- New table contribution equals minimum bet (both initially 1). Config saves validate
+  first, then normalize boot to minimum; next-hand preparation adopts saved rules.
+- User clarified Max Raise means the table-wide number of doubles per hand. Raise
+  defaults off; max doubles defaults to 1, allows 1–5, and invalid values fall back
+  to 1. Bets are minimum or double; current-hand durable events count doubles and
+  new-hand preparation resets the count. Private maximum_bet/raises_remaining fields
+  disable Double at the cap. Seeing cards, reconnect and recovery cannot reset it.
+- Summary preserves public results/events and adds betting-cycle/hand numbers for
+  chronological folds and side-show participants/winners, without private comparisons.
+  Four focused history checks passed. Between-hand joins retain Flush settlement
+  intent and pending-departure checks before changing the roster; all 25 final
+  SQL seating/Flush-finalization checks passed after restoring those guards.
+- Updated obsolete voting, turn-only reveal and arbitrary-raise assertions while
+  retaining privacy, deadlines, rollback, conservation and retry checks. Added 11
+  direct double-limit/default/reset checks and between-game config tests. All 18
+  serialized SQL game-lane cases passed, including independent reveal/deadline checks.
+- Exact next step after this increment: verify UI capabilities and hand boundaries,
+  then build matching backend/frontend artifacts.
+
+### Increment 3 — accounts, shared activity feedback and table presentation
+
+- Login/signup Next arrows and keyboard Next focus the next input on the same form.
+  Keyboard opening/frame changes and browser VisualViewport changes reveal focused
+  inputs. Original and integration account forms are wired.
+- Removed hamburger Invite Players. Empty seats open themed invitation sheets;
+  mouse/touch dragging and tap-to-move alternatives move/swap players. A fading
+  center hint leaves seat and Start/Play interaction usable. Completed views retain
+  results and expose independent next-roster seating.
+- Shared thin fading gradient line replaces technical loading/sending/confirmation/
+  retry copy and spinners throughout game, lobby, room/table and other page activity.
+  Actionable errors and explicit retry controls remain readable. System-copy matching
+  is opt-in and never interprets names/chat. Reduced-motion users get a static line.
+- Seen Flush cards reveal immediately; card taps and alternating See/Hide buttons
+  share local visibility, which never changes seen status. Maal/Flush green checks
+  share prominent size/surfaces. Header/hand-border pulses are thicker.
+- Geometries measure full rows/move controls and center content, leaving pulse
+  clearance and preventing informational center overlays from intercepting seats; actual expanded hand footprints
+  are reserved above the sheets. Dense/short viewports scroll table and hand content
+  separately. Marriage expansion leaves room above the sheet; Call Break retains
+  separation between seats, inward played cards and center status.
+- Verification: TypeScript, all 482 client tests and fresh local web export passed.
+  Final full backend run: 1,354 passed, 787 optional integrations skipped, two existing
+  library deprecation warnings. Focused real SQL suites are separately listed above.
+  Isolated Chrome passed at 320/390/1280px: Flush reveal/hide/off-turn eligibility,
+  all games' complete player rows/pulse clearance, login/signup arrow/Next focus and
+  simulated keyboard clearance. Every game's drag submits one swap command; empty
+  seats open the themed overlay beside center Start. Screenshots visually inspected.
+
+Evidence: /private/tmp/game-ux-{backend-verified,client-complete,seating-verified,
+policy-final,boundaries,sql-final,game-lane,browser-verified,auth-verified,
+preview-ready,production}.log. Browser regressions:
+client/tests/browser/{game-ux,auth-next}.cjs. Inspected screenshots:
+/private/tmp/bhidne-game-ux-{flush-390,flush-invite}.png.
+
+Limitations: browser checks use isolated snapshots; real native keyboards, device
+motion/accessibility and iOS/Android gestures need hardware validation. Optional
+integrations skipped by the full run are not claimed as passed. New checkpoint
+fields/commands require matching backend/frontend versions during a future release.
+No claim of bug-free software or production/native validation.
+
+Exact next step: review local changes and device-test authentication, creator seat
+invites/moves between games, config notices and one-double-per-hand Flush behavior.
+Prepare matching server/frontend and signed native releases only when requested.
+Capacity, observability, database HA and operational readiness remain deferred.
+
+### 2026-10-14 follow-up — compact seat invitation popover
+
+- Replaced the seat invitation sheet with `SeatInvitePopover`, shared by all games.
+  Measures the tapped seat and roster bounds, places the small themed panel radially
+  inward, and clamps it within the visible viewport/safe area. KeyboardFrame keeps
+  the input and Send above the keyboard. Outside taps/hardware Back dismiss it.
+- One username/user-ID field and singular Send invitation button; no multi-select,
+  recipient list, title or standing instructional paragraph. Only an exact username
+  (optional @ prefix) or user ID resolves a recipient. Partial/ambiguous names cannot
+  send. Existing invitation authorization, atomic seat preference, deduplication and
+  errors remain unchanged. A seat taken while open dismisses the obsolete panel.
+- Verification: TypeScript and all 482 client tests passed; fresh local web export
+  passed. Isolated Chrome verified all three games at 320/390/1280px, both top and
+  side vacant seats, compact bounds, outside dismissal, exact single-recipient send
+  and partial-name rejection. Simulated mobile keyboard clearance passed. Existing
+  game-UX checks passed, including waiting/finished drag swaps and empty-seat access.
+  Top/side screenshots were inspected. Evidence: /private/tmp/seat-popover-{typecheck,
+  client,export,browser,game-ux}.log; regression: client/tests/browser/seat-invite.cjs.
+- No backend changes, deployment or production invitations. Native device checks
+  remain pending. Exact next step: review the popover and test real-device keyboards
+  and seat gestures before an authorized matching release. Operational work deferred.
+
+### 2026-10-14 follow-up — Marriage order and granular sequence options
+
+- Each player's first turn permits showing dealt qualification groups before drawing:
+  show, flip/read Maal, draw and discard. First-turn post-draw qualification remains
+  supported if the draw creates eligibility. Later turns draw, show, discard, then
+  receive private Maal access. Pending access survives checkpoint recovery; the
+  discard, access grant and next turn commit atomically. No new checkpoint fields or
+  SQL migration. The existing initial Tunnela declaration gate remains authoritative.
+- Dublee qualification requires four or five original round players in engine
+  commands/allowed-actions, UI options/tabs and attention cues. Existing historical
+  qualified Dublee checkpoints remain readable. Updated the executable Dublee demo
+  and its fixtures to use four players.
+- Normal qualification sequences now contain 3–5 natural cards; Tunnelas stay at 3.
+  Initial validation enforces that range without limiting longer final winning
+  sequences or rejecting historical committed groups. Existing exact-cover finishing
+  handles smaller remainders; explicit 5-5-3/4-5-3 UI/backend regressions passed.
+- Added maximal feasible option families, each labelled `Option N (x-y-z)`, with
+  expandable horizontally scrollable sub-options including the full combination.
+  Every face/group combination appears once, without card reuse, group-order
+  duplicates or equivalent deck-copy permutations. Different smaller runs with
+  identical size labels remain distinct numbered combinations. Selection updates
+  groups, committed count, remaining cards and the exact Show payload together.
+- Off-turn previews remain accessible; Show is disabled and backend turn checks
+  reject off-turn commands. First-turn hand/attention instructions prefer showing
+  when eligible. Draw controls stay outside the preview. A dense 21-card example
+  enumerated 591 unique combinations in 33ms on the local development machine;
+  native-device performance is not claimed.
+- Verification: TypeScript, all 486 client tests and fresh local web export passed.
+  Full backend: 1,372 passed, 789 optional integrations skipped, two existing library
+  warnings. Focused domain/adapter/HTTP/process-recovery suite: 224 passed. All 19
+  new turn-order/long-qualification cases passed. SQL lane coverage: 18 established
+  cases passed plus both focused first/later-show cases after correcting the test's
+  deadline expectation (an actor's valid move retains existing deadline renewal).
+  The new cases validate privacy, request deduplication and fresh-executor recovery.
+- Isolated Chrome passed mobile/desktop full/short option selection, updated remaining
+  counts, off-turn Show disabling and 3/4-player Dublee availability. Screenshots use
+  isolated example hands, not live games. Evidence: /private/tmp/marriage-improvements-
+  {typecheck,client,export,full-backend,backend,order,sql-order,browser}.log; browser
+  regression: client/tests/browser/marriage-options.cjs. Screenshot artifacts:
+  .venv/dev/marriage-options-{desktop,mobile}.png.
+- Work is local; no commit, deployment or production game writes. Pending-Maal states
+  require matching backend versions at release. Real-device keyboard, touch and
+  dense-hand responsiveness remain unverified. Exact next step: review these screenshots
+  and native-device-test the first-turn/later-turn flow before an authorized release.
+  Capacity, observability, database HA and operational readiness remain deferred.
+
+### 2026-10-14 follow-up — direct Marriage wins without seeing Maal
+
+- Added an unseen finish after drawing: a natural 21-card sequence/Tunnela partition,
+  or eight natural Dublees with 4–5 original players. Both discard one card atomically;
+  Dublee retains five unused cards. Initial qualification/looking at Maal is optional
+  for these wins. Already-pending qualification can finish naturally with its route
+  and locked groups preserved. Before-draw and off-turn finishes reject.
+- Indicator-independent natural candidate generation and exact covers avoid a full
+  2^22 subset scan. Backend revalidates canonical ownership, disjointness, natural
+  melds, route restrictions and protected initial Tunnelas. No wildcard substitution,
+  PlayerSawMaal, indicator selection or RNG advancement in the unseen finish.
+- Extended FINISH with eight `pairs` plus `discard_card_id`; natural wins retain
+  `melds`/`discard_card_id`. Existing checkpoint fields carry the unseen terminal
+  proof and complete winning event. Terminal invariants recognize the final discard.
+  No SQL migration. Winner remains unseen for existing scoring policies; Dublee bonus
+  still applies. Existing qualified/seen finish behavior is preserved.
+- UI exposes the winning preview before Maal access, natural alternatives, final
+  discard and five unused Dublee cards. Confirm requires the server's Finish permission
+  on the player's turn. The move submits one exact payload. Unseen-win attention
+  takes priority over a discard instruction; initial qualification previews remain
+  available. Small-screen navigation uses compact arrows and shared activity feedback.
+- Verification: TypeScript, all 488 client tests and fresh local web export passed.
+  Focused Marriage/domain/adapter/HTTP suite: 239 passed. Full backend: 1,392 passed,
+  791 optional integrations skipped, two existing library warnings. All 22 SQL lane
+  cases passed, including both new unseen routes, retry deduplication, recovered
+  terminal proofs and exactly one hosted settlement job. Natural/Dublee domain cases
+  cover player counts, selected/automatic witnesses, privacy, scoring, recovery,
+  wildcard/overlap/discard rejection and injected audit rollback.
+- Isolated Chrome passed both routes at 320/390/1280px, final-discard payloads, five
+  unused cards, no Maal dialog and disabled before-draw/off-turn finishes. Existing
+  granular qualification preview and 3/4-player Dublee browser regressions also passed.
+  Natural winning runs retain rank order in the preview. Regression:
+  client/tests/browser/marriage-unseen.cjs. Evidence: /private/tmp/marriage-unseen-
+  {typecheck,client,export,backend,full-backend,sql,browser}.log.
+- Changes stay local, with no commit, deployment or production game writes. Native
+  device validation remains pending. Older backends cannot accept the new eight-pair
+  payload or unseen terminal state; prepare matching releases only when authorized.
+  Exact next step: review and native-device-test both unseen wins alongside optional
+  qualification and existing seen wins. Operational work remains deferred.
+
+### 2026-10-14 follow-up — Flush reveal ordering and result names
+
+- Revealed Flush cards use a shared, immutable presentation sort: ascending rank,
+  Ace high, deterministic suit ties. Own-hand, side-show and final/public reveals
+  share the component; engine cards and action payloads are unchanged.
+- Flush result/summary/arena labels resolve historical participant IDs before
+  current seats. Empty participant arrays still fall back to the seated roster.
+  Durable snapshots and asynchronous view generation hydrate historical Flush
+  profiles, with existing account-username fallback. Cache versions cover departed
+  participants' profile/credential changes; bumped projection cache namespace.
+- Regression covers departed prabingiri, username fallback with an empty display
+  name, removal from room membership, subsequent profile changes and live update
+  hydration; no production account or historical ledger data was modified.
+- Verification: TypeScript and all 490 client tests passed. Focused backend/SQL
+  checks passed all 20 cases covering cached reads, private view generation, Flush
+  statistics and ledger queries, including historical names/username/update hydration. Evidence lives in
+  /private/tmp/flush-presentation-{typecheck,client,backend,history}.log.
+  Changes remain local; the reported production match was not inspected. Exact
+  next step: native-device-check reveals and completed results before an authorized
+  release. Capacity, observability, database HA and operations remain deferred.
+
+### 2026-10-14 follow-up — compact Marriage options header and visible table cards
+
+- Mobile qualification/winning previews expand the hand sheet to 88% of its play
+  viewport; ordinary hand mode retains its previous height. Reused table-pile UI
+  presents compact discard/deck/Maal cards inside the open preview header, with
+  existing server permissions and shared Maal visibility. No move/rule changes.
+- Turn header places small Maal eligibility beside Your Turn and keeps its optional
+  show-or-draw instruction on the second row. Later qualifying turns use optional
+  show-or-discard copy. English and Nepali copy updated; narrow headers omit the
+  decorative card icon and scale the instruction if needed.
+- TypeScript, 11 cue tests and fresh web export passed. Browser regression checks
+  compact table cards, inline eligibility and optional copy alongside full/shorter
+  qualification options, remaining cards, off-turn disabling and Dublee counts.
+- Local only. Exact next step: review the mobile preview and verify keyboard/touch
+  on native devices before an authorized release. Operational work remains deferred.
+
+### 2026-10-14 follow-up — compact qualification options
+
+- Removed the count/Fold/Hide controls from qualification/winning previews; Back
+  restores the normal hand controls. Preview header uses Your cards - Maal eligible,
+  with a smaller 11px label and existing optional action guidance.
+- Options reuse the regular discard/deck/Maal row and its turn indicator beneath
+  the cards, including unchanged action permissions and shared Maal visibility.
+  Replaced the duplicate option headings with Option number/total (group sizes).
+  The group-size caption follows the selected shorter combination.
+- Reduced combinations spacing and chip padding while retaining 44px touch targets,
+  horizontal scrolling and selected-state styling. Removed the Sequence/Tunnela
+  section heading and per-group labels in qualification previews. Card groups and
+  borders remain. Back is a centered compact primary button with a back arrow.
+- Verification: TypeScript, 47 Marriage/cue tests and fresh web export passed.
+  Isolated browser checks cover header/card/turn visibility, absent controls and
+  labels, option/suboption switching, remaining cards, off-turn Show permissions
+  and 3/4-player Dublee. Evidence: /private/tmp/marriage-compact2-*.log.
+- Local only. Exact next step: review the updated screenshot and validate native
+  touch/accessibility before an authorized release. Operational work deferred.
+
+### 2026-10-14 follow-up — poke composer placeholder
+
+- Replaced the grey poke-composer placeholder with “Banter poke…” and its Nepali
+  equivalent in the shared localized copy used by both poke composers.
+- Verified both usages and clean diff formatting; copy-only change, no new tests.
+  Local only. Exact next step: preview alongside the pending UI changes before an
+  authorized release; operational work remains deferred.
+
+### 2026-10-14 follow-up — contextual chat placeholders
+
+- Room, table and direct-message inputs now say Room chat, Table chat and One on
+  one chat respectively, with Nepali equivalents. Table chat uses a distinct key
+  so it no longer inherits room-chat placeholder text.
+- Copy-only change; verified composer bindings and diff formatting. Local only.
+  Exact next step: preview the chat inputs before an authorized release.
+  Operational work remains deferred.
+
+### 2026-10-14 follow-up — explicit Cut Maal and six-player Marriage
+
+- New hosted rounds enable the persisted `manual_maal_cut` rule. With 2–5 original
+  dealt players the Maal slot is empty until a qualified candidate explicitly cuts:
+  immediately after first-turn showing, or after the later-turn discard. Cut is an
+  independently authorized seated action and can run after the turn advances.
+  Unqualified/folded/seen players reject; previews never select an indicator.
+- Added CUT_MAAL/action permission, transactional uniform standard-card selection,
+  privacy-safe selected/mode flags, and staged RNG/ownership/events. Man is skipped;
+  depleted standard stock recycles older discards with the top discard preserved.
+  Existing indicator selection is reused by any racing ready candidate, never
+  rerolled. Repeated seen cuts reject, retries deduplicate, natural unseen winning
+  routes remain available, and qualification/turn order is retained.
+- Six-player rounds select a separate hidden standard indicator at the deal (31
+  stock cards), then retain the regular Maal reveal flow. Raised Marriage capacity
+  to six and extended shared seat geometry/pregame slots with separate six-seat
+  positions. Deal count, rather than capacity or post-fold count, controls the mode.
+- The hand view shows an upward arrow below the deck and Cut Maal below the arrow.
+  Successful cutting flips the actor's Maal slot directly, keeping the hand open
+  and avoiding an extra See Maal dialog. Others see a shared back after selection.
+  Six-player qualification still uses the existing See Maal dialog.
+- Compatibility: standalone default/legacy checkpoints without the rule restore
+  prior automatic selection. Canonical comparison fills only the additive false
+  default after signed-envelope validation; legacy SQL saves preserve original
+  bytes, and a subsequent real move writes the normalized state. New commands and
+  six-player checkpoints require matching backend/client releases. No migration.
+- Verification: TypeScript, all 491 client tests, 11 dedicated domain cases and 14
+  focused PostgreSQL/WASM cases passed. Cases cover both qualification routes,
+  first/later timing, privacy, audit/RNG rollback, refill, two ready candidates,
+  distinct racing intents, receipt replay, restart, legacy bytes and six-player
+  creation/views. Broader backend run: 1,398 passed, 792 optional integrations
+  skipped, one localhost telemetry test passed separately with socket permission.
+  Broader SQL run's stale Flush off-turn-reveal assertion remains unrelated and
+  unchanged; the 14 required Cut Maal/creation/legacy cases all pass.
+- Isolated Chrome passed Cut Maal at 320/390/1280px, prequalification permissions
+  for 2/3/5/6 players, empty/back slots, immediate private reveal, six-player regular
+  reveal, and existing granular qualification/unseen-win regressions. Evidence:
+  /private/tmp/marriage-cut-{typecheck,client,domain,sql-focused,browser,options-
+  regression,unseen-regression,full-backend,telemetry,export}.log.
+- Work remains local; no commit/deployment/production writes. Exact next step:
+  review and native-device-test Cut Maal and six-seat play before an authorized
+  matching release. Capacity/load testing, database HA, observability and operational
+  readiness remain deferred.
+
+### 2026-10-14 follow-up — remove Cut Maal interaction and restore regular flow
+
+- User replaced the Cut/Skip design. Removed table/hand arrows, Cut/Skip buttons,
+  command/action registration, optional-cut cue/permissions and related state.
+  Preserved the compact qualification layout, six-seat support and initial empty
+  Maal slot for 2–5 players. Six-player hosted deals still preselect one hidden
+  random standard indicator (31 stock cards).
+- Showing now automatically selects an indicator for smaller games. First-turn
+  showing grants private access immediately; later showing grants it on discard.
+  The regular See Maal dialog remains. Showing can be skipped, and natural unseen
+  finishes remain available. The legacy persisted mode field stays compatible;
+  saved pending-cut states resume through staged regular draw/discard selection.
+- TypeScript, all 490 client tests and 247 Marriage/adapter/HTTP cases passed.
+  SQL and local browser checks verify automatic selection, privacy, replay/recovery,
+  old envelope preservation, six-player behavior and absence of Cut/Skip controls.
+  Evidence: /private/tmp/marriage-regular-*.log.
+- Work remains local, with no commit, deployment or production writes. Exact next
+  step: review the restored flow and test native devices before an authorized
+  release. Capacity testing, observability, database HA and operations deferred.
+
+### Authorized direct production release — 2026-10-14
+
+- User authorized committing the completed game UX and automatic Marriage Maal
+  changes and deploying directly to both application servers. No active GitHub
+  production run was found; this release will not use Actions deployment.
+- Existing administrator key was loaded from macOS Keychain. Verified host keys
+  remain enforced. Use the previous direct immutable-image receiver procedure:
+  build committed production source on app1, transfer the identical image to app2,
+  check both, replace backends sequentially, then activate both frontends.
+- Updated the stale Flush checkpoint test to validate authorized off-turn reveals,
+  accepted durable receipts and one revision per reveal. Preserve unrelated
+  pre-existing load-test/test edits outside this release commit.
+- Exact next step: complete final release tests, commit, build/deploy and verify
+  both revisions plus public HTTPS. No new schema migration is introduced here.

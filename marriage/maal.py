@@ -34,3 +34,17 @@ def select_tiplu(stock: tuple[PhysicalCard, ...], discard: tuple[PhysicalCard, .
         if stock[index].identity is not None:
             return stock[index], stock[:index] + stock[index + 1:], discard, recycled
     raise TipluUnavailableError("No standard card is available for Tiplu.")
+
+
+def cut_tiplu(stock, discard, rng):
+    """Uniform random standard-card selection; caller stages RNG and ownership."""
+    recycled = 0
+    if not any(c.identity is not None for c in stock) and len(discard) >= 2:
+        older = list(discard[:-1]); rng.shuffle(older)
+        recycled = len(older)
+        stock = tuple(older) + stock; discard = discard[-1:]
+    indices = [i for i,c in enumerate(stock) if c.identity is not None]
+    if not indices:
+        raise TipluUnavailableError("No standard card is available for Tiplu.")
+    index = rng.choice(indices)
+    return stock[index], stock[:index] + stock[index+1:], discard, recycled

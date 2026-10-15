@@ -41,20 +41,17 @@ class RuleProposals:
             game.flush_rules_revision += 1
         proposal['status'] = 'ACCEPTED'
         game.table.emit('RULE_CHANGE_ACCEPTED', proposal_id=proposal['id'])
+        game.table.emit('GAME_CONFIG_UPDATED', proposal_id=proposal['id'], user_id=proposal['proposer'])
 
     def _propose(self, game, user_id, proposed):
         self._sync_proposal(game)
-        if game.rule_proposal and game.rule_proposal['status'] == 'PENDING':
-            raise HTTPException(409, 'Resolve the pending rule proposal before submitting another.')
         current = (game.settings if game.game_type == 'callbreak' else asdict(game.marriage_scoring)
                    if game.game_type == 'marriage' else {'rules': asdict(game.flush_rules)})
         game.rule_proposal = {'id': uuid4().hex, 'match_id': game.match_id, 'proposer': user_id,
                               'status': 'PENDING', 'voters': list(game.users), 'accepted': [user_id],
                               'rejected_by': None, 'previous': deepcopy(current), 'proposed': deepcopy(proposed)}
         game.table.emit('RULE_CHANGE_PROPOSED', proposal_id=game.rule_proposal['id'])
-        # With only the creator seated, their submission is unanimous approval.
-        if len(game.users) == 1:
-            self._apply_proposal(game)
+        self._apply_proposal(game)
 
     async def vote_rules(self, room_id, user_id, body):
         await self._member(room_id, user_id)

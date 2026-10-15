@@ -1,3 +1,4 @@
+import {ActivityLine} from './ActivityLine';
 import {useEffect,useState} from 'react';
 import {Pressable,View} from 'react-native';
 import {Ionicons} from '@expo/vector-icons';
@@ -45,8 +46,8 @@ export function TableSummary({snapshot,onOpen}:{snapshot:RoomSnapshot;onOpen:()=
     </Pressable>
     <RoomSheet visible={open} title={ui('common.table_summary')} onClose={()=>setOpen(false)} closeLabel={ui('common.close')} testID="table-summary">
       <View style={{padding:12,gap:16}}>
-        {!!error&&<Text accessibilityRole="alert" style={{color:c.danger,fontFamily:fonts.body}}>{error}</Text>}
-        {loading&&!data&&<Text style={{color:c.textMuted}}>{ui('common.loading_bhidne_ho')}</Text>}
+        {!!error&&<Text activity accessibilityRole="alert" style={{color:c.danger,fontFamily:fonts.body}}>{error}</Text>}
+        {loading&&!data&&<ActivityLine />}
         {data&&<>
           <Text accessibilityRole="header" style={{color:c.text,fontFamily:fonts.medium}}>{ui('common.table_totals')}</Text>
           {table?balances(table.record_balances||table.balances,'table-summary-totals'):<Text style={{color:c.textMuted}}>{ui('common.table_no_results')}</Text>}

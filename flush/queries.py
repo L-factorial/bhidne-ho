@@ -18,6 +18,8 @@ class AllowedActions:
     show: Eligibility
     side_show: Eligibility
     side_show_target_id: str | None
+    maximum_bet: int
+    raises_remaining: int
 
 
 @dataclass(frozen=True)
@@ -105,7 +107,9 @@ def allowed_actions(state, player_id):
         kinds.append('reveal_side_show')
     if state.pending_show and state.pending_show.target_id == player_id:
         kinds.extend(('reveal_cards', 'fold'))
-    return AllowedActions(tuple(kinds), required_bet(state, player), show_cost(state, player), see, show, side_show, target.player_id if side_show.allowed else None)
+    from .turns import maximum_bet, raises_used
+    remaining = max(0, state.config.rules.max_raise - raises_used(state)) if state.config.rules.allow_raise else 0
+    return AllowedActions(tuple(kinds), required_bet(state, player), show_cost(state, player), see, show, side_show, target.player_id if side_show.allowed else None, maximum_bet(state, player), remaining)
 
 
 def public_view(state):

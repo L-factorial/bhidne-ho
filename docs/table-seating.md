@@ -186,3 +186,48 @@ for this change.
 forced-loss rule or credit deduction is implemented. State, offers and queues are
 lost when the server process restarts, as intended for this prototype. Persistence,
 distributed operation and configurable offer duration can be added later.
+
+
+## 19. Soft invitations and physical positions (2026-10-14)
+
+Creation-window invitations remain general table invitations. The creator can
+invite from an empty physical position or drag/move players before play and between
+games. `invite-position` accepts `{position_id, recipient}`; `move-player` accepts
+`{user_id, position_id, source_position, target_user}`. Seat-specific and general
+invitations reuse the same pending identity; a general invitation can gain a seat
+preference without another notification. The hamburger invitation entry is removed.
+
+Physical `seat_positions` are separate from engine IDs and next-roster seat IDs.
+Moves atomically swap positions or move into a vacancy, reopen locked formations,
+and reject stale source/target occupants. Starting the next engine orders its roster
+clockwise by physical position, rotated to retain the host. Historical engines,
+private hands and completed results are never reordered. Checkpoints add an optional
+position map with lossless compatibility for existing documents; no SQL migration.
+
+A joining player claims their own reserved vacancy first, then an unreserved
+vacancy. When only soft-reserved vacancies remain, the earliest eligible join takes
+the oldest reservation (seat number breaks ties). The displaced invitation becomes
+general, and its recipient can join another vacancy later. Reading or accepting an
+invitation grants no seat by itself. Explicit joining is the atomic claim.
+
+Existing FIFO queue/replacement-offer priority and cross-table occupancy checks
+remain authoritative. In an open table, queued players reserve only the vacancies
+they need, in FIFO order; other players can claim spare vacancies. Completed-table
+replacement offers retain their existing priority. Commands share durable lane ordering, membership revalidation,
+user locks, ownership fencing, transactional checkpoint/outbox writes and request-ID
+deduplication. Independent stale joins may revalidate against the same current match;
+moves and invitations require a current table revision. Active play rejects seating
+changes. Late old-match commands cannot affect a rematch. The local runtime follows
+the same allocation and physical-order policy under its catalog/game locks.
+
+The shared themed seat overlay, accessible tap-to-move alternative and fading center
+hint leave Start/Play controls usable. Expanded hand sheets reserve their actual
+height, and table geometry leaves clearance for complete player labels and pulses.
+Short viewports scroll the table and hand content independently.
+
+Seat invitations use a small themed popover next to the tapped seat, extending
+inward toward the center and staying within the visible viewport. It contains one
+username/user-ID field and Send invitation; there is no recipient list. Sending
+requires an exact username (with optional @) or user ID. Outside tapping dismisses
+it; a newly occupied target seat dismisses it automatically. General invitations
+in table creation keep their existing flow.

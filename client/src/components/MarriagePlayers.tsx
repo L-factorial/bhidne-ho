@@ -44,7 +44,7 @@ export function MarriagePlayers({ snapshot, onPoke, registerSeat, children }: { 
           accessibilityLabel={ui("marriage.view_player_s_shown_cards", { "player": playerName(snapshot, p.player_id) })}
           accessibilityHint={ui("common.maal_unlocked_hint")}
           onPress={() => setShownPlayer({ match: snapshot.match_id || '', id: p.player_id })} style={styles.maalCheck}>
-          <View style={styles.maalCheckCircle}><Ionicons name="checkmark" size={18} color={colors.success} /></View>
+          <View style={styles.maalCheckCircle}><Ionicons name="checkmark-circle" size={22} color={colors.success} /></View>
         </Pressable>}
       </View>}>
       {children}

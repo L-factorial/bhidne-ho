@@ -1,3 +1,4 @@
+import {ActivityLine} from '../components/ActivityLine';
 import {AppText as Text} from '../components/AppText';
 import { RoomSheet } from '../components/RoomSheet';
 import { AccountPage, accountStyles } from '../components/AccountPage';
@@ -56,7 +57,7 @@ export function RecoveryScreen({ link, onDone, recoverUsername = false }: {link?
         <Text style={styles.description}>{ui('recovery.returnBrowser')}</Text>
       </View>}
       {!done && <>
-        {enabled === null && <Text style={{color:colors.text}}>{ui('recovery.loading')}</Text>}
+        {enabled === null && <ActivityLine />}
         {enabled === false && <Text accessibilityRole="alert" style={{color:colors.text}}>{ui('recovery.unavailable')}</Text>}
         {!link && !recoverUsername && <FormInput accessibilityLabel={ui('common.username')} placeholder={ui('common.username')} value={username} onChangeText={setUsername} maxLength={64} autoCapitalize="none" autoCorrect={false} editable={!busy} style={inputStyle} returnKeyType="send" onSubmitEditing={() => void submit()} />}
         {!link && recoverUsername && <FormInput accessibilityLabel={ui('common.email')} placeholder={ui('common.email')} value={email} onChangeText={setEmail} maxLength={254} keyboardType="email-address" textContentType="emailAddress" autoCapitalize="none" autoCorrect={false} editable={!busy} style={inputStyle} returnKeyType="send" onSubmitEditing={() => void submit()} />}
@@ -66,7 +67,7 @@ export function RecoveryScreen({ link, onDone, recoverUsername = false }: {link?
           {!!confirmation && password !== confirmation && <Text accessibilityRole="alert" style={{color:colors.danger}}>{ui('common.passwords_do_not_match')}</Text>}
         </>}
       </>}
-      {!!error && <Text accessibilityRole="alert" style={{color:colors.danger}}>{error}</Text>}
+      {!!error && <Text activity accessibilityRole="alert" style={{color:colors.danger}}>{error}</Text>}
   </AccountPage>;
 }
 export function ForgotPassword() {
@@ -107,7 +108,7 @@ export function RecoveryEmailSettings({session, allowRemoval = true}: {session: 
   const inputStyle=accountStyles(colors).input;
   return <View testID="recovery-email-settings" style={{gap:12}}>
     <Text accessibilityRole="header" style={{fontSize:20,color:colors.text}}>{ui('recovery.settings')}</Text>
-    {!status && !error && <Text style={{color:colors.text}}>{ui('recovery.loading')}</Text>}
+    {!status && !error && <ActivityLine />}
     {status && !status.enabled && <Text style={{color:colors.text}}>{ui('recovery.unavailable')}</Text>}
     {status?.enabled && status.password_account && <>
       <Text style={{color:colors.text}}>{status.verified_email?ui('recovery.verifiedAddress',{email:status.verified_email}):ui('recovery.none')}</Text>
@@ -118,8 +119,8 @@ export function RecoveryEmailSettings({session, allowRemoval = true}: {session: 
       {allowRemoval && (!!status.verified_email || !!status.pending_email) && <Action label={ui('recovery.remove')} disabled={busy} onPress={() => setRemoving(true)}/>}
       {allowRemoval && removing && <><Text style={{color:colors.text}}>{ui('recovery.removeHelp')}</Text><Action label={ui('recovery.confirmRemove')} disabled={busy || !password} onPress={() => void save(true)}/><Action label={ui('recovery.back')} disabled={busy} onPress={() => setRemoving(false)}/></>}
     </>}
-    {!!message && <Text accessibilityRole="alert" style={{color:colors.text}}>{message}</Text>}
-    {!!error && <Text accessibilityRole="alert" style={{color:colors.danger}}>{error}</Text>}
+    {!!message && <Text activity accessibilityRole="alert" style={{color:colors.text}}>{message}</Text>}
+    {!!error && <Text activity accessibilityRole="alert" style={{color:colors.danger}}>{error}</Text>}
   </View>;
 }
 
@@ -174,8 +175,8 @@ export function SignupVerification({ session }: { session: Session }) {
         <Action label={ui('recovery.changeEmail')} onPress={() => setChanging(value => !value)}/>
         {changing && <RecoveryEmailSettings session={session} allowRemoval={false}/>}
       </>}
-      {!!message && <Text accessibilityRole="alert" style={{color:colors.text}}>{message}</Text>}
-      {!!error && <Text accessibilityRole="alert" style={{color:colors.danger}}>{error}</Text>}
+      {!!message && <Text activity accessibilityRole="alert" style={{color:colors.text}}>{message}</Text>}
+      {!!error && <Text activity accessibilityRole="alert" style={{color:colors.danger}}>{error}</Text>}
     </AccountPage>
   </Modal>;
 }

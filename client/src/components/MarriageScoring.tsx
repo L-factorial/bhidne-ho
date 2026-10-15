@@ -1,3 +1,4 @@
+import {ActivityLine} from './ActivityLine';
 import { canConfigureGameRules } from '../multiplayer/gameRulesConfig';
 import {AppText as Text} from './AppText';
 import { ui, uiLabel } from '../i18n/copy.ts';
@@ -36,7 +37,7 @@ export function MarriageScoring({ snapshot, busy, error, onSave, introduction, c
   useEffect(() => setDraft(saved), [savedKey, snapshot.rule_proposal?.id, snapshot.rule_proposal?.status]);
   const editable = canConfigureGameRules(snapshot);
   const draft = editable ? draftState : saved;
-  if (!draft) return <Text style={s.text}>{ui("marriage.scoring_rules_are_loading")}</Text>;
+  if (!draft) return <ActivityLine />;
   const valid = [...tables.flatMap(key => draft[key]), ...amounts.map(key => draft[key])].every(n => Number.isInteger(n) && n >= 0 && n <= 1000);
   const changed = JSON.stringify(draft) !== savedKey;
   function button(label: string, onPress: () => void, selected = false, disabled = false) {
@@ -73,7 +74,7 @@ export function MarriageScoring({ snapshot, busy, error, onSave, introduction, c
     </FormScrollView><FormFooter>
     {editable && <><RuleProposalButton busy={busy} disabled={!valid || !changed} onPress={() => onSave(draft)} />
       <Text style={s.text}>{!valid ? ui("feedback.enter_whole_numbers_from_0_to_1000") : changed ? ui("rooms.unsaved_changes") : ui("rooms.rules_approval_help")}</Text></>}
-    {!!error && <Text accessibilityRole="alert" style={s.text}>{uiLabel(error, 'feedback')}</Text>}
+    {!!error && <Text activity accessibilityRole="alert" style={s.text}>{uiLabel(error, 'feedback')}</Text>}
     </FormFooter></View>;
 }
 

@@ -1,5 +1,16 @@
 // Editable Nepali marriage copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "win_without_maal": "माल नहेरी खेल सक्नुहोस्",
+  "unseen_finish_help": "२१ पत्ती शुद्ध सिक्वेन्स/टनेलामा, वा ४+ खेलाडी हुँदा आठ दुब्ली देखाउनुहोस्। अन्तिम एक पत्ती फाल्नुपर्छ; माल लुकिरहन्छ।",
+  "show_or_discard": "मालका लागि देखाउनुहोस् वा कार्ड फाल्नुहोस्",
+  "option_compact_label": "विकल्प {{number}}/{{total}} ({{sizes}})",
+  "maal_empty": "माल छानिएको छैन",
+  "show_then_draw": "मालका लागि देखाउनुहोस् वा कार्ड तान्नुहोस्",
+  "option_size_label": "विकल्प {{number}} ({{sizes}})",
+  "suboption_size_label": "{{number}} ({{sizes}})",
+  "combinations_count": "संयोजनहरू ({{count}})",
+  "show_on_your_turn": "आफ्नो पालोमा देखाउनुहोस्",
+  "discard_then_see_maal": "कार्ड फाल्नुहोस्, त्यसपछि माल हेर्नुहोस्।",
   "view_shown_sequence": "देखाइएको सिक्वेन्स हेर्नुहोस्",
   "view_shown_dublee": "देखाइएको डुब्ली हेर्नुहोस्",
   "view_shown_tunnela": "देखाइएको टनेला हेर्नुहोस्",

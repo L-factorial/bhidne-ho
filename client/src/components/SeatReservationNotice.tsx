@@ -53,7 +53,7 @@ export function SeatReservationNotice({runtime,item,onReturn,onReleased}:{runtim
     {table&&<Text style={{color:colors.text}}>{table.room_name} → {table.name}</Text>}
     {table&&hasCompletedSeat(table)&&<Text style={{color:colors.accent}}>{ui('rooms.completed_seat_reserved')}</Text>}
     {confirm&&<Text style={{color:colors.danger}}>{ui('rooms.abandon_effect')}</Text>}
-    {!!error&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{error}</Text>}
+    {!!error&&<Text activity accessibilityRole="alert" style={{color:colors.danger}}>{error}</Text>}
     <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
       {onReturn&&<Pressable accessibilityRole="button" disabled={busy||!table} onPress={()=>{if(table)onReturn(table);}} style={button}><Text style={{color:colors.accent}}>{ui('common.return_to_table')}</Text></Pressable>}
       {context.departure_command!=='end'&&<Pressable accessibilityRole="button" disabled={busy||!table} onPress={()=>void leave()} style={button}><Text style={{color:colors.text}}>{ui(context.departure_command==='abandon'?'rooms.abandon_previous_game':'rooms.leave_table')}</Text></Pressable>}

@@ -49,7 +49,7 @@ export function DisplayNameField({ session, onSaved, label, avatarControl, showH
       placeholderTextColor={colors.textMuted} autoCapitalize="words" returnKeyType="done" onSubmitEditing={() => void save()}
       style={{flex:1,minWidth:0,backgroundColor:colors.surfaceRaised,borderRadius:radii.medium,padding:12,minHeight:46,color:colors.text}} />
     <Pressable testID="profile-name-save" accessibilityRole="button" accessibilityLabel={ui('common.save_display_name')} accessibilityState={{disabled:busy||name===savedName}} disabled={busy||name===savedName} onPress={()=>void save()}
-      style={{...gameControlFinish(colors),minHeight:44,padding:12,opacity:busy||name===savedName?0.5:1}}><Text style={{color:colors.text}}>{ui(busy?'common.saving':'common.save')}</Text></Pressable>
+      style={{...gameControlFinish(colors),minHeight:44,padding:12,opacity:busy||name===savedName?0.5:1}}><Text activity style={{color:colors.text}}>{ui(busy?'common.saving':'common.save')}</Text></Pressable>
     </> : <>
       <Text testID="profile-name-value" style={{flex:1,color:colors.text}}>{name || ui('common.name_nickname')}</Text>
       <Pressable testID="profile-name-edit" accessibilityRole="button" accessibilityLabel={ui('common.edit_profile_name')} disabled={!loaded} onPress={()=>{setEditing(true);setMessage('');}}

@@ -26,7 +26,7 @@ async def setup_game(database, kind='marriage', *, receipt_limit=10000):
     return host, game, inbox, lane, GameLaneExecutor(inbox)
 
 
-async def test_flush_only_current_player_can_reveal_in_serialized_durable_lane(database):
+async def test_flush_every_player_can_reveal_in_serialized_durable_lane(database):
     import asyncio
     pool,checkpoints,fence,users=database
     host,game=await host_game(users,'flush')
@@ -46,12 +46,12 @@ async def test_flush_only_current_player_can_reveal_in_serialized_durable_lane(d
         executor=GameLaneExecutor(inbox)
         outcomes=[await executor.execute_one(lane,fence) for _ in requests]
         active = next(u for u in game.users if str(game.flush_seats[u]) == state.current_player_id)
-        assert [r.outcome['status'] for r in outcomes] == ['accepted' if u == active else 'rejected' for u in game.users]
+        assert all(r.outcome['status'] == 'accepted' for r in outcomes)
         loaded=await checkpoints.load(game.table.table_id)
-        assert loaded.checkpoint['data']['engine']['revision']==state.revision+1
+        assert loaded.checkpoint['data']['engine']['revision']==state.revision+len(game.users)
         assert loaded.checkpoint['data']['host']['session']['turns']==original['data']['host']['session']['turns']
         for user,request in zip(game.users,requests):
-            assert (await inbox.enqueue(lane,user,request)).outcome['status']==('accepted' if user == active else 'rejected')
+            assert (await inbox.enqueue(lane,user,request)).outcome['status']=='accepted'
         assert await executor.execute_one(lane,fence) is None
     finally:
         await host.close()
@@ -380,5 +380,110 @@ async def test_same_hand_reviews_survive_durable_execution_and_recovery(database
         await inbox.enqueue(lane, users[0], stale)
         assert (await GameLaneExecutor(inbox).execute_one(lane, fence)).outcome['status'] == 'rejected'
         assert (await checkpoints.load(game.table.table_id)).checkpoint == loaded.checkpoint
+    finally:
+        await host.close()
+
+@pytest.mark.parametrize('later_turn',[False,True])
+async def test_marriage_long_show_order_is_private_and_recoverable_in_sql_lane(database,later_turn):
+    from marriage import PlayerState, validate_game_state
+    from marriage.queries import player_view
+    from marriage import create_deck, Meld, MeldType
+    from app.durable_games.checkpoints import decode_checkpoint
+    pool,checkpoints,fence,users=database
+    host,game=await host_game(users,'marriage')
+    try:
+        engine=game.marriage_target.adapter.checkpoint()
+        state=engine.get_state()
+        cards={c.card_id:c for c in create_deck()}
+        melds=tuple(Meld(MeldType.PURE_SEQUENCE,tuple(f'D0:{r}{s}' for r in range(2,2+size))) for s,size in zip('CHS',(5,5,3)))
+        selected=tuple(cards[i] for g in melds for i in g.card_ids)
+        rest=tuple(c for c in cards.values() if c not in selected)
+        hand=selected+rest[:8];rest=rest[8:]
+        engine._state=replace(state,players=(PlayerState('1',hand),PlayerState('2',rest[:21])),stock=rest[22:],discard=rest[21:22])
+        validate_game_state(engine.get_state())
+        from app.multiplayer.table_session import sync
+        import time
+        sync(game,time.time())
+        await checkpoints.save(capture_checkpoint(game,table_revision=0),expected_revision=None,fence=fence)
+        inbox=PostgresInboxStore(pool)
+        lane=await inbox.ensure_lane(LaneTarget(kind='game',room_id='room',table_id=UUID(game.table.table_id),game_id=game.durable_game_id))
+        executor=GameLaneExecutor(inbox)
+        async def current():
+            loaded=await checkpoints.load(game.table.table_id)
+            return loaded,decode_checkpoint(loaded.checkpoint).engine_state
+        async def submit(command,payload,actor=0):
+            _,before=await current()
+            request=ReliableActionCommand(match_id=game.match_id,command_id=uuid4().hex,expected_revision=before.revision,command=command,payload=payload).model_dump(mode='json')
+            await inbox.enqueue(lane,users[actor],request)
+            result=await executor.execute_one(lane,fence)
+            assert result.outcome['status']=='accepted',result.outcome
+            assert (await inbox.enqueue(lane,users[actor],request)).outcome==result.outcome
+            return await current()
+        if later_turn:
+            for actor in range(2):
+                _,drawn=await submit('DRAW_CARD',{'source':'stock'},actor)
+                await submit('DISCARD_CARD',{'card_id':drawn.players[actor].hand[-1].card_id},actor)
+            await submit('DRAW_CARD',{'source':'stock'})
+        before,_=await current()
+        loaded,shown=await submit('SHOW_INITIAL_MELDS',{'melds':[{'meld_type':g.meld_type.value,'card_ids':list(g.card_ids)} for g in melds]})
+        assert shown.players[0].has_seen_maal is (not later_turn)
+        assert shown.tiplu is not None
+        assert (player_view(shown,'1').maal is not None) is (not later_turn)
+        assert player_view(shown,'2').maal is None
+        assert {seat:(turn['token'],turn['user_id']) for seat,turn in loaded.checkpoint['data']['host']['session']['turns'].items()}=={seat:(turn['token'],turn['user_id']) for seat,turn in before.checkpoint['data']['host']['session']['turns'].items()}
+        # A fresh executor reads the committed pending state, not this test host.
+        executor=GameLaneExecutor(inbox)
+        if not later_turn:
+            _,shown=await submit('DRAW_CARD',{'source':'stock'})
+        _,finished_turn=await submit('DISCARD_CARD',{'card_id':shown.players[0].hand[-1].card_id})
+        assert finished_turn.players[0].has_seen_maal
+        assert len([e for e in finished_turn.history if e.kind=='TIPLU_REVEALED'])==1
+        assert player_view(finished_turn,'1').maal is not None
+        assert player_view(finished_turn,'2').maal is None
+        assert finished_turn.current_player_id=='2'
+    finally:
+        await host.close()
+
+@pytest.mark.parametrize('dublee',[False,True])
+async def test_unseen_marriage_finish_is_atomic_durable_and_settles_once(database,dublee):
+    from marriage import create_deck,PlayerState,validate_game_state
+    from app.durable_games.checkpoints import decode_checkpoint
+    pool,checkpoints,fence,users=database
+    count=4 if dublee else 2
+    host,game=await host_game(users,'marriage',count=count)
+    try:
+        engine=game.marriage_target.adapter.checkpoint();state=engine.get_state()
+        deck={c.card_id:c for c in create_deck()}
+        groups=([{'meld_type':'dublee','card_ids':[f'D0:{r}C',f'D1:{r}C']} for r in range(2,10)] if dublee else
+                [{'meld_type':'pure_sequence','card_ids':[f'D0:{r}{s}' for r in range(2,9)]} for s in 'CDH'])
+        ids=tuple(i for g in groups for i in g['card_ids'])+(tuple(f'D0:{r}S' for r in (2,4,6,8,10)) if dublee else ())
+        hand=tuple(deck[i] for i in ids);draw=deck['MAN:0']
+        rest=tuple(c for c in deck.values() if c not in hand+(draw,))
+        others=tuple(PlayerState(str(i+2),rest[i*21:(i+1)*21]) for i in range(count-1));stock=rest[(count-1)*21:]
+        engine._state=replace(state,players=(PlayerState('1',hand),)+others,stock=stock[1:]+(draw,),discard=stock[:1])
+        validate_game_state(engine.get_state())
+        await checkpoints.save(capture_checkpoint(game,table_revision=0),expected_revision=None,fence=fence)
+        inbox=PostgresInboxStore(pool)
+        lane=await inbox.ensure_lane(LaneTarget(kind='game',room_id='room',table_id=UUID(game.table.table_id),game_id=game.durable_game_id))
+        async def submit(command,payload):
+            loaded=await checkpoints.load(game.table.table_id)
+            revision=decode_checkpoint(loaded.checkpoint).engine_state.revision
+            request=ReliableActionCommand(match_id=game.match_id,command_id=uuid4().hex,expected_revision=revision,command=command,payload=payload).model_dump(mode='json')
+            await inbox.enqueue(lane,users[0],request)
+            result=await GameLaneExecutor(inbox).execute_one(lane,fence)
+            assert result.outcome['status']=='accepted',result.outcome
+            assert (await inbox.enqueue(lane,users[0],request)).outcome==result.outcome
+            return result
+        await submit('DRAW_CARD',{'source':'stock'})
+        await submit('FINISH',{'pairs' if dublee else 'melds':groups,'discard_card_id':'MAN:0'})
+        loaded=await checkpoints.load(game.table.table_id)
+        ended=decode_checkpoint(loaded.checkpoint).engine_state
+        assert ended.winner=='1' and not ended.players[0].has_seen_maal and ended.tiplu is None
+        assert len(ended.players[0].hand)==21 and ended.discard[-1].card_id=='MAN:0'
+        jobs=await pool.execute("SELECT count(*) FROM game_finalization_jobs WHERE game_id=%s AND job_type='hosted_settlement'",(game.durable_game_id,))
+        assert (await jobs.fetchone())[0]==1
+        from marriage.queries import player_view
+        assert player_view(ended,'1').maal is None
+        assert await GameLaneExecutor(inbox).execute_one(lane,fence) is None
     finally:
         await host.close()

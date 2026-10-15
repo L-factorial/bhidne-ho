@@ -38,11 +38,11 @@ def test_multiplayer_blind_show_waits_three_complete_rounds_and_reveals_in_seque
     engine.bet('a', 1)
     engine.show('b')
     assert [h.player_id for h in engine.get_state().revealed_hands] == ['b']
-    assert engine.get_allowed_actions('a').kinds == ('reveal_cards', 'fold')
+    assert engine.get_allowed_actions('a').kinds == ('see_cards', 'reveal_cards', 'fold')
     engine.reveal_cards('a')
     assert engine.get_state().status is GameStatus.IN_PROGRESS
     assert [h.player_id for h in engine.get_state().revealed_hands] == ['b', 'a']
-    assert engine.get_allowed_actions('c').kinds == ('reveal_cards', 'fold')
+    assert engine.get_allowed_actions('c').kinds == ('see_cards', 'reveal_cards', 'fold')
     engine.reveal_cards('c')
     state = engine.get_state()
     assert state.status is GameStatus.FINISHED

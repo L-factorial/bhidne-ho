@@ -1,5 +1,6 @@
 """Detached Flush round preparation with a new durable round identity."""
 from copy import deepcopy
+from dataclasses import replace
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from psycopg.types.json import Jsonb
@@ -23,13 +24,16 @@ async def restart_flush(claim, host, game, stored):
         WHERE dedup_match_id=%s AND status='pending' ''', (UUID(game.match_id),))).fetchone()
     if stored.receipt_snapshot['receipt_count'] + pending[0] >= stored.receipt_snapshot['receipt_limit']:
         raise GameCommandRejected('RECEIPT_LIMIT', 'This hosted match has reached its command receipt limit.')
+    game.flush_rules = replace(game.flush_rules, boot_amount=game.flush_rules.initial_blind_bet)
     engine = deepcopy(game.flush_target.adapter.checkpoint())
     previous = engine.get_state()
+    from .seating import clockwise_roster
+    game.users[:] = clockwise_roster(game, game.users)
     seats = tuple(str(game.flush_seats[u]) for u in game.users)
     owner = str(game.flush_seats[game.users[0]])
     dealer = next((p for p in previous.settlement.winner_ids if p in seats), owner)
     try:
-        engine.prepare_next_round(dealer, player_ids=seats)
+        engine.prepare_next_round(dealer, player_ids=seats, rules=game.flush_rules)
     except (FlushError, ValueError) as error:
         raise GameCommandRejected('ROUND_START_REJECTED', str(error)) from error
     next_id = round_id(claim.entry.lane_id, claim.entry.actor_id,

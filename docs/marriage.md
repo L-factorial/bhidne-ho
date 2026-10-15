@@ -43,7 +43,7 @@ example behavior, not engine rules. It never injects hands or modifies private s
 MarriageGameEngine(player_ids, *, rules=None, rng=None, first_player_id=None)
 ```
 
-- `player_ids`: two through five unique nonblank engine-local strings. Caller order
+- `player_ids`: two through six unique nonblank engine-local strings. Caller order
   defines the fixed turn and dealing order. IDs are not platform accounts.
 - `rules`: optional immutable `MarriageRules`; deck variations are not supported.
 - `rng`: optional `random.Random`. Its state is copied without advancing the caller's
@@ -57,6 +57,7 @@ not supply thread safety, retries, join/leave, resets, matches, timers, or netwo
 
 ```text
 WAITING --start_game--> IN_PROGRESS / MUST_DRAW
+MUST_DRAW --show_initial_melds or show_dublees (own first turn)--> MUST_DRAW
 MUST_DRAW --draw_card--> MUST_DISCARD
 MUST_DISCARD --show_initial_melds or show_dublees--> MUST_DISCARD
 MUST_DISCARD --discard_card--> next seat / MUST_DRAW
@@ -77,9 +78,9 @@ results are trusted domain information, **not broadcast payloads**.
 | `start_game() -> ActionResult` | WAITING only. Shuffle once, deal 21 cards per seat, set the first turn. Repeated startup is rejected. |
 | `draw_card(player_id, source: DrawSource) -> ActionResult` | Current player in MUST_DRAW. Take the top stock/permitted discard card, refilling stock if needed; enter MUST_DISCARD. Use enum values, not transport strings. |
 | `discard_card(player_id, card_id: str) -> ActionResult` | Current player in MUST_DISCARD. Throw an owned, uncommitted physical card; advance exactly one seat with wraparound. |
-| `show_initial_melds(player_id, melds: Sequence[Meld]) -> ActionResult` | Current unqualified player in MUST_DISCARD. Validate exactly three disjoint pure sequences and/or Tunnelas, commit their IDs, enter the normal route, and atomically grant Maal access. Leave an uncommitted card to discard. |
-| `show_dublees(player_id, pairs: Sequence[Meld]) -> ActionResult` | Current unqualified player in MUST_DISCARD. Validate exactly seven disjoint natural pairs, commit fourteen IDs, enter the Dublee route, and atomically grant Maal access. Does not finish the round. |
-| `finish(player_id, melds=None, discard_card_id=None, winning_pair=None) -> ActionResult` | Current player in MUST_DISCARD. Validate seven committed Dublees and an eighth pair, or a normal 21-card partition. Normal wins atomically discard their 22nd card; record exactly one winner. |
+| `show_initial_melds(player_id, melds: Sequence[Meld]) -> ActionResult` | Current unqualified player before their first draw or in MUST_DISCARD. Validate exactly three disjoint pure sequences (3–5 cards each) and/or Tunnelas, commit their IDs and enter the normal route. First-turn showing grants Maal access immediately; on later turns, access is granted after discarding. Leave an uncommitted card to discard. |
+| `show_dublees(player_id, pairs: Sequence[Meld]) -> ActionResult` | Four through six original players required. Current unqualified player before their first draw or in MUST_DISCARD. Validate exactly seven disjoint natural pairs and commit fourteen IDs. If the indicator exists, first-turn showing grants access immediately and later-turn showing grants it after discarding. Otherwise use Cut Maal at that access point. Does not finish the round. |
+| `finish(player_id, melds=None, discard_card_id=None, winning_pair=None) -> ActionResult` | Current player in MUST_DISCARD. Finish a qualified hand, or win unseen with 21 cards in natural sequences/Tunnelas or eight natural Dublees (4–6 players). Unseen wins atomically discard one card and keep Maal hidden; record exactly one winner. |
 
 Shuffle and deal are one atomic `start_game()` operation. There is no separate
 shuffle/cut/deal method that can reorder an active round. A player-controlled
@@ -169,14 +170,14 @@ plan; they are not claims about every table's Marriage rules.
 | --- | --- |
 | Deck | Three standard packs plus three Man cards: 159 distinct physical cards. |
 | Deal | 21 round-robin passes in configured order. Flip the next card into the discard pile; last pile element is the top. |
-| Remaining stock | 116 / 95 / 74 / 53 for 2 / 3 / 4 / 5 players. |
+| Remaining stock | 116 / 95 / 74 / 53 before cutting for 2 / 3 / 4 / 5 players; 31 for six-player hosted deals with a preselected indicator. |
 | Identity | `D0:7H`, `D1:7H`, `D2:7H` differ physically but share a face. `MAN:0..2` have no rank/suit. |
-| Sequence | At least three consecutive distinct natural ranks in one suit, any submitted order. Ace low or high: A-2-3 and Q-K-A valid; K-A-2 invalid. |
+| Sequence | Qualification uses 3–5 consecutive distinct natural ranks in one suit, any submitted order. Final winning groups may be longer. Ace low or high: A-2-3 and Q-K-A valid; K-A-2 invalid. |
 | Tunnela / Dublee | Exactly three / two distinct physical copies of one standard face. |
 | Man / natural Maal | Qualification remains natural. Normal final partitions allow Man, Tiplu-rank cards, and Jhiplu/Poplu as wildcards; see the extension. Points use natural holdings. |
-| Tiplu | One standard card removed from stock at first qualification. Scan from top, skipping Man without removing/reordering them. Later qualifiers reuse it. |
+| Tiplu | Hosted games with 2–5 players select a random standard stock card on Cut Maal after qualification; six-player games select it at deal. Later qualifiers reuse it. Standalone legacy mode retains selection on showing. |
 | Maal neighbors | Cyclic: below Ace is King, above King is Ace. Separate from sequence ordering; shared `Rank.ACE` remains 14. |
-| Qualification | On your turn after drawing, show exactly three sequences/Tunnelas OR seven Dublees; mutually exclusive routes. Showing grants Maal access and keeps the turn in the discard/finish phase. Initial dealt Tunnela declarations remain a separate pre-play step. |
+| Qualification | On each player's first turn, dealt groups can be shown before drawing; see Maal, then draw and discard. First-turn showing after a draw also remains valid when the draw completes eligibility. Later turns draw, show, discard, then see Maal. Show exactly three sequences/Tunnelas OR seven Dublees (4–6 players only); mutually exclusive routes. Initial dealt Tunnela declarations remain a separate pre-play step. |
 | Winning pair | Separate from all fourteen committed cards. A third copy of a committed face is only a singleton. Witness chosen by canonical ID order. |
 | Finish | Explicit after drawing. Dublee preserves 22 cards: sixteen paired cards plus six leftovers. Normal partitions 21 cards, preserving shown groups, and discards the 22nd card. |
 
@@ -330,3 +331,79 @@ When this rule is enabled, only these initially declared triples can earn the
 configured Tunnela bonus, subject to the existing eligibility gate and bonus
 switch. With the rule disabled, the existing shown/hand bonus scope applies.
 Disconnecting does not automatically declare none or fold a player.
+
+## Longer qualification options (2026-10-14)
+
+The shared UI previews unique options as `Option 1/total (5-5-3)`. Full feasible runs
+are shown first, with expandable, horizontally scrollable shorter combinations
+from those same cards, including the full combination. Tunnelas remain three cards.
+The selected combination drives the shown-card payload and the remaining-hand
+preview. Group-order duplicates and interchangeable deck-copy permutations are
+removed. Different card/rank combinations with the same size label stay distinct.
+
+Off-turn players may inspect qualification options; Show remains disabled and
+the engine rejects off-turn submissions. Dublee is disabled below four original
+players. A new qualification sequence is limited to 3–5 cards, while historical
+committed longer sequences remain readable and finishing sequences keep their
+existing rules. Normal finishing uses `21 - committed card count`, rather than a
+fixed twelve-card remainder; 5-5-3 and 4-5-3 have backend/UI regression coverage.
+
+Later-turn pending Maal access is represented by a qualified route with
+`has_seen_maal=False`, before that player's discard. It survives checkpoints.
+The indicator remains hidden in public and unauthorized private projections until
+access is granted; discarded-card, PlayerSawMaal and TurnChanged events commit
+atomically. The player may flip/read Maal after discarding, during the next
+player's turn, without changing that player's turn.
+
+## Direct wins without seeing Maal (2026-10-14)
+
+On their turn, a player who has not seen Maal may draw to 22 cards and finish
+without a separate qualification show or Maal reveal. There are two natural routes:
+
+- A disjoint partition of 21 cards into pure sequences/Tunnelas, plus a final discard.
+  Final natural runs may be longer than the 3–5-card initial qualification limit.
+- Eight disjoint natural Dublees (16 cards) with four through six original players,
+  plus a final discard. Five unused cards stay in the final hand.
+
+Neither route can substitute Man or hidden-Maal wildcards. Cards that happen to be
+Maal still retain their natural face value. Initial Tunnelas cannot be the discard.
+A pending normal/Dublee qualification can also finish naturally before Maal access
+is granted, preserving its chosen route and committed groups. Players may continue
+drawing/discarding instead; no finish is forced by this opportunity.
+
+The existing `FINISH` command accepts `{melds, discard_card_id}` for a natural
+21-card partition, or the new `{pairs, discard_card_id}` for eight natural pairs.
+`pairs` contains exactly eight Dublee melds. Omitting selection lets the engine find
+an authoritative witness. Backend natural-candidate generation scans owned runs and
+Tunnelas rather than all 2^22 subsets. The UI exposes bounded alternative natural
+partitions/pair selections and submits one exact witness and discard.
+
+Discard and PlayerFinished commit at one revision. The winner remains
+`has_seen_maal=False`; no PlayerSawMaal or indicator selection occurs. Terminal
+normal/Dublee routes use existing checkpoint fields with the complete winning cards
+in the final event. The existing seen/unseen scoring policy and Dublee bonus apply;
+Maal points remain unavailable when the configured policy requires seeing Maal.
+Retries deduplicate and create one finalization intent. A matching backend release
+is required for the extended payload and new unseen terminal states.
+
+## Hosted Maal selection and regular reveal flow (2026-10-14)
+
+Hosted games support 2–6 original dealt players. For 2–5 players, the Maal slot
+starts empty and showing eligible groups selects one standard stock card
+through the existing automatic selection. On each player's first turn, showing
+grants Maal access immediately, followed by the regular See Maal dialog and
+then drawing/discarding. On later turns, draw, optionally show, discard, then
+see Maal. Qualification showing remains optional; natural unseen wins still work.
+
+For six players, a separate random standard indicator is selected immediately
+after dealing, leaving 31 stock cards. It is hidden from every player until
+qualification grants access through the same regular timing. Only authorized
+private projections reveal its face; everyone else sees the shared card back.
+
+There is no Cut Maal arrow/button, Skip control, or manual cut command. The
+persisted legacy `manual_maal_cut` field remains for checkpoint compatibility
+and hosted six-player preselection, but does not enable a manual interaction.
+Saved local states awaiting a removed cut can resume through the next regular
+draw/discard, selecting and granting Maal atomically at the appropriate point.
+No indicator is rerolled once selected. Six-seat geometry and the compact card
+options layout remain. Changes are local and uncommitted.

@@ -34,7 +34,7 @@ def fixture(hand_ids, *, other_ids=(), rules=None):
     """Conserved trusted fixture; no arbitrary-state API is added to production."""
     rules = rules or MarriageRules()
     rules = replace(rules, scoring=replace(rules.scoring, initial_tunnela_declaration=False))
-    game = MarriageGameEngine(("a", "b"), rng=Random(7), rules=rules)
+    game = MarriageGameEngine(("a", "b", "c", "d"), rng=Random(7), rules=rules)
     game.start_game()
     game.draw_card("a", DrawSource.STOCK)
     state = game.get_state()
@@ -45,7 +45,11 @@ def fixture(hand_ids, *, other_ids=(), rules=None):
     remaining = remaining[22 - len(hand_ids):]
     other += remaining[:21 - len(other)]
     remaining = remaining[21 - len(other_ids):]
-    game._state = replace(state, players=(PlayerState("a", hand), PlayerState("b", other)), stock=remaining, discard=())
+    standards = tuple(c for c in remaining if c.identity is not None)
+    extra_cards = standards[-42:]
+    extra = (PlayerState("c", extra_cards[:21]), PlayerState("d", extra_cards[21:]))
+    remaining = tuple(c for c in remaining if c not in extra_cards)
+    game._state = replace(state, players=(PlayerState("a", hand), PlayerState("b", other), *extra), stock=remaining, discard=())
     validate_game_state(game.get_state())
     return game
 
@@ -253,8 +257,11 @@ def test_winning_discard_policy_matrix(unrestricted, exception, winning, permitt
         replacement = state.players[1].hand[-1]
         hand = state.players[1].hand[:-1] + (target,)
         stock = tuple(replacement if c == target else c for c in state.stock)
-        game._state = replace(state, players=(state.players[0], replace(state.players[1], hand=hand)), stock=stock)
+        game._state = replace(state, players=(state.players[0], replace(state.players[1], hand=hand), *state.players[2:]), stock=stock)
     game.discard_card("b", target.card_id)
+    for actor in ("c", "d"):
+        game.draw_card(actor, DrawSource.DISCARD)
+        game.discard_card(actor, target.card_id)
     assert (DrawSource.DISCARD in game.get_allowed_actions("a").drawable_sources) is permitted
     if not permitted:
         unchanged(game, InvalidActionError, lambda: game.draw_card("a", DrawSource.DISCARD))

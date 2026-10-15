@@ -1,3 +1,4 @@
+import {ActivityLine} from './ActivityLine';
 import {AppText as Text} from './AppText';
 import { ContextMenu, MenuAction } from './ContextMenu';
 import type { ReactNode } from 'react';
@@ -89,7 +90,7 @@ function ReportGroup({group,session,reviewed,onDecision,onDenied}: {group:Group;
     </Pressable>
     {open&&<>
       {!!error&&<><Copy alert>{error}</Copy><Button label={copy('refresh')} disabled={busy} onPress={()=>setReload(v=>v+1)} /></>}
-      {busy&&<Copy>{copy('loading')}</Copy>}
+      {busy&&<ActivityLine/>}
       {!busy&&!error&&!page.items.length&&<Copy>{copy('empty')}</Copy>}
       {page.items.map(report=><View key={report.id} style={{borderTopWidth:1,borderColor:c.borderSubtle,paddingTop:12,gap:10}}>
         <Text style={{color:c.accent,fontFamily:fonts.medium}}>{copy(report.category)} · {copy(report.scope==='player'?'report_player':'report_message')}</Text>
@@ -153,7 +154,7 @@ function ModerationPage({session,onBack}: {session:Session;onBack:()=>void}) {
         <Button label={copy('reviewed')} selected={reviewed} onPress={()=>setReviewed(true)} />
         <Button label={copy('refresh')} disabled={busy} onPress={()=>setRevision(v=>v+1)} />
       </View>
-      {!!error&&<Copy alert>{error}</Copy>}{busy&&<Copy>{copy('loading')}</Copy>}
+      {!!error&&<Copy alert>{error}</Copy>}{busy&&<ActivityLine/>}
       {!busy&&!error&&!page.items.length&&<Copy>{copy('empty')}</Copy>}
       {!denied&&page.items.map(group=><ReportGroup key={`${reviewed}-${revision}-${group.user_id}`} group={group} session={session} reviewed={reviewed} onDecision={()=>setRevision(v=>v+1)} onDenied={deny} />)}
       {!!page.next_id&&<Button label={copy('more')} disabled={busy} onPress={()=>void more()} />}

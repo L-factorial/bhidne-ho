@@ -1,5 +1,10 @@
 // Editable English rooms copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "seat_hint": "Drag players to change seats. Tap or click an empty seat to invite players.",
+  "move_player": "Move player",
+  "reserved_seat": "Invited",
+  "select_move": "Select a player, then tap a seat to move or swap.",
+
   "host": "the creator",
   "play_again": "Play again",
   "only_creator_can_end": "Only the creator can end the game.",
@@ -9,6 +14,7 @@ export default {
   "waiting_for_more_players": "Waiting for {{count}} more players.",
   "select_or_clear_invite_search": "Select a player from the results, or clear the search before continuing.",
   "invite_players": "Invite players",
+  "send_invitation": "Send invitation",
   "send_invitations": "Send invitations",
   "invitations_sent": "Invitations sent.",
   "busy_invitation_help": "Players can receive invitations while seated elsewhere. They must leave their current seat before joining this table.",
@@ -42,7 +48,7 @@ export default {
   "delete_effect_help": "This deletes the room for everyone. End active tables first.",
   "leave_effect_help": "This removes your room membership. Private rooms require a new invitation to rejoin.",
   "rules_approval_help": "Rule changes apply only after every seated player accepts.",
-  "rules_rejection_help": "Edits need every seated player’s approval. One rejection keeps the current rules.",
+  "rules_rejection_help": "The creator can save config before a game or between games. Players are notified.",
   "sharing_help": "Share the room link or code. Private rooms also require an invitation from the owner.",
   "sharing_code_help": "Share the room code or link. Private rooms also require an invitation from the owner.",
   "callbreak_description": "Four or five players. Five deals. Make your call.",
@@ -51,7 +57,7 @@ export default {
   "ledger_help": "View game history, balances and settlements for this room.",
   "delete_help": "You can delete this room after every active table has ended.",
   "leave_help": "Leave this room to remove it from your rooms. You can join it again later if you still have access.",
-  "proposal_help": "Every seated player must accept. A rejection keeps the existing rules. Viewers can review but cannot vote.",
+  "proposal_help": "The creator can save config before a game or between games. Players are notified.",
   "proposal_waiting": "Your acceptance is recorded. Waiting for every seated player to accept.",
   "next_deal_help": "Players may join or leave now. The creator must lock the table before the next deal.",
   "abandon_help": "Abandon this active match? It will stop for everyone. No penalty is currently applied.",

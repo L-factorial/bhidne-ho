@@ -1,5 +1,9 @@
 // Editable Nepali flush copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  betting_round: 'बेटिङ चरण {{number}}',
+  "allow_raise": "बेट बढाउन दिनुहोस्",
+  "max_doubles_per_hand": "प्रति हात अधिकतम दोब्बर (१–५)",
+  "max_raise": "प्रति हात अधिकतम दोब्बर (१–५)",
   "side_show_toggle": "साइड शो अनुमति",
   "side_show_rounds": "साइड शोअघि न्यूनतम बेटिङ राउन्ड",
   "blind_to_seen_multiplier": "ब्लाइन्डबाट सीन बेट गुणक",

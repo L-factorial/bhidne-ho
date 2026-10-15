@@ -55,6 +55,8 @@ def validate_declaration(player: PlayerState, melds: Iterable[Meld], route: Qual
     used = set()
     for meld in values:
         validate_meld(player, meld, rules, allow_committed=allow_committed)
+        if not allow_committed and route is QualificationRoute.NORMAL and meld.meld_type is MeldType.PURE_SEQUENCE and len(meld.card_ids) > 5:
+            raise InvalidMeldError("Qualification sequences contain three through five cards.")
         if meld.meld_type not in permitted or used.intersection(meld.card_ids):
             raise InvalidMeldError("Wrong meld type or overlapping physical cards in declaration.")
         used.update(meld.card_ids)

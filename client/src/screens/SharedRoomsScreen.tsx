@@ -1,3 +1,4 @@
+import {ActivityLine} from '../components/ActivityLine';
 import {NotificationActionView} from '../components/NotificationActionView';
 import {PlayerAvatar} from '../components/PlayerAvatar';
 import {AvatarPicker} from '../components/AvatarPicker';
@@ -325,8 +326,8 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
         setLinkedMatch(invited.match_id);
         enterRoom({ room_id: invited.room_id, name: invited.room_name, members: [] }, invited.game_type);
       }} onOpenRoom={invited => enterRoom({ room_id: invited.room_id, name: invited.room_name, members: [] })} /> : null} />
-      {session && (!room || !roomTablesLoading) && !roomToolsOpen && !!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error || shared.error, 'feedback')}</Text>}
-      {(!room || !roomTablesLoading) && !expired && (reconnecting || shared.connectionNotice || shared.recoveryKind) && <Text accessibilityLiveRegion="polite" style={styles.subtitle}>{ui(shared.status !== 'connected' ? (room ? "feedback.reconnecting_to_your_room" : "feedback.connection_interrupted_retrying") : shared.recoveryKind === 'chat' ? "feedback.updating_chat" : "feedback.updating_game")}</Text>}
+      {session && (!room || !roomTablesLoading) && !roomToolsOpen && !!(error || shared.error) && <Text activity accessibilityRole="alert" style={styles.error}>{uiLabel(error || shared.error, 'feedback')}</Text>}
+      {(!room || !roomTablesLoading) && !expired && (reconnecting || shared.connectionNotice || shared.recoveryKind) && <ActivityLine />}
       {invitation && !invitation.otherUserId && session ? <InvitationPreview key={`${invitation.roomId}:${invitation.matchId}`} invitation={invitation} session={session} ready={process.env.EXPO_PUBLIC_RUNTIME_MODE !== 'distributed-original' || !!shared.runtime}
         startupError={shared.startupError} retrySession={shared.retry}
         dismiss={clearInvitation} join={async (target, gameType, matchId) => {
@@ -424,7 +425,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
         }}><Text style={styles.subtitle}>{shared.abandonRequired ? ui("rooms.abandon_match_and_leave_room") : ui("rooms.leave_game_and_room")}</Text></Pressable>
         <Pressable accessibilityRole="button" disabled={busy} onPress={shared.cancelLeave}><Text style={styles.subtitle}>{ui("rooms.stay_in_room")}</Text></Pressable>
       </View>}
-            {form === 'join' && !!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error || shared.error, 'feedback')}</Text>}
+            {form === 'join' && !!(error || shared.error) && <Text activity accessibilityRole="alert" style={styles.error}>{uiLabel(error || shared.error, 'feedback')}</Text>}
           </>}
           {roomPanel === 'ledger' && <RoomLedger roomId={room.room_id} session={session} embedded />}
         </RoomSheet>}
@@ -497,7 +498,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
                 <FormInput accessibilityLabel={ui("rooms.room_name")} value={name} onChangeText={setName} maxLength={60} placeholder={ui("common.friday_friends")} placeholderTextColor={colors.textMuted} style={[styles.input, { flex: 1, minWidth: 0 }]} editable={!busy} />
                 <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_room")} disabled={!session || busy || roomCreating || expired || !name.trim()} accessibilityState={{ disabled: !session || busy || roomCreating || expired || !name.trim() }} onPress={createRoom} style={[styles.button, { backgroundColor: colors.primary }, (!session || busy || expired || !name.trim()) && styles.disabled]}><Text style={[styles.buttonText, { color: colors.onPrimary }]}>{ui("rooms.create")}</Text></Pressable>
               </View>
-              {!!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error || shared.error, 'feedback')}</Text>}
+              {!!(error || shared.error) && <Text activity accessibilityRole="alert" style={styles.error}>{uiLabel(error || shared.error, 'feedback')}</Text>}
 
               {<>
               <Text style={styles.sectionTitle}>{ui("rooms.invite_people_optional")}</Text>
@@ -512,7 +513,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><FormInput accessibilityLabel={ui("rooms.room_or_table_code")} returnKeyType="go" onSubmitEditing={joinByCode} value={code} onChangeText={setCode} autoCapitalize="none" autoCorrect={false} maxLength={2048} placeholder={ui("common.code_placeholder")} placeholderTextColor={colors.textMuted} style={[styles.input, { flex: 1, minWidth: 0 }]} editable={!busy} />
               <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.join_room")} disabled={!session || busy || expired || !code.trim()} accessibilityState={{ disabled: !session || busy || expired || !code.trim() }} onPress={joinByCode} style={[styles.button, { backgroundColor: colors.primary }, (!session || busy || expired) && styles.disabled]}><Text style={[styles.buttonText, { color: colors.onPrimary }]}>{ui("rooms.join")}</Text></Pressable></View>
             </>}
-            {form === 'join' && !!(error || shared.error) && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error || shared.error, 'feedback')}</Text>}
+            {form === 'join' && !!(error || shared.error) && <Text activity accessibilityRole="alert" style={styles.error}>{uiLabel(error || shared.error, 'feedback')}</Text>}
             {busy && <Text accessibilityLiveRegion="polite" style={styles.description}>{ui("rooms.entering_room")}</Text>}
           </RoomSheet>}
           {session && !expired && lobbyTab === 'rooms' && <>
@@ -569,7 +570,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
             <Pressable accessibilityRole="button" disabled={authDisabled} accessibilityState={{ disabled: authDisabled }}
               onPress={submitAccount}
               style={[styles.button, { backgroundColor: colors.primary }, authDisabled && styles.disabled]}>
-              <Text style={[styles.buttonText, { color: colors.onPrimary }]}>{shared.loggingIn ? ui("common.please_wait") : authMode === 'signup' ? ui("common.create_account") : ui("common.sign_in")}</Text>
+              <ActivityLine active={shared.loggingIn}/><Text style={[styles.buttonText, { color: colors.onPrimary }]}>{authMode === 'signup' ? ui("common.create_account") : ui("common.sign_in")}</Text>
             </Pressable></View></FormFooter>}{room && !expired && !invitation && !gameOpen && chat.view}{lobbyRules.view}{transferring&&!gameOpen&&<TableTransfer />}</KeyboardFrame></HeaderProfileContext.Provider></PushProvider>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({

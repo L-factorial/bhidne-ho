@@ -1,6 +1,8 @@
 import { createContext, forwardRef, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import {Ionicons} from '@expo/vector-icons';
+import {ui} from '../i18n/copy';
 import { radii, fonts, useTheme } from '../theme';
-import { Keyboard, Platform, ScrollView, StyleSheet, type ScrollViewProps, TextInput, type TextInputProps } from 'react-native';
+import { Keyboard, Platform, ScrollView, StyleSheet, type ScrollViewProps, Pressable, View, TextInput, type TextInputProps } from 'react-native';
 
 export const FormFocusContext = createContext<(input: TextInput | null) => void>(() => {});
 
@@ -31,7 +33,8 @@ export function FormScrollView({ children, onLayout, onScroll, onContentSizeChan
   }, []);
   useEffect(() => {
     const subscription = Keyboard.addListener('keyboardDidShow', reveal);
-    return () => { subscription.remove(); cancelAnimationFrame(frame.current); };
+    const changed = Keyboard.addListener('keyboardDidChangeFrame', reveal);
+    return () => { subscription.remove(); changed.remove(); cancelAnimationFrame(frame.current); };
   }, [reveal]);
   return <FormFocusContext.Provider value={input => { focused.current = input; if (input) reveal(); }}>
     <ScrollView {...props} ref={scroll} keyboardShouldPersistTaps="handled" scrollEventThrottle={16}
@@ -46,9 +49,13 @@ export const FormInput = forwardRef<TextInput, TextInputProps>(function FormInpu
   const [focused, setFocused] = useState(false);
   const input = useRef<TextInput | null>(null);
   const reveal = useContext(FormFocusContext);
-  return <TextInput {...props} ref={node => { input.current = node; if (typeof ref === 'function') ref(node); else if (ref) ref.current = node; }}
+  const next = props.returnKeyType === "next" && !!props.onSubmitEditing;
+  const field = <TextInput {...props} ref={node => { input.current = node; if (typeof ref === 'function') ref(node); else if (ref) ref.current = node; }}
     placeholderTextColor={props.placeholderTextColor || colors.textMuted}
-    style={[{fontFamily:fonts.body,fontSize:16,lineHeight:24}, style, { fontSize: Math.max(16, StyleSheet.flatten(style)?.fontSize ?? 16), lineHeight: Math.max(24, StyleSheet.flatten(style)?.lineHeight ?? 24), boxShadow: `inset 0px 2px 4px ${colors.shadow}`, borderRadius: radii.medium, color: colors.text, backgroundColor: colors.surface, borderColor: focused ? colors.accent : colors.border, outlineColor: colors.accent }, Platform.OS === 'web' && { fontSize: 16, outlineStyle: 'solid', outlineWidth: focused ? 2 : 0, outlineOffset: 2 }]}
-    onFocus={event => { setFocused(true); reveal(input.current); onFocus?.(event); }}
-    onBlur={event => { setFocused(false); reveal(null); onBlur?.(event); }} />;
+    style={[{fontFamily:fonts.body,fontSize:16,lineHeight:24}, style, { ...(next ? {paddingRight:48} : {}), fontSize: Math.max(16, StyleSheet.flatten(style)?.fontSize ?? 16), lineHeight: Math.max(24, StyleSheet.flatten(style)?.lineHeight ?? 24), boxShadow: `inset 0px 2px 4px ${colors.shadow}`, borderRadius: radii.medium, borderColor:focused ? colors.accent : colors.border, color:colors.text, backgroundColor:colors.surface, outlineColor:colors.accent }, Platform.OS === 'web' && {fontSize:16,outlineStyle:'solid',outlineWidth:focused ? 2 : 0,outlineOffset:2}]}
+    onFocus={event => {setFocused(true);reveal(input.current);onFocus?.(event);}} onBlur={event=>{setFocused(false);reveal(null);onBlur?.(event);}} />;
+  if (!next) return field;
+  return <View style={[{position:"relative"}, {alignSelf: "stretch"}, StyleSheet.flatten(style)?.flex !== undefined && {flex:StyleSheet.flatten(style)?.flex}]}>{field}
+    {next && <Pressable accessibilityRole="button" accessibilityLabel={ui('common.next_field')} disabled={props.editable === false} onPress={() => props.onSubmitEditing?.({nativeEvent:{text:props.value ?? ''}} as Parameters<NonNullable<TextInputProps['onSubmitEditing']>>[0])} style={{position:'absolute',right:4,top:4,bottom:4,width:44,alignItems:'center',justifyContent:'center'}}><Ionicons name="arrow-forward" size={22} color={colors.accent}/></Pressable>}
+  </View>;
 });

@@ -53,7 +53,7 @@ async def test_active_queue_fifo_retries_and_stale_revision_preserve_engine(data
 
 
 @pytest.mark.parametrize('kind', ['callbreak', 'marriage', 'flush'])
-async def test_propose_vote_and_recover_rules_without_engine_mutation(database, kind):
+async def test_creator_saves_and_recovers_rules_without_engine_mutation(database, kind):
     _, store, fence, users = database
     host, game = await host_game(users, kind, started=False)
     try:
@@ -68,12 +68,8 @@ async def test_propose_vote_and_recover_rules_without_engine_mutation(database, 
         result, body = await action(store, inbox, lane, fence, game, game.users[0], name, payload)
         assert result['status'] == 'accepted'
         proposal = (await store.load(game.table.table_id)).checkpoint['data']['host']['rule_proposal']
-        assert proposal['status'] == 'PENDING'
+        assert proposal['status'] == 'ACCEPTED'
         assert (await inbox.enqueue(lane, game.users[0], body)).outcome == result
-        for actor in game.users[1:]:
-            result, _ = await action(store, inbox, lane, fence, game, actor, 'rule-vote',
-                {'proposal_id': proposal['id'], 'accept': True})
-            assert result['status'] == 'accepted'
         saved = await store.load(game.table.table_id)
         assert saved.checkpoint['data']['host']['rule_proposal']['status'] == 'ACCEPTED'
         assert saved.checkpoint['data']['engine'] is None
@@ -82,7 +78,7 @@ async def test_propose_vote_and_recover_rules_without_engine_mutation(database, 
         await host.close()
 
 
-async def test_roster_change_cancels_proposal_and_invalid_settings_do_not_mutate(database):
+async def test_roster_change_preserves_config_and_invalid_settings_do_not_mutate(database):
     pool, store, fence, users = database
     host, game = await host_game(users, 'callbreak', started=False)
     try:
@@ -96,7 +92,7 @@ async def test_roster_change_cancels_proposal_and_invalid_settings_do_not_mutate
         proposal = (await store.load(game.table.table_id)).checkpoint['data']['host']['rule_proposal']
         assert (await action(store, inbox, lane, fence, game, users[1], 'leave-seat'))[0]['status'] == 'accepted'
         saved = await store.load(game.table.table_id)
-        assert saved.checkpoint['data']['host']['rule_proposal']['status'] == 'CANCELLED'
+        assert saved.checkpoint['data']['host']['rule_proposal']['status'] == 'ACCEPTED'
         result, _ = await action(store, inbox, lane, fence, game, users[2], 'rule-vote', {'proposal_id':proposal['id'], 'accept':True})
         assert result['status'] == 'rejected'
         assert await store.load(game.table.table_id) == saved

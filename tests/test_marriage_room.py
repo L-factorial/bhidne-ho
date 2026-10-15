@@ -8,8 +8,8 @@ from app.main import create_app
 def test_normal_win_http_privacy_reconnect_finish_and_receipt_retry(monkeypatch):
     from marriage import create_deck
     deck = {c.card_id: c for c in create_deck()}
-    groups = [{'meld_type': 'pure_sequence', 'card_ids': [f'D0:{r}{s}' for r in range(2, 9)]} for s in 'CDH']
-    hand = tuple(deck[i] for g in groups for i in g['card_ids'])
+    groups = [{'meld_type': 'pure_sequence', 'card_ids': [f'D0:{r}{s}' for r in range(2, 7)]} for s in 'CDH']
+    hand = tuple(deck[i] for g in groups for i in g['card_ids']) + tuple(deck[f'D0:{r}S'] for r in range(2,8))
     tiplu, last = deck['D2:8H'], deck['MAN:0']
     rest = tuple(c for c in deck.values() if c not in hand + (tiplu, last))
     monkeypatch.setattr('marriage.engine.deal_cards', lambda *_: ((hand, rest[:21]), rest[22:] + (tiplu, last, rest[21])))
@@ -38,7 +38,7 @@ def test_normal_win_http_privacy_reconnect_finish_and_receipt_retry(monkeypatch)
         drawn, _ = action('DRAW_CARD', declared['game']['revision'], {'source': 'stock'})
         shown, _ = action('SHOW_INITIAL_MELDS', drawn['game']['revision'], {'melds': groups})
         witness = shown['marriage']['private']['actions']['normal_finish']
-        assert witness['discard_card_id'] == 'MAN:0'
+        assert witness is not None and len(witness['melds'])>=4
         spectator = client.get(root, headers=headers[2]).json()
         assert spectator['marriage']['private'] is None
         assert spectator['marriage']['public']['normal_finish'] is None
@@ -52,7 +52,7 @@ def test_normal_win_http_privacy_reconnect_finish_and_receipt_retry(monkeypatch)
         assert finished['table']['phase'] == 'COMPLETED'
         assert len(finished['marriage']['private']['hand']) == 21
         assert finished['marriage']['public']['normal_finish'] == witness
-        assert finished['marriage']['public']['top_discard']['card_id'] == 'MAN:0'
+        assert finished['marriage']['public']['top_discard']['card_id'] == witness['discard_card_id']
         assert sum(p['net_points'] for p in finished['marriage']['public']['scores']['players']) == 0
         repeated = client.post(root + '/action', headers=headers[0], json=request).json()
         assert repeated['action_ack'] == finished['action_ack']
@@ -141,3 +141,47 @@ def test_marriage_http_lifecycle_private_hands_retries_and_room_chat_policy():
         assert not client.app.state.participation.is_playing('marriage-room', users[0]['user_id'])
         assert client.post(root, headers=headers[0], json={'player_count': 4}).status_code == 201
         assert client.post(root + '/action', headers=headers[0], json=body).status_code == 409
+
+
+def test_unseen_direct_finishes_keep_maal_hidden_and_retry_exactly_once(monkeypatch):
+    from marriage import create_deck
+    deck={c.card_id:c for c in create_deck()}
+    for dublee,count in [(False,2),(True,4)]:
+        groups=([{'meld_type':'dublee','card_ids':[f'D0:{r}C',f'D1:{r}C']} for r in range(2,10)] if dublee else
+                [{'meld_type':'pure_sequence','card_ids':[f'D0:{r}{s}' for r in range(2,9)]} for s in 'CDH'])
+        ids=tuple(i for g in groups for i in g['card_ids'])+(tuple(f'D0:{r}S' for r in (2,4,6,8,10)) if dublee else ())
+        hand=tuple(deck[i] for i in ids);draw=deck['MAN:0']
+        rest=tuple(c for c in deck.values() if c not in hand+(draw,))
+        others=tuple(rest[i*21:(i+1)*21] for i in range(count-1));stock=rest[(count-1)*21:]
+        monkeypatch.setattr('marriage.engine.deal_cards',lambda *_,hands=(hand,)+others,tail=stock[1:]+(draw,stock[0]):(hands,tail))
+        with TestClient(create_app()) as client,ExitStack() as sockets:
+            users=[client.post('/auth/guest').json() for _ in range(count+1)]
+            headers=[{'Authorization':f"Bearer {u['token']}"} for u in users]
+            room='unseen-win';root=f'/test-games/{room}'
+            for user in users:sockets.enter_context(client.websocket_connect(f"/ws/rooms/{room}?token={user['token']}")).receive_json()
+            waiting=client.post(root,headers=headers[0],json={'game_type':'marriage','player_count':count}).json();mid={'match_id':waiting['match_id']}
+            for actor in range(1,count):client.post(root+'/join',headers=headers[actor],json=mid)
+            client.post(root+'/table/lock',headers=headers[0],json=mid)
+            current=client.post(root+'/start',headers=headers[0],json=mid).json()
+            def action(command,payload,actor=0):
+                body={**mid,'command_id':f'{command}-{current["game"]["revision"]}-{actor}','expected_revision':current['game']['revision'],'command':command,'payload':payload}
+                response=client.post(root+'/action',headers=headers[actor],json=body)
+                assert response.status_code==200,response.text
+                result=response.json();assert result['action_ack']['status']=='accepted',result
+                return result,body
+            for actor in range(count):current,_=action('DECLARE_TUNNELAS',{'melds':[]},actor)
+            current,_=action('DRAW_CARD',{'source':'stock'})
+            assert 'finish' in current['marriage']['private']['actions']['kinds']
+            assert current['marriage']['private']['maal'] is None
+            payload={'pairs' if dublee else 'melds':groups,'discard_card_id':'MAN:0'}
+            current,body=action('FINISH',payload)
+            assert current['status']=='finished' and current['table']['phase']=='COMPLETED'
+            assert len(current['marriage']['private']['hand'])==21
+            assert current['marriage']['private']['maal'] is None
+            assert not current['marriage']['public']['players'][0]['has_seen_maal']
+            assert current['marriage']['public']['top_discard']['card_id']=='MAN:0'
+            assert sum(p['net_points'] for p in current['marriage']['public']['scores']['players'])==0
+            repeated=client.post(root+'/action',headers=headers[0],json=body).json()
+            assert repeated['action_ack']==current['action_ack'] and repeated['game']['revision']==current['game']['revision']
+            spectator=client.get(root,headers=headers[-1]).json()
+            assert spectator['marriage']['private'] is None

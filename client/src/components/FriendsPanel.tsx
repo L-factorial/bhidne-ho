@@ -260,7 +260,7 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
           action={<ReportButton menu session={session} enabled={blocking.reporting && !message.removed} scope="direct" messageId={message.id} player={{user_id:message.sender_id,display_name:label(selected)}}/>}/></Fragment>)}
       </ScrollView>
     </RoomSheet>}
-    {!!error && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
+    {!!error && <Text activity accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
   </View>;
 }
 

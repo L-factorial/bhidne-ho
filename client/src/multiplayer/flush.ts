@@ -2,6 +2,7 @@ export type FlushRules = {
   allow_multiplayer_blind_show: boolean; minimum_rounds_before_multiplayer_blind_show: number;
   trial_bonus: number; ace_trial_bonus: number | null;
   require_minimum_bets_by_everyone: boolean; minimum_bets_before_show: number;
+  allow_raise?: boolean; max_raise?: number;
   boot_amount: number; initial_blind_bet: number;
   minimum_bet_rounds_before_side_show: number; blind_to_seen_bet_multiplier: number;
   minimum_blind_rounds_before_show: number; maximum_active_players_for_blind_show: number;
@@ -12,7 +13,7 @@ export type FlushRules = {
 };
 export type FlushSettings = { rules: FlushRules; rules_revision: number; locked: boolean };
 export type FlushView = {
-  history?: { sequence: number; revision: number; round_number: number; kind: string; player_id: string | null; amount: number; target_player_id: string | null; loser_player_id: string | null; winner_ids: string[]; visibility?: 'seen' | 'blind' | null; bet_number?: number | null }[];
+  history?: { sequence: number; revision: number; round_number: number; betting_round?: number; kind: string; player_id: string | null; amount: number; target_player_id: string | null; loser_player_id: string | null; winner_ids: string[]; visibility?: 'seen' | 'blind' | null; bet_number?: number | null }[];
   side_show_events?: {sequence:number;revision:number;kind:string;player_id:string;target_player_id:string}[];
   folds?: { sequence: number; revision: number; player_id: string }[];
   participants?: { player_id: string; display_name: string }[];
@@ -21,7 +22,20 @@ export type FlushView = {
     players: { player_id: string; status: string; visibility: string; blind_bet_count: number; turn_bet_count: number; total_contribution: number }[];
     settlement: { salami_transfers?: {player_id:string;amount:number}[]; winner_ids: string[]; payouts: { player_id: string; amount: number }[];
       shown_hands: { player_id: string; cards: { rank: number; suit: string }[] }[] } | null };
-  private: { side_show: { opponent_id: string; opponent_cards: string[]; won: boolean; revision: number } | null; cards: string[]; actions: { kinds: string[]; required_bet: number; show_cost: number;
+  private: { side_show: { opponent_id: string; opponent_cards: string[]; won: boolean; revision: number } | null; cards: string[]; actions: { kinds: string[]; required_bet: number; show_cost: number; maximum_bet?: number; raises_remaining?: number;
     side_show_target_id: string | null; side_show: { allowed: boolean; reason: string | null };
     see: { allowed: boolean; reason: string | null }; show: { allowed: boolean; reason: string | null } } } | null;
 };
+
+/** Presentation order only; engine/deal order stays untouched. Ace is high. */
+export function sortedFlushCards(cards: readonly string[]): string[] {
+  const rank = (card: string) => ({ J: 11, Q: 12, K: 13, A: 14 }[card.slice(0, -1)] ?? Number(card.slice(0, -1)));
+  return [...cards].sort((a, b) => rank(a) - rank(b) || a.slice(-1).localeCompare(b.slice(-1)));
+}
+
+/** Historical seat IDs remain authoritative after a participant leaves. */
+export function flushPlayerName(id: string | number, participants: readonly {player_id: string; display_name: string}[] | undefined,
+  seated: readonly {player_id: string | number; display_name?: string}[]): string | undefined {
+  return participants?.find(player => String(player.player_id) === String(id))?.display_name
+    || seated.find(player => String(player.player_id) === String(id))?.display_name;
+}

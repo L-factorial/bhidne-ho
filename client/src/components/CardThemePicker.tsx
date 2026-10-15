@@ -33,7 +33,7 @@ export function CardThemePicker({ disabled = false, compact = false, device = fa
   return <View testID="card-theme-picker" style={{ gap: 12 }}>
     <Text style={{ color: c.textMuted }}>{ui(shared ? 'common.card_theme_shared_help' : 'common.card_theme_help')}</Text>
     {shared && !canSelect && <Text style={{ color: c.textMuted }}>{ui('common.card_theme_controller_help')}</Text>}
-    {pending && <Text accessibilityLiveRegion="polite">{ui('common.card_theme_saving')}</Text>}
+    {pending && <Text activity accessibilityLiveRegion="polite">{ui('common.card_theme_saving')}</Text>}
     <View accessibilityRole="radiogroup" accessibilityLabel={ui('common.card_theme')} style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
       {(Object.keys(cardThemeCatalog) as CardThemeId[]).map(key => <Pressable key={key} testID={`card-theme-${key}`}
         accessibilityRole="radio" accessibilityLabel={ui(cardThemeCatalog[key].nameKey)}

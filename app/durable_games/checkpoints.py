@@ -81,6 +81,7 @@ class Offer(Record):
 
 
 class TableDetails(Record):
+    seat_positions: dict[Identity, Positive] = Field(default_factory=dict)
     next_seat_count: Nonnegative | None
     retired_next_seats: tuple[str | None, ...] | None
     releases: dict[str, str]
@@ -218,6 +219,9 @@ class RecoveryData(Record):
         for seat in self.table.releases:
             if not seat.isascii() or not seat.isdigit() or str(int(seat)) != seat or not 1 <= int(seat) <= self.capacity:
                 raise ValueError('Invalid released seat.')
+        placements = list(self.table.seat_positions.values())
+        if len(set(placements)) != len(placements) or any(p > self.capacity for p in placements):
+            raise ValueError('Invalid physical seat placements.')
         if len({o.offer_id for o in self.table.offers}) != len(self.table.offers):
             raise ValueError('Duplicate offer identity.')
         for offer in self.table.offers:
@@ -294,7 +298,7 @@ def _normalize_engine_sets(kind, state):
                 'config': {'match_rules': None, **state['config']}}
     if kind != 'marriage':
         return state
-    return {**state, 'players': [
+    return {**state, 'config': {**state['config'], 'rules': {'manual_maal_cut': False, **state['config']['rules']}}, 'players': [
         {**player, 'committed_card_ids': sorted(player['committed_card_ids'])}
         for player in state['players']
     ]}
@@ -309,6 +313,7 @@ def checkpoint_content(value):
     """Compare validated envelopes independently of legacy set ordering/digests."""
     data = value['data']
     return {**value, 'digest': None, 'data': {**data,
+        'table': {'seat_positions': {}, **data['table']},
         'host': {**data['host'], 'flush_rules': _flush_rules_defaults(data['host']['flush_rules'])},
         'engine': canonical_engine_checkpoint(data['game_type'], data['engine'])}}
 
@@ -399,6 +404,7 @@ def restore_table_state(decoded: DecodedCheckpoint) -> TableState:
         offers={offer.offer_id: SeatOffer(**offer.model_dump()) for offer in data.table.offers},
         events=deepcopy(list(data.table.events)), offer_seconds=data.table.offer_seconds,
         published_sequence=data.table.published_sequence,
+        seat_positions=dict(data.table.seat_positions),
     )
 
 
@@ -457,7 +463,7 @@ def capture_checkpoint(game, *, table_revision: int, invitations=()) -> dict:
         'game_type': game.game_type, 'name': game.name, 'capacity': game.capacity,
         'table_revision': table_revision, 'phase': game.table.phase,
         'positions': positions, 'host': host, 'engine': engine, 'invitations': list(invitations),
-        'table': {'next_seat_count': len(game.table.next_seats) if game.table.next_seats is not None else None,
+        'table': {'seat_positions': game.table.seat_positions, 'next_seat_count': len(game.table.next_seats) if game.table.next_seats is not None else None,
                   'retired_next_seats': game.table.next_seats if game.ended else None,
                   'releases': {str(k): v for k, v in game.table.releases.items()},
                   'offers': list(game.table.offers.values()), 'events': game.table.events,

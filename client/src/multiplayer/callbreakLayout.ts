@@ -2,9 +2,9 @@
 export function callBreakSeatGeometry(count: number, width: number, fontScale = 1, measuredSeatHeight = 0, availableHeight = 0) {
   const seatWidth = Math.min(144, Math.max(100, width * .36));
   const seatHeight = Math.max(Math.ceil(96 * Math.max(1, fontScale)), Math.ceil(measuredSeatHeight));
-  const minimumHeight = Math.max(seatHeight * 4 + 128, seatHeight * 3 + 240);
+  const minimumHeight = Math.max(seatHeight * 4 + 128, seatHeight * 3 + 240) + 28;
   const height = Math.max(minimumHeight, availableHeight || minimumHeight);
-  const middle = width / 2, top = seatHeight / 2, bottom = height - seatHeight / 2;
+  const middle = width / 2, top = seatHeight / 2 + 14, bottom = height - seatHeight / 2 - 14;
   const left = seatWidth / 2, right = width - seatWidth / 2;
   const side = bottom - seatHeight;
   const positions = count === 2 ? [[middle, bottom], [middle, top]]
@@ -18,7 +18,7 @@ export function callBreakSeatGeometry(count: number, width: number, fontScale = 
 export function inwardTrickPosition(layout: ReturnType<typeof callBreakSeatGeometry>, index: number) {
   const seat = layout.positions[index];
   if (!seat) return layout.center;
-  const top = seat.y === layout.seatHeight / 2;
+  const top = seat.y <= layout.seatHeight / 2 + 14;
   const bottom = index === 0;
   if (top || bottom) return { x: seat.x, y: seat.y + (top ? 1 : -1) * (layout.seatHeight / 2 + (top ? 36 : 60)) };
   return { x: seat.x < layout.center.x ? Math.min(layout.center.x - 32, seat.x + layout.seatWidth * .3)

@@ -10,10 +10,12 @@ from .enums import AceSequencePolicy, MaalNeighborPolicy
 class MarriageRules:
     ruleset_id: ClassVar[str] = "marriage-v1"
     min_players: ClassVar[int] = 2
-    max_players: ClassVar[int] = 5
+    max_players: ClassVar[int] = 6
     pack_count: ClassVar[int] = 3
     printed_jokers: ClassVar[int] = 3
     cards_per_player: ClassVar[int] = 21
+    # Persisted legacy name: hosted six-player preselection, no manual cut action.
+    manual_maal_cut: bool = False
     ace_sequence: AceSequencePolicy = AceSequencePolicy.LOW_OR_HIGH
     maal_neighbors: MaalNeighborPolicy = MaalNeighborPolicy.CYCLIC
     dublee_player_can_draw_discard: bool = False
@@ -21,6 +23,8 @@ class MarriageRules:
     scoring: ScoringRules = field(default_factory=ScoringRules)
 
     def __post_init__(self):
+        if type(self.manual_maal_cut) is not bool:
+            raise ValueError("Manual Maal cut must be boolean.")
         if not isinstance(self.scoring, ScoringRules):
             raise ValueError("Scoring requires ScoringRules.")
         if not isinstance(self.ace_sequence, AceSequencePolicy):

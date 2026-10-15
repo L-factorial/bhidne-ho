@@ -102,7 +102,7 @@ async def test_name_conflict_and_existing_seat_do_not_replace_tables(creation):
 
 
 @pytest.mark.parametrize('change', [
-    {'capacity': True}, {'capacity': 6, 'game_type': 'marriage'},
+    {'capacity': True}, {'capacity': 7, 'game_type': 'marriage'},
     {'capacity': 3, 'game_type': 'callbreak'}, {'name': '   '}, {'game_type': 'unknown'}, {'extra': True},
 ])
 async def test_invalid_payload_is_a_no_effect_rejection(creation, change):
@@ -327,7 +327,7 @@ async def test_room_notification_skips_blocked_member_and_acceptance_does_not_ad
     assert (await pool.execute('SELECT count(*) FROM friendships')).rows == [(0,)]
 
 
-@pytest.mark.parametrize('kind,explicit', [('marriage',None),('callbreak',5)])
+@pytest.mark.parametrize('kind,explicit', [('marriage',5),('callbreak',5)])
 async def test_server_capacity_drives_projection_and_full_table_join_gate(creation,kind,explicit):
     from app.durable_games.queries import PostgresHostedQueries
     pool, checkpoints, fence, users, inbox, _, _ = creation
@@ -360,8 +360,8 @@ async def test_default_marriage_table_can_start_with_two_players(creation):
         await inbox.enqueue(lane,actor,dict(command_id=uuid4().hex,command=command,match_id=result['match_id'],expected_revision=revision,payload={}))
         assert (await TableLaneExecutor(inbox).execute_one(lane,fence)).outcome['status']=='accepted'
     data=(await checkpoints.load(result['table_id'])).checkpoint['data']
-    assert data['capacity']==5 and data['phase']=='STARTED'
+    assert data['capacity']==6 and data['phase']=='STARTED'
     assert len(data['host']['users'])==2
     spectator=await PostgresHostedQueries(creation[0]).game_view('room',users[-1],match_id=result['match_id'])
-    assert spectator['table']['min_players']==2 and spectator['table']['max_players']==5
+    assert spectator['table']['min_players']==2 and spectator['table']['max_players']==6
     assert not spectator['table']['current_user']['can_join']

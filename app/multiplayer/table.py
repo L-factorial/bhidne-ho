@@ -54,6 +54,7 @@ class TableState:
     events: list[dict] = field(default_factory=list)
     offer_seconds: float = 30
     published_sequence: int = 0
+    seat_positions: dict[str, int] = field(default_factory=dict)
 
     def emit(self, event, **payload):
         self.events.append({'sequence': len(self.events) + 1, 'event': event, 'payload': payload})
@@ -121,6 +122,16 @@ class TableState:
                 self.make_offer(game, seat, candidate, now)
                 reserved.add(candidate)
 
+    def ensure_positions(self, game):
+        seats = [u for u in self.seats(game) if u is not None]
+        self.seat_positions = {u: p for u, p in self.seat_positions.items() if u in seats}
+        used = set(self.seat_positions.values())
+        for user in seats:
+            if user not in self.seat_positions:
+                position = next(i for i in range(1, game.capacity + 1) if i not in used)
+                self.seat_positions[user] = position
+                used.add(position)
+
     def view(self, game, user_id):
         self.sync(game)
         policy = GameTablePolicy.for_game(game.game_type, game.capacity)
@@ -133,7 +144,12 @@ class TableState:
         valid = policy.min_players <= count <= policy.max_players
         pending = self.pending()
         rules_pending = bool(game.rule_proposal and game.rule_proposal['status'] == 'PENDING')
-        occupied = [{'seat_id': (game.flush_seats[u] if game.game_type == 'flush' else i + 1), 'user_id': u}
+        self.ensure_positions(game)
+        free_count = policy.max_players - count
+        can_join = not seated and free_count > 0 and (
+            self.phase == 'OPEN' and (self.queue.index(user_id) < free_count if user_id in self.queue else len(self.queue) < free_count)
+            or self.phase == 'COMPLETED' and not pending and (not self.queue or user_id == self.queue[0]))
+        occupied = [{'position_id': self.seat_positions[u], 'seat_id': (game.flush_seats[u] if game.game_type == 'flush' else i + 1), 'user_id': u}
                     for i, u in enumerate(seats) if u is not None]
         return {'table_id': self.table_id, 'phase': self.phase, **asdict(policy),
             'seated_players': occupied, 'queue': list(self.queue),
@@ -141,7 +157,7 @@ class TableState:
                 'is_seated': seated, 'seat_id': next((p['seat_id'] for p in occupied if p['user_id'] == user_id), None),
                 'is_queued': user_id in self.queue,
                 'queue_position': self.queue.index(user_id) + 1 if user_id in self.queue else None,
-                'can_join': open_ and not seated and count < policy.max_players,
+                'can_join': can_join,
                 'can_queue': self.phase != 'ENDED' and not seated and user_id not in self.queue,
                 'can_lock': policy.requires_explicit_lock and open_ and host and valid and not rules_pending,
                 'can_start': host and valid and not rules_pending and not pending and not self.releases and

@@ -1,3 +1,4 @@
+import {ActivityLine} from './src/components/ActivityLine';
 import {AppText as Text} from './src/components/AppText';
 import {usePushNavigation} from './src/notifications/usePushNavigation';
 import { PolicyNavigation, PublicPolicyPage, type PolicyPage } from './src/components/moderation/PublicPolicies';
@@ -106,6 +107,7 @@ function AppContent() {
   const [loaded, error] = useFonts({ Inter_400Regular, Inter_500Medium, LibreBaskerville_700Bold, CormorantGaramond_700Bold });
   if (!loaded && !error) return <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
     <Image source={branding.icon} accessibilityLabel={t('common.loading')} resizeMode="contain" style={{ width: 160, height: 160, borderRadius: 24 }} />
+    <View style={{width:160,marginTop:12}}><ActivityLine/></View>
   </View>;
   return (
     <SafeAreaProvider><PolicyNavigation.Provider value={openPolicy}><DeletionNavigation.Provider value={()=>setDeletionOpen(true)}>
@@ -114,7 +116,7 @@ function AppContent() {
       {policy ? <PublicPolicyPage page={policy} onBack={closePolicy} /> : deletionOpen ? <DeletionScreen key={deletionToken || 'account-deletion'} session={readSession(apiUrl)?.session || null} token={deletionToken} onClose={()=>{setDeletionOpen(false);setDeletionToken(null);setInRooms(true);if(Platform.OS==='web'&&globalThis.location.pathname.startsWith('/delete-account'))globalThis.history.replaceState(null,'','/');}} /> : recovery ? <RecoveryScreen key={recovery.token} link={recovery} onDone={reset => {
         if (reset) { saveSession(apiUrl, null); setAuthVersion(value => value + 1); }
         setRecovery(null); setInRooms(true);
-      }} /> : finishingSignIn ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.text }}>{ui('common.completing_sign_in')}</Text></View>
+      }} /> : finishingSignIn ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><ActivityLine /></View>
         : process.env.EXPO_PUBLIC_RUNTIME_MODE === 'distributed-integration' && (inRooms || invitation) ? <DistributedRoomsScreen key={authVersion} invitation={invitation} dismissInvitation={dismissInvitation} onExit={() => { dismissInvitation(); setInRooms(false); }} />
         : inRooms || invitation ? <SharedRoomsScreen key={authVersion} invitation={invitation} dismissInvitation={dismissInvitation} onExit={() => { dismissInvitation(); setInRooms(false); }} />
         : <WelcomeScreen onEnterLobby={() => setInRooms(true)} />}

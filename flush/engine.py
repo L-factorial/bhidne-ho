@@ -101,12 +101,12 @@ class FlushGameEngine:
     def start_next_round(self, player_id):
         return self.prepare_next_round(player_id)
 
-    def prepare_next_round(self, player_id, *, player_ids=None):
+    def prepare_next_round(self, player_id, *, player_ids=None, rules=None):
         state = self._state
         if state.status is not GameStatus.FINISHED or (player_ids is None and player_id != state.settlement.winner_ids[0]):
             raise InvalidActionError('Only the previous winner can start the next round.')
         ids = tuple(player_ids) if player_ids is not None else state.config.player_ids
-        config = FlushConfig(ids, state.config.rules, player_id)
+        config = FlushConfig(ids, rules or state.config.rules, player_id)
         candidate = FlushGameState(config, tuple(PlayerState(p) for p in ids),
             status=GameStatus.AWAITING_DEAL, current_seat=config.player_ids.index(player_id),
             revision=state.revision, history=state.history, round_number=state.round_number + 1,
@@ -166,6 +166,11 @@ class FlushGameEngine:
         p = require_turn(state, player_id)
         if type(amount) is not int or amount < required_bet(state, p):
             raise InvalidActionError('Bet must be a whole number at least the current minimum.')
+        minimum = required_bet(state, p)
+        from .turns import maximum_bet
+        limit = maximum_bet(state, p)
+        if amount > limit or amount not in (minimum, minimum * 2):
+            raise InvalidActionError('The double limit for this hand has been reached or the bet is invalid.')
         candidate = self._replace_player(replace(p,
             total_contribution=p.total_contribution + amount, turn_bet_count=p.turn_bet_count + 1,
             blind_bet_count=p.blind_bet_count + int(p.visibility is Visibility.BLIND)))

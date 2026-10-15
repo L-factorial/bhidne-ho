@@ -106,3 +106,35 @@ test('Maal choices include Q-K-A but not K-A-2', () => {
   assert.equal(choices[0].groups.filter(g => g.meld_type === 'pure_sequence').length, 1);
   assert.equal(maalChoices([...support, ...[13,14,2].map(r => card(r, 'S'))]).length, 0);
 });
+
+test('full-length options contain unique selectable reductions and preserve exact remaining cards', async () => {
+  const {maalOptions,maalChoiceSizes}=await import('../src/multiplayer/maalProgress.ts');
+  const hand=[...[2,3,4,5,6].map(r=>card(r,'S')), ...[8,9,10,11,12].map(r=>card(r,'H')), ...triple(9,'D')];
+  const options=maalOptions(hand,false);
+  assert.equal(options.length,1);
+  assert.equal(maalChoiceSizes(options[0].choice),'5-5-3');
+  assert.equal(options[0].variants.length,36);
+  const labels=new Set(options[0].variants.map(maalChoiceSizes));
+  for(const label of ['5-5-3','5-4-3','4-5-3','4-4-3','3-3-3'])assert.ok(labels.has(label),label);
+  const keys=new Set();
+  for(const choice of options[0].variants){
+    const ids=choice.groups.flatMap(g=>g.card_ids);
+    assert.equal(ids.length,new Set(ids).size);
+    assert.ok(ids.every(id=>hand.some(c=>c.card_id===id)));
+    assert.equal(choice.groups.find(g=>g.meld_type==='tunnela').card_ids.length,3);
+    const key=choice.groups.map(g=>[...g.card_ids].sort().join(',')).sort().join('|');
+    assert.ok(!keys.has(key));keys.add(key);
+  }
+  assert.deepEqual(maalOptions([...hand].reverse(),false),options);
+  assert.equal(hand.length-options[0].variants[0].groups.flatMap(g=>g.card_ids).length,0);
+  const smallest=options[0].variants.find(c=>maalChoiceSizes(c)==='3-3-3');
+  assert.equal(hand.length-smallest.groups.flatMap(g=>g.card_ids).length,4);
+});
+
+test('normal qualification supports 3–5 card runs and Dublee can be excluded for small games', async () => {
+  const {maalOptions}=await import('../src/multiplayer/maalProgress.ts');
+  const hand=[2,3,4,5,6,7,8].flatMap(r=>[card(r,'H'),card(r,'H',1)]);
+  assert.ok(maalChoices(hand).some(c=>c.route==='dublee'));
+  assert.ok(maalOptions(hand,false).every(o=>o.choice.route==='normal'));
+  for(const choice of maalChoices(hand,false))for(const g of choice.groups)assert.ok(g.card_ids.length>=3&&g.card_ids.length<=5);
+});

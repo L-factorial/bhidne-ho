@@ -1,3 +1,4 @@
+import {ActivityLine} from './ActivityLine';
 import {AppText as Text} from './AppText';
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
@@ -55,7 +56,7 @@ export function BlockPlayerButton({session, player, enabled, onBlocked, renderTr
     {renderTrigger ? renderTrigger(launch) : <Button text={ui('safety.block')} label={ui('safety.block_player', {name: player.display_name})} onPress={launch} />}
     {open && <RoomSheet visible presentation="dialog" title={ui('safety.block_player', {name: player.display_name})} onClose={() => { if (!busy) setOpen(false); }}>
       <Text style={{color: c.text, fontFamily: fonts.body}}>{ui('safety.explanation')}</Text>
-      {!!error && <Text accessibilityRole="alert" style={{color: c.danger}}>{error}</Text>}
+      {!!error && <Text activity accessibilityRole="alert" style={{color: c.danger}}>{error}</Text>}
       <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 12}}>
         <Button text={ui('safety.confirm')} disabled={busy} onPress={() => void block()} />
         <Button text={ui('safety.cancel')} disabled={busy} onPress={() => setOpen(false)} />
@@ -110,8 +111,8 @@ export function BlockedPlayers({session}: {session: Session}) {
     </Pressable>
     {open && <RoomSheet visible title={ui('safety.blocked_players')} onClose={() => setOpen(false)}>
       <Text style={{color: c.textMuted, fontFamily: fonts.body}}>{ui('safety.unblock_help')}</Text>
-      {!!error && <><Text accessibilityRole="alert" style={{color: c.danger}}>{error}</Text><Button text={ui('safety.retry')} disabled={busy} onPress={() => setRefresh(v => v + 1)} /></>}
-      {busy && <Text accessibilityLiveRegion="polite" style={{color: c.text}}>{ui('safety.loading')}</Text>}
+      {!!error && <><Text activity accessibilityRole="alert" style={{color: c.danger}}>{error}</Text><Button text={ui('safety.retry')} disabled={busy} onPress={() => setRefresh(v => v + 1)} /></>}
+      {busy && <ActivityLine />}
       {!busy && !error && !page.items.length && <Text style={{color: c.text}}>{ui('safety.empty')}</Text>}
       {page.items.map(player => <View key={player.user_id} style={{flexDirection: 'row', gap: 12, alignItems: 'center'}}>
         <Text style={{flex: 1, color: c.text, fontFamily: fonts.body}}>{player.display_name || player.username || player.user_id}</Text>

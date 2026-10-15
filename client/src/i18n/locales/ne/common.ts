@@ -1,5 +1,8 @@
-// Editable Nepali common copy. Keep keys and {{placeholders}} in sync with the other locale.
+// Editable common copy. Keep keys and placeholders in sync.
 export default {
+  config_updated: 'अर्को खेलका लागि कन्फिग परिवर्तन भयो।',
+  next_field: 'अर्को फिल्ड',
+  "config_update_help": "सिर्जनाकर्ताले खेल कन्फिग परिवर्तन गर्नुभयो। अर्को खेलमा लागू हुन्छ।",
   signup_avatar_help: 'साथीहरूले तपाईंलाई चिन्न अवतार छान्नुहोस्। पछि प्रोफाइलबाट परिवर्तन गर्न सक्नुहुन्छ।',
   skip_for_now: 'अहिलेलाई छोड्नुहोस्',
   choose_avatar: "अवतार छान्नुहोस्",
@@ -19,7 +22,7 @@ export default {
   "bet_value": "बेट रकम",
   "bet_values": "बेट रकम",
   "custom_rules": "आफ्ना नियम",
-  "propose_changes": "परिवर्तन प्रस्ताव गर्नुहोस्",
+  "propose_changes": "कन्फिग बचत गर्नुहोस्",
   "card_theme_saving": "टेबलको तास थिम बदलिँदैछ…",
   "card_theme_controller_help": "यो थिम डिलरले मात्र बदल्न सक्छन्। डिलर नतोकिएको बेला टेबल बनाउने व्यक्तिले बदल्न सक्छन्।",
   "card_theme_shared_help": "यस टेबलमा सबैले तासको एउटै पछाडिको डिजाइन देख्छन्।",
@@ -311,7 +314,7 @@ export default {
   "your_hand_grouped_by_suit_suits": "रङअनुसार मिलाइएको तपाईँको तास: {{suits}}",
   "blind_blindamount_seen_seenamount": "ब्लाइन्ड {{blindAmount}} · हेरेपछि {{seenAmount}}",
   "show_status": "शो: {{status}}",
-  "propose_these_changes_for_approval_before_starting": "सुरु गर्नुअघि यी परिवर्तन स्वीकृतिका लागि प्रस्ताव गर्ने।",
+  "propose_these_changes_for_approval_before_starting": "सिर्जनाकर्ताले खेलअघि वा खेलहरूबीच कन्फिग बचत गर्न सक्नुहुन्छ। खेलाडीहरूलाई सूचना दिइन्छ।",
   "save_or_reload_rule_changes_first": "पहिले नियमका परिवर्तन सेभ वा फेरि लोड गर्ने।",
   "saved_rules_changed_reload_before_editing_or_starting": "सेभ भएका नियम फेरिए। सम्पादन वा सुरु गर्नुअघि फेरि लोड गर्ने।",
   "deal_and_turns": "तास बाँड्ने र पालो",
@@ -579,10 +582,10 @@ export default {
   "stats_seat_previous": "बोल {{bids}} • बोनस {{bonus}}",
   "stats_seat_current": "बोल {{bid}} / जित {{won}}",
   "game_rules": "खेलका आधारभूत नियम",
-  "game_rules_config": "खेलका नियम र बेट सेटिङ",
+  "game_rules_config": "खेल कन्फिग",
   "close_game_rules": "खेलका नियम बन्द गर्ने",
   "close_game_rules_config": "खेलका नियमको सेटिङ बन्द गर्ने",
   "game_rules_variations": "बदल्न मिल्ने विकल्पहरू",
-  "rules_config_editable": "लक गर्नुअघि सेटिङ मिलाउनुहोस्। परिवर्तनमा खेलाडीहरूको सहमति चाहिन्छ।",
+  "rules_config_editable": "सिर्जनाकर्ताले खेलअघि वा खेलहरूबीच कन्फिग बचत गर्न सक्नुहुन्छ। खेलाडीहरूलाई सूचना दिइन्छ।",
   "rules_config_read_only": "सहमत सेटिङ · हेर्न मात्र मिल्ने",
 } as const;

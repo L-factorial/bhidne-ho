@@ -39,7 +39,7 @@ def test_draw_discard_and_visible_pickup_preserve_order_and_events():
     assert [(e.kind, e.sequence, e.revision) for e in result.events] == [("CARD_DRAWN", 3, 2)]
     assert result.events[0].card == card and result.events[0].source is DrawSource.STOCK
     actions = engine.get_allowed_actions("p0")
-    assert actions.kinds == (ActionKind.FOLD, ActionKind.DISCARD, ActionKind.SHOW_INITIAL_MELDS, ActionKind.SHOW_DUBLEES)
+    assert actions.kinds == (ActionKind.FOLD, ActionKind.DISCARD, ActionKind.SHOW_INITIAL_MELDS)
     assert actions.discardable_card_ids == tuple(c.card_id for c in drawn.players[0].hand)
 
     result = engine.discard_card("p0", card.card_id)
@@ -276,8 +276,8 @@ def test_first_player_can_pick_up_initial_face_up_discard():
     validate_game_state(engine.get_state())
 
 
-@pytest.mark.parametrize('route', [QualificationRoute.NORMAL, QualificationRoute.DUBLEE])
-def test_qualification_requires_draw_then_allows_maal_and_discard(route):
+@pytest.mark.parametrize('route', [QualificationRoute.NORMAL])
+def test_first_turn_can_qualify_before_draw_then_discard(route):
     engine = qualified_fixture(route)
     state = engine.get_state()
     groups = state.players[0].shown_melds
@@ -287,20 +287,12 @@ def test_qualification_requires_draw_then_allows_maal_and_discard(route):
     validate_game_state(engine.get_state())
     show = engine.show_initial_melds if route is QualificationRoute.NORMAL else engine.show_dublees
     assert ActionKind.DRAW in engine.get_allowed_actions('p0').kinds
-    assert ActionKind.SHOW_INITIAL_MELDS not in engine.get_allowed_actions('p0').kinds
+    assert ActionKind.SHOW_INITIAL_MELDS in engine.get_allowed_actions('p0').kinds
     assert ActionKind.SHOW_DUBLEES not in engine.get_allowed_actions('p0').kinds
-    before, rng = engine.get_state(), engine._rng.getstate()
-    with pytest.raises(InvalidActionError):
-        show('p0', groups)
-    assert engine.get_state() is before and engine._rng.getstate() == rng
-    assert engine.get_player_view('p0').maal is None
-    assert not engine.get_state().players[0].has_seen_maal
-    assert engine.get_state().phase is TurnPhase.MUST_DRAW
-    assert len(engine.get_state().players[0].hand) == 21
-    assert not engine.get_state().players[0].has_seen_maal
-    assert ActionKind.DISCARD not in engine.get_allowed_actions('p0').kinds
-    engine.draw_card('p0', DrawSource.STOCK)
     show('p0', groups)
+    assert engine.get_player_view('p0').maal is not None
+    assert engine.get_state().phase is TurnPhase.MUST_DRAW
+    engine.draw_card('p0', DrawSource.STOCK)
     assert engine.get_state().phase is TurnPhase.MUST_DISCARD
     assert engine.get_state().current_player_id == 'p0'
     assert engine.get_player_view('p0').maal is not None

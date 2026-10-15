@@ -47,6 +47,8 @@ def start_rejection(game, actor, payload, *, allow_finished_flush=False):
 
 
 def build_initial_engine(host, game, command_id):
+    from .seating import clockwise_roster
+    game.users[:] = clockwise_roster(game, game.users)
     events = []
     if game.game_type == 'callbreak':
         game.state = create_callbreak_match(game, host._random)

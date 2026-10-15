@@ -1,5 +1,6 @@
+import {ActivityLine} from './ActivityLine';
 import {useEffect, useState} from 'react';
-import {ActivityIndicator, Pressable, View} from 'react-native';
+import {Pressable, View} from 'react-native';
 import {Ionicons} from '@expo/vector-icons';
 import {AppText as Text} from './AppText';
 import {ui} from '../i18n/copy';
@@ -48,10 +49,10 @@ export function LobbyLedger({session, onOpenRoom}: {session: Session; onOpenRoom
     <Text style={{fontFamily: fonts.display, fontSize: 24, color: colors.text, textAlign: 'center'}}>{ui('ledger.ledger')}</Text>
     <Text style={{fontFamily: fonts.body, fontSize: 12, color: colors.textMuted, textAlign: 'center'}}>{ui('ledger.pending_rooms')}</Text>
     {!!error && <View style={{gap: 8, alignItems: 'center'}}>
-      <Text accessibilityRole="alert" style={{color: colors.danger}}>{error}</Text>
+      <Text activity accessibilityRole="alert" style={{color: colors.danger}}>{error}</Text>
       <Pressable accessibilityRole="button" onPress={() => setRetry(value => value + 1)} style={{minHeight: 44, justifyContent: 'center'}}><Text style={{color: colors.accent}}>{ui('common.retry')}</Text></Pressable>
     </View>}
-    {!rooms && !error && <View style={{minHeight: 180, alignItems: 'center', justifyContent: 'center', gap: 10}}><ActivityIndicator size="small" color={colors.textMuted} /><Text style={{fontSize: 12, color: colors.textMuted}}>{ui('ledger.loading_rooms')}</Text></View>}
+    {!rooms && !error && <View style={{minHeight: 180, alignItems: 'center', justifyContent: 'center', gap: 10}}><ActivityLine /></View>}
     {rooms?.length === 0 && <View style={{...gamePanelFinish(colors), borderRadius: radii.large, borderWidth: 1, borderColor: colors.borderSubtle, padding: 28, alignItems: 'center', gap: 12}}><Ionicons name="receipt-outline" size={28} color={colors.textMuted} /><Text style={{color: colors.textMuted, textAlign: 'center'}}>{ui('ledger.no_pending_rooms')}</Text></View>}
     {rooms?.map(room => <Pressable key={room.room_id} testID={`pending-ledger-room-${room.room_id}`} accessibilityRole="button" accessibilityLabel={room.name}
       onPress={() => onOpenRoom({...room, members: [session.user_id]})}

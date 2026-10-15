@@ -49,9 +49,9 @@ export function PlayerPhrases({ phrases, userId, connected, loadError, onSave, o
         returnKeyType="done" onSubmitEditing={() => void change()} />
 
         <Pressable accessibilityRole="button" accessibilityLabel={ui("social.save_personal_phrase")} disabled={busy || !connected || !text.trim() || (!editing && phrases.length >= PLAYER_PHRASE_LIMIT)}
-          onPress={() => void change()} style={[styles.add, (busy || !connected || !text.trim() || (!editing && phrases.length >= PLAYER_PHRASE_LIMIT)) && { opacity: visualStates.disabledOpacity }]}><Text style={styles.addText}>{busy ? ui("common.saving") : editing ? ui("common.update_label") : ui("common.save")}</Text></Pressable></View>
+          onPress={() => void change()} style={[styles.add, (busy || !connected || !text.trim() || (!editing && phrases.length >= PLAYER_PHRASE_LIMIT)) && { opacity: visualStates.disabledOpacity }]}><Text activity style={styles.addText}>{busy ? ui("common.saving") : editing ? ui("common.update_label") : ui("common.save")}</Text></Pressable></View>
       <Text style={styles.note}>{ui("social.phrase_counts", {length: pokeTextLength(text), limit: POKE_TEXT_LIMIT, count: phrases.length, maximum: PLAYER_PHRASE_LIMIT})}</Text>
-      {!!(error || loadError) && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error || loadError, 'feedback')}</Text>}
+      {!!(error || loadError) && <Text activity accessibilityRole="alert" style={styles.error}>{uiLabel(error || loadError, 'feedback')}</Text>}
     </View>}
   </View>;
 }

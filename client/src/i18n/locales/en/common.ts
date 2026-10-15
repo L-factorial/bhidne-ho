@@ -1,5 +1,8 @@
-// Editable English common copy. Keep keys and {{placeholders}} in sync with the other locale.
+// Editable common copy. Keep keys and placeholders in sync.
 export default {
+  config_updated: 'Game config updated for the next game.',
+  next_field: 'Next field',
+  "config_update_help": "The creator updated the game config. These changes apply to the next game.",
   signup_avatar_help: 'Choose an avatar so friends can recognize you. You can change it anytime in Profile.',
   skip_for_now: 'Skip for now',
   choose_avatar: "Choose avatar",
@@ -19,7 +22,7 @@ export default {
   "bet_value": "Bet value",
   "bet_values": "Bet values",
   "custom_rules": "Custom rules",
-  "propose_changes": "Propose changes",
+  "propose_changes": "Save config",
   "card_theme_saving": "Updating the table’s card theme…",
   "card_theme_controller_help": "Only the dealer can change this theme. The creator controls it when no dealer is assigned.",
   "card_theme_shared_help": "Everyone at this table sees the same card backs.",
@@ -311,7 +314,7 @@ export default {
   "your_hand_grouped_by_suit_suits": "Your hand, grouped by suit: {{suits}}",
   "blind_blindamount_seen_seenamount": "Blind {{blindAmount}} · Seen {{seenAmount}}",
   "show_status": "Show: {{status}}",
-  "propose_these_changes_for_approval_before_starting": "Propose these changes for approval before starting.",
+  "propose_these_changes_for_approval_before_starting": "The creator can save config before a game or between games. Players are notified.",
   "save_or_reload_rule_changes_first": "Save or reload rule changes first.",
   "saved_rules_changed_reload_before_editing_or_starting": "Saved rules changed. Reload before editing or starting.",
   "deal_and_turns": "Deal and turns",
@@ -579,10 +582,10 @@ export default {
   "stats_seat_previous": "{{bids}} bids • {{bonus}} bonus",
   "stats_seat_current": "{{bid}} bid / {{won}} won",
   "game_rules": "Basic Game Rules",
-  "game_rules_config": "Game rules and bet config",
+  "game_rules_config": "Game Config",
   "close_game_rules": "Close game rules",
   "close_game_rules_config": "Close game rules config",
   "game_rules_variations": "Configurable variations",
-  "rules_config_editable": "Configure before locking. Changes require player approval.",
+  "rules_config_editable": "The creator can save config before a game or between games. Players are notified.",
   "rules_config_read_only": "Agreed settings · Read only",
 } as const;

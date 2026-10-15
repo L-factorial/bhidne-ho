@@ -151,3 +151,49 @@ async def test_completed_games_returnable_in_play_until_reserved_seat_is_release
         assert (await query.room('room', users[1]))['tables'][0]['phase'] == 'COMPLETED'
     finally:
         await host.close()
+
+
+async def test_flush_departed_participant_profile_is_loaded_and_invalidates_cache(database):
+    from test_flush_restart import finished, table_action
+    pool, store, fence, users = database
+    host, game, inbox, lane, *_ = await finished(database)
+    try:
+        await pool.execute("INSERT INTO user_profiles(user_id,display_name) VALUES (%s,'ekraj'),(%s,'')",
+                           (UUID(users[0][5:]), UUID(users[1][5:])))
+        await pool.execute("INSERT INTO account_credentials(user_id,username,password_salt,password_hash) VALUES (%s,'prabingiri',%s,%s)", (UUID(users[1][5:]), b'salt', b'hash'))
+        assert (await table_action(database, game, inbox, lane, 'leave-seat', actor=users[1]))[0]['status'] == 'accepted'
+        # Historical participants must be hydrated even outside current membership.
+        await pool.execute('DELETE FROM room_memberships WHERE room_id=%s AND user_id=%s', ('room', UUID(users[1][5:])))
+        query = PostgresHostedQueries(pool, cache=ReadCache(Redis()))
+        async def participant_name():
+            snapshot = (await query.room('room', users[0], table_id=game.table.table_id))['snapshot']
+            assert users[1] not in [p['user_id'] for p in snapshot['players']]
+            return next(p['display_name'] for p in snapshot['flush']['participants'] if p['player_id'] == '2')
+        assert await participant_name() == 'prabingiri'
+        await pool.execute("UPDATE user_profiles SET display_name='Prabin' WHERE user_id=%s", (UUID(users[1][5:]),))
+        assert await participant_name() == 'Prabin'
+        # The asynchronous update path must hydrate the same historical identity.
+        from uuid import uuid4
+        from app.durable_games.view_generation import GenerationClaim, ViewGenerationWorker, projected_view
+        from app.durable_games.view_delta import apply_delta
+        from test_view_generation import Presence
+        saved = await store.load(game.table.table_id)
+        checkpoint = saved.checkpoint
+        from copy import deepcopy
+        before = deepcopy(checkpoint)
+        before['data']['table_revision'] -= 1
+        from hashlib import sha256
+        from app.durable_games.checkpoints import canonical_json, Checkpoint
+        normalized = Checkpoint.model_validate_json(canonical_json(before)).data.model_dump(mode='json')
+        before['digest'] = sha256(canonical_json(normalized).encode()).hexdigest()
+        claim = GenerationClaim(UUID(game.table.table_id), checkpoint['data']['table_revision'],
+                                before['data']['table_revision'], uuid4(), before, checkpoint)
+        [(recipient, payload)] = await ViewGenerationWorker(pool, Presence([users[0]])).generate(claim)
+        names = {users[0]: 'ekraj', users[1]: 'Prabin'}
+        assert recipient == UUID(users[0][5:])
+        base = projected_view(before, users[0], names)
+        assert payload['type'] == 'VIEW_DELTA'
+        assert apply_delta(base, payload['delta'], game_id=game.match_id,
+                           revision=before['data']['table_revision']) == projected_view(checkpoint, users[0], names)
+    finally:
+        await host.close()

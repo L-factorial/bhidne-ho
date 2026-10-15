@@ -18,7 +18,7 @@ def pairs_in(hand):
 
 
 def run_demo(seed=42, max_turns=2000):
-    game = MarriageGameEngine(("p1", "p2"), rng=Random(seed))
+    game = MarriageGameEngine(("p1", "p2", "p3", "p4"), rng=Random(seed))
     game.start_game()
     for player in game.get_state().players:
         game.declare_tunnelas(player.player_id, ())

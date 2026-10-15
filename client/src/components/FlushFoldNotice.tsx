@@ -23,6 +23,6 @@ export function FlushFoldNotice({ snapshot }: { snapshot: RoomSnapshot }) {
     const timer = setTimeout(() => setNotice(''), 5000);
     return () => clearTimeout(timer);
   }, [notice, sequence]);
-  return notice ? <Text accessibilityLiveRegion="polite" testID="flush-fold-notice"
+  return notice ? <Text activity accessibilityLiveRegion="polite" testID="flush-fold-notice"
     style={{ color: colors.text, backgroundColor: colors.surfaceSelected, padding: 10, borderRadius: radii.medium, textAlign: 'center' }}>{notice}</Text> : null;
 }

@@ -1,3 +1,4 @@
+import { flushPlayerName } from '../multiplayer/flush';
 import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -17,7 +18,7 @@ export function FlushBetTable({ snapshot }: { snapshot: RoomSnapshot }) {
       <View style={s.row}>{[ui("common.player"), ...results.map(r => ui("flush.round_number", { "number": r.round_number })), ui("flush.total")].map(h => <Text key={h} style={[s.cell, s.header]}>{h}</Text>)}</View>
       {(snapshot.flush?.participants || pub.players).map(p => {
         const amounts = results.map(r => r.net_changes.find(change => change.player_id === p.player_id)?.amount ?? 0);
-        const name = snapshot.flush?.participants?.find(row => row.player_id === p.player_id)?.display_name || snapshot.players?.find(row => String(row.player_id) === p.player_id)?.display_name || ui("common.player_number", { "number": p.player_id });
+        const name = flushPlayerName(p.player_id, snapshot.flush?.participants, snapshot.players || []) || ui("common.player_number", { "number": p.player_id });
         return <View key={p.player_id} style={s.row}>
           <Text style={s.cell}>{name}</Text>
           {[...amounts, amounts.reduce((sum, amount) => sum + amount, 0)].map((amount, i) => <Text key={i} style={s.cell}>{signed(amount)}</Text>)}

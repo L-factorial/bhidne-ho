@@ -8,8 +8,8 @@ test('viewer rotates down without changing clockwise seating; spectators retain 
   assert.deepEqual(seatedOrder(players,''),players);
   assert.deepEqual(players.map(p=>p.id),['1','2','3','4','5']);
 });
-test('two through five spatial seats stay separate and inside narrow/mobile and desktop tables', () => {
-  for(const width of [256,280,336,760]) for(const compact of [false,true]) for(let count=2;count<=5;count++) {
+test('two through six spatial seats stay separate and inside narrow/mobile and desktop tables', () => {
+  for(const width of [256,280,336,760]) for(const compact of [false,true]) for(let count=2;count<=6;count++) {
     const layout=tableSeatGeometry(count,width,compact);
     assert.equal(layout.positions.length,count);
     assert.equal(layout.positions[0].x,width/2);

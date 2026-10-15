@@ -113,9 +113,10 @@ export function finishingGaps(cards: MarriageCard[], hand: MarriageCard[], maal:
   return gaps;
 }
 
-export type MarriageWinChoice = { melds: MarriageWinningMeld[]; discard_card_id?: string; winning_pair?: string[] };
+export type MarriageWinChoice = { melds: MarriageWinningMeld[]; discard_card_id?: string; winning_pair?: string[]; pairs?:MarriageMeld[] };
 /** Bounded exact covers: alternatives use physical IDs and keep locked melds intact. */
-export function marriageWinChoices(hand: MarriageCard[], shown: MarriageMeld[], maal: SeenMaal, route: string, protectedDiscardIds: readonly string[] = []): MarriageWinChoice[] {
+export function marriageWinChoices(hand: MarriageCard[], shown: MarriageMeld[], maal: SeenMaal|null, route: string, protectedDiscardIds: readonly string[] = [], playerCount=4): MarriageWinChoice[] {
+  if(!maal)return unseenMarriageWinChoices(hand,shown,route,playerCount,protectedDiscardIds);
   if (hand.length !== 22) return [];
   const cards = remainingCards(hand, shown);
   if (route === 'dublee' && shown.length === 7) {
@@ -162,4 +163,69 @@ export function marriageWinChoices(hand: MarriageCard[], shown: MarriageMeld[], 
     }
   }
   return result;
+}
+
+/** Natural candidates only: no indicator lookup, wildcard substitution or 2^22 scan. */
+function unseenNaturalGroups(cards:MarriageCard[]):MarriageWinningMeld[]{
+  const buckets=new Map<string,MarriageCard[]>();
+  for(const c of cards)if(c.card_type==='standard'){
+    const key=`${c.suit}:${c.rank}`;buckets.set(key,[...(buckets.get(key)||[]),c]);
+  }
+  const groups:MarriageWinningMeld[]=[],seen=new Set<string>();
+  const add=(kind:MarriageWinningMeld['meld_type'],held:MarriageCard[])=>{
+    const ids=held.map(c=>c.card_id),key=[...ids].sort().join(',');
+    if(!seen.has(key)){seen.add(key);groups.push({meld_type:kind,card_ids:ids});}
+  };
+  for(const bucket of buckets.values())if(bucket.length===3)add('tunnela',bucket);
+  const orders=[[14,...Array.from({length:12},(_,i)=>i+2)],Array.from({length:13},(_,i)=>i+2)];
+  for(const suit of ['S','C','H','D'])for(const order of orders)for(let start=0;start<order.length;start++)for(let size=3;size<=order.length-start;size++){
+    const held=order.slice(start,start+size).map(r=>buckets.get(`${suit}:${r}`)||[]);
+    if(held.some(bucket=>!bucket.length))break;
+    const choose=(index:number,plan:MarriageCard[])=>{if(index===held.length){add('pure_sequence',plan);return;}for(const c of held[index])choose(index+1,[...plan,c]);};
+    choose(0,[]);
+  }
+  return groups.sort((a,b)=>a.card_ids.length-b.card_ids.length||a.card_ids.join(',').localeCompare(b.card_ids.join(',')));
+}
+
+export function unseenMarriageWinChoices(hand:MarriageCard[],shown:MarriageMeld[],route:string,playerCount:number,protectedDiscardIds:readonly string[]=[]):MarriageWinChoice[]{
+  if(hand.length!==22)return [];
+  const cards=remainingCards(hand,shown),protectedIds=new Set(protectedDiscardIds);
+  const results:MarriageWinChoice[]=[];
+  if(route!=='dublee'){
+    const positions=new Map(cards.map((c,i)=>[c.card_id,i])),full=(1<<cards.length)-1;
+    const candidates:{mask:number;group:MarriageWinningMeld}[][]=cards.map(()=>[]);
+    for(const group of unseenNaturalGroups(cards)){
+      const mask=group.card_ids.reduce((n,id)=>n|(1<<positions.get(id)!),0);
+      for(const id of group.card_ids)candidates[positions.get(id)!].push({mask,group});
+    }
+    const memo=new Map<number,MarriageWinningMeld[][]>();
+    function cover(mask:number):MarriageWinningMeld[][]{
+      if(!mask)return [[]];
+      const cached=memo.get(mask);if(cached)return cached;
+      const first=31-Math.clz32(mask&-mask),plans:MarriageWinningMeld[][]=[];
+      for(const item of candidates[first])if((mask&item.mask)===item.mask){
+        for(const rest of cover(mask^item.mask)){plans.push([item.group,...rest]);if(plans.length>=24){memo.set(mask,plans);return plans;}}
+      }
+      memo.set(mask,plans);return plans;
+    }
+    const limit=route==='unqualified'&&playerCount>=4?12:24;
+    naturalPlans:for(let i=0;i<cards.length;i++)if(!protectedIds.has(cards[i].card_id)){
+      for(const groups of cover(full^(1<<i))){results.push({melds:[...shown,...groups],discard_card_id:cards[i].card_id});if(results.length>=limit)break naturalPlans;}
+    }
+  }
+  if(route==='normal'||playerCount<4)return results;
+  for(const discard of cards){
+    if(protectedIds.has(discard.card_id))continue;
+    const faces=new Map<string,MarriageCard[]>();
+    for(const c of cards)if(c.card_id!==discard.card_id&&c.card_type==='standard'){
+      const key=`${c.suit}:${c.rank}`;faces.set(key,[...(faces.get(key)||[]),c]);
+    }
+    const pairs:MarriageMeld[]=[...faces.values()].filter(cs=>cs.length>=2).map(cs=>({meld_type:'dublee',card_ids:cs.slice(0,2).map(c=>c.card_id)}));
+    function choose(start:number,plan:MarriageMeld[]){
+      if(plan.length+shown.length===8){const all=[...shown,...plan];results.push({melds:all,pairs:all,discard_card_id:discard.card_id});return;}
+      for(let i=start;i<pairs.length&&results.length<24;i++)choose(i+1,[...plan,pairs[i]]);
+    }
+    choose(0,[]);if(results.length>=24)return results;
+  }
+  return results;
 }

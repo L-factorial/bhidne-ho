@@ -103,6 +103,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   const [rulesOpen, setRulesOpen] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
   const [handView, setHandView] = useState<HandView>("fan");
+  const [occupiedHandHeight,setOccupiedHandHeight] = useState(93);
   const [collapsedHandHeight, setCollapsedHandHeight] = useState(93);
   const [pokeTarget, setPokeTarget] = useState<number | null | undefined>(undefined);
   const [pokeNotice, setPokeNotice] = useState<{ player: string | null; at: number } | null>(null);
@@ -145,7 +146,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   if (!ended && game?.phase === 'SELECTING_DEALER' && game.dealer_selection) return <View style={styles.page}><ThemeBackdrop />
     {header}{gameRules}<GameStats snapshot={snapshot} open={stats.open} onOpen={stats.show} onClose={stats.close}><View style={{ flex:1, minHeight:0 }}>
       <DealerSelectionTable snapshot={snapshot} busy={busy} onPick={position => onAction('PICK_DEALER_CARD', { position })} />
-      {!!error && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
+      {!!error && <Text activity accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
     </View></GameStats>{socialOverlay}
   </View>;
   if (ended && (!game || !deal)) return <View style={styles.page}><ThemeBackdrop />{header}{gameRules}<GameStats snapshot={snapshot} open={stats.open} onOpen={stats.show} onClose={stats.close}><View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>{endedNotice}</View></GameStats></View>;
@@ -153,12 +154,12 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     {header}{gameRules}
     <GameStats snapshot={snapshot} open={stats.open} onOpen={stats.show} onClose={stats.close}><ScrollView contentContainerStyle={{ flexGrow: 1 }}>
       <PreGameTable fill snapshot={snapshot}>{startCue}</PreGameTable>
-      {!!error && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
+      {!!error && <Text activity accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
     </ScrollView></GameStats>{snapshot.your_player_id && <WaitingHandArea />}{socialOverlay}
   </View>;
-  if (!ended && (snapshot.round_review || game.finished) && !reveal) return <View style={styles.page}><ThemeBackdrop />{header}{gameRules}<GameStats snapshot={snapshot} open={stats.open} onOpen={stats.show} onClose={stats.close}><RoundSummary
+  if (!ended && (snapshot.round_review || game.finished) && !reveal) return <View style={styles.page}><ThemeBackdrop />{header}{gameRules}<GameStats snapshot={snapshot} open={stats.open} onOpen={stats.show} onClose={stats.close}><RoundSummary formation={game.finished ? <PreGameTable snapshot={snapshot}>{startCue}</PreGameTable> : undefined}
     snapshot={snapshot} busy={busy} error={error || (snapshot.error ? playerError(snapshot.error) : '')} onContinue={onNextDeal} onBack={onBack} onNewGame={onNewGame}
-    hideNavigation controls={game.finished ? startCue : snapshot.round_review?.can_continue ? <View testID="callbreak-center-next-deal" style={{ minHeight: 160, alignItems: 'center', justifyContent: 'center' }}>
+    hideNavigation controls={game.finished ? null : snapshot.round_review?.can_continue ? <View testID="callbreak-center-next-deal" style={{ minHeight: 160, alignItems: 'center', justifyContent: 'center' }}>
       <Pressable accessibilityRole="button" accessibilityLabel={ui("callbreak.start_next_deal")} disabled={busy} onPress={onNextDeal} style={styles.button}><ActionCue active={!busy} style={styles.buttonText}>{ui("callbreak.start_next_deal")}</ActionCue></Pressable>
     </View> : <Text style={styles.meta}>{ui("common.waiting_for_the_creator_to_start_the_next_deal")}</Text>} /></GameStats>{socialOverlay}</View>;
   const players = deal.players.map(player => ({ id: String(player.player_id), name: playerName(player.player_id),
@@ -182,13 +183,13 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     {header}{gameRules}
 
     <View style={[styles.workspace, wide && styles.wideBody]}>
-    <View style={[styles.playColumn, wide && { alignSelf: 'stretch' }, handAvailable && { paddingBottom: collapsedHandHeight }]}>
+    <View style={[styles.playColumn, wide && { alignSelf: 'stretch' }, handAvailable && { paddingBottom: Math.max(collapsedHandHeight,occupiedHandHeight) }]}>
     <View style={styles.body}>
     <GameStats snapshot={snapshot} open={stats.open} onOpen={() => { cards.collapse(); stats.show(); }} onClose={stats.close}>
     <ScrollView testID="callbreak-play-viewport" style={styles.tableScroll} onLayout={event => { setTableWidth(event.nativeEvent.layout.width); setTableHeight(event.nativeEvent.layout.height); }} contentContainerStyle={[styles.container, {
       paddingTop: 0, paddingBottom: 12,
     }]}><View style={{ width }}>
-    {!!(error || snapshot.error) && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error || (snapshot.error ? playerError(snapshot.error) : ''), 'feedback')}</Text>}
+    {!!(error || snapshot.error) && <Text activity accessibilityRole="alert" style={styles.error}>{uiLabel(error || (snapshot.error ? playerError(snapshot.error) : ''), 'feedback')}</Text>}
     <CardTable height={tableHeight - 12} detailedStats centerStatus={<><Text numberOfLines={2} style={[styles.meta, { textAlign: 'center' }]}>{ui('callbreak.summary_round', { round: deal.deal_number, total: 5 })}{'\n'}{ui('callbreak.summary_hand', { hand: trick?.trick_number ?? Math.min(deal.tricks_completed + 1, deal.tricks_required), total: deal.tricks_required })}</Text><Text accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 }}>{game.turn.player_id ? ui('common.player_s_turn', { player: playerName(game.turn.player_id) }) : ui('callbreak.current_trick')}</Text></>} showScores={game.phase === 'BIDDING' || game.phase === 'PLAYING'} compact={mobile && screenHeight < 760} centerControl={ended ? endedNotice : preparation || showDealerNotice ? <View style={{gap:8,alignItems:'center'}}>
         {showDealerNotice&&<Text accessibilityLiveRegion="polite" style={styles.meta}>{ui('callbreak.selected_dealer',{player:playerName(deal.dealer)})}</Text>}
         {preparation}
@@ -219,7 +220,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
         </View>)}
       </View>}
     </View>}
-    {handAvailable && <MobileGameHand draggingCard={draggingCard} cue={gameAttention(snapshot)} docked overlay onCollapsedHeight={setCollapsedHandHeight} desktopDrawer mobile={mobile} game="callbreak" keepMounted cardCount={mine?.hand.length || 0}
+    {handAvailable && <MobileGameHand draggingCard={draggingCard} cue={gameAttention(snapshot)} docked overlay onOccupiedHeight={setOccupiedHandHeight} onCollapsedHeight={setCollapsedHandHeight} desktopDrawer mobile={mobile} game="callbreak" keepMounted cardCount={mine?.hand.length || 0}
       open={cards.open} onToggle={() => { stats.close(); cards.toggle(); }} myTurn={isTurn}
       attention={isTurn || !!mine?.can_accept_hand || !!mine?.can_claim_redeal}
       attentionText={mine?.can_accept_hand || mine?.can_claim_redeal ? ui("callbreak.review_your_cards_accept_or_request_redeal") : isTurn ? game.phase === 'BIDDING' ? ui("callbreak.make_your_call") : ui("callbreak.play_a_card") : ui("common.your_cards_count", {count: mine?.hand.length || 0})}>
@@ -231,7 +232,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     <Text style={[styles.title, { fontSize: 22, marginVertical: 4 }]}>{mine ? ui("common.your_hand_count_cards", { "count": mine.hand.length }) : ui("rooms.spectator_view")}</Text>
     {mine && <PlayerHand onDragChange={setDraggingCard} compactControls turnKey={`${game.phase}:${game.turn.player_id}:${game.current_trick?.trick_number}`} view={handView} onViewChange={setHandView} dealKey={handDealKey} onRevealComplete={setRevealedDeal} hand={mine.hand} legalCards={mine.legal_cards}
       canPlay={!reveal && !busy && isTurn && game.phase === 'PLAYING'} onPlay={card => cards.act('PLAY_CARD', { card })} />}
-    {!!error && <Text accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
+    {!!error && <Text activity accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
     </View></MobileGameHand>}
 
     </View>

@@ -7,15 +7,15 @@ from flush import (FlushGameEngine, FlushRulesConfig, RequestSideShow, AcceptSid
                    Bet, SeeCards, Fold, Show, FlushError, PlayerStatus, GameStatus, validate_game_state)
 
 
-def game():
+def game(minimum=10):
     e = FlushGameEngine(['a', 'b', 'c', 'd'],
-        rules=FlushRulesConfig(5, 10, allow_side_show=True, minimum_bet_rounds_before_side_show=0), rng=Random(2))
+        rules=FlushRulesConfig(5, minimum, allow_raise=True, max_raise=5, allow_side_show=True, minimum_bet_rounds_before_side_show=0), rng=Random(2))
     e.start_game()
     e.deal_cards(e.get_state().current_player_id)
     e.skip_cut(e.get_state().current_player_id)
     for p in 'bcda':
         e.see_cards(p)
-        e.bet(p, 20)
+        e.bet(p, minimum*2)
     return e  # b's turn; previous active seen is a
 
 
@@ -47,15 +47,16 @@ def test_request_pauses_turns_decline_returns_requester_without_charge():
 
 
 def test_side_show_records_large_contribution_without_a_balance():
-    e = game()
-    e.bet('b', 1000000)
+    e = game(minimum=250000)
+    large = 1000000
+    e.bet('b', large)
     before = e.get_state().pot
     assert 'request_side_show' in e.get_allowed_actions('c').kinds
     e.request_side_show('c')
     assert e.get_state().pot == before
     e.decline_side_show('b')
     assert e.get_state().current_player_id == 'c'
-    e.bet('c', 1000000)
+    e.bet('c', large)
     assert e.get_state().current_player_id == 'd'
     validate_game_state(e.get_state())
 
@@ -111,9 +112,9 @@ def test_previous_seen_skips_blind_and_folded_and_needs_three_active():
 
 
 def test_side_show_defaults_on_but_blind_cannot_request():
-    assert FlushRulesConfig(5,10).allow_side_show
-    assert FlushRulesConfig(5,10).minimum_bet_rounds_before_side_show == 3
-    e = FlushGameEngine(['a','b','c'], rules=FlushRulesConfig(5,10))
+    assert FlushRulesConfig(5, 10, allow_raise=True, max_raise=5).allow_side_show
+    assert FlushRulesConfig(5, 10, allow_raise=True, max_raise=5).minimum_bet_rounds_before_side_show == 3
+    e = FlushGameEngine(['a','b','c'], rules=FlushRulesConfig(5, 10, allow_raise=True, max_raise=5))
     e.start_game()
     e.deal_cards(e.get_state().current_player_id)
     e.skip_cut(e.get_state().current_player_id)
@@ -125,7 +126,7 @@ def test_side_show_defaults_on_but_blind_cannot_request():
 @pytest.mark.parametrize('blind_first', [False, True])
 def test_side_show_requires_completed_personal_bets(threshold, blind_first):
     e = FlushGameEngine(['a', 'b', 'c'],
-        dealer_id='b', rules=FlushRulesConfig(5, 10, allow_side_show=True,
+        dealer_id='b', rules=FlushRulesConfig(5, 10, allow_raise=True, max_raise=5, allow_side_show=True,
                               minimum_bet_rounds_before_side_show=threshold))
     e.start_game()
     e.deal_cards(e.get_state().current_player_id)

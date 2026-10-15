@@ -1,5 +1,6 @@
+import {ActivityLine} from './ActivityLine';
 import {useEffect, useRef, useState} from 'react';
-import {ActivityIndicator, Pressable, View} from 'react-native';
+import {Pressable, View} from 'react-native';
 import {AppText as Text} from './AppText';
 import {PlayerAvatar} from './PlayerAvatar';
 import {RoomSheet} from './RoomSheet';
@@ -37,9 +38,9 @@ export function AvatarPicker({session,onSaved,onboarding=false,overlayOnly=false
     <RoomSheet visible={visible} onClose={close} title={ui('common.choose_avatar')} presentation="dialog" testID="profile-avatar-picker">
       {onboarding&&<><Text style={{color:c.textMuted}}>{ui('common.signup_avatar_help')}</Text><Pressable accessibilityRole="button" accessibilityLabel={ui('common.skip_for_now')} disabled={busy} onPress={close} style={{minHeight:44,justifyContent:'center',alignSelf:'flex-end'}}><Text style={{color:c.accent}}>{ui('common.skip_for_now')}</Text></Pressable></>}
       <View accessibilityRole="radiogroup" accessibilityLabel={ui('common.choose_avatar')} style={{flexDirection:'row',gap:24}}>{(['male','female'] as const).map(value=><Pressable key={value} accessibilityLabel={ui(value==='male'?'common.avatar_male':'common.avatar_female')} accessibilityRole="radio" aria-checked={category===value} accessibilityState={{checked:category===value}} onPress={()=>setCategory(value)} style={{minHeight:44,justifyContent:'center'}}><Text style={{color:category===value?c.accent:c.text}}>{category===value?'◉':'○'} {ui(value==='male'?'common.avatar_male':'common.avatar_female')}</Text></Pressable>)}</View>
-      {!loaded&&!error&&<View style={{flexDirection:'row',alignItems:'center',gap:8}}><ActivityIndicator size="small" color={c.textMuted}/><Text style={{color:c.textMuted,fontSize:12}}>{ui('common.loading_profile')}</Text></View>}
+      {!loaded&&!error&&<View style={{flexDirection:'row',alignItems:'center',gap:8}}><ActivityLine /></View>}
       <View style={{flexDirection:'row',alignItems:'center',gap:12}}>{option(null,ui('common.default_avatar'))}<Text style={{color:c.text}}>{ui('common.default_avatar')}</Text></View>
       <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>{Object.keys(presetAvatars).filter(id=>id.startsWith(category)).map(id=>option(id,`${ui(category==='male'?'common.avatar_male':'common.avatar_female')} ${Number(id.slice(-2))}`))}</View>
-      {!!error&&<View style={{gap:4}}><Text accessibilityRole="alert" style={{color:c.danger}}>{error}</Text>{!loaded&&<Pressable accessibilityRole="button" onPress={()=>setRetry(value=>value+1)} style={{minHeight:44,justifyContent:'center'}}><Text style={{color:c.accent}}>{ui('common.retry')}</Text></Pressable>}</View>}
+      {!!error&&<View style={{gap:4}}><Text activity accessibilityRole="alert" style={{color:c.danger}}>{error}</Text>{!loaded&&<Pressable accessibilityRole="button" onPress={()=>setRetry(value=>value+1)} style={{minHeight:44,justifyContent:'center'}}><Text style={{color:c.accent}}>{ui('common.retry')}</Text></Pressable>}</View>}
     </RoomSheet></>;
 }

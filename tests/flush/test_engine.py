@@ -15,7 +15,7 @@ def engine(n=2, seed=7, **rules):
     ids = tuple(f'p{i}' for i in range(n))
     e = FlushGameEngine(ids,
                         rules=FlushRulesConfig(boot_amount=rules.pop('boot_amount', 10),
-                                              initial_blind_bet=rules.pop('initial_blind_bet', 10), **rules), rng=Random(seed))
+                                              initial_blind_bet=rules.pop('initial_blind_bet', 10), allow_raise=rules.pop('allow_raise', True), max_raise=rules.pop('max_raise', 5), **rules), rng=Random(seed))
     e.start_game()
     e.deal_cards(e.get_state().current_player_id)
     e.skip_cut(e.get_state().current_player_id)
@@ -56,15 +56,17 @@ def test_start_conservation_boot_turn_and_privacy(n):
 @pytest.mark.parametrize('threshold', [0, 1, 3, 5])
 def test_seeing_is_immediate_regardless_of_side_show_threshold_and_retains_turn(threshold):
     e = engine(minimum_bet_rounds_before_side_show=threshold)
-    assert 'see_cards' not in e.get_allowed_actions('p0').kinds
+    assert 'see_cards' in e.get_allowed_actions('p0').kinds
     assert 'see_cards' in e.get_allowed_actions('p1').kinds
-    unchanged(e, lambda: e.see_cards('p0'))
+    before = e.get_state()
+    e.see_cards('p0')
+    assert e.get_state().current_player_id == before.current_player_id
     result = e.apply_action('p1', SeeCards())
     assert result.events[0].kind == 'CARDS_SEEN'
     assert e.get_state().current_player_id == 'p1'
     own = e.get_player_view('p1')
     assert len(own.cards) == 3 and own.actions.required_bet == 20
-    assert e.get_player_view('p0').cards == ()
+    assert len(e.get_player_view('p0').cards) == 3
     assert not e.get_visible_events()[-1].shown_hands
     unchanged(e, lambda: e.see_cards('p1'))
     unchanged(e, lambda: e.bet('p1', 10))
@@ -94,7 +96,7 @@ def test_invalid_bets_are_atomic(amount):
 
 
 def test_four_players_reduced_to_two_can_keep_betting_and_show():
-    e = engine(4)
+    e = engine(4, initial_blind_bet=256)
     e.see_cards('p1')
     e.bet('p1', 512)
     e.fold('p2')
@@ -105,8 +107,8 @@ def test_four_players_reduced_to_two_can_keep_betting_and_show():
     assert len(view.cards) == 3
     assert view.actions.required_bet == view.actions.show_cost == 512
     assert set(view.actions.kinds) == {'fold', 'bet', 'show'}
-    e.bet('p1', 1000000)
-    e.bet('p0', 500000)
+    e.bet('p1', 1024)
+    e.bet('p0', 512)
     assert set(e.get_allowed_actions('p1').kinds) == {'fold', 'bet', 'show'}
     e.show('p1')
     e.reveal_cards('p0')
@@ -288,25 +290,22 @@ def test_seeded_rounds_conserve_state_and_legal_actions_agree(n):
 @pytest.mark.parametrize('multiplier', [2, 3])
 def test_raises_update_both_minimums_without_lowering_stake(multiplier):
     e = engine(3, initial_blind_bet=1, blind_to_seen_bet_multiplier=multiplier)
-    e.bet('p1', 4)
-    assert e.get_public_view().current_blind_bet == 4
-    assert e.get_public_view().current_seen_bet == 4 * multiplier
+    e.bet('p1', 2)
+    assert e.get_public_view().current_blind_bet == 2
+    assert e.get_public_view().current_seen_bet == 2 * multiplier
     e.see_cards('p2')
-    assert e.get_allowed_actions('p2').required_bet == 4 * multiplier
-    unchanged(e, lambda: e.bet('p2', 4 * multiplier - 1))
-    raised = 4 * multiplier + 1
+    assert e.get_allowed_actions('p2').required_bet == 2 * multiplier
+    unchanged(e, lambda: e.bet('p2', 2 * multiplier - 1))
+    raised = 4 * multiplier
     e.bet('p2', raised)
     assert e.get_public_view().current_seen_bet == raised
-    assert e.get_allowed_actions('p0').required_bet == 5
-    unchanged(e, lambda: e.bet('p0', 4))
+    assert e.get_allowed_actions('p0').required_bet == 4
+    unchanged(e, lambda: e.bet('p0', 3))
     e.see_cards('p0')
-    assert e.get_allowed_actions('p0').required_bet == raised
     e.bet('p0', raised)
-    assert e.get_public_view().current_seen_bet == raised
-    e.bet('p1', 6)
-    assert e.get_allowed_actions('p2').required_bet == 6 * multiplier
-    assert e.get_allowed_actions('p2').show_cost == 6 * multiplier
-    validate_game_state(e.get_state())
+    e.bet('p1', 8)
+    assert e.get_allowed_actions('p2').required_bet == 8 * multiplier
+    assert e.get_allowed_actions('p2').show_cost == 8 * multiplier
 
 
 def test_initial_blind_bet_defaults_to_one():

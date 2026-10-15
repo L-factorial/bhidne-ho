@@ -95,7 +95,7 @@ export function RoomCard({ room, member, busy, activeTables, onPress, owner, onR
     </ImageBackground>
     <RoomSheet visible={confirming} title={`${owner ? ui("common.delete") : ui("common.leave")} ${room.name}?`} onClose={() => { if (!removing) setConfirming(false); }} onDismiss={onDismiss} presentation="dialog">
       <Text style={{color:c.text}}>{owner ? ui("rooms.delete_effect_help") : ui("rooms.leave_effect_help")}</Text>
-      {!!error && <Text accessibilityRole="alert" style={{color:c.danger}}>{uiLabel(error, 'feedback')}</Text>}
+      {!!error && <Text activity accessibilityRole="alert" style={{color:c.danger}}>{uiLabel(error, 'feedback')}</Text>}
       <Pressable accessibilityRole="button" disabled={removing} onPress={() => setConfirming(false)} style={{minHeight:44,justifyContent:'center'}}><Text style={{color:c.text}}>{ui("common.cancel")}</Text></Pressable>
       <Pressable accessibilityRole="button" disabled={removing} onPress={removeRoom} style={{minHeight:44,justifyContent:'center'}}><Text style={{color:c.danger}}>{removing ? ui("common.working_label") : owner ? ui("rooms.delete_room") : ui("rooms.leave_room")}</Text></Pressable>
     </RoomSheet>

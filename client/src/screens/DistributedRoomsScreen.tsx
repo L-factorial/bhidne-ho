@@ -61,6 +61,7 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
   const authStyles = accountStyles(colors);
   const [signupAvatar,setSignupAvatar]=useState(false);
   const [account,setAccount] = useState<Session|null>(()=>readSession(apiUrl)?.session??null);
+  const emailRef = useRef<TextInput>(null), passwordRef = useRef<TextInput>(null), confirmRef = useRef<TextInput>(null);
   const [username,setUsername] = useState(''), [password,setPassword] = useState('');
   const [email,setEmail] = useState('');
   const [accountFormOpen,setAccountFormOpen] = useState(false);
@@ -179,7 +180,7 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
   const input=(label:string,value:string,change:(s:string)=>void,secure=false)=><FormInput accessibilityLabel={label} placeholder={label} placeholderTextColor={colors.textMuted}
     value={value} onChangeText={change} secureTextEntry={secure} autoCapitalize="none" style={{color:colors.text,borderColor:colors.textMuted,borderWidth:1,padding:12,borderRadius: radii.medium}}/>;
   async function login(signup: boolean) {
-    if (authBusy || (signup && (!confirmPassword || password !== confirmPassword || (!validSignupEmail(email) || !rulesAccepted)))) return;
+    if (authBusy || username.trim().length < 3 || password.length < 8 || (signup && (!confirmPassword || password !== confirmPassword || (!validSignupEmail(email) || !rulesAccepted)))) return;
     setAuthBusy(true);setError('');
     try {const session=await request<Session>(signup?'/auth/signup':'/auth/signin',null,{username,password,...(signup?{email:email.trim(),community_rules_version:SIGNUP_RULES_VERSION}:{})});saveSession(apiUrl,{session,room:null,game:null});setSessionNotice(apiUrl,'auth');setPassword('');setConfirmPassword('');setEmail('');setSignupAvatar(signup);setAccount(session);}
     catch(e){setError(playerError(e && typeof e === 'object' && 'status' in e && e.status === 401 ? Error(ui("common.invalid_credentials")) : e));}finally{setAuthBusy(false);}
@@ -202,20 +203,20 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
     <Text accessibilityRole="header" style={authStyles.title}>{ui(signupMode ? 'common.create_your_account' : 'common.welcome_back')}</Text>
     {button(ui(signupMode ? 'common.sign_in' : 'common.sign_up'),()=>{setSignupMode(!signupMode);setAccountFormOpen(false);setConfirmPassword('');setRulesAccepted(false);setError('');},authBusy)}
     {!accountFormOpen ? <AuthMethodChoices signup={signupMode} disabled={authBusy} onContinue={() => setAccountFormOpen(true)} /> : <>
-    <FormInput accessibilityLabel={ui(signupMode?'common.username':'common.username_or_email')} placeholder={ui(signupMode?'common.username':'common.username_or_email')} maxLength={signupMode?32:254} value={username} onChangeText={setUsername} autoCapitalize="none" autoCorrect={false} editable={!authBusy} style={authStyles.input} />
+    <FormInput returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => (signupMode ? emailRef : passwordRef).current?.focus()} accessibilityLabel={ui(signupMode?'common.username':'common.username_or_email')} placeholder={ui(signupMode?'common.username':'common.username_or_email')} maxLength={signupMode?32:254} value={username} onChangeText={setUsername} autoCapitalize="none" autoCorrect={false} editable={!authBusy} style={authStyles.input} />
     {signupMode && <>
-      <FormInput accessibilityLabel={ui('common.email')} aria-required placeholder={ui('common.email')} value={email}
+      <FormInput ref={emailRef} returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => passwordRef.current?.focus()} accessibilityLabel={ui('common.email')} aria-required placeholder={ui('common.email')} value={email}
         onChangeText={setEmail} maxLength={254} keyboardType="email-address" textContentType="emailAddress"
         editable={!authBusy} autoCapitalize="none" autoCorrect={false} style={authStyles.input} />
       <Text style={authStyles.description}>{ui('common.signup_email_help')}</Text>
       {!!email && !validSignupEmail(email) && <Text accessibilityRole="alert" style={{color:colors.danger}}>{ui('common.enter_valid_email')}</Text>}
     </>}
-    <FormInput accessibilityLabel={ui('common.password')} placeholder={ui('common.password')} value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} maxLength={128} editable={!authBusy} style={authStyles.input} />
+    <FormInput ref={passwordRef} returnKeyType={signupMode ? 'next' : 'done'} submitBehavior="submit" onSubmitEditing={() => signupMode ? confirmRef.current?.focus() : void login(false)} accessibilityLabel={ui('common.password')} placeholder={ui('common.password')} value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} maxLength={128} editable={!authBusy} style={authStyles.input} />
     {!signupMode && <ForgotPassword />}
-    {signupMode && <FormInput accessibilityLabel={ui('common.confirm_password')} placeholder={ui('common.confirm_password')} value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} maxLength={128} editable={!authBusy} style={authStyles.input} />}
+    {signupMode && <FormInput ref={confirmRef} returnKeyType="done" accessibilityLabel={ui('common.confirm_password')} placeholder={ui('common.confirm_password')} value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} maxLength={128} editable={!authBusy} style={authStyles.input} />}
     {signupMode && <SignupRules accepted={rulesAccepted} onChange={setRulesAccepted} disabled={authBusy} />}
     {signupMode && !!confirmPassword && password !== confirmPassword && <Text accessibilityRole="alert" style={{color:colors.danger}}>{ui('common.passwords_do_not_match')}</Text>}
-    {!!error&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(error, 'feedback')}</Text>}
+    {!!error&&<Text activity accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(error, 'feedback')}</Text>}
     </>}
   </AccountPage>;
 

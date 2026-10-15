@@ -1,7 +1,7 @@
 export type FlushBet = { sequence: number; player_id: string; amount: number; kind: string };
-export function playerPosition(index: number, count: number, width: number, height = 370) {
+export function playerPosition(index: number, count: number, width: number, height = 370, inset = 92) {
   // Equal arc lengths keep seats apart at the narrow ends of a tall oval.
-  const rx = Math.max(60, width / 2 - 44), ry = height / 2 - 52;
+  const rx = Math.max(60, width / 2 - 52), ry = height / 2 - inset;
   const points = Array.from({ length: 361 }, (_, step) => {
     const angle = Math.PI / 2 + step * Math.PI / 180;
     return { x: width / 2 + Math.cos(angle) * rx, y: height / 2 + Math.sin(angle) * ry };
@@ -17,12 +17,12 @@ export function playerPosition(index: number, count: number, width: number, heig
 export function newBets(bets: FlushBet[], after: number) { return bets.filter(b => b.sequence > after && b.amount > 0); }
 export function potBeforeFlights(pot: number, pending: FlushBet[]) { return Math.max(0, pot - pending.reduce((sum, b) => sum + b.amount, 0)); }
 
-export function minimumArenaHeight(count: number, width: number) {
+export function minimumArenaHeight(count: number, width: number, inset = 92, rowHeight = 120) {
   // A short/narrow viewport can scroll the table while actions remain anchored.
   for (let height = 280; ; height += 16) {
-    const seats = Array.from({ length: count }, (_, i) => playerPosition(i, count, width, height));
+    const seats = Array.from({ length: count }, (_, i) => playerPosition(i, count, width, height, inset));
     if (seats.every((seat, i) => seats.slice(i + 1).every(other =>
-      Math.abs(seat.x - other.x) >= 80 || Math.abs(seat.y - other.y) >= 86))) return height;
+      Math.abs(seat.x - other.x) >= 80 || Math.abs(seat.y - other.y) >= rowHeight))) return height;
   }
 }
 

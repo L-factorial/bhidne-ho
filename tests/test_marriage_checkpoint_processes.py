@@ -15,7 +15,7 @@ from test_hosted_checkpoints import make_host, start, resign
 
 
 async def qualified_checkpoint(route='normal'):
-    host, game = await make_host('marriage')
+    host, game = await make_host('marriage',count=4 if route=='dublee' else 2)
     try:
         await start(host, game)
         engine = game.marriage_target.adapter.checkpoint()
@@ -27,8 +27,9 @@ async def qualified_checkpoint(route='normal'):
         remaining = tuple(card for card in deck if card not in selected)
         extra = 22 - len(selected)
         engine._state = replace(engine.get_state(), players=(
-            PlayerState('1', selected + remaining[:extra]), PlayerState('2', remaining[extra:extra + 21])),
-            stock=remaining[extra + 21:], discard=())
+            PlayerState('1', selected + remaining[:extra]),
+            *(PlayerState(str(i+2),remaining[extra+i*21:extra+(i+1)*21]) for i in range(len(game.users)-1))),
+            stock=remaining[extra+(len(game.users)-1)*21:], discard=())
         validate_game_state(engine.get_state())
         melds = tuple(Meld(MeldType.TUNNELA if route == 'normal' else MeldType.DUBLEE,
                           tuple(c.card_id for c in group)) for group in groups)

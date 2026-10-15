@@ -62,3 +62,20 @@ async def test_flush_snapshot_history_survives_round_change_and_checkpoint_witho
         assert all('cards' not in event and 'shown_hands' not in event for event in snapshot['flush']['history'])
     finally:
         await host.close()
+
+
+def test_betting_cycle_counts_paid_side_show_without_double_counting_legacy_prepayment():
+    events=[]
+    def add(kind,player=None,amount=0,**extra):
+        events.append(dict(sequence=len(events)+1,revision=len(events)+1,kind=kind,player_id=player,amount=amount,**extra))
+    for player in ['1','2','3']:add('BOOT_COLLECTED',player,5)
+    for player in ['1','2','3']:add('BET_PLACED',player,10)
+    add('SIDE_SHOW_REQUESTED','1',0,target_player_id='3')
+    add('SIDE_SHOW_RESOLVED','1',10,target_player_id='3',loser_player_id='3',winner_ids=['1'])
+    add('BET_PLACED','2',10)
+    add('PLAYER_FOLDED','1')
+    assert flush_action_history(events)[-1]['betting_round']==3
+    # Legacy prepayment is counted at request; its zero-cost resolution adds none.
+    events[-4]['amount']=10
+    events[-3]['amount']=0
+    assert flush_action_history(events)[-1]['betting_round']==3

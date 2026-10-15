@@ -1,3 +1,4 @@
+import {ActivityLine} from './ActivityLine';
 import {AppText as Text} from './AppText';
 import { isVisiblePlayTable } from '../multiplayer/tableNavigation';
 import { ui, uiLabel } from '../i18n/copy.ts';
@@ -106,7 +107,7 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable
       <Text style={{ color: c.text, fontFamily: fonts.medium }}>{loaded ? ui("rooms.couldn_t_refresh_tables") : ui("rooms.couldn_t_load_tables")}</Text>
       <Text style={{ color: c.textMuted }}>{loaded ? ui("common.showing_the_last_available_tables_try_refreshing_again") : ui("feedback.check_your_connection_and_try_again")}</Text>{retry}
     </View>}
-    {!loaded && !error && <View testID="active-games-loading" accessibilityLabel={ui("rooms.loading_active_tables")} style={{ gap: 12 }}>{[0, 1, 2].map(key => <View key={key} style={{ padding: 16, gap: 12, backgroundColor: c.surface, borderRadius: radii.large }}><View style={{ width: '58%', height: 16, borderRadius: radii.medium, backgroundColor: c.surfaceRaised }} /><View style={{ width: '80%', height: 12, borderRadius: 6, backgroundColor: c.surfaceRaised }} /><View style={{ width: '35%', height: 30, borderRadius: 15, backgroundColor: c.surfaceRaised }} /></View>)}</View>}
+    {!loaded && !error && <View testID="active-games-loading" style={{minHeight:120,justifyContent:'center',padding:16}}><ActivityLine /></View>}
     {loaded && !error && !visible.length && <View testID="active-games-empty" style={{ alignItems: 'center', gap: 12, padding: 28, backgroundColor: c.surface, borderRadius: radii.large, borderWidth: 1, borderColor: c.borderSubtle }}>
       <Ionicons name="people-outline" size={32} color={c.accent} />
       <Text style={{ color: c.text, fontFamily: fonts.editorial, fontSize: typography.pageTitle, textAlign: 'center' }}>{filter === 'all' ? ui("rooms.no_active_tables_yet") : ui("rooms.no_game_tables_yet", { "game": uiLabel(filters.find(([key]) => key === filter)?.[1] || '', 'rooms') })}</Text>

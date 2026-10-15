@@ -24,8 +24,8 @@ export function gameAttention(snapshot:RoomSnapshot|null, local?:{marriage:boole
         if(local.maal)opportunities.push('common.attention_maal');
         if(local.marriage)opportunities.unshift('common.attention_marriage');
       }else if(!own?.has_seen_maal && own?.route==='unqualified'){
-        if(suggestion.dublees.length)opportunities.push('common.attention_dublee');
-        if(suggestion.normal.length || suggestion.dublees.length)opportunities.push('common.attention_maal');
+        if(s.marriage!.public.players.length>=4&&suggestion.dublees.length)opportunities.push('common.attention_dublee');
+        if(suggestion.normal.length || s.marriage!.public.players.length>=4&&suggestion.dublees.length)opportunities.push('common.attention_maal');
       }
       if(!local && mine.maal){
         const rank=(n:number|null)=>n===14?1:n;
@@ -36,7 +36,10 @@ export function gameAttention(snapshot:RoomSnapshot|null, local?:{marriage:boole
     }
     if(mine.player_id===s.marriage!.public.current_player_id){
       const kinds=mine.actions.kinds;
+      if(kinds.includes('draw')&&kinds.some(k=>k==='show_initial_melds'||k==='show_dublees')&&opportunities.includes('common.attention_maal'))return cue('first-show','common.attention_turn','marriage.show_then_draw',true);
       if(kinds.includes('draw'))return cue('draw','common.attention_turn','common.attention_draw',true);
+      if(kinds.includes('finish')&&!own?.has_seen_maal)return cue('unseen-finish','common.attention_turn','marriage.win_without_maal',true);
+      if(kinds.includes('discard') && opportunities.includes('common.attention_maal') && kinds.some(k=>k==='show_initial_melds'||k==='show_dublees'))return cue('show-or-discard','common.attention_turn','marriage.show_or_discard',true);
       if(kinds.includes('discard'))return cue('discard','common.attention_turn','common.attention_discard',true);
       if(kinds.includes('finish'))return cue('finish','common.attention_turn','common.attention_finish',true);
     }

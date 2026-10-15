@@ -19,5 +19,5 @@ export function DistributedInvitees({session,selected,change}:{session:Session;s
       disabled={!checked&&selected.length>=20} onPress={()=>change(checked?selected.filter(id=>id!==friend.user_id):[...selected,friend.user_id])} style={{padding:12}}>
       <Text style={{color:colors.text}}>{checked?'✓ ':''}{friend.display_name||friend.username||ui("common.player")}</Text></Pressable>;
   })}{!friends.length&&<Text style={{color:colors.text}}>{ui("social.invite_friends_help")}</Text>}
-  {!!error&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(error, 'feedback')}</Text>}</View>;
+  {!!error&&<Text activity accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(error, 'feedback')}</Text>}</View>;
 }

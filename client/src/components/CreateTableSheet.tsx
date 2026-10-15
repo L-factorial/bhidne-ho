@@ -71,7 +71,7 @@ export function CreateTableSheet({visible=true,runtime,session,rooms,playerName,
   const [inviteSuggestionsExpanded,setInviteSuggestionsExpanded]=useState(false);
   return <RoomSheet visible={visible} scrollEnabled={!dropdown && !cardThemeExpanded && !inviteSuggestionsExpanded} presentation="dialog" testID="create-game-table" title={ui('rooms.create_table')} closeLabel={ui('rooms.close_create_table')} onClose={onClose}
     footer={<Pressable accessibilityRole="button" accessibilityLabel={ui('rooms.create_table')} disabled={busy||pendingCreation||unselectedInviteQuery||rooms.length>0&&!selected} accessibilityState={{disabled:busy||pendingCreation||unselectedInviteQuery||rooms.length>0&&!selected}}
-      onPress={()=>void create()} style={{minHeight:52,borderRadius: radii.medium,alignItems:'center',justifyContent:'center',backgroundColor:c.primary,borderWidth:1,borderColor:c.onPrimary,opacity:busy?visualStates.disabledOpacity:1}}><Text style={{color:c.onPrimary,fontFamily:fonts.medium}}>{busy?ui('social.sending'):ui('rooms.create_table')}</Text></Pressable>}>
+      onPress={()=>void create()} style={{minHeight:52,borderRadius: radii.medium,alignItems:'center',justifyContent:'center',backgroundColor:c.primary,borderWidth:1,borderColor:c.onPrimary,opacity:busy?visualStates.disabledOpacity:1}}><Text activity style={{color:c.onPrimary,fontFamily:fonts.medium}}>{busy?ui('social.sending'):ui('rooms.create_table')}</Text></Pressable>}>
     <View style={{padding:16,gap:14}}>
 <CreateTableForm onUnselectedInviteQueryChange={setUnselectedInviteQuery} onInviteSuggestionsExpandedChange={setInviteSuggestionsExpanded} onCardThemeExpandedChange={setCardThemeExpanded} session={session} game={game} setGame={setGame} callbreakPlayers={callbreakPlayers} setCallbreakPlayers={setCallbreakPlayers} invitees={invitees} setInvitees={setInvitees} busy={busy} roomSelector={<View style={{ position: 'relative', zIndex: 50, gap: 8 }}>      {!!rooms.length&&<>
       <Text style={{...text,fontFamily:fonts.medium}}>{ui('rooms.choose_room')}</Text>
@@ -82,7 +82,7 @@ export function CreateTableSheet({visible=true,runtime,session,rooms,playerName,
 
       </>}
 </View>}/>
-      {!!error&&<Text accessibilityRole="alert" style={{color:c.danger}}>{error}</Text>}
+      {!!error&&<Text activity accessibilityRole="alert" style={{color:c.danger}}>{error}</Text>}
     </View>
   </RoomSheet>;
 }

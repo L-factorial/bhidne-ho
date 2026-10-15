@@ -30,6 +30,10 @@ def _projection(checkpoint, names, round_summary_seconds=8):
 
 def _view(host, game, checkpoint, actor):
     snapshot = jsonable_encoder(host._snapshot(game, actor))
+    from .seating import reservations
+    if 'table' in snapshot:
+        snapshot['table']['reserved_positions'] = [dict(position_id=i['reserved_position']) for i in reservations(checkpoint['data']['invitations'])]
+        snapshot['can_join'] = snapshot['table']['current_user']['can_join']
     snapshot.pop('tables', None)  # Room catalogs have their own invalidation lane.
     snapshot.update(table_id=game.table.table_id, table_revision=checkpoint['data']['table_revision'],
                     durable_game_id=str(game.durable_game_id) if game.durable_game_id else None)
@@ -108,6 +112,8 @@ class ViewGenerationWorker:
                 AND NOT EXISTS(SELECT 1 FROM deleted_rooms WHERE id=%s)''',
                 (data['room_id'], [user_uuid(a) for a in actors], data['room_id']))).fetchall() if actors else []
             users = set(claim.before['data']['host']['users']) | set(data['host']['users'])
+            users.update(claim.before['data']['host'].get('flush_seats', {}))
+            users.update(data['host'].get('flush_seats', {}))
             users.discard(None)
             names = await (await c.execute('''SELECT u.id,COALESCE(NULLIF(p.display_name,''),a.username)
                 FROM users u LEFT JOIN user_profiles p ON p.user_id=u.id

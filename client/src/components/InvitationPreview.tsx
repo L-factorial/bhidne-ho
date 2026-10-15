@@ -45,7 +45,7 @@ export function InvitationPreview({ invitation, session, join, dismiss, ready = 
     <Text style={{ color: colors.text }}>{invitation.matchId ? ui("common.invitation_enter_help") : ui("common.invitation_preview_help")}</Text>
     {busy && !startupError && <Text style={{ color: colors.text }}>{ui("rooms.opening_invitation")}</Text>}
     {!!startupError && <><Text accessibilityRole="alert" style={{ color: colors.danger }}>{startupError}</Text><Pressable accessibilityRole="button" onPress={retrySession}><Text style={{ color: colors.accent }}>{ui("rooms.retry_invitation")}</Text></Pressable></>}
-    {!!error && <><Text accessibilityRole="alert" style={{ color: colors.danger }}>{uiLabel(error, 'feedback')}</Text><Pressable accessibilityRole="button" onPress={() => setAttempt(a => a + 1)}><Text style={{ color: colors.accent }}>{ui("rooms.retry_invitation")}</Text></Pressable></>}
+    {!!error && <><Text activity accessibilityRole="alert" style={{ color: colors.danger }}>{uiLabel(error, 'feedback')}</Text><Pressable accessibilityRole="button" onPress={() => setAttempt(a => a + 1)}><Text style={{ color: colors.accent }}>{ui("rooms.retry_invitation")}</Text></Pressable></>}
     {!invitation.matchId && target && <Pressable accessibilityRole="button" disabled={busy} onPress={async () => {
       setBusy(true); const entered = await join(target, gameType); if (!entered) { setError(ui("feedback.could_not_join_room_try_again")); setBusy(false); }
     }} style={{ padding: 12 }}><Text style={{ color: colors.accent }}>{ui("rooms.join_room")}</Text></Pressable>}

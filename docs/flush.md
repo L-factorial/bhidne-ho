@@ -97,7 +97,7 @@ turn, history, revision, and RNG remain unchanged. Invalid construction raises
 `ValueError`; unsupported rules raise `UnsupportedRuleError`. Audit failures
 raise `InvariantError` and prevent a candidate state from being committed.
 
-Only the current ACTIVE seat may bet, fold, or initiate a show. SEE_CARDS is available to any ACTIVE blind player during normal play, without changing the turn or its deadline. Reveals wait while a show or side-show response is pending. Seen players pay
+Only the current ACTIVE seat may bet, fold, or initiate a show. SEE_CARDS is available to any ACTIVE blind player during normal play, without changing the turn or its deadline. Reveals also remain available while a show or side-show response is pending; seeing cards does not change or answer that pending request. Seen players pay
 `current_blind_bet * blind_to_seen_bet_multiplier`; blind players pay the blind
 stake. Bets may meet or exceed the current minimum. `turn_bet_count` counts all successful BET actions;
 `blind_bet_count` counts only those made while blind. Other players' actions,
@@ -268,3 +268,37 @@ the transfer separately.
 Old checkpoints explicitly recover with multiplayer blind show disabled and zero
 Salami, preserving the rules and debts of existing rounds. New games receive the
 new defaults; stored rules and placement payments are not retroactively changed.
+
+
+## Creator configuration and doubles (2026-10-14)
+
+Hosted tables use the configured minimum blind bet for the initial contribution,
+including after a hand ends. New tables default both values to 1. The standalone
+engine still accepts explicit independent boot amounts for historical recovery.
+
+The creator saves config directly before play or between hands. All players receive
+an informational `GAME_CONFIG_UPDATED` table event; no vote is required. A save
+checks the table revision and Flush rules revision, and the next hand adopts the
+saved config without changing the completed hand or its settlement.
+
+`allow_raise` enables Double. `max_raise` is the number of doubles allowed across
+all players in one hand, defaults to 1, and accepts 1 through 5. Invalid values
+fall back to 1. Bets must equal the current minimum or its double. The engine
+counts doubles from the current hand's durable events, so seeing cards, changing
+turn, reconnecting or worker recovery cannot reset the count. Next-hand preparation
+resets it. Private actions expose `maximum_bet` and `raises_remaining`; the client
+disables Double at the cap. Both blind and seen doubles consume the same limit.
+
+After becoming seen, card visibility is local: See Cards/Hide Cards and tapping
+the cards share one state. Becoming seen immediately reveals the cards; hiding
+them never restores blind status. The game summary preserves existing results and
+adds hand number, betting-cycle number, chronological folds, side-show participants
+and winners. Public summary history contains no private comparison cards.
+
+Revealed hands display from low to high rank (2 through Ace), with a consistent
+suit order for equal ranks. This applies to your cards, side-show comparisons and
+public/final reveals; the deal and engine card order remain unchanged. Result
+labels use historical Flush participant identities, including players who leave
+before another hand starts. Durable snapshots and updates hydrate those profiles
+and fall back to account usernames when no display name is set. Profile changes
+invalidate cached results even after the participant leaves the room.

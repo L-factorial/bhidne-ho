@@ -289,11 +289,13 @@ class PostgresHostedQueries:
                                 UNION SELECT p.user_id FROM table_positions p WHERE p.table_id=ANY(%s::uuid[])
                                 UNION SELECT replace(jsonb_array_elements_text(r.state->'data'->'host'->'users'),'user-','')::uuid
                                     FROM table_recovery_state r WHERE r.table_id=ANY(%s::uuid[])
+                                UNION SELECT replace(jsonb_object_keys(r.state->'data'->'host'->'flush_seats'),'user-','')::uuid
+                                    FROM table_recovery_state r WHERE r.table_id=ANY(%s::uuid[])
                             ) ORDER BY u.id) AS profile_versions
-                        """, (cache_tables, room_id, cache_tables, room_id, cache_tables, cache_tables))).fetchone()
+                        """, (cache_tables, room_id, cache_tables, room_id, cache_tables, cache_tables, cache_tables))).fetchone()
                     cache_key = self.cache.key('room', [room_id, actor, str(selected_id),
                         select_default, public_preview, invitation_preview, self.round_summary_seconds,
-                        'closable-completed-tables-v2'],
+                        'automatic-marriage-maal-v5'],
                         [room, versions])
                     cached = await self.cache.get(cache_key)
                     if cached is not None:
@@ -307,6 +309,7 @@ class PostgresHostedQueries:
                     host.tables.setdefault(room_id, {})[game.match_id] = game
                     revisions[game.table.table_id] = rebuilt.table_revision
                     users.update(game.users)
+                    users.update(game.flush_seats)
                     users.update(game.table.queue)
                     users.update(u for u in game.table.seats(game) if u is not None)
                 names = await (await connection.execute('''SELECT u.id,COALESCE(NULLIF(p.display_name,''),a.username),p.avatar_id

@@ -171,16 +171,15 @@ def test_custom_bonus_full_match_replays_losslessly(n):
         assert state.score_tenths[p - 1] == base * 8 + bonus
 
 
-async def test_rules_require_unanimous_approval_and_freeze_at_start():
+async def test_creator_rules_apply_immediately_and_freeze_at_start():
     from tests.test_rule_proposals import make, vote
     from fastapi import HTTPException
     host, game, _ = await make('callbreak', capacity=4)
     try:
         rules = MatchRules(instant_win_enabled=True)
         await host.configure('r', 'u0', GameSettings(match_id=game.match_id, match_rules=rules, payments=[6, 12, 18, 0]))
-        assert 'match_rules' not in game.settings
-        for user in ['u1', 'u2', 'u3']:
-            await vote(host, game, user, True)
+        assert game.settings['match_rules']['instant_win_enabled'] is True
+        assert game.rule_proposal['status'] == 'ACCEPTED'
         await host.start('r', 'u0', game.match_id)
         assert game.state.config.match_rules == rules
         with pytest.raises(HTTPException):
@@ -202,6 +201,6 @@ async def test_durable_proposal_rejects_indivisible_payments_without_mutation():
         request.payload['payments'] = [6, 12, 18, 0]
         assert apply_rules(game, 'u0', request, 'lane') is None
         assert game.rule_proposal['proposed']['match_rules']['instant_win_enabled'] is True
-        assert 'match_rules' not in game.settings
+        assert game.settings['match_rules']['instant_win_enabled'] is True
     finally:
         await host.close()

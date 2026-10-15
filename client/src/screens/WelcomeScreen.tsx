@@ -50,7 +50,7 @@ export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
             <SignInButton method="account" onPress={onEnterLobby} />
             <Text style={styles.helper}>{t('welcome.helper')}</Text>
             {!!notice && <View style={styles.notice} accessibilityLiveRegion="polite">
-              <Text style={styles.noticeText}>{notice}</Text>
+              <Text activity style={styles.noticeText}>{notice}</Text>
               <Pressable accessibilityRole="button" accessibilityLabel={t('welcome.dismissMessage')} onPress={() => setNotice('')} style={styles.dismiss}>
                 <Text style={styles.dismissText}>{t('welcome.dismiss')}</Text>
               </Pressable>

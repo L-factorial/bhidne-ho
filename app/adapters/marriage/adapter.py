@@ -110,7 +110,8 @@ class MarriageAdapter:
                 result = method(player_id,
                                 tuple(meld(value) for value in payload["melds"]) if payload.get("melds") is not None else None,
                                 payload.get("discard_card_id"),
-                                tuple(payload["winning_pair"]) if payload.get("winning_pair") is not None else None)
+                                tuple(payload["winning_pair"]) if payload.get("winning_pair") is not None else None,
+                                tuple(meld(value) for value in payload["pairs"]) if payload.get("pairs") is not None else None)
             elif request.command is CommandName.GET_EVENTS:
                 result = method(player_id, payload.get("after_sequence", 0))
             else:

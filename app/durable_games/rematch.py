@@ -46,7 +46,9 @@ async def build_rematch(claim, game, stored):
         (game.durable_game_id, UUID(game.table.table_id), UUID(game.match_id),
          stored.checkpoint['data']['table_revision'], Jsonb(stored.checkpoint)))
     table = deepcopy(game.table)
-    roster = [u for u in table.seats(game) if u is not None]
+    from .seating import clockwise_roster
+    roster = clockwise_roster(game, [u for u in table.seats(game) if u is not None])
+    table.seat_positions = dict(game.table.seat_positions)
     table.phase = 'OPEN'
     table.next_seats = None
     table.releases.clear()

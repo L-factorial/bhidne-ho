@@ -212,16 +212,21 @@ class TableCommand(JoinGame):
     offer_id: str | None = None
     seat_id: Annotated[int, Field(strict=True, ge=1, le=10)] | None = None
     recipient: str | None = None
+    position_id: Annotated[int, Field(strict=True, ge=1, le=10)] | None = None
+    user_id: str | None = None
+    source_position: Annotated[int, Field(strict=True, ge=1, le=10)] | None = None
+    target_user: str | None = None
 
 
 @router.post("/{room_id}/table/{command}")
 async def table_command(room_id: str, command: Literal["join-queue", "leave-queue", "lock", "leave-seat",
-                        "invite-seat", "accept-seat", "decline-seat", "abandon", "next-match"],
+                        "invite-seat", "accept-seat", "decline-seat", "abandon", "next-match", "invite-position", "move-player"],
                         body: TableCommand, request: Request, response: Response,
                         user: UserIdentity = Depends(current_user)):
     response.headers["Cache-Control"] = "no-store"
     return await request.app.state.test_games.table_command(room_id, user.user_id, body.match_id, command,
-        offer_id=body.offer_id, seat_id=body.seat_id, recipient=body.recipient)
+        offer_id=body.offer_id, seat_id=body.seat_id, recipient=body.recipient,
+        position_id=body.position_id, moving_user=body.user_id, source_position=body.source_position, target_user=body.target_user)
 
 
 class RuleVote(JoinGame):

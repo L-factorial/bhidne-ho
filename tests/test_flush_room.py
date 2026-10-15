@@ -102,8 +102,7 @@ async def test_concurrent_save_start_and_failed_start_are_atomic(start_first):
     assert sum(isinstance(r, HTTPException) and r.status_code == 409 for r in results) == 1
     game = host.games['r']
     if not game.started:
-        from app.test_games.http import RuleVote
-        await host.vote_rules('r', 'b', RuleVote(match_id=mid, proposal_id=game.rule_proposal['id'], accept=True))
+        assert game.rule_proposal['status'] == 'ACCEPTED'
         await host.table_command('r', 'a', mid, 'lock')
         await host.start('r', 'a', mid, rules_revision=game.flush_rules_revision)
     before = game.flush_target.adapter.revision
@@ -189,7 +188,8 @@ async def test_between_round_seating_creator_transfer_and_ledger_history():
     await host.table_command('changing', 'b', mid, 'lock')
     await host.start('changing', 'b', mid, rules_revision=0)
     final = game.flush_target.adapter.checkpoint().get_state()
-    assert final.players[-1].player_id == '1'
+    assert '1' in final.config.player_ids
+    assert final.config.player_ids == tuple(str(game.flush_seats[u]) for u in game.users)
     assert len(final.round_results) == 2
     await host.close()
 
@@ -270,6 +270,8 @@ async def test_unbounded_flush_results_reach_settlement_ledger_once():
         waiting = await host.create('ledger-flush', 'a', 2, 'flush')
         mid = waiting['match_id']
         await host.join('ledger-flush', 'b', mid)
+        from dataclasses import replace
+        host.games['ledger-flush'].flush_rules = replace(host.games['ledger-flush'].flush_rules, initial_blind_bet=1000000, boot_amount=1000000)
         await host.table_command('ledger-flush', 'a', mid, 'lock')
         await host.start('ledger-flush', 'a', mid, rules_revision=0)
         game = host.games['ledger-flush']
@@ -286,7 +288,7 @@ async def test_unbounded_flush_results_reach_settlement_ledger_once():
         view = await ledger.snapshot('ledger-flush', 'a')
         users = {str(seat): user for user, seat in game.flush_seats.items()}
         assert {row['player_id']: row['amount'] for row in view['balances']} == {
-            users[winner]: 1000005, users[loser]: -1000005,
+            users[winner]: 2000000, users[loser]: -2000000,
         }
         assert view['tables'][0]['game_count'] == 1
     finally:
