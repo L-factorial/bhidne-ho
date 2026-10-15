@@ -282,8 +282,8 @@ checks the table revision and Flush rules revision, and the next hand adopts the
 saved config without changing the completed hand or its settlement.
 
 `allow_raise` enables Double. `max_raise` is the number of doubles allowed across
-all players in one hand, defaults to 1, and accepts 1 through 5. Invalid values
-fall back to 1. Bets must equal the current minimum or its double. The engine
+all players in one hand, defaults to 1, and new configurations accept 1 through 3. Doubling is disabled by default. Invalid values
+fall back to 1. Previously saved 4/5-double rules remain readable for checkpoint compatibility; saving new settings applies the current limit. Bets must equal the current minimum or its double. The engine
 counts doubles from the current hand's durable events, so seeing cards, changing
 turn, reconnecting or worker recovery cannot reset the count. Next-hand preparation
 resets it. Private actions expose `maximum_bet` and `raises_remaining`; the client

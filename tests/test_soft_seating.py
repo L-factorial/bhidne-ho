@@ -88,7 +88,8 @@ async def test_last_seat_race_and_start_boundary(creation):
     assert (await command(creation,target,lane,users[0],'invite-position',3,dict(position_id=1,recipient=users[3])))['status']=='rejected'
 
 
-async def test_general_invitation_upgrades_without_duplicate_notification_and_config_saves(creation):
+@pytest.mark.parametrize('max_doubles',[0,1,2,3,4,5,99])
+async def test_general_invitation_upgrades_without_duplicate_notification_and_config_saves(creation,max_doubles):
     target,lane=await table(creation)
     users=creation[3]
     await command(creation,target,lane,users[0],'invite-table',0,dict(recipients=[users[1]]))
@@ -99,11 +100,11 @@ async def test_general_invitation_upgrades_without_duplicate_notification_and_co
     assert len(saved.checkpoint['data']['invitations'])==1
     assert saved.checkpoint['data']['invitations'][0]['id']==identity
     from dataclasses import asdict
-    rules={**asdict(game.flush_rules),'initial_blind_bet':5,'max_raise':99,'allow_raise':True}
+    rules={**asdict(game.flush_rules),'initial_blind_bet':5,'max_raise':max_doubles,'allow_raise':True}
     assert (await command(creation,target,lane,users[0],'flush-settings',2,dict(rules_revision=0,rules=rules)))['status']=='accepted'
     _,game=await recovered(creation,target)
     assert game.flush_rules.boot_amount==game.flush_rules.initial_blind_bet==5
-    assert game.flush_rules.max_raise==1
+    assert game.flush_rules.max_raise==(max_doubles if 1<=max_doubles<=3 else 1)
     assert game.rule_proposal['status']=='ACCEPTED'
     assert any(e['event']=='GAME_CONFIG_UPDATED' for e in game.table.events)
 

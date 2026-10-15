@@ -1,5 +1,6 @@
 // Editable English marriage copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "maal_eligible": "Maal eligible",
   "win_without_maal": "Win without seeing maal",
   "unseen_finish_help": "Show 21 cards in natural sequences/Tunnelas, or eight natural dublees with 4+ players. One final discard is required; maal stays hidden.",
   "show_or_discard": "Show for Maal or discard a card",

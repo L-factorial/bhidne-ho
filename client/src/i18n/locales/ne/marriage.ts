@@ -1,5 +1,6 @@
 // Editable Nepali marriage copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "maal_eligible": "माल योग्य",
   "win_without_maal": "माल नहेरी खेल सक्नुहोस्",
   "unseen_finish_help": "२१ पत्ती शुद्ध सिक्वेन्स/टनेलामा, वा ४+ खेलाडी हुँदा आठ दुब्ली देखाउनुहोस्। अन्तिम एक पत्ती फाल्नुपर्छ; माल लुकिरहन्छ।",
   "show_or_discard": "मालका लागि देखाउनुहोस् वा कार्ड फाल्नुहोस्",

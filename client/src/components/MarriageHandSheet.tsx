@@ -27,10 +27,10 @@ export function MarriageHandSheet({ mobile, anchor, snap, onSnap, instruction, a
   // This footer takes layout space; it never floats over the final row of cards.
   const actionFooter = footer ? <View testID="marriage-hand-footer" style={{ flexShrink: 0,
     borderTopWidth: 1, borderColor: colors.tableTrim, padding: 10, paddingBottom: 12, gap: 6 }}>{footer}</View> : null;
-  if (!mobile) return <View testID="marriage-desktop-hand" onLayout={event=>{socialAnchor.onLayout();onOccupiedHeight?.(event.nativeEvent.layout.height);}} ref={anchor} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 30, borderTopLeftRadius:20, borderTopRightRadius:20, overflow:'hidden', backgroundColor: colors.surface, maxHeight: '94%', minHeight: 0 }}>{controls}<View style={{display:open?'flex':'none',minHeight:0,flexShrink:1}} accessibilityElementsHidden={!open} importantForAccessibility={open?'auto':'no-hide-descendants'}>{header}
-    <ScrollView scrollEnabled={!draggingCard} style={{ minHeight: 0 }} contentContainerStyle={{ paddingBottom: 16 }}>{children}</ScrollView>{actionFooter}</View><HandAreaOutline active={!!cue} /></View>;
+  if (!mobile) return <View testID="marriage-desktop-hand" onLayout={event=>{socialAnchor.onLayout();onOccupiedHeight?.(event.nativeEvent.layout.height);}} ref={anchor} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 30, borderTopLeftRadius:20, borderTopRightRadius:20, overflow:'hidden', backgroundColor: colors.surface, height: open ? '98%' : undefined, maxHeight: '98%', minHeight: 0 }}>{controls}<View style={{display:open?'flex':'none',minHeight:0,flex:open?1:undefined,flexShrink:1}} accessibilityElementsHidden={!open} importantForAccessibility={open?'auto':'no-hide-descendants'}>{header}
+    <ScrollView scrollEnabled={!draggingCard} style={{ flex: 1, minHeight: 0 }} contentContainerStyle={{ paddingBottom: 16 }}>{children}</ScrollView>{actionFooter}</View><HandAreaOutline active={!!cue} /></View>;
   return <View onLayout={event=>{socialAnchor.onLayout();onOccupiedHeight?.(event.nativeEvent.layout.height);}} ref={anchor} testID="marriage-mobile-hand" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 30,
-    height: open ? (preview ? '88%' : '65%') : Math.max(90, headerHeight + 2),
+    height: open ? '98%' : Math.max(90, headerHeight + 2),
     backgroundColor: colors.surface,
     borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden' }}>
     {open && <View style={{ alignSelf: 'center', marginTop: 5, width: 36, height: 3, borderRadius: 2, backgroundColor: colors.tableTrim }} />}

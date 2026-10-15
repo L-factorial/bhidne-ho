@@ -10269,3 +10269,75 @@ Capacity, observability, database HA and operational readiness remain deferred.
   replace sequentially, validate all checkpoints on the deployed image, then use
   expected-epoch repair retry for the two quarantined rooms. No game-data deletion
   or checksum rewrite is needed. Exact next step: final checks and direct rollout.
+
+### iOS build40 table-join crash — 2026-10-15
+
+- User's device console captured an unhandled TypeError: Cannot read property
+  'layout' of null, at TableSeatLayout inside PreGameTable. Server receipts show
+  the Marriage invitation/join accepted before the client terminated.
+- TableSeatLayout's center measurement read event.nativeEvent inside a deferred
+  React state updater. Capture the numeric height during the layout callback,
+  before the native synthetic event is released. Applied the same correction to
+  both FlushArena center measurements. No game rules or server data changed.
+- New regression exercises the actual three JSX layout callbacks, clears the
+  synthetic event before running deferred updates and checks measurement/maximum
+  behavior. Both original component tests reproduced the exact TypeError before
+  the fix; both pass afterward. TypeScript and all492 client tests pass. Logs:
+  /private/tmp/bhidne-layout-crash-{typecheck,client}.log.
+- Changes are local and uncommitted; no server deployment or TestFlight upload.
+  Exact next step: build/submit the corrected iOS app when authorized, then verify
+  invitation/join and waiting-table rendering on a physical iPhone. Installed
+  build40 cannot receive this correction through a server/frontend deployment.
+
+### All-game native layout audit — 2026-10-15
+
+- Audited nativeEvent/layout callbacks throughout the client, including shared
+  pregame seats, Marriage hands, Flush arena/hand controls and Call Break table
+  measurements. No additional deferred native-event reads were found beyond the
+  three callbacks already corrected in TableSeatLayout/FlushArena.
+- Extended executable callback regressions across capacities4/5/6 and Call Break's
+  separate CardTable measurement. Added a TypeScript-AST scan over all client
+  source rejecting nativeEvent reads captured by a nested callback. All four
+  targeted checks pass. Physical iPhone verification still needs a new build;
+  this fixes the diagnosed event-lifetime crash, not a claim of no possible crashes.
+- Exact next step: authorize a corrected TestFlight build and repeat joining each
+  game on-device. Changes remain local; no commit, upload or server deployment.
+
+### Stable hand overlays and header home navigation — 2026-10-15
+
+- Removed expanded-hand measurements from table-space calculations in Marriage,
+  Flush and Call Break. Tables reserve only the collapsed bar, so opening/closing
+  the absolute hand overlay leaves underlying geometry unchanged. Marriage mobile
+  and desktop overlays now occupy98% of the game body below its header, with flex
+  scrolling and a separate action footer.
+- Marriage route selectors and Maal/Marriage eligibility controls share one row.
+  Maal uses the consistent Maal eligible label, disabled when unavailable, with
+  detailed accessibility hints. English and Nepali strings remain aligned.
+- Shared header logos navigate signed-in users to the lobby using existing local
+  exit-view navigation, without leaving the seat or signing out. Signed-out logos
+  return home. Root navigation also dismisses policy/recovery/deletion views.
+- TypeScript,494 client tests and the fresh web export passed. Isolated Chrome
+  checked actual table geometry before/after expansion and collapse for all three
+  games at320/390/1280px, taller Marriage and side-by-side eligibility, all game
+  logos returning to lobby and signed-out logo returning home. Screenshot:
+  /private/tmp/bhidne-marriage-expanded-overlay.png. Logs:
+  /private/tmp/bhidne-overlay-{typecheck,client,export,browser}.log.
+- Existing iOS event-lifetime crash fix and its regressions are preserved. Work is
+  uncommitted and undeployed. Exact next step: user review, then authorize commit/
+  deployment and a new iOS/TestFlight build for physical-device verification.
+
+### Flush auto-reveal and double-setting limits — 2026-10-15
+
+- Blind See cards explicitly opens the hand and selects face-up presentation as
+  soon as private cards arrive; existing Hide/See toggling is retained.
+- Doubling remains disabled by default, count defaults to1. Both hosted settings
+  entrypoints and client save validation now accept1–3 doubles per hand and reset
+  invalid values to1. Updated English/Nepali labels. Domain decoding intentionally
+  continues to accept historical4/5 settings so signed checkpoints and in-flight
+  hands remain recoverable; the next configuration save applies the new limits.
+- TypeScript,6 focused client checks and44 domain/host/SQL/checkpoint cases passed,
+  including settings values0/1/2/3/4/5/99 and a3-double hand cap. Evidence:
+  /private/tmp/bhidne-doubles-{typecheck,client}.log and
+  /private/tmp/bhidne-doubles-limit-tests.log. All changes remain uncommitted/local.
+- Exact next step: user review, then authorized release and updated TestFlight
+  build. No production or database changes were performed.

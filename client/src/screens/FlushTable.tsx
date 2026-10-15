@@ -45,7 +45,7 @@ const labels = {
   allow_multiplayer_blind_show: 'Allow blind show with more than two players',
   minimum_rounds_before_multiplayer_blind_show: 'Minimum betting rounds before blind show',
   initial_blind_bet: 'Minimum bet', blind_to_seen_bet_multiplier: 'Blind-to-seen bet multiplier',
-  allow_raise: 'Allow raise', max_raise: 'Max doubles per hand (1–5)',
+  allow_raise: 'Allow raise', max_raise: 'Max doubles per hand (1–3)',
   trial_bonus: 'Trial bonus (Salami)', ace_trial_bonus: 'Ace trial (Salami)',
 } as const;
 
@@ -71,7 +71,6 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   const settings = snapshot.flush_settings!;
   const [handOpen, setHandOpen] = useState(true);
   const [cardsShown, setCardsShown] = useState(false);
-  const [handHeight, setHandHeight] = useState(92);
   const stats = useGameStats(snapshot.match_id, snapshot.your_player_id);
   const [rulesExplanationOpen, setRulesExplanationOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
@@ -101,7 +100,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   function edit(key: string, value: string | boolean) { setDraft(v => ({ ...v, [key]: value })); setDirty(true); setLocalError(''); }
   function save() {
     const values: Record<string, string | number | boolean | null> = { ...draft };
-    values.max_raise = /^\d+$/.test(String(values.max_raise)) && Number(values.max_raise) >= 1 && Number(values.max_raise) <= 5 ? Number(values.max_raise) : 1;
+    values.max_raise = /^\d+$/.test(String(values.max_raise)) && Number(values.max_raise) >= 1 && Number(values.max_raise) <= 3 ? Number(values.max_raise) : 1;
     values.boot_amount = Number(values.initial_blind_bet);
     for (const key of Object.keys(settings.rules).filter(k => typeof settings.rules[k as keyof FlushRules] === 'number' || k === 'ace_trial_bonus' && values[k] !== null)) {
       if (!/^\d+$/.test(String(values[key])) || !Number.isSafeInteger(Number(values[key]))) { setLocalError(ui("feedback.enter_whole_nonnegative_point_amounts_and_counts")); return; }
@@ -210,7 +209,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
         poke={() => setPokeOpen(true)} canPoke={social.connected} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl} />}
     </GameTableHeader>
     <View style={s.mainColumn} testID="flush-main-column">
-      <View style={{ flex: 1, minHeight: 0, paddingBottom: snapshot.your_player_id && !ended ? (handOpen && !stats.open ? handHeight : collapsedHandHeight) + 12 : 0 }}>
+      <View style={{ flex: 1, minHeight: 0, paddingBottom: snapshot.your_player_id && !ended ? collapsedHandHeight + 12 : 0 }}>
       <GameStats snapshot={snapshot} open={stats.open} onOpen={() => { setHandOpen(false); stats.show(); }} onClose={stats.close}>
       <ScrollView testID="flush-play-viewport" style={s.playViewport} onLayout={e => setArenaHeight(Math.max(280, e.nativeEvent.layout.height))}
         contentContainerStyle={s.playArea}>
@@ -224,7 +223,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
       {pub && <View pointerEvents="none" style={s.notice}><FlushFoldNotice key={`folds:${snapshot.match_id}`} snapshot={snapshot} /></View>}
       </GameStats>
       </View>
-      <View ref={socialAnchor.ref} onLayout={event => { socialAnchor.onLayout(); setHandHeight(event.nativeEvent.layout.height); }} style={[s.handDock, !!snapshot.your_player_id && !ended && s.handOverlay]} testID="flush-hand-dock">
+      <View ref={socialAnchor.ref} onLayout={event => { socialAnchor.onLayout(); }} style={[s.handDock, !!snapshot.your_player_id && !ended && s.handOverlay]} testID="flush-hand-dock">
         {!mine && !ended && !!snapshot.your_player_id && <WaitingHandArea />}
         {!!mine && <View style={{alignSelf:'stretch',flexShrink:0}} onLayout={event => setCollapsedHandHeight(event.nativeEvent.layout.height + 12)}>
           <HandAreaBar cue={gameAttention(snapshot)} open={handOpen && !stats.open} onToggle={() => { stats.close(); setHandOpen(value=>!value); }} attention={myTurn && connectionReady && !ended}
@@ -246,7 +245,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
               {button(ui("flush.bet_double_points_points", { "points": doubleBet }), () => act('BET', { amount: doubleBet }), !canDouble || !can("bet"), false, false,
                 ui('flush.bet_short', { kind: ui('flush.double'), points: doubleBet }))}
             </>}
-            {available('see_cards') && button(ui("flush.see_cards"), () => { setHandOpen(true); act('SEE_CARDS'); }, !can('see_cards'))}
+            {available('see_cards') && button(ui("flush.see_cards"), () => { setHandOpen(true); setCardsShown(true); act('SEE_CARDS'); }, !can('see_cards'))}
             {ownPlayer?.visibility === 'seen' && mine?.cards.length === 3 && button(ui(cardsShown ? 'common.hide_cards' : 'flush.see_cards'), () => setCardsShown(value => !value))}
             {available("show") && button(ui("flush.show_points_points", { "points": mine!.actions.show_cost }), () => act('SHOW'), !can("show"), true)}
             {available('request_side_show') && button(ui("flush.request_side_show_button"), () => act('REQUEST_SIDE_SHOW'), !can('request_side_show'))}

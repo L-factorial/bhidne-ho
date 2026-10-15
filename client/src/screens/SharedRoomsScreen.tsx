@@ -1,3 +1,4 @@
+import {HeaderHomeContext} from '../components/BrandArt';
 import {ActivityLine} from '../components/ActivityLine';
 import {NotificationActionView} from '../components/NotificationActionView';
 import {PlayerAvatar} from '../components/PlayerAvatar';
@@ -314,7 +315,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
 
   if(signupAvatar&&session&&!expired)return <AvatarPicker session={session} onboarding onSaved={()=>{}} onDone={()=>setSignupAvatar(false)}/>;
 
-  return <PushProvider session={expired ? null : session} viewedMatch={viewedMatch}>{session&&!expired&&current&&room&&!viewedMatch&&<NotificationActionView session={session} action={{kind:'room',roomId:room.room_id}}/>}<HeaderProfileContext.Provider value={session && !expired ? close => <ProfileScreen session={session} personal={personal} onBack={close} onSignOut={signOut} /> : null}><KeyboardFrame><ThemeBackdrop /><FormScrollView accessibilityElementsHidden={transferring} importantForAccessibility={transferring?"no-hide-descendants":"auto"} aria-hidden={transferring} pointerEvents={transferring?"none":"auto"} keyboardShouldPersistTaps="handled" style={styles.page} contentContainerStyle={[styles.container, room && { flexGrow: 1 }, {
+  return <HeaderHomeContext.Provider value={()=>{setLinkedMatch(undefined);dismissInvitation?.();if(session&&!expired){shared.exitRoom();setLobbyTab('rooms');}else onExit();}}><PushProvider session={expired ? null : session} viewedMatch={viewedMatch}>{session&&!expired&&current&&room&&!viewedMatch&&<NotificationActionView session={session} action={{kind:'room',roomId:room.room_id}}/>}<HeaderProfileContext.Provider value={session && !expired ? close => <ProfileScreen session={session} personal={personal} onBack={close} onSignOut={signOut} /> : null}><KeyboardFrame><ThemeBackdrop /><FormScrollView accessibilityElementsHidden={transferring} importantForAccessibility={transferring?"no-hide-descendants":"auto"} aria-hidden={transferring} pointerEvents={transferring?"none":"auto"} keyboardShouldPersistTaps="handled" style={styles.page} contentContainerStyle={[styles.container, room && { flexGrow: 1 }, {
     paddingTop: Math.max(insets.top, 16), paddingBottom: (room ? Math.max(insets.bottom, 28) + 64 : 24),
   }]}>
     <View style={[styles.content, !session && {maxWidth: 460}, room && { flexGrow: 1, maxWidth: 760 }]}>
@@ -571,7 +572,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
               onPress={submitAccount}
               style={[styles.button, { backgroundColor: colors.primary }, authDisabled && styles.disabled]}>
               <ActivityLine active={shared.loggingIn}/><Text style={[styles.buttonText, { color: colors.onPrimary }]}>{authMode === 'signup' ? ui("common.create_account") : ui("common.sign_in")}</Text>
-            </Pressable></View></FormFooter>}{room && !expired && !invitation && !gameOpen && chat.view}{lobbyRules.view}{transferring&&!gameOpen&&<TableTransfer />}</KeyboardFrame></HeaderProfileContext.Provider></PushProvider>;
+            </Pressable></View></FormFooter>}{room && !expired && !invitation && !gameOpen && chat.view}{lobbyRules.view}{transferring&&!gameOpen&&<TableTransfer />}</KeyboardFrame></HeaderProfileContext.Provider></PushProvider></HeaderHomeContext.Provider>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   page: { flex: 1 }, container: { alignItems: 'center', paddingHorizontal: 16 }, content: { width: '100%', maxWidth: 1120 },

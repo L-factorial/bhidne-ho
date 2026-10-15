@@ -59,7 +59,7 @@ export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot
   const index = current ? players.findIndex(p => p.player_id === current.player_id) : -1;
   return <View style={[s.arena, { height }]} onLayout={e => setWidth(e.nativeEvent.layout.width)} testID="flush-arena">
     <View pointerEvents="none" style={{ position: 'absolute', top: 12, bottom: 12, left: 4, right: 4 }}><TableSurface game="flush" /></View>
-    {!centerControl && <View onLayout={event=>setCenterHeight(current=>Math.max(current,Math.ceil(event.nativeEvent.layout.height)))} style={[s.pot,{left:width/2-58,top:height/2+rowHeight/2-38-centerHeight/2}]}>
+    {!centerControl && <View onLayout={event=>{const height=event.nativeEvent.layout.height;setCenterHeight(current=>Math.max(current,Math.ceil(height)));}} style={[s.pot,{left:width/2-58,top:height/2+rowHeight/2-38-centerHeight/2}]}>
       <Text testID="flush-pot" numberOfLines={1} adjustsFontSizeToFit style={{color:colors.text,fontFamily:fonts.medium,fontSize:18}}>{ui('flush.pot')} = {potBeforeFlights(pub?.pot||0,pending)}</Text>
       <Text style={{color:colors.textMuted,fontSize:13}}>{ui('flush.seen_bet')} = {pub?.current_seen_bet||0}</Text>
       <Text style={{color:colors.textMuted,fontSize:13}}>{ui('flush.blind_bet')} = {pub?.current_blind_bet||0}</Text>
@@ -89,7 +89,7 @@ export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot
 
       </Pressable></ArrangementSeat></View>;
     })}
-    {!!centerControl && <View pointerEvents="box-none" style={{ position: 'absolute', left: 56, right: 56, top: rowHeight-76, bottom: 0, alignItems: 'center', justifyContent: 'center' }}><View pointerEvents="box-none" onLayout={event=>setCenterHeight(current=>Math.max(current,Math.ceil(event.nativeEvent.layout.height)))} style={{alignItems:"center",width:"100%"}}>{centerControl}<ArrangementHint /></View></View>}
+    {!!centerControl && <View pointerEvents="box-none" style={{ position: 'absolute', left: 56, right: 56, top: rowHeight-76, bottom: 0, alignItems: 'center', justifyContent: 'center' }}><View pointerEvents="box-none" onLayout={event=>{const height=event.nativeEvent.layout.height;setCenterHeight(current=>Math.max(current,Math.ceil(height)));}} style={{alignItems:"center",width:"100%"}}>{centerControl}<ArrangementHint /></View></View>}
     {current && <CoinFlight key={current.sequence} bet={current} from={playerPosition(Math.max(0, index), players.length, width, height, seatInset)} to={{ x: width / 2, y: height / 2 }}
       onFinish={() => setPending(items => items.filter(b => b.sequence !== current.sequence))} />}
   </View>;

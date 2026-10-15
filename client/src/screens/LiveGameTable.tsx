@@ -103,7 +103,6 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   const [rulesOpen, setRulesOpen] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
   const [handView, setHandView] = useState<HandView>("fan");
-  const [occupiedHandHeight,setOccupiedHandHeight] = useState(93);
   const [collapsedHandHeight, setCollapsedHandHeight] = useState(93);
   const [pokeTarget, setPokeTarget] = useState<number | null | undefined>(undefined);
   const [pokeNotice, setPokeNotice] = useState<{ player: string | null; at: number } | null>(null);
@@ -183,7 +182,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     {header}{gameRules}
 
     <View style={[styles.workspace, wide && styles.wideBody]}>
-    <View style={[styles.playColumn, wide && { alignSelf: 'stretch' }, handAvailable && { paddingBottom: Math.max(collapsedHandHeight,occupiedHandHeight) }]}>
+    <View style={[styles.playColumn, wide && { alignSelf: 'stretch' }, handAvailable && { paddingBottom: collapsedHandHeight }]}>
     <View style={styles.body}>
     <GameStats snapshot={snapshot} open={stats.open} onOpen={() => { cards.collapse(); stats.show(); }} onClose={stats.close}>
     <ScrollView testID="callbreak-play-viewport" style={styles.tableScroll} onLayout={event => { setTableWidth(event.nativeEvent.layout.width); setTableHeight(event.nativeEvent.layout.height); }} contentContainerStyle={[styles.container, {
@@ -220,7 +219,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
         </View>)}
       </View>}
     </View>}
-    {handAvailable && <MobileGameHand draggingCard={draggingCard} cue={gameAttention(snapshot)} docked overlay onOccupiedHeight={setOccupiedHandHeight} onCollapsedHeight={setCollapsedHandHeight} desktopDrawer mobile={mobile} game="callbreak" keepMounted cardCount={mine?.hand.length || 0}
+    {handAvailable && <MobileGameHand draggingCard={draggingCard} cue={gameAttention(snapshot)} docked overlay onCollapsedHeight={setCollapsedHandHeight} desktopDrawer mobile={mobile} game="callbreak" keepMounted cardCount={mine?.hand.length || 0}
       open={cards.open} onToggle={() => { stats.close(); cards.toggle(); }} myTurn={isTurn}
       attention={isTurn || !!mine?.can_accept_hand || !!mine?.can_claim_redeal}
       attentionText={mine?.can_accept_hand || mine?.can_claim_redeal ? ui("callbreak.review_your_cards_accept_or_request_redeal") : isTurn ? game.phase === 'BIDDING' ? ui("callbreak.make_your_call") : ui("callbreak.play_a_card") : ui("common.your_cards_count", {count: mine?.hand.length || 0})}>

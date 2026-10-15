@@ -3,7 +3,7 @@ import { ui, uiLabel } from './copy.ts';
 // Stable protocol keys map to presentation labels; the configuration stays untouched.
 const fields: Record<string, string> = {
   "allow_raise": "Allow raise",
-  "max_raise": "Max doubles per hand (1–5)",
+  "max_raise": "Max doubles per hand (1–3)",
   "allow_side_show": "Allow private side-show",
   "require_minimum_bets_by_everyone": "Require minimum bets by every remaining player",
   "minimum_bets_before_show": "Minimum bets per player before showdown",

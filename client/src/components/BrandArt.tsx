@@ -1,11 +1,16 @@
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { ui } from '../i18n/copy.ts';
-import { Image, StyleSheet, View } from 'react-native';
+import {createContext,useContext} from 'react';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { branding, gameIcons } from '../branding';
+
+export const HeaderHomeContext=createContext<(()=>void)|null>(null);
 
 export function BrandLogo({ size = headerLogoSize }: { size?: number }) {
   useUiLanguage();
-  return <Image source={branding.logo} accessibilityLabel={ui("common.brand_name")} resizeMode="contain" style={{ width: size * 727 / 385, height: size, flexShrink: 0 }} />;
+  const home=useContext(HeaderHomeContext);
+  const logo=<Image source={branding.logo} accessibilityLabel={ui("common.brand_name")} resizeMode="contain" style={{ width: size * 727 / 385, height: size, flexShrink: 0 }} />;
+  return home?<Pressable testID="header-home-logo" accessibilityRole="button" accessibilityLabel={ui('common.home')} onPress={home} style={{minHeight:44,justifyContent:'center',flexShrink:0}}>{logo}</Pressable>:logo;
 }
 // One in-app size, approximately 10% larger than the former 52px mobile logo.
 export const headerLogoSize = 57;

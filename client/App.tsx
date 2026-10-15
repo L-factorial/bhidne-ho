@@ -1,3 +1,4 @@
+import {HeaderHomeContext} from './src/components/BrandArt';
 import {ActivityLine} from './src/components/ActivityLine';
 import {AppText as Text} from './src/components/AppText';
 import {usePushNavigation} from './src/notifications/usePushNavigation';
@@ -110,7 +111,7 @@ function AppContent() {
     <View style={{width:160,marginTop:12}}><ActivityLine/></View>
   </View>;
   return (
-    <SafeAreaProvider><PolicyNavigation.Provider value={openPolicy}><DeletionNavigation.Provider value={()=>setDeletionOpen(true)}>
+    <SafeAreaProvider><HeaderHomeContext.Provider value={()=>{closePolicy();setDeletionOpen(false);setRecovery(null);dismissInvitation();setInRooms(!!readSession(apiUrl));}}><PolicyNavigation.Provider value={openPolicy}><DeletionNavigation.Provider value={()=>setDeletionOpen(true)}>
       <SessionNotice />
       {!!authError && <Text accessibilityRole="alert" style={{ padding: 16, color: colors.danger }}>{uiLabel(authError, 'feedback')}</Text>}
       {policy ? <PublicPolicyPage page={policy} onBack={closePolicy} /> : deletionOpen ? <DeletionScreen key={deletionToken || 'account-deletion'} session={readSession(apiUrl)?.session || null} token={deletionToken} onClose={()=>{setDeletionOpen(false);setDeletionToken(null);setInRooms(true);if(Platform.OS==='web'&&globalThis.location.pathname.startsWith('/delete-account'))globalThis.history.replaceState(null,'','/');}} /> : recovery ? <RecoveryScreen key={recovery.token} link={recovery} onDone={reset => {
@@ -120,6 +121,6 @@ function AppContent() {
         : process.env.EXPO_PUBLIC_RUNTIME_MODE === 'distributed-integration' && (inRooms || invitation) ? <DistributedRoomsScreen key={authVersion} invitation={invitation} dismissInvitation={dismissInvitation} onExit={() => { dismissInvitation(); setInRooms(false); }} />
         : inRooms || invitation ? <SharedRoomsScreen key={authVersion} invitation={invitation} dismissInvitation={dismissInvitation} onExit={() => { dismissInvitation(); setInRooms(false); }} />
         : <WelcomeScreen onEnterLobby={() => setInRooms(true)} />}
-    </DeletionNavigation.Provider></PolicyNavigation.Provider></SafeAreaProvider>
+    </DeletionNavigation.Provider></PolicyNavigation.Provider></HeaderHomeContext.Provider></SafeAreaProvider>
   );
 }
