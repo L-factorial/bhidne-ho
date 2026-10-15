@@ -10226,3 +10226,28 @@ Capacity, observability, database HA and operational readiness remain deferred.
   pre-existing load-test/test edits outside this release commit.
 - Exact next step: complete final release tests, commit, build/deploy and verify
   both revisions plus public HTTPS. No new schema migration is introduced here.
+
+### Direct game UX release verified — 2026-10-14
+
+- Deployed committed revision 785849109b2e47e85ecc74f3728d1d05abbec3a1 directly
+  to app1 (168.144.105.49) and app2 (165.245.180.205). Identical immutable image:
+  sha256:fcec2a2d3f5e289e2abb1ea44c41290052bf8d72789f360b185f54dc64bb9b98.
+- Both hosts passed schema/dependency checks; backends were replaced sequentially
+  before frontend activation. No migration or runtime environment change. Previous
+  containers/assets retained by the existing receiver procedure.
+- Server build passed 490 client tests, TypeScript and production export. Final
+  focused local release suite passed 65 cases, including PostgreSQL/WASM durable
+  off-turn Flush reveals, automatic Marriage Maal recovery and receiver checks.
+- Both running containers report the release revision, local health is OK, both
+  frontend index checksums match, public API HTTPS is healthy, and public Chrome
+  checks at 390/1280px render sign-in without uncaught JavaScript errors. These
+  smoke checks do not establish native-device or live authenticated game coverage.
+- GitHub production had zero in-progress, queued, waiting, pending or requested
+  runs. Release commit includes [skip ci]. Automatic approval review rejected a
+  GitHub push as not explicitly authorized; commit remains local and deployment
+  used committed source over verified SSH. No GitHub run deployed this release.
+- Unrelated pre-existing load-test and six test-file changes remain uncommitted.
+  Exact next step: user gameplay/native verification; push only with explicit
+  authorization. Capacity testing, observability, database HA and operations remain
+  deferred. Release build evidence remains on both hosts under
+  /srv/bhidne-prod/builds/7858491; local checks: /private/tmp/bhidne-direct-final-tests.log.
