@@ -4,7 +4,7 @@ import type {PlayTable} from '../multiplayer/playFeed';
 import {useEffect,useState} from 'react';
 import {View} from 'react-native';
 import {AppText as Text} from './AppText';
-import {useTheme,fonts,radii} from '../theme';
+import {useTheme} from '../theme';
 import {ui} from '../i18n/copy';
 import {useUiLanguage} from '../i18n/useUiLanguage';
 import {playerError} from '../multiplayer/playerError';
@@ -29,12 +29,17 @@ export function useCreationProgress(runtime?:OriginalDistributedRuntime|null){
   return state;
 }
 export function CreationCards({runtime,kind,roomId,matches=[],onReturn,onReleased}:{runtime?:OriginalDistributedRuntime|null;kind:'room'|'table';roomId?:string;matches?:string[];onReturn?:(table:PlayTable)=>void;onReleased?:()=>void}){
-  useUiLanguage();const {colors}=useTheme();const {cards,feedback}=useCreationProgress(runtime);
+  useUiLanguage();const {colors}=useTheme();const {feedback}=useCreationProgress(runtime);
+  const notices=feedback.filter(item=>item.kind===kind&&(!roomId||item.roomId===roomId));
+  if(!notices.length)return null;
   return <View style={{gap:10}}>
-    {cards.filter(card=>card.kind===kind&&(!roomId||card.roomId===roomId)&&(!card.matchId||!matches.includes(card.matchId))).map(card=><View key={card.id} testID={`creating-${kind}`} accessibilityLiveRegion="polite" style={{padding:20,gap:10,borderRadius:radii.medium,borderWidth:1,borderColor:colors.border,backgroundColor:colors.surface}}>
-      <Text style={{color:colors.text,fontFamily:fonts.medium,fontSize:20}}>{card.name}</Text>
-      <View style={{flexDirection:'row',alignItems:'center',gap:10}}><ActivityLine /></View>
-    </View>)}
-    {feedback.filter(item=>item.kind===kind&&(!roomId||item.roomId===roomId)).map(item=>runtime&&item.context?.code==='PLAYER_ALREADY_AT_TABLE'&&item.context.room_id&&item.context.match_id?<SeatReservationNotice key={item.id} runtime={runtime} item={item} onReturn={onReturn} onReleased={onReleased}/>:<Text key={item.id} accessibilityRole={item.error?'alert':undefined} accessibilityLiveRegion="polite" style={{color:item.error?colors.danger:colors.textMuted,padding:12}}>{item.error?playerError(item.error):ui('rooms.busy_invitees_skipped',{players:item.skipped?.join(', ')??''})}</Text>)}
+    {notices.map(item=>runtime&&item.context?.code==='PLAYER_ALREADY_AT_TABLE'&&item.context.room_id&&item.context.match_id?<SeatReservationNotice key={item.id} runtime={runtime} item={item} onReturn={onReturn} onReleased={onReleased}/>:<Text key={item.id} accessibilityRole={item.error?'alert':undefined} accessibilityLiveRegion="polite" style={{color:item.error?colors.danger:colors.textMuted,padding:12}}>{item.error?playerError(item.error):ui('rooms.busy_invitees_skipped',{players:item.skipped?.join(', ')??''})}</Text>)}
+  </View>;
+}
+
+/** Progress is separate from the table catalog and never intercepts navigation. */
+export function CreationActivity({active}:{active:boolean}){
+  return <View testID="creation-bottom-activity" pointerEvents="none" style={{height:3,flexShrink:0,opacity:.6}}>
+    <ActivityLine active={active}/>
   </View>;
 }

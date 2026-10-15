@@ -390,3 +390,62 @@ async def test_overlapping_maintenance_calls_share_the_worker_bound():
         assert peak == 1
     finally:
         await coordinator.stop()
+
+
+async def test_activation_has_inventory_budget_separate_from_lease_io():
+    store = Store()
+    coordinator = RoomLeaseCoordinator(store, 'one', operation_timeout=.01, activation_timeout=.2)
+    await coordinator.start()
+    try:
+        lease = await coordinator.acquire('room', expected_epoch=0)
+        async def transition(registration, fence):
+            await asyncio.sleep(.04)  # Longer than ordinary lease I/O permits.
+            store.leases['room'] = replace(lease, status='serving')
+            return store.leases['room']
+        await coordinator.activate(lease.fence, transition)
+        assert coordinator.admits(lease.fence)
+        assert coordinator.operation_timeout == .01
+    finally:
+        await coordinator.stop()
+
+
+async def test_activation_budget_still_revokes_an_unconfirmed_owner():
+    store = Store()
+    coordinator = RoomLeaseCoordinator(store, 'one', activation_timeout=.02)
+    await coordinator.start()
+    try:
+        lease = await coordinator.acquire('room', expected_epoch=0)
+        async def blocked(registration, fence):
+            await asyncio.Event().wait()
+        with pytest.raises(TimeoutError):
+            await coordinator.activate(lease.fence, blocked)
+        assert not coordinator.confirms(lease.fence, status='recovering')
+        assert not coordinator.admits(lease.fence)
+        await coordinator.heartbeat_once()
+        await coordinator.renew_once()
+        assert not coordinator.admits(lease.fence)
+    finally:
+        await coordinator.stop()
+
+
+async def test_activation_cannot_outlive_remaining_confirmed_lease():
+    store, clock = Store(), Clock()
+    coordinator = RoomLeaseCoordinator(store, 'one', clock=clock, activation_timeout=.2)
+    await coordinator.start()
+    try:
+        lease = await coordinator.acquire('room', expected_epoch=0)
+        clock.now += coordinator.lease_seconds - coordinator.safety_margin - .01
+        async def too_late(registration, fence):
+            await asyncio.sleep(.04)
+            return replace(lease, status='serving')
+        with pytest.raises(TimeoutError):
+            await coordinator.activate(lease.fence, too_late)
+        assert not coordinator.admits(lease.fence)
+    finally:
+        await coordinator.stop()
+
+
+@pytest.mark.parametrize('budget', [0, -1, float('nan'), float('inf'), 25, 30])
+def test_activation_budget_requires_lease_and_heartbeat_headroom(budget):
+    with pytest.raises(ValueError):
+        RoomLeaseCoordinator(Store(), 'one', activation_timeout=budget)

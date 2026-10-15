@@ -10363,3 +10363,58 @@ Capacity, observability, database HA and operational readiness remain deferred.
   the layout crash fix, hand overlays and client controls to installed apps, then
   test all games on the physical iPhone. Server/web deployment cannot update
   installed build40. Native build/upload and gameplay verification remain pending.
+
+### Marriage arrangement control presentation — 2026-10-15
+
+- Hide the Dublee arrangement tab entirely for2–3 players. Both Sequence/Tunnela
+  and Dublee remain available side by side for4–6 players. Each tab displays a
+  distinct Arrange heading with a smaller muted route subtitle; English/Nepali
+  copy and accessible tab labels are provided. Explicit web aria-selected tracks
+  the existing native selected state. No eligibility/game rules were changed.
+- TypeScript,494 client tests and fresh web export passed. Isolated Chrome checks
+  covered2/3/4/5/6 players at320/1280px, absence/presence, same-row placement,
+  route switching and computed text hierarchy. Evidence:
+  /private/tmp/bhidne-arrange-{typecheck,client,export,browser}.log.
+- Work remains local and uncommitted; no deployment or TestFlight update. Exact
+  next step: user review and authorized release/native build.
+
+### Sigma room-entry/creation loading incident — 2026-10-15
+
+- Production receipts identify Sigma's room entry at12:08:32 Pacific, accepted
+  at12:14:32 after repeated recovery.activate timeouts. Ekraj's Marriage creation
+  at12:09:21 and Sigma's invitation acceptance at12:09:33 both committed normally.
+  The delayed room is f0360936f4c75992bd6ab5e35c80cb25; it subsequently recovered
+  at epoch31. Both involved rooms are serving, and the pending entry is accepted.
+  No production mutation/restart was performed during this investigation.
+- Root cause: RoomLeaseCoordinator.activate applied its3-second lease-I/O timeout
+  to full transactional inventory revalidation. Sigma's inventory preparation alone
+  took roughly3–4 seconds, causing repeated activation failures as room history
+  grew. Added a separate bounded activation_timeout(default10seconds), validated
+  against lease/heartbeat headroom and capped by the current local lease deadline.
+  Heartbeat/acquisition/renewal budgets and fail-closed admission remain unchanged.
+- Inspected the client room-action journal and recovery path. An unresolved original
+  room mutation deliberately prevents replacing it with another intention; no
+  pending commands or receipts were discarded to bypass that protection. The
+  incident resolved server-side; Sigma can retry the table join now.
+-73 coordinator, activation, recovery and runtime tests passed, including real
+  PostgreSQL/WASM cases. New tests cover activation exceeding ordinary I/O budget,
+  bounded timeout revocation, remaining-lease cap and invalid/headroom bounds.
+  Evidence: /private/tmp/bhidne-activation-budget-tests.log.
+- Work is local/uncommitted; no server deployment. Exact next step: review/deploy
+  the bounded activation fix, then observe cold recovery of the affected room.
+  Broad capacity/performance work remains deferred.
+
+### Quiet creation progress presentation — 2026-10-15
+
+- Removed pending room/table placeholder cards from CreationCards wherever it is
+  used (Play feed and room table lists). With no feedback it returns null, reserving
+  no list item/gap. Kept error/skipped-invitee/seat-conflict feedback actionable.
+- Added one3px, muted, noninteractive CreationActivity line above bottom navigation,
+  outside the scrollable catalog. Uses existing reduced-motion-aware ActivityLine,
+  no title/status text, and is not shown over an open game. Durable pending intents
+  and duplicate-creation protections are unchanged.
+- TypeScript and497 client tests pass, including three new presentation checks for
+  absent placeholders, retained errors and the text-free noninteractive bottom
+  line. Evidence: /private/tmp/bhidne-bottom-activity-{typecheck,client}.log.
+- Work remains local/uncommitted alongside the separately tested activation-budget
+  fix. Exact next step: authorized release and native build for installed clients.

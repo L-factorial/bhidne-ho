@@ -21,7 +21,7 @@ import { legacyRoomActions } from '../multiplayer/legacyRoomActions';
 import type { RoomActions } from '../multiplayer/RoomActions';
 import { RoomInvitations } from '../components/RoomInvitations';
 import { visualStates, radii, gameTabFinish, gameSeparatorFinish, gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
-import {CreationCards,useCreationProgress} from '../components/CreationCards';
+import {CreationActivity,CreationCards,useCreationProgress} from '../components/CreationCards';
 import {CreateTableSheet} from '../components/CreateTableSheet';
 import { ActiveGames, type ActiveTable } from '../components/ActiveGames';
 import type { TableEntry } from '../multiplayer/tableNavigation';
@@ -562,6 +562,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   {session && <ProfileModal visible={lobbyProfileOpen} onClose={() => setLobbyProfileOpen(false)}>
     <ProfileScreen session={session} personal={personal} onBack={() => setLobbyProfileOpen(false)} onSignOut={signOut} />
   </ProfileModal>}
+  {session && !expired && !gameOpen && <CreationActivity active={creation.cards.length>0}/>}
   {session && !expired && !room && !invitation && <LobbyNavigation selected={lobbyTab === 'chat' ? 'chat' : lobbyTab === 'players' ? 'friends' : lobbyTab === 'ledger' ? 'ledger' : 'home'}
     onSelect={tab => { if(tab==='chat')void lobbyRules.run(()=>setLobbyTab('chat'));else setLobbyTab(tab==='friends'?'players':tab==='ledger'?'ledger':'games'); }} />}
 

@@ -36,10 +36,12 @@ class CoordinationFailure:
 class RoomLeaseCoordinator:
     def __init__(self, store, internal_address, *, capabilities=None, lease_seconds=30,
                  interval=5.0, operation_timeout=3.0, safety_margin=1.0,
-                 max_rooms=128, renewal_workers=4, clock=time.monotonic):
+                 max_rooms=128, renewal_workers=4, clock=time.monotonic,
+                 activation_timeout=10.0):
         _duration(lease_seconds)
         if (any(not math.isfinite(v) or v <= 0 for v in (interval, operation_timeout, safety_margin))
-                or interval + operation_timeout + safety_margin >= min(lease_seconds, store.heartbeat_ttl)
+                or not math.isfinite(activation_timeout) or activation_timeout <= 0
+                or interval + max(operation_timeout, activation_timeout) + safety_margin >= min(lease_seconds, store.heartbeat_ttl)
                 or type(max_rooms) is not int or max_rooms < 1
                 or type(renewal_workers) is not int or not 1 <= renewal_workers <= max_rooms):
             raise ValueError('Invalid lease coordination bounds.')
@@ -48,6 +50,7 @@ class RoomLeaseCoordinator:
         self.registration = InstanceRegistration.new()
         self.lease_seconds, self.interval = lease_seconds, interval
         self.operation_timeout, self.safety_margin = operation_timeout, safety_margin
+        self.activation_timeout = activation_timeout
         self.max_rooms, self.renewal_workers = max_rooms, renewal_workers
         self._clock = clock
         self._rooms = {}
@@ -209,7 +212,12 @@ class RoomLeaseCoordinator:
                 raise StaleGameOwner('Activation requires confirmed recovering ownership.')
             generation = self._generation
             try:
-                async with asyncio.timeout(self.operation_timeout):
+                # Activation revalidates the full room inventory. Keep lease I/O
+                # timeouts short without imposing that same budget on recovery.
+                # Holding this lock excludes room renewal, so never outlive the
+                # current conservative lease deadline, even with a larger budget.
+                remaining = room.deadline - self._clock()
+                async with asyncio.timeout(min(self.activation_timeout, remaining)):
                     lease = await transition(self.registration, fence)
                 if (lease.fence != fence or lease.status != 'serving' or not self._healthy()
                         or self._draining or room.lost or generation != self._generation
