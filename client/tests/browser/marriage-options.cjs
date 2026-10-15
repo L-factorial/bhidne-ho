@@ -53,7 +53,8 @@ const hand=[...[2,3,4,5,6].map(r=>card(r,'S')),...[8,9,10,11,12].map(r=>card(r,'
   for(const count of [3,4]){
    const f=await fixture(browser,'marriage',count,390,false,s=>{s.marriage.private.maal=null;s.marriage.public.players[0].has_seen_maal=false;s.marriage.public.players[0].route='unqualified';s.marriage.public.tunnela_declaration_pending=false;s.marriage.private.actions.kinds=['draw'];s.marriage.public.phase='must_draw';});
    const header=f.page.getByTestId('hand-attention-collapsed');if(await header.isVisible())await header.click();
-   assert.equal(await f.page.getByRole('tab',{name:'Dublee',exact:true}).isEnabled(),count>=4);
+   assert.equal(await f.page.getByRole('tab',{name:'Arrange Dublee',exact:true}).count(),count>=4?1:0);
+   await f.page.getByRole('tab',{name:'Arrange Sequence / Tunnela',exact:true}).waitFor();
    assert.deepEqual(f.errors,[]);await f.context.close();console.log(`PASS ${count}-player Dublee tab availability.`);
   }
  }finally{await browser.close();}

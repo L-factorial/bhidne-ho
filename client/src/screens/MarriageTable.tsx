@@ -276,9 +276,10 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       {declarationsPending && !declaring && <Text style={s.text}>{ui("marriage.declaration_recorded_waiting_for_other_players")}</Text>}
       <View testID="marriage-hand-controls" style={{flexDirection:preview||finishPreview?'column':'row',gap:6,alignItems:'stretch'}}>
         {!preview && !finishPreview && !declaring && allRevealed && own?.route==='unqualified' && <View accessibilityRole="tablist" style={{flexDirection:'row',flex:2,gap:6,minWidth:0}}>
-          {(["sequence","dublee"] as const).map(value=><Pressable key={value} accessibilityRole="tab" accessibilityLabel={value==='sequence'?ui("marriage.sequence_tunnela"):ui("marriage.dublee")}
-            disabled={value==='dublee'&&pub.players.length<4} accessibilityState={{selected:arrangement===value,disabled:value==='dublee'&&pub.players.length<4}} onPress={()=>{setArrangement(value);setManualOrder({key:orderKey,ids:[]});}} style={[s.button,{flex:1,minWidth:0,paddingHorizontal:6},arrangement===value&&s.chosen,value==='dublee'&&pub.players.length<4&&s.disabled]}>
-            <Text style={[s.buttonText,{fontSize:11,textAlign:'center'}]}>{value==='sequence'?ui("marriage.sequence_tunnela"):ui("marriage.dublee")}</Text>
+          {(["sequence","dublee"] as const).filter(value=>value!=='dublee'||pub.players.length>=4).map(value=><Pressable key={value} accessibilityRole="tab" accessibilityLabel={`${ui('marriage.arrange')} ${value==='sequence'?ui("marriage.sequence_tunnela"):ui("marriage.dublee")}`}
+            accessibilityState={{selected:arrangement===value}} aria-selected={arrangement===value} onPress={()=>{setArrangement(value);setManualOrder({key:orderKey,ids:[]});}} style={[s.button,{flex:1,minWidth:0,paddingHorizontal:6,gap:2},arrangement===value&&s.chosen]}>
+            <Text style={[s.buttonText,{fontSize:16,textAlign:'center'}]}>{ui('marriage.arrange')}</Text>
+            <Text style={{fontFamily:fonts.body,fontSize:10,color:colors.textMuted,textAlign:'center',opacity:.75}}>{value==='sequence'?ui("marriage.sequence_tunnela"):ui("marriage.dublee")}</Text>
           </Pressable>)}
         </View>}
         {own?.has_seen_maal && !finishPreview && <View style={{flex:1,minWidth:0}}>{recordedDeclarations}</View>}
