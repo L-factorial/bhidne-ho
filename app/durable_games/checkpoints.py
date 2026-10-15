@@ -418,11 +418,14 @@ def decode_checkpoint(value: dict) -> DecodedCheckpoint:
         missing_defaults = [key for key in ('card_theme', 'callbreak_previous_scores', 'session') if key not in value['data']['host']]
         for key in missing_defaults:
             del digest_data['host'][key]
+        missing_table_defaults = [key for key in ('seat_positions',) if key not in value['data']['table']]
+        for key in missing_table_defaults:
+            del digest_data['table'][key]
         digest = hashlib.sha256(canonical_json(digest_data).encode()).hexdigest()
         if digest != record.digest:
             raise CheckpointError('Checkpoint digest mismatch.')
-        if missing_defaults:
-            # Verify old bytes first, then normalize additive host defaults.
+        if missing_defaults or missing_table_defaults:
+            # Verify old bytes first, then normalize additive defaults.
             normalized_digest = hashlib.sha256(canonical_json(record.data.model_dump(mode='json')).encode()).hexdigest()
             record = record.model_copy(update={'digest': normalized_digest})
         return DecodedCheckpoint(record, _decode_engine(record.data))

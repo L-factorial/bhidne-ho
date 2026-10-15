@@ -10251,3 +10251,21 @@ Capacity, observability, database HA and operational readiness remain deferred.
   authorization. Capacity testing, observability, database HA and operations remain
   deferred. Release build evidence remains on both hosts under
   /srv/bhidne-prod/builds/7858491; local checks: /private/tmp/bhidne-direct-final-tests.log.
+
+### Saved-table checksum compatibility hotfix — 2026-10-14
+
+- Production Flush creation attempts were blocked during room recovery: two rooms
+  quarantined and saved-table reads reported Checkpoint digest mismatch. Root cause
+  was the new default table.seat_positions being included when hashing older
+  envelopes that never contained that field. Corrected digest verification to omit
+  only absent known additive defaults, verify old bytes first, then normalize.
+  Existing seat maps and tampered envelopes still require exact valid checksums.
+- Read-only candidate validation loaded all 101 production checkpoints. Twelve
+  dedicated waiting/active Flush, Marriage and Call Break cases pass, covering old
+  signed envelopes, tampering, SQL recovery and the next table write.
+- User authorized fixing and deploying directly. Release will reuse the verified
+  immutable deployed image and replace only the changed backend source; frontend,
+  dependencies, environment and database schema stay identical. Check both hosts,
+  replace sequentially, validate all checkpoints on the deployed image, then use
+  expected-epoch repair retry for the two quarantined rooms. No game-data deletion
+  or checksum rewrite is needed. Exact next step: final checks and direct rollout.
