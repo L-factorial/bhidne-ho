@@ -10341,3 +10341,25 @@ Capacity, observability, database HA and operational readiness remain deferred.
   /private/tmp/bhidne-doubles-limit-tests.log. All changes remain uncommitted/local.
 - Exact next step: user review, then authorized release and updated TestFlight
   build. No production or database changes were performed.
+
+### Direct production rollout verified — 2026-10-15
+
+- User authorized direct server deployment of existing committed release
+  aebd4a833eda7cec99b01c9f7d91856b050bc76c (More fixes). Cancelled competing
+  GitHub run38786499488 and verified its cancelled conclusion. No Actions deploy
+  or database migration was used.
+- Built Dockerfile.production on app1:494 client tests, TypeScript and production
+  frontend export passed. Loaded the same checked image on app2:
+  sha256:df4835272e688df8009fcc69e9bb228258b5dcc0d9106b0e281fdf4916acbe1b.
+  Both hosts passed preflight, backends were replaced sequentially, then matching
+  frontend releases activated on both. Previous containers/assets remain retained.
+- Both running containers report the exact release revision and local health OK.
+  Both frontend index hashes match. Public API HTTPS and Chrome390/1280px
+  welcome/sign-in checks pass without uncaught JavaScript errors. Read-only
+  validation loaded all118 saved tables; no rooms are quarantined. No game data
+  was deleted, rewritten or reverted. Server build evidence:
+  /srv/bhidne-prod/builds/aebd4a8/build.log.
+- Exact next step: build/submit a new iOS/TestFlight release from aebd4a8 to deliver
+  the layout crash fix, hand overlays and client controls to installed apps, then
+  test all games on the physical iPhone. Server/web deployment cannot update
+  installed build40. Native build/upload and gameplay verification remain pending.
