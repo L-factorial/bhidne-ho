@@ -2,7 +2,9 @@ export const tableReactions = {
   love: { label: 'Love', emoji: '❤️' },
   pinch: { label: 'Pinch', emoji: '🤏' },
   clap: { label: 'Clap', emoji: '👏' },
-  cheers: { label: 'Cheers', emoji: '🥂' },
+  jinx: { label: 'Jinx', emoji: '', icon: 'elbow-jab' },
+  good_luck: { label: 'Good luck', emoji: '🕊️🕊️' },
+  creepy_winner: { label: 'Creepy winner', emoji: '🦉' },
   laugh: { label: 'Laugh', emoji: '😂' },
   hammer: { label: 'Playful hammer', emoji: '🔨' },
 };

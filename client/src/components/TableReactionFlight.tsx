@@ -1,3 +1,4 @@
+import { TableReactionIcon } from './TableReactionIcon';
 import {AppText as Text} from './AppText';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -92,10 +93,10 @@ export function TableReactionFlight({ flight, recipient, onComplete }: { flight:
         { translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [from.x, to.x] }) },
         { translateY: progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [from.y, Math.max(32, Math.min(from.y, to.y) - 65), to.y] }) },
         { scale: reduced ? 1 : impact.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, recipient ? 2.3 : 1.5, recipient ? 1.7 : 1.15] }) },
-      ] }}><Text style={{ fontSize: 42 }}>{reaction.emoji}</Text></Animated.View>
+      ] }}><TableReactionIcon reaction={event.reaction} size={42} /></Animated.View>
     {arrived && recipient && <Animated.View testID="table-reaction-catch" accessibilityLiveRegion="polite" accessibilityRole="alert"
       style={{ position: 'absolute', top: '25%', alignSelf: 'center', maxWidth: '85%', alignItems: 'center', padding: 16, borderRadius: radii.large, borderWidth: 2, borderColor: c.tableTrim, backgroundColor: c.tableHeader, boxShadow: `0px 8px 28px ${c.shadow}`, opacity }}>
-      <Text style={{ fontSize: 48 }}>{reaction.emoji}</Text>
+      <TableReactionIcon reaction={event.reaction} size={48} />
       <Text style={{ color: c.onTableHeader, fontFamily: fonts.medium, textAlign: 'center' }}>{ui("social.player_sent_you_reaction", { "player": event.sender_name, "reaction": uiLabel(reaction.label, 'social') })}</Text>
     </Animated.View>}
   </View>;

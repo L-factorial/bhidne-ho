@@ -25,3 +25,10 @@ test('punchlines retain literal text and reject malformed or oversized messages'
     assert.equal(readTableReaction({ ...punchline, text }, 'room', 'match', 1000), null);
   }
 });
+
+test('table poke choices replace Cheers with Jinx and a pair of good luck doves', () => {
+  assert.equal(Object.hasOwn(tableReactions, 'cheers'), false);
+  assert.equal(tableReactions.jinx.icon, 'elbow-jab');
+  assert.equal(tableReactions.jinx.emoji, '');
+  assert.equal(tableReactions.good_luck.emoji, '🕊️🕊️');
+});

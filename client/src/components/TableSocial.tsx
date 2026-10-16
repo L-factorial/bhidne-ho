@@ -1,3 +1,4 @@
+import { TableReactionIcon } from './TableReactionIcon';
 import {AppText as Text} from './AppText';
 import { preserveRemovals } from './moderation/messages';
 import { CommunityRulesEntry, useCommunityRulesGate } from './moderation/CommunityRules';
@@ -243,7 +244,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
         <View style={{flexDirection:'row',flexWrap:'wrap',gap:4}}>
           {(Object.keys(tableReactions) as ReactionId[]).map(id => <Pressable key={id} accessibilityRole="button" accessibilityLabel={ui("social.send_reaction", { "reaction": uiLabel(tableReactions[id].label, 'social') })} disabled={sendingPoke || targetPlayer === null || !enabled} accessibilityState={{ disabled: sendingPoke || targetPlayer === null || !enabled }} onPress={() => void sendReaction(id)}
             style={({pressed})=>({minWidth:44,minHeight:48,alignItems:'center',justifyContent:'center',opacity:sendingPoke||targetPlayer===null?0.5:pressed?0.7:1})}>
-            <Text style={{fontSize:30}}>{tableReactions[id].emoji}</Text>
+            <TableReactionIcon reaction={id} size={30} />
           </Pressable>)}
         </View>
       </RoomSheet>

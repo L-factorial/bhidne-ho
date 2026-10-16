@@ -10751,3 +10751,39 @@ Capacity, observability, database HA and operational readiness remain deferred.
   copy in English and Nepali. Creation dialogs and submit behavior unchanged.
 - TypeScript and diff checks pass. Small presentation-only change; no new tests
   or deployment. Exact next step: user review with the next preview/release.
+
+### Table poke Jinx and Good luck choices — 2026-10-15
+
+- Replaced Cheers in the shared game-table reaction picker with pointing Jinx
+  (🫵) and Good luck (🕊️🕊️). Added English/Nepali labels and accepted reaction
+  identifiers in the common backend payload validator. Existing flight/catch
+  presentation uses the same shared reaction definitions across all games.
+  Backend still accepts legacy Cheers commands from installed older clients;
+  the updated picker no longer offers Cheers.
+- Verification: TypeScript, four client reaction tests and 34 social/ephemeral
+  backend tests pass; nine database-dependent tests skipped. New choices tested
+  across all three games for broadcast, deduplication and unchanged game state.
+  Diff checks pass; backend log /private/tmp/poke-choices-backend.log.
+- Local only; deployment remains on hold at the user's request. Exact next step:
+  collect remaining requested changes before resuming any authorized deployment.
+
+### Jinx elbow-jab artwork — 2026-10-15
+
+- User clarified Jinx means elbowing someone, rather than a pointing finger or
+  flexed muscle. Added a custom SVG bent-arm elbow jab with motion/impact ticks.
+  Shared TableReactionIcon renders it in the picker, travelling animation and
+  recipient catch; the wire reaction remains jinx. Other reactions retain emoji.
+- TypeScript, four focused reaction tests and diff checks pass. No backend or
+  protocol change in this increment; visual device review remains outstanding.
+- Local only. Deployment remains on hold. Exact next step: review elbow artwork
+  and collect remaining changes before authorized deployment resumes.
+
+### Owl Creepy winner poke — 2026-10-15
+
+- Added 🦉 Creepy winner to the shared picker and backend reaction validator.
+  Added Nepali डरलाग्दो विजेता; verified every current reaction has a Nepali
+  label, used by existing translated send/catch messages. Emoji/artwork remain
+  the same across languages; custom punchlines retain the sender's own text.
+- TypeScript, four reaction tests, 37 table-social tests (including new owl
+  broadcasts in all three games) and diff checks pass. No deployment; hold
+  remains in effect. Exact next step: user review/remaining requested changes.

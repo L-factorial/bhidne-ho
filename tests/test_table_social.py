@@ -126,17 +126,18 @@ async def test_poke_rechecks_seats_after_connectivity_await():
 
 
 @pytest.mark.parametrize('kind', ['callbreak', 'marriage', 'flush'])
-async def test_reaction_is_public_in_room_deduplicated_and_keeps_game_unchanged(kind):
+@pytest.mark.parametrize('reaction', ['love', 'jinx', 'good_luck', 'creepy_winner'])
+async def test_reaction_is_public_in_room_deduplicated_and_keeps_game_unchanged(kind, reaction):
     host, service, game, sockets, _, _ = await fixture(kind)
     try:
         game.table.queue.clear()  # Unseated spectators also receive public visuals.
         state, log = game.state, list(game.log)
-        cmd = command('TABLE_POKE_SEND', game.match_id, recipient_player_id=2, reaction='love')
+        cmd = command('TABLE_POKE_SEND', game.match_id, recipient_player_id=2, reaction=reaction)
         first, retry = await asyncio.gather(service.handle('room', 'u0', cmd), service.handle('room', 'u0', cmd))
         assert first == retry and first['status'] == 'accepted'
         assert [len(s.messages) for s in sockets] == [1, 1, 1, 1, 1, 1, 0]
         event = sockets[0].messages[0]
-        assert event['type'] == 'TABLE_REACTION' and event['reaction'] == 'love'
+        assert event['type'] == 'TABLE_REACTION' and event['reaction'] == reaction
         assert event['sender_player_id'] == 1 and event['recipient_player_id'] == 2
         assert event['recipient_id'] == 'u1' and event['match_id'] == game.match_id
         assert 'text' not in event
