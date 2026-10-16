@@ -1,3 +1,4 @@
+import { FittedGameTable } from '../components/FittedGameTable';
 import { flushPlayerName } from '../multiplayer/flush';
 import {ActivityLine} from '../components/ActivityLine';
 import { WaitingHandArea } from '../components/WaitingHandArea';
@@ -211,14 +212,13 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
     <View style={s.mainColumn} testID="flush-main-column">
       <View style={{ flex: 1, minHeight: 0, paddingBottom: snapshot.your_player_id && !ended ? collapsedHandHeight + 12 : 0 }}>
       <GameStats snapshot={snapshot} open={stats.open} onOpen={() => { setHandOpen(false); stats.show(); }} onClose={stats.close}>
-      <ScrollView testID="flush-play-viewport" style={s.playViewport} onLayout={e => setArenaHeight(Math.max(280, e.nativeEvent.layout.height))}
-        contentContainerStyle={s.playArea}>
+      <FittedGameTable testID="flush-play-viewport" onSize={(_,height)=>setArenaHeight(Math.max(1,height))}>
         <FlushArena key={`${snapshot.match_id}:${pub?.round_number || 0}`} snapshot={snapshot}
           centerControl={ended ? endedNotice : centerControl || preparationControl || (!snapshot.table && snapshot.status === 'waiting'
             ? snapshot.is_creator ? <FlushLockButton loading={snapshot.starting} onPress={() => onStart(baseRevision)} disabled={busy || !snapshot.ready || dirty || stale} />
               : <Text style={s.text}>{ui("flush.waiting_for_the_creator_to_lock_the_table")}</Text> : undefined)}
           height={arenaHeight} />
-      </ScrollView>
+      </FittedGameTable>
       {sideMessage&&<Text testID="flush-side-show-notice" accessibilityLiveRegion="polite" style={{color:colors.accent,textAlign:'center'}}>{sideMessage}</Text>}
       {pub && <View pointerEvents="none" style={s.notice}><FlushFoldNotice key={`folds:${snapshot.match_id}`} snapshot={snapshot} /></View>}
       </GameStats>

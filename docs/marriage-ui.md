@@ -23,17 +23,21 @@ game has no settlement. See [scoring](marriage-scoring.md) for exact rules.
    Marriage uses manual multiplayer only. Each seated player makes their own
    moves; there are no automatic turns or timeout moves. If a player disconnects,
    their seat and turn remain reserved until they reconnect.
-2. Each player receives 21 private cards. Tap to reveal cards in received order
-   or reveal all, then choose Grid or Suit groups. Arc is available only with
-   15 or fewer uncommitted cards, including during reveal. Shown groups remain
-   in the Stats overlay and leave the main hand. Dragging a revealed hand card
-   onto another card inserts it immediately before that card and updates the
-   displayed list, preserving the order of all other cards. This presentation
-   order survives polling; newly drawn cards append and removed cards disappear.
-   Sequence/Dublee arrangement buttons restore automatic ordering.
-   Hide/Show cards provides
-   local screen privacy. Physical copy numbers distinguish repeated faces across
-   the three packs; they do not change meld rules.
+2. Each player receives 21 private cards. Before seeing Maal, Your view starts
+   in received order and supports dragging a card before another card. Its manual
+   order survives polling and switching tabs; draws append and removed cards
+   disappear. Sequence / Tunnela and, with four or more players, Dublee provide
+   automatic arrangements without dragging. After that player sees Maal, the tabs
+   disappear: remaining cards start grouped by suit and support manual dragging.
+   This transition does not change other players' views.
+   The compact header combines the turn and action on one line, with an extra
+   eligibility line only when applicable. A compact turn box shares a row with
+   one Maal eligible/ineligible control before Maal, or Marriage eligible/ineligible
+   control afterward. Existing natural unseen finishes remain accessible through
+   Win without seeing maal when detected. The draw piles have no extra turn row;
+   the drawn card retains its green border/arrow without a separate message.
+   Fold and Hide/Show cards occupy the last three slots beside a 21-card hand,
+   or a separate row below other hand sizes. Hide/Show is local screen privacy.
    New tables first open a Tunnela declaration layout. Reveal cards, tap the
    glowing detector to select natural triples, or tap Declare none. Normal play
    waits until every active player responds; each responding player returns to
@@ -151,3 +155,56 @@ privacy controls, reconnect, and end-game flows on mobile and desktop sizes.
 The declaration script uses deterministic HTTP fixtures to verify exact group
 payloads, private Maal rendering, and finishing controls. Engine/adapter tests
 independently verify actual declaration and finish legality.
+
+### Completed-game results
+
+Completing Marriage keeps the existing table mounted and sized in place, with a
+Game result button at its center. It does not render a second waiting table or
+open the old winning-hand announcement automatically. The result sheet has a
+fixed wrapping tab grid: Game results, Points computation, then each player's
+name. Game results labels the Maal indicator (Tiplu), Jhiplu and Poplu with card
+faces, separates previously shown groups from the final winning combination,
+and identifies any final discard. Fold wins show their reason without inventing
+a winning combination. Points computation separates Maal counts/settlement,
+win/loss payments and final totals. Player tabs show their final physical cards.
+
+The public query now includes `result_maal` and `final_hands` only for a finished
+round (empty/null during play). All players' final hands, including folded hands,
+are revealed at completion as requested; stock order and undealt cards remain
+private. This is a presentation projection, without a checkpoint/schema change.
+Legacy snapshots missing the fields display an unavailable message rather than
+reconstructing cards or guessing an indicator. Release backend and client
+together to provide the complete result tabs.
+
+### Maal eligibility preview
+
+When both routes qualify, the preview offers Sequence / Tunnela and Dublee tabs;
+with one eligible route it shows that route directly. Normal qualification uses
+one outlined box with exactly three group rows, each holding at most five cards.
+The remaining-card grid follows immediately below. Maximum group-length shapes
+share a page, and their unique sub-options are always available in a horizontal
+strip. Selecting a sub-option updates the groups, remaining cards and existing
+Confirm & show payload. Switching routes/pages resets the sub-option selection
+and horizontal scroll position. Dublee keeps its seven-pair display. Server turn
+and command permissions still control confirmation; no qualification rule changed.
+
+The Maal preview now opens in a dedicated sheet overlay. Its top-right close
+control returns to the hand without submitting. The old Back to your cards
+button is removed. Route tabs and centered option/combination metadata sit above
+sub-options; option arrows appear only for multiple pages. Cards to show is
+centered inside the group box. Confirm & show is centered in a fixed safe-area
+footer, outside the scrollable card content, with permission hints/errors nearby.
+
+The eligibility sheet is inset 16px inside the measured hand area, keeping its
+bulging yellow outline visible on every edge. Its position updates with viewport
+changes. Horizontal swipes over the preview advance/reverse option pages;
+vertical swipes still scroll the cards, and horizontal sub-option gestures are
+handled independently without changing the page. Arrow buttons remain available
+when there are multiple pages. An open preview keeps the hand expanded through
+turn changes so its containing frame stays stable.
+
+A sole qualification route has a centered Dublee or Sequence / Tunnela caption
+instead of tabs. Dublee alternatives use a plain Option 1/n pager with left/right
+arrows and swipe navigation. Its combinations count and repetitive pair-length
+sub-option strip are omitted; every alternative seven-pair selection remains
+reachable. Sequence / Tunnela retains its group-length sub-option strip.

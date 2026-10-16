@@ -81,6 +81,12 @@ class PublicPlayerView:
 
 
 @dataclass(frozen=True)
+class FinalHandView:
+    player_id: str
+    cards: tuple[PhysicalCard, ...]
+
+
+@dataclass(frozen=True)
 class PublicGameView:
     revision: int
     status: GameStatus
@@ -92,6 +98,8 @@ class PublicGameView:
     winner: str | None
     scoring_rules: ScoringRules
     scores: RoundScore | None
+    result_maal: MaalView | None = None
+    final_hands: tuple[FinalHandView, ...] = ()
     maal_selected: bool = False
     manual_maal_cut: bool = False
     normal_finish: NormalFinish | None = None
@@ -121,6 +129,8 @@ def public_view(state: MarriageGameState) -> PublicGameView:
         scoring_rules=state.config.rules.scoring, scores=calculate_scores(state),
         normal_finish=state.normal_finish, won_by_fold=state.won_by_fold,
         tunnela_declaration_pending=tunnela_declarations_pending(state),
+        result_maal=maal_view(state.tiplu, state.config.rules) if state.status is GameStatus.FINISHED and state.tiplu else None,
+        final_hands=tuple(FinalHandView(p.player_id, p.hand) for p in state.players) if state.status is GameStatus.FINISHED else (),
         winning_pair=state.winning_pair if state.status is GameStatus.FINISHED else (),
     )
 

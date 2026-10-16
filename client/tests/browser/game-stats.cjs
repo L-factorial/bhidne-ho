@@ -51,7 +51,7 @@ async function fixture(browser, kind, count, width, spectator = false, configure
   });
   await page.goto(site);
   await page.getByRole('button', {name:/Return to table|Watch/}).first().click().catch(async error=>{if(process.env.DEBUG_UI){await page.screenshot({path:'/private/tmp/game-ux-fixture-failure.png'});console.error(await page.locator('body').innerText());console.error(errors);console.error(await page.evaluate(()=>({url:location.href,storage:{...sessionStorage}}))); }throw error;});
-  await page.getByTestId('game-stats-toggle').waitFor();
+  await page.getByTestId('game-stats-toggle').waitFor({state:'attached'});
   return {page, context, errors, writes, change: update => { snapshot = structuredClone(snapshot); update(snapshot); }, notify: () => {
     snapshot = structuredClone(snapshot); snapshot.game.revision++;
     snapshot.game.turn.player_id = 1;

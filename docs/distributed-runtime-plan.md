@@ -10418,3 +10418,312 @@ Capacity, observability, database HA and operational readiness remain deferred.
   line. Evidence: /private/tmp/bhidne-bottom-activity-{typecheck,client}.log.
 - Work remains local/uncommitted alongside the separately tested activation-budget
   fix. Exact next step: authorized release and native build for installed clients.
+
+### Direct production rollout — 2026-10-15 (f8a80dd)
+
+- The preceding arrangement, activation-budget and quiet-progress changes are
+  committed in f8a80dd51e81f59a789007e8fdaca3299a63d365 (including 82e8e14).
+  Cancelled GitHub deployment run 38793733432 and verified its cancelled outcome.
+  Built from the committed archive and directly deployed the identical image to
+  both production servers, backends sequentially followed by frontends.
+- Image: sha256:1a2a09f08998dab8d57798380c0d733a2583e0dc3455082440f491637f4d152e.
+  Both containers report the exact release revision, running and healthy; frontend
+  index hashes match. Public API health and Chrome checks at390/1280px pass with
+  no uncaught JavaScript errors. Read-only validation loaded119/119 saved tables;
+  no rooms are quarantined. No database migration or game-data rewrite occurred.
+- Verification:73 focused backend tests and497 client tests passed; production
+  build/typecheck passed. The earlier full CI baseline still has15 failures
+  (2186 passed,5 skipped), predating this release; full backend CI is not green.
+  These unrelated failures were not changed during deployment. Build evidence:
+  /srv/bhidne-prod/builds/f8a80dd/build.log on app1.
+- Exact next step: verify room entry and creation with Sigma and Ekraj, then build
+  and submit a new iOS/TestFlight release to deliver client changes to installed
+  apps. Installed build40 is not updated by this deployment. Broader capacity,
+  observability and operational-readiness work remains deferred.
+
+### Compact Marriage hand views and controls — 2026-10-15
+
+- User explicitly approved implementing the collected screenshot layout changes.
+  Marriage's compact header uses one turn/action line, plus an exceptional
+  eligibility line only when applicable. Tightened the draw-pile panel and
+  removed its turn row, the repeated count/control row and drawn-card/prompt rows.
+  The drawn card keeps its green arrow/border and discard selection still opens
+  the existing confirmation footer.
+- A compact turn box shares a row with one eligibility control: Maal before
+  private access, Marriage afterward. Disabled labels use ineligible; eligible
+  controls glow and retain their preview/confirmation flows. Preserved the natural
+  unseen-win detector and exposed its existing action beside the hand controls
+  only when ready, without adding a second eligibility button.
+- Before Maal: Your view defaults to receipt order, supports dragging and retains
+  manual order across tab switches. Sequence / Tunnela and, for 4–6 players,
+  Dublee are automatic views with dragging disabled. After Maal, all view tabs
+  disappear for that user; remaining cards start grouped by suit and allow drag
+  ordering, with later draws appended. Other players' views are unaffected.
+- The mobile grid has eight columns; the desktop grid also wraps at eight.
+  Fold and Hide/Show cards occupy the three free slots with 21 remaining cards,
+  otherwise a full row below the cards. English/Nepali copy remains aligned.
+- Verification: TypeScript, all 497 client tests, fresh web export, 30 isolated
+  browser scenarios (2–6 players, all eligibility/turn states at 320/390/1280px),
+  10 arrangement checks and a touch/polling transition regression pass. Browser
+  checks cover receipt/manual order, fixed automatic views, Maal transition,
+  action placement, compact panel heights, no overflow/errors or game writes.
+  Captured 51 screenshots, including privacy, Fold, selected-discard and both
+  eligibility previews. Visually reviewed phone layouts and the overview.
+- Evidence: /private/tmp/marriage-layout-{client,export,browser,arrangement,touch}.log;
+  /private/tmp/bhidne-marriage-layout/{index.html,overview.png};
+  /private/tmp/bhidne-marriage-layout-screenshots.zip. Updated marriage-ui.md and
+  retained reproducible screenshot/touch regressions in client/tests/browser.
+- Limitations: local source and browser fixtures only; no commit, deployment,
+  native build or physical-device verification. Preserved existing plan edits.
+  Exact next step: user screenshot review, then an authorized release/new native
+  build and physical iPhone verification. Operational work remains deferred.
+
+### Marriage centered cues and prominent outline — 2026-10-15
+
+- User approved the three screenshot follow-ups. Centered both compact header
+  lines across the full box, keeping the chevron at the right with symmetric
+  text padding. Added a gold turn dot beside the centered turn-box label.
+- Marriage opts into a prominent hand outline: inset 6px from clipped screen
+  edges, 4px border, outward and inset shadows, and a stronger 55–100% pulse.
+  Existing reduced-motion handling leaves the cue steady. Other games retain
+  their existing outline presentation; no game permissions or rules changed.
+- Verification: TypeScript, all 497 client tests and a fresh web export pass.
+  Isolated browser checks at 320/390/1280px pass centered text, visible turn dot,
+  inset shadow/border geometry, compact heights, eligibility previews and no
+  overflow/game writes/errors. Visually inspected the 390px peak-pulse screenshot.
+  Evidence: /private/tmp/marriage-centered-{client,export,browser}.log and
+  /private/tmp/bhidne-marriage-refined/marriage-eligible-{320,390,1280}.png.
+- Local and uncommitted; no deployment or native-device build/verification.
+  Exact next step: user screenshot review, then authorized release/native build.
+  Capacity, observability, database HA and operational work remain deferred.
+
+### Stable Marriage completion and tabbed result review — 2026-10-15
+
+- User approved implementing the result-view plan. Finished games now retain
+  the existing table component/geometry and place Game result in its center.
+  Removed the second pregame/waiting table, separate winning-hand button and
+  automatic win-announcement modal. The inactive hand bar is positioned outside
+  layout flow so completion does not shrink the table. Hide the seat-arrangement
+  hint in this completed Marriage view; other games retain existing behavior.
+- Added a fixed horizontally scrolling result tab bar: Game results, Points
+  computation, then one tab per player name. The first tab shows labeled Tiplu
+  (Maal indicator), Jhiplu and Poplu cards, the winner's previously shown groups,
+  full winning combination and excluded discard. Fold wins explain the outcome
+  without inventing a combination. Player tabs show each final hand/shown groups.
+- Computation separates raw Maal items, the Maal settlement formula, win/loss
+  payments and prominent final totals. The summary now displays Maal net rather
+  than raw Maal so its columns add to the total. English/Nepali copy is aligned.
+- Added optional public result_maal/final_hands query fields. Only FINISHED
+  rounds reveal final hands (including folded hands, as requested) and the Maal
+  indicator if selected. During play they remain null/empty, even after private
+  qualification. Stock/undealt cards, history and RNG stay private. These are
+  derived query fields, without database/checkpoint-schema changes. Old snapshots
+  missing them display unavailable copy instead of guessed cards or indicators.
+- Verification: TypeScript, all 497 client tests, fresh web export and 252 Marriage
+  domain/adapter/checkpoint tests pass. Updated active-projection allowlists and
+  the intentional post-fold completion disclosure contract; privacy assertions
+  remain enforced during play. Browser checks at 320/390/1280px verify one table,
+  unchanged height at completion, no old win modal, six ordered tabs, labeled Maal,
+  every displayed settlement/payment/total and all four players' actual cards.
+  The real-engine normal-finish browser flow also passes at phone/desktop widths,
+  including preview, hidden cards, rejection/retry and result reopening.
+- Captured 27 screenshots and reviewed the result, winning-combination, points
+  and player-card layouts. Evidence: /private/tmp/marriage-results-{backend,client,
+  export,browser,finish}.log; /private/tmp/bhidne-marriage-results/index.html and
+  overview.png; /private/tmp/bhidne-marriage-results-screenshots.zip.
+- All work remains local/uncommitted with earlier authorized changes preserved.
+  No deployment, production writes or native build/device verification. Exact
+  next step: user screenshot review, then authorized matching backend/client
+  release and a new native build. Capacity/observability/database HA remain deferred.
+
+### Wrapping result-button grid — 2026-10-15
+
+- User requested multiple rows with no horizontal scrolling for the result tabs.
+  Replaced the horizontal ScrollView with a fixed wrapping tab grid. Buttons
+  retain their order/selected state and fit within the sheet, including long
+  labels. Only result content scrolls vertically beneath the grid.
+- TypeScript and fresh web export pass. Existing result browser checks pass at
+  320/390/1280px, with added assertions that every button fits inside the grid
+  and wrapping is enabled; all player tabs and point values still pass. Refreshed
+  all 27 result screenshots and the review gallery; inspected the 390px layout.
+- Evidence: /private/tmp/marriage-result-grid-{export,browser}.log and
+  /private/tmp/bhidne-marriage-results/index.html. Updated marriage-ui.md.
+  Local only; no deployment/native build. Exact next step: user review and an
+  authorized matching release/native build with the earlier pending changes.
+
+### Result panel title — 2026-10-15
+
+- Changed the Marriage result panel's top title to Game results, reusing the
+  existing translated result-tab label. TypeScript and diff checks pass.
+- Local only; screenshot exports still show the previous title until rebuilt.
+  Exact next step: include this copy correction in the next preview/release build.
+
+### Maal eligibility routes and three-row preview — 2026-10-15
+
+- Analyzed the mixed-route option pager and freely wrapping group layout. User
+  approved route-specific tabs when both normal/Dublee qualify, direct display
+  for a sole route, three normal group rows (maximum five cards each), remaining
+  cards below and horizontally scrollable sub-options.
+- Added route filtering and presentation grouping by maximal group-length shape.
+  Matching maximum shapes share a page, retaining every unique physical
+  sub-option. A regression verifies merging/deduplication without mutating or
+  losing source options. Existing qualification enumeration and command payloads
+  remain unchanged. Dublee retains its seven pairs and its own sub-options.
+- Replaced the expandable sub-option control with an always-visible horizontal
+  strip. Removed the ancestor swipe pager that could intercept strip gestures.
+  Route/page changes reset selection and strip position. Normal groups render
+  inside one three-row box; remaining cards use a compact grid immediately below.
+- Verification: TypeScript, all 498 client tests and fresh web export pass.
+  Six dedicated browser cases cover single/both routes at 320/390/1280px,
+  5-5-5 to 3-3-3 selection, remaining counts, Dublee switching/reset, confirmation
+  availability and no overflow/errors/game writes. Eight existing Maal-preview
+  checks pass, including 36 reductions, off-turn restrictions and 3/4-player tabs.
+- Captured 21 screenshots plus an overview; visually inspected full route,
+  sub-option, Dublee and focused three-row/remaining-grid phone layouts.
+  Evidence: /private/tmp/marriage-maal-routes-{client,export,browser}.log and
+  /private/tmp/marriage-maal-options-regression.log; gallery at
+  /private/tmp/bhidne-maal-routes/index.html; archive at
+  /private/tmp/bhidne-maal-routes-screenshots.zip. Updated marriage-ui.md.
+- All changes remain local/uncommitted alongside earlier authorized work.
+  No deployment, production writes or native-device verification. Exact next
+  step: user screenshot review, then authorized matching release/native build.
+
+### Compact Maal eligibility overlay — 2026-10-15
+
+- User approved converting the preview into a dedicated overlay with top-right
+  close instead of Back to your cards. Reused RoomSheet and safe-area FormFooter:
+  header/close and centered Confirm & show stay visible while cards scroll.
+  Closing only clears local preview state and does not submit a game command.
+- Combined centered option and combination metadata, suppressing option arrows
+  for one page. Centered combinations, Cards to show (inside the three-row box),
+  remaining count and confirmation text. Preserved route tabs, horizontal
+  sub-options, remaining-card grid and existing confirmation payload/permissions.
+- Verification: TypeScript, 498 client tests and fresh web export pass. Six
+  responsive route/overlay cases at 320/390/1280px pass close-without-write,
+  centered labels, one-page arrows absent, group/sub-option/remaining counts,
+  route reset and no overflow/errors. Eight existing Maal preview checks pass,
+  including all 36 reductions and disabled off-turn confirmation. Refreshed 21
+  screenshots; visually inspected the full phone overlay with fixed confirmation.
+- Evidence: /private/tmp/marriage-maal-overlay-{client,export,browser,options}.log;
+  /private/tmp/bhidne-maal-overlay/index.html and
+  /private/tmp/bhidne-maal-overlay-screenshots.zip. Updated marriage-ui.md.
+- Local/uncommitted, preserving prior work. No deployment, production writes or
+  native-device verification. Exact next step: user screenshot review, then
+  authorized matching release/new native build. Operational work stays deferred.
+
+### Contained Maal overlay and restored page swipes — 2026-10-15
+
+- User approved enclosing the Maal overlay within the bulging yellow hand frame
+  and restoring left/right option-page swipes. RoomSheet has an optional measured
+  containing anchor; only Maal supplies it. Panel bounds are inset 16px inside
+  the hand, with a transparent surrounding layer preserving the yellow outline.
+  Measurements account for overlay-root offsets and update on viewport changes.
+- An open preview keeps the hand expanded across decision changes. Restored
+  horizontal page gestures through PanResponder, leaving vertical scrolling and
+  the horizontal sub-option strip independent. Busy/checking states block page
+  gestures; pages clamp at either end and selection resets on page changes.
+  The close control and fixed confirmation footer remain intact.
+- Verification: TypeScript, 498 client tests and fresh web export pass. Six route
+  cases verify 16px containment at 320/390/1280px. Three real-touch cases verify
+  left/right navigation between three option pages, independent sub-option
+  scrolling and alignment after resize. Eight Maal permission/reduction checks
+  and three standard result-sheet regressions pass; no game writes/errors.
+- Captured 24 screenshots including a second page reached by swiping; visually
+  inspected the enclosed phone overlay. Evidence:
+  /private/tmp/marriage-contained-{client,export,browser,swipe,options,results}.log;
+  /private/tmp/bhidne-maal-contained/index.html and
+  /private/tmp/bhidne-maal-contained-screenshots.zip. Updated marriage-ui.md.
+- Local/uncommitted; no deployment, production writes or native-device build.
+  Exact next step: user review, then authorized release/new native build and
+  physical-device gesture/safe-area verification. Operational work stays deferred.
+
+### Simple Dublee pager and single-route captions — 2026-10-15
+
+- User approved Option 1/n with arrow/swipe navigation for Dublee, without its
+  combinations count, repeated pair lengths or numbered sub-option strip.
+  Flattened the existing unique seven-pair alternatives into presentation pages;
+  every choice remains available with existing confirmation permissions/payloads.
+  Sequence / Tunnela retains its grouped pages and horizontal sub-options.
+- Added a centered translated route caption when only one route qualifies.
+  Both qualifying routes continue to use the existing two-tab selector.
+- Verification: TypeScript, 498 client tests, fresh web export and nine browser
+  scenarios at 320/390/1280px pass. Checks cover both/single normal routes,
+  Dublee-only caption, a 120-choice pager with page-one/page-two navigation,
+  arrows, real left swipes, removed Dublee metadata/strip, normal sub-options,
+  remaining counts, containment, close-without-write and no overflow/errors.
+  Captured 24 screenshots; visually inspected the Dublee-only phone layout.
+- Evidence: /private/tmp/marriage-dublee-pager-{client,export,browser}.log;
+  /private/tmp/bhidne-dublee-pager/index.html and screenshots archive.
+  Local/uncommitted; no deployment or native-device verification. Exact next
+  step: user review, then authorized release/new native build with pending work.
+
+### Centered Maal eligibility title — 2026-10-15
+
+- Centered the Maal eligibility overlay title across its panel, with symmetric
+  text clearance and the close button positioned independently at the right.
+  Added an opt-in RoomSheet title alignment; other sheets retain their defaults.
+- TypeScript and diff checks pass. Local source only; existing exported
+  screenshots have not been rebuilt for this copy-alignment adjustment.
+  Exact next step: include in the next preview/release build and review on device.
+
+### All-game tables fit above the collapsed hand — 2026-10-15
+
+- User reported Flush stretching below the screen and required every game table
+  to fit between its header/summary and collapsed hand area. Flush's minimum
+  arena height overrode its measured viewport, while a surrounding ScrollView
+  permitted overflow. Other table layouts had similar natural minimum sizes.
+- Added FittedGameTable: a finite viewport measures natural table content and
+  uniformly scales it down only when required. Table proportions and existing
+  seat geometry are retained; table views do not scroll beneath the card bar.
+  Applied to active Flush/Marriage/Call Break and Marriage/Call Break waiting
+  tables. Flush waiting uses its same fitted arena. Card content remains in its
+  existing separate scroll/overlay areas; no game rules or backend changes.
+- Kept Call Break's last-trick row space reserved while the expanded hand hides
+  it, preventing table movement on hand expansion. Converted Marriage card-flight
+  coordinates and seat-drag deltas into fitted table coordinates so visual
+  movement remains aligned with screen-space measurements. Collapsed-bar-based
+  table reservation is retained; expanded hands never resize the table.
+- Verification: TypeScript, 498 client tests and fresh web export pass. 28
+  browser cases verify actual table-surface bounds above the collapsed card bar,
+  no horizontal spill and unchanged geometry on hand expansion: Flush 2–5,
+  Marriage 2–6 and Call Break 4–5 players on 320x568/390x844 phones, plus all
+  three games at 844x390 landscape and 1280x900 desktop. Nine waiting-table
+  checks (including larger header text) and three completed Marriage/result-tab
+  checks pass. Extended the fixture generator to include every Flush count.
+- Captured 28 final table screenshots and a three-game overview; visually reviewed
+  short-phone Flush and the portrait comparison. Evidence:
+  /private/tmp/table-fit-{client,export,browser,waiting,results,fixtures}.log;
+  /private/tmp/bhidne-table-fit/index.html, overview.png and
+  /private/tmp/bhidne-table-fit-screenshots.zip. Very short spaces scale the
+  complete table down rather than distorting its shape or hiding its bottom.
+- Local/uncommitted alongside earlier authorized work; no deployment, production
+  writes or native build/device verification. Exact next step: user screenshot
+  review, then authorized release/new native build and physical-device checks
+  for table fit, animations and seat dragging. Operational work remains deferred.
+
+### Summary theme and language shortcuts — 2026-10-15
+
+- Added labeled Theme beneath Game summary and Language beneath Table summary
+  in the shared toolbar for Marriage, Flush and Call Break. The session clock
+  retains its centered column. Reused the existing menu theme sheet and language
+  overlay through opt-in summary presentations; existing menu triggers retain
+  their presentation. No table-background tap behavior was implemented.
+- Verification: TypeScript, 498 client tests, fresh web export and three browser
+  scenarios pass, covering below-summary placement, both picker overlays,
+  language dismissal and no game writes/errors. Screenshots captured under
+  /private/tmp/bhidne-summary-pickers; logs /private/tmp/summary-pickers-*.log.
+- Local/uncommitted; no deployment or native-device verification. Exact next
+  step: user screenshot review, then authorized release/device verification.
+
+### Floating table picker icons — 2026-10-15
+
+- Corrected the shortcuts per user clarification: icon-only Theme and Language
+  float at the upper left/right of the existing table space beneath summaries.
+  They take no layout height; restored the original summary-toolbar/table space.
+  Accessibility labels and existing picker overlays remain available. Shortcuts
+  hide behind the opened game summary; the middle overlay area passes touches
+  through to table controls.
+- TypeScript, fresh web export, diff checks and all three picker browser cases
+  pass, including an explicit original-toolbar-height check and overlay opens.
+  Updated screenshots in /private/tmp/bhidne-summary-pickers. No deployment.
+  Exact next step: user review and authorized device/release verification.

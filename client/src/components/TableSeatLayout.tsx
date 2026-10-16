@@ -8,8 +8,8 @@ import { TableSurface } from './TableSurface';
 import {View} from 'react-native';
 import { seatedOrder, tableSeatGeometry } from '../multiplayer/tableSeats';
 
-export function TableSeatLayout<T extends { id: string }>({ players, viewerId, compact = false, fill = false, renderSeat, children, testID, game = 'callbreak', capacity, geometry }: {
-  geometry?: (count: number, width: number) => ReturnType<typeof tableSeatGeometry>;
+export function TableSeatLayout<T extends { id: string }>({ players, viewerId, compact = false, fill = false, renderSeat, children, testID, game = 'callbreak', capacity, geometry, hideHint = false }: {
+  hideHint?:boolean; geometry?: (count: number, width: number) => ReturnType<typeof tableSeatGeometry>;
   capacity?: number; game?: 'callbreak' | 'marriage'; players: T[]; viewerId: string; compact?: boolean; fill?: boolean; renderSeat: (player: T, index: number) => ReactNode;
   children: ReactNode | ((layout: ReturnType<typeof tableSeatGeometry>, ordered: T[]) => ReactNode); testID?: string;
 }) {
@@ -44,6 +44,6 @@ export function TableSeatLayout<T extends { id: string }>({ players, viewerId, c
       const point = layout.positions[visualIndex(position)];
       return <View key={`empty-${index}`} accessibilityLabel={ui("rooms.empty_seat")} style={{ position: 'absolute', left: point.x - 24, top: point.y - 24, width: 48, alignItems: 'center', gap: 3 }}><ArrangementSeat position={position}><View style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1, borderColor: c.text, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: c.text, fontSize: 24 }}>+</Text></View><Text style={{ color: c.text, fontSize: 10 }}>{ui("flush.empty")}</Text></ArrangementSeat></View>;
     })}
-    {typeof children === 'function' ? children(layout, ordered) : <View pointerEvents="box-none" style={{ position: 'absolute', top: capacity ? 0 : layout.center.y - 60, bottom: capacity ? 0 : undefined, justifyContent: capacity ? 'center' : undefined, left: capacity ? layout.seatWidth / 2 + 12 : 6, right: capacity ? layout.seatWidth / 2 + 12 : 6, alignItems: 'center' }}><View pointerEvents="box-none" onLayout={event=>{if(capacity){const height=event.nativeEvent.layout.height;setCenterHeight(current=>Math.max(current,Math.ceil(height)+8));}}} style={{alignItems:"center",width:"100%"}}>{children}<ArrangementHint /></View></View>}
+    {typeof children === 'function' ? children(layout, ordered) : <View pointerEvents="box-none" style={{ position: 'absolute', top: capacity ? 0 : layout.center.y - 60, bottom: capacity ? 0 : undefined, justifyContent: capacity ? 'center' : undefined, left: capacity ? layout.seatWidth / 2 + 12 : 6, right: capacity ? layout.seatWidth / 2 + 12 : 6, alignItems: 'center' }}><View pointerEvents="box-none" onLayout={event=>{if(capacity){const height=event.nativeEvent.layout.height;setCenterHeight(current=>Math.max(current,Math.ceil(height)+8));}}} style={{alignItems:"center",width:"100%"}}>{children}{!hideHint && <ArrangementHint />}</View></View>}
   </View>;
 }

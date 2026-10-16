@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { radii, gameControlFinish, gamePanelFinish, fonts, useTheme } from '../theme';
 import { useLanguage } from '../i18n/LanguageProvider';
 
-export function LanguageToggle() {
+export function LanguageToggle({ summary = false }: { summary?: boolean }) {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const { language, setLanguage } = useLanguage();
@@ -28,13 +28,13 @@ export function LanguageToggle() {
   }, [!!anchor]);
   const menuWidth = 192;
   return <>
-    <Pressable ref={button} accessibilityRole="button" accessibilityLabel={t('language.choose')}
+    <Pressable testID={summary ? "summary-language-picker" : undefined} ref={button} accessibilityRole="button" accessibilityLabel={t('language.choose')}
       accessibilityState={{ expanded: !!anchor }} aria-expanded={!!anchor}
       onPress={() => button.current?.measureInWindow((x, y, w, h) => setAnchor({ x: x + w, y: y + h }))}
-      style={({ pressed }) => ({ ...gameControlFinish(colors, pressed), width: 44, height: 44, flexShrink: 0,
-        borderRadius: radii.medium, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center',
-        backgroundColor: pressed ? colors.surfaceSelected : colors.surface })}>
-      <Text style={{ color: colors.accent, fontFamily: fonts.medium, fontSize: 17 }}>{'अ A'}</Text>
+      style={({ pressed }) => ({ ...(summary ? {} : gameControlFinish(colors, pressed)), minWidth: 44, width: summary ? undefined : 44, minHeight: 44, flexShrink: 0, paddingHorizontal: summary ? 4 : 0, flexDirection: 'row', gap: 6,
+        borderRadius: radii.medium, borderWidth: summary ? 0 : 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center',
+        backgroundColor: pressed ? colors.surfaceSelected : summary ? 'transparent' : colors.surface })}>
+      <Text style={{ color: colors.accent, fontFamily: fonts.medium, fontSize: 17, flexShrink: 0 }}>{'अ A'}</Text>
     </Pressable>
     <Modal transparent visible={!!anchor} animationType="none" onRequestClose={close} onShow={() => selected.current?.focus()}>
       <View style={{ flex: 1 }} onAccessibilityEscape={close}

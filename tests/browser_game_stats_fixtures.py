@@ -10,7 +10,7 @@ from test_hosted_checkpoints import make_host,start,action,engine_state
 from callbreak import GameQuery
 out=Path(os.environ.get('FIXTURE_DIR', '/private/tmp/bhidne-stats-fixtures'));out.mkdir(parents=True,exist_ok=True)
 async def main():
- for kind,count in [('callbreak',4),('callbreak',5),('marriage',4),('flush',4)]:
+ for kind,count in [('callbreak',4),('callbreak',5),*[('marriage',n) for n in range(2,7)],*[('flush',n) for n in range(2,6)]]:
   host,game=await make_host(kind,count)
   try:
    await start(host,game)

@@ -7,7 +7,7 @@ import {ui} from '../i18n/copy';
 import {useUiLanguage} from '../i18n/useUiLanguage';
 import type {GameAttention} from '../notifications/gameAttention';
 
-export function GameAttentionBanner({attention, onPress, idleContent, endControl, expanded, disabled = false, cardsTitle = false}: {cardsTitle?:boolean; attention:GameAttention|null; onPress?:()=>void; idleContent?:ReactNode; endControl?:ReactNode; expanded?:boolean; disabled?:boolean}) {
+export function GameAttentionBanner({attention, onPress, idleContent, endControl, expanded, disabled = false, cardsTitle = false, compact = false, compactLabel}: {compactLabel?:string;compact?:boolean;cardsTitle?:boolean; attention:GameAttention|null; onPress?:()=>void; idleContent?:ReactNode; endControl?:ReactNode; expanded?:boolean; disabled?:boolean}) {
   useUiLanguage();
   const {colors:c} = useTheme();
   const pulse = useRef(new Animated.Value(1)).current;
@@ -35,7 +35,12 @@ export function GameAttentionBanner({attention, onPress, idleContent, endControl
   const detail = attention ? ui(attention.detail) : '';
   const opportunities = attention?.opportunities.filter(key => attention.required || key !== attention.title) || [];
   const inlineMaal = (cardsTitle && (attention?.title==='common.attention_maal' || attention?.opportunities.includes('common.attention_maal'))) || (attention?.title === 'common.attention_turn' && opportunities.includes('common.attention_maal'));
-  const body = <View style={{flexDirection:'row',alignItems:'center',gap:4,minHeight:64}}>
+  const body = compact ? <View style={{minHeight:44,justifyContent:'center',borderRadius:radii.large,borderWidth:1,borderColor:attention?c.tableTrim:c.border,backgroundColor:c.tableHeader,paddingHorizontal:30,paddingVertical:6,flexDirection:'row',alignItems:'center',gap:6}}>
+    <View style={{flex:1,minWidth:0}}>
+      {!compactLabel && !attention && idleContent ? idleContent : <SmallText testID="marriage-header-status" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} accessibilityLiveRegion="polite" style={{fontFamily:fonts.medium,color:attention?c.tableTrim:c.onTableHeader,fontSize:12,textAlign:'center'}}>{compactLabel || `${title}${detail ? ` — ${detail}` : ''}`}</SmallText>}
+      {!!attention?.opportunities.length && <SmallText testID="marriage-header-opportunities" style={{fontFamily:fonts.medium,color:c.tableTrim,fontSize:11,textAlign:'center'}}>{attention.opportunities.map(key=>ui(key==='common.attention_marriage'?'marriage.marriage_eligible':key).toLocaleUpperCase()).join(' · ')}</SmallText>}
+    </View><View pointerEvents="none" style={{position:'absolute',right:8}}>{endControl}</View>
+  </View> : <View style={{flexDirection:'row',alignItems:'center',gap:4,minHeight:64}}>
     <View style={{flex:1,minWidth:0,borderRadius: radii.large,borderWidth:1,borderColor:attention ? c.tableTrim : c.border,backgroundColor:c.tableHeader,paddingHorizontal:12,paddingVertical:9,flexDirection:'row',alignItems:'center',gap:10}}>
       {pulsating && <Animated.View testID="attention-glow" pointerEvents="none" style={{position:'absolute',inset:0,borderRadius: radii.large,borderWidth:3,borderColor:c.tableTrim,opacity:pulse,boxShadow:`0 0 12px ${c.tableTrim}`}} />}
       {!attention && idleContent ? <View style={{flex:1,minWidth:0}}>{idleContent}</View> : <>{!inlineMaal && <View style={{width:24,height:34}}><CardBack /></View>}
@@ -45,5 +50,5 @@ export function GameAttentionBanner({attention, onPress, idleContent, endControl
       </View></>}{endControl}
     </View>
   </View>;
-  return onPress ? <Pressable testID={expanded ? "hand-attention-expanded" : "hand-attention-collapsed"} accessibilityRole="button" disabled={disabled} accessibilityState={{expanded,disabled}} accessibilityLabel={`${ui(expanded ? "common.collapse_your_card_area" : "common.expand_your_card_area")}. ${title}. ${detail}`} onPress={onPress} style={{flex:1,minWidth:0,opacity:disabled?0.55:1}}>{body}</Pressable> : <View testID="game-attention-expanded" style={{width:'100%',flexShrink:0}}>{body}</View>;
+  return onPress ? <Pressable testID={expanded ? "hand-attention-expanded" : "hand-attention-collapsed"} accessibilityRole="button" disabled={disabled} accessibilityState={{expanded,disabled}} accessibilityLabel={`${ui(expanded ? "common.collapse_your_card_area" : "common.expand_your_card_area")}. ${compactLabel || title}. ${detail}`} onPress={onPress} style={{flex:1,minWidth:0,opacity:disabled?0.55:1}}>{body}</Pressable> : <View testID="game-attention-expanded" style={{width:'100%',flexShrink:0}}>{body}</View>;
 }

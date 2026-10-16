@@ -11,8 +11,8 @@ import { MarriageMeldCards } from './MarriageMeldCards';
 import { TurnGlow } from './TurnGlow';
 import { visualStates, radii, fonts, gameButtonStyle, useTheme } from '../theme';
 
-export function MarriageWinPanel({ hand, shown, initialTunnelas = [], maal, route, visible, enabled, busy, canFinish, preview, setPreview, error, submit, onEligibility, playerCount=4 }: {
-  playerCount?:number; onEligibility?: (ready:boolean)=>void; hand: MarriageCard[]; shown: MarriageMeld[]; initialTunnelas?: MarriageMeld[]; maal: SeenMaal|null; route: string; visible: boolean; enabled: boolean;
+export function MarriageWinPanel({ hand, shown, initialTunnelas = [], maal, route, visible, enabled, busy, canFinish, preview, setPreview, error, submit, onEligibility, playerCount=4, hideIndicator=false }: {
+  hideIndicator?:boolean; playerCount?:number; onEligibility?: (ready:boolean)=>void; hand: MarriageCard[]; shown: MarriageMeld[]; initialTunnelas?: MarriageMeld[]; maal: SeenMaal|null; route: string; visible: boolean; enabled: boolean;
   busy: boolean; canFinish: boolean; preview: boolean; setPreview: (value: boolean) => void; error: string;
   submit: (command: string, payload: object) => void;
 }) {
@@ -36,13 +36,14 @@ export function MarriageWinPanel({ hand, shown, initialTunnelas = [], maal, rout
   const text = { color: c.text, fontFamily: fonts.body };
   const button = (label: string, onPress: () => void, disabled = false, primary = false) => <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
     style={({ pressed }) => ({ ...gameButtonStyle(c, primary ? 'primary' : 'secondary', pressed), minHeight: 44, justifyContent: 'center', opacity: disabled ? visualStates.disabledOpacity : 1 })}><Text activity style={{ color: primary ? c.onPrimary : c.onTableHeader, fontFamily: fonts.medium }}>{label}</Text></Pressable>;
+  if (!preview && hideIndicator) return null;
   if (!preview) {
-    const label = ui("marriage.marriage_eligible");
+    const label = ui(ready?"marriage.marriage_eligible":"marriage.marriage_ineligible");
     const hint = !visible ? ui("marriage.reveal_cards_to_check_marriage") : checking ? ui("marriage.checking_marriage") : ready ? allowed ? ui("marriage.marriage_eligible_show_marriage") : ui("marriage.marriage_eligible_view_options") : ui("marriage.marriage_not_eligible");
-    return <View testID="marriage-win-eligibility" style={{ flex: 1, minHeight: 50, borderRadius: radii.medium, borderWidth: 1, borderColor: ready ? c.accent : c.border, backgroundColor: c.tableHeader, overflow: 'hidden' }}>
-      <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityHint={hint} accessibilityState={{ disabled: !canPreview }} disabled={!canPreview} onPress={() => setPreview(true)} style={{ flex: 1, minHeight: 48, padding: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: canPreview ? 1 : visualStates.disabledOpacity }}>
-        <Ionicons name={ready ? 'bulb' : 'bulb-outline'} size={22} color={ready ? c.accent : c.textMuted} />
-        <Text activity accessibilityLiveRegion="polite" style={{ ...text, fontFamily: fonts.medium, fontSize: 14, color: ready ? c.accent : c.textMuted, textAlign: 'center', flexShrink: 1 }}>{label}</Text>
+    return <View testID="marriage-win-eligibility" style={{ flex: 1, minHeight: 44, borderRadius: radii.medium, borderWidth: 1, borderColor: ready ? c.accent : c.border, backgroundColor: c.tableHeader, overflow: 'hidden' }}>
+      <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityHint={hint} accessibilityState={{ disabled: !canPreview }} disabled={!canPreview} onPress={() => setPreview(true)} style={{ flex: 1, minHeight: 44, padding: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: canPreview ? 1 : visualStates.disabledOpacity }}>
+        <Ionicons name={ready ? 'bulb' : 'bulb-outline'} size={16} color={ready ? c.accent : c.textMuted} />
+        <Text activity accessibilityLiveRegion="polite" style={{ ...text, fontFamily: fonts.medium, fontSize: 11, color: ready ? c.accent : c.textMuted, textAlign: 'center', flexShrink: 1 }}>{label}</Text>
       </Pressable><TurnGlow active={canPreview} radius={12} />
     </View>;
   }
@@ -53,9 +54,9 @@ export function MarriageWinPanel({ hand, shown, initialTunnelas = [], maal, rout
     onTouchEnd={e => { const dx = e.nativeEvent.pageX - touch.current.x, dy = e.nativeEvent.pageY - touch.current.y; if (!checking && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) setPage(Math.max(0, Math.min(choices.length - 1, index + (dx < 0 ? 1 : -1)))); }}>
     {button(ui("common.back_to_your_cards"), () => setPreview(false))}
     <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
-      <Pressable accessibilityRole="button" accessibilityLabel={ui('marriage.previous_option')} disabled={checking||index===0} onPress={()=>setPage(index-1)} style={{minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center',opacity:index===0?.4:1}}><Ionicons name="chevron-back" size={22} color={c.accent}/></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={ui('marriage.previous_option')} disabled={checking||index===0} onPress={()=>setPage(index-1)} style={{minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center',opacity:index===0?.4:1}}><Ionicons name="chevron-back" size={16} color={c.accent}/></Pressable>
       <Text activity style={{...text,flex:1,textAlign:'center'}} accessibilityLiveRegion="polite">{checking?ui('marriage.checking_marriage'):ui('marriage.option_number_of_total',{number:choices.length?index+1:0,total:choices.length})}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel={ui('marriage.next_option')} disabled={checking||index>=choices.length-1} onPress={()=>setPage(index+1)} style={{minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center',opacity:index>=choices.length-1?.4:1}}><Ionicons name="chevron-forward" size={22} color={c.accent}/></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={ui('marriage.next_option')} disabled={checking||index>=choices.length-1} onPress={()=>setPage(index+1)} style={{minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center',opacity:index>=choices.length-1?.4:1}}><Ionicons name="chevron-forward" size={16} color={c.accent}/></Pressable>
     </View>
     {choice && <><Text style={{ ...text, color: c.accent }}>{ui("marriage.your_winning_cards")}</Text><MarriageMeldCards groups={choice.melds} />
       {choice.discard_card_id ? <Text style={text}>{ui("marriage.final_discard_card", { "card": physicalLabel(choice.discard_card_id) })}</Text> : <><Text style={text}>{ui("marriage.remaining_in_your_hand_count_cards", { "count": remaining.length })}</Text><MarriageMeldCards groups={[{ meld_type: 'set', card_ids: remaining.map(c => c.card_id) }]} hideLabels /></>}

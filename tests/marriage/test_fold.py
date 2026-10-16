@@ -48,7 +48,7 @@ def test_current_player_fold_advances_without_discarding_or_losing_cards(drawn):
 
 
 @pytest.mark.parametrize('actor', ['0', '1'])
-def test_last_player_wins_without_declaring_or_exposing_hand(actor):
+def test_last_player_wins_without_declaring_and_reveals_final_hands(actor):
     engine = game(2)
     engine.fold(actor)
     state = engine.get_state()
@@ -59,6 +59,6 @@ def test_last_player_wins_without_declaring_or_exposing_hand(actor):
     assert sorted(p.net_points for p in scores.players) == [-10, 10]
     assert sum(p.net_points for p in scores.players) == 0
     assert scores.total_maal == 0
-    for player in state.players:
-        assert not any(c.card_id in repr(asdict(engine.get_public_view())) for c in player.hand)
+    result = engine.get_public_view()
+    assert {p.player_id:p.cards for p in result.final_hands} == {p.player_id:p.hand for p in state.players}
     validate_game_state(state)

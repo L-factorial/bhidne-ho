@@ -152,3 +152,16 @@ export function maalProgress(hand: MarriageCard[]) {
   };
   return { normal: summary(normal), dublee: summary(dublee) };
 }
+
+/** Presentation pages group maximal shapes; all physical variants remain selectable. */
+export function maalRouteOptions(options:MaalOption[], route:MaalChoice['route']|undefined):MaalOption[] {
+  const shapes=new Map<string,{option:MaalOption;seen:Set<string>}>();
+  for(const option of options){
+    if(option.choice.route!==route)continue;
+    const shape=maalChoiceSizes(option.choice);
+    let entry=shapes.get(shape);
+    if(!entry){entry={option:{choice:option.choice,variants:[]},seen:new Set()};shapes.set(shape,entry);}
+    for(const variant of option.variants){const key=choiceKey(variant);if(!entry.seen.has(key)){entry.seen.add(key);entry.option.variants.push(variant);}}
+  }
+  return [...shapes.values()].map(entry=>entry.option);
+}

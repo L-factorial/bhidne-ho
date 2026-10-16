@@ -1,3 +1,4 @@
+import { useTableFitScale } from './FittedGameTable';
 import {createContext, useContext, useEffect, useRef, useState, type ReactNode} from 'react';
 import {Animated, PanResponder, Pressable, View} from 'react-native';
 import {AppText as Text} from './AppText';
@@ -47,16 +48,17 @@ export function SeatArrangementProvider({snapshot,session,busy,act,children}:{sn
 
 export function ArrangementSeat({position,userId,children,interactive=true,onHeight}:{onHeight?:(height:number)=>void;interactive?:boolean;position:number;userId?:string;children:ReactNode}) {
   const arrangement=useSeatArrangement();
+  const fit=useTableFitScale();
   const live=useRef(arrangement);live.current=arrangement;
   const delta=useRef(new Animated.ValueXY()).current;
   const [dragging,setDragging]=useState(false);
-  const gesture=useRef({userId,interactive});gesture.current={userId,interactive};
+  const gesture=useRef({userId,interactive,fit});gesture.current={userId,interactive,fit};
   const registered=useRef<View|null>(null);
   const origin=useRef<{user:string;seats?:Seats}|null>(null);
   const responder=useRef(PanResponder.create({
     onMoveShouldSetPanResponderCapture:(_event,g)=>gesture.current.interactive&&!!live.current?.enabled&&!live.current.busy&&!!gesture.current.userId&&(Math.abs(g.dx)>8||Math.abs(g.dy)>8),
     onPanResponderGrant:()=>{setDragging(true);origin.current=gesture.current.userId ? {user:gesture.current.userId,seats:live.current?.snapshot.table?.seated_players} : null;},
-    onPanResponderMove:(_event,g)=>delta.setValue({x:g.dx,y:g.dy}),
+    onPanResponderMove:(_event,g)=>delta.setValue({x:g.dx/gesture.current.fit,y:g.dy/gesture.current.fit}),
     onPanResponderRelease:event=>{setDragging(false);delta.setValue({x:0,y:0});if(origin.current)live.current?.drop(origin.current.user,event.nativeEvent.pageX,event.nativeEvent.pageY,origin.current.seats);origin.current=null;},
     onPanResponderTerminate:()=>{setDragging(false);delta.setValue({x:0,y:0});origin.current=null;},
   })).current;

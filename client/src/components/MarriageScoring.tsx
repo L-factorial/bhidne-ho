@@ -84,14 +84,14 @@ export function MarriageRoundResults({ snapshot }: { snapshot: RoomSnapshot }) {
   if (!scores) return null;
   const name = (id: string) => snapshot.players?.find(p => String(p.player_id) === id)?.display_name || ui("common.player_number", { "number": id });
   const signed = (n: number) => n > 0 ? `+${n}` : String(n);
-  return <RoundResultsTable subtitle={ui("marriage.winner_player", { "player": name(scores.winner) })} columns={['Maal', 'Payment', 'Net']} rows={scores.players.map(p => ({
+  return <RoundResultsTable subtitle={ui("marriage.winner_player", { "player": name(scores.winner) })} columns={[ui('marriage.maal_net'),ui('marriage.payment_short'),ui('flush.total')]} rows={scores.players.map(p => ({
     id: p.player_id, name: name(p.player_id), avatarUrl: snapshot.players?.find(player => String(player.player_id) === p.player_id)?.avatar_url,
     own: p.player_id === String(snapshot.your_player_id), winner: p.player_id === scores.winner,
-    values: [{ text: String(p.maal_points) }, { text: signed(p.winner_payment), amount: p.winner_payment }, { text: signed(p.net_points), amount: p.net_points }],
+    values: [{ text: signed(p.maal_net), amount:p.maal_net }, { text: signed(p.winner_payment), amount: p.winner_payment }, { text: signed(p.net_points), amount: p.net_points }],
   }))} />;
 }
 
-export function MarriagePoints({ snapshot }: { snapshot: RoomSnapshot }) {
+export function MarriagePoints({ snapshot, computationOnly=false }: { snapshot: RoomSnapshot; computationOnly?:boolean }) {
   const uiLanguage = useUiLanguage();
   const s = useThemedStyles(createStyles);
   const scores = snapshot.marriage?.public.scores;
@@ -109,6 +109,7 @@ export function MarriagePoints({ snapshot }: { snapshot: RoomSnapshot }) {
         <View style={s.row}><PlayerAvatar uri={snapshot.players?.find(player => String(player.player_id) === p.player_id)?.avatar_url} />
           <Text style={s.heading}>{name(p.player_id)}: {signed(p.net_points)} {ui("marriage.points")}</Text></View>
         <Text style={s.text}>{p.has_seen_maal ? ui("marriage.maal_seen") : ui("marriage.maal_not_seen")}{p.eligible ? '' : ui("common.not_eligible_maal")}</Text>
+        <Text accessibilityRole="header" style={s.heading}>{ui('marriage.maal_breakdown')}</Text>
         {!p.items.length && <Text style={s.text}>{p.eligible ? ui("marriage.no_scoring_cards") : ui("marriage.maal_points_are_not_counted_because_maal_was_not_seen")}</Text>}
         {p.items.map((item, i) => <View key={i} style={{ gap: 6 }}>
           <Text style={s.text}>{ui("marriage.item_count_points_points", { "item": uiLabel(item.label, "marriage"), "count": item.count, "points": item.points })}</Text>
@@ -117,10 +118,12 @@ export function MarriagePoints({ snapshot }: { snapshot: RoomSnapshot }) {
         </View>)}
         <Text style={s.text}>{ui("marriage.own_maal_points", { "points": p.maal_points })}</Text>
         <Text style={s.text}>{ui("marriage.maal_net_formula", { "players": scores.players.length, "own": p.maal_points, "total": scores.total_maal, "net": signed(p.maal_net) })}</Text>
+        <Text accessibilityRole="header" style={s.heading}>{ui("marriage.win_loss_payment")}</Text>
         <Text style={s.text}>{ui("marriage.winner_payment_points", { "points": signed(p.winner_payment) })}</Text>
+        <Text style={[s.heading,{paddingVertical:12,fontSize:19}]}>{ui("marriage.final_total")}: {signed(p.net_points)}</Text>
         <Text style={s.text}>{ui("marriage.net_maal_payment_total", { "maal": signed(p.maal_net), "payment": signed(p.winner_payment), "total": signed(p.net_points) })}</Text>
       </View>)}
-      {snapshot.marriage?.public.won_by_fold ? <Text style={s.text}>{ui("marriage.fold_win_help")}</Text> : <>
+      {!computationOnly && (snapshot.marriage?.public.won_by_fold ? <Text style={s.text}>{ui("marriage.fold_win_help")}</Text> : <>
       <Text accessibilityRole="header" style={s.heading}>{ui("marriage.winning_declaration")}</Text>
       <MarriageMeldCards groups={snapshot.marriage?.public.normal_finish?.melds || [
         ...(snapshot.marriage?.public.players.find(p => p.player_id === scores.winner)?.shown_melds || []),
@@ -128,7 +131,7 @@ export function MarriagePoints({ snapshot }: { snapshot: RoomSnapshot }) {
       ]} />
       {!!snapshot.marriage?.public.normal_finish && <><Text style={s.text}>{ui("marriage.final_discard_excluded_from_scoring")}</Text>
         <MarriageMeldCards groups={[{ meld_type: 'set', card_ids: [snapshot.marriage.public.normal_finish.discard_card_id] }]} hideLabels /></>}
-      </>}
+      </>)}
     </>}
   </View>;
 }

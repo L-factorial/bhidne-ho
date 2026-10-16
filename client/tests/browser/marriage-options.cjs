@@ -22,11 +22,10 @@ const hand=[...[2,3,4,5,6].map(r=>card(r,'S')),...[8,9,10,11,12].map(r=>card(r,'
    if(width < 600 && !offTurn){
     const dock=page.getByTestId('marriage-mobile-hand');
     assert.ok(await dock.getByTestId('marriage-hand-draw').isVisible());
-    assert.ok(await page.getByTestId('inline-maal-eligible').isVisible());
-    const font=await page.getByTestId('inline-maal-eligible').evaluate(node=>parseFloat(getComputedStyle(node).fontSize));
+    assert.ok(await page.getByTestId('marriage-header-opportunities').isVisible());
+    const font=await page.getByTestId('marriage-header-opportunities').evaluate(node=>parseFloat(getComputedStyle(node).fontSize));
     assert.ok(font<=11);
-    assert.ok(await dock.getByTestId('marriage-card-turn').isVisible());
-    assert.ok(await page.getByText('Show for Maal or draw a card',{exact:true}).isVisible());
+    assert.ok(await page.getByTestId('marriage-header-status').isVisible());
    }
    const panel=page.getByTestId('marriage-maal-preview');await panel.waitFor();
    assert.equal(await page.getByTestId('marriage-option-label').innerText(),'Option 1/1 (5-5-3)');
@@ -36,14 +35,14 @@ const hand=[...[2,3,4,5,6].map(r=>card(r,'S')),...[8,9,10,11,12].map(r=>card(r,'
    assert.equal(await page.getByRole('button',{name:'Hide cards',exact:true}).count(),0);
    assert.equal(await page.getByRole('button',{name:'Fold',exact:true}).count(),0);
    assert.ok(await panel.getByText('Cards to show · 13',{exact:true}).isVisible());
-   await page.getByTestId('marriage-suboptions-toggle').click();
+
    const subs=page.getByTestId('marriage-suboptions');assert.equal(await subs.getByRole('button').count(),36);
    const short=subs.getByRole('button',{name:/^\d+ \(3-3-3\)$/}).first();await short.click();
    assert.ok(await panel.getByText('Cards to show · 9',{exact:true}).isVisible());
    assert.equal(await panel.getByText('Remaining in your hand · 12 cards',{exact:true}).count(),1);
    await page.getByTestId('marriage-suboption-0').click();
    assert.equal(await panel.getByText('Remaining in your hand · 8 cards',{exact:true}).count(),1);
-   const show=panel.getByRole('button',{name:'Confirm & show',exact:true});
+   const show=page.getByTestId('marriage-maal-overlay').getByRole('button',{name:'Confirm & show',exact:true});
    assert.equal(await show.isEnabled(),!offTurn);
    await page.getByTestId('marriage-option-label').scrollIntoViewIfNeeded();await page.waitForTimeout(300);
    if(!offTurn)await page.screenshot({path:`/private/tmp/marriage-options-${width}.png`});
@@ -53,8 +52,8 @@ const hand=[...[2,3,4,5,6].map(r=>card(r,'S')),...[8,9,10,11,12].map(r=>card(r,'
   for(const count of [3,4]){
    const f=await fixture(browser,'marriage',count,390,false,s=>{s.marriage.private.maal=null;s.marriage.public.players[0].has_seen_maal=false;s.marriage.public.players[0].route='unqualified';s.marriage.public.tunnela_declaration_pending=false;s.marriage.private.actions.kinds=['draw'];s.marriage.public.phase='must_draw';});
    const header=f.page.getByTestId('hand-attention-collapsed');if(await header.isVisible())await header.click();
-   assert.equal(await f.page.getByRole('tab',{name:'Arrange Dublee',exact:true}).count(),count>=4?1:0);
-   await f.page.getByRole('tab',{name:'Arrange Sequence / Tunnela',exact:true}).waitFor();
+   assert.equal(await f.page.getByRole('tab',{name:'Dublee',exact:true}).count(),count>=4?1:0);
+   await f.page.getByRole('tab',{name:'Sequence / Tunnela',exact:true}).waitFor();
    assert.deepEqual(f.errors,[]);await f.context.close();console.log(`PASS ${count}-player Dublee tab availability.`);
   }
  }finally{await browser.close();}

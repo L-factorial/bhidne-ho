@@ -1,3 +1,4 @@
+import { MarriageResults } from './MarriageResults';
 import {AppText as Text} from './AppText';
 import { GameModal as Modal } from './GameModal';
 import { meldLabel, gameLabel, phaseLabel } from '../i18n/display';
@@ -34,7 +35,7 @@ export function MarriagePlayers({ snapshot, onPoke, registerSeat, children }: { 
   const detail = pub.players.find(p => p.player_id === selected);
   const shown = shownPlayer && shownPlayer.match === (snapshot.match_id || '') ? pub.players.find(p => p.player_id === shownPlayer.id && p.has_seen_maal) : undefined;
   return <>
-    <TableSeatLayout game="marriage" fill testID="marriage-player-grid" players={pub.players.map(player => ({ ...player, id: player.player_id }))} viewerId={mine || ''}
+    <TableSeatLayout hideHint={snapshot.status==='finished'} game="marriage" fill testID="marriage-player-grid" players={pub.players.map(player => ({ ...player, id: player.player_id }))} viewerId={mine || ''}
       renderSeat={p => <View style={styles.seat}><PlayerSeat playerId={Number(p.player_id)} name={playerName(snapshot, p.player_id)} mine={p.player_id === mine}
         active={snapshot.status === 'playing' && pub.current_player_id === p.player_id}
         status={p.folded ? ui('marriage.folded') : ui("common.count_cards", { count: p.hand_count })} connected={snapshot.players?.find(row => String(row.player_id) === p.player_id)?.connected}
@@ -81,8 +82,8 @@ export function MarriageDetails({ snapshot, section, onClose, busy, error, onSav
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
   const pub = snapshot.marriage?.public;
-  return <RoomSheet visible={section !== null} title={section === 'stats' ? ui("common.game_stats") : section === 'config' ? ui("common.game_rules_config") : ui("marriage.game_result")} onClose={onClose} closeLabel={ui("common.close_details")} testID="marriage-details" scrollable={false} contentHandlesBottomInset={section === 'config'}>
-        {section === 'config' ? <MarriageScoring concise snapshot={snapshot} busy={busy} error={uiLabel(error, 'feedback')} onSave={onSave} /> : <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.details}>
+  return <RoomSheet visible={section !== null} title={section === 'stats' ? ui("common.game_stats") : section === 'config' ? ui("common.game_rules_config") : ui("marriage.results_tab")} onClose={onClose} closeLabel={ui("common.close_details")} testID="marriage-details" scrollable={false} contentHandlesBottomInset={section === 'config'}>
+        {section === 'config' ? <MarriageScoring concise snapshot={snapshot} busy={busy} error={uiLabel(error, 'feedback')} onSave={onSave} /> : section==='points' && snapshot.status==='finished' ? <MarriageResults key={snapshot.match_id} snapshot={snapshot}/> : <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.details}>
           {section === 'stats' ? pub ? pub.players.map(p => <View key={p.player_id} style={styles.stat}>
             <Text style={styles.name}>{playerName(snapshot, p.player_id)}</Text>
             <Text style={styles.text}>{ui("common.player_cards", { "player": situation(p, pub), "count": p.hand_count })}</Text>

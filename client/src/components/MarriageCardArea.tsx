@@ -1,3 +1,4 @@
+import { useTableFitScale } from './FittedGameTable';
 import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -46,6 +47,7 @@ export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAncho
   onAction: (command: string, payload?: object) => void; onPoke?: (seat: number) => void;
 }) {
   const uiLanguage = useUiLanguage();
+  const fit=useTableFitScale();
   const styles = useThemedStyles(createStyles);
   const [maalFace, setMaalFace] = useState({ key: '', visible: false });
   const area = useRef<View>(null), stock = useRef<View>(null), discard = useRef<View>(null);
@@ -82,10 +84,10 @@ export function MarriageCardArea({ snapshot, canAct, onAction, onPoke, handAncho
     Promise.all([center(player), center(pile), new Promise<Point>(resolve => root.measureInWindow((x, y) => resolve({ x, y })))]).then(([seat, spot, offset]) => {
       if (cancelled) return;
       const from = current.kind === 'CARD_DRAWN' ? spot : seat, to = current.kind === 'CARD_DRAWN' ? seat : spot;
-      setFlight({ sequence: current.sequence, origin: { x: from.x - offset.x, y: from.y - offset.y }, destination: { x: to.x - offset.x, y: to.y - offset.y } });
+      setFlight({ sequence: current.sequence, origin: { x: (from.x - offset.x)/fit, y: (from.y - offset.y)/fit }, destination: { x: (to.x - offset.x)/fit, y: (to.y - offset.y)/fit } });
     });
     return () => { cancelled = true; };
-  }, [current, reduced, finish]);
+  }, [current, reduced, finish, fit]);
   const privateMaal = mine?.maal;
   const legalSource = (source: string) => canAct && !!mine?.actions.kinds.includes('draw') && !!mine.actions.drawable_sources.includes(source);
   const maalKey = `${snapshot.match_id}:${mine?.player_id}:${privateMaal?.tiplu.rank}:${privateMaal?.tiplu.suit}`;

@@ -43,8 +43,8 @@ export function CardTable({ height, players, viewerId, activePlayerId, width, pl
   }, [collecting, collectionKey, reduceMotion, progress]);
   const seatHeight = seatMeasurement.key === measurementKey ? seatMeasurement.height : 0;
   const naturalHeight = callBreakSeatGeometry(players.length, width, fontScale, seatHeight, height).height;
-  // Modest uniform fitting keeps cards proportional; large accessibility text
-  // and exceptionally short screens retain scrolling instead of shrinking text.
+  // Prefer modest local fitting for standard text. The surrounding game
+  // viewport fits any remaining height constraint without stretching the table.
   const ratio = height ? height / naturalHeight : 1;
   const fit = detailedStats && fontScale <= 1 && ratio >= .8 ? Math.min(1, ratio) : 1;
   const displayHeight = detailedStats ? naturalHeight * fit : undefined;

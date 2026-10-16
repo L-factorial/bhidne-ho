@@ -1,3 +1,5 @@
+import { ThemeAction } from './ThemeAction';
+import { LanguageToggle } from './LanguageToggle';
 import { flushPlayerName } from '../multiplayer/flush';
 import {TableSummary} from './TableSummary';
 import { GameSessionClock } from './GameSessionClock';
@@ -52,6 +54,10 @@ export function GameStats({ snapshot, open, onOpen, onClose, children }: {
     </View>
     <View style={{ flex: 1, minHeight: 0, position: 'relative' }}>
     <View style={{ flex: 1, minHeight: 0 }} accessibilityElementsHidden={open} importantForAccessibility={open ? 'no-hide-descendants' : 'auto'} aria-hidden={open} pointerEvents={open ? 'none' : 'auto'}>{children}</View>
+    {!open && <View pointerEvents="box-none" testID="table-picker-shortcuts" style={{ position: 'absolute', top: 0, left: 4, right: 4, flexDirection: 'row', justifyContent: 'space-between', zIndex: 10 }}>
+      <ThemeAction summary />
+      <LanguageToggle summary />
+    </View>}
     {open && <View testID="game-stats-overlay" accessibilityLabel={ui('common.game_stats')} style={{ position: 'absolute', inset: 0, zIndex: 40, elevation: 20, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radii.medium, overflow: 'hidden' }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 12, borderBottomWidth: 1, borderColor: c.border }}>
         <Text accessibilityRole="header" style={{ ...text, fontFamily: fonts.medium, flex: 1 }}>{ui('common.game_stats')}</Text>

@@ -16,6 +16,7 @@ const {fixture}=require('./game-stats.cjs');
   assert.ok(box.width>=width-70&&hb.width===box.width,`${kind}: waiting hand fills its container`);
   const cards=bar.getByTestId('hand-attention-collapsed');assert.equal(await cards.isDisabled(),true);
   assert.ok(await cards.getByText('Your cards',{exact:true}).isVisible());
+  const table=await f.page.getByTestId('table-surface-'+kind).boundingBox();assert.ok(table.y+table.height<=box.y+2,`${kind}: waiting table extends below collapsed cards header`);
   const cardBox=await cards.boundingBox();assert.ok(cardBox.width>=box.width-100,'card control reserves both social buttons');
   assert.deepEqual(f.errors,[]);assert.deepEqual(f.writes,[]);
   await f.page.screenshot({path:`/private/tmp/bhidne-waiting-hand-${kind}-${width}.png`});

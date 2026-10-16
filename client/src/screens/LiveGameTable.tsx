@@ -1,3 +1,4 @@
+import { FittedGameTable } from '../components/FittedGameTable';
 import { WaitingHandArea } from '../components/WaitingHandArea';
 import { ThemeBackdrop } from '../components/ThemeBackdrop';
 import {AppText as Text} from '../components/AppText';
@@ -151,10 +152,10 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
   if (ended && (!game || !deal)) return <View style={styles.page}><ThemeBackdrop />{header}{gameRules}<GameStats snapshot={snapshot} open={stats.open} onOpen={stats.show} onClose={stats.close}><View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>{endedNotice}</View></GameStats></View>;
   if (!game || !deal) return <View style={styles.page}><ThemeBackdrop />
     {header}{gameRules}
-    <GameStats snapshot={snapshot} open={stats.open} onOpen={stats.show} onClose={stats.close}><ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+    <GameStats snapshot={snapshot} open={stats.open} onOpen={stats.show} onClose={stats.close}><FittedGameTable testID="callbreak-waiting-viewport">
       <PreGameTable fill snapshot={snapshot}>{startCue}</PreGameTable>
       {!!error && <Text activity accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
-    </ScrollView></GameStats>{snapshot.your_player_id && <WaitingHandArea />}{socialOverlay}
+    </FittedGameTable></GameStats>{snapshot.your_player_id && <WaitingHandArea />}{socialOverlay}
   </View>;
   if (!ended && (snapshot.round_review || game.finished) && !reveal) return <View style={styles.page}><ThemeBackdrop />{header}{gameRules}<GameStats snapshot={snapshot} open={stats.open} onOpen={stats.show} onClose={stats.close}><RoundSummary formation={game.finished ? <PreGameTable snapshot={snapshot}>{startCue}</PreGameTable> : undefined}
     snapshot={snapshot} busy={busy} error={error || (snapshot.error ? playerError(snapshot.error) : '')} onContinue={onNextDeal} onBack={onBack} onNewGame={onNewGame}
@@ -185,9 +186,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     <View style={[styles.playColumn, wide && { alignSelf: 'stretch' }, handAvailable && { paddingBottom: collapsedHandHeight }]}>
     <View style={styles.body}>
     <GameStats snapshot={snapshot} open={stats.open} onOpen={() => { cards.collapse(); stats.show(); }} onClose={stats.close}>
-    <ScrollView testID="callbreak-play-viewport" style={styles.tableScroll} onLayout={event => { setTableWidth(event.nativeEvent.layout.width); setTableHeight(event.nativeEvent.layout.height); }} contentContainerStyle={[styles.container, {
-      paddingTop: 0, paddingBottom: 12,
-    }]}><View style={{ width }}>
+    <FittedGameTable testID="callbreak-play-viewport" onSize={(width,height)=>{setTableWidth(width);setTableHeight(height);}} contentStyle={{alignItems:'center',paddingBottom:12}}><View style={{ width }}>
     {!!(error || snapshot.error) && <Text activity accessibilityRole="alert" style={styles.error}>{uiLabel(error || (snapshot.error ? playerError(snapshot.error) : ''), 'feedback')}</Text>}
     <CardTable height={tableHeight - 12} detailedStats centerStatus={<><Text numberOfLines={2} style={[styles.meta, { textAlign: 'center' }]}>{ui('callbreak.summary_round', { round: deal.deal_number, total: 5 })}{'\n'}{ui('callbreak.summary_hand', { hand: trick?.trick_number ?? Math.min(deal.tricks_completed + 1, deal.tricks_required), total: deal.tricks_required })}</Text><Text accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 }}>{game.turn.player_id ? ui('common.player_s_turn', { player: playerName(game.turn.player_id) }) : ui('callbreak.current_trick')}</Text></>} showScores={game.phase === 'BIDDING' || game.phase === 'PLAYING'} compact={mobile && screenHeight < 760} centerControl={ended ? endedNotice : preparation || showDealerNotice ? <View style={{gap:8,alignItems:'center'}}>
         {showDealerNotice&&<Text accessibilityLiveRegion="polite" style={styles.meta}>{ui('callbreak.selected_dealer',{player:playerName(deal.dealer)})}</Text>}
@@ -200,10 +199,10 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
     </View>
     {!!pokeNotice && <Text accessibilityLiveRegion="polite" style={styles.meta}>{pokeNotice.player === null ? ui("social.sent_to_the_table") : ui("social.poke_sent_to_player", {player: pokeNotice.player})} ✦</Text>}
 
-  </View></ScrollView>
+  </View></FittedGameTable>
 
     </GameStats></View>
-    {last && !stats.open && (!mobile || !cards.open) && <View style={[styles.lastTrick]}>
+    {last && !stats.open && <View pointerEvents={mobile&&cards.open?'none':'auto'} accessibilityElementsHidden={mobile&&cards.open} importantForAccessibility={mobile&&cards.open?'no-hide-descendants':'auto'} style={[styles.lastTrick,mobile&&cards.open&&{opacity:0}]}>
       <Pressable accessibilityRole="button" accessibilityLabel={ui("callbreak.last_trick")} aria-expanded={expandedLastTrick === trickKey} accessibilityState={{ expanded: expandedLastTrick === trickKey }}
         onPress={() => setExpandedLastTrick(value => value === trickKey ? null : trickKey)} style={styles.lastToggle}>
         <Text style={styles.meta}>{ui("callbreak.last_trick_player_won", { "player": playerName(last.winner!) })}</Text><Text style={styles.link}>{expandedLastTrick === trickKey ? '-' : '+'}</Text>

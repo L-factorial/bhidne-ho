@@ -138,3 +138,17 @@ test('normal qualification supports 3–5 card runs and Dublee can be excluded f
   assert.ok(maalOptions(hand,false).every(o=>o.choice.route==='normal'));
   for(const choice of maalChoices(hand,false))for(const g of choice.groups)assert.ok(g.card_ids.length>=3&&g.card_ids.length<=5);
 });
+
+ test('route pages merge matching maximal shapes without losing or duplicating sub-options',async()=>{
+  const {maalRouteOptions}=await import('../src/multiplayer/maalProgress.ts');
+  const choice=(route,ids)=>({route,groups:ids.map((cards,i)=>({meld_type:route==='dublee'?'dublee':'pure_sequence',card_ids:cards}))});
+  const a=choice('normal',[['a','b','c','d','e'],['f','g','h','i','j'],['k','l','m','n','o']]);
+  const b=choice('normal',[['p','q','r','s','t'],['f','g','h','i','j'],['k','l','m','n','o']]);
+  const shorter=choice('normal',[['a','b','c'],['f','g','h'],['k','l','m']]);
+  const pair=choice('dublee',[['a','b']]);
+  const input=[{choice:a,variants:[a,shorter]},{choice:b,variants:[b,shorter]},{choice:pair,variants:[pair]}];
+  const before=structuredClone(input),normal=maalRouteOptions(input,'normal');
+  assert.equal(normal.length,1);assert.deepEqual(normal[0].variants,[a,shorter,b]);
+  assert.deepEqual(maalRouteOptions(input,'dublee'),[input[2]]);
+  assert.deepEqual(maalRouteOptions(input,undefined),[]);assert.deepEqual(input,before);
+ });
