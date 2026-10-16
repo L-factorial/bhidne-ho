@@ -7,8 +7,8 @@ import { radii, gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, us
 import { Ionicons } from '@expo/vector-icons';
 import { PlayerAvatar } from './PlayerAvatar';
 import { RoundResultsTable } from './RoundResultsTable';
-import { useCallback, useEffect, useState } from 'react';
-import {Pressable, StyleSheet, View} from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {AccessibilityInfo, Animated, Pressable, StyleSheet, View} from 'react-native';
 import { request } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 import { useTranslation } from 'react-i18next';
@@ -20,20 +20,51 @@ type Table = { table_id: string; table_name?: string; game_type?: string; latest
 export type Ledger = { player_profiles?: Record<string, { display_name: string; avatar_url?: string }>; room_name?: string; players: Record<string, string>; balances: Balance[]; tables: Table[]; record_tables?: Table[]; personal_settlements: Transfer[] };
 const key = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
+export type LedgerTarget = {tableId?:string; gameId?:string; gameType?:string};
 export type LedgerTransport = { load(): Promise<Ledger>; start(table: string, game?: string): Promise<void>; act(row: Transfer, action: 'mark-paid'|'confirm'): Promise<void>; busy: boolean; error: string };
-export function RoomLedger({ roomId, session, embedded = false, transport }: { roomId: string; session: Session; embedded?: boolean; transport?: LedgerTransport }) {
+export function RoomLedger({ roomId, session, embedded = false, transport, target }: { roomId: string; session: Session; embedded?: boolean; transport?: LedgerTransport; target?:LedgerTarget }) {
   const uiLanguage = useUiLanguage();
-  const styles = useThemedStyles(createStyles), [tab, setTab] = useState<'balances' | 'tables' | 'personal'>('balances');
+  const opacity=useRef(new Animated.Value(1)).current;
+  useEffect(()=>{
+    let active=true;
+    if(!target)return;
+    void AccessibilityInfo.isReduceMotionEnabled().then(reduced=>{
+      if(!active || reduced)return;
+      opacity.setValue(0);
+      Animated.timing(opacity,{toValue:1,duration:180,useNativeDriver:true}).start();
+    }).catch(()=>{});
+    return()=>{active=false;opacity.stopAnimation();opacity.setValue(1);};
+  },[target,opacity]);
+
+  const styles = useThemedStyles(createStyles), [tab, setTab] = useState<'balances' | 'tables' | 'personal'>(target?'tables':'balances');
   const { t } = useTranslation();
   const { colors } = useTheme();
   const [showCodes, setShowCodes] = useState(false);
   const [open, setOpen] = useState(false);
-  const [data, setData] = useState<Ledger>(), [expanded, setExpanded] = useState<string>();
+  const [data, setData] = useState<Ledger>(), [expanded, setExpanded] = useState<string|undefined>(target?.tableId);
   const [localBusy, setBusy] = useState(false), [localError, setError] = useState('');
   const busy = localBusy || !!transport?.busy, error = transport?.error || localError;
   const load = useCallback(async () => { try { setData(await (transport ? transport.load() : request<Ledger>(`/rooms/${encodeURIComponent(roomId)}/ledger`, session))); setError(''); } catch (e) { setError(playerError(e, ui("feedback.could_not_load_ledger"))); } }, [roomId, session, uiLanguage, transport?.load]);
-  useEffect(() => { setOpen(false); setExpanded(undefined); setTab('balances'); }, [roomId]);
+  useEffect(() => { setOpen(false); setExpanded(target?.tableId); setTab(target ? 'tables' : 'balances'); }, [roomId,target]);
   useEffect(() => { void load(); const timer = setInterval(() => void load(), 15_000); return () => clearInterval(timer); }, [load]);
+  const targetReady=!!data && !!target && data.tables.some(table=>
+    (target.tableId ? table.table_id===target.tableId : table.game_type===target.gameType) &&
+    (!target.gameId || table.games.some(game=>game.game_id===target.gameId)));
+  useEffect(()=>{
+    if(!target || targetReady)return;
+    // Finalization can publish the ledger shortly after the accepted end command.
+    // Retry reads briefly; never repeat the departure or settlement command.
+    let attempts=0;
+    const timer=setInterval(()=>{void load();if(++attempts>=10)clearInterval(timer);},1000);
+    return()=>clearInterval(timer);
+  },[target,targetReady,load]);
+  const focusedTable=target?.tableId || (target?.gameId
+    ? data?.tables.find(table=>table.games.some(game=>game.game_id===target.gameId))
+    : target?.gameType ? data?.tables.filter(table=>table.game_type===target.gameType)
+      .sort((a,b)=>(b.latest_game_at || '').localeCompare(a.latest_game_at || ''))[0] : undefined)?.table_id;
+  useEffect(()=>{if(target && focusedTable)setExpanded(focusedTable);},[target,focusedTable]);
+  const ledgerTables=data?.tables || [];
+  const orderedTables=target ? [...ledgerTables.filter(table=>table.table_id===focusedTable),...ledgerTables.filter(table=>table.table_id!==focusedTable)] : ledgerTables;
   const name = (id: string) => id === session.user_id ? ui("common.you") : data?.player_profiles?.[id]?.display_name || data?.players[id] || ui("common.player_number", { "number": id.slice(0, 6) });
   async function start(tableId: string, gameId?: string) { setBusy(true); try { if (transport) await transport.start(tableId, gameId); else await request(`/rooms/${encodeURIComponent(roomId)}/ledger/settlements`, session, { scope: gameId ? 'game' : 'table', table_id: tableId, ...(gameId && { game_id: gameId }), idempotency_key: key() }); await load(); } catch (e) { setError(playerError(e, ui("feedback.could_not_start_settlement"))); } finally { setBusy(false); } }
   async function act(row: Transfer, action: 'mark-paid' | 'confirm') { if (!row.batch_id || !row.transfer_id) return; setBusy(true); try { if (transport) await transport.act(row, action); else await request(`/rooms/${encodeURIComponent(roomId)}/ledger/settlements/${row.batch_id}/transfers/${row.transfer_id}/${action}`, session, { idempotency_key: key() }); await load(); } catch (e) { setError(playerError(e, ui("feedback.could_not_update_settlement"))); } finally { setBusy(false); } }
@@ -65,7 +96,7 @@ export function RoomLedger({ roomId, session, embedded = false, transport }: { r
       {personal && row.status === 'MARKED_PAID' && row.payee_id === session.user_id && <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy }} disabled={busy} onPress={() => void act(row, 'confirm')} style={styles.action}><Text style={styles.actionText}>{t('ledger.confirmReceived')}</Text></Pressable>}
     </View>;
   };
-  return <View style={[styles.panel, embedded && { marginTop: 0, marginBottom: 0, borderWidth: 0, padding: 0 }]}>
+  return <Animated.View testID="room-ledger" style={[{opacity},styles.panel, embedded && { marginTop: 0, marginBottom: 0, borderWidth: 0, padding: 0 }]}>
     {!embedded && <Pressable testID="ledger-section-toggle" accessibilityRole="button" accessibilityLabel={t('ledger.section')}
       aria-expanded={open} accessibilityState={{ expanded: open }} onPress={() => setOpen(value => !value)} style={styles.sectionToggle}>
       <Text style={styles.name}>{t('ledger.section')}</Text><Text style={styles.name}>{open ? '−' : '+'}</Text>
@@ -75,9 +106,9 @@ export function RoomLedger({ roomId, session, embedded = false, transport }: { r
     <Pressable accessibilityRole="button" accessibilityState={{ expanded: showCodes }} onPress={() => setShowCodes(value => !value)} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={styles.link}>{showCodes ? ui("ledger.hide_room_table_codes") : ui("ledger.show_room_table_codes")}</Text></Pressable>
     {showCodes && <Text selectable style={styles.code}>{t('ledger.roomCode', { code: roomId })}</Text>}
     {tab === 'balances' && balances(data?.balances || [])}
-    {tab === 'tables' && <>{(data?.tables || []).map(table => <View key={table.table_id} testID={`ledger-table-card-${table.table_id}`} style={styles.table}><Pressable accessibilityRole="button" accessibilityState={{ expanded: expanded === table.table_id }} onPress={() => setExpanded(value => value === table.table_id ? undefined : table.table_id)} style={styles.tableHeader}><View style={{ flex: 1, minWidth: 0, gap: 4 }}>{context(table.table_id, `${gameLabel(table.game_type || table.games[0]?.game_type || '')}-${table.table_name || t('ledger.tableName')}`)}<Text style={[styles.muted, {textAlign: 'center'}]}>{table.game_count === 1 ? ui('ledger.one_game') : ui('ledger.count_games', {count: table.game_count})} · {table.latest_game_at && Number.isFinite(Date.parse(table.latest_game_at)) ? new Date(table.latest_game_at).toLocaleDateString(uiLanguage === 'ne' ? 'ne-NP' : 'en-US', {month: 'short', day: 'numeric', year: 'numeric'}) : '—'}</Text></View><Text style={styles.name}>{expanded === table.table_id ? '−' : '+'}</Text></Pressable>{expanded === table.table_id && <View style={styles.body}>{balances(table.balances)}<Text style={styles.subtitle}>{t('ledger.summary')}</Text>{table.transactions.map(row => transfer(row, false, table))}{table.suggested_transfers.map(row => transfer(row, false, table))}{!!table.suggested_transfers.length && <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy }} disabled={busy} onPress={() => void start(table.table_id)} style={styles.action}><Text style={styles.actionText}>{t('ledger.startTable')}</Text></Pressable>}<Text style={styles.subtitle}>{t('ledger.games')}</Text>{table.games.map((game, index) => <View key={game.game_id} style={{ gap: 8, paddingVertical: 8 }}><View style={styles.row}><Text style={styles.muted}>{ui("ledger.game_summary", { "number": index + 1, "game": game.game_type, "date": t(game.settled ? 'ledger.inSettlement' : 'ledger.open') })}</Text>{!game.settled && <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy }} disabled={busy} onPress={() => void start(table.table_id, game.game_id)}><Text style={styles.link}>{t('ledger.settleGame')}</Text></Pressable>}</View>{game.balances && balances(game.balances)}</View>)}</View>}</View>)}</>}
+    {tab === 'tables' && <>{!!data && !orderedTables.length && <Text style={styles.muted}>{t('ledger.noResults')}</Text>}{orderedTables.map(table => <View key={table.table_id} testID={`ledger-table-card-${table.table_id}`} style={styles.table}><Pressable accessibilityRole="button" accessibilityState={{ expanded: expanded === table.table_id }} onPress={() => setExpanded(value => value === table.table_id ? undefined : table.table_id)} style={styles.tableHeader}><View style={{ flex: 1, minWidth: 0, gap: 4 }}>{context(table.table_id, `${gameLabel(table.game_type || table.games[0]?.game_type || '')}-${table.table_name || t('ledger.tableName')}`)}<Text style={[styles.muted, {textAlign: 'center'}]}>{table.game_count === 1 ? ui('ledger.one_game') : ui('ledger.count_games', {count: table.game_count})} · {table.latest_game_at && Number.isFinite(Date.parse(table.latest_game_at)) ? new Date(table.latest_game_at).toLocaleDateString(uiLanguage === 'ne' ? 'ne-NP' : 'en-US', {month: 'short', day: 'numeric', year: 'numeric'}) : '—'}</Text></View><Text style={styles.name}>{expanded === table.table_id ? '−' : '+'}</Text></Pressable>{expanded === table.table_id && <View style={styles.body}>{balances(table.balances)}<Text style={styles.subtitle}>{t('ledger.summary')}</Text>{table.transactions.map(row => transfer(row, false, table))}{table.suggested_transfers.map(row => transfer(row, false, table))}{!!table.suggested_transfers.length && <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy }} disabled={busy} onPress={() => void start(table.table_id)} style={styles.action}><Text style={styles.actionText}>{t('ledger.startTable')}</Text></Pressable>}<Text style={styles.subtitle}>{t('ledger.games')}</Text>{table.games.map((game, index) => <View key={game.game_id} style={{ gap: 8, paddingVertical: 8 }}><View style={styles.row}><Text style={styles.muted}>{ui("ledger.game_summary", { "number": index + 1, "game": game.game_type, "date": t(game.settled ? 'ledger.inSettlement' : 'ledger.open') })}</Text>{!game.settled && <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy }} disabled={busy} onPress={() => void start(table.table_id, game.game_id)}><Text style={styles.link}>{t('ledger.settleGame')}</Text></Pressable>}</View>{game.balances && balances(game.balances)}</View>)}</View>}</View>)}</>}
     {tab === 'personal' && <><Text style={styles.title}>{t('ledger.toPay')}</Text>{(data?.personal_settlements || []).filter(x => x.payer_id === session.user_id && x.status !== 'RESOLVED').map(x => transfer(x, true))}<Text style={styles.title}>{t('ledger.toReceive')}</Text>{(data?.personal_settlements || []).filter(x => x.payee_id === session.user_id && x.status !== 'RESOLVED').map(x => transfer(x, true))}<Text style={styles.title}>{t('ledger.resolved')}</Text>{(data?.personal_settlements || []).filter(x => x.status === 'RESOLVED').map(x => transfer(x, true))}</>}
     </>}
-  </View>;
+  </Animated.View>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({ context: { gap: 3 }, code: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 11, lineHeight: 16, opacity: 0.8, flexShrink: 1 }, panel: { ...gamePanelFinish(colors), marginTop: 20, marginBottom: 20, padding: 18, borderRadius: radii.large, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, gap: 10 }, sectionToggle: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, tabs: { flexDirection: 'row', flexWrap: 'wrap', borderBottomWidth: 1, borderColor: colors.borderSubtle }, tab: { flexGrow: 1, flexBasis: 90, minWidth: 0, minHeight: 56, paddingHorizontal: 5, paddingVertical: 10, alignItems: 'center', justifyContent: 'center' }, tabText: { textAlign: 'center', fontSize: 14, fontFamily: fonts.medium, color: colors.textMuted }, selectedText: { color: colors.accent }, underline: { position: 'absolute', bottom: 0, width: '70%', height: 3, borderRadius: 3, backgroundColor: colors.accent }, title: { ...gameHeadingFinish(colors), color: colors.text, fontFamily: fonts.display, fontSize: 20, marginTop: 6 }, subtitle: { color: colors.text, fontFamily: fonts.medium, marginTop: 8 }, row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 }, name: { color: colors.text, fontFamily: fonts.medium }, amount: { fontFamily: fonts.medium, fontSize: 16, color: colors.text, fontVariant: ['tabular-nums'] }, positive: { color: colors.success }, negative: { color: colors.danger }, muted: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 12 }, table: { borderWidth: 1, borderColor: colors.borderSubtle, borderRadius: radii.large, overflow: 'hidden' }, tableHeader: { flexDirection: 'row', justifyContent: 'space-between', padding: 12 }, body: { padding: 12, borderTopWidth: 1, borderColor: colors.border, gap: 6 }, transfer: { ...gamePanelFinish(colors), gap: 12, padding: 12, borderRadius: radii.large, borderWidth: 1, borderColor: colors.borderSubtle, backgroundColor: colors.surface, marginVertical: 4 }, transferRow: { flexDirection: 'row', alignItems: 'center' }, transferLabels: { flexDirection: 'row', alignItems: 'center', paddingBottom: 6, borderBottomWidth: 1, borderColor: colors.borderSubtle }, person: { flex: 1, minWidth: 0, alignItems: 'center', gap: 6 }, column: { flex: 1, color: colors.textMuted, fontFamily: fonts.medium, fontSize: 11, textAlign: 'center' }, arrowSpace: { width: 28, textAlign: 'center' }, amountColumn: { width: 64, color: colors.textMuted, fontFamily: fonts.medium, fontSize: 11, textAlign: 'right' }, action: { ...gameControlFinish(colors), alignSelf: 'flex-start', padding: 9, borderRadius: radii.medium, backgroundColor: colors.primary }, actionText: { color: colors.onPrimary, fontFamily: fonts.medium, fontSize: 12 }, link: { color: colors.accent, fontFamily: fonts.medium, fontSize: 12 }, error: { color: colors.danger, fontFamily: fonts.body } });

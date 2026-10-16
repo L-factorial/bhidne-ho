@@ -46,7 +46,8 @@ async function fixture(browser, userId) {
     const path = url.pathname;
     if (path === '/' || path.startsWith('/_expo/') || path.startsWith('/assets/') || path === '/favicon.ico') return route.continue();
     let body = [];
-    if (path === '/rooms') body = [room];
+    if (path === `/rooms/${room.room_id}/ledger`) body = {players:{},balances:[],tables:[],personal_settlements:[]};
+    else if (path === '/rooms') body = [room];
     else if (path === `/rooms/${room.room_id}`) body = { ...room, is_member: true };
     else if (path === `/rooms/${room.room_id}/members`) body = players;
     else if (path === '/auth/me' || path === '/me') body = players.find(player => player.user_id === userId);
@@ -62,7 +63,7 @@ async function fixture(browser, userId) {
         state.current = snapshot(userId, state.current.match_id, state.current.table_name, true);
       } else if (path === `/test-games/${room.room_id}` && route.request().method() === 'POST') {
         state.creationCalls++;
-        state.current = snapshot(userId, `replacement-${state.creationCalls}`, route.request().postDataJSON().name);
+        state.current = snapshot(userId, `replacement-${state.creationCalls}`, route.request().postDataJSON().name || 'Another Call Break');
       }
       body = state.current;
     }
@@ -95,20 +96,21 @@ async function openMenu(page) {
   return drawer;
 }
 
-async function roomRemainsTappable(page) {
+async function roomRemainsTappable(page, expectLedger=false) {
   await page.getByTestId('live-game-overlay').waitFor({ state: 'hidden' });
   await page.getByTestId('callbreak-menu-drawer').waitFor({ state: 'hidden' });
   await page.getByTestId('table-chat-panel').waitFor({ state: 'hidden' });
+  const ledger=page.getByTestId('room-ledger');
+  if(expectLedger){await ledger.waitFor();await page.getByTestId('room-sheet-close').click();await page.getByTestId('room-sheet').waitFor({state:'hidden'});}
   await page.getByTestId('room-empty-tables').waitFor();
   const toolbar = page.getByTestId('room-toolbar');
   await toolbar.getByRole('button', { name: 'Room members', exact: true }).tap();
   await page.getByRole('heading', { name: 'Members · 2', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Close room panel', exact: true }).tap();
-  await page.getByRole('button', { name: 'Create table', exact: true }).tap();
-  await page.getByRole('textbox', { name: 'Table name', exact: true }).fill('Another Call Break');
-  await page.getByRole('button', { name: 'Create this table', exact: true }).tap();
+  await page.getByRole('button', { name: /Create (table|game)/i }).tap();
+  await page.getByRole('dialog').getByRole('button', { name: 'Create game', exact: true }).tap();
   await page.getByTestId('live-game-overlay').waitFor();
-  await page.getByTestId('callbreak-header').getByText('Another Call Break', { exact: true }).waitFor();
+  await page.getByTestId('callbreak-header').getByText(/Another Call Break/).waitFor();
   await page.getByRole('button', { name: 'End game for everyone', exact: true }).waitFor({ state: 'hidden' });
 }
 
@@ -140,7 +142,7 @@ async function roomRemainsTappable(page) {
       drawer = await openMenu(page);
       await drawer.getByRole('button', { name: 'End game', exact: true }).tap();
       await page.getByRole('button', { name: 'End game for everyone', exact: true }).tap();
-      await roomRemainsTappable(page);
+      await roomRemainsTappable(page,true);
       assert.equal(state.endCalls, 2);
       assert.equal(state.creationCalls, 1);
       assert.deepEqual(owner.errors, []);

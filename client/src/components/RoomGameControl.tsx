@@ -1,3 +1,5 @@
+import { useDismissalAction } from './useDismissalAction';
+import type { LedgerTarget } from './RoomLedger';
 import {SeatArrangementProvider} from './SeatArrangement';
 import {ActivityLine} from './ActivityLine';
 import {useNotificationAction} from '../multiplayer/useNotificationAction';
@@ -48,7 +50,8 @@ import { request } from '../multiplayer/api';
 
 type InvitePlayer = { user_id: string; display_name: string; username?: string | null; eligible?: boolean; reason?: string | null };
 
-export function RoomGameControl({ onReturnToTable, runtime, socialChannel, chat, onOpenChange, onViewChange, onLoadingChange, requestedMatchId, requestedEntry, onEntryError, roomId, apiUrl, token, connected, sessionActive = true, members, presenceKnown = true, roomMembers = members, connectionMessage, userId, pokes, personal, onGameTypeChange, creationEnabled = true, gameType = 'callbreak' }: {
+export function RoomGameControl({ onOpenLedger, onReturnToTable, runtime, socialChannel, chat, onOpenChange, onViewChange, onLoadingChange, requestedMatchId, requestedEntry, onEntryError, roomId, apiUrl, token, connected, sessionActive = true, members, presenceKnown = true, roomMembers = members, connectionMessage, userId, pokes, personal, onGameTypeChange, creationEnabled = true, gameType = 'callbreak' }: {
+  onOpenLedger?: (target:LedgerTarget)=>void;
   onReturnToTable?: (table:import('../multiplayer/playFeed').PlayTable)=>void;
   runtime?: OriginalDistributedRuntime | null;
   presenceKnown?: boolean;
@@ -74,6 +77,13 @@ export function RoomGameControl({ onReturnToTable, runtime, socialChannel, chat,
   const snapshotRef=useRef(snapshot);snapshotRef.current=snapshot;
   const rescheduleRefresh=useRef<()=>void>(()=>{});
   const [open, setOpen] = useState(false);
+  const departure = useDismissalAction(open, () => setOpen(false));
+  function returnToLedger(source:Snapshot) {
+    const target:LedgerTarget={tableId:source.table_id || source.table?.table_id,gameId:source.durable_game_id ?? undefined,gameType:source.game_type};
+    setLive(false);
+    departure.afterDismiss(() => onOpenLedger?.(target));
+  }
+
   useEffect(()=>{
     if(!runtime||!snapshot?.table_id)return;
     void runtime.root.select({room:roomId,table:snapshot.status==='ended'?null:snapshot.table_id,
@@ -332,11 +342,12 @@ export function RoomGameControl({ onReturnToTable, runtime, socialChannel, chat,
   async function leaveCompletedTable(matchId:string){
     if(pending.current||!canSend.current)return;
     pending.current=true;setBusy(true);setError('');
+    const source=snapshot?.tables?.find(table=>table.match_id===matchId);
     try{
       await request(`/test-games/${encodeURIComponent(roomId)}/leave`,{user_id:userId,token},{match_id:matchId});
       runtime?.clearSeatConflict(roomId,matchId);
       const data=await api();
-      if(alive.current){setSnapshot(data);setLive(false);}
+      if(alive.current){setSnapshot(data);setLive(false);onOpenLedger?.({tableId:snapshot?.match_id===matchId?snapshot.table_id:undefined,gameType:source?.game_type});}
     }catch(failure){if(alive.current)setError(playerError(failure));}
     finally{pending.current=false;if(alive.current)setBusy(false);}
   }
@@ -367,7 +378,7 @@ export function RoomGameControl({ onReturnToTable, runtime, socialChannel, chat,
       }
       if (alive.current && generation.current === version) {
         selectedMatch.current = data.match_id; setSnapshot(data);
-        if (suffix === '/leave' || suffix === '/table/leave-seat' || suffix === '/table/abandon' || suffix === '/table/pause-seat') { setOpen(false); setLive(false); }
+        if (['/leave','/table/leave-seat','/table/abandon','/table/pause-seat','/end','/table/end'].includes(suffix)) { returnToLedger(snapshot); }
         return true;
       }
     } catch (error) { if (alive.current && generation.current === version) setError(playerError(error, ui("feedback.could_not_update_game"))); return false; }
@@ -470,7 +481,7 @@ export function RoomGameControl({ onReturnToTable, runtime, socialChannel, chat,
     </Modal>
     {/* Web registers modal focus after its animation. A late parent onShow can
         steal focus from chat opened during the transition and block typing. */}
-    <GameModalRoot transparent visible={open} animationType={Platform.OS === 'web' ? 'none' : 'fade'} onRequestClose={collapseGame}>
+    <GameModalRoot onDismiss={departure.onDismiss} transparent visible={open} animationType={Platform.OS === 'web' ? 'none' : 'fade'} onRequestClose={collapseGame}>
       {live && snapshot ? <ThemeContext.Provider value={gameTheme}><TableSocialPresentation><SeatArrangementProvider snapshot={snapshot} session={{user_id:userId,token}} busy={busy} act={(command,payload) => performLobbyAction(`/table/${command}`,payload)}><TableAvatarProvider key={`${snapshot.match_id}:${token}`} session={{user_id:userId,token}}>
       <View testID="live-game-backdrop" style={[styles.liveBackdrop, {
         backgroundColor: gameTheme.colors.background, paddingTop: insets.top, paddingBottom: insets.bottom,

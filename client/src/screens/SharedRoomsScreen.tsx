@@ -1,3 +1,4 @@
+import type { LedgerTarget } from '../components/RoomLedger';
 import {HeaderHomeContext} from '../components/BrandArt';
 import {ActivityLine} from '../components/ActivityLine';
 import {NotificationActionView} from '../components/NotificationActionView';
@@ -85,6 +86,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const [memberError, setMemberError] = useState('');
   const [memberRetry, setMemberRetry] = useState(0);
   const [selectedMember, setSelectedMember] = useState<InvitePlayer | null>(null);
+  const [ledgerTarget,setLedgerTarget]=useState<LedgerTarget>();
   const requestedLedgerRoom = useRef<string | undefined>(undefined);
   const [roomPanel, setRoomPanel] = useState<'chat' | 'members' | 'more' | 'ledger' | null>(null);
   const [form, setForm] = useState<'create' | 'join'>("create");
@@ -147,7 +149,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
     renderLauncher: ({ unread, blocked, toggle }) => <RoomToolbar inline={roomPanel === null} onLedger={() => setRoomPanel("ledger")} panel={roomPanel} unread={unread} chatBlocked={blocked} onTables={() => setRoomPanel(null)} onChat={toggle} onMembers={() => setRoomPanel("members")} onMore={() => setRoomPanel("more")} />,
   });
   useEffect(() => {
-    setInviteOpen(false); setRoomPanel(requestedLedgerRoom.current === room?.room_id && room ? 'ledger' : null); setSelectedMember(null); requestedLedgerRoom.current = undefined;
+    setLedgerTarget(undefined); setInviteOpen(false); setRoomPanel(requestedLedgerRoom.current === room?.room_id && room ? 'ledger' : null); setSelectedMember(null); requestedLedgerRoom.current = undefined;
   }, [room?.room_id]);
   useEffect(() => { if (gameOpen) setRoomPanel(null); }, [gameOpen]);
   const personal = usePlayerPhrases(session, !!session && !expired);
@@ -357,7 +359,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
         {!roomTablesLoading && !gameOpen && roomPanel === null && chat.navigation}
         <View style={[styles.columns, { flex: 1 }]}>
           <View style={styles.mainColumn}>
-            <GameRoomNameContext.Provider value={current?.name||room.name}>{session && <RoomGameControl onLoadingChange={setRoomTablesLoading} onReturnToTable={table=>void enterActiveTable(table,'watch')} runtime={shared.runtime} socialChannel={shared.socialChannel} onOpenChange={setGameOpen} onViewChange={setViewedMatch} requestedMatchId={linkedMatch} requestedEntry={linkedEntry && linkedEntry.matchId === linkedMatch ? linkedEntry.action : undefined} personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={current?.connected_members || []} roomMembers={roomMembers} connectionMessage={expired ? shared.error : undefined}
+            <GameRoomNameContext.Provider value={current?.name||room.name}>{session && <RoomGameControl onOpenLedger={target=>{setLedgerTarget(target);setLinkedMatch(undefined);setLinkedEntry(undefined);setRoomPanel("ledger");}} onLoadingChange={setRoomTablesLoading} onReturnToTable={table=>void enterActiveTable(table,'watch')} runtime={shared.runtime} socialChannel={shared.socialChannel} onOpenChange={setGameOpen} onViewChange={setViewedMatch} requestedMatchId={linkedMatch} requestedEntry={linkedEntry && linkedEntry.matchId === linkedMatch ? linkedEntry.action : undefined} personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={current?.connected_members || []} roomMembers={roomMembers} connectionMessage={expired ? shared.error : undefined}
               presenceKnown={shared.presenceFresh && (current?.presence_status ? current.presence_status === 'observed' : !shared.runtime && !!current?.connected_members)} sessionActive={!expired} gameType={selectedGame} onGameTypeChange={setGame} onEntryError={()=>setTransferring(false)} />}</GameRoomNameContext.Provider>
           </View>
         </View>
@@ -428,7 +430,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
       </View>}
             {form === 'join' && !!(error || shared.error) && <Text activity accessibilityRole="alert" style={styles.error}>{uiLabel(error || shared.error, 'feedback')}</Text>}
           </>}
-          {roomPanel === 'ledger' && <RoomLedger roomId={room.room_id} session={session} embedded />}
+          {roomPanel === 'ledger' && <RoomLedger roomId={room.room_id} session={session} embedded target={ledgerTarget} />}
         </RoomSheet>}
       </> : <>
         {session && !expired && lobbyTab !== 'players' && lobbyTab !== 'chat' && lobbyTab !== 'ledger' && <View style={styles.hero}>
