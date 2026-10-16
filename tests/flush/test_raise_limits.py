@@ -48,3 +48,15 @@ def test_disabled_raise_rejects_double_without_mutation():
     with pytest.raises(FlushError):engine.bet(actor,10)
     assert engine.get_state() is before
     engine.bet(actor,5)
+
+
+def test_new_default_allows_one_double_but_legacy_disabled_rules_stay_disabled():
+    from flush.rules import legacy_rule_defaults
+    rules = FlushRulesConfig(5, 5)
+    assert rules.allow_raise and rules.max_raise == 1
+    engine = dealt(rules)
+    actor = engine.get_state().current_player_id
+    engine.bet(actor, engine.get_player_view(actor).actions.maximum_bet)
+    assert engine.get_player_view(engine.get_state().current_player_id).actions.raises_remaining == 0
+    restored = FlushRulesConfig(**legacy_rule_defaults({'boot_amount': 5}))
+    assert restored.allow_raise is False

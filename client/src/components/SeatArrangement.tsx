@@ -22,9 +22,20 @@ export function SeatArrangementProvider({snapshot,session,busy,act,children}:{sn
   const nodes=useRef(new Map<number,View>()).current;
   const locked=useRef(false);
   const selectedSeats=useRef<Seats|null>(null);
-  const configId=useRef(snapshot.rule_proposal?.id);
-  const [configNotice,setConfigNotice]=useState(false);
-  useEffect(()=>{if(snapshot.rule_proposal?.id&&snapshot.rule_proposal.id!==configId.current){configId.current=snapshot.rule_proposal.id;setConfigNotice(true);const timer=setTimeout(()=>setConfigNotice(false),6000);return()=>clearTimeout(timer);}},[snapshot.rule_proposal?.id]);
+  const {colors}=useTheme();
+  const configKey=JSON.stringify([snapshot.rule_proposal?.id,snapshot.rule_proposal?.status,snapshot.flush_settings?.rules_revision]);
+  const config=useRef({match:snapshot.match_id,key:configKey});
+  const [configNotice,setConfigNotice]=useState<'config_updated'|'rules_proposed'|null>(null);
+  useEffect(()=>{
+    const previous=config.current;
+    config.current={match:snapshot.match_id,key:configKey};
+    if(previous.match!==snapshot.match_id){setConfigNotice(null);return;}
+    if(previous.key===configKey)return;
+    const status=snapshot.rule_proposal?.status;
+    setConfigNotice(status==='PENDING'?'rules_proposed':status==='ACCEPTED'?'config_updated':null);
+    const timer=setTimeout(()=>setConfigNotice(null),6000);
+    return()=>clearTimeout(timer);
+  },[snapshot.match_id,configKey]);
   const enabled=!!snapshot.is_creator && snapshot.status!=='ended' && (snapshot.status==='waiting'||snapshot.status==='finished'||snapshot.flush?.public.status==='finished');
   useEffect(()=>{setInvite(null);setSelected(null);},[snapshot.match_id]);
   useEffect(()=>{if(!enabled){setInvite(null);setSelected(null);}},[enabled]);
@@ -40,7 +51,7 @@ export function SeatArrangementProvider({snapshot,session,busy,act,children}:{sn
   const value:Arrangement={snapshot,enabled,busy,selected,select:user=>{selectedSeats.current=snapshot.table?.seated_players??null;setSelected(current=>current===user?null:user);},invite:position=>selected?move(selected,position):setInvite(position),move,nodes,drop:(user,x,y,expected)=>{
     for(const [position,node] of nodes)node.measureInWindow((left,top,width,height)=>{if(x>=left&&x<=left+width&&y>=top&&y<=top+height)move(user,position,expected);});
   }};
-  return <Context.Provider value={value}>{configNotice&&<View pointerEvents="none" style={{position:'absolute',top:4,left:16,right:16,zIndex:150}}><Text accessibilityLiveRegion="polite" style={{textAlign:'center'}}>{ui('common.config_updated')}</Text></View>}{children}
+  return <Context.Provider value={value}>{configNotice&&<View testID="game-config-notice" pointerEvents="none" style={{backgroundColor:colors.tableHeader,padding:12,borderRadius:10,borderWidth:1,borderColor:colors.accent,position:'absolute',top:4,left:16,right:16,zIndex:150}}><Text accessibilityLiveRegion="polite" style={{textAlign:'center'}}>{ui(configNotice==='rules_proposed'?'common.rules_proposed':'common.config_updated')}</Text></View>}{children}
     {enabled&&invite!==null&&<SeatInvitePopover key={`${snapshot.match_id}:${invite}`} session={session} position={invite} nodes={nodes} onClose={()=>setInvite(null)}
       onInvite={async recipient=>{if(busy||locked.current)throw Error(ui('feedback.could_not_update_game'));locked.current=true;try{const result=await act('invite-position',{position_id:invite,recipient});if(result!==true)throw Error(ui('feedback.could_not_update_game'));setInvite(null);}finally{locked.current=false;}}}/>}
   </Context.Provider>;
@@ -67,7 +78,7 @@ export function ArrangementSeat({position,userId,children,interactive=true,onHei
   return <View onLayout={event=>onHeight?.(event.nativeEvent.layout.height)} {...(enabled?responder.panHandlers:{})} ref={node=>{if(registered.current&&arrangement?.nodes.get(position)===registered.current)arrangement.nodes.delete(position);registered.current=null;if(node&&enabled){registered.current=node as unknown as View;arrangement?.nodes.set(position,registered.current);}}}
     style={{width:'100%',minHeight:72,zIndex:dragging?20:enabled?5:undefined}}><Animated.View style={{width:'100%',minHeight:72,transform:delta.getTranslateTransform()}}>
     {children}
-    {enabled&&userId&&<Pressable testID={`move-seat-${position}`} accessibilityRole="button" accessibilityLabel={ui('rooms.move_player')} disabled={arrangement.busy} onPress={()=>arrangement.selected&&arrangement.selected!==userId?arrangement.move(arrangement.selected,position):arrangement.select(userId)} style={{minHeight:44,alignItems:'center',backgroundColor:arrangement.selected===userId?colors.surfaceSelected:'transparent',borderRadius:8}}><Text style={{color:colors.accent,fontSize:10}}>{ui('rooms.move_player')}</Text></Pressable>}
+    {enabled&&userId&&<Pressable testID={`move-seat-${position}`} accessibilityRole="button" accessibilityLabel={ui('rooms.move_player')} disabled={arrangement.busy} onPress={()=>arrangement.selected&&arrangement.selected!==userId?arrangement.move(arrangement.selected,position):arrangement.select(userId)} style={{position:'absolute',inset:0,borderWidth:arrangement.selected===userId?2:0,borderColor:colors.accent,borderRadius:8}}/>}
     {enabled&&!userId&&<Pressable testID={`invite-seat-${position}`} accessibilityRole="button" accessibilityLabel={ui('rooms.invite_players')} disabled={arrangement.busy} onPress={()=>arrangement.invite(position)} style={{position:'absolute',inset:0}}/>}
     {enabled&&!userId&&arrangement.snapshot.table?.reserved_positions?.some(p=>p.position_id===position)&&<Text pointerEvents="none" style={{color:colors.accent,fontSize:10,textAlign:'center'}}>{ui('rooms.reserved_seat')}</Text>}
   </Animated.View></View>;

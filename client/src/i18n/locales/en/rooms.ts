@@ -1,6 +1,6 @@
 // Editable English rooms copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
-  "seat_hint": "Drag players to change seats. Tap or click an empty seat to invite players.",
+  "seat_hint": "Drag to rearrange · Tap + to invite.",
   "move_player": "Move player",
   "reserved_seat": "Invited",
   "select_move": "Select a player, then tap a seat to move or swap.",
@@ -276,6 +276,8 @@ export default {
   "waiting_for_rule_approval": "Waiting for rule approval.",
   "creator_settings_save_before_starting": "Creator settings · save before starting",
   "unsaved_changes": "Unsaved changes",
+  "revert_changes": "Revert changes",
+  "load_latest_rules": "Load latest rules",
   "reload_saved_rules": "Reload saved rules",
   "rules_before_starting": "Rules before starting",
   "rules_locked_for_this_game": "Rules locked for this game",

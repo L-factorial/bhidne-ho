@@ -1,5 +1,6 @@
 // Editable common copy. Keep keys and placeholders in sync.
 export default {
+  rules_proposed: "Rule changes proposed.",
   config_updated: 'Game config updated for the next game.',
   next_field: 'Next field',
   "config_update_help": "The creator updated the game config. These changes apply to the next game.",

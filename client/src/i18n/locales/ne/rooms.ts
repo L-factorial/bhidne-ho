@@ -1,6 +1,6 @@
 // Editable Nepali rooms copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
-  "seat_hint": "सिट बदल्न खेलाडी तान्नुहोस्। खाली सिट थिचेर बोलाउनुहोस्।",
+  "seat_hint": "सारेर सिट मिलाउनुहोस् · निम्त्याउन + थिच्नुहोस्।",
   "move_player": "खेलाडी सार्नुहोस्",
   "reserved_seat": "निमन्त्रित",
   "select_move": "खेलाडी छानेर अर्को सिट थिच्नुहोस्।",
@@ -276,6 +276,8 @@ export default {
   "waiting_for_rule_approval": "नियम स्वीकृतिको प्रतीक्षामा।",
   "creator_settings_save_before_starting": "आयोजकका सेटिङ · सुरु गर्नुअघि सेभ गर्ने",
   "unsaved_changes": "सेभ नभएका परिवर्तनहरू",
+  "revert_changes": "परिवर्तन उल्टाउनुहोस्",
+  "load_latest_rules": "पछिल्ला नियम लोड गर्नुहोस्",
   "reload_saved_rules": "सेभ भएका नियम फेरि लोड गर्ने",
   "rules_before_starting": "सुरु गर्नुअघिका नियमहरू",
   "rules_locked_for_this_game": "यस खेलका नियम पक्का भइसके",

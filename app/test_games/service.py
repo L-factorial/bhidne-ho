@@ -421,13 +421,13 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             if body.rules_revision != game.flush_rules_revision:
                 raise HTTPException(409, "Flush rules changed. Reload them before saving.")
             try:
-                body.rules.setdefault('allow_raise', False)
+                body.rules.setdefault('allow_raise', True)
                 body.rules.setdefault('max_raise', 1)
                 body.rules['max_raise'] = body.rules['max_raise'] if type(body.rules['max_raise']) is int and 1 <= body.rules['max_raise'] <= 5 else 1
                 if set(body.rules) != {f.name for f in fields(FlushRulesConfig)}:
                     raise ValueError("Supply the complete Flush ruleset without unknown fields.")
                 rules = TypeAdapter(FlushRulesConfig).validate_json(json.dumps(body.rules), strict=True)
-                rules = replace(rules, boot_amount=rules.initial_blind_bet)
+                rules = replace(rules, boot_amount=rules.initial_blind_bet, allow_raise=True)
                 if rules.minimum_players != 2 or rules.maximum_players != 10:
                     raise ValueError("Flush tables require limits of 2 to 10 players.")
                 if not rules.minimum_players <= game.capacity <= rules.maximum_players:

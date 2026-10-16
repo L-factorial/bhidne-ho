@@ -10817,3 +10817,40 @@ Capacity, observability, database HA and operational readiness remain deferred.
 - Exact next step: user checks actual game interactions on production; installed
   native apps require a separate new build for client changes. Capacity testing,
   observability and operational-readiness work remain deferred.
+
+### Pending table and Flush refinements — 2026-10-16
+
+- Removed visible Move player labels while retaining accessible tap/drag seat
+  controls; shortened the seat hint in English and Nepali.
+- New Flush tables enable raises with limit 1; settings expose only the 1–5
+  limit. Both settings command paths enable raises when saving, retain complete
+  payload/type validation, and normalize invalid limits to 1. Historical saved
+  configurations, including disabled raises, keep their agreed behavior until
+  explicitly reconfigured; no migration or active-game rewrite was added.
+- Flush Revert changes appears only for dirty drafts and disappears after a
+  committed save. Clean forms follow incoming rule revisions; dirty stale forms
+  retain edits and offer Load latest rules. In-game banners distinguish proposed
+  changes from accepted/saved changes without replaying notices at hydration.
+- Double is absent when the server's remaining-raise limit/maximum bet prevents
+  doubling. SEE_CARDS keeps backs visible until the authorized three-card view
+  arrives, and each native face finishes layout before its flip starts. Retry
+  paths retain concealed backs; front accessibility stays hidden until revealed.
+- Included the pending remote end-table fix: all current table viewers open the
+  relevant room/table ledger after dismissal, using the last viewed identity.
+  Deduplication prevents duplicate navigation; expiry/removal and unrelated
+  background tables do not trigger ledger jumps. Opening the next table remains
+  possible after dismissal. The initiating player's existing path is retained.
+- Verification: TypeScript and diff checks pass; 501 client unit tests pass;
+  185 Flush/adapter/room/rule tests pass (14 environment-dependent skips).
+  Seven durable settings tests pass against PGlite, including limits 1–5,
+  normalization and old-client disabled-raise input. Six native component tests
+  pass, covering face-layout gating and iOS dismissal ordering. Browser fixtures
+  pass for seat taps, dirty/revert/save/concurrent settings updates, proposal and
+  acceptance banners, capped doubles, delayed/retried reveals, ten local/remote
+  exit cases, empty ledger history, menu/chat dismissal and room reentry.
+- Limitations: native tests model React lifecycle, not UIKit or a physical phone.
+  No new deployment or iOS build was performed. The unrelated native deletion
+  test harness has a pre-existing missing PlayerAvatar stub and was not repaired.
+- Exact next step: review these changes, then build/install the updated iOS app
+  and check real-device reveal and end-table navigation. Deploy this increment
+  when requested. Capacity, observability, HA and readiness work remain deferred.

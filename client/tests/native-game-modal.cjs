@@ -123,3 +123,29 @@ test('a late native dismissal cannot clear the newly reopened presentation', asy
     assert.equal(renderer.root.findAllByType('Confirmation').length, 1);
   } finally { await act(async () => { renderer.unmount(); }); }
 });
+
+const {useDismissalAction}=load('useDismissalAction.ts');
+function LedgerDepartureFixture({events}) {
+  const [visible,setVisible]=React.useState(true);
+  const [ledger,setLedger]=React.useState(false);
+  const departure=useDismissalAction(visible,()=>setVisible(false));
+  return h(React.Fragment,null,
+    h('ExitTable',{end:()=>departure.afterDismiss(()=>{events.push('target-table');setLedger(true);})}),
+    h(GameModalRoot,{visible,onDismiss:departure.onDismiss},h('LiveTable')),
+    ledger?h('RoomLedger',{tableId:'target-table'}):null);
+}
+test('iOS opens the matching ledger once, only after the game modal dismisses',async()=>{
+  native.Platform.OS='ios';const events=[];let renderer;
+  await act(async()=>{renderer=create(h(LedgerDepartureFixture,{events}));});
+  try{
+    await act(async()=>{const exit=renderer.root.findByType('ExitTable');exit.props.end();exit.props.end();});
+    assert.equal(renderer.root.findByType('NativeModal').props.visible,false);
+    assert.equal(renderer.root.findAllByType('LiveTable').length,1);
+    assert.equal(renderer.root.findAllByType('RoomLedger').length,0);
+    const dismissed=renderer.root.findByType('NativeModal').props.onDismiss;
+    await act(async()=>{dismissed();});
+    assert.equal(renderer.root.findByType('RoomLedger').props.tableId,'target-table');
+    assert.deepEqual(events,['target-table']);
+    await act(async()=>{dismissed();});assert.deepEqual(events,['target-table']);
+  }finally{await act(async()=>renderer.unmount());}
+});

@@ -165,7 +165,7 @@ async function roomRemainsTappable(page, expectLedger=false) {
           await guest.page.getByRole('textbox', { name: 'Table message', exact: true }).fill('Unsent draft');
         }
         guest.state.current = snapshot('u1', guest.state.current.match_id, guest.state.current.table_name, true);
-        await roomRemainsTappable(guest.page);
+        await roomRemainsTappable(guest.page,true);
         assert.equal(guest.state.endCalls, 0, 'remote end must not issue a local end command');
         assert.equal(guest.state.creationCalls, 1);
         assert.deepEqual(guest.errors, []);

@@ -25,8 +25,10 @@ def test_flush_room_settings_lock_privacy_turns_and_retries(capacity):
         mid = waiting['match_id']
         settings = waiting['flush_settings']
         assert 'starting_chips' not in settings
+        assert settings['rules']['allow_raise'] is True
+        assert settings['rules']['max_raise'] == 1
         body = {'match_id': mid, 'rules_revision': 0,
-                'rules': {**settings['rules'], 'minimum_bet_rounds_before_side_show': 0}}
+                'rules': {**settings['rules'], 'minimum_bet_rounds_before_side_show': 0, 'allow_raise': False}}
         assert post('/flush-settings', 1, body).status_code == 403
         for invalid in ({'boot_amount': True}, {'unknown': 3}, {'show_only_when_two_players_remain': False},
                         {'maximum_players': capacity - 1}, {'boot_amount': -1}):
@@ -34,6 +36,7 @@ def test_flush_room_settings_lock_privacy_turns_and_retries(capacity):
         saved = post('/flush-settings', 0, body)
         assert saved.status_code == 200, saved.text
         assert saved.json()['flush_settings']['rules_revision'] == 1
+        assert saved.json()['flush_settings']['rules']['allow_raise'] is True
         assert post('/flush-settings', 0, body).status_code == 409
         for i in range(1, capacity):
             assert post('/join', i, {'match_id': mid}).status_code == 200

@@ -14,7 +14,7 @@ def integer(value, name, minimum=0):
 class FlushRulesConfig:
     boot_amount: int
     initial_blind_bet: int = 1
-    allow_raise: bool = False
+    allow_raise: bool = True
     max_raise: int = 1
     minimum_bet_rounds_before_side_show: int = 3
     blind_to_seen_bet_multiplier: int = 2

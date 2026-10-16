@@ -78,7 +78,11 @@ export function RoomGameControl({ onOpenLedger, onReturnToTable, runtime, social
   const rescheduleRefresh=useRef<()=>void>(()=>{});
   const [open, setOpen] = useState(false);
   const departure = useDismissalAction(open, () => setOpen(false));
+  const departedMatch = useRef<string|undefined>(undefined);
+  const lastViewedGame = useRef<Snapshot|null>(null);
   function returnToLedger(source:Snapshot) {
+    if(source.match_id && departedMatch.current===source.match_id)return;
+    departedMatch.current=source.match_id;
     const target:LedgerTarget={tableId:source.table_id || source.table?.table_id,gameId:source.durable_game_id ?? undefined,gameType:source.game_type};
     setLive(false);
     departure.afterDismiss(() => onOpenLedger?.(target));
@@ -162,14 +166,24 @@ export function RoomGameControl({ onOpenLedger, onReturnToTable, runtime, social
     }
   }, [requestedMatchId, requestedEntry, snapshot?.match_id, snapshot?.status]);
   useEffect(() => {
+    if(open && live && snapshot && snapshot.status!=='ended'){
+      lastViewedGame.current=snapshot;departedMatch.current=undefined;
+    }
+  },[snapshot,open,live]);
+  useEffect(() => {
     if (snapshot?.status === 'ended') {
       selectedMatch.current = undefined;
       setError(snapshot.session?.expired_at ? ui('rooms.session_expired')
         : snapshot.session?.removal_reason === 'ACTION_TIMEOUT' ? ui('rooms.session_removed') : '');
       setRefreshError(''); setActionNotice('');
-      setLive(false); setOpen(false);
+      const previous=lastViewedGame.current;
+      if(open && live && previous && previous.match_id===snapshot.match_id && !snapshot.session?.expired_at && !snapshot.session?.removal_reason){
+        // Every viewer follows a remote end, using the identity retained before
+        // the server cleared the seat. iOS opens the ledger after onDismiss.
+        returnToLedger(previous);
+      }else{setLive(false);setOpen(false);}
     }
-  }, [snapshot?.status, snapshot?.match_id, snapshot?.session?.expired_at, snapshot?.session?.removal_reason]);
+  }, [snapshot?.status,snapshot?.match_id,snapshot?.session?.expired_at,snapshot?.session?.removal_reason]);
   async function api(suffix = '', body?: object, signal?: AbortSignal): Promise<Snapshot> {
     const controller = new AbortController();
     requests.current.add(controller);

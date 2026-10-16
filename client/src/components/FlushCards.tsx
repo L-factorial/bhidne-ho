@@ -23,7 +23,7 @@ export function FlushCards({ cards, hidden = false, label = ui("flush.your_card"
   useEffect(() => { if (hidden && autoHideMs > 0) setRevealed([]); }, [hidden, autoHideMs]);
   return <View testID="flush-card-arc" style={{ height: 172, width: 280, alignSelf: 'center' }}>
     {[0, 1, 2].map(index => <FlipCard key={index} card={orderedCards[index]} index={index} label={label}
-      revealed={!hidden && (autoReveal || (tapToToggle ? peekAll : revealed.includes(index)))} disabled={tapToToggle || autoReveal || hidden || !orderedCards[index] || revealed.includes(index)}
+      revealed={cards.length===3 && !hidden && (autoReveal || (tapToToggle ? peekAll : revealed.includes(index)))} disabled={tapToToggle || autoReveal || hidden || !orderedCards[index] || revealed.includes(index)}
       autoHideMs={autoReveal ? 0 : autoHideMs} onConceal={() => setRevealed(current => current.filter(i => i !== index))}
       onFlip={() => { const next = [...revealed, index]; setRevealed(next); if (next.length === 3) onComplete?.(); }} />)}
     {tapToToggle && !hidden && cards.length === 3 && <Pressable accessibilityRole="button"
@@ -48,6 +48,8 @@ function FlipCard({ card, index, label, revealed, disabled, onFlip, autoHideMs, 
     const timer = setTimeout(() => conceal.current(), autoHideMs);
     return () => clearTimeout(timer);
   }, [revealed, autoHideMs]);
+  const [readyCard,setReadyCard]=useState<string>();
+  const faceVisible=revealed && !!card && readyCard===card;
   const progress = useRef(new Animated.Value(0)).current;
   const [reduced, setReduced] = useState(false);
   useEffect(() => {
@@ -57,17 +59,17 @@ function FlipCard({ card, index, label, revealed, disabled, onFlip, autoHideMs, 
     return () => { alive = false; sub.remove(); };
   }, []);
   useEffect(() => {
-    const animation = Animated.timing(progress, { toValue: revealed ? 1 : 0, duration: reduced ? 0 : 160, useNativeDriver: true });
+    const animation = Animated.timing(progress, { toValue: faceVisible ? 1 : 0, duration: reduced ? 0 : 160, useNativeDriver: true });
     animation.start(); return () => animation.stop();
-  }, [revealed, progress, reduced]);
-  return <Pressable accessibilityRole="button" accessibilityLabel={revealed ? `${label} ${index + 1}: ${card}` : `Flip ${label.toLowerCase()} ${index + 1}`}
+  }, [faceVisible, progress, reduced]);
+  return <Pressable accessibilityRole="button" accessibilityLabel={faceVisible ? `${label} ${index + 1}: ${card}` : `Flip ${label.toLowerCase()} ${index + 1}`}
     disabled={disabled} accessibilityState={{ disabled }} onPress={onFlip}
     style={{ position: 'absolute', width: 80, height: 116, left: 30 + index * 70, top: index === 1 ? 12 : 24, transform: [{ rotate: `${(index - 1) * 13}deg` }] }}>
     <Animated.View style={[StyleSheet.absoluteFill, { borderRadius: 9, overflow: 'hidden', backfaceVisibility: 'hidden',
       transform: [{ perspective: 600 }, { rotateY: progress.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }]}><CardBack /></Animated.View>
-    <Animated.View accessibilityElementsHidden={!revealed} importantForAccessibility={revealed ? 'auto' : 'no-hide-descendants'} style={[StyleSheet.absoluteFill, {
+    <Animated.View testID={`flush-card-front-${index}`} aria-hidden={!faceVisible} accessibilityElementsHidden={!faceVisible} importantForAccessibility={faceVisible ? 'auto' : 'no-hide-descendants'} style={[StyleSheet.absoluteFill, {
       backgroundColor: colors.cardFace, borderColor: colors.cardBorder, borderWidth: 1, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backfaceVisibility: 'hidden',
       transform: [{ perspective: 600 }, { rotateY: progress.interpolate({ inputRange: [0, 1], outputRange: ['180deg', '360deg'] }) }],
-    }]}>{revealed && card && <CompactCardFace rank={card.slice(0,-1)} suit={card.slice(-1)}/>}</Animated.View>
+    }]}>{card && <View key={card} onLayout={()=>setReadyCard(card)}><CompactCardFace rank={card.slice(0,-1)} suit={card.slice(-1)}/></View>}</Animated.View>
   </Pressable>;
 }

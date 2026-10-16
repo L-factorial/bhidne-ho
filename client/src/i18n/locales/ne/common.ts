@@ -1,5 +1,6 @@
 // Editable common copy. Keep keys and placeholders in sync.
 export default {
+  rules_proposed: "नियम परिवर्तन प्रस्ताव गरिएको छ।",
   config_updated: 'अर्को खेलका लागि कन्फिग परिवर्तन भयो।',
   next_field: 'अर्को फिल्ड',
   "config_update_help": "सिर्जनाकर्ताले खेल कन्फिग परिवर्तन गर्नुभयो। अर्को खेलमा लागू हुन्छ।",
