@@ -10854,3 +10854,18 @@ Capacity, observability, database HA and operational readiness remain deferred.
 - Exact next step: review these changes, then build/install the updated iOS app
   and check real-device reveal and end-table navigation. Deploy this increment
   when requested. Capacity, observability, HA and readiness work remain deferred.
+
+### Call Break result name layout — 2026-10-16
+
+- Deal and final result tables display the current player as You. Other names
+  use at most eight Unicode code points, including three literal dots for
+  truncated names. Accessibility retains the full name.
+- Compact player cells give numeric columns enough room to keep scores and
+  Taken on one line. Other games retain their existing result-table layout.
+- Verification: TypeScript, two label unit tests and diff checks pass. Browser
+  fixtures pass for deal/final results at 320, 390 and 1280px; screenshots saved
+  under /private/tmp/bhidne-callbreak-views.
+- Limitation: the separately discussed fixed table/result-overlay change is
+  unchanged. No deployment or native build performed for this increment.
+- Exact next step: review the result screenshots; deploy/build when requested.
+  Distributed-runtime capacity, HA, observability and readiness remain deferred.
