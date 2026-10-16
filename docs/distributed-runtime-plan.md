@@ -10727,3 +10727,19 @@ Capacity, observability, database HA and operational readiness remain deferred.
   pass, including an explicit original-toolbar-height check and overlay opens.
   Updated screenshots in /private/tmp/bhidne-summary-pickers. No deployment.
   Exact next step: user review and authorized device/release verification.
+
+### Flush doubling limit 1–5 — 2026-10-15
+
+- Updated settings labels and client/legacy/durable save validation to accept
+  whole-number limits 1–5 with default 1. Invalid field input visibly restores 1
+  on blur and is normalized again on save; backend rejects invalid types into
+  the same default. Existing domain validation already supported this range.
+- Confirmed existing table-wide double counting, server enforcement and disabled
+  Double control at zero remaining raises; retained these rules. Expanded domain
+  cap/reset coverage to all five limits and client input-normalization coverage.
+- Verification: TypeScript, 500 client tests, 136 Flush/soft-seating tests pass;
+  18 database-dependent soft-seating cases skipped in this environment. Diff
+  checks pass. Logs: /private/tmp/flush-double-{client,backend}.log. Updated the
+  durable settings test expectation to retain valid limits 4/5.
+- Local/uncommitted, no deployment. Exact next step: run database-backed settings
+  integration tests in the configured environment, then authorized release.

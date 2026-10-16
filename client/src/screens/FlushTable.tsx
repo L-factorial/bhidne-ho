@@ -1,5 +1,5 @@
 import { FittedGameTable } from '../components/FittedGameTable';
-import { flushPlayerName } from '../multiplayer/flush';
+import { flushDoubleLimit, flushPlayerName } from '../multiplayer/flush';
 import {ActivityLine} from '../components/ActivityLine';
 import { WaitingHandArea } from '../components/WaitingHandArea';
 import { ThemeBackdrop } from '../components/ThemeBackdrop';
@@ -46,7 +46,7 @@ const labels = {
   allow_multiplayer_blind_show: 'Allow blind show with more than two players',
   minimum_rounds_before_multiplayer_blind_show: 'Minimum betting rounds before blind show',
   initial_blind_bet: 'Minimum bet', blind_to_seen_bet_multiplier: 'Blind-to-seen bet multiplier',
-  allow_raise: 'Allow raise', max_raise: 'Max doubles per hand (1–3)',
+  allow_raise: 'Allow raise', max_raise: 'Max doubles per hand (1–5)',
   trial_bonus: 'Trial bonus (Salami)', ace_trial_bonus: 'Ace trial (Salami)',
 } as const;
 
@@ -101,7 +101,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   function edit(key: string, value: string | boolean) { setDraft(v => ({ ...v, [key]: value })); setDirty(true); setLocalError(''); }
   function save() {
     const values: Record<string, string | number | boolean | null> = { ...draft };
-    values.max_raise = /^\d+$/.test(String(values.max_raise)) && Number(values.max_raise) >= 1 && Number(values.max_raise) <= 3 ? Number(values.max_raise) : 1;
+    values.max_raise = flushDoubleLimit(values.max_raise);
     values.boot_amount = Number(values.initial_blind_bet);
     for (const key of Object.keys(settings.rules).filter(k => typeof settings.rules[k as keyof FlushRules] === 'number' || k === 'ace_trial_bonus' && values[k] !== null)) {
       if (!/^\d+$/.test(String(values[key])) || !Number.isSafeInteger(Number(values[key]))) { setLocalError(ui("feedback.enter_whole_nonnegative_point_amounts_and_counts")); return; }
@@ -181,7 +181,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
         const label = uiLabel(labels[key], 'flush');
         return <View key={key} style={s.field}><Text style={s.text}>{label}</Text>
           {typeof value === 'boolean' ? button(ui('common.label_yes_no', { label, value: ui(value ? 'common.yes' : 'common.no') }), () => edit(key, !value), !editable)
-            : <NumericInput accessibilityLabel={label} value={String(value)} editable={editable} keyboardType="number-pad" onChangeText={v => edit(key, v)} style={s.input} />}
+            : <NumericInput accessibilityLabel={label} value={String(value)} editable={editable} keyboardType="number-pad" onChangeText={v => edit(key, v)} onBlur={key === 'max_raise' ? () => { const normalized = flushDoubleLimit(value); if (String(value) !== String(normalized)) edit(key, String(normalized)); } : undefined} style={s.input} />}
         </View>;
       })}
 

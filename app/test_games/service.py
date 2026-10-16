@@ -423,7 +423,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             try:
                 body.rules.setdefault('allow_raise', False)
                 body.rules.setdefault('max_raise', 1)
-                body.rules['max_raise'] = body.rules['max_raise'] if type(body.rules['max_raise']) is int and 1 <= body.rules['max_raise'] <= 3 else 1
+                body.rules['max_raise'] = body.rules['max_raise'] if type(body.rules['max_raise']) is int and 1 <= body.rules['max_raise'] <= 5 else 1
                 if set(body.rules) != {f.name for f in fields(FlushRulesConfig)}:
                     raise ValueError("Supply the complete Flush ruleset without unknown fields.")
                 rules = TypeAdapter(FlushRulesConfig).validate_json(json.dumps(body.rules), strict=True)

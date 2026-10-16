@@ -47,7 +47,7 @@ def apply_rules(game, actor, request, lane_id):
                 return 'Flush rules changed. Reload them before saving.'
             body.rules.setdefault('allow_raise', False)
             body.rules.setdefault('max_raise', 1)
-            body.rules['max_raise'] = body.rules['max_raise'] if type(body.rules['max_raise']) is int and 1 <= body.rules['max_raise'] <= 3 else 1
+            body.rules['max_raise'] = body.rules['max_raise'] if type(body.rules['max_raise']) is int and 1 <= body.rules['max_raise'] <= 5 else 1
             if set(body.rules) != {f.name for f in fields(FlushRulesConfig)}:
                 return 'Supply the complete Flush ruleset.'
             rules = TypeAdapter(FlushRulesConfig).validate_json(json.dumps(body.rules), strict=True)

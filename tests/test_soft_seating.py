@@ -104,7 +104,7 @@ async def test_general_invitation_upgrades_without_duplicate_notification_and_co
     assert (await command(creation,target,lane,users[0],'flush-settings',2,dict(rules_revision=0,rules=rules)))['status']=='accepted'
     _,game=await recovered(creation,target)
     assert game.flush_rules.boot_amount==game.flush_rules.initial_blind_bet==5
-    assert game.flush_rules.max_raise==(max_doubles if 1<=max_doubles<=3 else 1)
+    assert game.flush_rules.max_raise==(max_doubles if 1<=max_doubles<=5 else 1)
     assert game.rule_proposal['status']=='ACCEPTED'
     assert any(e['event']=='GAME_CONFIG_UPDATED' for e in game.table.events)
 

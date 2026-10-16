@@ -1,3 +1,8 @@
+/** New settings accept whole-number limits only; malformed input restores the default. */
+export function flushDoubleLimit(value: unknown): number {
+  return (typeof value === 'string' || typeof value === 'number') && /^\d+$/.test(String(value)) && Number(value) >= 1 && Number(value) <= 5 ? Number(value) : 1;
+}
+
 export type FlushRules = {
   allow_multiplayer_blind_show: boolean; minimum_rounds_before_multiplayer_blind_show: number;
   trial_bonus: number; ace_trial_bonus: number | null;

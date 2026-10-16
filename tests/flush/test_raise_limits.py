@@ -11,12 +11,12 @@ def dealt(rules):
     return engine
 
 
-@pytest.mark.parametrize('bad',[0,6,-1,True,1.5,'2',None])
+@pytest.mark.parametrize('bad',[0,6,-1,True,1.5,'2','',None])
 def test_bad_max_raise_defaults_to_one(bad):
     assert FlushRulesConfig(5,max_raise=bad).max_raise==1
 
 
-@pytest.mark.parametrize('count',[1,2,3,5])
+@pytest.mark.parametrize('count',[1,2,3,4,5])
 def test_table_wide_double_cap_and_reset(count):
     engine=dealt(FlushRulesConfig(5,5,allow_raise=True,max_raise=count))
     for index in range(count):
