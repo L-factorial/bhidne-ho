@@ -1,3 +1,4 @@
+import { ui } from '../i18n/copy';
 import { useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { View } from 'react-native';
@@ -8,9 +9,9 @@ import type { GameAttention } from '../notifications/gameAttention';
 import { useTheme } from '../theme';
 
 /** The hand header owns cues in both positions; cards and inner cues stay intact. */
-export function HandAreaBar({ open, onToggle, count, cue = null, disabled = false, cardsTitle = false, compact = false, compactLabel }: {
+export function HandAreaBar({ open, onToggle, count, cue = null, disabled = false, cardsTitle = false, compact = true, compactLabel, idleLabel }: {
   open: boolean; onToggle: () => void; count?: number; cue?: GameAttention|null; disabled?: boolean;
-  compactLabel?:string; compact?:boolean; cardsTitle?: boolean; attention?: boolean; instruction?: string;
+  idleLabel?:string; compactLabel?:string; compact?:boolean; cardsTitle?: boolean; attention?: boolean; instruction?: string;
 }) {
   const { colors } = useTheme(), social = useTableSocial();
   const setHandCollapsed = social?.setHandCollapsed;
@@ -20,8 +21,8 @@ export function HandAreaBar({ open, onToggle, count, cue = null, disabled = fals
   }, [setHandCollapsed]);
   return <View testID="hand-area-header" style={{flexDirection:'row',alignItems:'center',minHeight:compact?60:80,backgroundColor:colors.tableHeader,alignSelf:'stretch'}}>
     <TableSocialButton kind="chat" />
-    <GameAttentionBanner compact={compact} compactLabel={compactLabel} cardsTitle={cardsTitle} attention={cue} expanded={open} disabled={disabled} onPress={onToggle}
-      idleContent={<HandTrayLabel count={count}/>} endControl={<Ionicons name={open?'chevron-down':'chevron-up'} size={20} color={colors.onTableHeader}/>}/>
+    <GameAttentionBanner compact={compact} compactLabel={compactLabel || (!cue ? idleLabel || (count === undefined ? ui("common.your_cards") : ui("common.your_cards_status", {status:count})) : undefined)} cardsTitle={cardsTitle} attention={cue} expanded={open} disabled={disabled} onPress={onToggle}
+      idleContent={<HandTrayLabel count={count} label={idleLabel}/>} endControl={<Ionicons name={open?'chevron-down':'chevron-up'} size={20} color={colors.onTableHeader}/>}/>
     <TableSocialButton kind="poke" />
   </View>;
 }

@@ -55,6 +55,7 @@ export function MarriageMaalPanel({ hand, shown, unlocked, maal, enabled, visibl
   const text={color:c.text,fontFamily:fonts.body};
   const button=(label:string,onPress:()=>void,disabled=false,primary=false)=><Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled}} disabled={disabled} onPress={onPress}
     style={({pressed})=>({...gameButtonStyle(c,primary?'primary':'secondary',pressed),minHeight:44,alignItems:'center',justifyContent:'center',opacity:disabled?visualStates.disabledOpacity:1})}><Text activity style={{color:primary?c.onPrimary:c.onTableHeader,fontFamily:fonts.medium,textAlign:'center'}}>{label}</Text></Pressable>;
+  if (!preview && !eligible && !unlocked) return null;
   if (!preview) {
     const label=ui(eligible?'marriage.maal_eligible':'marriage.maal_ineligible');
     const hint=!visible?ui('marriage.reveal_cards_to_check_maal'):checking?ui('marriage.checking_maal'):eligible?ui('marriage.maal_eligible_view_options'):ui('marriage.maal_not_eligible');

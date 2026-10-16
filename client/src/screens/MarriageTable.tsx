@@ -25,7 +25,7 @@ import { MarriageHandSheet } from '../components/MarriageHandSheet';
 import { marriageDecision, marriageHandSnap, type HandSnap } from '../multiplayer/marriageWorkspace';
 import { TableStartCue } from '../components/TableStartCue';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
-import {Pressable, ScrollView, StyleSheet, View, useWindowDimensions} from 'react-native';
+import {Pressable, ScrollView, StyleSheet, Text as TabText, View, useWindowDimensions} from 'react-native';
 import { visualStates, radii, fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { useMarriageReveal } from '../multiplayer/useMarriageReveal';
 import { MarriageCardArea } from '../components/MarriageCardArea';
@@ -279,8 +279,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       </View>}
       {declaring && <MarriageTunnelaPanel onEligibility={reportTunnela} hand={hand} visible={allRevealed&&!hidden} busy={busy} connected={social.connected} submit={onAction}/>}
       {declarationsPending && !declaring && <Text style={s.text}>{ui("marriage.declaration_recorded_waiting_for_other_players")}</Text>}
-      <View testID="marriage-hand-controls" style={{flexDirection:preview||finishPreview?'column':'row',gap:6,alignItems:'stretch'}}>
-        {!preview && !finishPreview && <View testID="marriage-compact-turn" style={[s.button,{flex:1,minWidth:0,minHeight:44,padding:6,flexDirection:'row',gap:7}]}><View testID="marriage-turn-dot" accessible={false} style={{width:8,height:8,borderRadius:4,backgroundColor:colors.coin}}/><Text style={[s.buttonText,{textAlign:'center',fontSize:12}]}>{isTurn?ui('common.your_turn'):ui('common.player_s_turn',{player:name(pub.current_player_id)})}</Text></View>}
+      <View testID="marriage-hand-controls" style={{display:!preview&&!finishPreview&&!(postMaal?localMarriage.key===detectionKey&&localMarriage.ready:localMaal.key===detectionKey&&localMaal.ready)?'none':'flex',flexDirection:preview||finishPreview?'column':'row',gap:6,alignItems:'stretch'}}>
         <View style={{flex:preview||finishPreview?undefined:2,minWidth:0,gap:6,flexDirection:preview||finishPreview?'column':'row'}}>{!declaring&&!own?.folded&&<>
           {!postMaal&&!finishPreview&&<MarriageMaalPanel handAnchor={handAnchor} onEligibility={reportMaal} hand={availableHand} shown={own?.shown_melds||[]} unlocked={false} maal={null}
             playerCount={pub.players.length} enabled={canAct&&isTurn&&social.connected} visible={allRevealed&&!hidden} busy={busy} actions={actions?.kinds||[]}
@@ -294,8 +293,12 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         {postMaal && recordedDeclarations}
         {!postMaal && !declaring && allRevealed && <View accessibilityRole="tablist" testID="marriage-view-tabs" style={{flexDirection:'row',gap:4}}>
           {(["personal","sequence","dublee"] as const).filter(value=>value!=='dublee'||pub.players.length>=4).map(value=>{
-            const label=ui(value==='personal'?'marriage.your_view':value==='sequence'?'marriage.sequence_tunnela':'marriage.dublee');
-            return <Pressable key={value} accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{selected:arrangement===value}} aria-selected={arrangement===value} onPress={()=>setArrangement(value)} style={[s.button,{flex:1,minWidth:0,minHeight:44,paddingHorizontal:4,paddingVertical:4},arrangement===value&&s.chosen]}><Text style={[s.buttonText,{fontSize:11,textAlign:'center'}]}>{label}</Text></Pressable>;
+            const label=ui(value==='personal'?'marriage.my_arrangement':'marriage.auto_arrangement');
+            const subtitle=value==='personal'?undefined:ui(value==='sequence'?'marriage.sequence_tunnela':'marriage.dublee');
+            return <Pressable key={value} accessibilityRole="tab" accessibilityLabel={subtitle?`${label} — ${subtitle}`:label} accessibilityState={{selected:arrangement===value}} aria-selected={arrangement===value} onPress={()=>setArrangement(value)} style={[s.button,{flex:1,minWidth:0,height:44,minHeight:44,paddingHorizontal:4,paddingVertical:4,justifyContent:'center',alignItems:'center'},arrangement===value&&s.chosen]}>
+              <TabText numberOfLines={1} adjustsFontSizeToFit style={[s.buttonText,{fontSize:12,lineHeight:16,textAlign:'center'}]}>{label}</TabText>
+              {!!subtitle&&<TabText numberOfLines={1} adjustsFontSizeToFit style={[s.buttonText,{fontSize:10,lineHeight:14,textAlign:'center',opacity:0.65}]}>{subtitle}</TabText>}
+            </Pressable>;
           })}
         </View>}
         <View style={{position:'relative',borderRadius: radii.medium}}>
@@ -310,7 +313,6 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
                   style={[s.card, {width:cardWidth,height:76},back&&s.cardBack,!back&&card.card_id===drawnId&&s.drawnCard,checked&&s.selectedCard]}>
                   {!!marker&&<Text pointerEvents="none" testID={`marriage-card-marker-${marker}`} style={{position:'absolute',top:-17,fontSize:18,lineHeight:18,fontWeight:'bold',color:marker==='discard'?'#DC2626':'#15803D'}}>▼</Text>}
                   {back?<MarriageCardBack/>:<CompactCardFace rank={card.rank} suit={card.suit} joker={card.card_type==='man'}/>}
-                  {!back&&card.card_id===drawnId&&<Text style={{fontSize:9,color:colors.cardInk}}>{ui("marriage.new")}</Text>}
                 </MarriageHandCard>;
               })}
           {handActions}

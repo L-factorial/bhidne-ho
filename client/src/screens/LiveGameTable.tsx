@@ -219,6 +219,7 @@ export function LiveGameTable({ snapshot, busy, error, onAction, onBack, onStart
       </View>}
     </View>}
     {handAvailable && <MobileGameHand draggingCard={draggingCard} cue={gameAttention(snapshot)} docked overlay onCollapsedHeight={setCollapsedHandHeight} desktopDrawer mobile={mobile} game="callbreak" keepMounted cardCount={mine?.hand.length || 0}
+      idleLabel={!isTurn && game.turn.player_id != null ? ui("common.player_s_turn", {player: playerName(game.turn.player_id)}) : undefined}
       open={cards.open} onToggle={() => { stats.close(); cards.toggle(); }} myTurn={isTurn}
       attention={isTurn || !!mine?.can_accept_hand || !!mine?.can_claim_redeal}
       attentionText={mine?.can_accept_hand || mine?.can_claim_redeal ? ui("callbreak.review_your_cards_accept_or_request_redeal") : isTurn ? game.phase === 'BIDDING' ? ui("callbreak.make_your_call") : ui("callbreak.play_a_card") : ui("common.your_cards_count", {count: mine?.hand.length || 0})}>

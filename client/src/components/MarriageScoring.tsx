@@ -101,10 +101,7 @@ export function MarriagePoints({ snapshot, computationOnly=false }: { snapshot: 
     {!scores ? <Text style={s.text}>{snapshot.status === 'ended' ? ui("marriage.ended_points_help")
       : snapshot.status === 'finished' ? ui("common.this_round_has_no_scoring_breakdown_available") : ui("marriage.pending_points_help")}</Text> : <>
       <MarriageRoundResults snapshot={snapshot} />
-      <Text accessibilityRole="header" style={s.heading}>{ui("marriage.how_the_points_were_calculated")}</Text>
-      <Text style={s.text}>{ui("marriage.maal_points_summary", { "points": scores.total_maal })}</Text>
-      <Text style={s.text}>{ui("marriage.net_help")}</Text>
-      <Text style={s.text}>{ui("marriage.maal_loser_payment", { "seen": scores.rules.seen_payment, "unseen": scores.rules.unseen_payment, "bonus": snapshot.marriage?.public.won_by_fold ? 0 : scores.rules.dublee_win_bonus })}</Text>
+      <Text style={s.text}>{ui("marriage.total_maal", {points:scores.total_maal})}</Text>
       {scores.players.map(p => <View key={p.player_id} style={s.player}>
         <View style={s.row}><PlayerAvatar uri={snapshot.players?.find(player => String(player.player_id) === p.player_id)?.avatar_url} />
           <Text style={s.heading}>{name(p.player_id)}: {signed(p.net_points)} {ui("marriage.points")}</Text></View>

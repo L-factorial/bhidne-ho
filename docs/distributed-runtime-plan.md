@@ -10787,3 +10787,33 @@ Capacity, observability, database HA and operational readiness remain deferred.
 - TypeScript, four reaction tests, 37 table-social tests (including new owl
   broadcasts in all three games) and diff checks pass. No deployment; hold
   remains in effect. Exact next step: user review/remaining requested changes.
+
+### Direct production rollout — 2026-10-15 (0d9af95)
+
+- User resumed deployment after adding poke choices/artwork. Deployed committed
+  revision 0d9af95affd501d0ba68629b61e14265fd2590fd, including the pending compact
+  tables, Marriage results/eligibility UI, picker shortcuts, Flush 1–5 doubles,
+  plain Create game plus and localized table reactions. Loaded the authorized
+  administrative SSH key from macOS Keychain after initial locked-key failures.
+- Cancelled overlapping queued workflow 38855795935 and verified cancellation.
+  Built from git archive on app1 using Dockerfile.production, verified image
+  revision, transferred the exact immutable image to app2, checked both hosts,
+  replaced backends sequentially, then activated both frontends. Prior containers
+  and frontend assets retained. No database migration or game-state rewrite.
+- Image: sha256:24a9463cf8ba84fddec0e844f38ee4ba206a7fedaed70c41ce99dae227d5a506.
+  Both running containers and frontend release links match this image. Both
+  frontend index hashes and public load-balancer output match
+  78c01291177fc3eeeb841c06110268a3b6ce7cd9d547523c63e48e317bd38fa2.
+- Verification: TypeScript, 501 client tests, 174 focused Flush/social/result
+  backend tests and 234 Marriage tests pass; production image also runs client
+  tests and production typecheck/export. Both host dependency/schema checks and
+  backend readiness pass. Read-only recovery validation loads 125/125 saved
+  tables with zero quarantined rooms. Public API health and production Chrome
+  sign-in smoke at 390/1280px pass without uncaught JavaScript errors.
+- Evidence: /srv/bhidne-prod/builds/0d9af95/build.log on app1;
+  /private/tmp/bhidne-0d9af95-{rollout,client,backend,marriage,checkpoints,smoke}.log;
+  /private/tmp/bhidne-0d9af95-live-{390,1280}.png. Full backend CI was not rerun;
+  earlier documented unrelated CI failures remain outside this release scope.
+- Exact next step: user checks actual game interactions on production; installed
+  native apps require a separate new build for client changes. Capacity testing,
+  observability and operational-readiness work remain deferred.

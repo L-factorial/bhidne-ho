@@ -38,13 +38,15 @@ function apply(s,view,finished){s.status=finished?'finished':'playing';s.marriag
   for(const tab of await panel.getByRole('tab').all()){const box=await tab.boundingBox();assert.ok(box.x>=grid.x-1 && box.x+box.width<=grid.x+grid.width+1);}
   assert.equal(await panel.getByRole('tablist').evaluate(node=>getComputedStyle(node).flexWrap),'wrap');
   await page.getByTestId('marriage-result-maal').waitFor();
-  for(const label of ['Maal indicator · Tiplu','Jhiplu · previous rank','Poplu · next rank','Previously shown groups','Final winning combination'])assert.equal(await panel.getByText(label,{exact:true}).count(),1);
+  assert.equal(await panel.locator('[aria-label^="tiplu:"]').count(),1);
+  assert.equal(await panel.locator('[aria-label^="jhiplu:"], [aria-label^="poplu:"]').count(),0);
+  for(const label of ['Maal','Previously shown groups','Final winning combination'])assert.equal(await panel.getByText(label,{exact:true}).count(),1);
   await page.screenshot({path:`${out}/game-results-${width}.png`});
   await panel.getByText('Final winning combination',{exact:true}).evaluate(node=>node.scrollIntoView({block:'start'}));await page.screenshot({path:`${out}/winning-combination-${width}.png`});
   await panel.getByRole('tab',{name:'Points computation',exact:true}).click();await page.getByTestId('marriage-points').waitFor();for(const score of views.after.public.scores.players){for(const [index,amount] of [score.maal_net,score.winner_payment,score.net_points].entries())assert.equal(await page.getByTestId(`result-value-${score.player_id}-${index}`).innerText(),amount>0?'+'+amount:String(amount));}await page.screenshot({path:`${out}/points-${width}.png`});
   await panel.getByText('Maal breakdown',{exact:true}).first().evaluate(node=>node.scrollIntoView({block:'start'}));await page.screenshot({path:`${out}/maal-breakdown-${width}.png`});
   for(let i=1;i<=4;i++){
-   const name='Player '+i;await panel.getByRole('tab',{name,exact:true}).click();
+   const name='Player '+i+(i===1?' (You)':'');await panel.getByRole('tab',{name,exact:true}).click();
    const cards=views.after.public.final_hands.find(p=>p.player_id===String(i)).cards;
    for(const card of cards)assert.ok(await panel.locator(`[aria-label="${card.card_type==='man'?'Joker':({11:'J',12:'Q',13:'K',14:'A'}[card.rank]||card.rank)+({S:'♠',H:'♥',C:'♣',D:'♦'}[card.suit])}"]`).count()>0);
    await page.screenshot({path:`${out}/player-${i}-${width}.png`});

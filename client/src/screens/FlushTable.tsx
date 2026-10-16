@@ -203,6 +203,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
       : `${visibility} · ${[['bet', 'Bet'], ['show', 'Show'], ['side_show', 'Side-show'], ['fold', 'Fold']].filter(([kind]) => available(kind)).map(([, label]) => uiLabel(label, 'flush')).join(' / ') || ui("common.choose_an_action")}`
     : `${ownPlayer?.status === 'active' && !preparing ? `${visibility} · ` : ownPlayer?.status === 'folded' ? `${ui("flush.folded")} · ` : ''}${ui("rooms.waiting")}`
     : ui("rooms.seated_capacity_seated", {seated: snapshot.players?.length || 0, capacity: snapshot.capacity});
+  const handCue = gameAttention(snapshot);
   return <View style={[s.page, mobile && { padding: 8, gap: 4 }]} testID="flush-table">
     <ThemeBackdrop />
     <GameTableHeader showShare={showTableHeaderShare(snapshot)} tableName={snapshot.table_name} title={ui("rooms.flush")} compact path={snapshot.path} game="flush" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack} mobileTestIds drawerMetadata={<GameMenuMetadata snapshot={snapshot} />}>
@@ -223,10 +224,10 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
       {pub && <View pointerEvents="none" style={s.notice}><FlushFoldNotice key={`folds:${snapshot.match_id}`} snapshot={snapshot} /></View>}
       </GameStats>
       </View>
-      <View ref={socialAnchor.ref} onLayout={event => { socialAnchor.onLayout(); }} style={[s.handDock, !!snapshot.your_player_id && !ended && s.handOverlay]} testID="flush-hand-dock">
+      <View ref={socialAnchor.ref} onLayout={event => { socialAnchor.onLayout(); }} style={[s.handDock, !!mine && (!handOpen || stats.open) && {paddingTop:15,paddingBottom:15,gap:0}, !!snapshot.your_player_id && !ended && s.handOverlay]} testID="flush-hand-dock">
         {!mine && !ended && !!snapshot.your_player_id && <WaitingHandArea />}
-        {!!mine && <View style={{alignSelf:'stretch',flexShrink:0}} onLayout={event => setCollapsedHandHeight(event.nativeEvent.layout.height + 12)}>
-          <HandAreaBar cue={gameAttention(snapshot)} open={handOpen && !stats.open} onToggle={() => { stats.close(); setHandOpen(value=>!value); }} attention={myTurn && connectionReady && !ended}
+        {!!mine && <View style={{alignSelf:'stretch',flexShrink:0}} onLayout={event => setCollapsedHandHeight(event.nativeEvent.layout.height + (handOpen && !stats.open ? 12 : 30))}>
+          <HandAreaBar idleLabel={!myTurn && !ended && !pub?.settlement && pub?.current_player_id ? ui("common.player_s_turn", {player:name(pub.current_player_id)}) : undefined} compactLabel={handCue?.detail === "common.attention_bet" ? ui("common.attention_turn") : undefined} cue={handCue} open={handOpen && !stats.open} onToggle={() => { stats.close(); setHandOpen(value=>!value); }} attention={myTurn && connectionReady && !ended}
             instruction={ui("common.your_turn_action", { "action": turnText })}/>
         </View>}
         <ScrollView testID="flush-hand-content" nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{display:!snapshot.your_player_id || !!mine && handOpen && !stats.open?'flex':'none',minHeight:0,flexShrink:1,alignSelf:'stretch'}} contentContainerStyle={{alignItems:'center',gap:6}} accessibilityElementsHidden={!!mine&&(!handOpen||stats.open)} importantForAccessibility={mine&&(!handOpen||stats.open)?'no-hide-descendants':'auto'}>

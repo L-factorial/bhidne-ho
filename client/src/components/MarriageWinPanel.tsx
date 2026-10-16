@@ -36,7 +36,7 @@ export function MarriageWinPanel({ hand, shown, initialTunnelas = [], maal, rout
   const text = { color: c.text, fontFamily: fonts.body };
   const button = (label: string, onPress: () => void, disabled = false, primary = false) => <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
     style={({ pressed }) => ({ ...gameButtonStyle(c, primary ? 'primary' : 'secondary', pressed), minHeight: 44, justifyContent: 'center', opacity: disabled ? visualStates.disabledOpacity : 1 })}><Text activity style={{ color: primary ? c.onPrimary : c.onTableHeader, fontFamily: fonts.medium }}>{label}</Text></Pressable>;
-  if (!preview && hideIndicator) return null;
+  if (!preview && (hideIndicator || !ready)) return null;
   if (!preview) {
     const label = ui(ready?"marriage.marriage_eligible":"marriage.marriage_ineligible");
     const hint = !visible ? ui("marriage.reveal_cards_to_check_marriage") : checking ? ui("marriage.checking_marriage") : ready ? allowed ? ui("marriage.marriage_eligible_show_marriage") : ui("marriage.marriage_eligible_view_options") : ui("marriage.marriage_not_eligible");

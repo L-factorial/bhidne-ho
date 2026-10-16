@@ -56,6 +56,7 @@ export function DealerSelectionTable({ snapshot, busy, onPick }: {
       </View></View>
     </TableSeatLayout></View>
     {!!snapshot.your_player_id && <MobileGameHand mobile={mobile} desktopDrawer docked overlay game="callbreak" cardCount={1} open={open} onToggle={()=>setOpen(v=>!v)} onCollapsedHeight={setCollapsedHeight} myTurn={mine}
+      idleLabel={!mine ? ui("common.player_s_turn", {player:actor?.display_name || ui("common.player_number", {number:selection.current_player})}) : undefined}
       cue={mine?{key:`dealer:${selection.picks.length}`,title:'common.attention_turn',detail:'common.flip_card',required:true,opportunities:[]}:null}>
       <View testID="dealer-selection-deck" style={{padding:12,gap:10,alignItems:'center'}}>
         <Text style={{color:c.textMuted,textAlign:'center'}}>{ui('callbreak.dealer_draw_rules')}</Text>
