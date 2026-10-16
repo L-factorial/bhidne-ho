@@ -438,12 +438,12 @@ export function RoomGameControl({ onReturnToTable, runtime, socialChannel, chat,
       onPress={() => setActionTick(value => value + 1)} style={styles.choice}><Text activity style={styles.text}>{ui("rooms.retry_loading_tables")}</Text></Pressable>}
     {!snapshot && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_table")} disabled={pendingAction || !sessionActive || !creationEnabled}
       onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 48 }]}>
-      <Text style={[styles.buttonText, { color: colors.onPrimary }]}>{ui("rooms.create_table_2")}</Text>
+      <Text style={[styles.buttonText, { color: colors.onPrimary }]}>{ui("rooms.create_new_table")}</Text>
     </Pressable>}
     {snapshot && !visibleTables.length && <View testID="room-empty-tables" style={{ flexGrow: 1, minHeight: 260, alignItems: 'center', justifyContent: 'center', paddingVertical: 32, gap: 24 }}>
       <Text style={[styles.text, { textAlign: 'center', maxWidth: 320, fontSize: 17, lineHeight: 26 }]}>{ui("rooms.no_tables_yet_start_a_table_and_invite_your_friends")}</Text>
       <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_table")} disabled={pendingAction || !sessionActive || !creationEnabled} accessibilityState={{ disabled: pendingAction || !sessionActive || !creationEnabled }} onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 48, paddingHorizontal: 24, opacity: pendingAction || !sessionActive || !creationEnabled ? visualStates.disabledOpacity : 1 }]}>
-        <Text style={[styles.buttonText, { color: colors.onPrimary, fontSize: 15 }]}>{ui("rooms.create_table_2")}</Text>
+        <Text style={[styles.buttonText, { color: colors.onPrimary, fontSize: 15 }]}>{ui("rooms.create_new_table")}</Text>
       </Pressable>
     </View>}
     <CreationCards runtime={runtime} onReleased={()=>{void api().then(data=>{if(alive.current)setSnapshot(data);}).catch(()=>{});}} onReturn={onReturnToTable} kind="table" roomId={roomId} matches={visibleTables.map(table=>table.match_id)}/>

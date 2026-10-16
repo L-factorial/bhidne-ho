@@ -90,7 +90,7 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable
   return <View testID="active-games" style={{ gap: 14, paddingVertical: 16 }}>
     <Pressable testID="play-create-table" accessibilityRole="button" accessibilityLabel={ui('rooms.create_game_table')} disabled={busy||discarding} accessibilityState={{disabled:busy||discarding}} onPress={onCreateTable}
       style={({pressed})=>({minHeight:64,paddingHorizontal:18,borderRadius: radii.large,borderWidth:2,borderColor:c.onPrimary,backgroundColor:c.primary,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:10,opacity:busy||discarding?visualStates.disabledOpacity:pressed?0.8:1})}>
-      <Ionicons name="add-circle-outline" size={26} color={c.onPrimary}/><Text style={{flexShrink:1,color:c.onPrimary,fontFamily:fonts.medium,fontSize:17}}>{ui('rooms.create_game_table')}</Text>
+      <Ionicons name="add" size={26} color={c.onPrimary}/><Text style={{flexShrink:1,color:c.onPrimary,fontFamily:fonts.medium,fontSize:17}}>{ui('rooms.create_game_table')}</Text>
     </Pressable>
     {!!actionError&&<Text accessibilityRole="alert" style={{color:c.danger}}>{actionError}</Text>}
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -112,7 +112,7 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable
       <Ionicons name="people-outline" size={32} color={c.accent} />
       <Text style={{ color: c.text, fontFamily: fonts.editorial, fontSize: typography.pageTitle, textAlign: 'center' }}>{filter === 'all' ? ui("rooms.no_active_tables_yet") : ui("rooms.no_game_tables_yet", { "game": uiLabel(filters.find(([key]) => key === filter)?.[1] || '', 'rooms') })}</Text>
       <Text style={{ color: c.textMuted, textAlign: 'center', lineHeight: 21 }}>{ui("rooms.empty_games_help")}</Text>
-      <Pressable accessibilityRole="button" onPress={onCreateTable} style={{minHeight:44,paddingHorizontal:16,borderRadius: radii.medium,backgroundColor:c.primary,justifyContent:'center'}}><Text style={{color:c.onPrimary,fontFamily:fonts.medium}}>{ui("rooms.create_table")}</Text></Pressable>
+      <Pressable accessibilityRole="button" onPress={onCreateTable} style={{minHeight:44,paddingHorizontal:16,borderRadius: radii.medium,backgroundColor:c.primary,justifyContent:'center'}}><Text style={{color:c.onPrimary,fontFamily:fonts.medium}}>{ui("rooms.create_new_table")}</Text></Pressable>
       <Pressable accessibilityRole="button" onPress={() => filter === 'all' ? onBrowseRooms() : setFilter('all')} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: c.accent, fontFamily: fonts.medium }}>{filter === 'all' ? ui("rooms.browse_rooms") : ui("rooms.view_all_games")}</Text></Pressable>
     </View>}
     <CreationCards runtime={runtime} onReleased={()=>setRefresh(value=>value+1)} onReturn={table=>enter(table,'watch')} kind="table" matches={tables.map(table=>table.match_id)}/>

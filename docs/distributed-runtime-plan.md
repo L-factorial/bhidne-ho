@@ -10743,3 +10743,11 @@ Capacity, observability, database HA and operational readiness remain deferred.
   durable settings test expectation to retain valid limits 4/5.
 - Local/uncommitted, no deployment. Exact next step: run database-backed settings
   integration tests in the configured environment, then authorized release.
+
+### Plain plus on Create game controls — 2026-10-15
+
+- Replaced the circled lobby/Play Create game icon with a plain plus. Available
+  table/empty-table Create game entry buttons now reuse localized + Create game
+  copy in English and Nepali. Creation dialogs and submit behavior unchanged.
+- TypeScript and diff checks pass. Small presentation-only change; no new tests
+  or deployment. Exact next step: user review with the next preview/release.
