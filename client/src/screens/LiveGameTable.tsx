@@ -73,7 +73,7 @@ export type RoomSnapshot = {
   scoreboard?: { player_id: number; deal_scores_tenths: (number | null)[]; total_score_tenths: number; bonus_tricks?: number }[];
   player_stats?: { player_id: number; total_tricks_won: number }[];
   rules?: { bid_max: number };
-  log?: { event: string; revision: number; player_id?: number; action?: string }[];
+  log?: { event: string; revision: number; player_id?: number; action?: string; payload?: {player_id?:number} }[];
 };
 const suits: Record<string, string> = { S: '♠', H: '♥', D: '♦', C: '♣' };
 const face = (card: string) => card.slice(0, -1) + suits[card.slice(-1)];

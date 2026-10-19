@@ -1,3 +1,5 @@
+import {useFreshSoundEvents} from '../notifications/useFreshSoundEvents';
+import {useForegroundSound} from '../notifications/useForegroundSound';
 import {acknowledgeNotificationAction, onNotificationsAcknowledged} from '../multiplayer/useNotificationAction';
 import {AppText as Text} from './AppText';
 import { playerError } from '../multiplayer/playerError.ts';
@@ -12,7 +14,7 @@ import { radii, fonts, useTheme, useThemedStyles, type ThemeColors } from '../th
 import type {Invitation} from '../multiplayer/invitations';
 
 type Player = { user_id: string; display_name: string; username?: string | null };
-type Notification = { id: string; kind: 'friend_request' | 'friend_accepted' | 'friend_rejected' | 'chat' | 'poke'; payload?: {room_id?:string;match_id?:string;scope?:string;room_name?:string;table_name?:string}; actor: Player; created_at: number; read: boolean };
+type Notification = { id: string; kind: 'friend_request' | 'friend_accepted' | 'friend_rejected' | 'chat' | 'poke'; payload?: {room_id?:string;match_id?:string;scope?:string;source_id?:string;room_name?:string;table_name?:string}; actor: Player; created_at: number; read: boolean };
 type FriendSnapshot = { incoming: Player[] };
 type TableInvitation = { room_notification?:boolean; id: string; room_id: string; room_name: string; match_id: string; table_name: string; game_type: 'callbreak' | 'marriage' | 'flush'; inviter_id: string; inviter?: Player; created_at: number; seated: number; capacity: number; seat_available: boolean };
 type RoomInvitation = { id: string; room_id: string; room_name: string; inviter_id: string; inviter?: Player };
@@ -30,6 +32,9 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
   const [roomInvitations, setRoomInvitations] = useState<RoomInvitation[]>([]);
   const [error, setError] = useState('');
   const refreshVersion = useRef(0);
+  const {play:playSound}=useForegroundSound();
+  const freshInvitations=useFreshSoundEvents(session.token);
+  const freshDirectChat=useFreshSoundEvents(session.token);
   const [clearing, setClearing] = useState(false);
 
   async function refresh(signal?: AbortSignal) {
@@ -43,7 +48,14 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
       ]);
       const requests = friends.incoming.map(actor => ({ id: `request:${actor.user_id}`, kind: 'friend_request' as const,
         actor, created_at: Date.now(), read: false }));
-      if (!signal?.aborted && version === refreshVersion.current) { setItems([...requests, ...value.filter(item => !item.read && item.kind !== 'friend_request')]); setTableInvitations(invitations); setRoomInvitations(rooms); setError(''); }
+      if (!signal?.aborted && version === refreshVersion.current) {
+        const ids=[...invitations.map(i=>`table:${i.id}`),...rooms.map(i=>`room:${i.id}`)];
+        const fresh=freshInvitations(ids);
+        if(fresh?.length)playSound('invitation',`invite:${session.user_id}:${fresh.at(-1)}`);
+        const chats=value.filter(item=>!item.read&&item.kind==='chat'&&item.payload?.scope==='direct');
+        const freshChat=freshDirectChat(chats.map(item=>item.payload?.source_id??item.id));
+        if(freshChat.length)playSound('chat',`chat:${freshChat.at(-1)}`);
+        setItems([...requests, ...value.filter(item => !item.read && item.kind !== 'friend_request')]); setTableInvitations(invitations); setRoomInvitations(rooms); setError(''); }
     } catch (failure) {
       if (!signal?.aborted) setError(playerError(failure, ui("feedback.could_not_load_notifications")));
     }

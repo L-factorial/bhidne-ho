@@ -1,3 +1,4 @@
+import {useFreshSoundEvents} from '../notifications/useFreshSoundEvents';
 import {AppText as Text} from './AppText';
 import { preserveRemovals } from './moderation/messages';
 import { CommunityRulesEntry, useCommunityRulesGate } from './moderation/CommunityRules';
@@ -39,6 +40,7 @@ export function useRoomChat({ roomId, session, connected, onlineIds, hideWhenBlo
   const insets = useSafeAreaInsets();
   const followLatest = useRef(true);
   const { play, prepare } = usePong();
+  const freshSounds=useFreshSoundEvents(`${session.token}:${roomId}`);
   const notification = useRef({ open, muted, play });
   notification.current = { open, muted, play };
   const previousIds = useRef<Set<string> | null>(null);
@@ -64,9 +66,10 @@ export function useRoomChat({ roomId, session, connected, onlineIds, hideWhenBlo
     let pushGeneration=0;
     const install=(history:Message[])=>{
       if(controller.signal.aborted)return;
+      const soundIds=freshSounds(history.map(m=>m.id));
       const fresh=previousIds.current?history.filter(m=>!previousIds.current!.has(m.id)&&m.sender_id!==session.user_id):[];
       previousIds.current=new Set(history.map(m=>m.id));
-      if(fresh.length&&!notification.current.open){setUnread(n=>n+fresh.length);if(!notification.current.muted)notification.current.play();}
+      if(fresh.length&&!notification.current.open){setUnread(n=>n+fresh.length);if(!notification.current.muted&&fresh.some(m=>soundIds.includes(m.id)))notification.current.play();}
       setMessages(current=>preserveRemovals(current,history));setLoadError('');setBlocked(false);
     };
     const unsubscribe=observeRuntimeChat(session,path,rows=>{

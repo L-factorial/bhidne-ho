@@ -1,3 +1,5 @@
+import {useFreshSoundEvents} from '../notifications/useFreshSoundEvents';
+import {useForegroundSound} from '../notifications/useForegroundSound';
 import { TableReactionIcon } from './TableReactionIcon';
 import {AppText as Text} from './AppText';
 import { preserveRemovals } from './moderation/messages';
@@ -140,14 +142,18 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
     return () => clearTimeout(timer);
   }, [pokeSent]);
   useEffect(() => { if (!connected || !canRead) { setPokeMode(false); setOpen(false); } if (!canRead) { setMessages([]); setUnread(0); setEffects([]); } }, [connected, canRead]);
+  const {play:playSound}=useForegroundSound();
+  const freshChat=useFreshSoundEvents(`${session.token}:${snapshot.match_id}`);
   const addMessages = (incoming: TableMessage[], historical = false) => {
     const valid = incoming.filter(m => m.match_id === snapshot.match_id && m.room_id === snapshot.room_id);
+    const soundIds=freshChat(valid.map(m=>m.id),historical);
     const fresh = valid.filter(m => !seen.current.has(m.id));
     valid.forEach(m => seen.current.add(m.id));
     if (seen.current.size > 500) seen.current = new Set([...seen.current].slice(-200));
     setMessages(current => historical ? mergeTableMessages([], preserveRemovals(current,valid)) : mergeTableMessages(current, valid));
     if (!historical) {
       const received = fresh.filter(m => m.sender_id !== userId);
+      if(received.some(m=>soundIds.includes(m.id)))playSound('chat',`table-chat:${snapshot.match_id}:${received.at(-1)!.id}`);
       if (!openRef.current) setUnread(n => n+received.length);
       setEffects(current => [...current, ...received.filter(m => Date.now()-m.sent_at < 5000).map(m => ({id:m.id,player:players.find(p => p.user_id === m.sender_id)?.player_id ?? -1,kind:"chat" as const,text:m.text,expires:Date.now()+3500}))].slice(-6));
     }

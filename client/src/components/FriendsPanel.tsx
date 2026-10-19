@@ -1,3 +1,5 @@
+import {useFreshSoundEvents} from '../notifications/useFreshSoundEvents';
+import {useForegroundSound} from '../notifications/useForegroundSound';
 import type {DistributedRootRuntime} from '../multiplayer/DistributedRoot';
 import {useNotificationAction, acknowledgeNotificationAction, acknowledgeDistributedNotificationAction} from '../multiplayer/useNotificationAction';
 import {ChatTableSeparator} from './ChatTableSeparator';
@@ -42,6 +44,8 @@ export type FriendsTransport = {
 };
 export function FriendsPanel({ session, transport, onlineOnly = false, initialPlayerId, friendLimit }: { friendLimit?:number; initialPlayerId?:string; session: Session; transport?: FriendsTransport; onlineOnly?: boolean }) {
   useUiLanguage();
+  const {play:playSound}=useForegroundSound();
+  const freshMessages=useFreshSoundEvents(session.token);
   const blocking = useBlocking(session);
   const rules = useCommunityRulesGate(session);
   const [expandedFriends,setExpandedFriends]=useState(false);
@@ -109,10 +113,16 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
   useEffect(() => {
     if (!selected) { setMessages([]);setViewedConversation(null); return; }
     const controller = new AbortController(); let timer: ReturnType<typeof setTimeout>;
+    let soundHistoryLoaded=false;
     async function poll() {
       try {
         const value = await (transport ? transport.history(selected!.user_id, controller.signal) : request<Message[]>(`/friends/${encodeURIComponent(selected!.user_id)}/messages`, session, undefined, controller.signal));
-        if (!controller.signal.aborted) { setMessages(current=>preserveRemovals(current,value));setViewedConversation(selected!.user_id); setError(''); }
+        if (!controller.signal.aborted) {
+          const freshIds=freshMessages(value.map(message=>`${selected!.user_id}:${message.id}`),!soundHistoryLoaded);
+          soundHistoryLoaded=true;
+          const fresh=value.filter(message=>freshIds.includes(`${selected!.user_id}:${message.id}`)&&message.sender_id!==session.user_id);
+          if(fresh?.length)playSound('chat',`chat:${fresh.at(-1)!.id}`);
+          setMessages(current=>preserveRemovals(current,value));setViewedConversation(selected!.user_id); setError(''); }
       } catch (failure) { if (!controller.signal.aborted) setError(playerError(failure, ui("feedback.could_not_load_messages"))); }
       finally { if (!controller.signal.aborted) timer = setTimeout(poll, 1500); }
     }

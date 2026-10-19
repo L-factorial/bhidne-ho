@@ -609,3 +609,23 @@ Call Break shows bounded card faces in the current-trick summary and on the tabl
 fan cards rotate with their position while dragging. Flush turn actions share
 one neutral button style. Profile names enter edit mode through a pencil icon,
 with Save/Cancel, and native notification preferences use visible switches.
+
+### Foreground sound cues
+
+All games share nine cues: action required, invitation, chat, player joined,
+player left, game started, round/result, personal win, and another player's move.
+The short synthesized native WAV files and browser oscillator patterns are
+specified in `src/notifications/soundCues.ts`. No network audio downloads or
+additional polling are needed.
+
+A shared priority queue coalesces nearby events, prioritizes a turn over a move,
+and deduplicates event IDs. Game sounds retain the game-menu mute control;
+room-chat sounds retain its sound toggle. Initial history, table entry and the
+first refresh after foregrounding establish silent baselines. Game reconnects
+also reset their baseline. Backgrounding cancels pending/playing audio. Web
+playback unlocks after a pointer/key interaction; native playback follows the
+platform's audio settings. Background push notification behavior is unchanged.
+
+Verification includes cue classification, priority/deduplication, bundled WAV
+assets, browser autoplay/background gating, and native lifecycle mocks. Native
+exports validate packaging; physical-device playback still needs a new iOS build.

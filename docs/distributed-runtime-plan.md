@@ -10910,3 +10910,25 @@ Capacity, observability, database HA and operational readiness remain deferred.
   PostgreSQL/WASM tests do not establish real concurrent lock scheduling.
 - Exact next step: report verification and ask whether to analyze item 5's
   post-acceptance push wait; do not implement item 5 without approval.
+
+### Shared foreground sounds — 2026-10-19
+
+- User requested the shared foreground cue set across Marriage, Flush and Call
+  Break: turn/action, invitation, chat, joined, left, started, round/result,
+  personal win and another player's move. No move-specific sound set added.
+- Browser tones and bundled native WAVs share pitch/duration definitions.
+  One priority queue coalesces nearby events, suppresses duplicate IDs and
+  prioritizes action cues over move clicks. Sources use existing snapshots,
+  public action histories and notification/chat refreshes; no new requests.
+- Game/room-chat mute controls remain. Initial history and foreground-return
+  baselines stay silent; disconnected game baselines reset. Backgrounding
+  cancels queued/playing audio. Browser playback requires user interaction;
+  system/background push behavior is unchanged.
+- Verification: TypeScript, all 514 client tests and diff checks pass. Web and
+  iOS exports succeed; lifecycle mocks cover browser interaction/background
+  gating, native cancellation and silent history refreshes.
+- Limitation: native export is not a signed build or physical-device playback
+  test. No deployment or TestFlight release performed.
+- Exact next step: review cue volume/timing on web and a new iOS build, including
+  Silent Mode and app background/return. Command items 2, 3 and 5 stay deferred;
+  item 4 remains membership batching only. Capacity/HA/readiness stay deferred.

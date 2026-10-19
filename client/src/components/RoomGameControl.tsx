@@ -101,7 +101,7 @@ export function RoomGameControl({ onOpenLedger, onReturnToTable, runtime, social
   useNotificationAction({user_id:userId,token}, open && live && snapshot?.match_id ? {kind:'table',roomId,matchId:snapshot.match_id} : null);
   useEffect(() => {onViewChange?.(open && live ? snapshot?.match_id || null : null);return () => onViewChange?.(null);},[onViewChange,open,live,snapshot?.match_id]);
   const collapsed = !open && live && !!snapshot && snapshot.status !== 'empty';
-  const notification = useGameNotification(snapshot, collapsed, false);
+  const notification = useGameNotification(snapshot, collapsed, false, connected);
   function collapseGame() { notification.prepare(); setOpen(false); }
   const handledSessionExit = useRef<string | null>(null);
   useEffect(() => {
