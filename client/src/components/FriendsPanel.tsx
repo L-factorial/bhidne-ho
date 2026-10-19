@@ -140,12 +140,6 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
     const recipientId = selected.user_id, submitted = draft;
     sending.current = true; setBusy(true); setSendError('');
     try {
-      if (onlineOnly) {
-        const latest = await refresh();
-        if (!latest.friends.some(friend => friend.user_id === recipientId)) {
-          setSendError(ui('social.friend_unavailable')); return;
-        }
-      }
       const message = transport ? (await transport.send(recipientId, submitted), null) : await request<Message>(`/friends/${encodeURIComponent(recipientId)}/messages`, session, { text: submitted });
       if (message && selectedId.current === recipientId) setMessages(current => current.some(item => item.id === message.id) ? current : [...current, message]);
       setDrafts(current => current[recipientId] === submitted ? { ...current, [recipientId]: '' } : current);

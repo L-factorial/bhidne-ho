@@ -205,7 +205,9 @@ export class OriginalUiApi {
       rows=[...legacy.items,...rows];
     }
     const profiles=new Map<string,{display_name:string;avatar_url?:string|null}>();
-    for(const sender of new Set(rows.map(r=>String(r.sender_id))))profiles.set(sender,await this.player(sender,signal));
+    await Promise.all([...new Set(rows.map(r=>String(r.sender_id)))].map(async sender=>{
+      profiles.set(sender,await this.player(sender,signal));
+    }));
     return rows.map(r=>({...r,sender_name:profiles.get(String(r.sender_id))?.display_name,sender_avatar_url:profiles.get(String(r.sender_id))?.avatar_url,sent_at:Date.parse(String(r.sent_at))}));
   }
   async sendMessage(target:CommandTarget,text:Json,signal:AbortSignal) {
