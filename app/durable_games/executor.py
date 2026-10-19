@@ -165,7 +165,7 @@ class GameLaneExecutor:
                            'fingerprint': claim.entry.fingerprint, 'outcome': outcome}
                 saved = await self.checkpoints.save_in_transaction(claim.connection, candidate,
                     expected_revision=rebuilt.table_revision, fence=fence,
-                    receipt=receipt, receipt_limit=stored.receipt_snapshot['receipt_limit'])
+                    receipt=receipt, receipt_limit=stored.receipt_snapshot['receipt_limit'], _loaded=stored)
                 if saved.duplicate:
                     raise DurableGameConflict('Receipt changed during execution; reload before retrying.')
                 events.append(OutgoingEvent({'type': 'GAME_STATE_CHANGED', 'match_id': game.match_id,

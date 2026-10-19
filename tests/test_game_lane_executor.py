@@ -1,5 +1,6 @@
 """End-to-end game command execution on production SQL in PostgreSQL/WASM."""
 from contextlib import asynccontextmanager
+from copy import deepcopy
 from dataclasses import replace
 from uuid import UUID, uuid4
 
@@ -24,6 +25,30 @@ async def setup_game(database, kind='marriage', *, receipt_limit=10000):
     lane = await inbox.ensure_lane(LaneTarget(kind='game', room_id='room', table_id=UUID(game.table.table_id),
                                              game_id=game.durable_game_id))
     return host, game, inbox, lane, GameLaneExecutor(inbox)
+
+
+@pytest.mark.parametrize('kind', ['callbreak', 'marriage', 'flush'])
+async def test_accepted_move_reuses_baseline_and_retains_postwrite_verification(database, monkeypatch, kind):
+    host, game, inbox, lane, executor = await setup_game(database, kind)
+    loads = []
+    load = executor.checkpoints._load
+
+    async def track(*args, **kwargs):
+        stored = await load(*args, **kwargs)
+        loads.append((stored, deepcopy(stored)))
+        return stored
+
+    monkeypatch.setattr(executor.checkpoints, '_load', track)
+    try:
+        actor, request = command(game)
+        await inbox.enqueue(lane, actor, request)
+        result = await executor.execute_one(lane, database[2])
+        assert result.outcome['status'] == 'accepted'
+        assert len(loads) == 2
+        assert loads[0][0] == loads[0][1]
+        assert loads[1][0].checkpoint['data']['table_revision'] == loads[0][0].checkpoint['data']['table_revision'] + 1
+    finally:
+        await host.close()
 
 
 async def test_flush_every_player_can_reveal_in_serialized_durable_lane(database):

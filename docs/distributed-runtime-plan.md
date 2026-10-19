@@ -10869,3 +10869,44 @@ Capacity, observability, database HA and operational readiness remain deferred.
   unchanged. No deployment or native build performed for this increment.
 - Exact next step: review the result screenshots; deploy/build when requested.
   Distributed-runtime capacity, HA, observability and readiness remain deferred.
+
+
+### Game-command latency item 1 — 2026-10-19
+
+- User approved item 1 only: remove the duplicate pre-write checkpoint load
+  in the game-lane executor. Items 2–5 require separate approval.
+- Executor supplies its locked, validated baseline to the save path. Under
+  the table row lock, a small query verifies revision, digest, receipt count
+  and receipt limit before reuse. Other save callers retain the existing path.
+- Fence, candidate validation, duplicate receipts, concurrency checks and
+  post-write full verification remain. Successful commands now perform two
+  full loads instead of three; this does not eliminate journal/receipt scans.
+- Regression coverage checks all three games for baseline immutability and
+  exactly one baseline load plus post-write verification, and rejects stale
+  revision/digest/receipt-count inputs.
+- Verification: all 44 game-lane executor/checkpoint-store tests pass against
+  PostgreSQL/WASM, including rollback, unknown-commit recovery, cancellation,
+  fencing, duplicate commands and stale revisions. Diff checks pass.
+- Limitation: no production latency measurement, deployment or native build.
+- Exact next step: report item 1 verification; ask whether to proceed with
+  item 2 (full journal verification on ordinary moves) before making changes.
+
+### Game-command latency item 4A — 2026-10-19
+
+- User approved membership-query batching only, deferring items 2 and 3 and
+  leaving item 5 for separate analysis/approval.
+- Reservation verification fetches all positioned users' room memberships in
+  one query. Reservation writes also batch membership checks, retaining KEY
+  SHARE locks with ordered user IDs. Existing user FOR UPDATE locks remain
+  in sorted order; membership locks follow those user locks.
+- Empty position lists skip the membership query. Missing members still reject
+  the operation. Actor authorization, reservation rewrites, full history/receipt
+  checks and post-write verification are unchanged; no check reuse was added.
+- Regression tests cover two/six players, membership-query counts, locking SQL,
+  missing-member rejection and write rollback.
+- Verification: all 47 checkpoint-store/game-lane integration tests pass
+  against PostgreSQL/WASM; diff checks pass.
+- Limitations: no production latency measurement, deployment or native build;
+  PostgreSQL/WASM tests do not establish real concurrent lock scheduling.
+- Exact next step: report verification and ask whether to analyze item 5's
+  post-acceptance push wait; do not implement item 5 without approval.

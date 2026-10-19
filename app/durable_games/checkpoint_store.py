@@ -86,7 +86,7 @@ class PostgresCheckpointStore:
 
     @observe('checkpoint.write_transaction_step')
     async def save_in_transaction(self, connection, checkpoint, *, expected_revision,
-                                  fence, receipt=None, receipt_limit=10000):
+                                  fence, receipt=None, receipt_limit=10000, _loaded=None):
         """Caller MUST own an open transaction; rolls back as a unit on any error."""
         if connection.info.transaction_status != TransactionStatus.INTRANS:
             raise RuntimeError('Checkpoint writes require an open transaction.')
@@ -115,7 +115,24 @@ class PostgresCheckpointStore:
             raise DurableGameNotFound(str(table_id))
         if table[:2] != (data.room_id, data.game_type):
             raise DurableGameConflict('Table identity cannot change.')
-        previous = await self._load(connection, table_id, missing_ok=True)
+        if _loaded is None:
+            previous = await self._load(connection, table_id, missing_ok=True)
+        else:
+            # Internal executor fast path. The table lock above still serializes
+            # writers. Check the committed identity/version before reusing the
+            # validated load; stale state must never bypass receipt checks.
+            prior = _loaded.checkpoint['data']
+            current = await (await connection.execute('''SELECT revision,state->>'digest',
+                (state->>'receipt_count')::bigint AS receipt_count,
+                (state->>'receipt_limit')::bigint AS receipt_limit
+                FROM table_recovery_state WHERE table_id=%s''', (table_id,))).fetchone()
+            if (UUID(str(prior['table_id'])) != table_id or current is None or
+                    table[2] != prior['table_revision'] or current[0] != prior['table_revision'] or
+                    current[1] != _loaded.checkpoint['digest'] or
+                    current[2:] != (_loaded.receipt_snapshot['receipt_count'],
+                                    _loaded.receipt_snapshot['receipt_limit'])):
+                raise DurableGameConflict('Loaded checkpoint changed; reload committed state.')
+            previous = _loaded
         old = decode_checkpoint(previous.checkpoint).record.data if previous else None
         if (old and old.engine and data.engine and old.host.durable_game_id == data.host.durable_game_id
                 and old.engine != data.engine):
@@ -293,9 +310,11 @@ class PostgresCheckpointStore:
         ids = sorted(user_uuid(p.user_id) for p in data.positions)
         for user_id in ids:
             await connection.execute('SELECT id FROM users WHERE id=%s FOR UPDATE', (user_id,))
-            member = await (await connection.execute('''SELECT user_id FROM room_memberships
-                WHERE room_id=%s AND user_id=%s FOR KEY SHARE''', (data.room_id, user_id))).fetchone()
-            if member is None:
+        if ids:
+            members = await (await connection.execute('''SELECT user_id FROM room_memberships
+                WHERE room_id=%s AND user_id=ANY(%s::uuid[])
+                ORDER BY user_id FOR KEY SHARE''', (data.room_id, ids))).fetchall()
+            if {row[0] for row in members} != set(ids):
                 raise DurableGameConflict('A positioned user is no longer a room member.')
         await connection.execute('DELETE FROM active_table_players WHERE table_id=%s', (table_id,))
         if game_id:
@@ -464,9 +483,11 @@ class PostgresCheckpointStore:
             if ({(r[0], r[1]) for r in rows} != (set() if _terminal(data) else expected) or
                     any(r[2] != data.room_id for r in rows)):
                 raise CheckpointError('Game reservations disagree with normalized positions.')
-        for position in data.positions:
-            if not await (await connection.execute('''SELECT 1 FROM room_memberships
-                WHERE room_id=%s AND user_id=%s''', (data.room_id, user_uuid(position.user_id)))).fetchone():
+        ids = sorted(user_uuid(position.user_id) for position in data.positions)
+        if ids:
+            members = await (await connection.execute('''SELECT user_id FROM room_memberships
+                WHERE room_id=%s AND user_id=ANY(%s::uuid[])''', (data.room_id, ids))).fetchall()
+            if {row[0] for row in members} != set(ids):
                 raise CheckpointError('Recovered position belongs to a former room member.')
 
     async def lookup_receipt(self, table_id, actor_id, command):

@@ -8,6 +8,7 @@ from psycopg.errors import CheckViolation
 
 from app.database import MIGRATIONS
 from app.durable_games.checkpoint_store import PostgresCheckpointStore, RoomWriteFence
+
 from app.durable_games.checkpoints import CheckpointError, capture_checkpoint
 from app.durable_games.recovery import rebuild_hosted_game
 from app.durable_games.store import DurableGameConflict, StaleGameOwner, _token_hash
@@ -404,5 +405,66 @@ async def test_six_player_marriage_indicator_survives_checkpoint_and_private_pro
         assert view['marriage']['public']['maal_selected']
         assert view['marriage']['private']['maal'] is None
         assert len(view['players'])==6
+    finally:
+        await host.close()
+
+
+@pytest.mark.parametrize('field', ['digest', 'receipt_count', 'table_revision'])
+async def test_save_rejects_stale_loaded_baseline(database, field):
+    pool, store, fence, users = database
+    host, game = await host_game(users)
+    try:
+        checkpoint = capture_checkpoint(game, table_revision=0)
+        await store.save(checkpoint, expected_revision=None, fence=fence)
+        async with pool.connection() as connection:
+            async with connection.transaction():
+                loaded = await store.load_for_update(connection, game.table.table_id)
+                if field == 'digest':
+                    loaded.checkpoint['digest'] = 'stale'
+                elif field == 'receipt_count':
+                    loaded.receipt_snapshot['receipt_count'] += 1
+                else:
+                    loaded.checkpoint['data']['table_revision'] += 1
+                with pytest.raises(DurableGameConflict, match='Loaded checkpoint changed'):
+                    await store.save_in_transaction(connection, checkpoint, expected_revision=0,
+                        fence=fence, _loaded=loaded)
+    finally:
+        await host.close()
+
+
+@pytest.mark.parametrize('count', [2, 6])
+async def test_membership_queries_are_batched_and_write_locks_retained(database, monkeypatch, count):
+    pool, store, fence, users = database
+    host, game = await host_game(users, started=False, count=count)
+    queries = []
+    execute = pool.execute
+
+    async def track(sql, params=(), **kwargs):
+        if 'FROM room_memberships' in sql:
+            queries.append((sql, params))
+        return await execute(sql, params, **kwargs)
+
+    monkeypatch.setattr(pool, 'execute', track)
+    try:
+        await store.save(capture_checkpoint(game, table_revision=0), expected_revision=None, fence=fence)
+        assert len(queries) == 2  # Reservation write and post-write verification.
+        assert all(set(params[1]) == {UUID(user[5:]) for user in users[:count]} for _, params in queries)
+        assert 'ORDER BY user_id FOR KEY SHARE' in queries[0][0]
+        queries.clear()
+        await store.load(game.table.table_id)
+        assert len(queries) == 1
+    finally:
+        await host.close()
+
+
+async def test_batched_membership_write_rejects_missing_member_and_rolls_back(database):
+    pool, store, fence, users = database
+    host, game = await host_game(users, started=False, count=6)
+    try:
+        await pool.execute("DELETE FROM room_memberships WHERE room_id='room' AND user_id=%s", (UUID(users[5][5:]),))
+        with pytest.raises(DurableGameConflict, match='positioned user is no longer'):
+            await store.save(capture_checkpoint(game, table_revision=0), expected_revision=None, fence=fence)
+        assert (await pool.execute('SELECT count(*) FROM room_tables')).rows == [(0,)]
+        assert (await pool.execute('SELECT count(*) FROM active_table_players')).rows == [(0,)]
     finally:
         await host.close()
