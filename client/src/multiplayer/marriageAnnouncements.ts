@@ -1,13 +1,13 @@
 import type { MarriagePublic, MarriageWinningMeld } from './marriage.ts';
 export type MarriageAnnouncement = {
   id: string; playerId: string; kind: 'qualification' | 'tunnela' | 'win'; dublee: boolean;
-  wonByFold?: boolean; groups: MarriageWinningMeld[]; winningPair: string[]; discard?: string;
+  seenMaal?: boolean; wonByFold?: boolean; groups: MarriageWinningMeld[]; winningPair: string[]; discard?: string;
 };
 /** Accepts only the public projection, never private Maal or a player's hand. */
 export function marriageAnnouncements(pub: MarriagePublic): MarriageAnnouncement[] {
-  const shown: MarriageAnnouncement[] = pub.players.filter(p => p.has_seen_maal && p.shown_melds.length > 0).map(p => ({
-    id: `shown:${p.player_id}:${p.shown_melds.map(g => g.card_ids.join(',')).join(';')}`,
-    playerId: p.player_id, kind: 'qualification', dublee: p.route === 'dublee', groups: p.shown_melds, winningPair: [],
+  const shown: MarriageAnnouncement[] = pub.players.filter(p => p.shown_melds.length > 0).map(p => ({
+    id: `shown:${p.player_id}:${p.shown_melds.map(g => g.card_ids.join(',')).join(';')}:${p.has_seen_maal ? 'seen' : 'shown'}`,
+    playerId: p.player_id, kind: 'qualification', seenMaal: p.has_seen_maal, dublee: p.route === 'dublee', groups: p.shown_melds, winningPair: [],
   }));
   shown.push(...pub.players.filter(p => p.initial_tunnelas?.length).map(p => ({
     id:`tunnela:${p.player_id}:${p.initial_tunnelas!.flatMap(m=>m.card_ids).join(',')}`,

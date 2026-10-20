@@ -1,0 +1,31 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import ts from '../node_modules/typescript/lib/typescript.js';
+test('composing again follows latest on focus, keyboard opening and typing, but not after blur',()=>{
+ const effects=[],listeners=new Map(),exports={};let removed=false,activity=0,draft='';
+ const react={useRef:value=>({current:value}),useState:value=>[value,()=>{}],useCallback:fn=>fn,useEffect:fn=>effects.push(fn)};
+ const jsx=(type,props)=>({type,props});
+ const code=ts.transpileModule(fs.readFileSync(new URL('../src/components/ChatComposer.tsx',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+ vm.runInNewContext(code,{exports,require:name=>{
+  if(name==='react')return react;
+  if(name==='react/jsx-runtime')return {jsx,jsxs:jsx};
+  if(name==='react-native')return {View:'View',Pressable:'Pressable',Keyboard:{addListener:(event,fn)=>{listeners.set(event,fn);return {remove:()=>{removed=true;listeners.delete(event);}};},dismiss:()=>{}}};
+  if(name==='./FormInput')return {FormInput:'Input'};
+  if(name==='../theme')return {useTheme:()=>({colors:{}}),fonts:{},radii:{}};
+  if(name==='../i18n/useUiLanguage')return {useUiLanguage:()=> 'en'};
+  if(name==='../i18n/copy.ts')return {ui:key=>key};
+  return {};
+ }});
+ const tree=exports.ChatComposer({value:'',onChange:value=>{draft=value;},onSend:()=>{},onComposeActivity:()=>activity++,disabled:false});
+ const input=tree.props.children[0].props.children[0].props;
+ const cleanups=effects.map(fn=>fn());
+ listeners.get('keyboardDidShow')();assert.equal(activity,0,'unfocused chats must not move');
+ input.onFocus();assert.equal(activity,1);
+ listeners.get('keyboardDidShow')();assert.equal(activity,2,'follow after keyboard geometry settles');
+ input.onChangeText('typing again');assert.equal(draft,'typing again');assert.equal(activity,3,'typing with already-open keyboard follows latest');
+ input.onBlur();listeners.get('keyboardDidShow')();assert.equal(activity,3);
+ input.onFocus();input.onChangeText('next message');assert.equal(activity,5,'subsequent composition follows again');
+ cleanups.forEach(fn=>fn?.());assert.equal(removed,true);
+});

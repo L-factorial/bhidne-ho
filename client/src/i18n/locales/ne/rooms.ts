@@ -1,5 +1,8 @@
 // Editable Nepali rooms copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "create_in_new_room": "नयाँ कोठामा बनाउनुहोस्",
+  "new_room_name": "नयाँ कोठाको नाम",
+  "confirm_new_room": "नयाँ कोठा पुष्टि गर्नुहोस्",
   "seat_hint": "सारेर सिट मिलाउनुहोस् · निम्त्याउन + थिच्नुहोस्।",
   "move_player": "खेलाडी सार्नुहोस्",
   "reserved_seat": "निमन्त्रित",

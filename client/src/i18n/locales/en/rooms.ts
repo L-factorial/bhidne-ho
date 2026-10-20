@@ -1,5 +1,8 @@
 // Editable English rooms copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "create_in_new_room": "Create in a new room",
+  "new_room_name": "New room name",
+  "confirm_new_room": "Confirm new room",
   "seat_hint": "Drag to rearrange · Tap + to invite.",
   "move_player": "Move player",
   "reserved_seat": "Invited",

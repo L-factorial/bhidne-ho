@@ -54,7 +54,7 @@ export function MarriageAnnouncements({ snapshot, suspended = false }: { snapsho
   const name = player?.display_name || ui("common.player_number", { "number": current?.playerId });
   const win = current?.kind === 'win';
   const initialTunnela = current?.kind === 'tunnela';
-  const title = win ? ui("marriage.player_won_the_round", { "player": name }) : initialTunnela ? ui("marriage.player_showed_tunnela_count", { player:name,count:current?.groups.length??0 }) : ui("marriage.player_showed_cards_for_maal", { player:name });
+  const title = win ? ui("marriage.player_won_the_round", { "player": name }) : initialTunnela ? ui("marriage.player_showed_tunnela_count", { player:name,count:current?.groups.length??0 }) : ui(current?.seenMaal ? "marriage.player_saw_maal" : "marriage.player_showed_cards_for_maal", { player:name });
   const action = (label: string, onPress: () => void) => <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress}
     style={({ pressed }) => ({ ...gameButtonStyle(c, 'secondary', pressed), alignItems: 'center' })}><Text style={{ color: c.onTableHeader, fontFamily: fonts.medium }}>{label}</Text></Pressable>;
   const qualifications = events.filter(e => e.kind !== 'win');
@@ -67,7 +67,7 @@ export function MarriageAnnouncements({ snapshot, suspended = false }: { snapsho
       {current && <Animated.View style={{ opacity, gap: 14 }}>
         <View style={{ alignItems: 'center', gap: 8 }}>
           <PlayerAvatar uri={player?.avatar_url} />
-          <Text accessibilityLiveRegion="polite" style={{ color: c.accent, fontFamily: fonts.medium, fontSize: win ? 24 : 19, textAlign: 'center' }}>{win ? ui("marriage.round_won") : initialTunnela ? ui("marriage.initial_tunnelas_shown") : ui("marriage.maal_unlocked_2")}</Text>
+          <Text accessibilityLiveRegion="polite" style={{ color: c.accent, fontFamily: fonts.medium, fontSize: win ? 24 : 19, textAlign: 'center' }}>{win ? ui("marriage.round_won") : initialTunnela ? ui("marriage.initial_tunnelas_shown") : ui(current?.seenMaal ? "marriage.maal_seen" : "marriage.player_showed_cards_for_maal", {player:name})}</Text>
           <Text style={{ color: c.text, fontFamily: fonts.body, textAlign: 'center' }}>{name} {win ? current.wonByFold ? ui("marriage.won_because_all_other_players_folded") : current.dublee ? ui("marriage.completed_the_8th_dublee") : ui("marriage.completed_a_winning_hand") : initialTunnela ? ui("marriage.declared_tunnelas_before_play") : current.dublee ? ui("marriage.showed_7_dublees") : ui("marriage.showed_3_sequences_tunnelas")}</Text>
         </View>
         {!!review && !win && <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{qualifications.map(event => <View key={event.id}>{action(snapshot.players?.find(p => String(p.player_id) === event.playerId)?.display_name || ui("common.player_number", { "number": event.playerId }), () => setReview(event))}</View>)}</View>}

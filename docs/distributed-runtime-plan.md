@@ -10932,3 +10932,290 @@ Capacity, observability, database HA and operational readiness remain deferred.
 - Exact next step: review cue volume/timing on web and a new iOS build, including
   Silent Mode and app background/return. Command items 2, 3 and 5 stay deferred;
   item 4 remains membership batching only. Capacity/HA/readiness stay deferred.
+
+### Direct production deployment — 2026-10-19 (81a69b6)
+
+- User explicitly authorized direct server deployment. Deployed committed
+  revision 81a69b6ab5a59e1b9b50cd135244f6fe8762d083, including the prior reviewed
+  UI changes, command-load optimization, membership batching and shared sounds.
+- Cancelled overlapping Actions runs 39333970958 and 39332209602 and verified
+  cancellation. Used the existing Keychain-backed administrator SSH key and
+  trusted host keys; app2's key matches its recorded user-verified fingerprint.
+- Built Dockerfile.production from git archive on app1, verified revision,
+  transferred the exact immutable image to app2, checked both, replaced backends
+  sequentially and activated both frontends. Previous containers/assets remain.
+  No schema migration or manual game-state rewrite was performed.
+- Image: sha256:848cdc4743b6406812c3fec21af5a025ac5e7e78341c4dc34328027a83f328b2.
+  Both running containers and frontend release symlinks match it. Both frontend
+  index hashes and the public load-balancer response match
+  6bb02e4b363280d581f065f7f11611d050b3eb4a31093da2a4f427195917f566.
+- Verification: all 47 focused checkpoint/executor tests pass; the production
+  image runs the client suite and production typecheck/export. Dependency/schema
+  preflight passes on both hosts; public API health and frontend HTTPS pass.
+  Production Chrome checks at 390/1280px pass without JavaScript errors.
+- Evidence: /srv/bhidne-prod/builds/81a69b6/build.log on app1 and local
+  /private/tmp/bhidne-81a69b6-{rollout,backend-tests,smoke}.log.
+- Exact next step: check live gameplay/audio with users. Installed iOS apps need
+  a separate signed build/TestFlight release for client changes. Items 2, 3 and
+  5 remain deferred; capacity/HA/readiness work remains deferred.
+
+### Declared Marriage Tunnela hand presentation — 2026-10-19
+
+- User authorized one UI increment: declared initial Tunnelas appear first in
+  every hand arrangement as disabled, non-draggable, faded groups with a label
+  centered horizontally/vertically. Each three-card group retains its declared
+  card order; remaining cards follow the chosen arrangement.
+- Declared groups use disabled controls without drag responders/registration.
+  Selection cleanup excludes them and drag completion rejects declared sources.
+  Initial declarations remain visible even when those same cards subsequently
+  become committed Maal melds; their eligibility input is unchanged.
+- Preserved the prior requested English No Tunnela - Continue caption edit.
+- Verification: TypeScript, web export, eight arrangement/order unit tests and
+  four browser scenarios pass (one/two declarations at 390/1280px, all three
+  arrangement tabs, locked prefix, drag rejection, no duplicates, remaining-card
+  selection, Maal eligibility and hidden faces). Diff checks pass.
+- Screenshots: /private/tmp/marriage-declared-{1,2}-tunnelas.png.
+- Limitation: no native device test, build, deployment or game-rule changes.
+- Exact next step: user reviews the presentation and specifies the next single
+  change. Do not deploy this UI increment without a new deployment request.
+  Command items 2/3/5 and capacity/HA/readiness work remain deferred.
+
+
+### Remove own shown-Tunnela button — 2026-10-19
+
+- Removed the redundant View shown Tunnela hand-row button and its unused
+  dialog branch. Locked initial Tunnela groups remain in the hand. Existing
+  sequence/Dublee review controls and other-player views remain. Empty own
+  declaration rows render nothing.
+- Verification: TypeScript and diff checks pass; no rule or server changes.
+- Local only. Exact next step: user specifies the next single UI change;
+  deploy only on a new deployment request.
+
+### Declared Tunnela rows — 2026-10-19
+
+- Limited hands with more than two declared Tunnelas to two groups per row;
+  the third/fifth/etc. begin a new row, before remaining editable cards.
+- Verification: TypeScript, web export and six browser scenarios pass for
+  one/two/three groups at 390/1280px across all arrangement tabs, including
+  explicit third-row placement, disabled dragging and preserved eligibility.
+  Pointer tests wait for sheet layout before measuring coordinates. Diff clean.
+- Local only; no deployment. Exact next step: user reviews this single layout
+  change and supplies the next instruction.
+
+### Direct/room chat sent-message visibility — 2026-10-19
+
+- Added shared chat scrolling for direct and room chat. Sending returns to the
+  latest message; content/viewport changes keep it visible after composer and
+  keyboard resizing. Incoming messages preserve a reader's older-history
+  position unless they are already near the bottom.
+- Room chat inserts the confirmed send response immediately, deduplicated by
+  message ID, rather than requiring a later history refresh for display.
+- Verification: TypeScript, two lifecycle regression tests and diff checks pass.
+  Tests cover sending while scrolled up, incoming messages while reading history,
+  viewport resize, unchanged polls and changing conversations.
+- No avatar/name layout change, deployment or native build. Exact next step:
+  user verifies chat scrolling and supplies the next single change.
+
+### Immediate chat bubbles and retry — 2026-10-19
+
+- User authorized optimistic outgoing messages in direct/room chat. Send clears
+  the draft and inserts a local bubble immediately; shared scroll handling brings
+  it into view. A fading border (no additional loading line) marks sending or
+  confirming; confirmed responses/history merge by ID without duplicate bubbles.
+- Failed messages remain visible with an accessible right-side retry arrow.
+  Pending receipts preserve their original command ID, recipient and text.
+  Definitive rejections can use a fresh command attempt on the same local bubble;
+  ingress/history errors that retain a command never rotate its ID.
+- Added optional captured IDs to durable begin/intention APIs for these chat
+  sends; existing callers retain generated IDs. Client IDs stay out of server
+  chat payloads. A pending send blocks another send until resolved, while drafts
+  remain editable. No recipient delivery/read status is claimed.
+- Animation respects reduced motion and mounts only on outgoing pending bubbles.
+  English/Nepali sending/confirming/retry copy added. Prior avatar/name layout
+  proposal remains unimplemented.
+- Verification: TypeScript, all 523 client tests, web/iOS exports and direct/room
+  browser scenarios pass. Browser checks cover immediate display, cleared input,
+  actual border-opacity changes, scroll visibility, rejection/retry and duplicate
+  prevention. API tests cover lost responses, captured IDs, ingress rejection and
+  accepted-history lookup failures. Diff checks pass.
+- Limitations: outgoing presentation is in memory; distributed uncertain commands
+  retain the existing root-owned journal. Legacy non-idempotent unknown outcomes
+  stay confirming without a blind resend. The alternate integration-screen
+  FriendsTransport contract retains its existing send behavior. No physical iOS
+  keyboard/playback test or deployment performed.
+- Screenshots: /private/tmp/{direct,room}-chat-{sending-border,retry}.png.
+- Exact next step: user reviews send/retry behavior, then requests any further
+  single change or deployment. Do not deploy these changes automatically.
+- Follow-up presentation adjustment: removed visible sending/confirming/failure
+  status text. Pending bubbles use only the fading boundary; failed sends retain
+  the retry arrow. Accessible progress labels remain. TypeScript and all seven
+  outgoing-chat/scroll tests pass; no deployment performed.
+- Chat layout follow-up: avatar and name now form a vertically centered column
+  at the left of each message; the retry arrow sits at the right, vertically
+  centered. Shared direct/room rendering preserves timestamps and fading borders.
+  TypeScript, web export and both browser scenarios pass, including measured
+  sender/retry alignment and no visible sending text. Screenshots refreshed at
+  the paths above. No deployment; next step remains user review.
+- Retry placement refinement: timestamp remains at the bottom right; retry is
+  centered in the message-body space above it. Outgoing messages reserve the
+  retry area so failure/retry transitions do not shift text or timestamp.
+  TypeScript, web export and direct/room browser checks pass, including unchanged
+  timestamp coordinates when retry appears. No deployment performed.
+- Tunnela selection now uses a separate RoomSheet dialog while its detector stays
+  in place in the card drawer. Opening/closing it does not change drawer geometry
+  or snap state. Compact triples wrap at two per row where space permits; repeated
+  Tunnela/Selected labels and help paragraph removed, selected checkmarks retained.
+  Show-selected and Skip actions retain existing command payloads; closing submits
+  nothing. No-Tunnela continues directly. TypeScript, web export and browser checks
+  for all four two-triple selection states, disabled empty submission and unchanged
+  drawer coordinates pass. Screenshot: /private/tmp/two-tunnelas-both.png.
+  No deployment; next step is user review of the overlay.
+- Marriage manual ordering now accepts drops in the empty final-row space after
+  the last card, appending the dragged card and shifting subsequent cards left.
+  Bounds exclude the hand action controls and retain existing guards for locked
+  Tunnelas, automatic arrangements, hidden cards and in-flight state changes.
+  TypeScript, web export and six hand-order tests pass. Local Chrome fixture
+  mouse drags did not reach the gesture drop handler, so end-to-end gesture
+  verification remains incomplete. No deployment. Next step: verify this gesture
+  on the interactive client/iPhone before deploying.
+- Marriage Fold/Hide controls now occupy their own row below the card grid.
+  Fold opens a separate confirmation dialog with an explicit question, existing
+  consequences text, Confirm fold and Keep playing. Closing/cancelling does not
+  send FOLD; confirmation retains connected/busy/action guards. English/Nepali
+  question added. TypeScript, web export and browser layout/open/cancel checks
+  pass. Screenshot: /private/tmp/marriage-fold-confirmation-current.png.
+  No deployment; next step is user review, with gesture verification still pending.
+- Flush Fold now uses the same confirmation dialog pattern for both table and
+  final-show Fold actions. Cancel/close sends no command; final-show cancellation
+  restores its reveal view. Confirm retains the current action/busy guard.
+  English/Nepali copy added. TypeScript, web export and local browser checks for
+  open, cancel and confirmed command pass. Screenshot:
+  /private/tmp/flush-fold-confirmation.png. No deployment performed.
+- Public-event sound increment: initial Marriage Tunnela declarations use a
+  three-note cue; showing qualifying melds for Maal uses a rising two-note cue.
+  Accepted public state transitions notify declarers, opponents and spectators;
+  existing announcements now describe shown cards/Tunnela count. Skipping has no
+  declaration/move cue; private detection/selection/Maal viewing are not inputs.
+  All games share the round finish cue for winners and other players, including
+  fold finishes, Call Break reviews and Flush settlements. Finish overrides
+  declaration, declaration overrides turn/move; repeated snapshots and final
+  scores following a round review do not replay. Existing foreground/mute/audio
+  queue behavior retained. Bundled native WAVs match the new web cue patterns.
+  TypeScript, 14 sound/lifecycle tests and web/iOS exports pass. Physical iPhone
+  listening remains unverified; no deployment. Next step is user sound review.
+
+### Direct production deployment — 2026-10-19 (5ecefca)
+
+- User authorized deploying accumulated changes directly to app servers. Deployed
+  committed revision 5ecefcaa6a0c9aa19a1cf5b655beae57f1ac4fc2, including chat,
+  Marriage selection/controls, Flush Fold confirmation and public-event sounds.
+- Cancelled overlapping GitHub run 39381108729 and verified completed/cancelled
+  before activation. Used the existing Keychain SSH identity and trusted host keys.
+- Built Dockerfile.production on app1 from git archive, including client tests and
+  production typecheck/export. Transferred the exact image to app2; dependency and
+  schema checks passed on both. Activated backends and frontends sequentially;
+  previous containers/assets retained. No schema migration or manual state rewrite.
+- Both running image IDs and frontend release symlinks match
+  sha256:37e87b22a7ff7ab438a652f245249a813c53286c0dbc932bd6064181df1dc5d7.
+  Both frontend indexes and public HTTPS index match SHA256
+  96584b1870d4c3c3011e3b72bdcc2d2078b0b9eadc4244b1f772c88f8cb5a84f.
+- Verification: public API/frontend health HTTP 200; production Chrome checks at
+  390/1280px pass without JavaScript errors. Local 527 client tests passed before
+  rollout. Evidence: /private/tmp/bhidne-5ecefca-{rollout,smoke}.log and app1
+  /srv/bhidne-prod/builds/5ecefca/build.log.
+- Limitations: physical iPhone sound/gesture testing remains outstanding. Installed
+  iOS client changes require a separate signed build/TestFlight release. This
+  deployment updates app servers/web only. Next step: live gameplay/audio review.
+
+### Collected Marriage labels, arrangement tabs and Maal notifications — 2026-10-20
+
+- User authorized the collected UI changes. The hand's top label during initial
+  Tunnela declaration now says Your turn. The declaration UI belongs to Marriage
+  (the initial request called it Call Break). Arrangement tabs now show
+  Sequences/Tunnelas first, Dublee where supported, and My arrangement last;
+  the selected/default arrangement remains unchanged.
+- Public shown melds now trigger the announcement and declaration sound immediately,
+  including later turns while has_seen_maal is false. The subsequent public
+  false-to-true Maal-seen transition gets a distinct announcement ID and another
+  sound. First-turn showing with immediate Maal access remains one announcement.
+  English/Nepali seen titles distinguish the second notification. Repeated polls
+  retain stable IDs; hydration retains existing no-replay behavior.
+- Verification: TypeScript and all 528 client tests pass, including later-turn
+  show/seen sound transitions for declarer, opponent and spectator, and distinct
+  shown/seen announcement IDs. Diff checks pass.
+- Limitations: client presentation only; engine timing and rules unchanged. No
+  browser/device validation, deployment or native build performed. Notifications
+  follow received public snapshots and existing announcement queue timing.
+- Exact next step: review later-turn show/discard/Maal opening with two clients
+  and the declaration label/tab order before requesting deployment. Existing
+  capacity, observability, database HA and operational work remain deferred.
+
+### Inline new-room selection during game creation — 2026-10-20
+
+- User requested implementation and screenshots. Added + Create in new room at
+  the start of the room dropdown, including when no rooms exist. Clicking it
+  replaces that row with a name input and accessible checkmark confirmation.
+  Confirmation selects the proposed name; Create game creates the public room
+  and table through the existing durable flow (or existing legacy fallback).
+- Duplicate names among listed rooms receive the first available suffix starting
+  at 2, comparing trimmed names without case. Input and suffixes respect the
+  server's 60-character limit. The input uses constrained flex width; long names
+  scroll within it rather than widening the dropdown or creation dialog.
+- Blank confirmation and game creation while editing are disabled. Selecting an
+  existing room clears the proposed name. With no custom selection, existing
+  automatic player-name room creation is retained. English/Nepali copy added.
+- Verification: TypeScript, web export, all 528 client tests and diff checks pass.
+  Local browser fixtures at 320/390/1280px verify inline editing, fixed widths,
+  duplicate suffix selection and room/table request payloads. The browser test is
+  client/tests/browser/create-game-new-room.cjs. Screenshots are
+  /private/tmp/new-room-{option,input,confirmed}-{320,390,1280}.png.
+- Limitations: duplicate matching covers rooms returned to this client; no global
+  uniqueness or concurrent-creation guarantee is introduced. No live writes,
+  native build or deployment. Exact next step: user reviews the screenshots and
+  requests any refinement or deployment; deferred operational work stays deferred.
+- Room dropdown follow-up: changed English copy to “Create in a new room” and
+  moved the action/inline editor after all existing room options. Updated the
+  browser fixture label and scroll step. TypeScript and diff checks pass. No
+  deployment; next step remains user review.
+
+### Show to finish wording — 2026-10-20
+
+- User approved renaming the detected-winning-hand button from Can finish to
+  Show to finish. Updated English/Nepali button copy and accessibility hints.
+- Removed the finish-detection opportunity label from the top hand header;
+  retained other opportunities, turn instructions, eligibility detection and
+  existing private-preview/final-confirmation behavior.
+- Verification: TypeScript, all 11 game-attention tests and diff checks pass.
+  No deployment, native build or browser validation for this copy increment.
+- Exact next step: user reviews wording; deploy only when requested. Deferred
+  distributed runtime operational work remains deferred.
+- No-Tunnela caption follow-up: updated the English glowing button to the exact
+  requested “No Tunnela - Continue to game”. Diff checks pass; copy-only change,
+  no gameplay changes or deployment. Exact next step: user review.
+
+### Chat follow-latest when composing again — 2026-10-20
+
+- User reported latest messages staying behind the keyboard when typing again
+  after sending, and authorized a fix. Shared ChatComposer now notifies private
+  and room chat scrolling on focus, each text edit and keyboardDidShow while
+  focused. This re-enables existing follow-latest behavior before layout changes
+  and repeats it after native keyboard geometry settles. Typing with an already
+  open keyboard also scrolls, without requiring a new keyboard event.
+- Existing unfocused history reading, send behavior and layout-following remain.
+  Keyboard subscriptions are removed on unmount/callback replacement; unfocused
+  composers ignore keyboard-show events.
+- Verification: TypeScript, three composer/scroll lifecycle tests and diff checks
+  pass. Coverage includes repeated focus/typing, keyboard-show timing, blur and
+  cleanup, incoming-history preservation, own sends and viewport resizing.
+- Limitation: no physical iOS keyboard test or deployment. Exact next step: verify
+  send/refocus/type with the keyboard already open in private and room chat on
+  iPhone, then request deployment/build when ready. Operational work stays deferred.
+
+### Marriage summary winner avatar — 2026-10-20
+
+- User corrected the requested game from Flush to Marriage. Added the winner's
+  existing profile avatar above their name in the Marriage results overview,
+  beneath the Winner heading. Reused PlayerAvatar at 54px with its existing
+  missing/failed-image fallback. Winner/maal columns remain centered.
+- Verification: TypeScript and diff checks pass. No browser/native visual check
+  or deployment. Exact next step: review Marriage's finished-game summary.

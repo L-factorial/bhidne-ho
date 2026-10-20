@@ -261,7 +261,7 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
         {!!(sendError || error) && <Text accessibilityRole="alert" style={styles.error}>{sendError || error}</Text>}
         {!available && <Text style={styles.detail}>{ui("social.friend_unavailable")}</Text>}
         <CommunityRulesEntry session={session} />
-        <ChatComposer value={draft} onChange={value => setDrafts(current => ({ ...current, [selected.user_id]: value }))}
+        <ChatComposer onComposeActivity={chatScroll.showLatest} value={draft} onChange={value => setDrafts(current => ({ ...current, [selected.user_id]: value }))}
           onSend={() => void send()} disabled={busy || !available || outgoing.blocked} placeholder={ui("social.write_a_private_message")} label={ui("social.message_player", {player: label(selected)})} sendLabel={ui("common.send_privately")} />
       </FormFooter>}>
       <ScrollView ref={chatScroll.scroll} testID="private-chat-history" onScroll={chatScroll.onScroll} scrollEventThrottle={16} onLayout={chatScroll.followLayout} onContentSizeChange={chatScroll.followLayout} style={{ flex: 1, minHeight: 0 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled" nestedScrollEnabled>

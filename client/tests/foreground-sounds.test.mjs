@@ -83,3 +83,16 @@ test('each Call Break review and Flush settlement has one shared finish cue',()=
  assert.equal(gameSound(flush,done),'round');assert.equal(gameSound(done,done),null);
  assert.equal(gameSound(done,{...done,flush:{public:{round_number:2,settlement:{winner_ids:['2']}}}}),'round');
 });
+test('later-turn Maal showing and subsequent seen transition both notify every viewer once',()=>{
+ for(const viewer of [1,2,null]){
+  const before={...marriageState(),your_player_id:viewer};
+  const shown=structuredClone(before);shown.game.revision++;
+  shown.marriage.public.players[0].shown_melds=[{meld_type:'sequence',card_ids:['a','b','c']}];
+  assert.equal(gameSound(before,shown),'maalDeclaration');
+  assert.equal(gameSound(shown,shown),null);
+  const seen=structuredClone(shown);seen.game.revision++;
+  seen.marriage.public.players[0].has_seen_maal=true;
+  assert.equal(gameSound(shown,seen),'maalDeclaration');
+  assert.equal(gameSound(seen,seen),null);
+ }
+});

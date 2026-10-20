@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { AppText as Text } from './AppText';
 import { CompactCardFace } from './CompactCardFace';
+import { PlayerAvatar } from './PlayerAvatar';
 import { MarriageMeldCards } from './MarriageMeldCards';
 import { MarriagePoints } from './MarriageScoring';
 import { ui } from '../i18n/copy';
@@ -20,6 +21,7 @@ export function MarriageResults({snapshot}: {snapshot:RoomSnapshot}) {
   const heading={color:c.accent,fontFamily:fonts.medium,fontSize:16};
   if(!pub)return <MarriagePoints snapshot={snapshot}/>;
   const winner=pub.players.find(p=>p.player_id===pub.winner);
+  const winnerProfile=snapshot.players?.find(p=>String(p.player_id)===pub.winner);
   const maal=pub.result_maal;
   const player=pub.players.find(p=>'player:'+p.player_id===tab);
   // Use only the explicit post-game projection. Never reconstruct other hands.
@@ -40,6 +42,7 @@ export function MarriageResults({snapshot}: {snapshot:RoomSnapshot}) {
         <View testID="marriage-result-overview" style={{flexDirection:'row',alignItems:'center',gap:16}}>
           <View style={{flex:1,minWidth:0,gap:6,alignSelf:'stretch',alignItems:'center',justifyContent:'center'}}>
             <Text accessibilityRole="header" style={[heading,{textAlign:'center'}]}>{ui('marriage.winner')}</Text>
+            {!!pub.winner && <PlayerAvatar uri={winnerProfile?.avatar_url} size={54}/>}
             <Text style={[heading,{textAlign:'center'}]}>{pub.winner?name(pub.winner):'—'}</Text>
           </View>
         {maal?<View testID="marriage-result-maal" style={{flex:1,minWidth:0,gap:8,alignSelf:'stretch',alignItems:'center',justifyContent:'center'}}>

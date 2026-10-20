@@ -34,7 +34,8 @@ export function GameAttentionBanner({attention, onPress, idleContent, endControl
   },[attention?.key,attention?.required,reduced,pulse]);
   const title = cardsTitle ? ui('common.your_cards') : attention ? ui(attention.title) : ui('common.your_cards');
   const detail = attention ? ui(attention.detail) : '';
-  const opportunities = attention?.opportunities.filter(key => attention.required || key !== attention.title) || [];
+  const visibleOpportunities = attention?.opportunities.filter(key => key !== 'common.attention_marriage') || [];
+  const opportunities = visibleOpportunities.filter(key => attention?.required || key !== attention?.title);
   const inlineMaal = (cardsTitle && (attention?.title==='common.attention_maal' || attention?.opportunities.includes('common.attention_maal'))) || (attention?.title === 'common.attention_turn' && opportunities.includes('common.attention_maal'));
   const textGlow = attention ? {textShadowColor:c.tableTrim,textShadowOffset:{width:0,height:0},textShadowRadius:6} : {};
   const body = compact ? <View style={{minHeight:44,justifyContent:'center',borderRadius:radii.large,borderWidth:1,borderColor:attention?c.tableTrim:c.border,backgroundColor:c.tableHeader,paddingHorizontal:40,paddingVertical:6,flexDirection:'row',alignItems:'center',gap:6}}>
@@ -42,7 +43,7 @@ export function GameAttentionBanner({attention, onPress, idleContent, endControl
     <View pointerEvents="none" style={{position:'absolute',left:6}}><HandTrayIcon /></View>
     <View style={{flex:1,minWidth:0}}>
       {!compactLabel && !attention && idleContent ? idleContent : <Animated.Text testID="marriage-header-status" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} accessibilityLiveRegion="polite" style={{fontFamily:fonts.medium,color:attention?c.tableTrim:c.onTableHeader,fontSize:12,textAlign:'center',opacity:pulsating?pulse:1,...textGlow}}>{compactLabel || `${title}${detail ? ` — ${detail}` : ''}`}</Animated.Text>}
-      {!!attention?.opportunities.length && <SmallText testID="marriage-header-opportunities" style={{fontFamily:fonts.medium,color:c.tableTrim,fontSize:11,textAlign:'center'}}>{attention.opportunities.map(key=>ui(key==='common.attention_marriage'?'marriage.marriage_eligible':key).toLocaleUpperCase()).join(' · ')}</SmallText>}
+      {!!visibleOpportunities.length && <SmallText testID="marriage-header-opportunities" style={{fontFamily:fonts.medium,color:c.tableTrim,fontSize:11,textAlign:'center'}}>{visibleOpportunities.map(key=>ui(key).toLocaleUpperCase()).join(' · ')}</SmallText>}
     </View><View pointerEvents="none" style={{position:'absolute',right:8}}>{endControl}</View>
   </View> : <View style={{flexDirection:'row',alignItems:'center',gap:4,minHeight:64}}>
     <View style={{flex:1,minWidth:0,borderRadius: radii.large,borderWidth:1,borderColor:attention ? c.tableTrim : c.border,backgroundColor:c.tableHeader,paddingHorizontal:12,paddingVertical:9,flexDirection:'row',alignItems:'center',gap:10}}>

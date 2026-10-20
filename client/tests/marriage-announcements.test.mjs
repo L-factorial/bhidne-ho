@@ -10,7 +10,11 @@ test('qualification uses shown groups only, and stays stable across polling revi
   assert.equal(events[0].kind, 'qualification');
   assert.deepEqual(events[0].groups, [meld]);
   assert.equal(marriageAnnouncements({ ...pub, revision: 200 })[0].id, events[0].id);
-  assert.deepEqual(marriageAnnouncements({ ...pub, players: [{ ...player, has_seen_maal: false }] }), []);
+  const pending = marriageAnnouncements({ ...pub, players: [{ ...player, has_seen_maal: false }] });
+  assert.equal(pending.length, 1);
+  assert.equal(pending[0].seenMaal, false);
+  assert.notEqual(pending[0].id, events[0].id);
+  assert.equal(events[0].seenMaal, true);
 });
 test('eighth-pair victory displays only the public pair and seven shown groups', () => {
   const pair = ['D0:3H', 'D1:3H'];

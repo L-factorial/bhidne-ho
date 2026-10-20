@@ -14,7 +14,7 @@ export function gameSound(previous:RoomSnapshot|null,next:RoomSnapshot|null):Sou
   });
   const qualified=next.marriage?.public.players?.some(player=>{
     const old=previous.marriage?.public.players?.find(p=>p.player_id===player.player_id);
-    return !!old&&!old.has_seen_maal&&player.has_seen_maal&&player.shown_melds?.length>0;
+    return !!old&&player.shown_melds?.length>0&&((old.shown_melds?.length??0)===0||!old.has_seen_maal&&player.has_seen_maal);
   });
   if(qualified)return 'maalDeclaration';
   if(declarations?.length)return 'tunnelaDeclaration';

@@ -127,7 +127,7 @@ export function useRoomChat({ roomId, session, connected, onlineIds, hideWhenBlo
         {reconnecting && <Text style={styles.note}>{t('chat.reconnecting')}</Text>}
         {!!visibleError && <Text accessibilityRole="alert" style={styles.error}>{visibleError}</Text>}
         <CommunityRulesEntry session={session} />
-        <ChatComposer value={draft} onChange={setDraft} onSend={() => void send()} disabled={busy || !connected} label={t('chat.title')} placeholder={t('chat.placeholder')} />
+        <ChatComposer onComposeActivity={chatScroll.showLatest} value={draft} onChange={setDraft} onSend={() => void send()} disabled={busy || !connected} label={t('chat.title')} placeholder={t('chat.placeholder')} />
       </View>
     </RoomSheet>}
   </> };

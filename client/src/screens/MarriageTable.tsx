@@ -260,7 +260,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       </GameStats>
     </View>
     {!ended && snapshot.your_player_id && !(pub && mine && activeGame) && (snapshot.status==='finished'?<View style={{position:'absolute',bottom:0,left:0,right:0}}><WaitingHandArea/></View>:<WaitingHandArea/>)}
-    {pub && mine && activeGame && <MarriageHandSheet preview={!!preview || !!finishPreview} onCollapsedHeight={setCollapsedHandHeight} draggingCard={draggingCard} cue={handCue} cardCount={hand.length} anchor={handAnchor} mobile={mobile} snap={stats.open ? 'collapsed' : snap} onSnap={next => { if (next !== 'collapsed') stats.close(); setSnap(next); }} statusText={declaring?turnInstruction:isTurn&&handCue?`${ui('common.attention_turn')} — ${ui(decision==='DRAW_REQUIRED'?'common.attention_draw':decision==='DISCARD_REQUIRED'?'marriage.discard_action':handCue.detail)}`:ui('common.player_s_turn',{player:name(pub.current_player_id)})} instruction={turnInstruction} attention={declaring || isTurn && !declarationsPending} header={mobileHandHeader} footer={own?.folded || preview || finishPreview ? null : discardFooter}>
+    {pub && mine && activeGame && <MarriageHandSheet preview={!!preview || !!finishPreview} onCollapsedHeight={setCollapsedHandHeight} draggingCard={draggingCard} cue={handCue} cardCount={hand.length} anchor={handAnchor} mobile={mobile} snap={stats.open ? 'collapsed' : snap} onSnap={next => { if (next !== 'collapsed') stats.close(); setSnap(next); }} statusText={declaring?ui('common.attention_turn'):isTurn&&handCue?`${ui('common.attention_turn')} — ${ui(decision==='DRAW_REQUIRED'?'common.attention_draw':decision==='DISCARD_REQUIRED'?'marriage.discard_action':handCue.detail)}`:ui('common.player_s_turn',{player:name(pub.current_player_id)})} instruction={turnInstruction} attention={declaring || isTurn && !declarationsPending} header={mobileHandHeader} footer={own?.folded || preview || finishPreview ? null : discardFooter}>
     <View testID="marriage-hand-dock" style={[s.handDock, mobile && { backgroundColor: 'transparent', borderTopWidth: 0, padding: 4 }]}>
         {(!mobile || snap === 'expanded') && <View testID="marriage-hand-draw" style={s.drawSection}>
           {(['discard', 'stock'] as const).map(source => {
@@ -304,7 +304,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
       {!preview && !finishPreview && <>
         {postMaal && recordedDeclarations}
         {!postMaal && !declaring && allRevealed && <View accessibilityRole="tablist" testID="marriage-view-tabs" style={{flexDirection:'row',gap:4}}>
-          {(["personal","sequence","dublee"] as const).filter(value=>value!=='dublee'||pub.players.length>=4).map(value=>{
+          {(["sequence","dublee","personal"] as const).filter(value=>value!=='dublee'||pub.players.length>=4).map(value=>{
             const label=ui(value==='personal'?'marriage.my_arrangement':'marriage.auto_arrangement');
             const subtitle=value==='personal'?undefined:ui(value==='sequence'?'marriage.sequence_tunnela':'marriage.dublee');
             return <Pressable key={value} accessibilityRole="tab" accessibilityLabel={subtitle?`${label} — ${subtitle}`:label} accessibilityState={{selected:arrangement===value}} aria-selected={arrangement===value} onPress={()=>setArrangement(value)} style={[s.button,{flex:1,minWidth:0,height:44,minHeight:44,paddingHorizontal:4,paddingVertical:4,justifyContent:'center',alignItems:'center'},arrangement===value&&s.chosen]}>
