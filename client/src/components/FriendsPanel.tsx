@@ -1,3 +1,6 @@
+import {useOutgoingChat} from './useOutgoingChat';
+import {runtimeRequest} from '../multiplayer/RuntimeRequests';
+import {useChatScroll} from './useChatScroll';
 import {useFreshSoundEvents} from '../notifications/useFreshSoundEvents';
 import {useForegroundSound} from '../notifications/useForegroundSound';
 import type {DistributedRootRuntime} from '../multiplayer/DistributedRoot';
@@ -67,6 +70,9 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
     return () => clearInterval(timer);
   }, [selected?.user_id]);
   const [messages, setMessages] = useState<Message[]>([]);
+  const outgoing=useOutgoingChat<Message>(session.token);
+  const visibleMessages=outgoing.rows(selected?.user_id??'',messages);
+  const chatScroll=useChatScroll(`${session.token}:${selected?.user_id??''}`,visibleMessages.at(-1),session.user_id);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const draft = selected ? drafts[selected.user_id] || '' : '';
   const selectedId = useRef<string | null>(null); selectedId.current = selected?.user_id ?? null;
@@ -146,12 +152,21 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
     finally { setBusy(false); }
   }
   async function send() {
-    if (!selected || busy || sending.current || !draft.trim() || Array.from(draft).length > 500) return;
+    if (!selected || outgoing.blocked || busy || sending.current || !draft.trim() || Array.from(draft).length > 500) return;
     const recipientId = selected.user_id, submitted = draft;
+    if(!transport){
+      let durable=false;
+      try{durable=!!runtimeRequest(session);}catch(failure){setSendError(playerError(failure,ui('feedback.could_not_send_message')));return;}
+      const accepted=outgoing.send(recipientId,{sender_id:session.user_id,recipient_id:recipientId,text:submitted},
+        (id,text)=>request<Message>(`/friends/${encodeURIComponent(recipientId)}/messages`,session,{text,...(durable?{client_message_id:id}:{})}),durable);
+      if(accepted){setDrafts(current=>({...current,[recipientId]:''}));setSendError('');chatScroll.showLatest();}
+      return;
+    }
     sending.current = true; setBusy(true); setSendError('');
     try {
       const message = transport ? (await transport.send(recipientId, submitted), null) : await request<Message>(`/friends/${encodeURIComponent(recipientId)}/messages`, session, { text: submitted });
       if (message && selectedId.current === recipientId) setMessages(current => current.some(item => item.id === message.id) ? current : [...current, message]);
+      if(selectedId.current===recipientId)chatScroll.showLatest();
       setDrafts(current => current[recipientId] === submitted ? { ...current, [recipientId]: '' } : current);
     } catch (failure) { if (selectedId.current === recipientId) setSendError(playerError(failure, ui("feedback.could_not_send_message"))); }
     finally { sending.current = false; setBusy(false); }
@@ -247,19 +262,19 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
         {!available && <Text style={styles.detail}>{ui("social.friend_unavailable")}</Text>}
         <CommunityRulesEntry session={session} />
         <ChatComposer value={draft} onChange={value => setDrafts(current => ({ ...current, [selected.user_id]: value }))}
-          onSend={() => void send()} disabled={busy || !available} placeholder={ui("social.write_a_private_message")} label={ui("social.message_player", {player: label(selected)})} sendLabel={ui("common.send_privately")} />
+          onSend={() => void send()} disabled={busy || !available || outgoing.blocked} placeholder={ui("social.write_a_private_message")} label={ui("social.message_player", {player: label(selected)})} sendLabel={ui("common.send_privately")} />
       </FormFooter>}>
-      <ScrollView style={{ flex: 1, minHeight: 0 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+      <ScrollView ref={chatScroll.scroll} testID="private-chat-history" onScroll={chatScroll.onScroll} scrollEventThrottle={16} onLayout={chatScroll.followLayout} onContentSizeChange={chatScroll.followLayout} style={{ flex: 1, minHeight: 0 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
         <Text style={[styles.detail,{textAlign:'center',marginBottom:12}]}>{ui('social.times_local')}</Text>
-        {!messages.length && <Text style={styles.detail}>{ui("common.no_messages_yet")}</Text>}
-        {messages.map((message,index) => <Fragment key={message.id}>
-          {(index === 0 || localChatDay(message.sent_at) !== localChatDay(messages[index-1].sent_at)) &&
+        {!visibleMessages.length && <Text style={styles.detail}>{ui("common.no_messages_yet")}</Text>}
+        {visibleMessages.map((message,index) => <Fragment key={message.id}>
+          {(index === 0 || localChatDay(message.sent_at) !== localChatDay(visibleMessages[index-1].sent_at)) &&
             <View testID="private-chat-date-separator" style={{flexDirection:'row',alignItems:'center',gap:10,marginVertical:12}}>
               <View style={{flex:1,height:1,backgroundColor:colors.borderSubtle}}/>
               <Text style={[styles.detail,{fontFamily:fonts.medium,fontSize:12}]}>{chatDayLabel(message.sent_at,chatNow,ui('social.today'),ui('social.yesterday'))}</Text>
               <View style={{flex:1,height:1,backgroundColor:colors.borderSubtle}}/>
             </View>}
-          <ChatMessage tableStyle privateChat own={message.sender_id===session.user_id}
+          <ChatMessage delivery={message.delivery} sendError={message.send_error} onRetry={message.can_retry?()=>outgoing.retry(message.retry_id!):undefined} tableStyle privateChat own={message.sender_id===session.user_id}
           message={{...message,sender_name:message.sender_id===session.user_id?ui('common.you'):label(selected)}}
           action={<ReportButton menu session={session} enabled={blocking.reporting && !message.removed} scope="direct" messageId={message.id} player={{user_id:message.sender_id,display_name:label(selected)}}/>}/></Fragment>)}
       </ScrollView>

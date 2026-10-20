@@ -23,18 +23,19 @@ export class DistributedUiIntent {
   private session: Pick<DistributedSession<unknown>,'command'|'releaseCommand'>;
   constructor(session: Pick<DistributedSession<unknown>,'command'|'releaseCommand'>) { this.session=session; }
   async run<T>(slot: string,target: CommandTarget,body: Omit<CommandBody,'command_id'>,
-    signal: AbortSignal, finish: (receipt:DurableReceipt,request:CommandEnvelope)=>Promise<T>): Promise<T> {
+    signal: AbortSignal, finish: (receipt:DurableReceipt,request:CommandEnvelope)=>Promise<T>, commandId?:string): Promise<T> {
     if (this.active.has(slot)) throw Error('This action is already being confirmed.');
     if(signal.aborted)throw Error('Action cancelled.');
     this.active.add(slot);
     try {
       const command=this.session.command(slot), saved=command.request;
       if(saved) {
+        if(commandId && saved.body.command_id!==commandId)throw Error('Confirm the previous action before starting a different one.');
         const wanted={target,body:{...body,command_id:saved.body.command_id}};
         if(canonical(intention(saved))!==canonical(intention(wanted))) {
           throw Error('Confirm the previous action before starting a different one.');
         }
-      } else if(!command.begin(target,body))throw Error('Action already pending.');
+      } else if(!command.begin(target,body,commandId))throw Error('Action already pending.');
       const deadline=Date.now()+30000;
       const reconcile=async()=>{
         while(command.reconciling){await delay(signal);if(Date.now()>=deadline)throw Error('Waiting for confirmation. Retry to check the original action.');}

@@ -1,3 +1,4 @@
+import {MarriageDeclaredTunnelas} from '../components/MarriageDeclaredTunnelas';
 import { FittedGameTable } from '../components/FittedGameTable';
 import { MarriageMeldCards } from '../components/MarriageMeldCards';
 import { WaitingHandArea } from '../components/WaitingHandArea';
@@ -31,7 +32,7 @@ import { useMarriageReveal } from '../multiplayer/useMarriageReveal';
 import { MarriageCardArea } from '../components/MarriageCardArea';
 import { MarriageCardBack } from '../components/MarriageCardBack';
 import { MarriageHandCard } from '../components/MarriageHandCard';
-import { cardDropTarget, marriageCardMarker, reconcileHandOrder, insertHandCardBefore, type CardBounds } from '../multiplayer/marriageHandOrder';
+import { appendHandCard, isHandEndDrop, cardDropTarget, marriageCardMarker, reconcileHandOrder, insertHandCardBefore, type CardBounds } from '../multiplayer/marriageHandOrder';
 import { GameRules } from '../components/GameRules';
 import { MarriageDetails } from '../components/MarriagePlayers';
 import { PokeComposer } from '../components/PokeComposer';
@@ -59,11 +60,12 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const [manualOrder,setManualOrder] = useState<{key:string;ids:string[]}>({key:'',ids:[]});
   const [handWidth,setHandWidth] = useState(0);
   const [draggingCard,setDraggingCard] = useState(false);
+  const handDropArea=useRef<View>(null),handDropControls=useRef<View>(null);
   const cardNodes = useRef(new Map<string,View>());
   const registerCard = useCallback((id:string,node:View|null)=>{
     if(node)cardNodes.current.set(id,node);else cardNodes.current.delete(id);
   },[]);
-  const [shownSection, setShownSection] = useState<'sequence'|'dublee'|'tunnela'|null>(null);
+  const [shownSection, setShownSection] = useState<'sequence'|'dublee'|null>(null);
   const [confirmFold, setConfirmFold] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
@@ -79,17 +81,17 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   // Start face up; Hide remains a local privacy choice.
   const { revealed, reveal } = useMarriageReveal(snapshot.match_id, mine?.player_id, true);
   const own = pub?.players.find(p => p.player_id === mine?.player_id);
-  const recordedTunnelas = [...new Map([...(own?.initial_tunnelas || []), ...(own?.shown_melds.filter(meld => meld.meld_type==='tunnela') || [])]
-    .map(meld => [meld.card_ids.slice().sort().join(','), meld])).values()];
   const maalKey = `${snapshot.match_id}:${mine?.player_id}:${mine?.maal?.tiplu.rank}:${mine?.maal?.tiplu.suit}`;
   const [seenMaal, setSeenMaal] = useState('');
   const [flippedMaal, setFlippedMaal] = useState('');
   const seeMaal = !!own?.has_seen_maal && !!mine?.maal && snapshot.status === 'playing' && seenMaal !== maalKey;
 
+  const declaredTunnelas=own?.initial_tunnelas||[];
+  const declaredIds=new Set(declaredTunnelas.flatMap(group=>group.card_ids));
   const committed = own?.shown_melds.flatMap(m => m.card_ids) || [];
-  const handKey = hand.map(c => c.card_id).join(',') + committed.join(',');
+  const handKey = hand.map(c => c.card_id).join(',') + committed.join(',')+[...declaredIds].join(',');
   useEffect(() => {
-    const available = hand.filter(c => !committed.includes(c.card_id)).map(c => c.card_id);
+    const available = hand.filter(c => !committed.includes(c.card_id)&&!declaredIds.has(c.card_id)).map(c => c.card_id);
     setSelected(current => current.filter(id => available.includes(id)));
   }, [handKey]);
   useEffect(() => {
@@ -143,7 +145,8 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   }
   const postMaal = !!own?.has_seen_maal;
   const manualView = postMaal || arrangement === "personal";
-  const handGroups = allRevealed && !hidden && (postMaal || arrangement !== "personal") ? arrangeMarriageHand(availableHand, postMaal ? "sequence" : arrangement as MarriageArrangement) : [{label:'', cards:availableHand}];
+  const arrangementHand=availableHand.filter(card=>!declaredIds.has(card.card_id));
+  const handGroups = allRevealed && !hidden && (postMaal || arrangement !== "personal") ? arrangeMarriageHand(arrangementHand, postMaal ? "sequence" : arrangement as MarriageArrangement) : [{label:'', cards:arrangementHand}];
   const orderKey = JSON.stringify([snapshot.match_id,mine?.player_id,postMaal]);
   useEffect(()=>{
     setManualOrder(current=>current.key===orderKey?current:{key:orderKey,ids:postMaal?handGroups.flatMap(group=>group.cards).map(card=>card.card_id):[]});
@@ -155,17 +158,25 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const displayedHand = reconcileHandOrder(handGroups.flatMap(group=>group.cards),
     manualView && allRevealed && !hidden && manualOrder.key===orderKey ? manualOrder.ids : []);
   async function dropCard(source:string,x:number,y:number) {
-    if(busy || hidden || !allRevealed || declaring || !manualView)return;
+    if(busy || hidden || !allRevealed || declaring || !manualView || declaredIds.has(source))return;
     const bounds = await Promise.all([...cardNodes.current].map(([id,node])=>new Promise<CardBounds>(resolve=>
       node.measureInWindow((x,y,width,height)=>resolve({id,x,y,width,height})))));
+    const measure=(node:View|null)=>new Promise<CardBounds>(resolve=>{
+      if(!node)return resolve({id:'',x:0,y:0,width:0,height:0});
+      node.measureInWindow((x,y,width,height)=>resolve({id:'',x,y,width,height}));
+    });
+    const [area,controls]=await Promise.all([measure(handDropArea.current),measure(handDropControls.current)]);
     if(currentDragState.current!==dragStateKey)return;
     const target=cardDropTarget(bounds,source,x,y);
-    if(target)setManualOrder(current=>({key:orderKey,ids:insertHandCardBefore(
-      reconcileHandOrder(displayedHand,current.key===orderKey?current.ids:[]).map(card=>card.card_id),source,target)}));
+    const append=!target&&isHandEndDrop(bounds.find(card=>card.id===displayedHand.at(-1)?.card_id),area,controls,x,y);
+    if(target||append)setManualOrder(current=>{
+      const ids=reconcileHandOrder(displayedHand,current.key===orderKey?current.ids:[]).map(card=>card.card_id);
+      return {key:orderKey,ids:append?appendHandCard(ids,source):insertHandCardBefore(ids,source,target!)};
+    });
   }
   const cardWidth = mobile && handWidth ? (handWidth - 7 * 5) / 8 : 48;
   const unseenWinReady = !postMaal && localMarriage.key===detectionKey && localMarriage.ready;
-  const handActions = <View testID="marriage-hand-actions" style={{flexDirection:'row',gap:5,alignItems:'center',justifyContent:'center',width:availableHand.length===21?cardWidth*3+10:'100%',minHeight:76}}>
+  const handActions = <View ref={handDropControls} testID="marriage-hand-actions" style={{flexDirection:'row',gap:5,alignItems:'center',justifyContent:'center',width:'100%',maxWidth:mobile?undefined:419,alignSelf:'center',marginTop:8,minHeight:44}}>
     {!own?.folded && button(ui('marriage.fold'),()=>setConfirmFold(true),busy||!social.connected||!actions?.kinds.includes('fold'),false,false,true)}
     {allRevealed ? button(hidden?ui('common.show_cards'):ui('common.hide_cards'),()=>{setHidden(v=>!v);setSelected([]);setPreview(false);setFinishPreview(false);},false,false,false,true) : button(ui('common.reveal_cards'),()=>reveal(true),busy,false,false,true)}
     {unseenWinReady && button(ui('marriage.win_without_maal'),()=>setFinishPreview(true),busy,false,false,true)}
@@ -196,11 +207,10 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   useEffect(() => {
     if (!stats.open && error && !busy && selectedCard && decision === 'DISCARD_REQUIRED') setSnap('expanded');
   }, [error, busy, selectedCard?.card_id, decision]);
-  const recordedDeclarations = <View testID="marriage-recorded-declarations" style={[s.row,{minWidth:0,flex:1,alignItems:'stretch',flexWrap:'nowrap'}]}>
+  const recordedDeclarations = own?.shown_melds.length && (own.route==='normal'||own.route==='dublee') ? <View testID="marriage-recorded-declarations" style={[s.row,{minWidth:0,flex:1,alignItems:'stretch',flexWrap:'nowrap'}]}>
     {own?.route==='normal' && !!own.shown_melds.length && button(ui('marriage.view_shown_sequence'),()=>setShownSection('sequence'),false,false,false,true)}
     {own?.route==='dublee' && !!own.shown_melds.length && button(ui('marriage.view_shown_dublee'),()=>setShownSection('dublee'),false,false,false,true)}
-    {!!recordedTunnelas.length && button(ui('marriage.view_shown_tunnela'),()=>setShownSection('tunnela'),false,false,false,true)}
-  </View>;
+  </View> : null;
   return <View style={s.page} testID="marriage-table">
     <ThemeBackdrop />
     <GameTableHeader showShare={showTableHeaderShare(snapshot)} tableName={snapshot.table_name} compact title={ui("rooms.marriage")} path={snapshot.path} game="marriage" roomId={snapshot.room_id} matchId={snapshot.match_id} onBack={onBack}
@@ -211,8 +221,15 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         gameActions={[{ label: ui('marriage.points'), action: () => setDetails('points') }]} />}
     </GameTableHeader>
     <View style={{ flex: 1, minHeight: 0 }}>
-    <RoomSheet visible={shownSection!==null} presentation="dialog" title={ui(shownSection==='dublee'?'marriage.dublee':shownSection==='tunnela'?'marriage.tunnela':'marriage.sequence')} onClose={()=>setShownSection(null)} testID="marriage-own-shown-cards">
-      <MarriageMeldCards groups={shownSection==='tunnela'?recordedTunnelas:own?.shown_melds||[]}/>
+    <RoomSheet visible={confirmFold&&!own?.folded&&activeGame&&!ended} presentation="dialog" title={ui('marriage.fold_confirmation')} testID="marriage-fold-confirmation" onClose={()=>setConfirmFold(false)}>
+      <Text style={s.text}>{ui("marriage.fold_help")}</Text>
+      <View style={s.row}>
+        {button(ui("marriage.confirm_fold"),()=>{setConfirmFold(false);onAction('FOLD');},busy||!social.connected||!actions?.kinds.includes('fold'))}
+        {button(ui("common.keep_playing"),()=>setConfirmFold(false))}
+      </View>
+    </RoomSheet>
+    <RoomSheet visible={shownSection!==null} presentation="dialog" title={ui(shownSection==='dublee'?'marriage.dublee':'marriage.sequence')} onClose={()=>setShownSection(null)} testID="marriage-own-shown-cards">
+      <MarriageMeldCards groups={own?.shown_melds||[]}/>
     </RoomSheet>
     <RoomSheet visible={seeMaal} presentation="dialog" testID="marriage-see-maal-step" title={ui('marriage.see_maal_step')} closeLabel={ui('marriage.see_maal_step')} onClose={() => { if (flippedMaal === maalKey) setSeenMaal(maalKey); }}>
       <Text style={s.text}>{ui('marriage.see_maal_help')}</Text>
@@ -272,11 +289,6 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         </View>}
 
       {!own?.has_seen_maal && recordedDeclarations}
-      {confirmFold && !own?.folded && <View style={s.panel}>
-        <Text style={s.text}>{ui("marriage.fold_help")}</Text>
-        <View style={s.row}>{button(ui("marriage.confirm_fold"), () => { onAction('FOLD'); }, busy || !social.connected || !actions?.kinds.includes('fold'))}
-          {button(ui("common.keep_playing"), () => setConfirmFold(false), busy)}</View>
-      </View>}
       {declaring && <MarriageTunnelaPanel onEligibility={reportTunnela} hand={hand} visible={allRevealed&&!hidden} busy={busy} connected={social.connected} submit={onAction}/>}
       {declarationsPending && !declaring && <Text style={s.text}>{ui("marriage.declaration_recorded_waiting_for_other_players")}</Text>}
       <View testID="marriage-hand-controls" style={{display:!preview&&!finishPreview&&!(postMaal?localMarriage.key===detectionKey&&localMarriage.ready:localMaal.key===detectionKey&&localMaal.ready)?'none':'flex',flexDirection:preview||finishPreview?'column':'row',gap:6,alignItems:'stretch'}}>
@@ -302,7 +314,8 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
           })}
         </View>}
         <View style={{position:'relative',borderRadius: radii.medium}}>
-        <View testID="marriage-hand" onLayout={event=>{const width=event.nativeEvent.layout.width;setHandWidth(width);}} style={{flexDirection:'row',flexWrap:'wrap',gap:5,width:'100%',maxWidth:mobile?undefined:419,alignSelf:'center'}}>
+        <View ref={handDropArea} testID="marriage-hand" onLayout={event=>{const width=event.nativeEvent.layout.width;setHandWidth(width);}} style={{flexDirection:'row',flexWrap:'wrap',gap:5,width:'100%',maxWidth:mobile?undefined:419,alignSelf:'center'}}>
+              <MarriageDeclaredTunnelas groups={declaredTunnelas} hand={hand} cardWidth={cardWidth} hidden={hidden||!allRevealed} cardStyle={s.card} backStyle={s.cardBack}/>
               {displayedHand.map((card,index)=>{
                 const back=hidden||(!allRevealed&&index>=revealed), checked=selected.includes(card.card_id);
                 const marker=back?null:marriageCardMarker(card.card_id===drawnId,checked);
@@ -315,10 +328,10 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
                   {back?<MarriageCardBack/>:<CompactCardFace rank={card.rank} suit={card.suit} joker={card.card_type==='man'}/>}
                 </MarriageHandCard>;
               })}
-          {handActions}
         </View>
         <TurnGlow active={canDiscard} radius={8}/>
         </View>
+        {handActions}
       </>}
     </View></MarriageHandSheet>}
     </View>

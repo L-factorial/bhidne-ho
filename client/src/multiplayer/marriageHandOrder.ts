@@ -27,3 +27,13 @@ export function cardDropTarget(bounds:CardBounds[], source:string, x:number, y:n
 export function marriageCardMarker(drawn:boolean, selected:boolean):'drawn'|'discard'|null {
   return selected ? 'discard' : drawn ? 'drawn' : null;
 }
+
+/** Only the empty tail of the final row is an append target. */
+export function isHandEndDrop(last:CardBounds|undefined, area:CardBounds, controls:CardBounds, x:number,y:number):boolean {
+  if(!last || area.width<=0)return false;
+  const overControls=x>=controls.x&&x<=controls.x+controls.width&&y>=controls.y&&y<=controls.y+controls.height;
+  return !overControls&&x>last.x+last.width&&x<=area.x+area.width&&y>=last.y&&y<=last.y+last.height;
+}
+export function appendHandCard(order:readonly string[],source:string):string[] {
+  return order.includes(source)?[...order.filter(id=>id!==source),source]:[...order];
+}

@@ -2,7 +2,7 @@ import {useCallback,useEffect,useRef} from 'react';
 import {AppState} from 'react-native';
 import {useAudioPlayer} from 'expo-audio';
 import {foregroundSounds,soundCues,type SoundCue} from './soundCues';
-const sources={turn:require('../../assets/sounds/turn.wav'),invitation:require('../../assets/sounds/invitation.wav'),chat:require('../../assets/sounds/chat.wav'),joined:require('../../assets/sounds/joined.wav'),left:require('../../assets/sounds/left.wav'),started:require('../../assets/sounds/started.wav'),round:require('../../assets/sounds/round.wav'),won:require('../../assets/sounds/won.wav'),move:require('../../assets/sounds/move.wav')};
+const sources={tunnelaDeclaration:require('../../assets/sounds/tunnelaDeclaration.wav'),maalDeclaration:require('../../assets/sounds/maalDeclaration.wav'),turn:require('../../assets/sounds/turn.wav'),invitation:require('../../assets/sounds/invitation.wav'),chat:require('../../assets/sounds/chat.wav'),joined:require('../../assets/sounds/joined.wav'),left:require('../../assets/sounds/left.wav'),started:require('../../assets/sounds/started.wav'),round:require('../../assets/sounds/round.wav'),won:require('../../assets/sounds/won.wav'),move:require('../../assets/sounds/move.wav')};
 let stopCurrent:(()=>void)|null=null;
 export function useForegroundSound(){
   const player=useAudioPlayer(null),alive=useRef(true);

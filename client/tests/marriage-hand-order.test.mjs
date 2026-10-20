@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {reconcileHandOrder,insertHandCardBefore,cardDropTarget,marriageCardMarker} from '../src/multiplayer/marriageHandOrder.ts';
+import {isHandEndDrop,appendHandCard,reconcileHandOrder,insertHandCardBefore,cardDropTarget,marriageCardMarker} from '../src/multiplayer/marriageHandOrder.ts';
 import {arrangeMarriageHand} from '../src/multiplayer/marriageArrangement.ts';
 const card=(id,rank,suit='H')=>({card_id:id,rank,suit,card_type:'standard',deck_index:0});
 
@@ -47,4 +47,17 @@ test('discard selection overrides the newly drawn marker, and deselection restor
   assert.equal(marriageCardMarker(false,true),'discard');
   assert.equal(marriageCardMarker(true,true),'discard');
   assert.equal(marriageCardMarker(false,false),null);
+});
+
+test('empty final-row tail appends a card and shifts following cards left, excluding controls and outside drops',()=>{
+ const last={id:'e',x:65,y:105,width:48,height:76};
+ const area={id:'hand',x:10,y:10,width:300,height:200};
+ const controls={id:'controls',x:200,y:105,width:100,height:76};
+ assert.equal(isHandEndDrop(last,area,controls,150,140),true);
+ for(const [x,y] of [[220,140],[150,40],[320,140],[150,200],[80,140]])assert.equal(isHandEndDrop(last,area,controls,x,y),false);
+ const order=['a','b','c','d','e'];
+ assert.deepEqual(appendHandCard(order,'b'),['a','c','d','e','b']);
+ assert.deepEqual(appendHandCard(order,'e'),order);
+ assert.deepEqual(appendHandCard(order,'missing'),order);
+ assert.deepEqual(order,['a','b','c','d','e']);
 });

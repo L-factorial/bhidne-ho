@@ -154,11 +154,11 @@ export class DurableCommandClient {
     catch (error) { this.storageFailed = true; throw error; }
   }
 
-  begin(target: CommandTarget, body: Omit<CommandBody, 'command_id'>): boolean {
+  begin(target: CommandTarget, body: Omit<CommandBody, 'command_id'>, capturedId?: string): boolean {
     if (this.closed) throw new Error('Command session is closed.');
     this.checkStorage();
     if (this.pending || this.active) return false;
-    const command_id = this.newId();
+    const command_id = capturedId ?? this.newId();
     if (!nonempty(command_id)) throw new Error('Invalid command ID.');
     // Detach caller-owned payloads, including nested objects. The original target,
     // revision and match remain pinned; a fresh snapshot never rewrites them.

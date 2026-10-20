@@ -5,8 +5,10 @@ export const soundCues = {
   joined: {notes:[440,554], duration:0.08, volume:0.16, priority:2},
   left: {notes:[554,440], duration:0.08, volume:0.14, priority:2},
   started: {notes:[440,554,660], duration:0.10, volume:0.24, priority:5},
-  round: {notes:[660,554], duration:0.16, volume:0.23, priority:7},
+  round: {notes:[660,554], duration:0.16, volume:0.23, priority:10},
   won: {notes:[523,659,784,1047], duration:0.13, volume:0.28, priority:9},
+  tunnelaDeclaration: {notes:[587,740,880], duration:0.11, volume:0.24, priority:9},
+  maalDeclaration: {notes:[698,1047], duration:0.16, volume:0.24, priority:9},
   move: {notes:[320], duration:0.035, volume:0.10, priority:1},
 } as const;
 export type SoundCue = keyof typeof soundCues;

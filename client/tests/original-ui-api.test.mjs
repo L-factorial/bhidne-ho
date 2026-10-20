@@ -1,3 +1,4 @@
+import {ApiError} from '../src/multiplayer/apiResponse.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DistributedRequestError } from '../src/multiplayer/DistributedHttpTransport.ts';
@@ -372,4 +373,30 @@ test('targeted notification reads use only supplied IDs without fetching all unr
  assert.deepEqual(f.sent[0].body.payload.ids,['selected']);
  await f.api.request('/notifications/read',account,{ids:[]});
  assert.equal(f.sent.length,1);
+});
+
+test('optimistic room/direct chat retries retain the captured command ID after a lost response',async()=>{
+ for(const path of ['/rooms/r/chat','/friends/user-00000000-0000-0000-0000-000000000002/messages']){
+  let attempts=0;
+  const f=setup(r=>{if(attempts++===0)throw Error('lost response');return receipt(r);});
+  f.api.messages=async()=>[{id:'saved',command_id:'captured-chat',sender_id:account.user_id,text:'Hello',sent_at:Date.now()}];
+  const body={text:'Hello',client_message_id:'captured-chat'};
+  await assert.rejects(f.api.request(path,account,body),/lost response/);
+  await assert.rejects(f.api.request(path,account,{...body,client_message_id:'different-chat'}),/previous action/);
+  const saved=await f.api.request(path,account,body);
+  assert.equal(saved.id,'saved');assert.equal(f.sent.length,2);
+  assert.deepEqual(f.sent[0],f.sent[1]);assert.equal(f.sent[0].body.command_id,'captured-chat');
+  assert.deepEqual(f.sent[0].body.payload,{text:'Hello'});f.api.close();
+ }
+});
+
+test('chat ingress errors retain the command while accepted-history read failures never create a second send',async()=>{
+ let attempts=0,reads=0;
+ const f=setup(r=>{if(attempts++===0)throw new DistributedRequestError(429,'Try later');return receipt(r);});
+ f.api.messages=async()=>{if(reads++===0)throw new ApiError(404,'Profile unavailable');return [{id:'saved',command_id:'original',sender_id:account.user_id,text:'Hello',sent_at:Date.now()}];};
+ const path='/rooms/r/chat',body={text:'Hello',client_message_id:'original'};
+ await assert.rejects(f.api.request(path,account,body),error=>error.preserveChatId===true&&error.status===429);
+ await assert.rejects(f.api.request(path,account,body),error=>error.preserveChatId===true&&error.status===404);
+ assert.equal((await f.api.request(path,account,body)).id,'saved');
+ assert.equal(f.sent.length,2);assert.deepEqual(f.sent[0],f.sent[1]);f.api.close();
 });

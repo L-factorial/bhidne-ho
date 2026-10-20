@@ -54,7 +54,7 @@ export function MarriageAnnouncements({ snapshot, suspended = false }: { snapsho
   const name = player?.display_name || ui("common.player_number", { "number": current?.playerId });
   const win = current?.kind === 'win';
   const initialTunnela = current?.kind === 'tunnela';
-  const title = win ? ui("marriage.player_won_the_round", { "player": name }) : initialTunnela ? ui("marriage.player_showed_initial_tunnelas", { "player": name }) : ui("marriage.player_unlocked_maal", { "player": name });
+  const title = win ? ui("marriage.player_won_the_round", { "player": name }) : initialTunnela ? ui("marriage.player_showed_tunnela_count", { player:name,count:current?.groups.length??0 }) : ui("marriage.player_showed_cards_for_maal", { player:name });
   const action = (label: string, onPress: () => void) => <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress}
     style={({ pressed }) => ({ ...gameButtonStyle(c, 'secondary', pressed), alignItems: 'center' })}><Text style={{ color: c.onTableHeader, fontFamily: fonts.medium }}>{label}</Text></Pressable>;
   const qualifications = events.filter(e => e.kind !== 'win');

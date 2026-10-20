@@ -210,8 +210,9 @@ export class OriginalUiApi {
     }));
     return rows.map(r=>({...r,sender_name:profiles.get(String(r.sender_id))?.display_name,sender_avatar_url:profiles.get(String(r.sender_id))?.avatar_url,sent_at:Date.parse(String(r.sent_at))}));
   }
-  async sendMessage(target:CommandTarget,text:Json,signal:AbortSignal) {
-    return this.intents.run(target.kind==='conversation'?'ui-direct-chat':target.kind==='table_chat'?'ui-table-chat':'ui-room-chat',target,
+  async sendMessage(target:CommandTarget,text:Json,signal:AbortSignal,clientId?:string) {
+    const slot=target.kind==='conversation'?'ui-direct-chat':target.kind==='table_chat'?'ui-table-chat':'ui-room-chat';
+    try{return await this.intents.run(slot,target,
       {command:target.kind==='conversation'?'send-message':'send-chat',payload:{text}},signal,async(_receipt,request)=>{
         if(target.kind==='room_chat'&&this.root.pushViewsEnabled){
           const deadline=Date.now()+1000;
@@ -227,7 +228,13 @@ export class OriginalUiApi {
         const message=rows.find(r=>(r as any).command_id===request.body.command_id);
         if(!message)throw Error('Message accepted; waiting for its committed history.');
         return message;
-      });
+      },clientId);
+    }catch(error){
+      const saved=this.root.session.command(slot).request;
+      const preserveChatId=!!saved&&(!clientId||saved.body.command_id===clientId);
+      const failure=error instanceof DistributedRequestError?new ApiError(error.status,error.message):error instanceof Error?error:new Error(String(error));
+      throw Object.assign(failure,{preserveChatId});
+    }
   }
   private async route(path:string,body:object|undefined,signal:AbortSignal,method?:string):Promise<unknown> {
     if(sharedPlatformPath(path,body,method)){const result=await this.shared(path,this.account,body,signal,method as 'DELETE'|'PATCH'|undefined);if(path==='/me/profile/avatar'&&method==='PATCH')this.profiles.delete(this.account.user_id);return result;}
@@ -289,7 +296,7 @@ export class OriginalUiApi {
     }
     if(parts[0]==='rooms') {
       const room=parts[1],target={kind:'room',room_id:room};
-      if(parts[2]==='chat'&&body)return this.sendMessage({kind:'room_chat',room_id:room},data.text,signal);
+      if(parts[2]==='chat'&&body)return this.sendMessage({kind:'room_chat',room_id:room},data.text,signal,typeof data.client_message_id==='string'?data.client_message_id:undefined);
       if(parts.length===2&&method==='PATCH')return this.command('ui-room-settings',target,'room-visibility',{visibility:data.visibility},signal);
       if(parts[2]==='invitations'&&body)return this.command('ui-room-settings',target,'invite-room',{recipients:data.invitees},signal);
       if(parts[2]==='ledger'&&parts[3]==='settlements'&&body) {
@@ -304,7 +311,7 @@ export class OriginalUiApi {
     }
     if(parts[0]==='friends'&&body||parts[0]==='friends'&&method==='DELETE') {
       const other=parts[1]==='requests'?parts[2]:parts[1];
-      if(parts.at(-1)==='messages')return this.sendMessage(this.pair(other),data.text,signal);
+      if(parts.at(-1)==='messages')return this.sendMessage(this.pair(other),data.text,signal,typeof data.client_message_id==='string'?data.client_message_id:undefined);
       const pair=[this.account.user_id.replace(/^user-/,''),other.replace(/^user-/,'')].sort();
       return this.command('ui-friendship',{kind:'conversation',user_low:pair[0],user_high:pair[1]},
         method==='DELETE'?'remove-friend':parts.at(-1)==='accept'?'accept-friend':'request-friend',{},signal);

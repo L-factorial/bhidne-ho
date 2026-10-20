@@ -1,3 +1,6 @@
+import {useOutgoingChat} from './useOutgoingChat';
+import {runtimeRequest} from '../multiplayer/RuntimeRequests';
+import {useChatScroll} from './useChatScroll';
 import {useFreshSoundEvents} from '../notifications/useFreshSoundEvents';
 import {AppText as Text} from './AppText';
 import { preserveRemovals } from './moderation/messages';
@@ -38,30 +41,30 @@ export function useRoomChat({ roomId, session, connected, onlineIds, hideWhenBlo
   const [unread, setUnread] = useState(0);
   const [muted, setMuted] = useState(false);
   const insets = useSafeAreaInsets();
-  const followLatest = useRef(true);
+
   const { play, prepare } = usePong();
   const freshSounds=useFreshSoundEvents(`${session.token}:${roomId}`);
   const notification = useRef({ open, muted, play });
   notification.current = { open, muted, play };
   const previousIds = useRef<Set<string> | null>(null);
-  function openChat() { prepare(); void rules.run(()=>{setUnread(0); followLatest.current = true; setOpen(true);}); }
+  function openChat() { prepare(); void rules.run(()=>{setUnread(0); chatScroll.showLatest(); setOpen(true);}); }
 
   const [messages, setMessages] = useState<Message[]>([]);
+  const outgoing=useOutgoingChat<Message>(session.token);
+  const visibleMessages=outgoing.rows(roomId,messages);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState('');
   const [loadError, setLoadError] = useState('');
   const showLoadError = usePersistentNotice(!!loadError);
   const reconnecting = usePersistentNotice(!connected && !!roomId);
   const visibleError = error || (showLoadError ? loadError : '');
-  const [busy, setBusy] = useState(false);
-  const sending = useRef(false);
-  const lifetime = useRef<AbortController | null>(null);
-  const scroll = useRef<ScrollView>(null);
+  const busy=outgoing.blocked;
+  const chatScroll=useChatScroll(`${session.token}:${roomId}`,visibleMessages.at(-1),session.user_id);
   const path = `/rooms/${encodeURIComponent(roomId)}/chat`;
   const length = Array.from(draft).length;
   useEffect(() => { setOpen(false); setMessages([]); setDraft(''); setUnread(0); setBlocked(false); previousIds.current = null; }, [roomId, session.token]);
   useEffect(() => {
-    const controller = new AbortController(); lifetime.current = controller;
+    const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
     let pushGeneration=0;
     const install=(history:Message[])=>{
@@ -98,16 +101,13 @@ export function useRoomChat({ roomId, session, connected, onlineIds, hideWhenBlo
     return () => { controller.abort(); clearTimeout(timer);unsubscribe?.(); };
   }, [path, session.token, connected, blocking.revision]);
   async function send() {
-    if (sending.current || blocked || !connected || !draft.trim() || length > 500) return;
-    const signal = lifetime.current?.signal;
-    const sentDraft = draft;
-    sending.current = true; setBusy(true); setError('');
-    try {
-      await request<Message>(path, session, { text: draft }, signal);
-      if (!signal?.aborted) { setDraft(current => current === sentDraft ? '' : current); followLatest.current = true; }
-    } catch (failure) {
-      if (!signal?.aborted) setError(playerError(failure, ui("feedback.could_not_send_message")));
-    } finally { sending.current = false; setBusy(false); }
+    if (busy || blocked || !connected || !draft.trim() || length > 500) return;
+    const submitted=draft;
+    let durable=false;
+    try{durable=!!runtimeRequest(session);}catch(failure){setError(playerError(failure,ui('feedback.could_not_send_message')));return;}
+    const accepted=outgoing.send(roomId,{sender_id:session.user_id,sender_name:ui('common.you'),text:submitted},
+      (id,text)=>request<Message>(path,session,{text,...(durable?{client_message_id:id}:{})}),durable);
+    if(accepted){setDraft('');setError('');chatScroll.showLatest();}
   }
   if (blocked && hideWhenBlocked) return { view: null, navigation: null };
   const launcher = renderLauncher?.({ open, unread, blocked, toggle: () => { if (open) setOpen(false); else if (!blocked) openChat(); } });
@@ -118,11 +118,11 @@ export function useRoomChat({ roomId, session, connected, onlineIds, hideWhenBlo
       footer={renderLauncher ? <View style={{ height: 64 + Math.max(8, insets.bottom) }}>{launcher}</View> : undefined}>
       <View testID="room-chat-window" style={[styles.chatBody, { flex: 1, minHeight: 0 }]}><RoomChatPeople roomId={roomId} session={session} onlineIds={connected?onlineIds:undefined}/>
 
-        <ScrollView ref={scroll} testID="room-chat-history" keyboardShouldPersistTaps="always" style={{ flex: 1, minHeight: 0 }} scrollEventThrottle={16}
-          onScroll={({ nativeEvent: { contentOffset, contentSize, layoutMeasurement } }) => { followLatest.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 40; }}
-          onContentSizeChange={() => { if (followLatest.current) scroll.current?.scrollToEnd({ animated: false }); }}>
-          {!messages.length && <View style={{ paddingVertical: 32, gap: 8, alignItems: 'center' }}><Ionicons name="chatbubbles-outline" size={30} color={colors.textMuted} /><Text style={styles.heading}>{ui("social.no_messages_yet")}</Text><Text style={styles.note}>{ui("social.say_something_to_get_the_table_going")}</Text></View>}
-          {messages.map(message => <ChatMessage tableStyle key={message.id} message={message} own={message.sender_id === session.user_id} action={<ReportButton menu session={session} enabled={blocking.reporting} scope="chat" messageId={message.id} player={{user_id: message.sender_id, display_name: message.sender_name}} />} />)}
+        <ScrollView ref={chatScroll.scroll} testID="room-chat-history" keyboardShouldPersistTaps="always" style={{ flex: 1, minHeight: 0 }} scrollEventThrottle={16}
+          onScroll={chatScroll.onScroll} onLayout={chatScroll.followLayout}
+          onContentSizeChange={chatScroll.followLayout}>
+          {!visibleMessages.length && <View style={{ paddingVertical: 32, gap: 8, alignItems: 'center' }}><Ionicons name="chatbubbles-outline" size={30} color={colors.textMuted} /><Text style={styles.heading}>{ui("social.no_messages_yet")}</Text><Text style={styles.note}>{ui("social.say_something_to_get_the_table_going")}</Text></View>}
+          {visibleMessages.map(message => <ChatMessage delivery={message.delivery} sendError={message.send_error} onRetry={message.can_retry?()=>outgoing.retry(message.retry_id!):undefined} tableStyle key={message.id} message={message} own={message.sender_id === session.user_id} action={<ReportButton menu session={session} enabled={blocking.reporting} scope="chat" messageId={message.id} player={{user_id: message.sender_id, display_name: message.sender_name}} />} />)}
         </ScrollView>
         {reconnecting && <Text style={styles.note}>{t('chat.reconnecting')}</Text>}
         {!!visibleError && <Text accessibilityRole="alert" style={styles.error}>{visibleError}</Text>}

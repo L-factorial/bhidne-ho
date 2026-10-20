@@ -70,6 +70,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   const mobile = width < 900;
   const act = onAction;
   const settings = snapshot.flush_settings!;
+  const [foldFrom,setFoldFrom]=useState<'table'|'show'|null>(null);
   const [handOpen, setHandOpen] = useState(true);
   const [cardsShown, setCardsShown] = useState(false);
   const stats = useGameStats(snapshot.match_id, snapshot.your_player_id);
@@ -256,7 +257,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
             {available('decline_side_show') && button(ui("flush.reject_side_show_button"), () => act('DECLINE_SIDE_SHOW'), !can('decline_side_show'))}
             {available('reveal_side_show') && button(ui('flush.reveal_side_show'), () => act('REVEAL_SIDE_SHOW'), !can('reveal_side_show'), true)}
             {available('reveal_cards') && button(ui("common.reveal_cards"), () => act('REVEAL_CARDS'), !can('reveal_cards'), true)}
-            {available("fold") && button(ui("flush.fold"), () => act('FOLD'), !can("fold"), false, true)}
+            {available("fold") && button(ui("flush.fold"), () => setFoldFrom('table'), !can("fold"), false, true)}
           </>}
         </View>
         {!comparisonOpen && help.length > 0 && <>
@@ -279,12 +280,20 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
     {!ended && pokeOpen && <PokeComposer recipient={null} connected={social.connected} phrases={social.phrases} onSave={social.save}
       onSend={social.send} onClose={() => setPokeOpen(false)} />}
     <GameRules snapshot={snapshot} visible={rulesExplanationOpen} onClose={() => setRulesExplanationOpen(false)} />
+    <RoomSheet visible={foldFrom!==null&&activeGame} presentation="dialog" title={ui('flush.fold_confirmation')} testID="flush-fold-confirmation"
+      onClose={()=>{if(foldFrom==='show')setFinalShowOpen(true);setFoldFrom(null);}}>
+      <Text style={s.text}>{ui('flush.fold_confirmation_help')}</Text>
+      <View style={s.row}>
+        {button(ui('flush.confirm_fold'),()=>{if(!can('fold'))return;setFoldFrom(null);act('FOLD');},!can('fold'),false,true)}
+        {button(ui('common.keep_playing'),()=>{if(foldFrom==='show')setFinalShowOpen(true);setFoldFrom(null);})}
+      </View>
+    </RoomSheet>
     <RoomSheet visible={rulesOpen} title={ui("common.game_rules_config")} closeLabel={ui("common.close_game_rules_config")} onClose={() => setRulesOpen(false)} testID="flush-rules-config" scrollable={false}
       footer={canConfigureGameRules(snapshot) ? <FormFooter>{!!(localError || error) && <Text activity accessibilityRole="alert" style={s.error}>{uiLabel(localError || error, 'feedback')}</Text>}<View style={{ gap: 8 }}><RuleProposalButton busy={busy} disabled={!dirty || stale} onPress={save} />{(dirty || stale) && button(ui(stale?'rooms.load_latest_rules':'rooms.revert_changes'), reload, busy)}</View></FormFooter> : undefined}>
       <SettingsTabs selected={rulesTab} onSelect={setRulesTab} tabs={[{id:'rules',label:ui('common.custom_rules')},{id:'bets',label:ui('common.bet_values')}]} /><FormScrollView style={{flex:1,minHeight:0}} keyboardShouldPersistTaps="handled" contentContainerStyle={{padding:20,gap:12}}>{rulesContent}</FormScrollView>
     </RoomSheet>
     {/* Automatic results wait for chat; a second modal would trap focus behind it. */}
-    <Modal transparent visible={finalShowOpen && finalStage !== null && !chatOpen && !stats.open} animationType={Platform.OS === 'web' ? 'none' : 'fade'} onRequestClose={() => setFinalShowOpen(false)}>
+    <Modal transparent visible={finalShowOpen && foldFrom===null && finalStage !== null && !chatOpen && !stats.open} animationType={Platform.OS === 'web' ? 'none' : 'fade'} onRequestClose={() => setFinalShowOpen(false)}>
       <View style={s.backdrop}><View style={s.modal} accessibilityViewIsModal testID="flush-show-overlay">
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text accessibilityRole="header" style={s.title}>{finalStage === 'pending' ? ui("flush.final_show") : ui("flush.round_result")}</Text>
@@ -297,7 +306,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
         {pub.revealed_hands.map(hand => <FlushCards autoReveal key={`${pub.round_number}:${hand.player_id}`} label={ui("flush.player_shown_card", { "player": name(hand.player_id) })}
           cards={hand.cards.map(c => `${({11:'J',12:'Q',13:'K',14:'A'} as Record<number,string>)[c.rank] || c.rank}${c.suit}`)} />)}
         <Text style={s.text}>{ui("flush.player_can_fold_or_reveal_their_cards", { "player": name(pub.pending_show.target_id) })}</Text>
-        {can('reveal_cards') && <View style={s.row}>{button(ui("common.reveal_cards"), () => act('REVEAL_CARDS'), busy, true)}{button(ui("flush.fold"), () => act('FOLD'), busy, false, true)}</View>}
+        {can('reveal_cards') && <View style={s.row}>{button(ui("common.reveal_cards"), () => act('REVEAL_CARDS'), busy, true)}{button(ui("flush.fold"), () => {setFinalShowOpen(false);setFoldFrom('show');}, busy, false, true)}</View>}
       </View>}
       {pub?.settlement && <View style={s.panel} testID="flush-round-result"><RoundResultsTable subtitle={ui("marriage.winner_player", { "player": pub.settlement.winner_ids.map(name).join(', ') })} columns={['Payout', ui('flush.salami'), 'Net']} rows={(pub.round_results.find(r => r.round_number === pub.round_number)?.net_changes || pub.settlement.payouts).map(p => {
           const net = pub.round_results.find(r => r.round_number === pub.round_number)?.net_changes.find(row => row.player_id === p.player_id)?.amount;

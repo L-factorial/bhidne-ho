@@ -1,5 +1,9 @@
 // Editable social copy. Keep keys and placeholders in sync with the other locale.
 export default {
+  "confirming_message": "Confirming…",
+  "message_not_sent": "Not sent",
+  "retry_message": "Retry sending message",
+
   today: 'Today', yesterday: 'Yesterday', times_local: 'Times shown in your local time',
   "members_unavailable": "Could not load room members.",
   no_matching_friends: 'No matching friends.',
