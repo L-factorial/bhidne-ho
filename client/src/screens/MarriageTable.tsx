@@ -56,7 +56,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   const mobile = useWindowDimensions().width < 900;
   const stats = useGameStats(snapshot.match_id, snapshot.your_player_id);
   const [collapsedHandHeight, setCollapsedHandHeight] = useState(90);
-  const [arrangement, setArrangement] = useState<MarriageArrangement | "personal">("personal");
+  const [arrangement, setArrangement] = useState<MarriageArrangement | "personal">("sequence");
   const [manualOrder,setManualOrder] = useState<{key:string;ids:string[]}>({key:'',ids:[]});
   const [handWidth,setHandWidth] = useState(0);
   const [draggingCard,setDraggingCard] = useState(false);
@@ -151,7 +151,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
   useEffect(()=>{
     setManualOrder(current=>current.key===orderKey?current:{key:orderKey,ids:postMaal?handGroups.flatMap(group=>group.cards).map(card=>card.card_id):[]});
   },[orderKey]);
-  useEffect(()=>{setArrangement('personal');},[snapshot.match_id,mine?.player_id]);
+  useEffect(()=>{setArrangement('sequence');},[snapshot.match_id,mine?.player_id]);
   const dragStateKey = JSON.stringify([orderKey,handKey,hidden,allRevealed,declaring,busy,manualView]);
   const currentDragState = useRef(dragStateKey);
   currentDragState.current = dragStateKey;

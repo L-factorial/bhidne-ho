@@ -11312,3 +11312,15 @@ Capacity, observability, database HA and operational readiness remain deferred.
   next signed iOS build; verify Leave Table, End table/game and remote end on an
   iPhone, confirming the matching Table Balances card and dismissible ledger.
   Deferred capacity/observability/database HA/operational work remains deferred.
+
+### Marriage default Auto arrangement — 2026-10-20
+
+- User requested Auto arrangement as the first/default view. Marriage now
+  initializes and resets its arrangement selection to Auto arrangement —
+  Sequence/Tunnela when the match or player identity changes. Players can still
+  choose Auto Dublee or My arrangement through the existing tabs.
+- Verification: TypeScript and diff checks pass. No gameplay or arrangement
+  algorithm changes; existing post-Maal presentation remains in place.
+- Limitations: no native build, deployment or device visual check. Exact next
+  step: include in the pending signed build and confirm the initial selected tab
+  when opening a Marriage hand. Deferred operational work remains deferred.
