@@ -114,7 +114,7 @@ export default {
   "fold_this_round_you_can_keep_watching": "यो राउन्डको हात छोड्ने? हेर्न जारी राख्न सक्नुहुन्छ।",
   "finish_round": "राउन्ड टुङ्ग्याउने",
   "confirm_finish": "टुङ्ग्याउने पुष्टि गर्ने",
-  "show_marriage": "म्यारिज देखाउने",
+  "show_marriage": "सकाउन देखाउनुहोस्",
   "confirm_show": "पक्का गरेर देखाउने",
   "declared_tunnela": "घोषित टनेला",
   "initial_tunnelas": "सुरुमा परेका टनेला",

@@ -11324,3 +11324,47 @@ Capacity, observability, database HA and operational readiness remain deferred.
 - Limitations: no native build, deployment or device visual check. Exact next
   step: include in the pending signed build and confirm the initial selected tab
   when opening a Marriage hand. Deferred operational work remains deferred.
+
+### Direct production deployment — 2026-10-20 (dfb8707)
+
+- User explicitly requested direct deployment to both servers. Released clean,
+  committed revision dfb8707cec8260d7eebf1902822fe6081ad979fd, including the table
+  selector, notification destinations, iOS ledger handoff and Marriage Auto
+  arrangement default. Canceled overlapping GitHub run 39549579415; normal
+  cancellation did not finish, then force cancellation completed/cancelled before
+  activation. Rechecked no active branch workflows immediately before rollout.
+- Built the exact git archive on app1 with Dockerfile.production, including its
+  client tests, TypeScript and production web export. Both installed release
+  receivers match committed source. Transferred one immutable image with archive
+  checksum verification, passed both dependency/schema/frontend checks, replaced
+  backends sequentially, then activated both frontends after both were healthy.
+  Existing release locks, peer-health and rollback behavior remain intact. No
+  migration or database initialization was performed.
+- Both hosts run revision dfb8707 and image
+  sha256:485b2b4a88e052d98f4fae472d285772fc8dd6259758bf28828b8a5638386dab.
+  Both frontend indexes and the public HTTPS index match SHA-256
+  eb7d1764f272e163f07f56fa4316351ae4358ab0e1bfbbdbf2c321c1616d583d.
+  Public JavaScript matches both hosts; both direct health checks and public API
+  health pass. Read-only Chrome checks pass at 390/1280px without page errors.
+- Evidence: /private/tmp/bhidne-dfb8707-{stage,rollout,verify,smoke}.log and
+  /private/tmp/bhidne-dfb8707-verification.json; build log on app1 is
+  /srv/bhidne-prod/builds/dfb8707/build.log. Local focused release checks passed
+  53 cases with 13 optional SQL cases skipped; earlier PostgreSQL/WASM-backed
+  push/social checks passed separately. The canceled full GitHub gate is not a
+  passed gate. No authenticated production gameplay/settlement smoke writes.
+- Limitations: server/web release only. Installed native apps still require a
+  new signed build to receive notification navigation, iOS dismissal fixes and
+  the Marriage default. No physical iPhone/Android validation was performed.
+- Exact next step: refresh production web and review; build/install signed native
+  packages and execute the notification and exit-to-ledger device checks when
+  requested. Deferred operational task set remains deferred.
+
+### Marriage finish confirmation caption — 2026-10-20
+
+- User requested that the final button inside Show to finish options also say
+  Show to finish. Updated the existing show_marriage English caption and aligned
+  its Nepali caption with the existing finish entry label. The unobserved-maal
+  action, winning option selection, eligibility and FINISH command are unchanged.
+- Verification: TypeScript and diff checks pass. Copy-only change; no additional
+  tests, deployment or native build. Exact next step: include the caption in the
+  next requested release/build and review the final winning-option button.

@@ -114,7 +114,7 @@ export default {
   "fold_this_round_you_can_keep_watching": "Fold this round? You can keep watching.",
   "finish_round": "Finish round",
   "confirm_finish": "Confirm finish",
-  "show_marriage": "Show Marriage",
+  "show_marriage": "Show to finish",
   "confirm_show": "Confirm & show",
   "declared_tunnela": "Declared Tunnela",
   "initial_tunnelas": "Initial Tunnelas",
