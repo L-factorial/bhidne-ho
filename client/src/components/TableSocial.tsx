@@ -55,8 +55,8 @@ export function useSocialHandAnchor(existing?: RefObject<View | null>) {
   return { ref, onLayout: () => { if (ref.current) social?.anchor(ref.current); } };
 }
 
-export function TableSocialProvider({ children, snapshot, channel, connected, userId, session, pokes, phrases = [], expanded = true, colors }: {
-  expanded?: boolean; colors?: ThemeColors; session: Session; children: ReactNode; snapshot: RoomSnapshot; channel?: TableSocialChannel; connected: boolean; userId: string; pokes: RoomPoke[]; phrases?: PlayerPhrase[];
+export function TableSocialProvider({ requestedChatId, children, snapshot, channel, connected, userId, session, pokes, phrases = [], expanded = true, colors }: {
+  requestedChatId?:string; expanded?: boolean; colors?: ThemeColors; session: Session; children: ReactNode; snapshot: RoomSnapshot; channel?: TableSocialChannel; connected: boolean; userId: string; pokes: RoomPoke[]; phrases?: PlayerPhrase[];
 }) {
   const uiLanguage = useUiLanguage();
   const blocking = useBlocking(session);
@@ -197,6 +197,14 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
     measure.current(anchorNode.current);
   }
   function openChat() { if (canRead) void rules.run(()=>{ setPokeMode(false); openRef.current = true; setOpen(true); setUnread(0); follow.current = true; }); }
+  const consumedChat=useRef<string|undefined>(undefined);
+  const [unavailableChat,setUnavailableChat]=useState(false);
+  useEffect(()=>{
+    if(!requestedChatId||consumedChat.current===requestedChatId||!connected||!expanded)return;
+    consumedChat.current=requestedChatId;
+    if(!canRead){setUnavailableChat(true);return;}
+    openChat();
+  },[requestedChatId,connected,canRead,expanded]);
   function poke(id: number) {
     setPokeMode(false);
     if (eligible(id)) { setError(''); setTargetPlayer(id); }
@@ -284,7 +292,7 @@ export function TableSocialProvider({ children, snapshot, channel, connected, us
       </GameModalContent>
     </View>
   );
-  return <Context.Provider value={{session,pokeMode,eligible,poke,effects,anchor,openChat,canRead,chatOpen:open&&canRead,overlayOpen:(open&&canRead)||pokeMode||targetPlayer!==null,registerSeat,presentation,openPoke,unread,enabled,pokeSent,setHandCollapsed}}>{children}{rules.view}</Context.Provider>;
+  return <Context.Provider value={{session,pokeMode,eligible,poke,effects,anchor,openChat,canRead,chatOpen:open&&canRead,overlayOpen:(open&&canRead)||pokeMode||targetPlayer!==null,registerSeat,presentation,openPoke,unread,enabled,pokeSent,setHandCollapsed}}>{children}{rules.view}{unavailableChat&&<RoomSheet visible title={ui('common.table_chat')} onClose={()=>setUnavailableChat(false)}><Text accessibilityRole="alert" style={{color:c.text}}>{ui('feedback.notification_unavailable')}</Text></RoomSheet>}</Context.Provider>;
 }
 
 export function TableSocialPresentation({children, expanded = true}: {children: ReactNode; expanded?: boolean}) {

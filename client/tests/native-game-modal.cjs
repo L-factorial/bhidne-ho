@@ -149,3 +149,46 @@ test('iOS opens the matching ledger once, only after the game modal dismisses',a
     await act(async()=>{dismissed();});assert.deepEqual(events,['target-table']);
   }finally{await act(async()=>renderer.unmount());}
 });
+
+// Exercise the actual RoomGameControl departure function and ended-snapshot effect
+// with the conditional provider tree that exists in the application.
+const roomSource=readFileSync(path.resolve(__dirname,'../src/components/RoomGameControl.tsx'),'utf8');
+const roomAst=ts.createSourceFile('RoomGameControl.tsx',roomSource,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+let departureFunction,endedEffect;
+function inspect(node){
+  if(ts.isFunctionDeclaration(node)&&node.name?.text==='returnToLedger')departureFunction=node.getText(roomAst);
+  if(ts.isCallExpression(node)&&node.expression.getText(roomAst)==='useEffect'&&node.arguments[0]?.getText(roomAst).includes("snapshot?.status === 'ended'"))endedEffect=node.arguments[0].getText(roomAst);
+  ts.forEachChild(node,inspect);
+}
+inspect(roomAst);assert.ok(departureFunction&&endedEffect);
+const compileExpression=text=>ts.transpileModule(`(${text})`,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
+function ActualDepartureFixture({events,operation}){
+ const [visible,setVisible]=React.useState(true),[live,setLive]=React.useState(true),[ended,setEnded]=React.useState(false),[ledger,setLedger]=React.useState(null);
+ const departedMatch=React.useRef(),previous=React.useRef({match_id:'match',table_id:'table',durable_game_id:'game',game_type:'flush'});
+ const departure=useDismissalAction(visible,()=>setVisible(false));
+ const scope={departedMatch,departure,setLive,onOpenLedger:target=>{events.push(target);setLedger(target);}};
+ const returnToLedger=vm.runInNewContext(compileExpression(departureFunction),scope);
+ const snapshot={...previous.current,status:ended?'ended':'playing'};
+ const effect=vm.runInNewContext(compileExpression(endedEffect),{...scope,snapshot,open:visible,live,lastViewedGame:previous,returnToLedger,setOpen:setVisible,
+  selectedMatch:{current:'match'},setError(){},setRefreshError(){},setActionNotice(){},ui:key=>key});
+ React.useEffect(effect,[ended]);
+ const content=h(GameModalRoot,{visible,onDismiss:departure.onDismiss},h('LiveTable'));
+ return h(React.Fragment,null,
+  h('ExitTable',{exit:()=>{if(operation!=='leave')setEnded(true);if(operation!=='remote-end')returnToLedger(previous.current);}}),
+  live?h(Social.Provider,{value:'live'},content):content,
+  ledger?h('RoomLedger',ledger):null);
+}
+for(const operation of ['leave','end','remote-end'])test(`iOS actual ${operation} preserves modal identity until ledger handoff`,async()=>{
+ native.Platform.OS='ios';const events=[];let renderer;
+ await act(async()=>{renderer=create(h(ActualDepartureFixture,{events,operation}));});
+ try{
+  const modal=renderer.root.findByType('NativeModal');
+  await act(async()=>renderer.root.findByType('ExitTable').props.exit());
+  assert.ok(renderer.root.findByType('NativeModal')===modal,'closing must not replace the native presentation');
+  assert.equal(modal.props.visible,false);assert.equal(events.length,0);
+  const dismiss=modal.props.onDismiss;await act(async()=>dismiss());
+  assert.equal(events.length,1);assert.equal(events[0].tableId,'table');assert.equal(events[0].gameId,'game');
+  assert.equal(renderer.root.findByType('RoomLedger').props.tableId,'table');
+  await act(async()=>dismiss());assert.equal(events.length,1);
+ }finally{await act(async()=>renderer.unmount());}
+});

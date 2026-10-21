@@ -14,7 +14,7 @@ import { radii, fonts, useTheme, useThemedStyles, type ThemeColors } from '../th
 import type {Invitation} from '../multiplayer/invitations';
 
 type Player = { user_id: string; display_name: string; username?: string | null };
-type Notification = { id: string; kind: 'friend_request' | 'friend_accepted' | 'friend_rejected' | 'chat' | 'poke'; payload?: {room_id?:string;match_id?:string;scope?:string;source_id?:string;room_name?:string;table_name?:string}; actor: Player; created_at: number; read: boolean };
+type Notification = { id: string; kind: 'friend_request' | 'friend_accepted' | 'friend_rejected' | 'chat' | 'poke'; payload?: {room_id?:string;match_id?:string;scope?:string;source_id?:string;game_id?:string;room_name?:string;table_name?:string}; actor: Player; created_at: number; read: boolean };
 type FriendSnapshot = { incoming: Player[] };
 type TableInvitation = { room_notification?:boolean; id: string; room_id: string; room_name: string; match_id: string; table_name: string; game_type: 'callbreak' | 'marriage' | 'flush'; inviter_id: string; inviter?: Player; created_at: number; seated: number; capacity: number; seat_available: boolean };
 type RoomInvitation = { id: string; room_id: string; room_name: string; inviter_id: string; inviter?: Player };
@@ -112,14 +112,11 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
       if (accept) { setOpen(false); onOpenRoom?.(invitation); }
     } catch (failure) { setError(playerError(failure, ui("feedback.could_not_update_the_room_invitation"))); }
   }
-  async function openActivity(item:Notification){
-    try{
-      await request('/notifications/read',session,{ids:[item.id]});
-      refreshVersion.current++;setItems(current=>current.filter(row=>row.id!==item.id));
-      setOpen(false);onOpenActivity?.(item.payload?.scope==='direct'
-        ? {roomId:'',otherUserId:item.actor.user_id}
-        : {roomId:item.payload?.room_id??'',matchId:item.payload?.match_id});
-    }catch(failure){setError(playerError(failure,ui('feedback.could_not_update_notifications')));}
+  function openActivity(item:Notification){
+    setOpen(false);
+    onOpenActivity?.({roomId:item.payload?.scope==='direct'?'':item.payload?.room_id??'',
+      matchId:item.payload?.match_id,otherUserId:item.payload?.scope==='direct'||item.kind.startsWith('friend_')?item.actor.user_id:undefined,
+      scope:item.payload?.scope as Invitation['scope'],gameId:item.payload?.game_id,notificationKind:item.kind,eventId:item.id,recipientId:session.user_id});
   }
   const clearable = items.some(item => item.kind !== 'friend_request');
   const pending = items.some(item => item.kind === 'friend_request') || !!tableInvitations.length || !!roomInvitations.length;
@@ -167,9 +164,9 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
                 <Pressable accessibilityRole="button" onPress={() => void answerRequest(item.actor, true)} style={styles.accept}><Text style={styles.acceptText}>{ui("common.accept")}</Text></Pressable>
                 <Pressable accessibilityRole="button" onPress={() => void answerRequest(item.actor, false)} style={styles.decline}><Text style={styles.link}>{ui("common.decline")}</Text></Pressable>
               </View>}
-              {(item.kind==='chat'||item.kind==='poke')&&onOpenActivity&&<Pressable accessibilityRole="button"
+              {onOpenActivity&&<Pressable accessibilityRole="button"
                 onPress={()=>void openActivity(item)}
-                style={styles.accept}><Text style={styles.acceptText}>{ui(item.payload?.scope==='direct'?'social.chat':item.payload?.match_id?'common.open_table':'common.open_room')}</Text></Pressable>}
+                style={styles.accept}><Text style={styles.acceptText}>{ui(item.kind.startsWith('friend_')?'common.friends':item.payload?.scope==='direct'?'social.chat':item.payload?.match_id?'common.open_table':'common.open_room')}</Text></Pressable>}
             </View>)}
           </ScrollView>
           {!!error && <Text activity accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}

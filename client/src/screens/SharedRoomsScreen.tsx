@@ -1,3 +1,4 @@
+import {recipientMatches} from '../notifications/notificationDestination';
 import type { LedgerTarget } from '../components/RoomLedger';
 import {HeaderHomeContext} from '../components/BrandArt';
 import {ActivityLine} from '../components/ActivityLine';
@@ -68,6 +69,7 @@ type InvitePlayer = { avatar_url?: string | null; user_id: string; display_name:
 export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dismissInvitation, roomActions = legacyRoomActions }: { roomActions?: RoomActions; onExit: () => void; invitation?: Invitation | null; dismissInvitation?: () => void }) {
   useUiLanguage();
   const [codeInvitation, setCodeInvitation] = useState<Invitation | null>(null);
+  useEffect(()=>{if(externalInvitation)setCodeInvitation(null);},[externalInvitation]);
   const invitation = codeInvitation || externalInvitation;
   const clearInvitation = () => { setCodeInvitation(null); dismissInvitation?.(); };
   const { colors } = useTheme();
@@ -78,6 +80,10 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const [roomToolsOpen, setRoomToolsOpen] = useState(false);
   const [lobbyTab, setLobbyTab] = useState<'rooms' | 'players' | 'createJoin' | 'games' | 'chat' | 'ledger'>("games");
   const [chatPlayer,setChatPlayer]=useState<string>();
+  const [chatRequestId,setChatRequestId]=useState<string>();
+  const [friendNotification,setFriendNotification]=useState<string>();
+  const [notificationNavigationId,setNotificationNavigationId]=useState<string>();
+  const [notificationChat,setNotificationChat]=useState<{matchId:string;eventId:string;scope?:'table'|'game';gameId?:string}|undefined>();
   const [roomTab,setRoomTab]=useState<'own'|'friends'>('own');
   const [createTableOpen,setCreateTableOpen]=useState(false);
   const [greetingIdentity, setGreetingIdentity] = useState<InvitePlayer | null>(null);
@@ -115,13 +121,17 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   }
   const { session, rooms, room, game, setGame, expired } = shared;
   useEffect(()=>{if(!session||expired)setSignupAvatar(false);},[session?.token,expired]);
+  const previousAccount=useRef(session?.user_id);
+  useEffect(()=>{
+    if(previousAccount.current!==session?.user_id){setChatPlayer(undefined);setChatRequestId(undefined);setFriendNotification(undefined);setNotificationChat(undefined);setNotificationNavigationId(undefined);setLobbyTab('games');previousAccount.current=session?.user_id;}
+  },[session?.user_id]);
   const [roomTablesLoading, setRoomTablesLoading] = useState(true);
   useEffect(() => { if (!room) setRoomTablesLoading(true); }, [room?.room_id]);
   useEffect(()=>{
-    if(externalInvitation?.otherUserId&&session){
-      setChatPlayer(externalInvitation.otherUserId);setLobbyTab('chat');shared.exitRoom();dismissInvitation?.();
+    if(invitation?.otherUserId&&session&&!expired&&recipientMatches(invitation,session.user_id)&&(process.env.EXPO_PUBLIC_RUNTIME_MODE !== 'distributed-original'||!!shared.runtime)){
+      setChatPlayer(invitation.otherUserId);setChatRequestId(invitation.eventId);setFriendNotification(invitation.notificationKind?.startsWith('friend_')?invitation.otherUserId:undefined);setLobbyTab(invitation.notificationKind?.startsWith('friend_')?'players':'chat');shared.exitRoom();if(invitation.notificationKind?.startsWith('friend_'))clearInvitation();
     }
-  },[externalInvitation?.otherUserId,session?.user_id]);
+  },[invitation,session?.token,expired,shared.runtime]);
 
   const reconnecting = usePersistentNotice(!!room && !expired && shared.status !== 'connected');
   useEffect(() => {
@@ -323,19 +333,28 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
     <View style={[styles.content, !session && {maxWidth: 460}, room && { flexGrow: 1, maxWidth: 760 }]}>
       {session && !expired && <SignupVerification key={session.token} session={session} />}
       <AppHeader logoSize={!session ? (wide ? 60 : 52) : undefined} lobby={!room && !!session} onOpenProfile={!room ? () => setLobbyProfileOpen(true) : undefined} inlineActions={session && !expired ? <NotificationBell session={session} onOpenActivity={target=>{
-        if(target.otherUserId){setChatPlayer(target.otherUserId);setLobbyTab('chat');shared.exitRoom();}
-        else if(target.roomId)setCodeInvitation(target);
+        setCodeInvitation(target);
       }} onOpenTable={invited => {
         setLinkedMatch(invited.match_id);
         enterRoom({ room_id: invited.room_id, name: invited.room_name, members: [] }, invited.game_type);
       }} onOpenRoom={invited => enterRoom({ room_id: invited.room_id, name: invited.room_name, members: [] })} /> : null} />
       {session && (!room || !roomTablesLoading) && !roomToolsOpen && !!(error || shared.error) && <Text activity accessibilityRole="alert" style={styles.error}>{uiLabel(error || shared.error, 'feedback')}</Text>}
       {(!room || !roomTablesLoading) && !expired && (reconnecting || shared.connectionNotice || shared.recoveryKind) && <ActivityLine />}
-      {invitation && !invitation.otherUserId && session ? <InvitationPreview key={`${invitation.roomId}:${invitation.matchId}`} invitation={invitation} session={session} ready={process.env.EXPO_PUBLIC_RUNTIME_MODE !== 'distributed-original' || !!shared.runtime}
+      {invitation?.otherUserId && session && !expired && recipientMatches(invitation,session.user_id) && <View style={{padding:12,gap:8}}>
+        {process.env.EXPO_PUBLIC_RUNTIME_MODE==='distributed-original'&&!shared.runtime&&!shared.startupError&&<Text style={{color:colors.text}}>{ui('feedback.notification_opening')}</Text>}
+        {!!shared.startupError&&<><Text accessibilityRole="alert" style={{color:colors.danger}}>{shared.startupError}</Text><Pressable accessibilityRole="button" onPress={shared.retry}><Text style={{color:colors.accent}}>{ui('rooms.retry_invitation')}</Text></Pressable></>}
+        <Pressable accessibilityRole="button" onPress={clearInvitation}><Text style={{color:colors.accent}}>{ui('rooms.dismiss_invitation')}</Text></Pressable>
+      </View>}
+      {invitation && session && !recipientMatches(invitation,session.user_id) ? <View style={{padding:20,gap:12}}><Text accessibilityRole="alert" style={{color:colors.text}}>{ui('feedback.notification_account')}</Text><Pressable accessibilityRole="button" onPress={clearInvitation}><Text style={{color:colors.accent}}>{ui('rooms.dismiss_invitation')}</Text></Pressable></View> : invitation && !invitation.otherUserId && session && !expired ? <InvitationPreview key={`${invitation.roomId}:${invitation.matchId}`} invitation={invitation} session={session} ready={process.env.EXPO_PUBLIC_RUNTIME_MODE !== 'distributed-original' || !!shared.runtime}
         startupError={shared.startupError} retrySession={shared.retry}
         dismiss={clearInvitation} join={async (target, gameType, matchId) => {
-          const joined = await shared.joinRoom(target, gameType);
-          if (joined) { setLinkedEntry(undefined); setLinkedMatch(matchId); clearInvitation(); }
+          const joined = invitation.notificationKind && !invitation.notificationKind.endsWith('invitation')
+            ? shared.enterRoom(target,gameType) : await shared.joinRoom(target, gameType);
+          if (joined) {
+            setLinkedEntry(undefined); setLinkedMatch(matchId);setNotificationNavigationId(invitation.eventId);
+            setNotificationChat(invitation.notificationKind==='chat'&&matchId?{matchId,eventId:invitation.eventId??`${Date.now()}`,scope:invitation.scope==='game'?'game':'table',gameId:invitation.gameId} : undefined);
+            setRoomPanel(invitation.scope==='room'?'chat':null);clearInvitation();
+          }
           return joined;
         }} /> : room ? <>
         <View testID="room-hero" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderSubtle, borderRadius: 16, padding: 12, gap: 6, marginTop: 8 }}>
@@ -359,7 +378,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
         {!roomTablesLoading && !gameOpen && roomPanel === null && chat.navigation}
         <View style={[styles.columns, { flex: 1 }]}>
           <View style={styles.mainColumn}>
-            <GameRoomNameContext.Provider value={current?.name||room.name}>{session && <RoomGameControl onOpenLedger={target=>{setLedgerTarget(target);setLinkedMatch(undefined);setLinkedEntry(undefined);setRoomPanel("ledger");}} onLoadingChange={setRoomTablesLoading} onReturnToTable={table=>void enterActiveTable(table,'watch')} runtime={shared.runtime} socialChannel={shared.socialChannel} onOpenChange={setGameOpen} onViewChange={setViewedMatch} requestedMatchId={linkedMatch} requestedEntry={linkedEntry && linkedEntry.matchId === linkedMatch ? linkedEntry.action : undefined} personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={current?.connected_members || []} roomMembers={roomMembers} connectionMessage={expired ? shared.error : undefined}
+            <GameRoomNameContext.Provider value={current?.name||room.name}>{session && <RoomGameControl requestedNavigationId={notificationNavigationId} requestedChat={notificationChat} onOpenLedger={target=>{setLedgerTarget(target);setLinkedMatch(undefined);setLinkedEntry(undefined);setRoomPanel("ledger");}} onLoadingChange={setRoomTablesLoading} onReturnToTable={table=>void enterActiveTable(table,'watch')} runtime={shared.runtime} socialChannel={shared.socialChannel} onOpenChange={setGameOpen} onViewChange={setViewedMatch} requestedMatchId={linkedMatch} requestedEntry={linkedEntry && linkedEntry.matchId === linkedMatch ? linkedEntry.action : undefined} personal={personal} key={room.room_id} roomId={room.room_id} apiUrl={apiUrl} token={session.token} userId={session.user_id} pokes={shared.pokes} connected={shared.status === 'connected' && !expired} members={current?.connected_members || []} roomMembers={roomMembers} connectionMessage={expired ? shared.error : undefined}
               presenceKnown={shared.presenceFresh && (current?.presence_status ? current.presence_status === 'observed' : !shared.runtime && !!current?.connected_members)} sessionActive={!expired} gameType={selectedGame} onGameTypeChange={setGame} onEntryError={()=>setTransferring(false)} />}</GameRoomNameContext.Provider>
           </View>
         </View>
@@ -548,10 +567,10 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
           <View style={styles.roomGrid}>{publicRooms.map(roomCard)}</View>
           {!publicRooms.length && <Text style={styles.description}>{ui("rooms.no_public_rooms_yet")}</Text>}
         </RoomSheet>
-        {session && !expired && lobbyTab === 'chat' && <FriendsPanel key={session.user_id + '-chat'} session={session} onlineOnly initialPlayerId={chatPlayer} />}
+        {session && !expired && lobbyTab === 'chat' && <FriendsPanel key={session.user_id + '-chat'} session={session} onlineOnly initialPlayerId={chatPlayer} initialRequestId={chatRequestId} onInitialOpen={()=>{if(invitation?.otherUserId===chatPlayer)clearInvitation();}} />}
         {session && !expired && lobbyTab === 'ledger' && <LobbyLedger session={session} onOpenRoom={target => { requestedLedgerRoom.current = target.room_id; setLinkedMatch(undefined); setLinkedEntry(undefined); setTransferring(false); enterRoom(target); }} />}
         {session && !expired && lobbyTab === 'players' && <View style={styles.playersArea}>
-          <FriendsPanel session={session} friendLimit={6} />
+          <FriendsPanel session={session} initialFriendId={friendNotification} friendLimit={friendNotification?undefined:6} />
         </View>}
         {session && !expired && lobbyTab === 'games' && <ActiveGames runtime={shared.runtime} activity={shared.runtime?.root} onCreateTable={() => setCreateTableOpen(true)} onBrowseRooms={() => {setLobbyTab('rooms');setRoomTab('friends');}} session={session} busy={busy} enter={(table, action) => void enterActiveTable(table, action)} />}
 

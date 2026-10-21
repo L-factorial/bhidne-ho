@@ -11219,3 +11219,96 @@ Capacity, observability, database HA and operational readiness remain deferred.
   missing/failed-image fallback. Winner/maal columns remain centered.
 - Verification: TypeScript and diff checks pass. No browser/native visual check
   or deployment. Exact next step: review Marriage's finished-game summary.
+
+### Direct production deployment — 2026-10-20 (4e825a1)
+
+- User authorized direct deployment of accumulated changes to both application
+  servers. Deployed committed revision 4e825a177594af078113217a6db02edeedca7051.
+  User explicitly approved canceling overlapping GitHub run 39478232362 after
+  automatic review required that approval. Normal cancellation did not complete;
+  force cancellation of the same run completed/cancelled before activation.
+- Built the exact git archive with Dockerfile.production on app1, including client
+  tests, production TypeScript and frontend export. Transferred the immutable image
+  to app2, passed both dependency/schema checks, activated backends sequentially,
+  then activated both frontends. Existing release locks and health/rollback checks
+  retained; previous assets/releases retained. No database migration performed.
+- Both running images and frontend symlinks match
+  sha256:8cd671de2e1bdbe960b73c582df6d215f10be43728af192fa266dfebd988cc23.
+  Both frontend index hashes match
+  4fe86b4638607f41477298162c2995bebc024ee64892dd00b69dff4189fb5145.
+- Production Chrome checks pass at 390/1280px without JavaScript errors. Evidence:
+  /private/tmp/bhidne-4e825a1-{rollout,smoke}.log and app1 build log at
+  /srv/bhidne-prod/builds/4e825a1/build.log.
+- Limitations: no authenticated production gameplay writes or physical iPhone
+  test. Installed iOS apps require a new signed build for client changes; this
+  release updates application servers/web only. Exact next step: refresh web and
+  review gameplay/UI; request a native build separately. Operational work deferred.
+
+### Notification tap destinations and startup retention — 2026-10-20
+
+- User explicitly authorized implementing the reviewed notification navigation
+  plan. Native taps now retain recipient, kind, event and scope through sign-in
+  and runtime startup. Removed session-dependent early discard; newer live taps
+  win over delayed launch reads, duplicate deliveries are suppressed, and OS
+  response acknowledgement is conditional on the handled event. Wrong-account
+  targets show localized feedback without loading the destination.
+- Original UI routes direct chat to the conversation, room chat to its open chat,
+  table/game chat to the exact match and chat scope, and game actions/pokes to
+  fresh table state. Invitations require explicit opening; no tap executes a
+  game action, accepts a request or takes a seat. Stale matches offer an Open
+  room fallback after successful room authorization. Retry/dismiss remain usable.
+- In-app activity preserves context through the same route. Private chat can
+  position its first unread source message when available in loaded history;
+  repeat notifications can reopen the same conversation. Read failures do not
+  prevent navigation. Friend activity opens Friends with the actor highlighted
+  when present. Account changes reset resolved local destinations. Integration
+  screen wiring retains recipient checks and scoped chat choices as well.
+- Push payloads add chat scope, source-notification and table identifiers, plus
+  durable game identity for scoped game chat. Existing server authorization,
+  delivery categories, preferences, expiry and seat ownership are retained.
+  Friend phone pushes remain disabled by the existing producer. No migration.
+- Verification: all 33 PostgreSQL/WASM-backed push/provider/social tests pass.
+  Full client tests, native listener lifecycle tests, TypeScript and diff checks
+  pass; evidence is /private/tmp/bhidne-notification-{client-tests,push-tests,
+  typecheck}.log. Browser fixtures pass direct-chat navigation/read retry at
+  320/390/1280px, room chat, table chat and stale-match fallback. Web/iOS/Android
+  exports pass, including production runtime configuration; bundle evidence is
+  /private/tmp/bhidne-notification-production-bundles.log. Routing contract and
+  device acceptance matrix are in docs/app-notifications.md.
+- Limitations: no signed installation, real-provider lock-screen tap or physical
+  iOS/Android validation, deployment or commit. Integration-screen routing is
+  typechecked/bundled, without separate browser coverage. Older payloads without
+  scope infer room/table only; first-unread positioning falls back to latest
+  when the source is absent from loaded private history.
+- Exact next step: build/install signed iOS and Android packages and execute the
+  notification destination/device-state matrix before release. Server payload
+  additions require deployment when authorized. Capacity, observability,
+  database HA and operational readiness remain deferred.
+
+### iOS table departure ledger handoff — 2026-10-20
+
+- User reported that ending/leaving a table in the iOS app did not open its
+  ledger. Found that returnToLedger cleared live before modal dismissal, changing
+  the conditional provider tree and replacing GameModalRoot before UIKit could
+  deliver onDismiss. The pending navigation therefore never ran on iOS.
+- Keep live and the same modal/provider tree until dismissal; then clear live
+  and open the ledger with retained table/game IDs. An ended-snapshot update
+  cannot interrupt an exit already owning the dismissal. Covers local leave,
+  local end and a remote end while viewing; failed/pending server actions retain
+  existing behavior. No timer fallback or server/ledger mutation changes.
+- Verification: 536 client unit tests, eight iOS-shaped React modal lifecycle
+  tests, TypeScript, web export, production iOS bundle export and diff checks
+  pass. Three new lifecycle cases exercise the actual departure function and
+  ended-snapshot effect with the application's conditional provider shape.
+  A temporary negative-control loader restoring the old behavior fails exactly
+  those three cases; corrected behavior passes all eight. Existing browser suite
+  passes ten scenarios across all games, including failed/pending actions, remote
+  ends, matching ledger selection and empty history. Evidence:
+  /private/tmp/bhidne-ios-ledger-{client,native,negative,browser,export}.log.
+- Limitations: local source/bundle verification only; no signed native package,
+  physical UIKit test, commit or deployment. Existing installed iOS builds do not
+  receive this source change through a server/web deployment.
+- Exact next step: include this fix and pending notification navigation in the
+  next signed iOS build; verify Leave Table, End table/game and remote end on an
+  iPhone, confirming the matching Table Balances card and dismissible ledger.
+  Deferred capacity/observability/database HA/operational work remains deferred.

@@ -39,7 +39,7 @@ function AppContent() {
   const { colors } = useTheme();
   const [invitation, setInvitation] = useState<Invitation | null>(() => Platform.OS === 'web' ? readInvitation(globalThis.location.href) : null);
   const [inRooms, setInRooms] = useState(() => !!readSession(apiUrl) || !!invitation);
-  usePushNavigation(target => {setInvitation(target);setInRooms(true);});
+  const acknowledgePush=usePushNavigation(target => {setInvitation(target);setInRooms(true);setPolicy(null);setDeletionOpen(false);});
   const [recovery, setRecovery] = useState<RecoveryLink | null>(() => Platform.OS === 'web' ? readRecoveryLink(globalThis.location.href) : null);
   const [authVersion, setAuthVersion] = useState(0);
   const [authError, setAuthError] = useState('');
@@ -87,6 +87,7 @@ function AppContent() {
     return () => { subscription.remove(); if (Platform.OS === 'web') globalThis.removeEventListener('hashchange', onHashChange); };
   }, []);
   function dismissInvitation() {
+    acknowledgePush(invitation?.eventId);
     setInvitation(null);
     if (Platform.OS === 'web') { const url = new URL(globalThis.location.href); url.searchParams.delete('room'); url.searchParams.delete('match'); globalThis.history.replaceState(null, '', url.toString()); }
   }

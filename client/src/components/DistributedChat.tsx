@@ -9,10 +9,10 @@ import type {SelectedTable} from '../multiplayer/DistributedControls';
 import type {CommandTarget} from '../multiplayer/DurableCommandClient';
 import {useDistributedController} from '../multiplayer/useDistributedController';
 import {useTheme} from '../theme';
-export function DistributedChat({root,view}:{root:DistributedRootRuntime;view:SelectedTable}) {
+export function DistributedChat({root,view,initialScope='table_chat'}:{root:DistributedRootRuntime;view:SelectedTable;initialScope?:'room_chat'|'table_chat'|'game_chat'}) {
   useUiLanguage();
   const {colors}=useTheme();
-  const [scope,setScope]=useState<'room_chat'|'table_chat'|'game_chat'>('table_chat');
+  const [scope,setScope]=useState<'room_chat'|'table_chat'|'game_chat'>(initialScope);
   const [text,setText]=useState(''),[items,setItems]=useState<{id:string;text:string;sender_id:string}[]>([]),[error,setError]=useState('');
   const {controller,state,version}=useDistributedController(root,'scoped-chat');
   const target:CommandTarget={kind:scope,room_id:view.room_id};

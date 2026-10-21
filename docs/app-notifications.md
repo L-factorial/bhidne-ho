@@ -87,3 +87,44 @@ foreground elsewhere, background and terminated delivery, notification taps,
 account switching/logout, sound and quiet hours, expired turns and answered
 invitations, token rotation, provider outages and worker restarts. Check both iOS
 sandbox and production builds. These real-provider/device checks remain outstanding.
+
+## Notification destinations
+
+Native response handling retains a valid recipient-bound destination through
+sign-in and runtime startup. The OS launch response is cleared after navigation
+or explicit dismissal, rather than when authentication is temporarily absent.
+A newer live tap wins over a delayed initial-response read. Duplicate response
+IDs are suppressed while the app remains mounted; cleanup prevents an unmounted
+listener from navigating. Different-account destinations show an explanation and
+remain pending until dismissed or the intended account signs in.
+
+| Kind | Destination |
+| --- | --- |
+| Direct chat | Sender's private conversation; first unread message when its source is in loaded history, otherwise latest messages |
+| Room chat | Originating room with chat open |
+| Table chat | Exact match with table chat open |
+| Game chat | Exact match with the durable game chat selected; retain `game_id` when supplied |
+| Poke | Originating match; existing expiry rules prevent replaying old effects |
+| Room/game invitation, created-table invitation | Preview followed by explicit Open room/Open table; tapping alone does not accept an invitation or take a seat |
+| Ready, bid, play, shuffle, cut, deal, review, declare, draw, discard, finish, bet, side_show | Exact match with controls derived from its current authorized snapshot; never execute the old action automatically |
+| Friend request/accepted/rejected | Friends, highlighting the actor when present; pending requests keep their explicit accept/decline controls |
+
+Friend events currently remain in-app notifications; this routing change does
+not enable additional phone push categories. The original UI notification bell
+preserves the same routing context, and failed read acknowledgement does not
+block opening a conversation. Destination readers retain their existing retry
+behavior and acknowledge relevant activity after loading. Unavailable matches
+show feedback, retry/dismiss, and an Open room fallback when the room was read
+successfully. Access failures do not bypass authorization.
+
+Social payloads now include `scope` and `source_notification_id`; table-backed
+payloads include `table_id`, and game chat preserves `game_id` when available.
+No message content is added. Older chat payloads infer room versus table from
+the presence of `match_id`; older pushes cannot recover an omitted game scope.
+Unknown kinds, malformed identifiers and contradictory chat scopes are ignored.
+
+Release checks must exercise each row above from foreground, background, locked
+and terminated states on signed iOS/Android builds. Include signed-out startup,
+wrong-account sign-in, offline retry, duplicate taps, rapid different taps,
+already-open conversations, answered invitations, deleted rooms and expired games.
+Local mock/browser tests and native bundle exports do not replace these checks.

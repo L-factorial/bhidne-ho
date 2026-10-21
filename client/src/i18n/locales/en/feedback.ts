@@ -1,5 +1,10 @@
 // Editable feedback copy. Keep keys and placeholders in sync with the other locale.
 export default {
+  "notification_account": "This notification belongs to another account. Sign in to that account to open it.",
+  "notification_opening": "Opening notification…",
+  "notification_unavailable": "This destination is no longer available.",
+  "notification_chat_unavailable": "This conversation is no longer available. Open Friends to review your connections.",
+
   "taking_you_to_table": "Taking you to your game table…",
   "community_rules_required": "Open Profile and accept the community rules before sending invitations or using chat.",
   "host_start": "Only the table host can start this game. Ask the host to start it.",

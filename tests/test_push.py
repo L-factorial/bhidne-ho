@@ -70,7 +70,7 @@ async def test_committed_game_jobs_generate_only_authorized_actions_and_deduplic
         while await worker.send_one():pass
         assert len(provider.sent)==len(first)
         for device,payload,options in provider.sent:
-            assert set(payload['data'])=={'type','notification_id','user_id','room_id','kind','match_id'}
+            assert set(payload['data'])=={'type','notification_id','user_id','room_id','kind','match_id','table_id'}
             assert 'card_ids' not in str(payload)
     finally:await host.close()
 

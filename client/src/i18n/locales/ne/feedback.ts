@@ -1,5 +1,10 @@
 // Editable feedback copy. Keep keys and placeholders in sync with the other locale.
 export default {
+  "notification_account": "यो सूचना अर्को खाताको हो। खोल्न सोही खातामा साइन इन गर्नुहोस्।",
+  "notification_opening": "सूचना खोलिँदै छ…",
+  "notification_unavailable": "यो गन्तव्य अब उपलब्ध छैन।",
+  "notification_chat_unavailable": "यो कुराकानी अब उपलब्ध छैन। सम्बन्धहरू हेर्न साथीहरू खोल्नुहोस्।",
+
   "taking_you_to_table": "तपाईंलाई खेल टेबलमा लगिँदैछ…",
   "community_rules_required": "निमन्त्रणा पठाउन वा च्याट प्रयोग गर्न प्रोफाइल खोल्नुहोस् र समुदाय नियम स्वीकार गर्नुहोस्।",
   "host_start": "यो खेल टेबलको होस्टले मात्र सुरु गर्न सक्छन्। होस्टलाई सुरु गर्न भन्नुहोस्।",

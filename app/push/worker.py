@@ -142,6 +142,9 @@ class PushWorker:
                 try:
                     await require_contact(c,sender,actor)
                     scope=notice[1].get('scope')
+                    result['scope']=scope
+                    result['game_id']=notice[1].get('game_id')
+                    result['source_notification_id']=str(result['source'])
                     if scope=='direct':
                         from app.durable_games.social import authorize_social,conversation
                         await authorize_social(c,conversation(sender,actor),actor)
@@ -218,6 +221,9 @@ class PushWorker:
         elif row:
             data=dict(type='bhidne_notification',notification_id=str(identity),user_id=f"user-{row['user']}",room_id=row['room'],kind=row['kind'])
             if row['match']:data['match_id']=row['match']
+            for field in ('scope','source_notification_id','game_id'):
+                if row.get(field):data[field]=row[field]
+            if row['table']:data['table_id']=str(row['table'])
             if row.get('other_user_id'):data['other_user_id']=row['other_user_id']
             collapse=hashlib.sha256(f"{row['device']}:{row['table'] or row['source']}".encode()).hexdigest()[:48]
             result=await self.providers.send((row['provider'],row['token'],row['environment']),message(row['kind'],row['locale'],data,row.get('context')),

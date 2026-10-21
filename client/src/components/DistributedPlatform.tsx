@@ -35,7 +35,7 @@ export function DistributedLedger({root,room,session}:{root:DistributedRootRunti
     {state.status==='pending'&&<Retry retry={()=>void controller?.recover()}/>}</>;
 }
 function Retry({retry}:{retry:()=>void}) {return <Pressable accessibilityRole="button" onPress={retry} style={{padding:12}}><Text>{ui("common.pending_action")}</Text></Pressable>;}
-export function DistributedPlatform({root,session}:{root:DistributedRootRuntime;session:Session}) {
+export function DistributedPlatform({root,session,initialPlayerId,initialFriendId,initialRequestId,onInitialOpen}:{root:DistributedRootRuntime;session:Session;initialPlayerId?:string;initialFriendId?:string;initialRequestId?:string;onInitialOpen?:()=>void}) {
   useUiLanguage();
   const {colors}=useTheme();
   const personal=usePlayerPhrases(session,true);
@@ -76,7 +76,7 @@ export function DistributedPlatform({root,session}:{root:DistributedRootRuntime;
     <DisplayNameField session={session}/>
     <PlayerPhrases userId={session.user_id} phrases={personal.phrases} connected={true} loadError={personal.error}
       onSave={personal.save} onRemove={personal.remove} onUpdate={personal.update}/>
-    <FriendsPanel session={session} transport={transport}/>
+    <FriendsPanel session={session} transport={transport} initialPlayerId={initialPlayerId} initialFriendId={initialFriendId} initialRequestId={initialRequestId} onInitialOpen={onInitialOpen}/>
     {state.status==='pending'&&<Retry retry={()=>void controller?.recover()}/>}
     <Text style={{color:colors.text}}>{ui("common.notifications")}</Text>
     {notifications.filter(row=>!row.read).map(row=><View key={row.id}><Text style={{color:colors.text}}>{row.kind.replaceAll('_',' ')}</Text>

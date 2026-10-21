@@ -30,7 +30,13 @@ const site=process.env.TEST_WEB_URL||'http://127.0.0.1:8117';
   await sheet.getByRole('button',{name:'Select room',exact:true}).click();
   const dropdown=page.getByTestId('create-room-dropdown');await dropdown.waitFor();assert.deepEqual(await sheet.boundingBox(),before,'dropdown must not resize creation overlay');
 
-  await dropdown.getByRole('button',{name:'Create in a new room',exact:true}).scrollIntoViewIfNeeded();
+  const options=page.getByTestId('create-room-options');
+  assert.equal(Math.round((await options.boundingBox()).height),144,'show at most three 48px rows');
+  const action=dropdown.getByRole('button',{name:'Create in a new room',exact:true});
+  const pinned=await action.boundingBox();
+  await options.evaluate(el=>{el.scrollTop=el.scrollHeight;});
+  assert.deepEqual(await action.boundingBox(),pinned,'create action stays pinned while options scroll');
+  assert.ok(pinned.y+pinned.height<=1000);
   await page.screenshot({path:`/private/tmp/new-room-option-${width}.png`});
   const box=await dropdown.boundingBox();
   await dropdown.getByRole('button',{name:'Create in a new room',exact:true}).click();
@@ -39,6 +45,15 @@ const site=process.env.TEST_WEB_URL||'http://127.0.0.1:8117';
   await field.fill('A very long room name that must stay inside the fixed dropdown width while typing');
   const after=await dropdown.boundingBox();assert.ok(Math.abs(after.width-box.width)<1);
   assert.ok(Math.abs((await sheet.boundingBox()).width-before.width)<1);
+  if(width<900){
+   await page.setViewportSize({width,height:480});
+   await field.fill('Keyboard visible');
+   await page.waitForFunction(()=>{const input=document.querySelector('input[aria-label="New room name"]');if(!input)return false;const b=input.getBoundingClientRect();return b.top>=0&&b.bottom<=window.innerHeight;});
+   const inputBounds=await field.boundingBox();
+   assert.ok(inputBounds.y>=0&&inputBounds.y+inputBounds.height<=480,'name stays above reduced keyboard viewport');
+   await page.screenshot({path:`/private/tmp/new-room-keyboard-${width}.png`});
+   await page.setViewportSize({width,height:1000});
+  }
   await field.fill('Room 0');
   await page.screenshot({path:`/private/tmp/new-room-input-${width}.png`});
   await dropdown.getByRole('button',{name:'Confirm new room',exact:true}).click();

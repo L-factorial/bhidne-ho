@@ -36,6 +36,9 @@ async def test_notice_commit_push_dedup_and_block_recheck(database,kind,scope):
         assert await worker.send_one()
         assert len(providers.sent)==1
         assert providers.sent[0][1]['data']['kind']==kind
+        assert providers.sent[0][1]['data']['scope']==scope
+        assert providers.sent[0][1]['data']['source_notification_id']
+        if scope=='table':assert providers.sent[0][1]['data']['table_id']==str(UUID(str(game.table.table_id)))
         assert 'text' not in providers.sent[0][1]['data']
         if scope=='direct':assert providers.sent[0][1]['data']['other_user_id']==users[0]
         await queue('one')

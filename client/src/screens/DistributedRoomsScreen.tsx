@@ -1,3 +1,4 @@
+import {recipientMatches} from '../notifications/notificationDestination';
 import {NotificationActionView} from '../components/NotificationActionView';
 import {TableAvatarProvider} from '../components/TableAvatar';
 import {AvatarPicker} from '../components/AvatarPicker';
@@ -78,6 +79,10 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
   const [kind,setKind] = useState<'callbreak'|'marriage'|'flush'>('callbreak'), [capacity,setCapacity] = useState('4');
   const [refresh,setRefresh] = useState(0);
   const [platformOpen,setPlatformOpen] = useState(false), [ledgerOpen,setLedgerOpen] = useState(false);
+  const [notificationConfirmed,setNotificationConfirmed]=useState<string>();
+  const [platformTarget,setPlatformTarget]=useState<Invitation>();
+  const [notificationGameId,setNotificationGameId]=useState<string>();
+  const [notificationChatScope,setNotificationChatScope]=useState<'room_chat'|'table_chat'|'game_chat'>('table_chat');
   const [chatOpen,setChatOpen] = useState(false);
   const [settingsOpen,setSettingsOpen] = useState(false);
   const [inviteOpen,setInviteOpen] = useState(false),[invitees,setInvitees] = useState<string[]>([]);
@@ -162,18 +167,20 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
   },[runtime,selected,refresh]);
 
   useEffect(()=>{
-    if(!runtime||!account||!invitation)return;
+    if(!runtime||!account||!invitation||!recipientMatches(invitation,account.user_id))return;
+    if(invitation.otherUserId){setPlatformTarget(invitation);setPlatformOpen(true);setSelected(null);return;}
+    if(invitation.notificationKind?.endsWith('invitation')&&notificationConfirmed!==(invitation.eventId??invitation.roomId))return;
     let active=true;const abort=new AbortController();
     void (async()=>{
       const ok=await controller.current?.room(invitation.roomId,'enter-room');
       if(!ok||controller.current?.state.status!=='accepted'||!active)return;
       const view=invitation.matchId?await runtime.reads.gameView<Snapshot>(invitation.roomId,invitation.matchId,abort.signal):null;
       if(active&&isCurrentSession(apiUrl,account)){
-        setSelected({room:invitation.roomId,table:view?.table_id??null});dismissInvitation?.();
+        setSelected({room:invitation.roomId,table:view?.table_id??null});setChatOpen(invitation.notificationKind==='chat');setNotificationGameId(invitation.gameId);setNotificationChatScope(invitation.scope==='game'?'game_chat':invitation.scope==='room'?'room_chat':'table_chat');dismissInvitation?.();
       }
     })().catch(e=>{if(active)fail(e);});
     return()=>{active=false;abort.abort();};
-  },[runtime,account,invitation?.roomId,invitation?.matchId]);
+  },[runtime,account,invitation,notificationConfirmed,refresh]);
 
   const button=(label:string,run:()=>void,disabled=false)=><Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled}
     onPress={run} style={{padding:12,minHeight:44,borderRadius: radii.medium,backgroundColor:colors.surface,opacity:disabled?visualStates.disabledOpacity:1}}><Text style={{color:colors.text}}>{label}</Text></Pressable>;
@@ -244,8 +251,8 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
       onAction:(command:string,data?:object)=>{void game(command,data);}};
     return <PushProvider session={account} viewedMatch={snapshot.match_id}><TableAvatarProvider key={account.token} session={account}><NotificationActionView root={runtime??undefined} session={account} action={{kind:'table',roomId:selected.room,matchId:snapshot.match_id!}}/><View style={{flex:1}}>
       {action.status==='pending'&&button(ui("common.pending_action"),()=>void controller.current?.recover())}
-      {button(chatOpen?ui("common.close_chat"):ui("social.chat"),()=>setChatOpen(v=>!v))}
-      {chatOpen&&runtime&&<DistributedChat root={runtime} view={{...snapshot,room_id:selected.room}}/>}
+      {button(chatOpen?ui("common.close_chat"):ui("social.chat"),()=>{setNotificationGameId(undefined);setChatOpen(v=>!v);})}
+      {chatOpen&&runtime&&<DistributedChat key={notificationChatScope} root={runtime} initialScope={notificationChatScope} view={{...snapshot,room_id:selected.room,durable_game_id:notificationGameId??snapshot.durable_game_id}}/>}
       {snapshot.game_type==='flush'?<FlushTable {...common} social={{...social,send:text=>sendPoke(null,text)}} connectionReady={!!runtime}
         onSave={data=>void table('flush-settings',data)} onStart={rules_revision=>start({rules_revision})} onLock={()=>void table('lock')}/>
       :snapshot.game_type==='marriage'?<MarriageTable {...common} social={social} onSave={scoring=>void table('marriage-settings',{scoring})}
@@ -264,7 +271,13 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
     {action.status==='pending'&&button(ui("common.pending_action"),()=>void controller.current?.recover())}
     {button(ui("common.sign_out_label"),()=>void logout(),authBusy)}
     {button(platformOpen?ui("common.close_profile_friends"):ui("common.profile_friends"),()=>setPlatformOpen(v=>!v))}
-    {platformOpen&&runtime&&<DistributedPlatform root={runtime} session={account}/>}
+    {invitation&&!recipientMatches(invitation,account.user_id)&&<><Text accessibilityRole="alert" style={{color:colors.text}}>{ui('feedback.notification_account')}</Text>{button(ui('rooms.dismiss_invitation'),()=>dismissInvitation?.())}</>}
+    {invitation&&recipientMatches(invitation,account.user_id)&&!invitation.otherUserId&&<>
+      <Text style={{color:colors.text}}>{ui('common.notifications')}</Text>
+      {button(ui(invitation.matchId?'common.open_table':'common.open_room'),()=>{setNotificationConfirmed(invitation.eventId??invitation.roomId);setRefresh(v=>v+1);})}
+      {button(ui('rooms.dismiss_invitation'),()=>dismissInvitation?.())}
+    </>}
+    {platformOpen&&runtime&&<DistributedPlatform root={runtime} session={account} initialPlayerId={platformTarget?.notificationKind?.startsWith('friend_')?undefined:platformTarget?.otherUserId} initialFriendId={platformTarget?.notificationKind?.startsWith('friend_')?platformTarget.otherUserId:undefined} initialRequestId={platformTarget?.eventId} onInitialOpen={()=>dismissInvitation?.()}/>}
     {button(inviteOpen?ui("common.close_invitation_choices"):'Invite players',()=>setInviteOpen(v=>!v))}
     {inviteOpen&&<DistributedInvitees session={account} selected={invitees} change={setInvitees}/>}
     {selected?<>
