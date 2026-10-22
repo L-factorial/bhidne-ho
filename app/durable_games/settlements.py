@@ -34,7 +34,7 @@ class Act(Record):
 MODELS = {'create-settlement': Create, 'settlement-action': Act}
 
 
-async def execute(claim):
+async def execute(claim, inbox):
     connection, request, actor, room = claim.connection, claim.entry.request, claim.entry.actor_id, claim.target.room_id
     detail, operation = None, None
     try:
@@ -61,7 +61,7 @@ async def execute(claim):
                 raise ValueError('Settlement balances are invalid or empty.')
             operation = 'create'
         else:
-            row = await (await connection.execute('''SELECT t.payer_id,t.payee_id,t.status
+            row = await (await connection.execute('''SELECT t.payer_id,t.payee_id,t.status,b.table_id,t.amount
                 FROM settlement_transfers t JOIN settlement_batches b USING(batch_id)
                 WHERE b.room_id=%s AND b.batch_id=%s AND t.transfer_id=%s FOR UPDATE OF t,b''',
                 (room, payload.batch_id, payload.transfer_id))).fetchone()
@@ -105,6 +105,18 @@ async def execute(claim):
                 WHEN NOT EXISTS(SELECT 1 FROM settlement_transfers t WHERE t.batch_id=b.batch_id AND t.status<>'RESOLVED') THEN 'RESOLVED'
                 WHEN EXISTS(SELECT 1 FROM settlement_transfers t WHERE t.batch_id=b.batch_id AND t.status='RESOLVED') THEN 'PARTIALLY_RESOLVED'
                 ELSE 'OPEN' END WHERE batch_id=%s''', (batch,))
+        if operation == 'act':
+            from .social_notices import notify
+            recipient = row[1] if payload.action == 'mark-paid' else row[0]
+            if payload.action == 'confirm':
+                await connection.execute("""UPDATE friend_notifications SET read_at=COALESCE(read_at,clock_timestamp())
+                    WHERE user_id=%s AND kind='settlement_requested' AND payload->>'transfer_id'=%s""",
+                    (who,str(payload.transfer_id)))
+            await notify(connection, inbox, actor=actor, recipients=[f'user-{recipient}'],
+                key=f'{payload.transfer_id}:{payload.action}',
+                kind='settlement_requested' if payload.action == 'mark-paid' else 'settlement_accepted',
+                payload=dict(room_id=room, table_id=row[3].hex, batch_id=str(batch),
+                    transfer_id=str(payload.transfer_id), amount=int(row[4])))
         events.append(OutgoingEvent(dict(type='SETTLEMENT_CHANGED', room_id=room, batch_id=str(batch))))
     events.append(OutgoingEvent(dict(type='ROOM_COMMAND_ACK', **outcome), actor))
     await append_lane_events(claim, events)

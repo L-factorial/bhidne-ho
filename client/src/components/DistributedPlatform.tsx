@@ -1,7 +1,7 @@
 import {AppText as Text} from './AppText';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { ui, uiLabel } from '../i18n/copy.ts';
-import { playerError } from '../multiplayer/playerError.ts';
+import { retryingError, playerError } from '../multiplayer/playerError.ts';
 import {useEffect,useMemo,useState} from 'react';
 import {Pressable, View} from 'react-native';
 import {FriendsPanel,type FriendsTransport,type Message} from './FriendsPanel';
@@ -66,7 +66,7 @@ export function DistributedPlatform({root,session,initialPlayerId,initialFriendI
         const recipient=await root.reads.recipient(abort.signal);
         const [items,rooms,tables]=await Promise.all([root.reads.history('social',recipient.lane_id,abort.signal),root.reads.roomInvitations(null,abort.signal),root.reads.tableInvitations(null,abort.signal)]);
         if(!abort.signal.aborted){setNotifications(items.map(row=>({id:row.id,kind:String(row.kind),read:row.read===true})));setInvitations(rooms.items);setInviteCursor(rooms.next_id);setTableInvitations(tables.items);setTableCursor(tables.next_table_id);setError('');}
-      }catch(e){if(!abort.signal.aborted)setError(playerError(e, ui("feedback.could_not_load_notifications")));}
+      }catch(e){if(!abort.signal.aborted)setError(retryingError(e, ui("feedback.could_not_load_notifications")));}
       finally{if(!abort.signal.aborted)timer=setTimeout(load,5000);}
     }
     void load();return()=>{abort.abort();clearTimeout(timer);};
@@ -91,6 +91,6 @@ export function DistributedPlatform({root,session,initialPlayerId,initialFriendI
       {button(ui("common.accept_table_invitation"),()=>void controller?.table({...row,durable_game_id:null},'answer-table-invitation',{invitation_id:row.id,accept:true}))}
       {button(ui("common.decline_table_invitation"),()=>void controller?.table({...row,durable_game_id:null},'answer-table-invitation',{invitation_id:row.id,accept:false}))}</View>)}
     {tableCursor&&button(ui("common.more_table_invitations"),()=>{const abort=new AbortController();void root.reads.tableInvitations(tableCursor,abort.signal).then(page=>{setTableInvitations(old=>[...old,...page.items.filter(item=>!old.some(r=>r.id===item.id))]);setTableCursor(page.next_table_id);}).catch(e=>setError(playerError(e)));})}
-    {!!(error||state.error)&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(state.error||error, 'feedback')}</Text>}
+    {!!(error||state.error)&&<Text activity accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(state.error||error, 'feedback')}</Text>}
   </View>;
 }

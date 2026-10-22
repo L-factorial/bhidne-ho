@@ -37,7 +37,7 @@ async function dragVisibleCard(page, hand) {
   const after = await order(hand);
   assert.notDeepEqual(after, before, `drag should reorder ${source.id} towards ${target.id}`);
   assert.deepEqual([...after].sort(), [...before].sort());
-  assert.equal(await hand.getByRole('button', {name:/^Play /}).count(), 0, 'drag must not select or play');
+  assert.equal(await hand.getByRole('button', {name:'Play selected card',exact:true}).isDisabled(), true, 'drag must not select or play');
   return after;
 }
 function checkGrouping(sequence) {
@@ -59,44 +59,43 @@ function checkGrouping(sequence) {
       const {page} = f, hand = page.getByTestId('player-hand');
       if (await page.getByTestId('hand-attention-collapsed').count()) await page.getByTestId('hand-attention-collapsed').click();
       await hand.getByRole('button', {name:'Flip all cards',exact:true}).click();
-      await hand.getByRole('button', {name:'Hand options',exact:true}).click();
       checkGrouping(await order(hand));
-      for (const mode of ['Card grid view','Arc view']) {
-        await hand.getByRole('radio', {name:mode,exact:true}).click();
+      for (const mode of ['Card grid','Arc']) {
+        await hand.getByRole('radio', {name:mode,exact:true}).click();await page.waitForTimeout(200);
         const after = await dragVisibleCard(page, hand);
-        await hand.getByRole('button', {name:'Group by suit',exact:true}).click();
+        await hand.getByRole('tab', {name:'Auto Arrangement',exact:true}).click();
         const grouped = await order(hand); checkGrouping(grouped);
         assert.notDeepEqual(grouped, after);
       }
-      await hand.getByRole('radio', {name:'Card grid view',exact:true}).click();
+      await hand.getByRole('radio', {name:'Card grid',exact:true}).click();
       const manual = await order(hand);
       const rectangles = await hand.getByTestId(/^callbreak-hand-card-/).evaluateAll(nodes => nodes.map(node => {
         const b = node.getBoundingClientRect(); return {width:b.width,height:b.height,text:node.textContent};
       }));
       for (const rect of rectangles) {
-        assert.equal(rect.width, 56); assert.equal(rect.height, 80);
+        assert.ok(rect.width > 0 && rect.width <= 56); assert.ok(rect.height > 0 && rect.height <= 80);
         assert.doesNotMatch(rect.text, /Spades|Hearts|Clubs|Diamonds/);
       }
       await hand.getByRole('button', {name:'Hide cards',exact:true}).click();
-      await hand.getByRole('button', {name:'Show cards',exact:true}).click();
+      await hand.getByRole('button', {name:'Show cards',exact:true}).first().click();
       assert.deepEqual(await order(hand), manual);
       await page.getByTestId('hand-attention-expanded').click();
       await page.getByTestId('hand-attention-collapsed').click();
       assert.deepEqual(await order(hand), manual);
       if (myTurn) {
         await hand.getByRole('button', {name:'Select 2S',exact:true}).click();
-        assert.equal(await hand.getByRole('button', {name:'Play 2S',exact:true}).count(), 1);
-        await hand.getByRole('button', {name:'Cancel card selection',exact:true}).click();
+        assert.equal(await hand.getByRole('button', {name:'Play selected card',exact:true}).isEnabled(), true);
+        await hand.getByRole('button', {name:'Select 2S',exact:true}).click();
       } else {
         await hand.getByRole('button', {name:'Select 2S',exact:true}).click({force:true});
-        assert.equal(await hand.getByRole('button', {name:/^Play /}).count(), 0);
+        assert.equal(await hand.getByRole('button', {name:'Play selected card',exact:true}).isDisabled(), true);
       }
       await hand.getByRole('button', {name:'Select 3C',exact:true}).click();
-      assert.equal(await hand.getByRole('button', {name:/^Play /}).count(), 0);
+      assert.equal(await hand.getByRole('button', {name:'Play selected card',exact:true}).isDisabled(), true);
       await page.screenshot({path:`/private/tmp/bhidne-callbreak-drag-${width}-${myTurn}.png`});
       assert.ok(f.writes.every(p => !p.endsWith('/action')), 'reordering must remain local');
       assert.deepEqual(f.errors, []);
-      console.log(`PASS ${width}: fan/grid dragging, fixed card proportions, turn=${myTurn} and guarded play`);
+      console.log(`PASS ${width}: fan/grid dragging, responsive card sizes, turn=${myTurn} and guarded play`);
       await f.context.close();
     }
     }

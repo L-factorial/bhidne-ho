@@ -1,5 +1,12 @@
 // Editable common copy. Keep keys and placeholders in sync.
 export default {
+  "signup_username_length": "३–३२ अक्षर",
+  "signup_username_characters": "अङ्ग्रेजी अक्षर (A–Z) र अङ्क (0–9) मात्र",
+  "signup_username_start": "अक्षरबाट सुरु हुनुपर्छ",
+  "signup_password_length": "कम्तीमा ८ अक्षर · जुनसुकै अक्षर प्रयोग गर्न सकिन्छ",
+  "signup_email_format": "इमेल ढाँचा: name@example.com",
+  "signup_password_matches": "पासवर्डसँग मिल्छ",
+
   rules_proposed: "नियम परिवर्तन प्रस्ताव गरिएको छ।",
   config_updated: 'अर्को खेलका लागि कन्फिग परिवर्तन भयो।',
   next_field: 'अर्को फिल्ड',

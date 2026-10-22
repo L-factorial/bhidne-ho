@@ -1,5 +1,10 @@
 // Editable Nepali callbreak copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "hide_hand": "लुकाउने",
+  "show_hand": "देखाउने",
+  "play_selected_card": "छानेको पत्ता खेल्ने",
+  "arrange_throw_hint": "मिलाउन तान्नुहोस्। आफ्नो पालोमा मिल्ने पत्ता माथितिर फ्याँकेर खेल्नुहोस्।",
+
   "summary_round_label": "राउन्ड",
   "summary_bid_won": "बोल / जितेका हात",
   "summary_dealer": "बाँड्ने: {{player}}",

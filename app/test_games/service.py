@@ -133,6 +133,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
         self.command_runtime = command_runtime or CommandRuntime()
         self.games: dict[str, HostedGame] = {}
         self.tables: dict[str, dict[str, HostedGame]] = {}
+        self.table_created_at: dict[str, float] = {}
         self._catalog_lock = asyncio.Lock()
         self._random = SystemRandom()
         self.instance_id = uuid4().hex
@@ -496,6 +497,7 @@ class TestGameService(GameTableLifecycle, RuleProposals):
             if any(g.name.casefold() == normalized.casefold() and not g.ended for g in self._room_games(room_id)):
                 raise HTTPException(409, "An open table with that name already exists in this room.")
             game = HostedGame(room_id, capacity, [user_id], name=normalized, game_type=game_type, card_theme=card_theme)
+            self.table_created_at[game.table.table_id] = time()
             if game_type == "flush": game.flush_seats[user_id] = 1
             self.tables.setdefault(room_id, {})[game.match_id] = game
             self.games[room_id] = game  # Legacy default: most recently created table.

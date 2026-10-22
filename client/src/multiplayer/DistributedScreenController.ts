@@ -1,4 +1,5 @@
-import { playerError } from './playerError.ts';
+import {isActivityCopy} from './activityCopy.ts';
+import { retryingError, playerError } from './playerError.ts';
 import type { DurableCommandClient, DurableReceipt, Json, CommandTarget } from './DurableCommandClient.ts';
 import { gameControl, tableControl, roomControl, chatControl, readNotifications, friendshipControl, settlementControl } from './DistributedControls.ts';
 import type { SelectedTable } from './DistributedControls.ts';
@@ -45,7 +46,8 @@ export class DistributedScreenController {
     const receipt = this.command.latest;
     return {status:this.command.pending?'pending':receipt?.status??'idle',busy:this.command.pending||this.active!==null,
       commandId:this.command.request?.body.command_id??null,receipt,
-      error:receipt?.status==='rejected' && 'outcome' in receipt ? playerError(receipt.outcome?.detail || 'Action rejected.'):this.error};
+      error:receipt?.status==='rejected' && 'outcome' in receipt ? playerError(receipt.outcome?.detail || 'Action rejected.'):
+        !this.command.pending && isActivityCopy(this.error) ? '' : this.error};
   }
   private update() {
     if (this.disposed) return;
@@ -70,7 +72,7 @@ export class DistributedScreenController {
     this.armed=this.command.request?.body.command_id??null;
     const abort=new AbortController();this.active=abort;this.error='';this.update();
     try { await this.command.reconcile(abort.signal); }
-    catch (e) { if (!abort.signal.aborted) this.error=playerError(e, this.command.pending ? playerError('Waiting for confirmation.') : undefined); }
+    catch (e) { if (!abort.signal.aborted) this.error=this.command.pending ? retryingError(e) : playerError(e); }
     finally { this.active=null;this.update(); }
   }
   game(view: SelectedTable, command: string, payload: Payload = {}) { return this.submit(()=>gameControl(this.command,view,command,payload)); }

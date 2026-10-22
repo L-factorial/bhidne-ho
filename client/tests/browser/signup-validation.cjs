@@ -1,0 +1,52 @@
+// Isolated sign-up presentation only. No account creation or live requests.
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+const assert=require('node:assert/strict');
+const site=process.env.TEST_WEB_URL||'http://127.0.0.1:8119';
+(async()=>{const browser=await chromium.launch({channel:'chrome',headless:true});try{
+ for(const width of [320,390,1280]){
+  const context=await browser.newContext({viewport:{width,height:width===390?1240:1000}}),p=await context.newPage();p.setDefaultTimeout(12000);
+  const errors=[],writes=[];p.on('pageerror',e=>errors.push(e.message));
+  await context.addInitScript(()=>localStorage.setItem('bhidne.language','en'));
+  await context.route(site+'/**',async route=>{const req=route.request(),path=new URL(req.url()).pathname;
+   if(path==='/'||path.startsWith('/assets/')||path.startsWith('/_expo/')||path==='/favicon.ico')return route.continue();
+   if(req.method()!=='GET')writes.push(path);
+   await route.fulfill({json:path==='/auth/safety/capabilities'?{blocking:false,reporting:true}:[]});
+  });
+  await p.goto(site);await p.getByRole('button',{name:'Sign in or sign up',exact:true}).click();
+  await p.getByRole('button',{name:'Continue with username or email',exact:true}).click();
+  assert.equal(await p.getByTestId(/^signup-validation-/).count(),0,'login has no signup hints');
+  await p.getByRole('button',{name:'Sign up',exact:true}).click();await p.getByRole('button',{name:'Sign up with username or email',exact:true}).click();
+  const username=p.getByRole('textbox',{name:'Username',exact:true}),email=p.getByRole('textbox',{name:'Email',exact:true});
+  const password=p.getByLabel('Password',{exact:true}),confirm=p.getByLabel('Confirm password',{exact:true});
+  const rule=name=>p.getByTestId('signup-rule-'+name);
+  const rows=p.getByTestId(/^signup-rule-/);
+  assert.equal(await rows.count(),6);
+  assert.ok((await rows.allTextContents()).every(text=>text.startsWith('○')));
+  assert.equal(await p.getByRole('button',{name:'Create account',exact:true}).isDisabled(),true);
+  await p.evaluate(()=>document.fonts.ready);
+  if(width===390)await p.screenshot({path:'/private/tmp/bhidne-signup-validation-neutral.png',fullPage:true});
+  await username.fill('2Alex');await email.fill('alex@example.com');await password.fill('short');
+  assert.match(await rule('signup_username_length').innerText(),/^✓/);assert.match(await rule('signup_username_characters').innerText(),/^✓/);
+  assert.match(await rule('signup_username_start').innerText(),/^×/);assert.match(await rule('signup_email_format').innerText(),/^✓/);
+  assert.match(await rule('signup_password_length').innerText(),/^×/);assert.match(await rule('signup_password_matches').innerText(),/^○/);
+  assert.notEqual(await rule('signup_username_start').evaluate(n=>getComputedStyle(n).color),await rule('signup_username_length').evaluate(n=>getComputedStyle(n).color));
+  await username.evaluate(n=>n.blur());await password.evaluate(n=>n.blur());
+  if(width===390)await p.screenshot({path:'/private/tmp/bhidne-signup-validation-mixed.png',fullPage:true});
+  await username.fill('Alex2026');await password.fill('Example-password-123');await confirm.fill('different');
+  assert.match(await rule('signup_password_matches').innerText(),/^×/);
+  await confirm.fill('Example-password-123');assert.ok((await rows.allTextContents()).every(text=>text.startsWith('✓')));
+  await p.getByRole('checkbox',{name:'I agree to the community rules',exact:true}).click();
+  assert.equal(await p.getByRole('button',{name:'Create account',exact:true}).isEnabled(),true);
+  if(width===390)await p.screenshot({path:'/private/tmp/bhidne-signup-validation-valid.png',fullPage:true});
+  await email.fill('not-an-email');assert.match(await rule('signup_email_format').innerText(),/^×/);
+  assert.equal(await p.getByRole('button',{name:'Create account',exact:true}).isDisabled(),true);
+  await email.fill('alex@example.com');await username.fill('Alex_2026');assert.match(await rule('signup_username_characters').innerText(),/^×/);
+  assert.equal(await p.getByRole('button',{name:'Create account',exact:true}).isDisabled(),true);
+  await username.fill('');assert.ok((await p.getByTestId('signup-validation-username').getByTestId(/^signup-rule-/).allTextContents()).every(text=>text.startsWith('○')));
+  await p.getByRole('button',{name:'Sign in',exact:true}).first().click();await p.getByRole('button',{name:'Continue with username or email',exact:true}).click();
+  assert.equal(await p.getByTestId(/^signup-validation-/).count(),0);
+  await p.getByRole('textbox',{name:'Username or email',exact:true}).fill('1_legacy-user');await p.getByLabel('Password',{exact:true}).fill('legacy12');
+  assert.equal(await p.getByRole('button',{name:'Sign in',exact:true}).last().isEnabled(),true,'legacy username sign-in remains enabled');
+  assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);await context.close();console.log(`PASS ${width}: neutral/live rules, mixed and valid states, confirm mismatch, legacy login unaffected, no writes`);
+ }
+}finally{await browser.close();}})().catch(e=>{console.error(e);process.exit(1)});

@@ -8,7 +8,7 @@ import { CommunityRulesEntry, useCommunityRulesGate } from './moderation/Communi
 import { ReportButton } from './Moderation';
 import { useBlocking } from './PlayerBlocking';
 import { usePersistentNotice } from '../multiplayer/usePersistentNotice';
-import { playerError } from '../multiplayer/playerError.ts';
+import { retryingError, playerError } from '../multiplayer/playerError.ts';
 import { ui } from '../i18n/copy.ts';
 import { Ionicons } from '@expo/vector-icons';
 import { ChatMessage } from './ChatMessage';
@@ -91,7 +91,7 @@ export function useRoomChat({ roomId, session, connected, onlineIds, hideWhenBlo
           const paused = failure instanceof ApiError && failure.status === 403 && failure.message.startsWith('Chat is paused');
           setBlocked(paused);
           if (paused) { setOpen(false); setMessages([]); setUnread(0); previousIds.current = null; }
-          setLoadError(playerError(failure, ui("feedback.could_not_load_chat")));
+          setLoadError(retryingError(failure, ui("feedback.could_not_load_chat")));
         }
       } finally {
         if (!controller.signal.aborted){clearTimeout(timer);timer = setTimeout(refresh, unsubscribe?30000:1000);}
@@ -125,7 +125,7 @@ export function useRoomChat({ roomId, session, connected, onlineIds, hideWhenBlo
           {visibleMessages.map(message => <ChatMessage delivery={message.delivery} sendError={message.send_error} onRetry={message.can_retry?()=>outgoing.retry(message.retry_id!):undefined} tableStyle key={message.id} message={message} own={message.sender_id === session.user_id} action={<ReportButton menu session={session} enabled={blocking.reporting} scope="chat" messageId={message.id} player={{user_id: message.sender_id, display_name: message.sender_name}} />} />)}
         </ScrollView>
         {reconnecting && <Text style={styles.note}>{t('chat.reconnecting')}</Text>}
-        {!!visibleError && <Text accessibilityRole="alert" style={styles.error}>{visibleError}</Text>}
+        {!!visibleError && <Text activity accessibilityRole="alert" style={styles.error}>{visibleError}</Text>}
         <CommunityRulesEntry session={session} />
         <ChatComposer onComposeActivity={chatScroll.showLatest} value={draft} onChange={setDraft} onSend={() => void send()} disabled={busy || !connected} label={t('chat.title')} placeholder={t('chat.placeholder')} />
       </View>

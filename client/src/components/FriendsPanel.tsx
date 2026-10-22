@@ -16,7 +16,7 @@ import { preserveRemovals } from './moderation/messages';
 import { CommunityRulesEntry, useCommunityRulesGate } from './moderation/CommunityRules';
 import { ReportButton } from './Moderation';
 import { BlockPlayerButton, useBlocking } from './PlayerBlocking';
-import { playerError } from '../multiplayer/playerError.ts';
+import { retryingError, playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { visualStates, radii, gameControlFinish, gamePanelFinish, typography, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
@@ -112,7 +112,7 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
       try {
         const rows=await request<Conversation[]>('/friends/conversations',session,undefined,signal);
         if(!signal?.aborted){setConversations(rows);setConversationError('');}
-      } catch(failure){if(!signal?.aborted)setConversationError(playerError(failure,ui('social.conversations_unavailable')));}
+      } catch(failure){if(!signal?.aborted)setConversationError(retryingError(failure,ui('social.conversations_unavailable')));}
     }
     return value;
   }
@@ -120,7 +120,7 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
     const controller = new AbortController(); let timer: ReturnType<typeof setTimeout>;
     async function poll() {
       try { await refresh(controller.signal); if (!controller.signal.aborted) setError(''); }
-      catch (failure) { if (!controller.signal.aborted) { setSnapshot(current => ({...current, online_friend_ids: []})); setError(playerError(failure, ui("feedback.could_not_load_friends"))); } }
+      catch (failure) { if (!controller.signal.aborted) { setSnapshot(current => ({...current, online_friend_ids: []})); setError(retryingError(failure, ui("feedback.could_not_load_friends"))); } }
       finally { if (!controller.signal.aborted) timer = setTimeout(poll, 3000); }
     }
     void poll(); return () => { controller.abort(); clearTimeout(timer); };
@@ -145,7 +145,7 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
           const fresh=value.filter(message=>freshIds.includes(`${selected!.user_id}:${message.id}`)&&message.sender_id!==session.user_id);
           if(fresh?.length)playSound('chat',`chat:${fresh.at(-1)!.id}`);
           setMessages(current=>preserveRemovals(current,value));setViewedConversation(selected!.user_id); setError(''); }
-      } catch (failure) { if (!controller.signal.aborted) setError(playerError(failure, ui("feedback.could_not_load_messages"))); }
+      } catch (failure) { if (!controller.signal.aborted) setError(retryingError(failure, ui("feedback.could_not_load_messages"))); }
       finally { if (!controller.signal.aborted) timer = setTimeout(poll, 1500); }
     }
     void poll(); return () => { controller.abort(); clearTimeout(timer); };
@@ -244,7 +244,7 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
       <View style={{flexDirection:'row',alignItems:'center',gap:20}}><Text accessibilityRole="header" style={styles.heading}>{ui('social.conversations')}</Text>
         <View style={styles.searchField}><Ionicons name="search-outline" size={16} color={colors.textMuted}/><FormInput testID="chat-friend-search" accessibilityLabel={ui('social.searching_friends')} placeholder={ui('social.searching_friends')} placeholderTextColor={colors.textMuted} value={friendQuery} onChangeText={setFriendQuery} maxLength={50} autoCapitalize="none" style={[styles.input,{padding:8,fontSize:12}]}/></View>
       </View>
-      {!!conversationError && <Text accessibilityRole="alert" style={styles.error}>{conversationError}</Text>}
+      {!!conversationError && <Text activity accessibilityRole="alert" style={styles.error}>{conversationError}</Text>}
       {!friendQuery.trim() && !conversationError && !conversations.length && <Text style={styles.detail}>{ui('social.no_conversations')}</Text>}
       {!!friendSearch && !matchingFriends.length && <Text style={styles.detail}>{ui('social.no_matching_friends')}</Text>}
       <View testID="chat-conversations" style={{gap:10}}>{conversationRows.map(({user_id,message})=>{
@@ -276,7 +276,7 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
     {rules.view}
     {selected && <RoomSheet visible title={ui("social.chat_with_player", { "player": label(selected) })} closeLabel={ui("common.close_private_chat")} onClose={() => setSelected(null)} scrollable={false}
       footer={<FormFooter>
-        {!!(sendError || error) && <Text accessibilityRole="alert" style={styles.error}>{sendError || error}</Text>}
+        {!!(sendError || error) && <Text activity accessibilityRole="alert" style={styles.error}>{sendError || error}</Text>}
         {!available && <Text style={styles.detail}>{ui("social.friend_unavailable")}</Text>}
         <CommunityRulesEntry session={session} />
         <ChatComposer onComposeActivity={chatScroll.showLatest} value={draft} onChange={value => setDrafts(current => ({ ...current, [selected.user_id]: value }))}

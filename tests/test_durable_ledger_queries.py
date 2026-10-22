@@ -20,6 +20,10 @@ async def test_ledger_read_never_performs_pending_settlement(database):
         jobs_after = (await pool.execute('SELECT * FROM game_finalization_jobs')).rows
         result = await queries.snapshot('room', users[0])
         assert result['tables'][0]['table_name'] == game.name
+        created = (await pool.execute('SELECT created_at FROM room_tables WHERE table_id=%s', (game.table.table_id,))).rows[0][0]
+        assert result['record_tables'][0]['created_at'] == created.isoformat()
+        started = (await pool.execute('SELECT started_at FROM games WHERE id=%s', (game.durable_game_id,))).rows[0][0]
+        assert result['record_tables'][0]['games'][0]['created_at'] == started.isoformat()
         assert (await pool.execute('SELECT * FROM game_finalization_jobs')).rows == jobs_after
     finally:
         await host.close()

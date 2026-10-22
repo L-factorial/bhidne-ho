@@ -66,3 +66,19 @@ test('legacy lobby aliases select table versus engine lanes explicitly',async()=
 test('invalid room fields are rejected before journaling an unresolved request',async()=>{
  const f=setup({submit:async()=>assert.fail(),status:async()=>assert.fail()});assert.equal(await f.screen.createRoom('  ','private'),false);assert.equal(f.c.request,null);assert.equal(f.screen.state.error,'Enter a room name.');f.screen.dispose();
 });
+
+for(const kind of ['flush','marriage','callbreak']) test(`${kind}: lost response shows activity until background recovery resolves the original command`,async()=>{
+ const {isActivityCopy}=await import('../src/multiplayer/activityCopy.ts');
+ let original,attempts=0;
+ const f=setup({submit:async request=>{
+  if(!original)original=request;
+  assert.deepEqual(request,original);
+  if(++attempts===1)throw Error('temporary gateway failure');
+  return receipt(request.body);
+ },status:async()=>assert.fail()});
+ await f.screen.game(view(kind),kind==='callbreak'?'PLAY_CARD':'FOLD');
+ assert.equal(f.c.pending,true);assert.equal(isActivityCopy(f.screen.state.error),true);
+ await f.c.reconcile();
+ assert.equal(f.screen.state.status,'accepted');assert.equal(f.screen.state.error,'');
+ assert.equal(f.navigation.length,1);assert.equal(attempts,2);f.screen.dispose();
+});

@@ -14,7 +14,7 @@ export default {
   requested: 'If that username has a verified recovery email, a reset link will arrive shortly. Check your spam folder too.',
   verify: 'Verify email', verifyHelp: 'Confirm this email address for password recovery.',
   verified: 'Email verified. You can now sign in with this email and your existing password, or recover your account.',
-  reset: 'Reset password', resetHelp: 'Choose a new password with 8–128 characters. This signs out all existing sessions.',
+  reset: 'Reset password', resetHelp: 'Choose a new password with at least 8 characters. Spaces and symbols are welcome. This signs out all existing sessions.',
   resetDone: 'Password changed. Sign in again with your new password.',
   newPassword: 'New password', currentPassword: 'Current password',
   save: 'Send verification email', sent: 'Verification requested. Check your inbox and spam folder. Links expire after 30 minutes.',

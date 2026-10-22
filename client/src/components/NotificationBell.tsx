@@ -2,7 +2,7 @@ import {useFreshSoundEvents} from '../notifications/useFreshSoundEvents';
 import {useForegroundSound} from '../notifications/useForegroundSound';
 import {acknowledgeNotificationAction, onNotificationsAcknowledged} from '../multiplayer/useNotificationAction';
 import {AppText as Text} from './AppText';
-import { playerError } from '../multiplayer/playerError.ts';
+import { retryingError, playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useEffect, useRef, useState } from 'react';
@@ -14,7 +14,7 @@ import { radii, fonts, useTheme, useThemedStyles, type ThemeColors } from '../th
 import type {Invitation} from '../multiplayer/invitations';
 
 type Player = { user_id: string; display_name: string; username?: string | null };
-type Notification = { id: string; kind: 'friend_request' | 'friend_accepted' | 'friend_rejected' | 'chat' | 'poke'; payload?: {room_id?:string;match_id?:string;scope?:string;source_id?:string;game_id?:string;room_name?:string;table_name?:string}; actor: Player; created_at: number; read: boolean };
+type Notification = { id: string; kind: 'friend_request' | 'friend_accepted' | 'friend_rejected' | 'chat' | 'poke' | 'settlement_requested' | 'settlement_accepted'; payload?: {batch_id?:string;transfer_id?:string;table_id?:string;amount?:number;room_id?:string;match_id?:string;scope?:string;source_id?:string;game_id?:string;room_name?:string;table_name?:string}; actor: Player; created_at: number; read: boolean };
 type FriendSnapshot = { incoming: Player[] };
 type TableInvitation = { room_notification?:boolean; id: string; room_id: string; room_name: string; match_id: string; table_name: string; game_type: 'callbreak' | 'marriage' | 'flush'; inviter_id: string; inviter?: Player; created_at: number; seated: number; capacity: number; seat_available: boolean };
 type RoomInvitation = { id: string; room_id: string; room_name: string; inviter_id: string; inviter?: Player };
@@ -36,6 +36,7 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
   const freshInvitations=useFreshSoundEvents(session.token);
   const freshDirectChat=useFreshSoundEvents(session.token);
   const [clearing, setClearing] = useState(false);
+  const [accepting, setAccepting] = useState<string>();
 
   async function refresh(signal?: AbortSignal) {
     const version = refreshVersion.current;
@@ -57,7 +58,7 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
         if(freshChat.length)playSound('chat',`chat:${freshChat.at(-1)}`);
         setItems([...requests, ...value.filter(item => !item.read && item.kind !== 'friend_request')]); setTableInvitations(invitations); setRoomInvitations(rooms); setError(''); }
     } catch (failure) {
-      if (!signal?.aborted) setError(playerError(failure, ui("feedback.could_not_load_notifications")));
+      if (!signal?.aborted) setError(retryingError(failure, ui("feedback.could_not_load_notifications")));
     }
   }
   useEffect(() => {
@@ -84,6 +85,19 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
       setError('');
     } catch (failure) { setError(playerError(failure, ui("feedback.could_not_update_notifications"))); }
     finally { setClearing(false); }
+  }
+  async function acceptSettlement(item: Notification) {
+    const payload = item.payload;
+    if (accepting || !payload?.room_id || !payload.batch_id || !payload.transfer_id) return;
+    setAccepting(item.id);
+    try {
+      await request(`/rooms/${encodeURIComponent(payload.room_id)}/ledger/settlements/${encodeURIComponent(payload.batch_id)}/transfers/${encodeURIComponent(payload.transfer_id)}/confirm`, session, {idempotency_key:`accept:${item.id}`});
+      await request('/notifications/read', session, {ids:[item.id]});
+      refreshVersion.current++;
+      setItems(current => current.filter(row => row.id !== item.id));
+      setError('');
+    } catch (failure) { setError(playerError(failure,ui('feedback.could_not_update_settlement'))); }
+    finally { setAccepting(undefined); }
   }
   async function answerRequest(player: Player, accept: boolean) {
     try {
@@ -156,10 +170,11 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
                 <Pressable accessibilityRole="button" onPress={() => void answerTable(invitation, false)} style={styles.decline}><Text style={styles.link}>{ui("common.decline")}</Text></Pressable>
               </View>
             </View>)}
-            {items.map(item => <View key={item.id} style={[styles.notice, !item.read && styles.unread]}>
+            {items.map(item => <View key={item.id} style={[styles.notice, !item.read && styles.unread, item.kind.startsWith('settlement_') && styles.settlementNotice]}>
               <View style={styles.avatar}><Text style={styles.avatarText}>{playerName(item.actor).slice(0, 1).toUpperCase()}</Text></View>
-              <View style={{ flex: 1 }}><Text style={styles.name}>{playerName(item.actor)} {item.kind === 'friend_request' ? ui("social.sent_you_a_connection_request") : item.kind === 'friend_accepted' ? ui("social.accepted_your_connection_request") : item.kind === 'chat' ? ui("social.sent_you_a_chat_message") : item.kind === 'poke' ? ui("social.poked_you") : ui("social.declined_your_connection_request")}</Text>
-                <Text style={styles.detail}>{[item.payload?.room_name,item.payload?.table_name].filter(Boolean).join(" → ")}</Text><Text style={styles.detail}>{new Date(item.created_at).toLocaleString()}</Text></View>
+              <View style={item.kind.startsWith('settlement_') ? {width:'100%',minWidth:0} : {flex:1}}><Text style={styles.name}>{playerName(item.actor)} {item.kind === 'settlement_requested' ? ui('ledger.settlement_requested') : item.kind === 'settlement_accepted' ? ui('ledger.settlement_accepted') : item.kind === 'friend_request' ? ui("social.sent_you_a_connection_request") : item.kind === 'friend_accepted' ? ui("social.accepted_your_connection_request") : item.kind === 'chat' ? ui("social.sent_you_a_chat_message") : item.kind === 'poke' ? ui("social.poked_you") : ui("social.declined_your_connection_request")}</Text>
+                <Text style={styles.detail}>{[item.payload?.room_name,item.payload?.table_name,item.payload?.amount].filter(value => value !== undefined && value !== '').join(" · ")}</Text><Text style={styles.detail}>{new Date(item.created_at).toLocaleString()}</Text></View>
+              {item.kind === 'settlement_requested' && <Pressable accessibilityRole="button" disabled={!!accepting} accessibilityState={{disabled:!!accepting}} onPress={() => void acceptSettlement(item)} style={styles.accept}><Text style={styles.acceptText}>{ui('ledger.accept_settlement')}</Text></Pressable>}
               {item.kind === 'friend_request' && <View style={styles.requestActions}>
                 <Pressable accessibilityRole="button" onPress={() => void answerRequest(item.actor, true)} style={styles.accept}><Text style={styles.acceptText}>{ui("common.accept")}</Text></Pressable>
                 <Pressable accessibilityRole="button" onPress={() => void answerRequest(item.actor, false)} style={styles.decline}><Text style={styles.link}>{ui("common.decline")}</Text></Pressable>
@@ -187,5 +202,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   markRead: { alignSelf: 'flex-end', minHeight: 40, justifyContent: 'center' }, list: { maxHeight: 440 }, notice: { flexDirection: 'row', gap: 10, paddingVertical: 13, borderBottomWidth: 1, borderColor: colors.border },
   unread: { backgroundColor: colors.surfaceSelected, marginHorizontal: -8, paddingHorizontal: 8, borderRadius: radii.medium }, avatar: { width: 36, height: 36, borderRadius: radii.large, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }, avatarText: { fontFamily: fonts.medium, color: colors.accent },
   name: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 19, color: colors.text }, empty: { paddingVertical: 36, alignItems: 'center', gap: 5 }, error: { color: colors.danger, fontFamily: fonts.body, fontSize: 11 },
+  settlementNotice: {flexDirection:'column',alignItems:'flex-start'},
   requestActions: { alignItems: 'stretch', gap: 4 }, accept: { minHeight: 34, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', borderRadius: radii.medium, backgroundColor: colors.primary }, acceptText: { fontFamily: fonts.medium, fontSize: 11, color: colors.onPrimary }, decline: { minHeight: 34, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center' },
 });

@@ -21,6 +21,6 @@ export function DistributedRoomSettings({root,room,session}:{root:DistributedRoo
     {friends.map(friend=><View key={friend.user_id}>{button(ui("rooms.invite_player", {player: friend.display_name}),()=>void controller?.room(room,'invite-room',{recipients:[friend.user_id]}))}</View>)}
     {confirm?button(ui("common.confirm_delete_room"),()=>void controller?.room(room,'delete-room')):button(ui("rooms.delete_room"),()=>setConfirm(true))}
     {state.status==='pending'&&button(ui("common.pending_action"),()=>void controller?.recover())}
-    {!!(error||state.error)&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(state.error||error, 'feedback')}</Text>}
+    {!!(error||state.error)&&<Text activity accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(state.error||error, 'feedback')}</Text>}
   </View>;
 }

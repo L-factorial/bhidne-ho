@@ -39,18 +39,19 @@ const site=process.env.TEST_WEB_URL||'http://127.0.0.1:8108';
    await page.goto(site);
    const loader=page.getByTestId('room-tables-loading');await loader.waitFor();
    assert.equal(await page.getByRole('button',{name:'Create game',exact:true}).count(),0);
-   const label=loader.getByText('Loading tables…',{exact:true});
-   assert.equal(await label.evaluate(el=>getComputedStyle(el).fontSize),'12px');
-   const panel=await loader.boundingBox(),text=await label.boundingBox();
-   assert.ok(Math.abs(text.x+text.width/2-panel.x-panel.width/2)<2);
+   await loader.getByTestId('activity-line').waitFor();
    assert.equal(await page.getByText('Updating game…',{exact:true}).count(),0);
    mode='ready';release();await ready.waitFor();
    await loader.waitFor({state:'hidden'});await page.getByRole('button',{name:'Create game',exact:true}).waitFor();
-   mode='failure';await page.reload();await page.getByRole('button',{name:'Retry loading tables',exact:true}).waitFor();
-   assert.equal(await loader.count(),0);
-   mode='ready';await page.getByRole('button',{name:'Retry loading tables',exact:true}).click();
-   await ready.waitFor();assert.deepEqual(errors,[]);
-   await context.close();console.log(`PASS ${width}px: centered loader, normal view after load, failure/retry`);
+   mode='failure';await page.reload();await loader.waitFor();
+   // Let several retries run: transport failures must never become a red alert.
+   await page.waitForTimeout(3500);
+   await loader.getByTestId('activity-line').waitFor();
+   assert.equal(await page.getByRole('button',{name:'Retry loading tables',exact:true}).count(),0);
+   assert.equal(await page.getByRole('alert').count(),0);
+   mode='ready';await ready.waitFor();await loader.waitFor({state:'hidden'});
+   assert.deepEqual(errors,[]);
+   await context.close();console.log(`PASS ${width}px: fading line during load/outage, automatic recovery without error flash`);
   }
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exit(1);});

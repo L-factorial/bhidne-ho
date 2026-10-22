@@ -60,10 +60,9 @@ class PostgresLedgerQueries:
                     if len(rows) > self.max_records:
                         raise DurableGameConflict('Ledger history exceeds the configured snapshot bound.')
                 name = (await (await connection.execute('SELECT name FROM rooms WHERE id=%s', (room_id,))).fetchone())[0]
-                tables = await (await connection.execute('''SELECT DISTINCT t.table_id,t.name FROM room_tables t
-                    JOIN ledger_games g ON g.table_id=t.table_id WHERE t.room_id=%s''', (room_id,))).fetchall()
+                tables = await (await connection.execute('''SELECT t.table_id,t.name,t.created_at FROM room_tables t WHERE t.room_id=%s''', (room_id,))).fetchall()
                 service = LedgerService(PostgresLedgerStore(_SnapshotPool(connection)), _AuthorizedRoom(room_id, actor, name))
-                result = await service.snapshot(room_id, actor, {t.hex: name for t, name in tables})
+                result = await service.snapshot(room_id, actor, {row[0].hex: row[1] for row in tables})
                 # Results with no payment (tied Call Break placement) intentionally
                 # have no financial ledger rows. Retain them in display records
                 # without changing settlement accounting or finalizing on reads.
@@ -117,6 +116,13 @@ class PostgresLedgerQueries:
                             totals.setdefault(user, 0); result['players'].setdefault(user,user)
                         table['record_balances'] = record_balances(totals)
                         times.setdefault(data.match_id, row[8])
+                metadata = {row[0].hex: row[2].isoformat() for row in tables}
+                for table in result['tables'] + record_tables:
+                    table['created_at'] = metadata.get(table['table_id'])
+                    for game in table['games']:
+                        timestamp = times.get(game['game_id'])
+                        if timestamp is not None:
+                            game['created_at'] = timestamp.isoformat()
                 for table in record_tables:
                     table['games'].sort(key=lambda game: (times[game['game_id']], game['game_id']))
                 result['record_tables'] = record_tables

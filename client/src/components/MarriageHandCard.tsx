@@ -15,7 +15,7 @@ export function MarriageHandCard({id, disabled, dragDisabled, selected, label, h
   style:StyleProp<ViewStyle>; children:ReactNode;
   register:(id:string, node:View|null)=>void;
   onPress:()=>void; onDragChange:(dragging:boolean)=>void;
-  onDrop:(id:string, x:number, y:number)=>void;
+  onDrop:(id:string, x:number, y:number, gesture?:{dx:number;dy:number;vy:number})=>void;
 }) {
   const position = useRef(new Animated.ValueXY()).current;
   const rotation = useRef(new Animated.Value(arcAngle ?? 0)).current;
@@ -38,7 +38,7 @@ export function MarriageHandCard({id, disabled, dragDisabled, selected, label, h
       if(latest.current.arcAngle!==undefined)rotation.setValue(cardDragAngle(latest.current.arcAngle,gesture.dx,gesture.dy));
     },
     onPanResponderRelease:(_,gesture)=>{
-      if (!latest.current.disabled && !latest.current.dragDisabled) latest.current.onDrop(latest.current.id,gesture.moveX,gesture.moveY);
+      if (!latest.current.disabled && !latest.current.dragDisabled) latest.current.onDrop(latest.current.id,gesture.moveX,gesture.moveY,{dx:gesture.dx,dy:gesture.dy,vy:gesture.vy});
       rotation.setValue(latest.current.arcAngle ?? 0); position.setValue({x:0,y:0}); setDragging(false);
       latest.current.onDragChange(false); suppressedUntil.current=Date.now()+250;
     },

@@ -1,5 +1,20 @@
 // Editable Nepali ledger copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "table_ledgers": "टेबल हिसाब",
+  "entire_session": "पूरै सत्र",
+  "games_breakdown": "खेल अनुसार विवरण",
+  "back_to_tables": "टेबल हिसाबमा फर्कनुहोस्",
+  "created_at": "सिर्जना: {{date}}",
+  "settle": "मिलान गर्नुहोस्",
+  "accept_settlement": "मिलान स्वीकार गर्नुहोस्",
+  "settled": "मिलिसकेको",
+  "awaiting_acceptance": "स्वीकृति बाँकी",
+  "balance_changed": "हिसाब बदलिएको छ। अद्यावधिक कारोबार हेरेर फेरि प्रयास गर्नुहोस्।",
+  "settlement_requested": "ले हिसाब मिलानको पुष्टि माग्नुभयो",
+  "settlement_accepted": "ले तपाईंको हिसाब मिलान स्वीकार गर्नुभयो",
+  "view_settlement": "मिलान हेर्नुहोस्",
+
+  "no_payments": "यस भागमा कुनै हिसाब छैन।",
   "table_balances": "टेबलको हिसाब",
   "my_settlement": "मेरो फर्छ्यौट",
   "one_game": "१ खेल",

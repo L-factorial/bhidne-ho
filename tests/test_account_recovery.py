@@ -117,7 +117,7 @@ async def test_verification_requires_password_and_single_use_hashed_mailbox_proo
     assert (await pool.execute('SELECT token_hash FROM account_recovery_challenges')).rows == [
         (auth._token_hash(challenge.token),)]
     with pytest.raises(InvalidRecoveryChallenge):
-        await recovery.reset_password(challenge.token, 'new-password')
+        await recovery.reset_password(challenge.token, 'new-password-long')
     await recovery.verify_email(challenge.token)
     with pytest.raises(InvalidRecoveryChallenge):
         await recovery.verify_email(challenge.token)
@@ -231,7 +231,7 @@ async def test_duplicate_completion_has_one_winner(recovery_database):
     _, credentials, recovery = await verified(pool)
     reset = await recovery.request_reset(credentials.username)
     results = await asyncio.gather(recovery.reset_password(reset.token, 'replacement-password'),
-        PostgresRecoveryService(pool).reset_password(reset.token, 'other-password'), return_exceptions=True)
+        PostgresRecoveryService(pool).reset_password(reset.token, 'other-new-password'), return_exceptions=True)
     assert sum(result is None for result in results) == 1
     assert sum(isinstance(result, InvalidRecoveryChallenge) for result in results) == 1
 

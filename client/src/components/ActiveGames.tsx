@@ -1,3 +1,4 @@
+import {isActivityCopy} from '../multiplayer/activityCopy';
 import {ActivityLine} from './ActivityLine';
 import {AppText as Text} from './AppText';
 import { isVisiblePlayTable } from '../multiplayer/tableNavigation';
@@ -14,7 +15,7 @@ import {CreationCards} from './CreationCards';
 import type {OriginalDistributedRuntime} from '../multiplayer/OriginalDistributedRuntime';
 import { PlayTableCard } from './PlayTableCard';
 import {playFeed,type PlayTable,type PlayInvitation} from '../multiplayer/playFeed';
-import {playerError} from '../multiplayer/playerError';
+import {retryingError,playerError} from '../multiplayer/playerError';
 
 export type ActiveTable = PlayTable;
 const filters = [['all', 'All'], ['flush', 'Flush'], ['marriage', 'Marriage'], ['callbreak', 'Call Break']] as const;
@@ -26,7 +27,7 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable
   const [tables, setTables] = useState<ActiveTable[]>([]);
   const [filter, setFilter] = useState<(typeof filters)[number][0]>("all");
   const [loaded, setLoaded] = useState(false), [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(false), [refresh, setRefresh] = useState(0);
+  const [error, setError] = useState(''), [refresh, setRefresh] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
     let pending = false, dirty = false;
@@ -42,11 +43,11 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable
             const version=requestVersion.current;
             const [active,invitations] = await Promise.all([request<ActiveTable[]>('/active-tables', session, undefined, controller.signal),request<PlayInvitation[]>('/test-games/invitations',session,undefined,controller.signal)]);
             const data=playFeed(active.filter(isVisiblePlayTable),invitations);
-            if (!controller.signal.aborted && version===requestVersion.current) { setTables(data); setLoaded(true); setError(false); }
+            if (!controller.signal.aborted && version===requestVersion.current) { setTables(data); setLoaded(true); setError(''); }
             return;
-          } catch {
+          } catch (failure) {
             if (controller.signal.aborted) return;
-            if (attempt === 2) { setError(true); return; }
+            if (attempt === 2) { setError(retryingError(failure)); return; }
             await new Promise<void>(resolve => { cancelDelay = resolve; retryTimer = setTimeout(resolve, attempt ? 2500 : 1500); });
             if (controller.signal.aborted) return;
           }
@@ -103,7 +104,8 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable
         {loaded && <Text style={{ color: filter === value ? c.onCoin : c.textMuted, fontSize: 12 }}>{value === 'all' ? tables.length : tables.filter(table => table.game_type === value).length}</Text>}
       </Pressable>)}
     </View>
-    {error && <View accessibilityRole="alert" testID="active-games-error" style={{ gap: 12, alignItems: 'flex-start', backgroundColor: c.surface, padding: 20, borderRadius: radii.large, borderWidth: 1, borderColor: c.borderSubtle }}>
+    {!!error && isActivityCopy(error) && <ActivityLine />}
+    {!!error && !isActivityCopy(error) && <View accessibilityRole="alert" testID="active-games-error" style={{ gap: 12, alignItems: 'flex-start', backgroundColor: c.surface, padding: 20, borderRadius: radii.large, borderWidth: 1, borderColor: c.borderSubtle }}>
       <Text style={{ color: c.text, fontFamily: fonts.medium }}>{loaded ? ui("rooms.couldn_t_refresh_tables") : ui("rooms.couldn_t_load_tables")}</Text>
       <Text style={{ color: c.textMuted }}>{loaded ? ui("common.showing_the_last_available_tables_try_refreshing_again") : ui("feedback.check_your_connection_and_try_again")}</Text>{retry}
     </View>}

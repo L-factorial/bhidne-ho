@@ -176,3 +176,34 @@ async def test_table_records_retain_zero_totals_former_players_and_game_specific
     assert {r['player_id']: r['amount'] for r in table['games'][1]['record_balances']} == {'alice': -20, 'bob': 20}
     # Settlement accounting continues to omit zero balances.
     assert table['balances'] == [] and table['suggested_transfers'] == []
+
+
+@pytest.mark.asyncio
+async def test_settlement_notifies_other_player_once_and_retains_history():
+    class Notices:
+        notifications = []
+        async def get_players(self, users):
+            return [dict(user_id=user, display_name=user.title()) for user in users]
+    notices = Notices()
+    service = LedgerService(InMemoryLedgerStore(), Rooms(), notices=notices)
+    await service.record_game(result('game-notice', 'table-notice', {'alice': -25, 'bob': 25}))
+    batch = await service.create_settlement('room', 'alice', CreateSettlement(
+        scope='table', table_id='table-notice', idempotency_key='start'))
+    row = batch['transfers'][0]
+    await service.act('room', batch['batch_id'], row['transfer_id'], 'alice', 'mark-paid', 'pay')
+    await service.act('room', batch['batch_id'], row['transfer_id'], 'alice', 'mark-paid', 'pay')
+    assert len(notices.notifications) == 1
+    notice = notices.notifications[0]
+    assert notice['kind'] == 'settlement_requested'
+    assert notice['user_id'] == 'bob'
+    assert notice['payload']['amount'] == 25
+    with pytest.raises(PermissionError):
+        await service.act('room', batch['batch_id'], row['transfer_id'], 'alice', 'confirm', 'wrong')
+    await service.act('room', batch['batch_id'], row['transfer_id'], 'bob', 'confirm', 'accept')
+    assert notice['read'] is True
+    assert notices.notifications[-1]['kind'] == 'settlement_accepted'
+    assert notices.notifications[-1]['user_id'] == 'alice'
+    snapshot = await service.snapshot('room', 'alice')
+    assert snapshot['tables'][0]['suggested_transfers'] == []
+    assert snapshot['personal_settlements'][0]['status'] == 'RESOLVED'
+    assert snapshot['balances'] == [{'player_id':'bob', 'amount':25}, {'player_id':'alice','amount':-25}]

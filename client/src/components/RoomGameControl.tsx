@@ -1,8 +1,10 @@
+import {clearObsoleteTurnError} from '../multiplayer/gameRequestFeedback';
 import {DistributedChat} from './DistributedChat';
 import {RoomSheet} from './RoomSheet';
 import { useDismissalAction } from './useDismissalAction';
 import type { LedgerTarget } from './RoomLedger';
 import {SeatArrangementProvider} from './SeatArrangement';
+import {isActivityCopy} from '../multiplayer/activityCopy';
 import {ActivityLine} from './ActivityLine';
 import {useNotificationAction} from '../multiplayer/useNotificationAction';
 import {TableAvatarProvider} from './TableAvatar';
@@ -12,7 +14,7 @@ import {AppText as Text} from './AppText';
 import { usePersistentNotice } from '../multiplayer/usePersistentNotice';
 import { playerPresence } from '../multiplayer/playerPresence';
 import { isVisibleRoomTable } from '../multiplayer/tableNavigation';
-import { playerError } from '../multiplayer/playerError.ts';
+import { retryingError, playerError } from '../multiplayer/playerError.ts';
 import { committedSnapshot } from '../multiplayer/committedSnapshot';
 import type { OriginalDistributedRuntime } from '../multiplayer/OriginalDistributedRuntime';
 import type { SelectedTable } from '../multiplayer/DistributedControls';
@@ -152,7 +154,7 @@ export function RoomGameControl({ requestedChat, requestedNavigationId, onOpenLe
   const [refreshError, setRefreshError] = useState('');
   const showRefreshError = usePersistentNotice(!!refreshError);
   const error = actionError || (showRefreshError ? refreshError : '');
-  useEffect(()=>{if(requestedMatchId && (error || refreshError || snapshot?.status==='ended'))onEntryError?.();},[requestedMatchId,error,refreshError,snapshot?.status,onEntryError]);
+  useEffect(()=>{if(requestedMatchId && (actionError && !isActivityCopy(actionError) || refreshError && !isActivityCopy(refreshError) || snapshot?.status==='ended'))onEntryError?.();},[requestedMatchId,actionError,refreshError,snapshot?.status,onEntryError]);
 
   // The lobby omits completed tables even while their seats remain reserved.
   // Keep the server's departure prompt until departure is confirmed or cancelled;
@@ -255,7 +257,7 @@ export function RoomGameControl({ requestedChat, requestedNavigationId, onOpenLe
             setError(result.error ? playerError(result.error) : ''); setBusy(false); setActionNotice('');
           }
           if (!controller.signal.aborted && generation.current === version) {
-            setSnapshot(current=>committedSnapshot(current,data)); snapshotRef.current=committedSnapshot(snapshotRef.current,data); refreshFailed=false; setRefreshError(''); setSynced(true);
+            setSnapshot(current=>committedSnapshot(current,data)); snapshotRef.current=committedSnapshot(snapshotRef.current,data); refreshFailed=false; setRefreshError(''); setError(current=>isActivityCopy(current)?'':clearObsoleteTurnError(current,data)); setSynced(true);
           }
         }
       } catch (error) {
@@ -264,7 +266,7 @@ export function RoomGameControl({ requestedChat, requestedNavigationId, onOpenLe
             setRefreshError('');
             return; // Still pending, not a failed connection or rejected move.
           }
-          const message = commandClient.pending ? ui("feedback.please_wait_confirmation") : playerError(error, ui("feedback.cannot_load_game"));
+          const message = commandClient.pending ? ui("feedback.please_wait_confirmation") : retryingError(error, ui("feedback.cannot_load_game"));
           refreshFailed = true; setSynced(false);
           if (commandClient.pending) setActionNotice(ui("common.connection_interrupted_your_action_will_be_checked_automatically"));
           setRefreshError(message);
@@ -289,7 +291,7 @@ export function RoomGameControl({ requestedChat, requestedNavigationId, onOpenLe
       if (selectedMatch.current && next.match_id !== selectedMatch.current) return;
       setSnapshot(current=>committedSnapshot(current,next));
       if(commandClient instanceof DistributedGameCommandClient)commandClient.observe(next);
-      setSynced(true); setRefreshError('');
+      setSynced(true); setRefreshError(''); setError(current=>clearObsoleteTurnError(current,next));
       snapshotRef.current=next;rescheduleRefresh.current();
     });
   }, [runtime, roomId, sessionActive, commandClient]);
@@ -460,14 +462,14 @@ export function RoomGameControl({ requestedChat, requestedNavigationId, onOpenLe
     enteredFromLobby.current = key;
     void enterTable(requestedMatchId, requestedEntry);
   }, [requestedMatchId, requestedEntry, busy, snapshot?.match_id]);
-  const loadingTables = !snapshot && !refreshError && sessionActive;
+  const loadingTables = !snapshot && (!refreshError || isActivityCopy(refreshError)) && sessionActive;
   useEffect(() => { onLoadingChange?.(loadingTables); }, [loadingTables, onLoadingChange]);
   if (loadingTables && !open && !seatConflict) return <View testID="room-tables-loading" style={{flex:1,minHeight:260,alignItems:'center',justifyContent:'center',padding:24,gap:12}}>
     <ActivityLine />
   </View>;
   const content = <>
     {!snapshot && !refreshError && <Text accessibilityLiveRegion="polite" style={styles.text}>{sessionActive ? '' : ui("feedback.sign_in_again_to_load_tables")}</Text>}
-    {refreshError && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.retry_loading_tables")} disabled={pendingAction || !sessionActive}
+    {refreshError && !isActivityCopy(refreshError) && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.retry_loading_tables")} disabled={pendingAction || !sessionActive}
       onPress={() => setActionTick(value => value + 1)} style={styles.choice}><Text activity style={styles.text}>{ui("rooms.retry_loading_tables")}</Text></Pressable>}
     {!snapshot && <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.create_table")} disabled={pendingAction || !sessionActive || !creationEnabled}
       onPress={() => { setLive(false); setOpen(true); }} style={[styles.button, { backgroundColor: colors.primary, minHeight: 48 }]}>
@@ -514,11 +516,11 @@ export function RoomGameControl({ requestedChat, requestedNavigationId, onOpenLe
           onSave={payload => lobbyAction('/flush-settings', payload)} onStart={rules_revision => lobbyAction('/start', { rules_revision })}
           onAction={gameAction} onBack={collapseGame} onNewGame={() => { setLive(false); setOpen(true); }} lobbyControl={<>{menuLeaveControl}{leaveControl}</>}
           endControl={canEnd ? <EndGameControl table compact busy={busy} onEnd={() => lobbyAction('/end')} /> : null} />
-        : snapshot.game_type === 'marriage' ? <MarriageTable tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onTableAction={command => void lobbyAction(`/table/${command}`)} key={snapshot.match_id} snapshot={{ ...(visibleSnapshot || snapshot), starting: startingGame }} busy={busy} error={uiLabel(error, 'feedback')} lobbyControl={<>{menuLeaveControl}{leaveControl}</>} onSave={scoring => lobbyAction('/marriage-settings', { scoring })}
+        : snapshot.game_type === 'marriage' ? <MarriageTable connectionReady={connected && synced} tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onTableAction={command => void lobbyAction(`/table/${command}`)} key={snapshot.match_id} snapshot={{ ...(visibleSnapshot || snapshot), starting: startingGame }} busy={busy} error={uiLabel(error, 'feedback')} lobbyControl={<>{menuLeaveControl}{leaveControl}</>} onSave={scoring => lobbyAction('/marriage-settings', { scoring })}
           onAction={gameAction} onStart={() => lobbyAction('/start', { play_mode: 'manual' })} onBack={collapseGame}
           onNewGame={() => { setLive(false); setOpen(true); }} endControl={canEnd ? <EndGameControl table={snapshot.status === 'finished'} compact busy={busy} onEnd={() => lobbyAction('/end')} /> : null}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: (recipient, text) => social.send(snapshot.match_id!, recipient, text) }} />
-        : <LiveGameTable lobbyControl={<>{menuLeaveControl}{leaveControl}</>} tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onTableAction={command => void lobbyAction(`/table/${command}`)} endControl={canEnd ? <EndGameControl table={snapshot.status === 'finished'} compact busy={busy} onEnd={() => lobbyAction('/end')} /> : null} onNextDeal={() => lobbyAction('/next-deal', { deal_number: snapshot.round_review?.deal_number })} key={snapshot.match_id} snapshot={{ ...(visibleSnapshot || snapshot), starting: startingGame }} busy={busy || !!autoPlay} error={uiLabel(error, 'feedback')} onAction={gameAction} onNewGame={() => { setCapacity(snapshot.capacity === 5 ? 5 : 4); setLive(false); setOpen(true); }} onStart={() => lobbyAction('/start', { play_mode: 'manual' })} onSave={settings => lobbyAction('/settings', settings)} onBack={collapseGame}
+        : <LiveGameTable connectionReady={connected && synced} requestBusy={pendingAction} lobbyControl={<>{menuLeaveControl}{leaveControl}</>} tableControl={<>{lifecycleControl}{snapshot.rule_proposal?.status !== 'PENDING' && ruleReview}</>} onTableAction={command => void lobbyAction(`/table/${command}`)} endControl={canEnd ? <EndGameControl table={snapshot.status === 'finished'} compact busy={busy} onEnd={() => lobbyAction('/end')} /> : null} onNextDeal={() => lobbyAction('/next-deal', { deal_number: snapshot.round_review?.deal_number })} key={snapshot.match_id} snapshot={{ ...(visibleSnapshot || snapshot), starting: startingGame }} busy={busy || !!autoPlay} error={uiLabel(error, 'feedback')} onAction={gameAction} onNewGame={() => { setCapacity(snapshot.capacity === 5 ? 5 : 4); setLive(false); setOpen(true); }} onStart={() => lobbyAction('/start', { play_mode: 'manual' })} onSave={settings => lobbyAction('/settings', settings)} onBack={collapseGame}
           social={{ connected, phrases: personal.phrases, save: personal.save, send: (recipient, text) => social.send(snapshot.match_id!, recipient, text) }} />}
         <ScrollView testID="game-footer" style={[styles.gameFooter, mobileGame && { borderTopWidth: 0 }]} contentContainerStyle={{ gap: 4 }} nestedScrollEnabled>
           {snapshot.can_join && !snapshot.your_player_id && <View testID="in-game-invitation" style={[styles.invitation, { padding: 14, margin: 12, marginBottom: 0 }]}>
@@ -527,7 +529,6 @@ export function RoomGameControl({ requestedChat, requestedNavigationId, onOpenLe
               <Text style={styles.buttonText}>{ui("common.join_tablename", { "tableName": noun })}</Text>
             </Pressable>
           </View>}
-          <ActivityLine active={pendingAction || !connected || !synced || !!actionNotice} />
         </ScrollView>
         {chat}
         {snapshot.status !== 'ended' && snapshot.rule_proposal?.status === 'PENDING' && ruleReview}

@@ -1,3 +1,4 @@
+import {useLiveWinOpacity} from '../multiplayer/useLiveWinOpacity';
 import {useTableAvatar} from './TableAvatar';
 import {PlayerAvatar} from './PlayerAvatar';
 import {ActiveTurnRing} from './ActiveTurnRing';
@@ -11,8 +12,9 @@ import {AccessibilityInfo, Animated, Pressable, View, type LayoutChangeEvent} fr
 import { fonts, useTheme } from '../theme';
 
 export function PlayerSeat({ name, mine = false, active = false, connected = true, status, avatarUrl, compact = false, dealer = false,
-  onPress, testID, registerSeat, playerId, statusRows, onLayout, inlineStatus = false }: {
+  onPress, testID, registerSeat, playerId, statusRows, onLayout, inlineStatus = false, bidStatus }: {
   onLayout?: (event: LayoutChangeEvent) => void;
+  bidStatus?: {bid:number|null;wins:number;live:boolean};
   inlineStatus?: boolean; statusRows?: [string, string];
   playerId?: number;
   name: string; mine?: boolean; active?: boolean; connected?: boolean | null; status?: string;
@@ -42,6 +44,11 @@ export function PlayerSeat({ name, mine = false, active = false, connected = tru
     }).catch(() => {});
     return () => { mounted = false; scale.stopAnimation(); scale.setValue(1); };
   }, [active, scale]);
+  const winOpacity = useLiveWinOpacity(!!bidStatus?.live);
+  const bidNumbers = bidStatus && <View style={{flexDirection:'row',alignItems:'center',justifyContent:'center'}}>
+    <Text testID={`table-current-bid-${playerId}`} style={{color:colors.text,fontFamily:fonts.medium,fontSize:12}}>{bidStatus.bid ?? '—'} / </Text>
+    <Animated.View testID={`table-current-win-${playerId}`} style={{opacity:winOpacity}}><Text style={{color:colors.text,fontFamily:fonts.medium,fontSize:12}}>{bidStatus.wins}</Text></Animated.View>
+  </View>;
   const size = compact ? 28 : 44;
   return <Pressable accessibilityLiveRegion="polite" onLayout={onLayout} ref={node => { registerSeat?.(node); if (playerId !== undefined) social?.registerSeat(playerId, node); }} collapsable={false} testID={testID} accessibilityRole={press ? 'button' : undefined}
     onTouchStart={event => { if (target || editAvatar) event.stopPropagation(); }} onPointerDown={event => { if (target || editAvatar) event.stopPropagation(); }}
@@ -56,11 +63,11 @@ export function PlayerSeat({ name, mine = false, active = false, connected = tru
       <ActiveTurnRing active={active} size={size}/>
       <PlayerAvatar uri={mine && avatar?.uri !== undefined ? avatar.uri ?? undefined : avatarUrl} size={size-6}/>
     </Animated.View>
-    {inlineStatus && statusRows && <Text testID={`callbreak-seat-stats-${playerId}`} style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 12, backgroundColor: colors.surface, borderRadius: 4, padding: 3 }}>{statusRows[0]}</Text>}
+    {inlineStatus && statusRows && (bidStatus ? <View testID={`callbreak-seat-stats-${playerId}`} style={{backgroundColor:colors.surface,borderRadius:4,padding:3}}>{bidNumbers}</View> : <Text testID={`callbreak-seat-stats-${playerId}`} style={{ color: colors.text, fontFamily: fonts.medium, fontSize: 12, backgroundColor: colors.surface, borderRadius: 4, padding: 3 }}>{statusRows[0]}</Text>)}
     </View>
     <Text numberOfLines={1} style={{ maxWidth: '100%', backgroundColor: colors.surface, paddingHorizontal: 8, borderRadius: 8, color: colors.text, fontFamily: fonts.medium, fontSize: compact ? 11 : 12 }}>{name}</Text>
     {!inlineStatus && statusRows && <View testID={`callbreak-seat-stats-${playerId}`} style={{ alignSelf: 'center', maxWidth:'100%', gap: 2, paddingHorizontal: 2, borderRadius: 6, backgroundColor: colors.surface }}>
-      {statusRows.filter(Boolean).map((row, index) => <Text key={index} style={{ color: !statusRows[1] || index ? colors.text : colors.textMuted, textAlign: 'center', fontFamily: fonts.medium, fontSize: 12 }}>{row}</Text>)}
+      {bidStatus ? bidNumbers : statusRows.filter(Boolean).map((row, index) => <Text key={index} style={{ color: !statusRows[1] || index ? colors.text : colors.textMuted, textAlign: 'center', fontFamily: fonts.medium, fontSize: 12 }}>{row}</Text>)}
     </View>}
     {!statusRows && (!!presenceLabel||dealer||(!active && !!status))&&<Text numberOfLines={1} style={{ backgroundColor: active ? colors.turnSurface : colors.surface, paddingHorizontal: 5, borderRadius: 5, color: active ? colors.turnText : colors.textMuted, fontFamily: fonts.medium, fontSize: compact ? 8 : active && mine ? 9 : 10 }}>
       {presenceLabel ? presenceLabel : dealer ? ui("common.dealer") : uiLabel(status || '')}

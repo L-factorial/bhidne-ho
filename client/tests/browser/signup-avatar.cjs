@@ -15,7 +15,7 @@ assert.ok(['localhost','127.0.0.1'].includes(new URL(site).hostname));
    if(p==='/'||p.startsWith('/assets/')||p.startsWith('/_expo/')||p==='/favicon.ico')return route.continue();
    let json=[];
    if(p==='/auth/signup'||p==='/auth/signin')json={user_id:'new-user',token:'fixture'};
-   else if(p==='/auth/me'||p==='/me/profile')json={user_id:'new-user',display_name:'New Player',username:'new_player',avatar_url:saved?`preset:${saved}`:null};
+   else if(p==='/auth/me'||p==='/me/profile')json={user_id:'new-user',display_name:'New Player',username:'newplayer',avatar_url:saved?`preset:${saved}`:null};
    else if(p==='/me/profile/avatar'){
     if(request.method()==='PATCH'){
      writes.push(request.postDataJSON());
@@ -35,7 +35,7 @@ assert.ok(['localhost','127.0.0.1'].includes(new URL(site).hostname));
   await page.getByRole('button',{name:'Sign in or sign up',exact:true}).click();
   if(mode!=='signin')await page.getByRole('button',{name:'Sign up',exact:true}).click();
   await page.getByRole('button',{name:mode==='signin'?'Continue with username or email':'Sign up with username or email',exact:true}).click();
-  await page.getByLabel(mode==='signin'?'Username or email':'Username',{exact:true}).fill('new_player');
+  await page.getByLabel(mode==='signin'?'Username or email':'Username',{exact:true}).fill('newplayer');
   await page.getByLabel('Password',{exact:true}).fill('original-password');
   if(mode!=='signin'){
    await page.getByLabel('Email',{exact:true}).fill('new@example.test');

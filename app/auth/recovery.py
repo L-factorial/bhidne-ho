@@ -12,6 +12,7 @@ import secrets
 from uuid import UUID
 
 from app.auth.email import normalize_recovery_email
+from app.auth.password_policy import NEW_PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH
 from app.auth.postgres import PostgresAuthService
 from app.auth.service import AuthenticationError
 
@@ -176,8 +177,8 @@ class PostgresRecoveryService:
                     await connection.execute('DELETE FROM recovery_mail_outbox WHERE user_id=%s', (user_id,))
 
     async def reset_password(self, token: str, password: str):
-        if not isinstance(password, str) or not 8 <= len(password) <= 128:
-            raise ValueError('Password must contain between 8 and 128 characters.')
+        if not isinstance(password, str) or not NEW_PASSWORD_MIN_LENGTH <= len(password) <= PASSWORD_MAX_LENGTH:
+            raise ValueError(f'Password must contain between {NEW_PASSWORD_MIN_LENGTH} and {PASSWORD_MAX_LENGTH} characters.')
         async with self.pool.connection() as connection:
             async with connection.transaction():
                 user_id, email = await self._challenge(connection, token, 'reset_password')

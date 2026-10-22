@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field, field_validator
 from app.auth.email import normalize_recovery_email
+from app.auth.password_policy import NEW_PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH
 from app.auth.recovery import InvalidRecoveryChallenge, RecoveryRateLimited
 from psycopg.errors import UniqueViolation
 from app.auth.service import AuthenticationError
@@ -42,7 +43,7 @@ class Challenge(BaseModel):
 
 
 class ResetComplete(Challenge):
-    password: str = Field(min_length=8, max_length=128)
+    password: str = Field(min_length=NEW_PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
 
 
 def failure(status, code):

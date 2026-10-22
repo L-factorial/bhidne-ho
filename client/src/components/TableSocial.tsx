@@ -1,3 +1,5 @@
+import {ActivityLine} from './ActivityLine';
+import {isActivityCopy} from '../multiplayer/activityCopy';
 import {useFreshSoundEvents} from '../notifications/useFreshSoundEvents';
 import {useForegroundSound} from '../notifications/useForegroundSound';
 import { TableReactionIcon } from './TableReactionIcon';
@@ -8,7 +10,7 @@ import { ReportButton } from './Moderation';
 import type { Session } from '../multiplayer/session';
 import { useBlocking } from './PlayerBlocking';
 import { usePersistentNotice } from '../multiplayer/usePersistentNotice';
-import { playerError } from '../multiplayer/playerError.ts';
+import { retryingError, playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { Ionicons } from '@expo/vector-icons';
@@ -167,11 +169,12 @@ export function TableSocialProvider({ requestedChatId, children, snapshot, chann
     });
     let timer: ReturnType<typeof setTimeout>;
     const refresh = async () => {
+      let failed = false;
       try {
         const result = await channel!.request('TABLE_CHAT_HISTORY', snapshot.match_id!, {}, controller.signal);
-        if (!controller.signal.aborted) { addMessages(result.messages || [], true); historyLoaded.current = true; }
-      } catch (failure) { if (!controller.signal.aborted) setError(playerError(failure)); }
-      finally { if (!controller.signal.aborted && blocking.enabled) timer = setTimeout(() => void refresh(), 3000); }
+        if (!controller.signal.aborted) { addMessages(result.messages || [], true); historyLoaded.current = true; setError(current=>isActivityCopy(current)?'':current); }
+      } catch (failure) { failed = true; if (!controller.signal.aborted) setError(retryingError(failure)); }
+      finally { if (!controller.signal.aborted && (blocking.enabled || failed)) timer = setTimeout(() => void refresh(), 3000); }
     };
     void refresh();
     return () => { controller.abort(); clearTimeout(timer); unsubscribe(); };
@@ -263,7 +266,8 @@ export function TableSocialProvider({ requestedChatId, children, snapshot, chann
         </View>
       </RoomSheet>
       {presentationExpanded && canRead && (!handCollapsed || !!error) && <View testID="game-social-controls" onTouchStart={event => event.stopPropagation()} onPointerDown={event => event.stopPropagation()} style={{position:'absolute',right:14,bottom,zIndex:45,alignItems:'flex-end',maxWidth:240}}>
-        {!!error && !open && <Pressable accessibilityRole="button" accessibilityLabel={ui("common.dismiss_social_error")} onPress={() => setError('')}><Text activity style={{color:c.danger,backgroundColor:c.surface,padding:6}}>{uiLabel(error, 'feedback')}</Text></Pressable>}
+        {!!error && !open && isActivityCopy(error) && <ActivityLine />}
+        {!!error && !open && !isActivityCopy(error) && <Pressable accessibilityRole="button" accessibilityLabel={ui("common.dismiss_social_error")} onPress={() => setError('')}><Text activity style={{color:c.danger,backgroundColor:c.surface,padding:6}}>{uiLabel(error, 'feedback')}</Text></Pressable>}
         {!handCollapsed && <View style={{flexDirection:'row',backgroundColor:c.tableHeader,borderColor:c.tableTrim,borderWidth:1,borderRadius: radii.large}}>
           <Pressable accessibilityRole="button" accessibilityLabel={unread ? ui('common.chat_unread', { count: unread }) : ui('common.table_chat')} onPress={openChat} style={[iconStyle,{flexDirection:'row',paddingHorizontal:8}]}>
             <Ionicons name="chatbubble-outline" size={22} color={c.onTableHeader} />{unread > 0 && <Text testID="table-chat-unread" style={{color:c.onPrimary,backgroundColor:c.primary,borderRadius: radii.medium,fontSize:11,paddingHorizontal:5}}>{unread > 99 ? '99+' : unread}</Text>}

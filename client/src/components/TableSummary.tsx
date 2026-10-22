@@ -9,7 +9,7 @@ import {useTableSocial} from './TableSocial';
 import type {Ledger} from './RoomLedger';
 import type {RoomSnapshot} from '../screens/LiveGameTable';
 import {request} from '../multiplayer/api';
-import {playerError} from '../multiplayer/playerError';
+import {retryingError,playerError} from '../multiplayer/playerError';
 import {ui} from '../i18n/copy';
 import {fonts,radii,useTheme} from '../theme';
 
@@ -28,7 +28,7 @@ export function TableSummary({snapshot,onOpen}:{snapshot:RoomSnapshot;onOpen:()=
       try {
         const value=await request<Ledger>(`/rooms/${encodeURIComponent(snapshot.room_id!)}/ledger`,session!,undefined,abort.signal);
         if(!abort.signal.aborted){setData(value);setError('');}
-      }catch(failure){if(!abort.signal.aborted)setError(playerError(failure,ui('feedback.could_not_load_ledger')));}
+      }catch(failure){if(!abort.signal.aborted)setError(retryingError(failure,ui('feedback.could_not_load_ledger')));}
       finally{if(!abort.signal.aborted){setLoading(false);timer=setTimeout(load,5000);}}
     }
     void load();return()=>{abort.abort();clearTimeout(timer);};

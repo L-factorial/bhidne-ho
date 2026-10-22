@@ -172,6 +172,8 @@ function setMode(value) {
   $('signin-mode').setAttribute('aria-pressed', String(!value));
   $('auth-submit').textContent = value ? 'Create account' : 'Sign in';
   $('password').autocomplete = value ? 'new-password' : 'current-password';
+  $('password').minLength = 8;
+  $('password').placeholder = value ? 'At least 8 characters; any characters allowed' : 'Your password';
   $('signup-email').hidden = !value;
   $('signup-rules').hidden = !value;
   $('rules-accepted').required = value;

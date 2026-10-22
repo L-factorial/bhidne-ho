@@ -115,3 +115,26 @@ test('confirmed recovery clears uncertainty without replacing actionable errors'
   }
   await i18n.changeLanguage('en');
 });
+
+test('automatic retries use activity copy while one-shot failures remain readable', async () => {
+  const {retryingError} = await import('../src/multiplayer/playerError.ts');
+  const {isActivityCopy} = await import('../src/multiplayer/activityCopy.ts');
+  try {
+    for (const language of ['en', 'ne']) {
+      await i18n.changeLanguage(language);
+      for (const failure of [Error('Failed to fetch'), Error('offline'),
+        Error('Invalid receipt lane_id=private'), new DOMException('Aborted', 'AbortError'),
+        ...[408,425,429,500,502,503,504].map(status=>new ApiError(status,'secret'))]) {
+        assert.equal(isActivityCopy(retryingError(failure)), true);
+        assert.equal(isActivityCopy(playerError(failure)), false);
+      }
+      for (const failure of [new ApiError(401,'expired'),new ApiError(403,'denied'),
+        new ApiError(404,'missing'),new ApiError(410,'gone'),
+        new ApiError(409,'The table changed. Refresh and try again.'),
+        new DistributedRequestError(403,undefined,'COMMUNITY_RULES_REQUIRED')]) {
+        assert.equal(retryingError(failure),playerError(failure));
+        assert.equal(isActivityCopy(retryingError(failure)),false);
+      }
+    }
+  } finally { await i18n.changeLanguage('en'); }
+});

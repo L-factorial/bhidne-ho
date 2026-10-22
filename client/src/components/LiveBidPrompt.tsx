@@ -1,3 +1,4 @@
+import {ActivityLine} from './ActivityLine';
 import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -8,8 +9,8 @@ import { radii, fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeCol
 import { ActionCue } from './ActionCue';
 import { TurnGlow } from './TurnGlow';
 
-export function LiveBidPrompt({ snapshot, busy, onAction, revealed }: {
-  revealed: boolean; snapshot: RoomSnapshot; busy: boolean; onAction: (command: string, payload: object) => void;
+export function LiveBidPrompt({ snapshot, busy, onAction, revealed, compact = false }: {
+  compact?:boolean; revealed: boolean; snapshot: RoomSnapshot; busy: boolean; onAction: (command: string, payload: object) => void;
 }) {
   useUiLanguage();
   const { colors } = useTheme();
@@ -18,20 +19,20 @@ export function LiveBidPrompt({ snapshot, busy, onAction, revealed }: {
   const maximum = snapshot.rules?.bid_max || 13;
   const isTurn = !!snapshot.your_player_id && snapshot.game?.turn.player_id === snapshot.your_player_id;
   const ownBid = snapshot.deal?.players.find(p => p.player_id === snapshot.your_player_id)?.bid;
-  if (!isTurn || ownBid != null || snapshot.game?.phase !== 'BIDDING') return null;
-  return <View testID="callbreak-bid-prompt" style={styles.panel}>
+  if (!isTurn || ownBid != null || snapshot.game?.phase !== 'BIDDING' || compact && !revealed) return null;
+  return <View testID="callbreak-bid-prompt" style={[styles.panel,compact&&{padding:6,marginVertical:0,gap:0}]}>
     <TurnGlow active={!busy} radius={radii.large} />
-    <Text accessibilityRole="header" accessibilityLiveRegion="polite" style={styles.title}>
+    {!compact && <Text accessibilityRole="header" accessibilityLiveRegion="polite" style={styles.title}>
       {revealed ? ui("callbreak.make_your_call") : ui("common.reveal_your_hand")}
-    </Text>
-    <Text accessibilityLiveRegion="polite" style={styles.text}>{revealed ? ui("callbreak.how_many_tricks_will_you_win") : ui("common.reveal_bid_help")}</Text>
-    {revealed && <View style={styles.controls}>
+    </Text>}
+    {!compact && <Text accessibilityLiveRegion="polite" style={styles.text}>{revealed ? ui("callbreak.how_many_tricks_will_you_win") : ui("common.reveal_bid_help")}</Text>}
+    {revealed && <View style={[styles.controls,compact&&{marginTop:0,flexWrap:'nowrap',justifyContent:'center'}]}>
       <Pressable accessibilityRole="button" accessibilityLabel={ui("callbreak.decrease_bid")} disabled={busy || amount <= 1} onPress={() => setAmount(value => Math.max(1, value - 1))} style={styles.button}><Text style={styles.label}>−</Text></Pressable>
       <Text accessibilityLabel={ui("callbreak.selected_bid_count", { "count": amount })} style={styles.amount}>{amount}</Text>
       <Pressable accessibilityRole="button" accessibilityLabel={ui("callbreak.increase_bid")} disabled={busy || amount >= maximum} onPress={() => setAmount(value => Math.min(maximum, value + 1))} style={styles.button}><Text style={styles.label}>+</Text></Pressable>
-      <Pressable accessibilityRole="button" disabled={busy} onPress={() => onAction('PLACE_BID', { amount })} style={({ pressed }) => [styles.button, gameButtonStyle(colors, 'primary', pressed)]}><ActionCue active={!busy} style={[styles.label, { color: colors.onPrimary }]}>{busy ? ui("common.submitting") : ui("callbreak.confirm_bid")}</ActionCue></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={ui("callbreak.confirm_bid")} disabled={busy} onPress={() => onAction('PLACE_BID', { amount })} style={({ pressed }) => [styles.button, gameButtonStyle(colors, 'primary', pressed), {minWidth:64,height:44,paddingVertical:0}]}>{busy?<ActivityLine/>:<ActionCue active={!busy} style={[styles.label, { color: colors.onPrimary }]}>{ui("callbreak.confirm_bid")}</ActionCue>}</Pressable>
     </View>}
-    {revealed && <Text style={styles.text}>{ui("common.your_bid_is_submitted_only_when_you_confirm")}</Text>}
+    {revealed && !compact && <Text style={styles.text}>{ui("common.your_bid_is_submitted_only_when_you_confirm")}</Text>}
   </View>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({

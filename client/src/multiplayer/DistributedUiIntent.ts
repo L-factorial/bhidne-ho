@@ -1,3 +1,4 @@
+import {markRetryingRequest} from './retryingRequest.ts';
 import type { DistributedSession } from './DistributedSession.ts';
 import type { CommandBody, CommandEnvelope, CommandTarget, DurableReceipt } from './DurableCommandClient.ts';
 import { GameRequestError } from './PendingGameAction.ts';
@@ -27,6 +28,7 @@ export class DistributedUiIntent {
     if (this.active.has(slot)) throw Error('This action is already being confirmed.');
     if(signal.aborted)throw Error('Action cancelled.');
     this.active.add(slot);
+    let recoverable = false;
     try {
       const command=this.session.command(slot), saved=command.request;
       if(saved) {
@@ -36,6 +38,7 @@ export class DistributedUiIntent {
           throw Error('Confirm the previous action before starting a different one.');
         }
       } else if(!command.begin(target,body,commandId))throw Error('Action already pending.');
+      recoverable = true;
       const deadline=Date.now()+30000;
       const reconcile=async()=>{
         while(command.reconciling){await delay(signal);if(Date.now()>=deadline)throw Error('Waiting for confirmation. Retry to check the original action.');}
@@ -55,6 +58,10 @@ export class DistributedUiIntent {
       if(signal.aborted)throw Error('Action cancelled.');
       this.session.releaseCommand(slot);
       return result;
+    } catch (error) {
+      if (recoverable && !signal.aborted && this.session.command(slot).request
+          && this.session.command(slot).latest?.status !== 'rejected') markRetryingRequest(error);
+      throw error;
     } finally {this.active.delete(slot);}
   }
 }

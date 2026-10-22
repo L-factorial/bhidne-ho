@@ -1,3 +1,4 @@
+import {isRetryingRequest} from './retryingRequest.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { uiCatalogs, type UiKey } from '../i18n/catalogs.ts';
 
@@ -155,6 +156,7 @@ export function playerError(error: unknown, fallback?: string): string {
   if (code && codes[code]) return ui(codes[code]);
   if (messages[message]) return ui(messages[message]);
   if (item?.status === 401) return ui('feedback.session_sign_in');
+  if (isRetryingRequest(error)) return ui('feedback.reconnecting');
   // An uncertain write is not a rejection. Never suggest sending it again.
   if (/outcome unresolved|still pending|waiting for .*confirm|waiting for confirmation|confirmation pending/i.test(message))
     return ui('feedback.please_wait_confirmation');
@@ -179,6 +181,19 @@ export function playerError(error: unknown, fallback?: string): string {
 // A recovered success must never go through the error formatter. Preserve
 // actionable errors unrelated to an uncertain request's generic feedback.
 export function confirmedActionError(current: string): string {
-  return ['feedback.please_wait_confirmation','feedback.generic_failure','feedback.cannot_update_game']
+  return ['feedback.reconnecting','feedback.please_wait_confirmation','feedback.generic_failure','feedback.cannot_update_game']
     .some(key=>current===ui(key as UiKey)) ? '' : current;
+}
+
+// Only for callers that retain the request and automatically retry/reconcile it.
+// A failed one-shot action must still explain that it needs player attention.
+export function retryingError(error: unknown, fallback?: string): string {
+  const item = error && typeof error === 'object' ? error as {
+    status?: number; code?: string; detail?: {code?: string};
+  } : undefined;
+  const code = item?.detail?.code ?? item?.code;
+  if (code === 'COMMUNITY_RULES_REQUIRED' || (typeof code === 'string' && codes[code]) ||
+      (item?.status && item.status >= 400 && item.status < 500 && ![408, 425, 429].includes(item.status)))
+    return playerError(error, fallback);
+  return ui('feedback.reconnecting');
 }

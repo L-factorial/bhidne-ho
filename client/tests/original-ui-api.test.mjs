@@ -239,16 +239,16 @@ test('ordinary table discard uses a durable personal command without seat depart
  assert.equal(f.sent[0].body.command,'discard-table');
  assert.deepEqual(f.sent[0].body.payload,{table_id:'t',match_id:'m'});
 });
-test('chat and poke notices reach the original bell and its mark-read command',async()=>{
+test('chat, poke and settlement notices reach the original bell and its mark-read command',async()=>{
  const f=setup();
  f.root.reads.recipient=async()=>({lane_id:'recipient'});
- f.root.reads.history=async()=>['chat','poke'].map((kind,index)=>({id:String(index),kind,actor_id:account.user_id,created_at:'2026-10-07T11:00:00Z',read:false,payload:{room_id:'r'}}));
+ f.root.reads.history=async()=>['chat','poke','settlement_requested','settlement_accepted'].map((kind,index)=>({id:String(index),kind,actor_id:account.user_id,created_at:'2026-10-07T11:00:00Z',read:false,payload:{room_id:'r'}}));
  f.root.reads.legacy=async()=>({items:[]});
  const notifications=await f.api.request('/notifications',account);
- assert.deepEqual(notifications.map(row=>row.kind),['chat','poke']);
+ assert.deepEqual(notifications.map(row=>row.kind),['chat','poke','settlement_requested','settlement_accepted']);
  await f.api.request('/notifications/read',account,{});
  assert.equal(f.sent[0].body.command,'read-notifications');
- assert.deepEqual(f.sent[0].body.payload.ids,['0','1']);
+ assert.deepEqual(f.sent[0].body.payload.ids,['0','1','2','3']);
 });
 
 test('card theme creation and updates use durable room/table commands',async()=>{
@@ -399,4 +399,21 @@ test('chat ingress errors retain the command while accepted-history read failure
  await assert.rejects(f.api.request(path,account,body),error=>error.preserveChatId===true&&error.status===404);
  assert.equal((await f.api.request(path,account,body)).id,'saved');
  assert.equal(f.sent.length,2);assert.deepEqual(f.sent[0],f.sent[1]);f.api.close();
+});
+
+test('pending button requests retain diagnostics but present a line during automatic recovery',async()=>{
+ const {playerError}=await import('../src/multiplayer/playerError.ts');
+ const {isActivityCopy}=await import('../src/multiplayer/activityCopy.ts');
+ for(const original of [Error('lost response'),new DistributedRequestError(503,'gateway temporarily unavailable')]){
+  let first;
+  const f=setup(request=>{if(!first){first=request;throw original;}assert.deepEqual(request,first);return receipt(request);});
+  await assert.rejects(f.api.request('/test-games/r/table/lock',account,{match_id:'m'}),error=>{
+   assert.equal(error.message,original.message);
+   assert.equal(isActivityCopy(playerError(error)),true);return true;
+  });
+  const restored=new OriginalUiApi(f.root,account,async()=>({}));const notices=[];
+  restored.recover(notice=>notices.push(notice));
+  for(let i=0;i<100&&!notices.length;i++)await new Promise(resolve=>setTimeout(resolve,5));
+  assert.equal(notices[0].status,'accepted');restored.close();f.api.close();
+ }
 });

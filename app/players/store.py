@@ -236,7 +236,7 @@ class PostgresPlayerStore:
         async with self.pool.connection() as connection:
             rows = await (await connection.execute("""
                 SELECT n.id,n.kind,u.id,p.display_name,a.username,
-                       extract(epoch from n.created_at)*1000,n.read_at IS NOT NULL,p.avatar_id
+                       extract(epoch from n.created_at)*1000,n.read_at IS NOT NULL,p.avatar_id,n.payload
                 FROM friend_notifications n JOIN users u ON u.id=n.actor_id
                 JOIN user_profiles p ON p.user_id=u.id
                 LEFT JOIN account_credentials a ON a.user_id=u.id
@@ -244,7 +244,7 @@ class PostgresPlayerStore:
             """, (internal_id(user_id),))).fetchall()
         return [{"id": str(row[0]), "kind": row[1],
                  "actor": self.player((row[2], row[3], row[4], row[7])),
-                 "created_at": int(row[5]), "read": row[6]} for row in rows]
+                 "created_at": int(row[5]), "read": row[6], "payload": row[8]} for row in rows]
 
     async def read_notifications(self, user_id, ids=None):
         async with self.pool.connection() as connection:

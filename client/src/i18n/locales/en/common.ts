@@ -1,5 +1,12 @@
 // Editable common copy. Keep keys and placeholders in sync.
 export default {
+  "signup_username_length": "3–32 characters",
+  "signup_username_characters": "Letters (A–Z) and digits (0–9) only",
+  "signup_username_start": "Starts with a letter",
+  "signup_password_length": "At least 8 characters · any characters allowed",
+  "signup_email_format": "Email format: name@example.com",
+  "signup_password_matches": "Matches your password",
+
   rules_proposed: "Rule changes proposed.",
   config_updated: 'Game config updated for the next game.',
   next_field: 'Next field',

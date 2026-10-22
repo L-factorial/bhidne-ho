@@ -29,8 +29,9 @@ def transfer_plan(balances):
 
 
 class LedgerService:
-    def __init__(self, store, rooms, profiles=None):
+    def __init__(self, store, rooms, profiles=None, notices=None):
         self.store, self.rooms, self.profiles = store, rooms, profiles
+        self.notices = notices
 
     async def authorize(self, room_id, user_id):
         if user_id not in await self.rooms.members(room_id):
@@ -134,5 +135,20 @@ class LedgerService:
         existing = await self.store.get_batch(batch_id)
         if not existing or existing["room_id"] != room_id:
             raise KeyError("Settlement not found.")
+        before = next((row['status'] for row in existing['transfers'] if row['transfer_id'] == transfer_id), None)
         batch = await self.store.act(batch_id, transfer_id, user_id, action, idempotency_key)
+        if self.notices is not None and before == ('OPEN' if action == 'mark-paid' else 'MARKED_PAID'):
+            from datetime import datetime, timezone
+            from uuid import uuid4
+            row = next(row for row in batch['transfers'] if row['transfer_id'] == transfer_id)
+            actors = await self.notices.get_players([user_id])
+            actor = actors[0] if actors else dict(user_id=user_id, display_name=user_id)
+            if action == 'confirm':
+                for notice in self.notices.notifications:
+                    if notice['user_id'] == user_id and notice.get('payload', {}).get('transfer_id') == transfer_id:
+                        notice['read'] = True
+            self.notices.notifications.append(dict(id=uuid4().hex, user_id=row['payee_id'] if action == 'mark-paid' else row['payer_id'],
+                kind='settlement_requested' if action == 'mark-paid' else 'settlement_accepted', actor=actor,
+                created_at=int(datetime.now(timezone.utc).timestamp()*1000), read=False,
+                payload=dict(room_id=room_id, table_id=batch['table_id'], batch_id=batch_id, transfer_id=transfer_id, amount=row['amount'])))
         return batch

@@ -90,7 +90,7 @@ def create_app(*, runtime_mode="legacy", distributed_server=None) -> FastAPI:
         )
         app.state.ledger = LedgerService(
             PostgresLedgerStore(database.pool) if database else InMemoryLedgerStore(),
-            rooms, app.state.player_profiles,
+            rooms, app.state.player_profiles, notices=app.state.players.store if not database else None,
         )
         social_store = (PostgresSocialIdentityStore(database.pool, guests, app.state.player_profiles)
                         if database else InMemorySocialIdentityStore(guests, app.state.player_profiles))

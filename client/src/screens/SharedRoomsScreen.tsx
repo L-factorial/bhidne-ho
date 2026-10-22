@@ -1,3 +1,5 @@
+import {SignupValidation} from '../components/SignupValidation';
+import {validSignupUsername,validSignupPassword} from '../auth/signupValidation';
 import {recipientMatches} from '../notifications/notificationDestination';
 import type { LedgerTarget } from '../components/RoomLedger';
 import {HeaderHomeContext} from '../components/BrandArt';
@@ -112,7 +114,9 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const shared = useRoomSession(roomActions);
   const creation=useCreationProgress(shared.runtime);
   const roomCreating=creation.cards.some(card=>card.kind==='room');
-  const authDisabled = username.trim().length < 3 || password.length < 8 || passwordMismatch || shared.loggingIn || (authMode === 'signup' && (!validSignupEmail(email) || !rulesAccepted));
+  const authDisabled = shared.loggingIn || (authMode === 'signup'
+    ? !validSignupUsername(username) || !validSignupPassword(password) || !confirmPassword || passwordMismatch || !validSignupEmail(email) || !rulesAccepted
+    : username.trim().length < 3 || password.length < 8);
   function submitAccount() {
     if (!authDisabled) {
       const signup=authMode === 'signup';
@@ -474,14 +478,15 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
             <FormInput ref={usernameInput} returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => (authMode === 'signup' ? emailInput : passwordInput).current?.focus()} accessibilityLabel={ui(authMode === 'signup' ? "common.username" : "common.username_or_email")} placeholder={ui(authMode === 'signup' ? "common.username" : "common.username_or_email")} placeholderTextColor={colors.textMuted}
               value={username} onChangeText={setUsername} maxLength={authMode === 'signup' ? 32 : 254} editable={!shared.loggingIn}
               autoCapitalize="none" autoCorrect={false} textContentType="username" style={styles.input} />
+            {authMode === 'signup' && <SignupValidation field="username" value={username}/>}
             {authMode === 'signup' && <>
               <FormInput ref={emailInput} accessibilityLabel={ui('common.email')} aria-required
                 placeholder={ui('common.email')} value={email} onChangeText={setEmail} maxLength={254}
                 editable={!shared.loggingIn} keyboardType="email-address" textContentType="emailAddress"
                 autoCapitalize="none" autoCorrect={false} style={styles.input}
                 returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => passwordInput.current?.focus()} />
+              <SignupValidation field="email" value={email}/>
               <Text style={styles.description}>{ui('common.signup_email_help')}</Text>
-              {!!email && !validSignupEmail(email) && <Text accessibilityRole="alert" style={styles.error}>{ui('common.enter_valid_email')}</Text>}
             </>}
             <FormInput ref={passwordInput} accessibilityLabel={ui("common.password")} placeholder={ui("common.password")} placeholderTextColor={colors.textMuted}
               value={password} onChangeText={setPassword} maxLength={128} editable={!shared.loggingIn}
@@ -490,6 +495,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
                 if (authMode === 'signup') confirmPasswordInput.current?.focus();
                 else submitAccount();
               }} />
+            {authMode === 'signup' && <SignupValidation field="password" value={password}/>}
             {authMode === 'signin' && <ForgotPassword />}
             {authMode === 'signup' && <>
               <FormInput ref={confirmPasswordInput} accessibilityLabel={ui("common.confirm_password")} aria-required
@@ -497,10 +503,10 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
                 value={confirmPassword} onChangeText={setConfirmPassword} maxLength={128} editable={!shared.loggingIn}
                 secureTextEntry textContentType="newPassword" autoCapitalize="none" autoCorrect={false}
                 style={styles.input} returnKeyType="go" onSubmitEditing={submitAccount} />
-              {!!confirmPassword && passwordMismatch && <Text accessibilityRole="alert" style={styles.error}>{ui("common.passwords_do_not_match")}</Text>}
+              <SignupValidation field="confirm" value={confirmPassword} password={password}/>
             </>}
             {authMode === 'signup' && <SignupRules accepted={rulesAccepted} onChange={setRulesAccepted} disabled={shared.loggingIn} />}
-            <Text style={styles.description}>{ui("common.account_requirements")}</Text>
+            {authMode !== 'signup' && <Text style={styles.description}>{ui("common.account_requirements")}</Text>}
 
           </>}
         </View>}

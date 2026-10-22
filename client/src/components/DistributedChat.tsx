@@ -1,7 +1,7 @@
 import {AppText as Text} from './AppText';
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { ui, uiLabel } from '../i18n/copy.ts';
-import { playerError } from '../multiplayer/playerError.ts';
+import { retryingError, playerError } from '../multiplayer/playerError.ts';
 import {useEffect,useState} from 'react';
 import {Pressable, TextInput, View} from 'react-native';
 import type {DistributedRootRuntime} from '../multiplayer/DistributedRoot';
@@ -27,7 +27,7 @@ export function DistributedChat({root,view,initialScope='table_chat'}:{root:Dist
         const stream=await root.reads.open(JSON.parse(identity),abort.signal);
         const rows=await root.reads.history('chat',stream.lane_id,abort.signal);
         if(!abort.signal.aborted){setItems(rows.map(r=>({id:r.id,text:String(r.text),sender_id:String(r.sender_id)})));setError('');}
-      }catch(e){if(!abort.signal.aborted){setItems([]);setError(playerError(e, 'Chat unavailable.'));}}
+      }catch(e){if(!abort.signal.aborted){setError(retryingError(e, 'Chat unavailable.'));}}
       finally{if(!abort.signal.aborted)timer=setTimeout(load,5000);}
     }
     void load();return()=>{abort.abort();clearTimeout(timer);};
@@ -41,6 +41,6 @@ export function DistributedChat({root,view,initialScope='table_chat'}:{root:Dist
       const sent=text;void controller?.chat(target,sent).then(ok=>{if(ok&&controller.state.status==='accepted')setText(current=>current===sent?'':current);});
     }} style={{padding:12}}><Text style={{color:colors.accent}}>{ui("common.send_chat")}</Text></Pressable>
     {state.status==='pending'&&<Pressable accessibilityRole="button" onPress={()=>void controller?.recover()}><Text style={{color:colors.accent}}>{ui("common.pending_message")}</Text></Pressable>}
-    {!!(error||state.error)&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(state.error||error, 'feedback')}</Text>}
+    {!!(error||state.error)&&<Text activity accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(state.error||error, 'feedback')}</Text>}
   </View>;
 }

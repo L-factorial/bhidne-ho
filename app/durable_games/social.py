@@ -240,6 +240,11 @@ class SocialLaneExecutor:
                             WHERE user_low=%s AND user_high=%s AND status='pending' AND requested_by=%s''',
                             (low,high,origin))).fetchone()
                         handled = not bool(pending)
+                    if data.kind == 'settlement_requested':
+                        pending = await (await claim.connection.execute('''SELECT 1 FROM settlement_transfers
+                            WHERE transfer_id=%s AND payee_id=%s AND status='MARKED_PAID' ''',
+                            (data.payload.get('transfer_id'),target.recipient_id))).fetchone()
+                        handled = not bool(pending)
                     identity = uuid5(NAMESPACE_URL, canonical_json(['notification',str(target.recipient_id),data.key]))
                     seq = await self._next(claim)
                     now = (await (await claim.connection.execute('SELECT clock_timestamp()')).fetchone())[0]

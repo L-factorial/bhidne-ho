@@ -1,5 +1,409 @@
 # Distributed runtime implementation plan
 
+## 2026-10-22: Ledger granularity, confirmation notifications and all-view captures
+
+- User authorized implementation of the revised three-tab hierarchy. Balances
+  now aggregates historical per-player records across every table, retaining
+  zero totals. Table ledgers lists sessions with creation times; opening one
+  replaces the list with a back arrow, Entire session totals, and Games
+  breakdown with individually expandable dated games. Zero-payment records and
+  existing game-exit ledger targets remain supported.
+- My settlement lists expandable tables, with To pay, To receive and Settled
+  records. A payer's Settle creates a batch only when needed, requests acceptance
+  for that transfer, and notifies the recipient. The recipient accepts in the
+  ledger or notification bell. Accepted transactions stay visible, greyed out
+  with disabled Settled buttons, as explicitly confirmed by the user. Original
+  game balances and results remain unchanged. There are no browsing-triggered
+  settlement writes or separate Start settlement requirement.
+- Kept existing OPEN -> MARKED_PAID -> RESOLVED accounting states. Suggestions
+  are replaced with server-issued transfer IDs before action; refreshed amount
+  and counterpart must match, excluding previously known transfers. Notifications
+  use the existing fenced recipient inbox in distributed mode and share the
+  transaction/receipt boundary; legacy PostgreSQL notices share the transfer
+  transaction. Memory mode uses the existing notification collection. Acceptance
+  retires request notices; delayed recipient delivery recognizes already accepted
+  requests. Notifications and UI copy are supported in English and Nepali.
+- Durable table creation times come from room_tables and game times from the
+  existing started-at projection. Legacy memory tables retain creation time in
+  their service catalog, avoiding any checkpoint format/gameplay state change.
+  Historical timestamps unavailable from a catalog display an em dash.
+- Verification: TypeScript, Expo export and all 552 client tests passed. Targeted
+  ledger/player/backend selection passed 27 tests against PostgreSQL/WASM; the
+  expanded four-test durable settlement selection additionally covers delayed
+  notices, fenced receipt rollback, deduplication and recipient-only acceptance.
+  Browser checks passed at 320/390/1280 pixels for all views and notifications;
+  navigation/pagination/retry and ten game-exit scenarios also passed. A broader
+  backend check finished 51 passed and two Flush side-show checkpoint failures
+  (pending_side_show unexpectedly None), outside this ledger implementation.
+  git diff --check passed. No deployment or live settlement writes were performed.
+- Captured and inspected all ten views under /private/tmp/bhidne-ledger-*.png;
+  standalone screenshot gallery: /private/tmp/bhidne-ledger-review.html. Screenshots
+  use isolated fixtures, including suggested, pending and accepted transactions.
+- Next step: user review of the new views. Distributed runtime operational and
+  capacity work remains deferred; Flush checkpoint failures need separate scope.
+
+## 2026-10-22: Ledger payment previews without starting settlement
+
+- User requested per-table balance and individual-payment tabs, with who owes
+  whom visible before Start settlement. Expanded tables now provide Balances and
+  My settlement tabs; personal summaries show To pay, To receive and Resolved.
+- Shared presentation combines existing recorded transfers and the server's
+  suggested transfers for unclaimed games. Suggestions retain table context and
+  remain read-only; opening either payment view creates no settlement. Existing
+  Start settlement, Mark paid and Confirm received operations remain explicit.
+  Recorded transfers are deduplicated and resolved rows scoped to the viewer.
+- Per-table balances use record_balances when available, preserving zero totals.
+  Added English/Nepali empty-payment copy. Applies to original and distributed
+  consumers of the shared RoomLedger component without backend changes.
+- Verification: TypeScript, Expo web export, all 551 client tests passed. Local
+  isolated browser fixtures passed at 320/390/1280 pixels, checking per-table
+  previews, zero settlement writes from browsing, existing payment controls,
+  navigation, empty states and retry. Inspected mobile screenshot at
+  /private/tmp/bhidne-table-payments-390.png. git diff --check passed.
+- Next step: review ledger presentation with real completed-game data. Payment
+  previews depend on the existing server suggestion plan; no operational or
+  distributed runtime behavior was changed.
+
+## 2026-10-22: Password minimum corrected to 8
+
+- User explicitly requested an 8-character minimum instead of 15. Updated the
+  shared server/client new-password policy, sign-up/reset guidance in English
+  and Nepali, and development console. Maximum stays 128; spaces, symbols and
+  Unicode remain accepted without trimming. Sign-in behavior is unchanged.
+- Verification: 12 backend password-policy checks and both client validation
+  tests passed; TypeScript passed. Updated boundary cases to accept 8 characters
+  and reject 7, including Unicode character counting.
+- This supersedes the 15-character policy described in the prior entry.
+- Next step: review the updated sign-up/reset UI. Database-dependent integration
+  verification and distributed runtime operational work remain deferred.
+
+## 2026-10-22: New-password length policy
+
+- User authorized the suggested 15-character minimum for newly chosen passwords;
+  maximum remains 128. Sign-up and recovery reset enforce the same Unicode
+  character limits in server models, reset service, and shared client validation.
+  Spaces, symbols and Unicode remain allowed and passwords are never trimmed.
+- Sign-in keeps its existing 8-character minimum for older accounts. Sign-up
+  guidance now emphasizes “At least 15 characters · any characters allowed” in
+  English and Nepali; recovery guidance and development-console mode follow suit.
+- Verification: TypeScript passed; all 549 client tests passed; backend selection
+  finished with 74 passed, 18 skipped (database-dependent), and one unrelated
+  existing table-directory assertion failure: seated_players includes user_id
+  and avatar_url beyond the expected seat_id/display_name fields. Added boundary,
+  Unicode, exact-preservation, legacy sign-in, and early reset-rejection tests.
+  Updated affected registration fixtures. git diff --check passed.
+- Limitation: database-dependent recovery checks skipped without a configured
+  test database; no new browser screenshot was requested for this increment.
+- Next step: review the sign-up/reset copy and, when a test database is available,
+  run recovery integration checks. Distributed runtime capacity/operations work
+  remains deferred as previously agreed.
+
+## 2026-10-22: Sign-up-only live field validation guidance
+
+- User corrected the request to sign-up only and authorized implementation plus
+  screenshots. Added shared inline requirements beneath username, email, password
+  and confirmation fields in the original and integration account forms. Empty
+  fields show muted grey circles; typed rules independently turn green/check or
+  red/cross. Polite announcements and symbols supplement the color states.
+- Username sign-up form rules follow the user's requested stricter format:
+  3–32 ASCII letters/digits, beginning with a letter. Existing backend registration
+  still accepts underscores/hyphens/digit-first names; this increment changes the
+  new sign-up form's guidance/gating only, not server policy or stored accounts.
+  Sign-in keeps its existing identifier/password checks and legacy formats.
+- Password guidance uses the server's existing 8–128 Unicode-character length
+  requirement, with no invented complexity rules. Email reuses the existing
+  server-aligned mailbox validator; confirmation checks the entered password.
+  Both forms' submit gates agree with their hints. Removed the conflicting old
+  underscore/hyphen requirements footer from sign-up only; retained login copy.
+- Added English/Nepali guidance. Updated local signup-avatar and signup-verification
+  fixtures to use usernames compatible with the new sign-up format.
+- Verification: TypeScript, all 549 client tests, focused localization recheck,
+  web export and diff checks pass. New validation tests cover boundaries, each
+  username rule and Unicode password counting. Local Chrome at 320/390/1280px
+  verifies neutral/mixed/valid states, confirmation mismatch, submit enable/disable,
+  cleared fields, signup-only rendering and unchanged legacy-username login.
+  Signup-avatar save/skip/sign-in checks pass at all three widths; signup email
+  verification regressions pass at 390/1280px. All use isolated mock responses.
+- Evidence: `/private/tmp/bhidne-signup-validation-{tests,localization,build,browser}.log`,
+  `/private/tmp/bhidne-signup-{avatar,verification}-browser.log`.
+  Screenshots: `/private/tmp/bhidne-signup-validation-{neutral,mixed,valid}.png`.
+- Limitations: local source only; no deployment/native build or live account
+  writes. Integration wiring is typechecked; browser coverage targets original UI.
+- Exact next step: review the screenshots and check signup keyboard/inline hints
+  in an iOS build before release. Server-wide username policy remains unchanged.
+
+## 2026-10-22: Fading-line feedback inside pending Call Break actions
+
+- User requested the same fading line during card sending/playing instead of
+  Sending/Submitting text. The card play button now shows ActivityLine while its
+  request is pending, for both button plays and upward throws. It stays disabled
+  until recovery completes; the table-header line remains available as before.
+- Bid submission also replaces its Submitting label with ActivityLine. Retained
+  the accessible action name and fixed the bid button's loading dimensions to
+  avoid a text-to-line resize. Uses the existing reduced-motion-aware animation.
+  Actionable rejections still render after pending feedback finishes; durable
+  command handling, original request IDs and game logic are unchanged.
+- Verification: TypeScript, 13 focused feedback/pending-action tests, fresh web
+  export and diff checks passed. Local Chrome held card and bid requests open,
+  verified the in-button line with no Sending/Submitting text, disabled stable-size
+  buttons and one submission, then released real 409 rejections and verified the
+  line stopped and the actionable error was readable.
+- Evidence: `/private/tmp/bhidne-callbreak-sending-{tests,build,browser}.log`,
+  `/private/tmp/bhidne-callbreak-sending.cjs` and
+  `/private/tmp/bhidne-callbreak-sending-{card,bid}.png`.
+- Limitations: local source only; no deployment/native build or device check.
+- Exact next step: verify the subtle pending line and the other approved Call
+  Break controls/gestures on iOS before the next signed build.
+
+## 2026-10-22: Plain Hide/Show labels for Call Break hand visibility
+
+- User requested text instead of the eye/eye-off icon. The top-row toggle now
+  reads Hide for face-up cards and Show for face-down cards. The hidden-hand
+  footer uses the same short Show label. Preserved descriptive accessibility
+  labels, reveal state, selection clearing and hidden-card identity protection.
+  Added English/Nepali short copy and widened the toggle from 44px to 56px.
+- Verification: TypeScript, four localization tests, web export and diff checks
+  passed. Local Chrome at 320/390px verified Hide → Show → Hide follows the
+  actual card state, hidden identities stay inaccessible, and the toggle fits.
+  Evidence: `/private/tmp/bhidne-callbreak-hide-show-{tests,build,browser}.log`
+  and `/private/tmp/bhidne-callbreak-hide-show.cjs`.
+- Limitations: local changes only; no deployment/native build or device check.
+- Exact next step: review this text control with the pending Call Break changes
+  on iOS before the next signed build.
+
+## 2026-10-22: Extend live-win pulse to main Call Break table seats
+
+- User requested the drawer's current-wins animation on the main table as well.
+  Added structured bid/wins content to detailed Call Break seats, covering both
+  inline and below-name stats. Only the wins number pulses; bid text stays steady.
+  `LiveGameTable` explicitly enables it only for an ongoing PLAYING phase.
+- Extracted the existing drawer behavior into `useLiveWinOpacity`, shared with
+  table seats: 900ms fade each way, 55–100% opacity, full-opacity static fallback
+  for reduced motion and inactive phases. Preference listeners are installed
+  only while the pulse is active. Existing avatar rings and card collection
+  animations remain intact; other seat callers do not opt into the new content.
+- Verification: TypeScript, two focused summary tests, fresh web export and diff
+  checks passed. Local Chrome confirmed four structured table counters, sampled
+  the main-table wins pulse against a steady bid, and verified full opacity after
+  reduced motion and a phase change to bidding. Visually inspected the table.
+- Evidence: `/private/tmp/bhidne-table-win-pulse-{tests,build,browser}.log`,
+  `/private/tmp/bhidne-table-win-pulse.cjs` and
+  `/private/tmp/bhidne-callbreak-table-win-pulse.png`.
+- Limitations: local source only; no deployment/native build or device check.
+- Exact next step: review pulse subtlety on iOS with the other pending Call Break
+  card-area changes before the next signed build.
+
+## 2026-10-22: Explicit play label and red selected-card cue in Call Break
+
+- User requested “Play selected card” instead of the selected card's shorthand
+  in the action button. Updated the stable button label and Nepali translation;
+  it stays disabled until a legal card is selected, and retains Show cards while
+  the hand is hidden. Updated related browser selectors for the new label.
+- Selected cards now use Marriage's solid #DC2626 four-pixel border with a red
+  downward marker above the card in Arc and Grid. The marker is decorative,
+  ignores touch and screen-reader focus, and the card exposes selection state.
+  Only selected-card overflow is allowed for the marker; card-back clipping and
+  existing legal-card styling remain intact. Gameplay/throw behavior is unchanged.
+- Verification: TypeScript, four localization tests, web export and diff checks
+  passed. The local Call Break browser suite passed full-hand fit, arrangements,
+  privacy, selection, button submission and guarded throws at 320/390/1280px,
+  plus bidding/footer fit and correct bid payload at 320x568. Visually inspected
+  the new red border/arrow and full button label in Arc/Grid at 390px.
+- Evidence: `/private/tmp/bhidne-callbreak-selection-{tests,build,browser}.log`.
+  Updated screenshots: `/private/tmp/bhidne-callbreak-390-{arc,grid}.png`.
+- Limitations: local source only, no deployment/native build or device check.
+- Exact next step: review the updated selection screenshots and validate on iOS
+  alongside the pending card-area, throw and live-win pulse changes.
+
+## 2026-10-22: Pulse live tricks-won values in the Call Break drawer
+
+- User requested blinking current wins in the bid/current-win row. Only the
+  current tricks-won values now share a gentle 1.8-second opacity pulse (55–100%)
+  during live PLAYING. Bid values remain steady; bidding, round review, finished
+  games and the full Game summary remain static. No scoring or game logic changed.
+- Reduced-motion preference disables the pulse immediately and restores full
+  opacity. Screen readers receive one grouped player/bid/tricks label; animation
+  does not repeatedly announce the number. Existing column sizing is retained.
+- Verification: TypeScript, two focused Call Break summary tests, fresh web export
+  and diff checks passed. Local Chrome sampled changing win opacity with a
+  readable minimum and steady bid opacity, then verified reduced-motion and
+  non-playing phases remain at full opacity. Evidence:
+  `/private/tmp/bhidne-callbreak-win-pulse-{tests,build,browser}.log` and
+  `/private/tmp/bhidne-callbreak-win-pulse.cjs`.
+- Limitations: local source only; no deployment/native package or device check.
+- Exact next step: review pulse subtlety on iOS alongside the restored player row
+  and card-area gesture changes before the next signed build.
+
+## 2026-10-22: Restore the player-status row in Call Break's taller drawer
+
+- User corrected the previous layout: the current-play boxes and each player's
+  bid/tricks status must remain in the card drawer. Restored `CallBreakSummary`
+  above the arrangement controls, using the same current/revealing trick view
+  as the main table. Each player retains their name, bid/tricks status and a
+  played-card box (or an empty placeholder) during PLAYING.
+- The fit-content Call Break drawer may now use its full parent height instead
+  of the previous 94% ceiling, accommodating the additional row. Screens below
+  680px high use a denser status row and smaller 32x44 played-card boxes. During
+  bidding the row shows names/bid status without obsolete played-card boxes.
+  Arrangement tabs, the full hand and fixed Grid/Arc/Play controls are retained.
+  Marriage and other drawers keep their existing height/scroll behavior.
+- Verification: TypeScript, all 547 client tests, web export and diff checks pass.
+  Extended the Call Break browser fixture to require four current-play boxes.
+  Checks pass at 320/390/1280px for complete arc/grid fit, visible footer, saved
+  arrangements, reordering, button submission and guarded throws. Short-phone
+  320x568 bidding still fits its bid button and bottom controls.
+- Evidence: `/private/tmp/bhidne-callbreak-status-{tests,build,browser}.log`.
+  Updated local previews: `/private/tmp/bhidne-callbreak-390-{arc,grid}.png`
+  and `/private/tmp/bhidne-callbreak-320-bidding.png`.
+- Limitations: local source only; no deployment/native build. Physical device,
+  larger font scales and short landscape remain unverified. The previously
+  recorded Marriage desktop baseline issue remains outside this change.
+- Exact next step: review the restored-row screenshot and validate this taller
+  drawer on iOS before including the approved UI in a signed build.
+
+## 2026-10-22: Approved Call Break card-area layout and upward throws
+
+- User authorized implementation after gathering UI requirements. Rebuilt the
+  Call Break hand panel with Marriage-style My arrangement / Auto Arrangement
+  tabs on top, cards in the middle, and always-visible Grid / Arc and selected-card
+  Play controls below. Uses Marriage's labels, 44px tabs, button styling and
+  selected background. Auto sorting preserves the separate personal arrangement;
+  dragging switches to personal arrangement. Hiding/revealing cards remains available.
+- Removed the duplicate compact trick summary and large hand title from the hand
+  panel. Table and Game summary retain those details. Added a Call Break-only
+  fit-content option to the shared hand drawer; Marriage keeps its scroll layout.
+  Responsive fan/grid geometry fits 13 cards and controls without scrolling in
+  the tested portrait/desktop sizes. Compact bidding and accept/redeal actions
+  sit below the cards; selecting a card does not shift the footer height.
+- Added deliberate upward throws through the existing PLAY_CARD action. Gesture
+  requires at least 90px upward movement, predominantly vertical direction, and
+  either a strong flick or 150px upward drag; release must be 20px above the card
+  stage. Ordinary rearranging stays local. Rechecks legal-card/turn/reveal state,
+  guards stale drags across turn/hand changes, and blocks duplicate submissions.
+  Shared MarriageHandCard only adds optional release gesture metadata; existing
+  Marriage callbacks ignore it. Added English/Nepali play-button and gesture copy.
+- Verification: TypeScript, all 547 client tests, fresh web export and diff checks
+  passed. New tests cover throw intent and full-hand geometry. Local Chrome checks
+  pass at 320/390/1280px: full-hand arc/grid fit, visible footer, independent saved
+  arrangements, card privacy, manual rearrangement, selected-card button and legal
+  versus illegal/short/other-turn throws. A 320x568 bidding fixture fits the hand,
+  bid controls and view footer, and submits the selected bid amount correctly.
+- Updated existing Call Break drag/review browser checks for the new explicit
+  controls and responsive card dimensions. Review checks pass at 390/1280px with
+  and without redeal eligibility. Drag checks cover both turns and both views at
+  320/390/1280px. Evidence: `/private/tmp/bhidne-callbreak-{layout-tests,layout-build,
+  layout-browser,review-browser,drag-browser}.log`; export:
+  `/private/tmp/bhidne-callbreak-layout-web`.
+- Screenshots: `/private/tmp/bhidne-callbreak-{320,390,1280}-{arc,grid}.png`
+  and `/private/tmp/bhidne-callbreak-320-bidding.png`. All use isolated local
+  snapshots and simulated action responses; no live game/account writes.
+- Marriage overlay regression passes at 390px. At 1280px its exact-geometry check
+  fails with the same 671px-to-701px table-height change on both the previous
+  unchanged build and this build. Left this existing mismatch outside scope;
+  evidence: `/private/tmp/bhidne-callbreak-marriage-{regression,baseline}.log`.
+- Limitations: local source only; no commit/deployment/native build. Physical iOS
+  flick feel, large OS text and short landscape sizes remain unverified.
+- Exact next step: review the shared screenshots, then validate flick thresholds,
+  manual sorting and bottom-control fit on iOS before including in a signed build.
+  Other game changes and deferred operational work remain out of this increment.
+
+## 2026-10-22: Clear an obsolete wait-for-turn rejection
+
+- User clarified that “Please wait for your turn” should disappear when the
+  Your turn indicator glows. The earlier screenshot deliberately injected a
+  rejection into an own-turn fixture, exposing contradictory feedback.
+- Added `clearObsoleteTurnError` to shared game feedback. Flush, Marriage and
+  Call Break suppress only the localized not-your-turn denial when their
+  authoritative playing snapshot names the viewer as current player. Invalid
+  bets and other actionable errors remain readable; spectators and other-player
+  turns retain the denial. No timer or animation determines turn ownership.
+- Original-runtime poll/push snapshot installs also clear the obsolete stored
+  error so it does not return on a later turn. Game rules/commands are unchanged.
+- Verification: TypeScript, all 545 client tests, clean web export and diff checks
+  passed. EN/NE tests cover all three games, other-player turns and spectators,
+  and preserving invalid-bet errors. A local Chrome Flush fixture displayed an
+  injected HTTP 409 turn denial, changed the authoritative current player to the
+  viewer, and verified the text disappeared and stayed absent after another
+  refresh. Screenshot: `/private/tmp/bhidne-flush-turn-error-cleared.png`.
+- Evidence: `/private/tmp/bhidne-turn-error-{tests,build}.log`,
+  `/private/tmp/bhidne-turn-error-check.cjs`, `/private/tmp/bhidne-turn-error-web`.
+  Found usable Playwright at `/private/tmp/bhidne-invite-preview-tools/node_modules/playwright`;
+  older fixture attempts used the wrong API port, resolved with an explicit
+  local API URL and clean export. The prior missing-package browser limitation
+  is resolved for this focused check, not for the full pending browser matrix.
+- Limitations: local source only, no deployment/native package. Marriage/Call
+  Break are unit-tested for this behavior; their browser/device checks remain.
+- Exact next step: verify turn-denial clearing and retained invalid-action errors
+  in all three games on iOS; complete the remaining outage browser matrix.
+
+## 2026-10-22: Consistent request progress across all three games
+
+- User explicitly requested the same communication-error treatment in Flush,
+  Marriage and Call Break. All three screens now use `gameRequestFeedback` to
+  separate retry activity from actionable errors, and render the existing fading
+  line directly below their table header. Removed the former Flush hand-area
+  line and shared footer line to avoid duplicate game-request indicators.
+- Wired connection/snapshot readiness into Marriage and Call Break as well as
+  Flush, in the original runtime; integration screens use the same common props.
+  Call Break's automatic-play action lock is separate from request activity, so
+  automatic play alone does not leave a permanent loading indicator.
+- Retry messages no longer reach game-specific error handling: Marriage does not
+  expand its hand in response to reconnection text; Call Break retains its pending
+  card and manually collapsed hand until an authoritative snapshot or rejection.
+  Rule/access/session errors remain readable, including game dialogs/results.
+- Verification: TypeScript, all 544 client tests, fresh web export and diff checks
+  passed. Extended lost-response/background-acceptance coverage to all three game
+  command paths. Added EN/NE feedback tests and Call Break pending-card/real-denial
+  behavior tests. Evidence: `/private/tmp/bhidne-all-game-feedback-{tests,build}.log`
+  and `/private/tmp/bhidne-all-game-feedback-web`.
+- Limitations: local changes only; no commit, deployment or native package.
+  Browser/device visual checks remain unrun because Playwright packages are missing
+  and registry access was unavailable during the preceding increment.
+- Exact next step: run all three games through an injected communication outage
+  and recovery in a browser and iOS build; check the header line, retained hands,
+  and readable real rejections. Operational work remains deferred.
+
+## 2026-10-22: Transient communication feedback audit and fading-line retries
+
+- User requested investigation of a briefly visible generic error near Flush's
+  cards/buttons and quiet fading-line feedback while communication retries.
+  This explicitly authorizes the related client presentation increment.
+- Found candidate sources rather than reproducing yesterday's exact incident:
+  table snapshot polling/reconciliation (`RoomGameControl`), table-chat history
+  beside the hand (`TableSocial`), shared command-recovery errors
+  (`useRoomSession`), and original-UI durable button intents
+  (`DistributedUiIntent` / `OriginalUiApi`). These paths could show generic,
+  connection or service errors even though the request remained recoverable.
+- Added retry-context presentation using the existing `ActivityLine` and its
+  reduced-motion support. Retained raw errors, receipts and original command IDs.
+  Pending original-UI button requests carry WeakSet presentation metadata rather
+  than changing diagnostic messages. Structured game-rule rejections, authentication,
+  access/missing-item failures and one-shot failures still provide readable errors.
+- Covered other automatic refresh surfaces: active tables, room/table/scoped chat,
+  chat member lists, friend presence/conversations/private messages, notifications,
+  room ledger/table summaries, and integration-screen catalog/room reads and
+  command recovery. Scoped chat keeps its last messages during temporary failure.
+  Table-chat initial history now retries failed loads even without blocking enabled;
+  successful loads retain the previous push-only behavior in that configuration.
+- Table loading remains in its line-only loading state through transient outages.
+  Temporary table refresh errors no longer invoke requested-entry dismissal.
+  Successful snapshots/recovery clear transient activity without clearing unrelated
+  actionable errors. This shared behavior covers Flush, Marriage and Call Break.
+- Verification: TypeScript, all 539 client tests, fresh web export and diff checks
+  passed. Tests cover EN/NE retry versus one-shot presentation, real denials,
+  lost-response recovery with the same request, retained diagnostics, and clearing
+  activity after background acceptance. Evidence:
+  `/private/tmp/bhidne-retry-{tests,build}.log` and `/private/tmp/bhidne-retry-web`.
+- Updated the browser table-loading fixture to check repeated 503 retries, absence
+  of alerts/manual-retry UI and automatic recovery at 320/390/1280px. It was not
+  executed: existing temporary Playwright installations are missing packages and
+  registry access fails with ENOTFOUND. Native/device appearance remains unverified.
+- Limitations: local source only, no commit, deployment or native build. Historical
+  incident source is inferred from code; no production telemetry was consulted.
+- Exact next step: run the updated browser outage fixture and inject table-chat
+  and Flush button failures with Playwright available, then verify on an iOS build.
+  Deferred capacity/observability/database HA/operational work remains deferred.
+
 ## 2026-10-13: Optional avatar selection after sign-up
 
 - User approved adding avatar selection after account creation, with Skip for
@@ -11368,3 +11772,28 @@ Capacity, observability, database HA and operational readiness remain deferred.
 - Verification: TypeScript and diff checks pass. Copy-only change; no additional
   tests, deployment or native build. Exact next step: include the caption in the
   next requested release/build and review the final winning-option button.
+
+### Direct production deployment — 2026-10-21 (f494773)
+
+- User authorized direct deployment to both application servers. Released committed
+  revision f4947739e47840f521ab37bfcce3a8fc01de5165 with the English/Nepali Marriage
+  finish confirmation captions. No competing production workflow was active at
+  preflight or immediately before activation; no push/workflow was started.
+- Built the git archive on app1 using Dockerfile.production; client tests,
+  TypeScript and production export passed. Transferred the checksum-verified image
+  to app2; dependency/schema/frontend checks passed on both. Activated backends
+  sequentially, then both frontends, retaining release locks and rollback checks.
+  No schema migration or database initialization performed.
+- Both hosts run the same image
+  sha256:d7c88ca2b139780d984ca7236dd569c9cfede07542fb64f76b71f7b47ea6295d.
+  Both frontend indexes and the public HTTPS index match SHA-256
+  3908f8f57d64f9c59d0248ee9ed5528ff0b0cf2c79f5c7c8abe4ab51befe8299.
+  Public JavaScript matches both hosts; direct/public health checks pass.
+  Chrome checks at 390/1280px pass without JavaScript errors. Evidence:
+  /private/tmp/bhidne-f494773-{stage,rollout,verify,smoke}.log and
+  /private/tmp/bhidne-f494773-verification.json; app1 build log is
+  /srv/bhidne-prod/builds/f494773/build.log.
+- Limitations: server/web release only; installed native apps require a signed
+  build. No authenticated gameplay writes or physical-device checks performed.
+  Exact next step: refresh production web and review the final winning-option
+  caption; request native build separately. Operational task set remains deferred.

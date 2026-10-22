@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 
 from app.models.user import UserIdentity
@@ -20,6 +22,9 @@ async def ledger(room_id: str, request: Request, user: UserIdentity = Depends(cu
         await request.app.state.test_games.retry_completed_ledgers(room_id)
         table_names = {game.table.table_id: game.name for game in request.app.state.test_games._room_games(room_id)}
         snapshot = await request.app.state.ledger.snapshot(room_id, user.user_id, table_names)
+        for table in snapshot['tables']:
+            created = request.app.state.test_games.table_created_at.get(table['table_id'])
+            table['created_at'] = datetime.fromtimestamp(created, timezone.utc).isoformat() if created is not None else None
         profiles = await request.app.state.players.store.get_players(snapshot["players"])
         snapshot["player_profiles"] = {p["user_id"]: {
             "display_name": p["display_name"], "avatar_url": p.get("avatar_url")

@@ -1,5 +1,5 @@
-import {ui} from '../i18n/copy';
-import type {UiKey} from '../i18n/catalogs';
+import {ui} from '../i18n/copy.ts';
+import type {UiKey} from '../i18n/catalogs.ts';
 const keys: UiKey[] = [
  'common.waiting_for_the_table_service_your_form_will_stay_open_while_it_retries','common.saving','common.card_theme_saving','social.sending','feedback.reconnecting','feedback.waiting_for_the_server_to_confirm_your_action','deletion.checking','marriage.checking_marriage','marriage.checking_maal',
  'feedback.sending_your_action','feedback.confirming_your_action','feedback.please_wait_confirmation',

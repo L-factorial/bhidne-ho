@@ -1,17 +1,21 @@
+import {useLiveWinOpacity} from '../multiplayer/useLiveWinOpacity';
 import { CompactCardFace } from './CompactCardFace';
 import { useState } from 'react';
-import { ScrollView, View, useWindowDimensions } from 'react-native';
+import { Animated, ScrollView, View, useWindowDimensions } from 'react-native';
 import { AppText as Text } from './AppText';
 import { fonts, radii, useTheme } from '../theme';
 import { ui } from '../i18n/copy';
 import { summaryPlayers, summaryScore, summaryTotal } from '../multiplayer/callbreakSummary';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
 
-export function CallBreakSummary({ snapshot, compact = false }: { snapshot: RoomSnapshot; compact?: boolean }) {
+export function CallBreakSummary({ snapshot, compact = false, dense = false }: { snapshot: RoomSnapshot; compact?: boolean; dense?: boolean }) {
   const { colors: c } = useTheme();
   const { fontScale } = useWindowDimensions();
   const [availableWidth, setAvailableWidth] = useState(360);
   const trick = snapshot.game?.current_trick;
+  const liveWins = compact && snapshot.status === 'playing' && snapshot.game?.phase === 'PLAYING'
+    && !snapshot.game.finished && !snapshot.round_review;
+  const winOpacity = useLiveWinOpacity(!!liveWins);
   const players = summaryPlayers(snapshot, compact ? trick?.plays[0]?.player_id ?? snapshot.game?.turn.player_id ?? undefined : snapshot.deal?.dealer, compact);
   const scale = snapshot.game?.score_scale ?? 10;
   const labelWidth = 80 * Math.max(1, fontScale);
@@ -21,7 +25,7 @@ export function CallBreakSummary({ snapshot, compact = false }: { snapshot: Room
   const text = { color: c.text, fontFamily: fonts.medium, fontSize: compact ? 11 : 13 };
   const heading = (rounds: boolean) => <View style={{ flexDirection: 'row', backgroundColor: c.surfaceRaised }}>
     {rounds && <Text style={{ ...text, width: labelWidth, padding: 6 }}>{ui('callbreak.summary_round_label')}</Text>}
-    {players.map(player => <Text key={player.player_id} numberOfLines={2} style={{ ...text, width: rounds ? columnWidth : currentWidth, textAlign: 'center', padding: 6 }}>{player.display_name || ui('common.player_number', { number: player.player_id })}</Text>)}
+    {players.map(player => <Text key={player.player_id} numberOfLines={2} style={{ ...text, width: rounds ? columnWidth : currentWidth, textAlign: 'center', padding: dense && compact ? 0 : 6 }}>{player.display_name || ui('common.player_number', { number: player.player_id })}</Text>)}
   </View>;
   // Fixed whole/fraction fields align the dot even for negative and two-digit scores.
   const score = (units: number | null, id: string) => {
@@ -35,7 +39,7 @@ export function CallBreakSummary({ snapshot, compact = false }: { snapshot: Room
     <Text style={{ ...text, width: labelWidth, padding: 6 }}>{label}</Text>
     {players.map(player => score(typeof round === 'number' ? summaryScore(snapshot, player.player_id, round) : summaryTotal(snapshot, player.player_id, round === 'final'), `${round}-${player.player_id}`))}
   </View>;
-  return <View testID={compact ? 'callbreak-hand-trick-summary' : 'callbreak-summary'} onLayout={event => { if (event.nativeEvent.layout.width > 0) setAvailableWidth(event.nativeEvent.layout.width); }} style={{ gap: compact ? 4 : 12 }}>
+  return <View testID={compact ? 'callbreak-hand-trick-summary' : 'callbreak-summary'} onLayout={event => { if (event.nativeEvent.layout.width > 0) setAvailableWidth(event.nativeEvent.layout.width); }} style={{ gap: compact ? dense ? 2 : 4 : 12 }}>
     {!compact && <View style={{ padding: 12, borderRadius: radii.medium, backgroundColor: c.surfaceRaised, gap: 4 }}>
       <Text style={text}>{ui('callbreak.summary_dealer', { player: players.find(player => player.player_id === snapshot.deal?.dealer)?.display_name || '—' })}</Text>
       <Text style={text}>{ui('callbreak.summary_round', { round: snapshot.deal?.deal_number ?? '—', total: 5 })}</Text>
@@ -45,11 +49,15 @@ export function CallBreakSummary({ snapshot, compact = false }: { snapshot: Room
       {heading(false)}
       <View style={{ flexDirection: 'row' }}>{players.map(player => {
         const bid = snapshot.deal?.players.find(row => row.player_id === player.player_id);
-        return <Text key={player.player_id} style={{ ...text, width: currentWidth, textAlign: 'center', paddingVertical: 6 }}>{bid?.bid ?? '—'} / {bid?.tricks_won ?? 0}</Text>;
+        return <View key={player.player_id} accessible accessibilityLabel={`${player.display_name || ui('common.player_number', {number: player.player_id})}, ${ui('callbreak.summary_bid_won')}: ${bid?.bid ?? '—'} / ${bid?.tricks_won ?? 0}`}
+          style={{width: currentWidth, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: dense && compact ? 0 : 6}}>
+          <Text testID={`current-bid-${player.player_id}`} style={text}>{bid?.bid ?? '—'} / </Text>
+          <Animated.View testID={`current-win-${player.player_id}`} style={{opacity: winOpacity}}><Text style={text}>{bid?.tricks_won ?? 0}</Text></Animated.View>
+        </View>;
       })}</View>
-      {compact && <View style={{ flexDirection: 'row' }}>{players.map(player => {
+      {compact && snapshot.game?.phase === 'PLAYING' && <View style={{ flexDirection: 'row' }}>{players.map(player => {
         const play = trick?.plays.find(play => play.player_id === player.player_id);
-        return <View key={player.player_id} style={{ width: currentWidth, alignItems: 'center', padding: 3 }}><View testID={`hand-trick-${player.player_id}`} accessibilityLabel={play?.card} style={{width:44,height:64,borderWidth:2,borderRadius:6,overflow:'hidden',alignItems:'center',justifyContent:'center',backgroundColor:play?c.cardFace:c.surface,borderColor:play&&play===trick?.plays[0]?c.accent:c.border}}>
+        return <View key={player.player_id} style={{ width: currentWidth, alignItems: 'center', padding: dense ? 0 : 3 }}><View testID={`hand-trick-${player.player_id}`} accessibilityLabel={play?.card} style={{width:dense?32:44,height:dense?44:64,borderWidth:2,borderRadius:6,overflow:'hidden',alignItems:'center',justifyContent:'center',backgroundColor:play?c.cardFace:c.surface,borderColor:play&&play===trick?.plays[0]?c.accent:c.border}}>
           {play?<CompactCardFace compact rank={play.card.slice(0,-1)} suit={play.card.slice(-1)}/>:<Text style={text}>—</Text>}
         </View></View>;
       })}</View>}

@@ -1,3 +1,4 @@
+import {gameRequestFeedback} from '../multiplayer/gameRequestFeedback';
 import { FittedGameTable } from '../components/FittedGameTable';
 import { flushDoubleLimit, flushPlayerName } from '../multiplayer/flush';
 import {ActivityLine} from '../components/ActivityLine';
@@ -50,7 +51,7 @@ const labels = {
   trial_bonus: 'Trial bonus (Salami)', ace_trial_bonus: 'Ace trial (Salami)',
 } as const;
 
-export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onStart, onLock, onAction, onBack, onNewGame, endControl, lobbyControl, social, onFormationBlocked, tableControl }: {
+export function FlushTable({ snapshot, busy, error: requestError, connectionReady, onSave, onStart, onLock, onAction, onBack, onNewGame, endControl, lobbyControl, social, onFormationBlocked, tableControl }: {
   connectionReady: boolean;
   tableControl?: ReactNode;
   onLock: () => void;
@@ -62,6 +63,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
   onBack: () => void; onNewGame: () => void;
 }) {
   useUiLanguage();
+  const {error, active: requestActive} = gameRequestFeedback(requestError, busy, connectionReady && social.connected, snapshot.status === 'ended', snapshot);
   const { colors } = useTheme();
   const s = useThemedStyles(styles);
   const ended = snapshot.status === 'ended';
@@ -213,6 +215,7 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
       {closeMenu => <FlushMenu snapshot={snapshot} close={closeMenu} rules={() => setRulesExplanationOpen(true)} rulesConfig={() => {setRulesTab('rules');setRulesOpen(true);}} history={() => setBetsOpen(true)}
         poke={() => setPokeOpen(true)} canPoke={social.connected} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl} />}
     </GameTableHeader>
+    <ActivityLine active={requestActive} />
     <View style={s.mainColumn} testID="flush-main-column">
       <View style={{ flex: 1, minHeight: 0, paddingBottom: snapshot.your_player_id && !ended ? collapsedHandHeight + 12 : 0 }}>
       <GameStats snapshot={snapshot} open={stats.open} onOpen={() => { setHandOpen(false); stats.show(); }} onClose={stats.close}>
@@ -237,7 +240,6 @@ export function FlushTable({ snapshot, busy, error, connectionReady, onSave, onS
         {!ended && mine && !preparing && !pub?.settlement && <View style={s.cards} testID="flush-own-cards">
           <View style={s.scaledCards}><FlushCards tapToToggle shown={cardsShown} onShownChange={setCardsShown} key={pub?.round_number} cards={mine.cards} /></View>
         </View>}
-        <ActivityLine active={busy || !ended && !connectionReady} />
         <Text style={s.status}>{turnText}</Text>
         {!!(localError || error) && <Text activity accessibilityRole="alert" style={s.error}>{uiLabel(localError || error, 'feedback')}</Text>}
         <View style={s.actions} testID="flush-actions">

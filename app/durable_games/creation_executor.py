@@ -80,7 +80,7 @@ class RoomCreationExecutor:
             request, actor = claim.entry.request, claim.entry.actor_id
             from .settlements import MODELS as SETTLEMENT_MODELS, execute as execute_settlement
             if claim.target.kind == 'room' and request.command in SETTLEMENT_MODELS:
-                return await execute_settlement(claim)
+                return await execute_settlement(claim, self.inbox)
             from .room_commands import COMMANDS as ROOM_COMMANDS, execute as execute_room
             if claim.target.kind == 'room' and request.command in ROOM_COMMANDS:
                 return await execute_room(claim, self.inbox, fence, max_events=self.max_events)

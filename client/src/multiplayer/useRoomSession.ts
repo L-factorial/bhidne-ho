@@ -1,7 +1,8 @@
+import {isActivityCopy} from './activityCopy';
 import {SIGNUP_RULES_VERSION} from '../auth/communityRules';
 import { setSessionNotice } from '../auth/sessionNotice';
 import { usePersistentNotice } from './usePersistentNotice';
-import { playerError, confirmedActionError } from './playerError.ts';
+import { retryingError, playerError, confirmedActionError } from './playerError.ts';
 import { OriginalDistributedRuntime, originalDistributedOwner } from './OriginalDistributedRuntime';
 import { acquireJournal } from './journalPlatform';
 import { DistributedRequestError } from './DistributedHttpTransport';
@@ -79,7 +80,9 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
         if(error instanceof DistributedRequestError&&error.status===401){expireAccount(active);return;}
         // A command HTTP error does not mean the delivery socket lost the seat.
         if(source==='connection') { setStatus('reconnecting'); setDeliveryInterrupted(true); }
-        if (source === 'command' || error instanceof DistributedRequestError && error.status === 401) setError(playerError(error));
+        // Reconciliation keeps the original command and retries automatically.
+        // Receipts deliver real rejections through the recovery callback below.
+        if (source === 'command' && !isActivityCopy(retryingError(error))) setError(playerError(error));
       },
     })).then(value=>{
       if(!live||!value)return;
@@ -128,7 +131,8 @@ export function useRoomSession(suppliedRoomActions: RoomActions = legacyRoomActi
         }catch(error){
           if(!live || !isCurrentSession(apiUrl, active))return;
           if(!(error instanceof RoomActionPending)){
-            setError(playerError(error, 'Could not recover room action.'));
+            if(error instanceof RoomActionRejected || !isActivityCopy(retryingError(error)))
+              setError(playerError(error, 'Could not recover room action.'));
             if(error instanceof RoomActionRejected)value!.recordCreationFeedback({id:value!.roomCommandId??'room',kind:'room',error:error.message});
           }
           if(error instanceof RoomActionRejected&&value!.roomCommandId)value!.acknowledgeRoomAction(value!.roomCommandId);

@@ -8,6 +8,7 @@ import { FormInput } from '../components/FormInput';
 import { sharedRequest, ApiError } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
 import type { RecoveryLink } from '../auth/recoveryLink';
+import { validNewPassword } from '../auth/password';
 import { validSignupEmail } from '../auth/email';
 import { visualStates, fonts, useTheme } from '../theme';
 import { ui } from '../i18n/copy';
@@ -35,7 +36,7 @@ export function RecoveryScreen({ link, onDone, recoverUsername = false }: {link?
   useEffect(() => { let active = true; void sharedRequest<{enabled: boolean}>('/auth/recovery/capabilities', null)
     .then(v => { if (active) setEnabled(v.enabled); }).catch(() => { if (active) setEnabled(false); }); return () => { active = false; }; }, []);
   const verify = link?.purpose === 'verify_email'; const reset = link?.purpose === 'reset_password';
-  const disabled = busy || !enabled || (reset ? password.length < 8 || password.length > 128 || password !== confirmation : !verify && (recoverUsername ? !validSignupEmail(email) : !username.trim()));
+  const disabled = busy || !enabled || (reset ? !validNewPassword(password) || password !== confirmation : !verify && (recoverUsername ? !validSignupEmail(email) : !username.trim()));
   async function submit() {
     if (disabled) return;
     setBusy(true); setError('');

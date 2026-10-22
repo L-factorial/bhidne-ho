@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
 from psycopg.pq import TransactionStatus
+from psycopg.types.json import Jsonb
 
 from .models import GameLedgerResult
 
@@ -253,12 +254,12 @@ class PostgresLedgerStore:
                 "SELECT 1 FROM settlement_actions WHERE actor_id=%s AND action=%s AND idempotency_key=%s",
                 (_database_user_id(user_id), action, idempotency_key))).fetchone()
             row = await (await connection.execute(
-                "SELECT b.room_id,t.payer_id,t.payee_id,t.status FROM settlement_transfers t "
+                "SELECT b.room_id,t.payer_id,t.payee_id,t.status,b.table_id,t.amount FROM settlement_transfers t "
                 "JOIN settlement_batches b USING(batch_id) WHERE t.batch_id=%s AND t.transfer_id=%s",
                 (batch_id, transfer_id))).fetchone()
             if not row: raise KeyError("Transfer not found.")
             if not prior:
-                room_id, payer_value, payee_value, status = row
+                room_id, payer_value, payee_value, status, table_id, amount = row
                 payer, payee = _application_user_id(payer_value), _application_user_id(payee_value)
                 if action == "mark-paid":
                     if payer != user_id: raise PermissionError("Only the payer can mark this transfer paid.")
@@ -269,6 +270,15 @@ class PostgresLedgerStore:
                     if status != "MARKED_PAID": raise ValueError("The payer must mark this transfer paid first.")
                     await connection.execute("UPDATE settlement_transfers SET status='RESOLVED',resolved_at=now() WHERE transfer_id=%s", (transfer_id,))
                 else: raise ValueError("Unknown settlement action.")
+                if action == 'confirm':
+                    await connection.execute("""UPDATE friend_notifications SET read_at=COALESCE(read_at,clock_timestamp())
+                        WHERE user_id=%s AND kind='settlement_requested' AND payload->>'transfer_id'=%s""",
+                        (payee_value,str(transfer_id)))
+                await connection.execute("""INSERT INTO friend_notifications(id,user_id,actor_id,kind,payload)
+                    VALUES (%s,%s,%s,%s,%s)""", (uuid4(), payee_value if action == 'mark-paid' else payer_value,
+                    _database_user_id(user_id), 'settlement_requested' if action == 'mark-paid' else 'settlement_accepted',
+                    Jsonb(dict(room_id=room_id,table_id=_application_object_id(table_id),batch_id=str(batch_id),
+                        transfer_id=str(transfer_id),amount=int(amount)))))
                 await connection.execute("INSERT INTO settlement_actions(actor_id,action,idempotency_key,transfer_id) VALUES(%s,%s,%s,%s)",
                                          (_database_user_id(user_id), action, idempotency_key, transfer_id))
                 await connection.execute("UPDATE settlement_batches b SET status=CASE "

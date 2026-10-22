@@ -1,5 +1,20 @@
 // Editable English ledger copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "table_ledgers": "Table ledgers",
+  "entire_session": "Entire session",
+  "games_breakdown": "Games breakdown",
+  "back_to_tables": "Back to table ledgers",
+  "created_at": "Created {{date}}",
+  "settle": "Settle",
+  "accept_settlement": "Accept settlement",
+  "settled": "Settled",
+  "awaiting_acceptance": "Awaiting acceptance",
+  "balance_changed": "Balances have changed. Review the refreshed transactions and try again.",
+  "settlement_requested": "requested settlement confirmation",
+  "settlement_accepted": "accepted your settlement",
+  "view_settlement": "View settlement",
+
+  "no_payments": "None for this section.",
   "table_balances": "Table Balances",
   "my_settlement": "My settlement",
   "one_game": "1 game",

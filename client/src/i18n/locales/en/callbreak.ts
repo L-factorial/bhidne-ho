@@ -1,5 +1,10 @@
 // Editable English callbreak copy. Keep keys and {{placeholders}} in sync with the other locale.
 export default {
+  "hide_hand": "Hide",
+  "show_hand": "Show",
+  "play_selected_card": "Play selected card",
+  "arrange_throw_hint": "Drag to arrange. During your turn, flick a legal card upward to play.",
+
   "summary_round_label": "Round",
   "summary_bid_won": "Bid / Tricks won",
   "summary_dealer": "Dealer: {{player}}",

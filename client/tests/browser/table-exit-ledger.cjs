@@ -41,12 +41,16 @@ for(const [kind,operation,empty] of [...['callbreak','marriage','flush'].flatMap
  assert.equal(ledgerReads,0,'unconfirmed exit must not open ledger');release();
  }
  const ledger=page.getByTestId('room-ledger');await ledger.waitFor();
- assert.equal(await ledger.getByRole('tab',{name:'Table Balances',exact:true}).getAttribute('aria-selected'),'true');
  if(!empty){
- const target=ledger.getByTestId('ledger-table-card-target-table');await target.getByTestId('ledger-balances').first().waitFor();
+ const detail=ledger.getByTestId('ledger-table-detail');await detail.getByTestId('ledger-balances').waitFor();
+ assert.match(await detail.innerText(),/target-table/);
+ assert.equal(await ledger.getByTestId('ledger-table-card-other-table').count(),0);
+ await detail.getByRole('button',{name:'Back to table ledgers',exact:true}).click();
  assert.equal(await ledger.locator('[data-testid^="ledger-table-card-"]').first().getAttribute('data-testid'),'ledger-table-card-target-table');
- assert.equal(await ledger.getByTestId('ledger-table-card-other-table').getByTestId('ledger-balances').count(),0);
- }else {assert.equal(await ledger.locator('[data-testid^="ledger-table-card-"]').count(),0);}
+ }else {
+ assert.equal(await ledger.getByRole('tab',{name:'Table ledgers',exact:true}).getAttribute('aria-selected'),'true');
+ assert.equal(await ledger.locator('[data-testid^="ledger-table-card-"]').count(),0);
+ }
  assert.equal(calls,operation==='remote-end'?0:2);assert.deepEqual(f.errors,[]);
  await page.getByTestId('room-sheet-close').click();await page.getByTestId('room-sheet').waitFor({state:'hidden'});
  await f.context.close();console.log('PASS',kind,operation,empty?'empty-history ledger remains dismissible':'failure/pending/success, matching room/table, dismissible ledger');

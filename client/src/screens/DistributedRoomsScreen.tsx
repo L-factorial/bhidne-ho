@@ -1,3 +1,6 @@
+import {SignupValidation} from '../components/SignupValidation';
+import {validSignupUsername,validSignupPassword} from '../auth/signupValidation';
+import {isActivityCopy} from '../multiplayer/activityCopy';
 import {recipientMatches} from '../notifications/notificationDestination';
 import {NotificationActionView} from '../components/NotificationActionView';
 import {TableAvatarProvider} from '../components/TableAvatar';
@@ -21,7 +24,7 @@ import { ForgotPassword, RecoveryEmailSettings, SignupVerification } from './Rec
 import { useUiLanguage } from '../i18n/useUiLanguage';
 import { validSignupEmail } from '../auth/email';
 import { ui, uiLabel } from '../i18n/copy.ts';
-import { playerError } from '../multiplayer/playerError.ts';
+import { retryingError, playerError } from '../multiplayer/playerError.ts';
 import { useEffect, useRef, useState } from 'react';
 import {Pressable, ScrollView, TextInput, View} from 'react-native';
 import { apiUrl, request } from '../multiplayer/api';
@@ -91,13 +94,13 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
   const pokeController = useRef<DistributedScreenController|null>(null);
   const controller = useRef<DistributedScreenController|null>(null), chat = useRef<DistributedScreenController|null>(null);
   const selectionRef = useRef(selected); selectionRef.current=selected;
-  const fail = (e: unknown) => {
+  const fail = (e: unknown, retrying = false) => {
     if (!isCurrentSession(apiUrl, account)) return;
     if ((e as {status?:number})?.status === 401) {
       saveSession(apiUrl,null);setSelected(null);setAccount(null);setProjection(null);
       setSessionNotice(apiUrl,'auth','session_ended');return;
     }
-    setError(playerError(e, 'Request failed.'));
+    setError(retrying ? retryingError(e, 'Request failed.') : playerError(e, 'Request failed.'));
   };
 
   useEffect(()=>{
@@ -118,7 +121,7 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
         setMessages(old=>{const next={...old};delete next[lane];return next;});
       } },
       error(_lane,e) { if (active) {
-        fail(e);
+        fail(e, true);
       } },
       transient(value) {
         const selection=selectionRef.current;
@@ -160,7 +163,8 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
           const page=await runtime!.reads.catalog(null,abort.signal);
           if(active && isCurrentSession(apiUrl, account)){setRooms(page.items);setCursor(page.next_room_id);}
         }
-      } catch(e) {if(active)fail(e);}
+        if(active)setError(current=>isActivityCopy(current)?'':current);
+      } catch(e) {if(active)fail(e, true);}
       finally {if(active)timer=setTimeout(load,5000);}
     }
     void load();return ()=>{active=false;abort.abort();clearTimeout(timer);};
@@ -187,7 +191,7 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
   const input=(label:string,value:string,change:(s:string)=>void,secure=false)=><FormInput accessibilityLabel={label} placeholder={label} placeholderTextColor={colors.textMuted}
     value={value} onChangeText={change} secureTextEntry={secure} autoCapitalize="none" style={{color:colors.text,borderColor:colors.textMuted,borderWidth:1,padding:12,borderRadius: radii.medium}}/>;
   async function login(signup: boolean) {
-    if (authBusy || username.trim().length < 3 || password.length < 8 || (signup && (!confirmPassword || password !== confirmPassword || (!validSignupEmail(email) || !rulesAccepted)))) return;
+    if (authBusy || (signup ? !validSignupUsername(username) || !validSignupPassword(password) : username.trim().length < 3 || password.length < 8) || (signup && (!confirmPassword || password !== confirmPassword || (!validSignupEmail(email) || !rulesAccepted)))) return;
     setAuthBusy(true);setError('');
     try {const session=await request<Session>(signup?'/auth/signup':'/auth/signin',null,{username,password,...(signup?{email:email.trim(),community_rules_version:SIGNUP_RULES_VERSION}:{})});saveSession(apiUrl,{session,room:null,game:null});setSessionNotice(apiUrl,'auth');setPassword('');setConfirmPassword('');setEmail('');setSignupAvatar(signup);setAccount(session);}
     catch(e){setError(playerError(e && typeof e === 'object' && 'status' in e && e.status === 401 ? Error(ui("common.invalid_credentials")) : e));}finally{setAuthBusy(false);}
@@ -201,7 +205,7 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
   if(account&&signupAvatar)return <AvatarPicker session={account} onboarding onSaved={()=>{}} onDone={()=>setSignupAvatar(false)}/>;
   if (!account) return <AccountPage compact footer={accountFormOpen ? <>
     {!signupMode && <PolicyLinks />}
-    <Pressable accessibilityRole="button" disabled={authBusy || (signupMode && (!confirmPassword || password !== confirmPassword || (!validSignupEmail(email) || !rulesAccepted)))}
+    <Pressable accessibilityRole="button" disabled={authBusy || (signupMode && (!validSignupUsername(username) || !validSignupPassword(password) || !confirmPassword || password !== confirmPassword || (!validSignupEmail(email) || !rulesAccepted)))}
       onPress={() => void login(signupMode)} style={[authStyles.button,{backgroundColor:colors.primary},authBusy && {opacity:visualStates.disabledOpacity}]}>
       <Text style={[authStyles.buttonText,{color:colors.onPrimary}]}>{ui(signupMode ? 'common.create_account' : 'common.sign_in')}</Text>
     </Pressable>
@@ -211,18 +215,19 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
     {button(ui(signupMode ? 'common.sign_in' : 'common.sign_up'),()=>{setSignupMode(!signupMode);setAccountFormOpen(false);setConfirmPassword('');setRulesAccepted(false);setError('');},authBusy)}
     {!accountFormOpen ? <AuthMethodChoices signup={signupMode} disabled={authBusy} onContinue={() => setAccountFormOpen(true)} /> : <>
     <FormInput returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => (signupMode ? emailRef : passwordRef).current?.focus()} accessibilityLabel={ui(signupMode?'common.username':'common.username_or_email')} placeholder={ui(signupMode?'common.username':'common.username_or_email')} maxLength={signupMode?32:254} value={username} onChangeText={setUsername} autoCapitalize="none" autoCorrect={false} editable={!authBusy} style={authStyles.input} />
+    {signupMode && <SignupValidation field="username" value={username}/>}
     {signupMode && <>
       <FormInput ref={emailRef} returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => passwordRef.current?.focus()} accessibilityLabel={ui('common.email')} aria-required placeholder={ui('common.email')} value={email}
         onChangeText={setEmail} maxLength={254} keyboardType="email-address" textContentType="emailAddress"
         editable={!authBusy} autoCapitalize="none" autoCorrect={false} style={authStyles.input} />
+      <SignupValidation field="email" value={email}/>
       <Text style={authStyles.description}>{ui('common.signup_email_help')}</Text>
-      {!!email && !validSignupEmail(email) && <Text accessibilityRole="alert" style={{color:colors.danger}}>{ui('common.enter_valid_email')}</Text>}
     </>}
     <FormInput ref={passwordRef} returnKeyType={signupMode ? 'next' : 'done'} submitBehavior="submit" onSubmitEditing={() => signupMode ? confirmRef.current?.focus() : void login(false)} accessibilityLabel={ui('common.password')} placeholder={ui('common.password')} value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} maxLength={128} editable={!authBusy} style={authStyles.input} />
+    {signupMode && <SignupValidation field="password" value={password}/>}
     {!signupMode && <ForgotPassword />}
-    {signupMode && <FormInput ref={confirmRef} returnKeyType="done" accessibilityLabel={ui('common.confirm_password')} placeholder={ui('common.confirm_password')} value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} maxLength={128} editable={!authBusy} style={authStyles.input} />}
+    {signupMode && <><FormInput ref={confirmRef} returnKeyType="done" accessibilityLabel={ui('common.confirm_password')} placeholder={ui('common.confirm_password')} value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} maxLength={128} editable={!authBusy} style={authStyles.input} /><SignupValidation field="confirm" value={confirmPassword} password={password}/></>}
     {signupMode && <SignupRules accepted={rulesAccepted} onChange={setRulesAccepted} disabled={authBusy} />}
-    {signupMode && !!confirmPassword && password !== confirmPassword && <Text accessibilityRole="alert" style={{color:colors.danger}}>{ui('common.passwords_do_not_match')}</Text>}
     {!!error&&<Text activity accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(error, 'feedback')}</Text>}
     </>}
   </AccountPage>;
@@ -247,13 +252,13 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
   </>;
   const endControl=button(ui("rooms.end_table"),()=>void table('end'),busy);
   if(snapshot&&selected?.table) {
-    const common={snapshot,busy,error:action.error||error,onBack:back,onNewGame:back,endControl,tableControl:controls,
+    const common={snapshot,busy,connectionReady:!!runtime,error:action.error||error,onBack:back,onNewGame:back,endControl,tableControl:controls,
       onAction:(command:string,data?:object)=>{void game(command,data);}};
     return <PushProvider session={account} viewedMatch={snapshot.match_id}><TableAvatarProvider key={account.token} session={account}><NotificationActionView root={runtime??undefined} session={account} action={{kind:'table',roomId:selected.room,matchId:snapshot.match_id!}}/><View style={{flex:1}}>
       {action.status==='pending'&&button(ui("common.pending_action"),()=>void controller.current?.recover())}
       {button(chatOpen?ui("common.close_chat"):ui("social.chat"),()=>{setNotificationGameId(undefined);setChatOpen(v=>!v);})}
       {chatOpen&&runtime&&<DistributedChat key={notificationChatScope} root={runtime} initialScope={notificationChatScope} view={{...snapshot,room_id:selected.room,durable_game_id:notificationGameId??snapshot.durable_game_id}}/>}
-      {snapshot.game_type==='flush'?<FlushTable {...common} social={{...social,send:text=>sendPoke(null,text)}} connectionReady={!!runtime}
+      {snapshot.game_type==='flush'?<FlushTable {...common} social={{...social,send:text=>sendPoke(null,text)}}
         onSave={data=>void table('flush-settings',data)} onStart={rules_revision=>start({rules_revision})} onLock={()=>void table('lock')}/>
       :snapshot.game_type==='marriage'?<MarriageTable {...common} social={social} onSave={scoring=>void table('marriage-settings',{scoring})}
         onStart={()=>start()} onTableAction={command=>void table(command)}/>
@@ -267,7 +272,7 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
     <PushSettings />
     <SignupVerification key={account.token} session={account} /><CommunityRulesEntry session={account} /><ModerationEntry session={account} /><RecoveryEmailSettings session={account} /><BlockedPlayers session={account} /><><PolicyLinks /><DeleteAccountLink /></>
     <Text accessibilityRole="header" style={{color:colors.text,fontSize:24}}>{projection?.name||ui("rooms.your_rooms")}</Text>
-    {!!(error||action.error)&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(action.error||error, 'feedback')}</Text>}
+    {!!(error||action.error)&&<Text activity accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(action.error||error, 'feedback')}</Text>}
     {action.status==='pending'&&button(ui("common.pending_action"),()=>void controller.current?.recover())}
     {button(ui("common.sign_out_label"),()=>void logout(),authBusy)}
     {button(platformOpen?ui("common.close_profile_friends"):ui("common.profile_friends"),()=>setPlatformOpen(v=>!v))}
@@ -295,7 +300,7 @@ export function DistributedRoomsScreen({onExit,invitation,dismissInvitation}: {o
       {Object.entries(messages).flatMap(([lane,items])=>items.map((item,index)=>{const row=item as {text?:string;sender_id?:string};return <Text key={lane+index} style={{color:colors.text}}>{row.sender_id}: {row.text}</Text>;}))}
       {input(ui("social.message"),text,setText)}
       {button('Send message',()=>void chat.current?.chat({kind:'room_chat',room_id:selected.room},text),!text.trim()||chatAction.busy||!runtime)}
-      {!!chatAction.error&&<Text accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(chatAction.error, 'feedback')}</Text>}
+      {!!chatAction.error&&<Text activity accessibilityRole="alert" style={{color:colors.danger}}>{uiLabel(chatAction.error, 'feedback')}</Text>}
     </>:<>
       {input(ui("rooms.room_name"),name,setName)}
       {button(ui("rooms.create_room"),()=>void controller.current?.createRoom(name,'public',invitees),busy||!name.trim())}

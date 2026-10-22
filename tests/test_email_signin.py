@@ -28,7 +28,7 @@ def test_memory_signup_rejects_duplicate_email_and_unverified_email_login():
                 'username': identifier, 'password': 'incorrect-password',
             }).status_code == 401
         duplicate = client.post('/auth/signup', json={
-            'username': 'other_player', 'password': 'other-password',
+            'username': 'other_player', 'password': 'other-new-password',
             'email': 'player@example.test', 'community_rules_version': '2026-10-01',
         })
         assert duplicate.status_code == 409

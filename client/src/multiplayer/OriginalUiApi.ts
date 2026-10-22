@@ -1,3 +1,4 @@
+import {isRetryingRequest, markRetryingRequest} from './retryingRequest.ts';
 import { ApiError } from './apiResponse.ts';
 import { DistributedRequestError } from './DistributedHttpTransport.ts';
 import type { TableSocialChannel, TableMessage, SocialAck } from './TableSocialChannel';
@@ -61,7 +62,11 @@ export class OriginalUiApi {
       catch(error){
         const saved=this.root.session.command('ui-table-control').request;
         if(body&&/^\/test-games\/[^/?]+$/.test(path)&&error instanceof GameRequestError)this.recoveryNotify?.({status:'rejected',message:error.message,command:'create-table',roomId:path.split('/')[2],commandId:saved?.body.command_id,context:error.detail});
-        if(error instanceof DistributedRequestError)throw new ApiError(error.status,error.message);throw error;}
+        if(error instanceof DistributedRequestError){
+          const failure=new ApiError(error.status,error.message);
+          if(isRetryingRequest(error))markRetryingRequest(failure);
+          throw failure;
+        }throw error;}
       finally {this.closed.signal.removeEventListener('abort',cancel);signal?.removeEventListener('abort',cancel);}
     };
   }
@@ -194,7 +199,7 @@ export class OriginalUiApi {
   private async notificationRows(signal:AbortSignal) {
     const recipient=await this.root.reads.recipient(signal);
     const [native,legacy]=await Promise.all([this.root.reads.history('social',recipient.lane_id,signal),this.root.reads.legacy('notifications',null,null,signal)]);
-    return [...legacy.items,...native].filter(row=>['friend_accepted','friend_rejected','chat','poke'].includes(String(row.kind)));
+    return [...legacy.items,...native].filter(row=>['friend_accepted','friend_rejected','chat','poke','settlement_requested','settlement_accepted'].includes(String(row.kind)));
   }
   async messages(target:CommandTarget,signal:AbortSignal) {
     const lane=await this.root.reads.open(target,signal);
@@ -251,7 +256,7 @@ export class OriginalUiApi {
             const room=String(payload.room_id);
             if(!previews.has(room))previews.set(room,this.root.reads.preview(room,signal).catch(()=>null));
             const preview=await previews.get(room);
-            if(preview){payload.room_name=preview.name;payload.table_name=preview.tables?.find((table:any)=>table.match_id===payload.match_id)?.name;}
+            if(preview){payload.room_name=preview.name;payload.table_name=preview.tables?.find((table:any)=>(payload.table_id && table.table_id===payload.table_id) || (payload.match_id && table.match_id===payload.match_id))?.name;}
           }
           return {...row,payload,actor:await this.player(String(row.actor_id),signal),created_at:Date.parse(String(row.created_at))};
         }));

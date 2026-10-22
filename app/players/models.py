@@ -25,6 +25,7 @@ class DirectMessage(BaseModel):
 
 
 class FriendNotification(BaseModel):
+    payload: dict | None = None
     id: str
     kind: str
     actor: PlayerSummary

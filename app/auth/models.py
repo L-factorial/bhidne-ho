@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.auth.email import normalize_recovery_email
+from app.auth.password_policy import NEW_PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH
 
 
 class GuestCredentials(BaseModel):
@@ -58,6 +59,8 @@ class GuestInput(BaseModel):
 
 class SignUpInput(AccountInput, GuestInput):
     """Named app registration; legacy clients may omit the profile field."""
+
+    password: str = Field(min_length=NEW_PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
 
     @field_validator('username')
     @classmethod

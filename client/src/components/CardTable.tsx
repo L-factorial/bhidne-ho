@@ -11,7 +11,7 @@ import { radii, fonts, useTheme, useThemedStyles, type ThemeColors } from '../th
 
 export type TablePlayer = { id: string; name: string; bid: number; currentBid?: number | null; tricks: number; bids?: number; bonus?: number; cardsRemaining: number; connected?: boolean | null; avatarUrl?: string };
 type Props = {
-  height?: number; centerControl?: ReactNode; centerStatus?: ReactNode; compact?: boolean; showScores?: boolean; detailedStats?: boolean;
+  liveWins?: boolean; height?: number; centerControl?: ReactNode; centerStatus?: ReactNode; compact?: boolean; showScores?: boolean; detailedStats?: boolean;
   players: TablePlayer[]; viewerId: string; activePlayerId: string; width: number;
   plays: { playerId: string; card: string }[];
   winnerPlayerId?: string; collecting?: boolean; collectionKey?: string;
@@ -19,7 +19,7 @@ type Props = {
   onPokePlayer?: (playerId: string) => void; onPokeTable?: () => void;
 };
 
-export function CardTable({ height, players, viewerId, activePlayerId, width, plays, pendingBidPlayerId, dealerId, winnerPlayerId, collecting = false, collectionKey, onPokePlayer, onPokeTable, centerControl, centerStatus, compact = false, showScores = true, detailedStats = false }: Props) {
+export function CardTable({ liveWins = false, height, players, viewerId, activePlayerId, width, plays, pendingBidPlayerId, dealerId, winnerPlayerId, collecting = false, collectionKey, onPokePlayer, onPokeTable, centerControl, centerStatus, compact = false, showScores = true, detailedStats = false }: Props) {
   useUiLanguage();
   const { colors } = useTheme();
   const { fontScale } = useWindowDimensions();
@@ -53,6 +53,7 @@ export function CardTable({ height, players, viewerId, activePlayerId, width, pl
     renderSeat={(player, index) => <PlayerSeat playerId={Number(player.id)} name={player.name} mine={player.id === viewerId} active={player.id === activePlayerId}
       inlineStatus={detailedStats && fontScale <= 1 && (players.length < 4 || index !== 1 && index !== players.length - 1)} connected={player.connected} avatarUrl={player.avatarUrl} compact={compact} dealer={dealerId === player.id}
       status={!showScores ? player.cardsRemaining ? `${player.cardsRemaining} cards` : 'Waiting' : compact ? `${player.bid || '—'} / ${player.tricks}` : `Bid ${player.bid || '—'} · Won ${player.tricks}`}
+      bidStatus={detailedStats && showScores ? {bid:player.currentBid === null ? null : player.currentBid ?? player.bid,wins:player.tricks,live:liveWins} : undefined}
       statusRows={detailedStats && showScores ? [`${player.currentBid === null ? '—' : player.currentBid ?? player.bid} / ${player.tricks}`, ''] : undefined}
       onLayout={detailedStats ? event => { const height = event.nativeEvent.layout.height + 8; setSeatMeasurement(current => current.key === measurementKey && current.height >= height ? current : { key: measurementKey, height }); } : undefined}
       testID={player.id === viewerId ? 'your-seat' : 'opponent-seat'}

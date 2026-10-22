@@ -1,3 +1,5 @@
+import {ActivityLine} from '../components/ActivityLine';
+import {gameRequestFeedback} from '../multiplayer/gameRequestFeedback';
 import {MarriageDeclaredTunnelas} from '../components/MarriageDeclaredTunnelas';
 import { FittedGameTable } from '../components/FittedGameTable';
 import { MarriageMeldCards } from '../components/MarriageMeldCards';
@@ -41,14 +43,15 @@ import type { RoomSnapshot } from './LiveGameTable';
 import { GameStats, useGameStats } from '../components/GameStats';
 import { marriageFace, physicalLabel } from '../multiplayer/marriage';
 
-export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack, onNewGame, onSave, endControl, lobbyControl, social, tableControl, onTableAction }: {
+export function MarriageTable({ snapshot, busy, error: requestError, connectionReady = true, onAction, onStart, onBack, onNewGame, onSave, endControl, lobbyControl, social, tableControl, onTableAction }: {
   tableControl?: ReactNode; onTableAction: (command: string) => void;
   onSave: (rules: import('../multiplayer/marriage').MarriageScoringRules) => void;
-  snapshot: RoomSnapshot; busy: boolean; error: string; endControl?: ReactNode; lobbyControl?: ReactNode;
+  snapshot: RoomSnapshot; busy: boolean; error: string; connectionReady?: boolean; endControl?: ReactNode; lobbyControl?: ReactNode;
   onAction: (command: string, payload?: object) => void; onStart: () => void; onBack: () => void; onNewGame: () => void;
   social: { connected: boolean; phrases: PlayerPhrase[]; save: (text: string) => Promise<void>; send: (recipient: number | null, text: string) => Promise<void> };
 }) {
   useUiLanguage();
+  const {error, active: requestActive} = gameRequestFeedback(requestError, busy, connectionReady && social.connected, snapshot.status === 'ended', snapshot);
   const { colors } = useTheme();
   const ended = snapshot.status === 'ended';
   const endedNotice = <EndedTableNotice onBack={onBack} onNewGame={onNewGame} />;
@@ -220,6 +223,7 @@ export function MarriageTable({ snapshot, busy, error, onAction, onStart, onBack
         rules={() => setRulesOpen(true)} rulesConfig={() => setDetails('config')}
         gameActions={[{ label: ui('marriage.points'), action: () => setDetails('points') }]} />}
     </GameTableHeader>
+    <ActivityLine active={requestActive} />
     <View style={{ flex: 1, minHeight: 0 }}>
     <RoomSheet visible={confirmFold&&!own?.folded&&activeGame&&!ended} presentation="dialog" title={ui('marriage.fold_confirmation')} testID="marriage-fold-confirmation" onClose={()=>setConfirmFold(false)}>
       <Text style={s.text}>{ui("marriage.fold_help")}</Text>

@@ -15,12 +15,11 @@ const {fixture}=require('./game-stats.cjs');
   if(eligible)assert.ok(await page.getByRole('button',{name:'Request redeal',exact:true}).isEnabled());
   await page.getByRole('button',{name:'Flip all cards',exact:true}).click();
   assert.ok(await page.getByRole('button',{name:'Accept hand',exact:true}).isEnabled());
-  await page.getByRole('button',{name:'Hand options',exact:true}).click();
   const views=page.getByRole('radiogroup',{name:'Hand view',exact:true});assert.equal(await views.getByRole('radio').count(),2);
   const hand=page.getByTestId('player-hand'),order=()=>hand.locator('[data-testid^="callbreak-hand-card-"]').evaluateAll(nodes=>nodes.map(n=>n.dataset.testid));
-  for(const mode of ['Card grid view','Arc view']){
-   await views.getByRole('radio',{name:mode,exact:true}).click();
-   await page.getByRole('button',{name:'Group by suit',exact:true}).click();await hand.scrollIntoViewIfNeeded();
+  for(const mode of ['Card grid','Arc']){
+   await views.getByRole('radio',{name:mode,exact:true}).click();await page.waitForTimeout(200);
+   await page.getByRole('tab',{name:'Auto Arrangement',exact:true}).click();await hand.scrollIntoViewIfNeeded();
    const before=await order();assert.deepEqual(before.map(v=>v.slice(-1)),['S','S','H','H','C','C','D','D']);
    const points=await hand.evaluate(node=>{
     const result=[];
@@ -37,7 +36,7 @@ const {fixture}=require('./game-stats.cjs');
    for(let i=1;i<=12;i++)await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:from.x+(to.x-from.x)*i/12,y:from.y+(to.y-from.y)*i/12}]});
    await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await touch.detach();await page.waitForTimeout(150);
    assert.notDeepEqual(await order(),before,`${mode} dragging changes local order`);
-   await page.getByRole('button',{name:'Group by suit',exact:true}).click();assert.deepEqual(await order(),before);
+   await page.getByRole('tab',{name:'Auto Arrangement',exact:true}).click();assert.deepEqual(await order(),before);
   }
   assert.deepEqual(f.errors,[]);assert.ok(f.writes.every(p=>!p.endsWith('/action')));await f.context.close();
   console.log(`PASS Call Break ${width}px redeal=${eligible}: unflipped review, two views, drag/regroup`);
