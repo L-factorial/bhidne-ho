@@ -1,3 +1,4 @@
+import {diagnostic} from '../diagnostics/events';
 import {SignupValidation} from '../components/SignupValidation';
 import {validSignupUsername,validSignupPassword} from '../auth/signupValidation';
 import {recipientMatches} from '../notifications/notificationDestination';
@@ -86,6 +87,7 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
   const [friendNotification,setFriendNotification]=useState<string>();
   const [notificationNavigationId,setNotificationNavigationId]=useState<string>();
   const [notificationChat,setNotificationChat]=useState<{matchId:string;eventId:string;scope?:'table'|'game';gameId?:string}|undefined>();
+  useEffect(() => { diagnostic('app.transition', {screen: 'lobby', tab: lobbyTab}); }, [lobbyTab]);
   const [roomTab,setRoomTab]=useState<'own'|'friends'>('own');
   const [createTableOpen,setCreateTableOpen]=useState(false);
   const [greetingIdentity, setGreetingIdentity] = useState<InvitePlayer | null>(null);

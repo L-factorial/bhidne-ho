@@ -180,8 +180,13 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
                 <Pressable accessibilityRole="button" onPress={() => void answerRequest(item.actor, false)} style={styles.decline}><Text style={styles.link}>{ui("common.decline")}</Text></Pressable>
               </View>}
               {onOpenActivity&&<Pressable accessibilityRole="button"
+                accessibilityLabel={ui(item.kind.startsWith('friend_')?'common.friends':item.payload?.scope==='direct'?'social.chat':item.payload?.match_id?'common.open_table':'common.open_room')}
                 onPress={()=>void openActivity(item)}
-                style={styles.accept}><Text style={styles.acceptText}>{ui(item.kind.startsWith('friend_')?'common.friends':item.payload?.scope==='direct'?'social.chat':item.payload?.match_id?'common.open_table':'common.open_room')}</Text></Pressable>}
+                style={({pressed})=>[styles.navigate,pressed&&styles.navigatePressed]}>
+                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={colors.onPrimary} strokeWidth={2} accessible={false}>
+                  <Path d="M5 12h14M12 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+              </Pressable>}
             </View>)}
           </ScrollView>
           {!!error && <Text activity accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
@@ -203,5 +208,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   unread: { backgroundColor: colors.surfaceSelected, marginHorizontal: -8, paddingHorizontal: 8, borderRadius: radii.medium }, avatar: { width: 36, height: 36, borderRadius: radii.large, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }, avatarText: { fontFamily: fonts.medium, color: colors.accent },
   name: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 19, color: colors.text }, empty: { paddingVertical: 36, alignItems: 'center', gap: 5 }, error: { color: colors.danger, fontFamily: fonts.body, fontSize: 11 },
   settlementNotice: {flexDirection:'column',alignItems:'flex-start'},
-  requestActions: { alignItems: 'stretch', gap: 4 }, accept: { minHeight: 34, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', borderRadius: radii.medium, backgroundColor: colors.primary }, acceptText: { fontFamily: fonts.medium, fontSize: 11, color: colors.onPrimary }, decline: { minHeight: 34, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center' },
+  navigate: { alignSelf: 'center', flexShrink: 0, width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radii.medium, backgroundColor: colors.primary },
+  navigatePressed: { opacity: 0.75 },
+  requestActions: { alignSelf: 'center', alignItems: 'stretch', gap: 4 }, accept: { alignSelf: 'center', flexShrink: 0, minHeight: 34, paddingVertical: 6, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', borderRadius: radii.medium, backgroundColor: colors.primary }, acceptText: { fontFamily: fonts.medium, fontSize: 11, color: colors.onPrimary }, decline: { minHeight: 34, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center' },
 });

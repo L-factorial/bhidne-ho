@@ -177,7 +177,10 @@ export function MarriageTable({ snapshot, busy, error: requestError, connectionR
       return {key:orderKey,ids:append?appendHandCard(ids,source):insertHandCardBefore(ids,source,target!)};
     });
   }
-  const cardWidth = mobile && handWidth ? (handWidth - 7 * 5) / 8 : 48;
+  const cardWidth = ((handWidth || (mobile ? 336 : 419)) - 6 * 5) / 7;
+  const previousCardWidth = mobile ? ((handWidth || 336) - 7 * 5) / 8 : 48;
+  const cardFaceScale = cardWidth / previousCardWidth;
+  const cardHeight = 76 * cardFaceScale;
   const unseenWinReady = !postMaal && localMarriage.key===detectionKey && localMarriage.ready;
   const handActions = <View ref={handDropControls} testID="marriage-hand-actions" style={{flexDirection:'row',gap:5,alignItems:'center',justifyContent:'center',width:'100%',maxWidth:mobile?undefined:419,alignSelf:'center',marginTop:8,minHeight:44}}>
     {!own?.folded && button(ui('marriage.fold'),()=>setConfirmFold(true),busy||!social.connected||!actions?.kinds.includes('fold'),false,false,true)}
@@ -319,17 +322,17 @@ export function MarriageTable({ snapshot, busy, error: requestError, connectionR
         </View>}
         <View style={{position:'relative',borderRadius: radii.medium}}>
         <View ref={handDropArea} testID="marriage-hand" onLayout={event=>{const width=event.nativeEvent.layout.width;setHandWidth(width);}} style={{flexDirection:'row',flexWrap:'wrap',gap:5,width:'100%',maxWidth:mobile?undefined:419,alignSelf:'center'}}>
-              <MarriageDeclaredTunnelas groups={declaredTunnelas} hand={hand} cardWidth={cardWidth} hidden={hidden||!allRevealed} cardStyle={s.card} backStyle={s.cardBack}/>
+              <MarriageDeclaredTunnelas groups={declaredTunnelas} hand={hand} cardWidth={cardWidth} cardHeight={cardHeight} faceScale={cardFaceScale} hidden={hidden||!allRevealed} cardStyle={s.card} backStyle={s.cardBack}/>
               {displayedHand.map((card,index)=>{
                 const back=hidden||(!allRevealed&&index>=revealed), checked=selected.includes(card.card_id);
                 const marker=back?null:marriageCardMarker(card.card_id===drawnId,checked);
                 return <MarriageHandCard key={card.card_id} id={card.card_id} label={back?ui("common.hidden_card"):physicalLabel(card.card_id)}
-                  wrapperStyle={{width:cardWidth}} hint={!back&&card.card_id===drawnId?ui("marriage.just_drawn"):undefined} selected={checked}
+                  wrapperStyle={{width:cardWidth,height:cardHeight+14}} hint={!back&&card.card_id===drawnId?ui("marriage.just_drawn"):undefined} selected={checked}
                   disabled={busy||back||declaring} dragDisabled={!allRevealed||!manualView} register={registerCard} onDragChange={setDraggingCard} onDrop={(id,x,y)=>void dropCard(id,x,y)}
                   onPress={()=>setSelected(ids=>ids.length===1&&ids[0]===card.card_id?[]:[card.card_id])}
-                  style={[s.card, {width:cardWidth,height:76},back&&s.cardBack,!back&&card.card_id===drawnId&&s.drawnCard,checked&&s.selectedCard]}>
+                  style={[s.card, {width:cardWidth,height:cardHeight},back&&s.cardBack,!back&&card.card_id===drawnId&&s.drawnCard,checked&&s.selectedCard]}>
                   {!!marker&&<Text pointerEvents="none" testID={`marriage-card-marker-${marker}`} style={{position:'absolute',top:-17,fontSize:18,lineHeight:18,fontWeight:'bold',color:marker==='discard'?'#DC2626':'#15803D'}}>▼</Text>}
-                  {back?<MarriageCardBack/>:<CompactCardFace rank={card.rank} suit={card.suit} joker={card.card_type==='man'}/>}
+                  {back?<MarriageCardBack/>:<CompactCardFace rank={card.rank} suit={card.suit} joker={card.card_type==='man'} scale={cardFaceScale}/>}
                 </MarriageHandCard>;
               })}
         </View>

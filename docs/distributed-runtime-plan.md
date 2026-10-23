@@ -1,5 +1,44 @@
 # Distributed runtime implementation plan
 
+## 2026-10-22: Direct production deployment of UI and ledger changes (2458318)
+
+- User explicitly authorized direct deployment to both application servers.
+  Released clean committed revision 2458318db6dbd1125480e8f59f1f1f3cd42152a9.
+  GitHub production run 39866901444 was still testing; normal cancellation did
+  not finish promptly, then force cancellation completed with conclusion cancelled.
+  Confirmed no competing production workflow before activation. No push or new
+  workflow was started by this deployment.
+- Built the exact checksum-verified git archive on app1 using Dockerfile.production.
+  All 552 client tests, TypeScript and production web export passed inside the
+  build. Local focused release/ledger tests passed 51 cases (four optional SQL
+  cases skipped there); PostgreSQL/WASM verification separately passed 14 cases.
+  The full GitHub suite was canceled, not passed; the previously recorded Flush
+  checkpoint failures are not resolved by this deployment.
+- Both installed release receiver hashes matched committed source. Transferred
+  the identical image with archive checksum verification, then passed database,
+  dependency and frontend preflight on both servers. Replaced backends sequentially
+  with release locks, peer-health checks and rollback retained, then activated
+  both frontends only after both backends were healthy. No migration, database
+  initialization or runtime environment change was needed.
+- Both hosts (168.144.105.49 and 165.245.180.205) run immutable image
+  sha256:2f4ee8c88ddc1fdf381dc3a00b33d9ba33107080ab803422b8ff76f33ac5641a
+  at revision 2458318. Host and public frontend index SHA-256:
+  5c01c2cfd60ea05fec426cefa717ee9ecd875d73c892ec657821bf81119ac574.
+  Public JavaScript hash matches both hosts. Direct and public HTTPS API health
+  report status ok. Read-only Chrome checks passed at 390/1280 pixels for welcome,
+  sign-in/sign-up navigation, the eight-character password hint, no horizontal
+  overflow and no uncaught JavaScript errors. All browser write requests were
+  blocked; no production account, gameplay or settlement smoke writes occurred.
+- Evidence: /private/tmp/bhidne-2458318-{stage,rollout,verify,smoke-verified}.log,
+  /private/tmp/bhidne-2458318-verification.json and production welcome/signup
+  captures. App1 build log: /srv/bhidne-prod/builds/2458318/build.log.
+- Limitations: this updates backend and web only. Installed mobile apps require
+  a separate signed build to receive client UI changes. This deployment note is
+  local and uncommitted; no physical-device validation was performed.
+- Exact next step: refresh production web and review the updated games, sign-up
+  validation and ledger flow. Build/distribute signed native packages when
+  requested. Deferred operational and capacity work remains deferred.
+
 ## 2026-10-22: Ledger granularity, confirmation notifications and all-view captures
 
 - User authorized implementation of the revised three-tab hierarchy. Balances

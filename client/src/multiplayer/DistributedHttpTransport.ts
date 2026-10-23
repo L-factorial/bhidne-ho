@@ -1,3 +1,4 @@
+import {diagnostic, nextRequestId} from '../diagnostics/events.ts';
 import type { DurableCommandTransport } from './DurableCommandClient.ts';
 
 export class DistributedRequestError extends Error {
@@ -12,28 +13,39 @@ export class DistributedRequestError extends Error {
 export function distributedHttpTransport(baseUrl: string, token: string,
   fetcher: typeof fetch = globalThis.fetch): DurableCommandTransport {
   async function request(path: string, signal: AbortSignal, body?: unknown): Promise<unknown> {
-    const response = await fetcher(baseUrl.replace(/\/$/, '') + path, {
-      method: body === undefined ? 'GET' : 'POST', signal, cache: 'no-store',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    });
-    if (!response.ok) {
-      // Preserve the original command for retry after accepting the rules.
-      if (response.status === 403) {
-        try {
-          const data = await response.json();
-          if (data?.detail?.code === 'COMMUNITY_RULES_REQUIRED') {
-            throw new DistributedRequestError(403,
-              'Open Profile and accept the community rules before sending invitations or using chat.',
-              'COMMUNITY_RULES_REQUIRED');
-          }
+    const requestId = nextRequestId(), started = Date.now();
+    let status: number | undefined;
+    diagnostic('request.started', {requestId, method: body === undefined ? 'GET' : 'POST'});
+    try {
+      const response = await fetcher(baseUrl.replace(/\/$/, '') + path, {
+        method: body === undefined ? 'GET' : 'POST', signal, cache: 'no-store',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+      status = response.status;
+      if (!response.ok) {
+        // Preserve the original command for retry after accepting the rules.
+        if (response.status === 403) {
+          try {
+            const data = await response.json();
+            if (data?.detail?.code === 'COMMUNITY_RULES_REQUIRED') {
+              throw new DistributedRequestError(403,
+                'Open Profile and accept the community rules before sending invitations or using chat.',
+                'COMMUNITY_RULES_REQUIRED');
+            }
         } catch (error) {
           if (error instanceof DistributedRequestError) throw error;
         }
       }
       throw new DistributedRequestError(response.status);
     }
-    return response.json(); // DurableCommandClient validates receipts before journaling.
+    const result = await response.json();
+    diagnostic('request.succeeded', {requestId, status, durationMs: Date.now() - started});
+    return result;
+    } catch (error) {
+      diagnostic('request.failed', {requestId, status, durationMs: Date.now() - started, reason: signal.aborted ? 'cancelled' : 'failure'}, signal.aborted ? 'info' : 'warn');
+      throw error;
+    }
   }
   return {
     submit: (envelope, signal) => {

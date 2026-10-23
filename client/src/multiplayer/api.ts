@@ -1,3 +1,4 @@
+import {diagnostic, nextRequestId} from '../diagnostics/events';
 import { runtimeRequest, sharedPlatformPath } from './RuntimeRequests';
 import { Platform } from 'react-native';
 import type { Session } from './session';
@@ -18,26 +19,28 @@ export async function sharedRequest<T>(path: string, session: Session | null, bo
   const abort = () => controller.abort();
   if (signal?.aborted) abort();
   signal?.addEventListener('abort', abort, { once: true });
-  const timeout = setTimeout(abort, 10000);
+  let timedOut = false;
+  const timeout = setTimeout(() => { timedOut = true; abort(); }, 10000);
+  const requestId = nextRequestId(), started = Date.now();
+  const operation = body && /\/messages(?:\?|$)/.test(path) ? 'message.send' as const : 'request' as const;
+  const verb = method || (body ? 'POST' : 'GET');
+  let status: number | undefined;
+  diagnostic('request.started', {requestId, operation, method: verb});
   try {
-    console.log('[API REQUEST]', {
-      platform: Platform.OS,
-      apiUrl,
-      path,
-      url: `${apiUrl}${path}`,
-    });
     const response = await fetch(`${apiUrl}${path}`, {
       method: method || (body ? 'POST' : 'GET'), signal: controller.signal,
       headers: { 'Content-Type': 'application/json', ...(session ? { Authorization: `Bearer ${session.token}` } : {}) },
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
     const raw = response.status === 204 ? '' : await response.text();
-    console.log('[API RESPONSE]', {
-      url: `${apiUrl}${path}`,
-      status: response.status,
-      contentType: response.headers.get('content-type'),
-    });
-    return decodeApiResponse<T>(raw, response.status, path === '/auth/signin');
+    status = response.status;
+    const result = decodeApiResponse<T>(raw, response.status, path === '/auth/signin');
+    diagnostic('request.succeeded', {requestId, operation, status, durationMs: Date.now() - started});
+    return result;
+  } catch (error) {
+    diagnostic('request.failed', {requestId, operation, status, durationMs: Date.now() - started,
+      reason: timedOut ? 'timeout' : signal?.aborted ? 'cancelled' : 'failure'}, signal?.aborted && !timedOut ? 'info' : 'warn');
+    throw error;
   } finally { clearTimeout(timeout); signal?.removeEventListener('abort', abort); }
 }
 

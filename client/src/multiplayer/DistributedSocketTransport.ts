@@ -1,3 +1,4 @@
+import {diagnostic} from '../diagnostics/events.ts';
 import type { Subscription } from './DistributedSession.ts';
 export type SocketDisconnect = { cause: 'close' | 'error' | 'heartbeat' | 'protocol' | 'send'; code?: number; reason?: string; wasClean?: boolean };
 type Socket = Pick<WebSocket, 'onopen' | 'onmessage' | 'onclose' | 'onerror' | 'send' | 'close'>;
@@ -26,6 +27,7 @@ export class DistributedSocketTransport {
   constructor(url: string, token: string, clientId: string, onDisconnect: (detail?: SocketDisconnect) => void,
     factory: (url: string) => Socket = url => new WebSocket(url), onReady: () => void = () => {}) {
     this.clientId = clientId; this.disconnected = onDisconnect; this.onReady = onReady;
+    diagnostic('socket.connecting');
     this.socket = factory(url);
     this.socket.onopen = () => {
       try { this.send({ type: 'AUTH', token, client_id: clientId }); } catch { this.fail({cause:'send'}); }
@@ -39,6 +41,7 @@ export class DistributedSocketTransport {
         const data = JSON.parse(event.data);
         if (data.type === 'READY' && !this.ready) {
           this.capabilities=Array.isArray(data.capabilities)?data.capabilities.filter((c:unknown)=>typeof c==='string'):[];
+          diagnostic('socket.ready');
           this.ready = true; this.lastReply = Date.now(); this.onReady();
           for (const [id,e] of this.entries) this.subscribe(id,e.lane);
           return;
@@ -75,6 +78,7 @@ export class DistributedSocketTransport {
   }
   private fail(detail: SocketDisconnect) {
     if(this.closed)return;
+    diagnostic('socket.disconnected', {reason: detail.cause, code: detail.code}, 'warn');
     this.close(); this.disconnected(detail);
   }
   // Foregrounding verifies a possibly suspended socket with the existing PING /

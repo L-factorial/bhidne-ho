@@ -1,3 +1,4 @@
+import {diagnostic} from './src/diagnostics/events';
 import {HeaderHomeContext} from './src/components/BrandArt';
 import {ActivityLine} from './src/components/ActivityLine';
 import {AppText as Text} from './src/components/AppText';
@@ -106,6 +107,8 @@ function AppContent() {
     const hash=()=>accept(globalThis.location.href);if(Platform.OS==='web')globalThis.addEventListener('hashchange',hash);
     return()=>{subscription.remove();if(Platform.OS==='web')globalThis.removeEventListener('hashchange',hash);};
   },[]);
+  const diagnosticScreen = policy ? 'policy' : deletionOpen ? 'deletion' : recovery ? 'recovery' : finishingSignIn ? 'sign-in' : inRooms || invitation ? 'rooms' : 'welcome';
+  useEffect(() => { diagnostic('app.transition', {screen: diagnosticScreen}); }, [diagnosticScreen]);
   const [loaded, error] = useFonts({ Inter_400Regular, Inter_500Medium, LibreBaskerville_700Bold, CormorantGaramond_700Bold });
   if (!loaded && !error) return <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
     <Image source={branding.icon} accessibilityLabel={t('common.loading')} resizeMode="contain" style={{ width: 160, height: 160, borderRadius: 24 }} />

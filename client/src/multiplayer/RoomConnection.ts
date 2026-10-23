@@ -1,3 +1,4 @@
+import {diagnostic} from '../diagnostics/events.ts';
 export type ConnectionStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
 type Socket = Pick<WebSocket, 'onmessage' | 'onclose' | 'onerror' | 'send' | 'close'>;
 
@@ -7,7 +8,7 @@ export class RoomConnection {
   private ready = false;
   send(message: object) {
     if (!this.ready || !this.socket || this.stopped) return false;
-    try { this.socket.send(JSON.stringify(message)); return true; } catch { return false; }
+    try { this.socket.send(JSON.stringify(message)); return true; } catch { diagnostic('socket.disconnected', {reason: 'send'}, 'warn'); return false; }
   }
   private timer: ReturnType<typeof setTimeout> | undefined;
   private stopped = true;
@@ -21,7 +22,7 @@ export class RoomConnection {
   constructor(url: string, onStatus: (status: ConnectionStatus) => void,
     makeSocket: (url: string) => Socket = url => new WebSocket(url),
     onEvent: (message: unknown) => void = () => {}) {
-    this.url = url; this.onStatus = onStatus; this.makeSocket = makeSocket;
+    this.url = url; this.onStatus = status => { diagnostic(status === 'connected' ? 'socket.ready' : status === 'connecting' ? 'socket.connecting' : 'socket.disconnected', {state: status}, status === 'reconnecting' ? 'warn' : 'info'); onStatus(status); }; this.makeSocket = makeSocket;
     this.onEvent = onEvent;
   }
   start() { this.stopped = false; this.connect(); }
