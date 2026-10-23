@@ -132,8 +132,10 @@ export function FlushTable({ snapshot, busy, error: requestError, connectionRead
     {formationDisabled && (snapshot.players?.length || 0) >= (snapshot.table?.min_players || 2) && <Text pointerEvents="none" style={{ color: colors.textMuted, textAlign: 'center', fontSize: 11 }}>{dirty || stale ? ui("common.save_or_reload_rule_changes_first") : snapshot.rule_proposal?.status === 'PENDING' ? ui("rooms.waiting_for_rule_approval") : ui("rooms.waiting_for_eligible_players")}</Text>}
   </View> : null;
   const [finalShowOpen, setFinalShowOpen] = useState(false);
+  const [roundResultTab,setRoundResultTab] = useState<'hands'|'results'>('hands');
   const finalStage = ended ? null : pub?.pending_show ? 'pending' : pub?.settlement ? 'result' : null;
   useEffect(() => { setFinalShowOpen(finalStage !== null); }, [snapshot.match_id, pub?.round_number, finalStage]);
+  useEffect(() => { if(finalShowOpen)setRoundResultTab('hands'); }, [finalShowOpen,snapshot.match_id,pub?.round_number,finalStage]);
   const comparison = mine?.side_show;
   const preparing = pub?.status === 'awaiting_deal' || pub?.status === 'awaiting_cut';
   const decision = flushDecision(snapshot.flush, snapshot.status === 'playing');
@@ -290,7 +292,10 @@ export function FlushTable({ snapshot, busy, error: requestError, connectionRead
           <Pressable accessibilityRole="button" accessibilityLabel={ui("common.close_final_show")} onPress={() => setFinalShowOpen(false)}
             style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Text style={[s.text, { fontSize: 26 }]}>×</Text></Pressable>
         </View>
-        <ScrollView contentContainerStyle={{ gap: 12 }}>
+        {finalStage==='result' && <SettingsTabs selected={roundResultTab} onSelect={setRoundResultTab} tabs={[
+          {id:'hands',label:ui('flush.shown_hands')},{id:'results',label:ui('flush.results')},
+        ]} />}
+        <ScrollView key={finalStage==='result'?roundResultTab:'pending'} style={{minHeight:0,flexShrink:1}} contentContainerStyle={{ gap: 12 }}>
       {pub?.pending_show && <View style={s.panel} testID="flush-final-show">
         <Text style={s.title}>{ui("flush.player_shows", { "player": name(pub.pending_show.requester_id) })}</Text>
         {pub.revealed_hands.map(hand => <FlushCards autoReveal key={`${pub.round_number}:${hand.player_id}`} label={ui("flush.player_shown_card", { "player": name(hand.player_id) })}
@@ -298,15 +303,18 @@ export function FlushTable({ snapshot, busy, error: requestError, connectionRead
         <Text style={s.text}>{ui("flush.player_can_fold_or_reveal_their_cards", { "player": name(pub.pending_show.target_id) })}</Text>
         {can('reveal_cards') && <View style={s.row}>{button(ui("common.reveal_cards"), () => act('REVEAL_CARDS'), busy, true)}{button(ui("flush.fold"), () => {setFinalShowOpen(false);setFoldFrom('show');}, busy, false, true)}</View>}
       </View>}
-      {pub?.settlement && <View style={s.panel} testID="flush-round-result"><RoundResultsTable subtitle={ui("marriage.winner_player", { "player": pub.settlement.winner_ids.map(name).join(', ') })} columns={['Payout', ui('flush.salami'), 'Net']} rows={(pub.round_results.find(r => r.round_number === pub.round_number)?.net_changes || pub.settlement.payouts).map(p => {
+      {pub?.settlement && <View style={s.panel} testID="flush-round-result">{roundResultTab==='results' && <View testID="flush-result-summary"><RoundResultsTable compact subtitle={ui("marriage.winner_player", { "player": pub.settlement.winner_ids.map(name).join(', ') })} columns={['Payout', ui('flush.salami'), 'Net']} rows={(pub.round_results.find(r => r.round_number === pub.round_number)?.net_changes || pub.settlement.payouts).map(p => {
           const net = pub.round_results.find(r => r.round_number === pub.round_number)?.net_changes.find(row => row.player_id === p.player_id)?.amount;
           const payout = pub.settlement!.payouts.find(row => row.player_id === p.player_id)?.amount || 0;
           const salami = pub.settlement!.salami_transfers?.find(row => row.player_id === p.player_id)?.amount || 0;
           return { id: p.player_id, name: name(p.player_id), avatarUrl: snapshot.players?.find(player => String(player.player_id) === p.player_id)?.avatar_url,
             own: p.player_id === String(snapshot.your_player_id), winner: pub.settlement!.winner_ids.includes(p.player_id),
             values: [{ text: String(payout) }, { text: `${salami > 0 ? '+' : ''}${salami}`, amount: salami }, { text: net === undefined ? '—' : `${net > 0 ? '+' : ''}${net}`, amount: net }] };
-        })} />
-        {pub.settlement.shown_hands.map(p => <View key={p.player_id}><Text style={s.text}>{ui("flush.player_s_shown_hand", { "player": name(p.player_id) })}</Text><FlushCards autoReveal key={`${pub.round_number}:${p.player_id}`} label={ui("common.player_card", {player: name(p.player_id)})} cards={p.cards.map(c => `${({11:'J',12:'Q',13:'K',14:'A'} as Record<number,string>)[c.rank] || c.rank}${c.suit}`)} /></View>)}
+        })} /></View>}
+        {roundResultTab==='hands' && <View testID="flush-shown-hands" style={{gap:12}}>
+        {pub.settlement.shown_hands.length===0 && <Text style={s.text}>{ui('flush.no_shown_hands')}</Text>}
+        {pub.settlement.shown_hands.map(p => <View key={p.player_id}><Text style={s.text}>{ui("flush.player_s_shown_hand", { "player": name(p.player_id) })}{pub.settlement!.winner_ids.includes(p.player_id)?` · ${ui("marriage.winner")}`:''}</Text><FlushCards autoReveal key={`${pub.round_number}:${p.player_id}`} label={ui("common.player_card", {player: name(p.player_id)})} cards={p.cards.map(c => `${({11:'J',12:'Q',13:'K',14:'A'} as Record<number,string>)[c.rank] || c.rank}${c.suit}`)} /></View>)}
+        </View>}
         <Text style={s.text}>{ui("rooms.next_deal_help")}</Text>
         </View>}
           {!!error && <Text activity accessibilityRole="alert" style={s.error}>{uiLabel(error, 'feedback')}</Text>}

@@ -120,4 +120,7 @@ export default {
   "tie_variations_help": "For equal hands, choose whether the show requester loses or the pot is split. This policy is agreed before locking.",
   "hand_ranking": "Hand ranking",
   "hand_ranking_help": "Strongest to weakest: Trail (three of a kind), pure sequence (three consecutive cards of one suit), sequence (three consecutive cards), color (three cards of one suit), pair, then high card. The configured Ace sequence policy decides where A23 ranks.",
+  "shown_hands": "Shown hands",
+  "results": "Results",
+  "no_shown_hands": "No hands were shown this round.",
 } as const;
