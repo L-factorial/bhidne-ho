@@ -128,3 +128,27 @@ and terminated states on signed iOS/Android builds. Include signed-out startup,
 wrong-account sign-in, offline retry, duplicate taps, rapid different taps,
 already-open conversations, answered invitations, deleted rooms and expired games.
 Local mock/browser tests and native bundle exports do not replace these checks.
+
+## Ledger settlement notifications
+
+Migration **44** extends the transactional push trigger to new
+`settlement_requested` and `settlement_accepted` inbox entries for all game types.
+Marking a payment paid notifies the payee; confirmation notifies the payer.
+Historical notices are not backfilled. Deliveries expire after one day and use
+existing action, sound and quiet-hour preferences, session/device validation,
+block checks, retry limits and provider configuration.
+
+The worker checks unread status, transfer status, payer/payee identities and room
+membership immediately before delivery. Requests confirmed before sending expire.
+Ledger notices require no active game checkpoint and are not suppressed by the
+current-game foreground lease. English/Nepali alerts contain no amounts, payment
+details or chat contents. Tapping opens the authorized room ledger, including for
+completed games; it never confirms a payment automatically.
+
+Background delivery uses existing APNs/FCM visible alerts and does not rely on
+JavaScript polling in the background. OS permission, enabled push registration,
+configured provider credentials and a compatible signed native build are required.
+OS display is not guaranteed. Browser background push is not implemented.
+Apply migration 44 and deploy compatible backend/client together; old clients do
+not recognize settlement push destinations. Physical-device foreground/background,
+terminated-launch and tap tests remain required before claiming device validation.

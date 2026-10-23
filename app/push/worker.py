@@ -130,7 +130,29 @@ class PushWorker:
             if not prefs[category] or quiet(prefs,result['offset'],now):return None
             if await (await c.execute('SELECT 1 FROM deleted_rooms WHERE id=%s',(result['room'],))).fetchone():return None
             actor=f"user-{result['user']}"
-            if result['kind'] in ('chat','poke'):
+            if result['kind'] in ('settlement_requested','settlement_accepted'):
+                notice = await (await c.execute('''SELECT source_actor_id,payload,read_at FROM friend_notifications
+                    WHERE id=%s AND user_id=%s AND kind=%s
+                    AND social_notification_allowed(%s,source_actor_id,kind,payload,created_at)''',
+                    (result['source'],result['user'],result['kind'],result['user']))).fetchone()
+                if not notice or notice[0] is None or notice[2] is not None:return None
+                # Settlements outlive games. Authorize against the ledger, not a
+                # live checkpoint, and never include amounts or payment details.
+                transfer = await (await c.execute('''SELECT t.payer_id,t.payee_id,t.status
+                    FROM settlement_transfers t JOIN settlement_batches b ON b.batch_id=t.batch_id
+                    WHERE t.transfer_id::text=%s AND b.batch_id::text=%s AND b.room_id=%s''',
+                    (notice[1].get('transfer_id'),notice[1].get('batch_id'),result['room']))).fetchone()
+                if not transfer:return None
+                payer,payee,state=transfer
+                requested=result['kind']=='settlement_requested'
+                expected=(payee,payer,'MARKED_PAID') if requested else (payer,payee,'RESOLVED')
+                if (result['user'],notice[0],state)!=expected:return None
+                if not await (await c.execute('SELECT 1 FROM room_memberships WHERE room_id=%s AND user_id=%s',
+                    (result['room'],result['user']))).fetchone():return None
+                sender=f'user-{notice[0]}'
+                result['source_notification_id']=str(result['source'])
+                result['match']=None
+            elif result['kind'] in ('chat','poke'):
                 notice = await (await c.execute('''SELECT source_actor_id,payload,read_at FROM friend_notifications
                     WHERE id=%s AND user_id=%s AND kind=%s
                     AND social_notification_allowed(%s,source_actor_id,kind,payload,created_at)''',
@@ -198,7 +220,7 @@ class PushWorker:
             if result['room']:
                 room_name=await (await c.execute('SELECT name FROM rooms WHERE id=%s',(result['room'],))).fetchone()
                 if room_name:context['room']=room_name[0][:160]
-            if result['table']:
+            if result['table'] and result['kind'] not in ('settlement_requested','settlement_accepted'):
                 table_name=await (await c.execute('SELECT name,game_type FROM room_tables WHERE table_id=%s',(result['table'],))).fetchone()
                 if table_name:context.update(table=table_name[0][:160],game=table_name[1])
                 if result['kind']=='game_invitation':context['created']=bool(invitation.get('room_notification'))
@@ -225,7 +247,8 @@ class PushWorker:
                 if row.get(field):data[field]=row[field]
             if row['table']:data['table_id']=str(row['table'])
             if row.get('other_user_id'):data['other_user_id']=row['other_user_id']
-            collapse=hashlib.sha256(f"{row['device']}:{row['table'] or row['source']}".encode()).hexdigest()[:48]
+            collapse_source=row['source'] if row['kind'].startswith('settlement_') else row['table'] or row['source']
+            collapse=hashlib.sha256(f"{row['device']}:{collapse_source}".encode()).hexdigest()[:48]
             result=await self.providers.send((row['provider'],row['token'],row['environment']),message(row['kind'],row['locale'],data,row.get('context')),
                 expires_at=row['expires'].timestamp(),collapse_id=collapse,sound=row['sound'])
             status=result.status

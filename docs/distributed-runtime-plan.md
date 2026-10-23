@@ -11836,3 +11836,28 @@ Capacity, observability, database HA and operational readiness remain deferred.
   build. No authenticated gameplay writes or physical-device checks performed.
   Exact next step: refresh production web and review the final winning-option
   caption; request native build separately. Operational task set remains deferred.
+
+### Ledger settlement push notifications — 2026-10-23
+
+- User requested settlement requests/confirmations for all games, including while
+  the app is backgrounded. Existing inbox notifications remain; migration 44
+  extends transactional push enqueue to new settlement notices with no backfill.
+- Worker validates unread source, payer/payee, authoritative transfer state, room
+  membership, blocks, sessions and existing preferences. Settlements outlive game
+  checkpoints; no live match is required and game foreground leases do not defer
+  ledger alerts. Existing provider retries and one-day expiry apply. Push text is
+  generic English/Nepali; no amounts/payment details are transmitted.
+- Native push and inbox navigation open the room ledger rather than the game.
+  Payment confirmation still requires the existing explicit action.
+- Verification: 40 SQL-backed settlement/push/provider tests, nine client
+  destination/action tests, TypeScript, web export and diff checks passed. Local
+  browser request/confirmation taps both open the ledger. The broader existing
+  notification browser suite timed out in its room-chat destination case before
+  reaching settlement cases; this unrelated case remains unverified.
+- Limitations: not deployed; requires migration 44, compatible signed native app,
+  push permissions/registration and APNs/FCM configuration. No physical-device
+  verification or browser background push. Previous strict schema versions require
+  coordinated rollout; do not assume old-image rollback after migration.
+- Exact next step: finish automated SQL checks, then deploy only when requested;
+  build native apps and validate background/terminated push and ledger taps on
+  physical iOS/Android devices. Deferred operational task set remains deferred.

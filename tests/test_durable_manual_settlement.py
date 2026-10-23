@@ -106,3 +106,65 @@ async def test_delayed_request_notice_is_already_read_after_acceptance(database)
     lane = (await sql(database[0], "SELECT lane_id FROM command_lanes WHERE kind='recipient' AND recipient_id=%s", (UUID(users[1][5:]),)))[0][0]
     await SocialLaneExecutor(inbox).execute_one(lane)
     assert await sql(database[0], "SELECT kind,read_at IS NOT NULL FROM friend_notifications WHERE user_id=%s", (UUID(users[1][5:]),)) == [('settlement_requested', True)]
+
+@pytest.mark.parametrize('kind', ['marriage', 'callbreak', 'flush'])
+async def test_ledger_push_requests_and_confirmations_after_game_ends(database, kind):
+    from app.durable_games.social import SocialLaneExecutor
+    from app.push.worker import PushWorker
+    from test_push import devices
+    pool = database[0]
+    inbox, ingress, executor, fence, users, table, game = await setup(database)
+    await sql(pool, 'UPDATE ledger_games SET game_type=%s', (kind,))
+    service, provider, device_ids = await devices(pool, users[:2])
+    # A foreground game lease must not suppress unrelated ledger activity.
+    await sql(pool, "UPDATE push_devices SET viewed_match='old-game',foreground_until=now()+interval '1 hour'")
+    await submit(ingress, executor, fence, users[0], 'create-settlement', dict(scope='table',table_id=str(table)))
+    batch, transfer = (await sql(pool, 'SELECT batch_id,transfer_id FROM settlement_transfers'))[0]
+    payload = dict(batch_id=str(batch),transfer_id=str(transfer),action='mark-paid')
+    async def deliver_notice(user):
+        lane = (await sql(pool, "SELECT lane_id FROM command_lanes WHERE kind='recipient' AND recipient_id=%s", (UUID(user[5:]),)))[0][0]
+        assert await SocialLaneExecutor(inbox).execute_one(lane) is not None
+    await submit(ingress, executor, fence, users[0], 'settlement-action', payload)
+    await deliver_notice(users[1])
+    worker = PushWorker(pool, provider)
+    assert await worker.send_one()
+    assert len(provider.sent) == 1
+    data = provider.sent[-1][1]['data']
+    assert data['kind'] == 'settlement_requested' and data['user_id'] == users[1]
+    assert data['room_id'] == 'room' and 'match_id' not in data
+    assert 'amount' not in data and 'transfer_id' not in data
+    await submit(ingress, executor, fence, users[1], 'settlement-action', dict(payload,action='confirm'))
+    await deliver_notice(users[0])
+    assert await worker.send_one()
+    assert len(provider.sent) == 2
+    assert provider.sent[-1][1]['data']['kind'] == 'settlement_accepted'
+    assert provider.sent[-1][1]['data']['user_id'] == users[0]
+    assert not await worker.send_one()
+
+
+@pytest.mark.parametrize('suppression', ['resolved','read','preferences','membership'])
+async def test_settlement_request_suppression_before_push(database,suppression):
+    from app.durable_games.social import SocialLaneExecutor
+    from app.push.worker import PushWorker
+    from test_push import devices
+    pool = database[0]
+    inbox, ingress, executor, fence, users, table, game = await setup(database)
+    _, provider, _ = await devices(pool, users[:2])
+    await submit(ingress, executor, fence, users[0], 'create-settlement', dict(scope='table',table_id=str(table)))
+    batch, transfer = (await sql(pool, 'SELECT batch_id,transfer_id FROM settlement_transfers'))[0]
+    payload = dict(batch_id=str(batch),transfer_id=str(transfer),action='mark-paid')
+    await submit(ingress, executor, fence, users[0], 'settlement-action', payload)
+    lane = (await sql(pool, "SELECT lane_id FROM command_lanes WHERE kind='recipient' AND recipient_id=%s", (UUID(users[1][5:]),)))[0][0]
+    await SocialLaneExecutor(inbox).execute_one(lane)
+    if suppression == 'resolved':
+        await submit(ingress, executor, fence, users[1], 'settlement-action', dict(payload,action='confirm'))
+    elif suppression == 'read':
+        await sql(pool, 'UPDATE friend_notifications SET read_at=now()')
+    elif suppression == 'preferences':
+        await sql(pool, 'INSERT INTO push_preferences(user_id,actions) VALUES (%s,false)', (UUID(users[1][5:]),))
+    else:
+        await sql(pool, 'DELETE FROM room_memberships WHERE user_id=%s', (UUID(users[1][5:]),))
+    worker = PushWorker(pool, provider)
+    assert await worker.send_one()
+    assert provider.sent == []
+    assert await sql(pool, 'SELECT status FROM push_deliveries') == [('expired',)]

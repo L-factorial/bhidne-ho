@@ -129,7 +129,7 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
   function openActivity(item:Notification){
     setOpen(false);
     onOpenActivity?.({roomId:item.payload?.scope==='direct'?'':item.payload?.room_id??'',
-      matchId:item.payload?.match_id,otherUserId:item.payload?.scope==='direct'||item.kind.startsWith('friend_')?item.actor.user_id:undefined,
+      matchId:item.kind.startsWith('settlement_')?undefined:item.payload?.match_id,otherUserId:item.payload?.scope==='direct'||item.kind.startsWith('friend_')?item.actor.user_id:undefined,
       scope:item.payload?.scope as Invitation['scope'],gameId:item.payload?.game_id,notificationKind:item.kind,eventId:item.id,recipientId:session.user_id});
   }
   const clearable = items.some(item => item.kind !== 'friend_request');
@@ -180,7 +180,7 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
                 <Pressable accessibilityRole="button" onPress={() => void answerRequest(item.actor, false)} style={styles.decline}><Text style={styles.link}>{ui("common.decline")}</Text></Pressable>
               </View>}
               {onOpenActivity&&<Pressable accessibilityRole="button"
-                accessibilityLabel={ui(item.kind.startsWith('friend_')?'common.friends':item.payload?.scope==='direct'?'social.chat':item.payload?.match_id?'common.open_table':'common.open_room')}
+                accessibilityLabel={ui(item.kind.startsWith('settlement_')?'ledger.ledger_settlements':item.kind.startsWith('friend_')?'common.friends':item.payload?.scope==='direct'?'social.chat':item.payload?.match_id?'common.open_table':'common.open_room')}
                 onPress={()=>void openActivity(item)}
                 style={({pressed})=>[styles.navigate,pressed&&styles.navigatePressed]}>
                 <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={colors.onPrimary} strokeWidth={2} accessible={false}>

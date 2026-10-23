@@ -9,6 +9,7 @@ from app.auth.email_claim_schema import EMAIL_CLAIM_SCHEMA
 from psycopg_pool import AsyncConnectionPool
 from app.push.schema import PUSH_SCHEMA
 from app.push.social_schema import SOCIAL_PUSH_SCHEMA
+from app.push.settlement_schema import SETTLEMENT_PUSH_SCHEMA
 from app.account_deletion.schema import DELETION_SCHEMA
 from app.player_blocks.schema import BLOCK_SCHEMA
 from app.moderation.schema import MODERATION_SCHEMA
@@ -763,6 +764,7 @@ MIGRATIONS = (
         CREATE TRIGGER deletion_command_admission BEFORE INSERT ON command_inbox
             FOR EACH ROW EXECUTE FUNCTION deletion_command_guard();
     """),
+    (44, SETTLEMENT_PUSH_SCHEMA),
 )
 
 

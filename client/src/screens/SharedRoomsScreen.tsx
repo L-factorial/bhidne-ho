@@ -354,12 +354,16 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
       {invitation && session && !recipientMatches(invitation,session.user_id) ? <View style={{padding:20,gap:12}}><Text accessibilityRole="alert" style={{color:colors.text}}>{ui('feedback.notification_account')}</Text><Pressable accessibilityRole="button" onPress={clearInvitation}><Text style={{color:colors.accent}}>{ui('rooms.dismiss_invitation')}</Text></Pressable></View> : invitation && !invitation.otherUserId && session && !expired ? <InvitationPreview key={`${invitation.roomId}:${invitation.matchId}`} invitation={invitation} session={session} ready={process.env.EXPO_PUBLIC_RUNTIME_MODE !== 'distributed-original' || !!shared.runtime}
         startupError={shared.startupError} retrySession={shared.retry}
         dismiss={clearInvitation} join={async (target, gameType, matchId) => {
+          if(invitation.notificationKind?.startsWith('settlement_')) {
+            setLedgerTarget(undefined);
+            if(room?.room_id!==target.room_id)requestedLedgerRoom.current=target.room_id;
+          }
           const joined = invitation.notificationKind && !invitation.notificationKind.endsWith('invitation')
             ? shared.enterRoom(target,gameType) : await shared.joinRoom(target, gameType);
           if (joined) {
             setLinkedEntry(undefined); setLinkedMatch(matchId);setNotificationNavigationId(invitation.eventId);
             setNotificationChat(invitation.notificationKind==='chat'&&matchId?{matchId,eventId:invitation.eventId??`${Date.now()}`,scope:invitation.scope==='game'?'game':'table',gameId:invitation.gameId} : undefined);
-            setRoomPanel(invitation.scope==='room'?'chat':null);clearInvitation();
+            setRoomPanel(invitation.notificationKind?.startsWith('settlement_')?'ledger':invitation.scope==='room'?'chat':null);clearInvitation();
           }
           return joined;
         }} /> : room ? <>

@@ -33,3 +33,14 @@ test('game chat preserves the durable game identity and rejects malformed identi
  assert.equal(pushDestination({...base,kind:'chat',scope:'game',game_id},'event').gameId,game_id);
  assert.equal(pushDestination({...base,kind:'chat',scope:'game',game_id:'../wrong'},'event'),null);
 });
+
+test('settlement requests and confirmations open the ledger without a live match',()=>{
+ for(const kind of ['settlement_requested','settlement_accepted']){
+  const data={type:'bhidne_notification',user_id:'user-00000000-0000-0000-0000-000000000001',kind,room_id:'room'};
+  const target=pushDestination(data,'settlement-event');
+  assert.equal(target.roomId,'room');assert.equal(target.notificationKind,kind);
+  assert.equal(target.matchId,undefined);
+  assert.equal(pushDestination({...data,match_id:'old-match'},'event'),null);
+  assert.equal(pushDestination({...data,room_id:''},'event'),null);
+ }
+});

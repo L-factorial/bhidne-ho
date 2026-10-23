@@ -140,8 +140,6 @@ export function FlushTable({ snapshot, busy, error: requestError, connectionRead
   const myTurn = !!decision && decision.actor === String(snapshot.your_player_id);
   const ownPlayer = pub?.players.find(p => p.player_id === String(snapshot.your_player_id));
   const visibility = ownPlayer?.visibility === 'seen' ? ui("flush.seen") : ui("flush.blind");
-  const [helpOpen, setHelpOpen] = useState(false);
-  useEffect(() => { setHelpOpen(false); }, [decision?.key]);
   useEffect(() => { setCardsShown(ownPlayer?.visibility === 'seen' && mine?.cards.length === 3); }, [snapshot.match_id, pub?.round_number, ownPlayer?.visibility, mine?.cards.join('|')]);
   const doubleBet = (mine?.actions.required_bet ?? 0) * 2;
   const canDouble = Number.isSafeInteger(doubleBet) && doubleBet > 0 && !!settings.rules.allow_raise && (mine?.actions.raises_remaining ?? settings.rules.max_raise ?? 1) > 0 && doubleBet <= (mine?.actions.maximum_bet ?? doubleBet);
@@ -194,10 +192,6 @@ export function FlushTable({ snapshot, busy, error: requestError, connectionRead
       {(settings.locked || !snapshot.is_creator) && !!(localError || error) && <Text activity accessibilityRole="alert" style={s.error}>{uiLabel(localError || error, 'feedback')}</Text>}
   </>;
   const available = (kind: string) => snapshot.status === 'playing' && !!mine?.actions.kinds.includes(kind);
-  const help = myTurn && available("bet") ? [
-    !mine?.actions.show.allowed && mine?.actions.show.reason ? ui("common.show_status", { "status": uiLabel(mine.actions.show.reason) }) : null,
-    settings.rules.allow_side_show && !mine?.actions.side_show.allowed && mine?.actions.side_show.reason ? ui("flush.side_show_status", { "status": uiLabel(mine.actions.side_show.reason) }) : null,
-  ].filter(Boolean) : [];
   const sideNotice=snapshot.flush?.side_show_events?.at(-1);
   const sideMessage=sideNotice&&['SIDE_SHOW_REQUESTED','SIDE_SHOW_ACCEPTED','SIDE_SHOW_DECLINED'].includes(sideNotice.kind)
     ? ui(sideNotice.kind==='SIDE_SHOW_REQUESTED'?'flush.side_show_requested_notice':sideNotice.kind==='SIDE_SHOW_ACCEPTED'?'flush.side_show_accepted_notice':'flush.side_show_declined_notice',{requester:name(sideNotice.player_id),player:name(sideNotice.target_player_id)}) : null;
@@ -251,8 +245,8 @@ export function FlushTable({ snapshot, busy, error: requestError, connectionRead
               {canDouble && button(ui("flush.bet_double_points_points", { "points": doubleBet }), () => act('BET', { amount: doubleBet }), !canDouble || !can("bet"), false, false,
                 ui('flush.bet_short', { kind: ui('flush.double'), points: doubleBet }))}
             </>}
-            {available('see_cards') && button(ui("flush.see_cards"), () => { setHandOpen(true); act('SEE_CARDS'); }, !can('see_cards'))}
-            {ownPlayer?.visibility === 'seen' && mine?.cards.length === 3 && button(ui(cardsShown ? 'common.hide_cards' : 'flush.see_cards'), () => setCardsShown(value => !value))}
+            {!ended && !pub?.settlement && available('see_cards') && button(ui("flush.see_cards"), () => { setHandOpen(true); act('SEE_CARDS'); }, !can('see_cards'))}
+            {!ended && !pub?.settlement && ownPlayer?.visibility === 'seen' && mine?.cards.length === 3 && button(ui(cardsShown ? 'common.hide_cards' : 'flush.see_cards'), () => setCardsShown(value => !value))}
             {available("show") && button(ui("flush.show_points_points", { "points": mine!.actions.show_cost }), () => act('SHOW'), !can("show"), true)}
             {available('request_side_show') && button(ui("flush.request_side_show_button"), () => act('REQUEST_SIDE_SHOW'), !can('request_side_show'))}
             {available('accept_side_show') && button(ui("flush.accept_side_show"), () => act('ACCEPT_SIDE_SHOW'), !can('accept_side_show'), true)}
@@ -262,12 +256,6 @@ export function FlushTable({ snapshot, busy, error: requestError, connectionRead
             {available("fold") && button(ui("flush.fold"), () => setFoldFrom('table'), !can("fold"), false, true)}
           </>}
         </View>
-        {!comparisonOpen && help.length > 0 && <>
-          <Pressable accessibilityRole="button" accessibilityState={{ expanded: helpOpen }} onPress={() => setHelpOpen(value => !value)} style={s.helpButton}>
-            <Text style={s.status}>{helpOpen ? ui("flush.hide_action_help") : ui("flush.why_are_some_actions_unavailable")}</Text>
-          </Pressable>
-          {helpOpen && help.map(reason => <Text key={reason} style={s.status}>{reason}</Text>)}
-        </>}
         </ScrollView>
         {!!mine && <HandAreaOutline active={!!gameAttention(snapshot)} />}
       </View>
@@ -344,8 +332,8 @@ const styles = (c: ThemeColors) => StyleSheet.create({
   playArea: { flexGrow: 1 },
   handDock: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, flexShrink: 0, borderTopWidth: 0, overflow:'hidden', borderColor: c.tableTrim, paddingTop: 4, paddingBottom: 8, gap: 6, alignItems: 'center' },
   handOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '94%', zIndex: 50, elevation: 20 },
-  cards: { width: 224, height: 128, alignItems: 'center', justifyContent: 'center' },
-  scaledCards: { width: 280, height: 172, transform: [{ scale: 0.75 }] },
+  cards: { width: 252, height: 148, alignItems: 'center', justifyContent: 'center' },
+  scaledCards: { width: 280, height: 172, transform: [{ scale: 0.85 }] },
   status: { color: c.textMuted, fontFamily: fonts.body, fontSize: 13, textAlign: 'center' },
   yourTurn: { color: c.turnText, fontFamily: fonts.medium, backgroundColor: c.turnSurface, borderWidth: 1, borderColor: c.attention, borderRadius: radii.medium, paddingVertical: 6, paddingHorizontal: 10 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, width: '100%', maxWidth: 900 },
@@ -356,7 +344,6 @@ const styles = (c: ThemeColors) => StyleSheet.create({
   row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   title: { color: c.text, fontFamily: fonts.medium, fontSize: 20 }, text: { color: c.text, fontFamily: fonts.body, fontSize: 14 },
   button: { justifyContent: 'center', padding: 10, ...gameButtonStyle(c) },
-  helpButton: { ...gameButtonStyle(c), justifyContent: 'center', paddingHorizontal: 8 },
   chosen: { borderColor: c.accent, backgroundColor: c.surfaceSelected },
   field: { gap: 6 }, input: { padding: 12, borderRadius: radii.medium, borderWidth: 1, borderColor: c.border, color: c.text },
   error: { color: c.danger, fontFamily: fonts.body },

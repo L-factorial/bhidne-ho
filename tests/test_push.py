@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from app.push.http import Device,Preferences,Activity
 from app.push.service import PushService,quiet,DEFAULTS
 from app.push.worker import PushWorker
-from app.push.events import action, message
+from app.push.events import action, message, TEXT
 from app.push.providers import SendResult
 from app.durable_games.checkpoints import capture_checkpoint
 from test_checkpoint_store import database,host_game
@@ -230,3 +230,12 @@ def test_social_notification_names_and_location_do_not_change_routing():
     assert message('game_invitation','en',route,{**context,'created':True})['body'].startswith('Ekraj created “Friday Flush”.')
     assert message('game_invitation','en',route,context)['body'].startswith('Ekraj invited you to “Friday Flush”.')
     assert message('chat','en',route)['body']=='You have a new chat message'
+
+@pytest.mark.parametrize('locale', ['en','ne'])
+@pytest.mark.parametrize('kind', ['settlement_requested','settlement_accepted'])
+def test_settlement_push_text_is_generic_and_localized(locale,kind):
+    data={'kind':kind,'room_id':'room'}
+    payload=message(kind,locale,data)
+    assert payload['data']==data
+    assert payload['body']==TEXT[locale][kind]
+    assert payload['body']

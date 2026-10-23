@@ -3,14 +3,14 @@ import hashlib
 import json
 
 TEXT = {
- 'en': {'title':'Bhidne Ho','bid':'Your turn to bid','play':'Your turn — play a card',
+ 'en': {'settlement_requested':'A payment is awaiting your confirmation','settlement_accepted':'Your payment has been confirmed','title':'Bhidne Ho','bid':'Your turn to bid','play':'Your turn — play a card',
   'shuffle':'Your turn — shuffle the deck','cut':'Your turn — cut the deck','deal':'Your turn — deal the cards',
   'draw':'Your turn — draw a card','discard':'Your turn — discard a card','finish':'Your turn — finish your hand',
   'declare':'Declare your initial Tunnelas','bet':'Your turn — choose your bet',
   'side_show':'A side-show needs your response','review':'Review and accept your hand',
   'ready':'Your game is ready to start','game_invitation':'You have a game invitation',
   'room_invitation':'You have a room invitation','chat':'You have a new chat message','poke':'A player poked you'},
- 'ne': {'title':'भिड्ने हो','bid':'बोली लगाउने तपाईंको पालो','play':'तपाईंको पालो — तास खेल्नुहोस्',
+ 'ne': {'settlement_requested':'भुक्तानीको पुष्टि गर्न बाँकी छ','settlement_accepted':'तपाईंको भुक्तानी पुष्टि भयो','title':'भिड्ने हो','bid':'बोली लगाउने तपाईंको पालो','play':'तपाईंको पालो — तास खेल्नुहोस्',
   'shuffle':'तपाईंको पालो — तास फिट्नुहोस्','cut':'तपाईंको पालो — तास काट्नुहोस्','deal':'तपाईंको पालो — तास बाँड्नुहोस्',
   'draw':'तपाईंको पालो — तास तान्नुहोस्','discard':'तपाईंको पालो — तास फाल्नुहोस्','finish':'तपाईंको पालो — हात पूरा गर्नुहोस्',
   'declare':'सुरुका टनेला घोषणा गर्नुहोस्','bet':'तपाईंको पालो — बाजी रोज्नुहोस्',
