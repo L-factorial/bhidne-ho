@@ -315,4 +315,5 @@ export default {
   "session_removed": "३ मिनेटभित्र आवश्यक चाल नचालेकाले तपाईंलाई फोल्ड गरी टेबलबाट हटाइयो।",
   "session_pause": "केही समय छोड्नुहोस् · स्वचालित खेल",
   "completed_seat_reserved": "खेल सकियो · सिट सुरक्षित छ",
+  "create_table_in_new_room": "कोठा र खेल बनाउनुहोस्",
 } as const;

@@ -55,14 +55,21 @@ const site=process.env.TEST_WEB_URL||'http://127.0.0.1:8117';
    await page.setViewportSize({width,height:1000});
   }
   await field.fill('Room 0');
+  await page.waitForTimeout(400);
+  const footer=await sheet.getByTestId('create-game-footer').boundingBox();
+  assert.ok(footer.y+footer.height<=1000,'primary action stays fully visible');
   await page.screenshot({path:`/private/tmp/new-room-input-${width}.png`});
-  await dropdown.getByRole('button',{name:'Confirm new room',exact:true}).click();
-  await dropdown.waitFor({state:'hidden'});
-  await sheet.getByRole('button',{name:'Select room',exact:true}).getByText('Room 0 2',{exact:true}).waitFor();
+  await dropdown.getByRole('button',{name:'Create room and game',exact:true}).click();
+  await sheet.getByRole('alert').waitFor();
+  assert.equal(writes[0].name,'Room 0 2');assert.equal(writes.length,2,'arrow creates room and table together');
+  assert.equal(writes[1].game_type,'flush');assert.ok(writes[1].card_theme);
+  assert.equal(await dropdown.isVisible(),true);
+  const retried=page.waitForResponse(response=>response.request().method()==='POST'&&/\/test-games\/r\d+$/.test(new URL(response.url()).pathname));
+  await dropdown.getByRole('button',{name:'Create room and game',exact:true}).click();
+  await retried;
+  await page.waitForFunction(()=>!document.querySelector('input[aria-label="New room name"]')?.disabled);
+  assert.equal(writes.length,3,'retry reuses the created room');
   assert.deepEqual(errors,[]);
-  await page.screenshot({path:`/private/tmp/new-room-confirmed-${width}.png`});
-  await sheet.getByRole('button',{name:'Create game',exact:true}).click();await sheet.getByRole('alert').waitFor();
-  assert.equal(writes[0].name,'Room 0 2');assert.equal(writes.length,2);
   await context.close();console.log(`PASS ${width}px inline name, duplicate suffix, fixed width`);
  }}finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -315,4 +315,5 @@ export default {
   "session_removed": "Your required action timed out after 3 minutes. You were folded and removed from the table.",
   "session_pause": "Step away · use Auto play",
   "completed_seat_reserved": "Completed · Seat reserved",
+  "create_table_in_new_room": "Create room and game",
 } as const;
