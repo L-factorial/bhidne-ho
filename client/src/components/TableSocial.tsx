@@ -10,7 +10,6 @@ import { CommunityRulesEntry, useCommunityRulesGate } from './moderation/Communi
 import { ReportButton } from './Moderation';
 import type { Session } from '../multiplayer/session';
 import { useBlocking } from './PlayerBlocking';
-import { usePersistentNotice } from '../multiplayer/usePersistentNotice';
 import { retryingError, playerError } from '../multiplayer/playerError.ts';
 import { ui, uiLabel } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -65,7 +64,6 @@ export function TableSocialProvider({ requestedChatId, children, snapshot, chann
   const liveEffects=useLiveEffects();
   const freshEffect=(sentAt:number)=>liveEffects.window?liveEffects.window.fresh(sentAt):true;
   const blocking = useBlocking(session);
-  const reconnecting = usePersistentNotice(!connected);
   const theme = useTheme();
   const c = colors || theme.colors;
   const expandedRef = useRef(expanded); expandedRef.current = expanded;
@@ -87,6 +85,7 @@ export function TableSocialProvider({ requestedChatId, children, snapshot, chann
   const [messages, setMessages] = useState<TableMessage[]>([]), [unread, setUnread] = useState(0);
   const [effects, setEffects] = useState<Effect[]>([]), [draft, setDraft] = useState('');
   const [error, setError] = useState(''), [sending, setSending] = useState(false);
+  const [historyRetrying, setHistoryRetrying] = useState(false);
   const sendingRef = useRef(false), pokePending = useRef(false);
   const [pokeSent, setPokeSent] = useState(false);
   const openRef = useRef(open); openRef.current = open;
@@ -148,7 +147,7 @@ export function TableSocialProvider({ requestedChatId, children, snapshot, chann
     const timer = setTimeout(() => setPokeSent(false), 1800);
     return () => clearTimeout(timer);
   }, [pokeSent]);
-  useEffect(() => { if (!connected || !canRead) { setPokeMode(false); setOpen(false); } if (!canRead) { setMessages([]); setUnread(0); setEffects([]); } }, [connected, canRead]);
+  useEffect(() => { if (!connected) setPokeMode(false); if (!canRead) { setPokeMode(false); setOpen(false); setMessages([]); setUnread(0); setEffects([]); } }, [connected, canRead]);
   const {play:playSound}=useForegroundSound();
   const freshChat=useFreshSoundEvents(`${session.token}:${snapshot.match_id}`);
   const addMessages = (incoming: TableMessage[], historical = false) => {
@@ -177,8 +176,15 @@ export function TableSocialProvider({ requestedChatId, children, snapshot, chann
       let failed = false;
       try {
         const result = await channel!.request('TABLE_CHAT_HISTORY', snapshot.match_id!, {}, controller.signal);
-        if (!controller.signal.aborted) { addMessages(result.messages || [], true); historyLoaded.current = true; setError(current=>isActivityCopy(current)?'':current); }
-      } catch (failure) { failed = true; if (!controller.signal.aborted) setError(retryingError(failure)); }
+        if (!controller.signal.aborted) { addMessages(result.messages || [], true); historyLoaded.current = true; setHistoryRetrying(false); setError(current=>isActivityCopy(current)?'':current); }
+      } catch (failure) {
+        failed = true;
+        if (!controller.signal.aborted) {
+          const message = retryingError(failure);
+          setHistoryRetrying(isActivityCopy(message));
+          if (!isActivityCopy(message)) setError(message);
+        }
+      }
       finally { if (!controller.signal.aborted && (blocking.enabled || failed)) timer = setTimeout(() => void refresh(), 3000); }
     };
     void refresh();
@@ -240,6 +246,8 @@ export function TableSocialProvider({ requestedChatId, children, snapshot, chann
     } catch (failure) { if (!lifetime.current.signal.aborted) setError(playerError(failure)); }
     finally { sendingRef.current = false; if (!lifetime.current.signal.aborted) setSending(false); }
   }
+  const recoveringChat = historyRetrying || !connected;
+  const connectionError = (['feedback.service_unavailable','feedback.connection_lost','feedback.reconnecting'] as const).some(key=>error===ui(key));
   const iconStyle = { minWidth:44, minHeight:44, alignItems:'center' as const, justifyContent:'center' as const };
   function openPoke() { closeChat(); setError(''); setTargetPlayer(null); setPokeMode(true); }
   const presentation = (content: ReactNode, presentationExpanded: boolean) => (
@@ -289,8 +297,8 @@ export function TableSocialProvider({ requestedChatId, children, snapshot, chann
             {!messages.length && <Text style={{color:c.textMuted}}>{ui("social.start_the_table_conversation")}</Text>}
             {messages.map(message => <ChatMessage tableStyle key={message.id} message={message} own={message.sender_id === userId} action={<ReportButton menu session={session} enabled={blocking.reporting} scope={message.ephemeral ? 'player' : 'chat'} messageId={message.ephemeral ? undefined : message.id} player={{user_id: message.sender_id, display_name: message.sender_name}} />} />)}
           </ScrollView>
-          {!!error && <Text activity accessibilityRole="alert" style={{color:c.danger}}>{uiLabel(error, 'feedback')}</Text>}
-          {reconnecting && <Text activity style={{color:c.textMuted}}>{ui("feedback.reconnecting")}</Text>}
+          {(sending || historyRetrying || !connected || isActivityCopy(error)) && <ActivityLine />}
+          {!!error && !isActivityCopy(error) && !(recoveringChat && connectionError) && <Text accessibilityRole="alert" style={{color:c.danger}}>{uiLabel(error, 'feedback')}</Text>}
           {seated ? <View testID="table-chat-composer" style={{flexShrink:0}}>
             <CommunityRulesEntry session={session} />
             <ChatComposer value={draft} onChange={setDraft} onSend={() => void send()} disabled={!enabled || sending}

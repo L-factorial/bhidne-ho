@@ -148,6 +148,7 @@ export function MarriageTable({ snapshot, busy, error: requestError, connectionR
       <Text style={[s.buttonText, {color:gameControlText(label===ui('marriage.fold')||label===ui('marriage.confirm_fold')?'destructive':primary?'primary':'secondary',disabled)},compact && {fontSize:14,textAlign:'center',flexShrink:1}]} >{label}</Text></Pressable>;
   }
   const postMaal = !!own?.has_seen_maal;
+  useEffect(() => { if (postMaal) setShownSection(null); }, [postMaal]);
   const manualView = postMaal || arrangement === "personal";
   const arrangementHand=availableHand.filter(card=>!declaredIds.has(card.card_id));
   const handGroups = allRevealed && !hidden && (postMaal || arrangement !== "personal") ? arrangeMarriageHand(arrangementHand, postMaal ? "sequence" : arrangement as MarriageArrangement) : [{label:'', cards:arrangementHand}];
@@ -236,7 +237,7 @@ export function MarriageTable({ snapshot, busy, error: requestError, connectionR
         {button(ui("common.keep_playing"),()=>setConfirmFold(false))}
       </View>
     </RoomSheet>
-    <RoomSheet visible={shownSection!==null} presentation="dialog" title={ui(shownSection==='dublee'?'marriage.dublee':'marriage.sequence')} onClose={()=>setShownSection(null)} testID="marriage-own-shown-cards">
+    <RoomSheet visible={!postMaal && shownSection!==null} presentation="dialog" title={ui(shownSection==='dublee'?'marriage.dublee':'marriage.sequence')} onClose={()=>setShownSection(null)} testID="marriage-own-shown-cards">
       <MarriageMeldCards groups={own?.shown_melds||[]}/>
     </RoomSheet>
     <RoomSheet visible={seeMaal} presentation="dialog" testID="marriage-see-maal-step" title={ui('marriage.see_maal_step')} closeLabel={ui('marriage.see_maal_step')} onClose={() => { if (flippedMaal === maalKey) setSeenMaal(maalKey); }}>
@@ -310,7 +311,6 @@ export function MarriageTable({ snapshot, busy, error: requestError, connectionR
         </>}</View>
       </View>
       {!preview && !finishPreview && <>
-        {postMaal && recordedDeclarations}
         {!postMaal && !declaring && allRevealed && <View accessibilityRole="tablist" testID="marriage-view-tabs" style={{flexDirection:'row',gap:4}}>
           {(["sequence","dublee","personal"] as const).filter(value=>value!=='dublee'||pub.players.length>=4).map(value=>{
             const label=ui(value==='personal'?'marriage.my_arrangement':'marriage.auto_arrangement');

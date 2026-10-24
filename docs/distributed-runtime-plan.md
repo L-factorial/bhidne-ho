@@ -12494,3 +12494,34 @@ Capacity, observability, database HA and operational readiness remain deferred.
   use isolated local fixtures, not live production games or native device builds.
 - Next: user review and native-device validation before an authorized release.
   No commit, push, deployment or signed build. Deferred runtime scope unchanged.
+
+## 2026-10-24: Remove post-Maal shown-card review step
+
+- User authorized removing the irrelevant already-shown-card display after Maal
+  is seen. Removed the post-Maal View shown sequence/dublee row, and close/guard
+  any open own-shown-cards sheet as the player becomes post-Maal. Earlier review
+  remains available before Maal. Shown meld records and game/eligibility logic
+  remain unchanged; no glow or finish-panel changes.
+- Verification: TypeScript, Expo export and isolated browser checks passed for
+  normal and Dublee routes both before and after Maal: review exists before,
+  absent after, with no page errors. git diff --check passed.
+- Next: user review/native validation before an authorized release. Local only;
+  no deployment, signed build or deferred runtime changes.
+
+## 2026-10-24: Table chat connection feedback
+
+- User requested the shared thin fading line for retrying/reconnecting table
+  chat instead of connection-error prose. History recovery now has separate
+  retry state; pending sends, history retries and disconnected chat render one
+  ActivityLine. Recoverable connection errors are suppressed during recovery;
+  actionable errors and terminal unconfirmed delivery remain visible.
+- A transient disconnection no longer closes chat; its draft/history stay in
+  place and sending remains gated by connection/seat permissions. Losing actual
+  chat permission still closes/clears it. No transport retry, command-ID or
+  delivery/deduplication changes; no blind resend of failed writes.
+- Verification: TypeScript, web export and diff checks passed. Isolated browser
+  check covers repeated history connection failures with no alert prose, recovery
+  clearing the line, pending-send feedback, readable community-rule rejection
+  and retained draft. Screenshot: artifacts/table-chat-feedback-preview/retrying.png.
+- Next: user review and native/reconnect validation before an authorized release.
+  No deployment/native build or production chat writes.
