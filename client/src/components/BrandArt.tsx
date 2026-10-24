@@ -2,7 +2,8 @@ import { useUiLanguage } from '../i18n/useUiLanguage';
 import { ui } from '../i18n/copy.ts';
 import {createContext,useContext} from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
-import { branding, gameIcons } from '../branding';
+import { branding } from '../branding';
+import { GameArtwork, type GameArtworkKind } from './GameArtwork';
 
 export const HeaderHomeContext=createContext<(()=>void)|null>(null);
 
@@ -19,16 +20,9 @@ export function BrandIcon({ size = headerLogoSize }: { size?: number }) {
   useUiLanguage();
   return <Image source={branding.icon} accessibilityLabel={ui("common.brand_name")} resizeMode="contain" style={{ width: size, height: size, flexShrink: 0, borderRadius: 10 }} />;
 }
-export function GameIcon({ game, size = 56 }: { game: keyof typeof gameIcons; size?: number }) {
-  useUiLanguage();
-  // The bundled artwork includes off-white export padding. Crop its red face
-  // inside a proportional rounded frame instead of displaying that backing.
-  const crop = game === 'flush' ? {width:161,x:7,y:3,w:147,h:141}
-    : game === 'marriage' ? {width:160,x:7,y:3,w:146,h:143}
-    : {width:154,x:6,y:4,w:144,h:137};
+export function GameIcon({ game, size = 56 }: { game: GameArtworkKind; size?: number }) {
   return <View testID={`game-icon-${game}`} style={{width:size,height:size,flexShrink:0,borderRadius:size*0.21,overflow:'hidden'}}>
-    <Image source={gameIcons[game]} accessible={false} resizeMode="stretch" style={{position:'absolute',
-      width:size*crop.width/crop.w,height:size*155/crop.h,left:-size*crop.x/crop.w,top:-size*crop.y/crop.h}} />
+    <GameArtwork game={game} size={size}/>
   </View>;
 }
 export function BrandBanner() {

@@ -15,6 +15,10 @@ import { SignInButton } from '../components/SignInButton';
 import { LanguageToggle } from '../components/LanguageToggle';
 import { useTranslation } from 'react-i18next';
 
+const wideLayoutWidth = 1160;
+const widePanelWidth = 480;
+const wideColumnGap = 48;
+
 export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
   useUiLanguage();
   const { colors } = useTheme();
@@ -23,18 +27,21 @@ export function WelcomeScreen({ onEnterLobby }: { onEnterLobby: () => void }) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const wide = width >= 1024;
+  const paddingLeft = Math.max(insets.left, wide ? 40 : 16);
+  const paddingRight = Math.max(insets.right, wide ? 40 : 16);
+  const artworkWidth = Math.max(0, Math.min(wideLayoutWidth, width - paddingLeft - paddingRight) - widePanelWidth - wideColumnGap);
   const [notice, setNotice] = useState('');
   return (
     <LinearGradient colors={[colors.surface, colors.background, colors.background]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.page}>
       <ThemeBackdrop />
       <ScrollView contentContainerStyle={[styles.scroll, {
         paddingTop: Math.max(insets.top, wide ? 40 : 24), paddingBottom: Math.max(insets.bottom, 24),
-        paddingLeft: Math.max(insets.left, wide ? 40 : 16), paddingRight: Math.max(insets.right, wide ? 40 : 16),
+        paddingLeft, paddingRight,
       }]}>
         <View style={[styles.layout, wide && styles.wideLayout]}>
-          <View style={[styles.brandSide, wide && styles.wideBrand]}>
+          <View style={[styles.brandSide, wide && [styles.wideBrand, { width: artworkWidth }]]}>
             <View style={{ flexDirection: 'row', gap: 8 }}><LanguageToggle /><ThemeAction /></View>
-            {wide ? <Image source={branding.landing} accessibilityLabel={ui("common.brand_art")} resizeMode="contain" style={{ width: '100%', aspectRatio: 1090 / 650, marginTop: 16 }} /> : <>
+            {wide ? <Image source={branding.landing} accessibilityLabel={ui("common.brand_art")} resizeMode="contain" style={{ width: artworkWidth, height: artworkWidth * 650 / 1090, marginTop: 16 }} /> : <>
               <BrandBanner />
               <View style={styles.mobileIntro}>
                 <Text accessibilityRole="header" style={styles.mobileHeading}>{t('welcome.heading')}</Text>
@@ -69,14 +76,14 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceRaised, top: -360, left: -250 },
   scroll: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
   layout: { width: '100%', maxWidth: 480, alignItems: 'center' },
-  wideLayout: { maxWidth: 1160, flexDirection: 'row', alignItems: 'stretch', gap: 48 },
+  wideLayout: { maxWidth: wideLayoutWidth, flexDirection: 'row', alignItems: 'stretch', gap: wideColumnGap },
   brandSide: { alignItems: 'center', width: '100%' },
-  wideBrand: { flex: 1, width: 'auto', justifyContent: 'center', paddingVertical: 32 },
+  wideBrand: { flexShrink: 0, justifyContent: 'center', paddingVertical: 32 },
   mobileIntro: { alignItems: 'center', marginTop: 13, gap: 6 },
   mobileHeading: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 31, color: colors.text, textAlign: 'center' },
   mobileSubtitle: { fontFamily: fonts.body, fontSize: 14, color: colors.textMuted, textAlign: 'center', fontStyle: 'italic' },
   panel: { backgroundColor: 'transparent' },
-  widePanel: { width: 480, paddingHorizontal: 44, paddingTop: 48, paddingBottom: 24, justifyContent: 'center', minHeight: 320 },
+  widePanel: { width: widePanelWidth, flexShrink: 0, paddingHorizontal: 44, paddingTop: 48, paddingBottom: 24, justifyContent: 'center', minHeight: 320 },
   mobilePanel: { marginTop: 22, width: '100%', padding: 22, borderRadius: radii.large },
   intro: { alignItems: 'center', marginBottom: 48 },
   heading: { ...gameHeadingFinish(colors), fontFamily: fonts.display, fontSize: 52, color: colors.text, letterSpacing: -1.5, textAlign: 'center' },

@@ -7,6 +7,10 @@ __pycache__/
 build/
 dist/
 
+# Generated screenshots, App Store upload bundles and UI review previews
+/artifacts/app-screenshots/
+/artifacts/play-feed-preview/
+
 # Dedicated load-test credentials, journals and reports
 .loadtest/
 

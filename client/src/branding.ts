@@ -8,8 +8,3 @@ export const branding = {
   simplified: require('../assets/branding/05_bhidne_ho_app_icon_simplified.png'),
   background: require('../assets/branding/12_bhidne_ho_background_element.png'),
 };
-export const gameIcons = {
-  callbreak: require('../assets/branding/09_call_break_icon.png'),
-  marriage: require('../assets/branding/10_marriage_icon.png'),
-  flush: require('../assets/branding/11_flush_icon.png'),
-};

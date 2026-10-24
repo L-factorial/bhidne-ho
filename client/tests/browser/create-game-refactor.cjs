@@ -17,6 +17,7 @@ const site=process.env.TEST_WEB_URL||'http://127.0.0.1:8117';
    else if(p==='/friends')body={friends:[],incoming:[],outgoing:[],online_friend_ids:[]};
    else if(p.startsWith('/players/'))body=[{user_id:'user-prayash',display_name:'Prayash2496',username:'prayash2496'}];
    else if(p==='/rooms')body=rooms;
+   else if(p==='/active-tables')body=[{room_id:'r0',room_name:'Room 0',match_id:'existing',name:'Table 1',game_type:'callbreak',status:'waiting',phase:'OPEN',players:1,capacity:4,current_user:{is_seated:false,can_join:true}}];
    else if(/^\/rooms\/r\d+(\/enter)?$/.test(p))body=rooms.find(r=>p.split('/')[2]===r.room_id);
    else if(/^\/test-games\/r\d+(\/.*)?$/.test(p)){if(req.method()==='POST'){writes.push(req.postDataJSON());return route.fulfill({status:409,json:{detail:'Fixture creation stops before game entry.'}});}body={status:'empty',tables:[]};}
    await route.fulfill({json:body});
@@ -54,7 +55,9 @@ const site=process.env.TEST_WEB_URL||'http://127.0.0.1:8117';
   await sheet.getByRole('button',{name:'Select room',exact:true}).scrollIntoViewIfNeeded();const before=await sheet.boundingBox();
   await sheet.getByRole('button',{name:'Select room',exact:true}).click();
   const dropdown=page.getByTestId('create-room-dropdown');await dropdown.waitFor();assert.deepEqual(await sheet.boundingBox(),before,'dropdown must not resize creation overlay');
-  const box=await dropdown.boundingBox();assert.ok(box.height<=146&&box.height>=140);
+  const box=await dropdown.boundingBox(),optionsBox=await dropdown.getByTestId('create-room-options').boundingBox();
+  assert.ok(optionsBox.height<=144&&optionsBox.height>=140,'three existing room rows remain scrollable');
+  assert.ok(box.height>=optionsBox.height+48&&box.height<=optionsBox.height+50,'fixed Create in a new room row stays below the room list');
   await dropdown.evaluate(n=>{const child=[...n.querySelectorAll('*')].find(x=>x.scrollHeight>x.clientHeight+2&&getComputedStyle(x).overflowY==='auto');if(!child)throw new Error('no internal dropdown scroller');child.scrollTop=child.scrollHeight;});
   await dropdown.getByRole('button',{name:'Room 6',exact:true}).click();await dropdown.waitFor({state:'hidden'});
   const create=sheet.getByRole('button',{name:'Create game',exact:true});

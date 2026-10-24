@@ -16,6 +16,7 @@ import type {OriginalDistributedRuntime} from '../multiplayer/OriginalDistribute
 import { PlayTableCard } from './PlayTableCard';
 import {playFeed,type PlayTable,type PlayInvitation} from '../multiplayer/playFeed';
 import {retryingError,playerError} from '../multiplayer/playerError';
+import {EmptyTablesArtwork,NoMatchingTablesArtwork} from './GameArtwork';
 
 export type ActiveTable = PlayTable;
 const filters = [['all', 'All'], ['flush', 'Flush'], ['marriage', 'Marriage'], ['callbreak', 'Call Break']] as const;
@@ -64,6 +65,9 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable
     return () => { controller.abort(); unsubscribe?.(); clearInterval(timer); clearTimeout(retryTimer); cancelDelay?.(); subscription.remove(); };
   }, [session.token, refresh, activity]);
   const visible = tables.filter(table => filter === 'all' || table.game_type === filter);
+  const hasTables = tables.length > 0;
+  const selectedGame = uiLabel(filters.find(([key]) => key === filter)?.[1] || '', 'rooms');
+  useEffect(() => { if (loaded && !hasTables) setFilter('all'); }, [loaded, hasTables]);
   async function leaveTable(table:ActiveTable){
     if(discarding||busy||!table.current_user?.can_leave_seat)return;
     setDiscarding(true);setActionError('');
@@ -94,28 +98,30 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable
       <Ionicons name="add" size={26} color={c.onPrimary}/><Text style={{flexShrink:1,color:c.onPrimary,fontFamily:fonts.medium,fontSize:17}}>{ui('rooms.create_game_table')}</Text>
     </Pressable>
     {!!actionError&&<Text accessibilityRole="alert" style={{color:c.danger}}>{actionError}</Text>}
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+    {hasTables && <><View testID="active-games-heading" style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
       <Text accessibilityRole="header" style={{ flex: 1, color: c.text, fontFamily: fonts.editorial, fontSize: typography.pageTitle }}>{ui("rooms.available_tables")}</Text>
       <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.refresh_active_games")} disabled={refreshing} accessibilityState={{ disabled: refreshing }} onPress={() => setRefresh(v => v + 1)} style={{ minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="refresh-outline" size={20} color={refreshing ? c.textMuted : c.accent} /></Pressable>
     </View>
     <View testID="active-game-filters" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }} accessibilityRole="tablist" accessibilityLabel={ui("rooms.filter_active_games")}>
-      {filters.map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityLabel={ui("ledger.count_games", { "count": uiLabel(label, "rooms") })} accessibilityState={{ selected: filter === value }} onPress={() => setFilter(value)} style={{ ...gameTabFinish(c, filter === value), minHeight: 44, paddingHorizontal: 14, paddingVertical: 8, maxWidth: '100%', borderRadius: radii.large, borderWidth: 1, borderColor: c.tableTrim, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      {filters.map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityLabel={ui("ledger.count_games", { "count": uiLabel(label, "rooms") })} accessibilityState={{ selected: filter === value }} aria-selected={filter === value} onPress={() => setFilter(value)} style={{ ...gameTabFinish(c, filter === value), minHeight: 44, paddingHorizontal: 14, paddingVertical: 8, maxWidth: '100%', borderRadius: radii.large, borderWidth: 1, borderColor: c.tableTrim, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <Text style={{ color: filter === value ? c.onCoin : c.textMuted, fontFamily: fonts.medium, fontSize: 13, flexShrink: 1 }}>{uiLabel(label, 'rooms')}</Text>
         {loaded && <Text style={{ color: filter === value ? c.onCoin : c.textMuted, fontSize: 12 }}>{value === 'all' ? tables.length : tables.filter(table => table.game_type === value).length}</Text>}
       </Pressable>)}
-    </View>
+    </View></>}
     {!!error && isActivityCopy(error) && <ActivityLine />}
     {!!error && !isActivityCopy(error) && <View accessibilityRole="alert" testID="active-games-error" style={{ gap: 12, alignItems: 'flex-start', backgroundColor: c.surface, padding: 20, borderRadius: radii.large, borderWidth: 1, borderColor: c.borderSubtle }}>
       <Text style={{ color: c.text, fontFamily: fonts.medium }}>{loaded ? ui("rooms.couldn_t_refresh_tables") : ui("rooms.couldn_t_load_tables")}</Text>
       <Text style={{ color: c.textMuted }}>{loaded ? ui("common.showing_the_last_available_tables_try_refreshing_again") : ui("feedback.check_your_connection_and_try_again")}</Text>{retry}
     </View>}
     {!loaded && !error && <View testID="active-games-loading" style={{minHeight:120,justifyContent:'center',padding:16}}><ActivityLine /></View>}
-    {loaded && !error && !visible.length && <View testID="active-games-empty" style={{ alignItems: 'center', gap: 12, padding: 28, backgroundColor: c.surface, borderRadius: radii.large, borderWidth: 1, borderColor: c.borderSubtle }}>
-      <Ionicons name="people-outline" size={32} color={c.accent} />
-      <Text style={{ color: c.text, fontFamily: fonts.editorial, fontSize: typography.pageTitle, textAlign: 'center' }}>{filter === 'all' ? ui("rooms.no_active_tables_yet") : ui("rooms.no_game_tables_yet", { "game": uiLabel(filters.find(([key]) => key === filter)?.[1] || '', 'rooms') })}</Text>
-      <Text style={{ color: c.textMuted, textAlign: 'center', lineHeight: 21 }}>{ui("rooms.empty_games_help")}</Text>
-      <Pressable accessibilityRole="button" onPress={onCreateTable} style={{minHeight:44,paddingHorizontal:16,borderRadius: radii.medium,backgroundColor:c.primary,justifyContent:'center'}}><Text style={{color:c.onPrimary,fontFamily:fonts.medium}}>{ui("rooms.create_new_table")}</Text></Pressable>
-      <Pressable accessibilityRole="button" onPress={() => filter === 'all' ? onBrowseRooms() : setFilter('all')} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: c.accent, fontFamily: fonts.medium }}>{filter === 'all' ? ui("rooms.browse_rooms") : ui("rooms.view_all_games")}</Text></Pressable>
+    {loaded && !error && !visible.length && <View testID="active-games-empty" style={{ alignItems: 'center', justifyContent:'center', gap: 16, padding: 24, paddingVertical:hasTables?28:32, backgroundColor: c.surface, borderRadius: radii.large, borderWidth: 1, borderColor: c.border, minHeight:hasTables?244:320 }}>
+      {hasTables ? <NoMatchingTablesArtwork color={c.accent}/> : <EmptyTablesArtwork/>}
+      <Text accessibilityRole="header" style={{ color: c.text, fontFamily: fonts.editorial, fontSize: typography.pageTitle, textAlign: 'center' }}>{hasTables ? ui('rooms.no_game_tables_right_now', {game:selectedGame}) : ui('rooms.empty_tables_title')}</Text>
+      <Text style={{ color: c.textMuted, textAlign: 'center', lineHeight: 23, maxWidth:360 }}>{hasTables ? ui('rooms.empty_filtered_games_help', {game:selectedGame}) : ui('rooms.empty_tables_welcome')}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={ui(hasTables?'rooms.view_all_games':'rooms.browse_rooms')} onPress={() => hasTables ? setFilter('all') : onBrowseRooms()} style={({pressed})=>({ minHeight: 48, paddingHorizontal:22, marginTop:4, borderRadius:radii.medium, borderWidth:1, borderColor:c.accent, flexDirection:'row', alignItems:'center', justifyContent: 'center', gap:10, backgroundColor:pressed?c.surfaceSelected:'transparent' })}>
+        <Text style={{ color: c.accent, fontFamily: fonts.medium, textAlign:'center', flexShrink:1 }}>{ui(hasTables?'rooms.view_all_games':'rooms.browse_rooms')}</Text>
+        {!hasTables&&<Ionicons name="arrow-forward" size={20} color={c.accent} accessible={false}/>}
+      </Pressable>
     </View>}
     <CreationCards runtime={runtime} onReleased={()=>setRefresh(value=>value+1)} onReturn={table=>enter(table,'watch')} kind="table" matches={tables.map(table=>table.match_id)}/>
     {visible.map(table => <PlayTableCard key={`${table.room_id}:${table.match_id}`} table={table} busy={busy||discarding} enter={action => enter(table, action)} declineInvitation={()=>void declineInvitation(table)} leave={()=>void leaveTable(table)}/>)}

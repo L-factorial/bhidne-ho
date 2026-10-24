@@ -12098,3 +12098,207 @@ Capacity, observability, database HA and operational readiness remain deferred.
   during pending foreground hydration. Production TypeScript and web export pass;
   git diff --check passes. Inspected the mobile capture of a new live bet/poke
   after catch-up. Browser chat-history assertions also pass at both widths.
+
+## 2026-10-23: Direct production release and Ekraj room recovery (aeecb1a)
+
+- User explicitly requested direct server deployment. Released clean committed
+  aeecb1ac5145692255d0f6808c3a5e88c7d7fc40, containing the reviewed Flush bet,
+  dealer-pick, deferred-departure and foreground-presentation fixes. No new source
+  commit or push was performed. Competing production workflow 40044383824 was
+  cancelled (normal then force cancellation); confirmed no active run before
+  activation. That automatic full CI suite was cancelled, not passed.
+- Built the exact checksum-verified git archive on app1 with Dockerfile.production.
+  All 577 client tests, TypeScript and production export passed inside the image.
+  Local production receiver checks passed 41 tests, and all 57 focused PostgreSQL/
+  WASM departure/session/restart/dealer regressions passed. Both installed receiver
+  hashes matched committed source. Image archive SHA-256 matched on both hosts.
+- Both dependency/schema preflights passed. Activated backends sequentially using
+  existing release locks, healthy-peer checks and retained rollback, then activated
+  both frontends. No migrations, initialization, runtime environment changes or
+  unrelated data rewrites were needed. Both hosts run immutable image
+  sha256:aec411d6f6429cee583faf7a1cc720f61c16e7776fd86f5ac8d42441de328e03.
+  Both host/public frontend index SHA-256:
+  618dbc2125c05a599543ed4143bbdb1a9c2e3f1968f8b6edea4daf76695bf27d.
+  Public JavaScript hash matches both hosts; direct/public API health is ok.
+  Read-only production browser smoke checks pass at 390/1280 pixels, with all
+  write requests blocked and no uncaught JavaScript errors.
+- After both fixed backends were healthy, inspected the exact quarantined room,
+  original pending leave request, checkpoint revision 51 and third-round settlement
+  intent. Used PostgresRoomOwnershipStore.retry_quarantined with inspected epoch 1;
+  no manual gameplay/checkpoint/seat/receipt/ledger edit. Normal discovery acquired
+  epoch 2 and resumed queued work. Original leave-seat request
+  mvlken53-2k-90n4fia41p8-33rpzaoa64u accepted at table revision 52; queued enter-room
+  request also accepted. The room is serving, pending departures are empty and
+  Ekraj's stuck table reservation is cleared. Historical round and settlement
+  records remain intact. Table currently remains open/waiting for its other user.
+- Evidence: /private/tmp/bhidne-aeecb1a-{rollout,verify,smoke,backend-tests}.log,
+  /private/tmp/bhidne-aeecb1a-verification.json,
+  /private/tmp/bhidne-aeecb1a-ekraj-{recovery.log,verified.json}.
+  Remote build log: /srv/bhidne-prod/builds/aeecb1a/build.log.
+- Limitations: backend/web release only. Installed native apps need a new signed
+  build for client presentation changes; the server seat/departure fix is already
+  live. No physical-device validation or unrelated authenticated gameplay/settlement
+  smoke writes. This deployment note is local and uncommitted.
+- Exact next step: Ekraj can reopen/refresh the app and join another table. Review
+  production behavior; build/distribute updated native apps when requested.
+  Deferred capacity and operational-readiness work remains deferred.
+
+## 2026-10-23: App Store quiet-launch preparation
+
+- User explicitly requested a public App Store soft launch following TestFlight.
+  Verified processed production iOS build 59, version 0.1.0, built from aeecb1a.
+- Updated App Store Connect app 6818676542's editable draft from 1.0 to 0.1.0,
+  attached build 59, and changed automatic release to MANUAL. Read-back confirms
+  PREPARE_FOR_SUBMISSION, version 0.1.0, build 59, MANUAL release.
+- No review submission or public release occurred. Existing listing lacks
+  screenshots and listing content; copyright, review contact/demo access,
+  privacy declarations and age rating need completion before submission.
+- Asked user for copyright owner and review contact details/demo-account status.
+  Exact next step: complete verified listing assets and declarations, submit for
+  review, then retain manual release until the user chooses to publish.
+- Evidence: /private/tmp/bhidne-asc-audit.json and
+  /private/tmp/bhidne-asc-prepared.json. API credentials were used in process
+  through the authenticated EAS service and were not exported.
+
+## 2026-10-23: Current-version screenshot collection
+
+- User expanded scope to capture account, verification, profile, policies,
+  deletion, moderation, safety and all game screens for review/store preparation.
+- Exported current client source aeecb1a locally. Captured the actual React Native
+  Web UI using isolated HTTP/WebSocket fixture responses in memory transport
+  mode. No production data or accounts were modified. Verification/deletion,
+  reporting and blocking results are demo responses, not backend acceptance.
+- Created 149 PNGs: 78 phone at 1320x2868 and 71 tablet at 2064x2752. Includes
+  signup avatar onboarding, email-link/success states, profile editing and
+  preferences, rules/policies, deletion request/confirmation/completion,
+  moderator queue/evidence/decision/enforcement, report/block/unblock, three
+  games with chat/reporting/summary/menu, dealer selection, bidding and results.
+  Marriage completion data was generated by the existing engine fixture.
+- Verified the 48 requested/core screen states exist on both layouts and all
+  PNG dimensions match their device group. Inspected representative images.
+  Deliverables: artifacts/app-screenshots/current/index.html, manifest.json,
+  README.txt, phone/ and tablet/; ZIP in their parent directory. Manifest records
+  measured sizes, hashes and capture provenance. Gallery includes a proposed
+  listing selection and separates moderation/supporting documentation.
+- Limitation: these are browser captures, not native iOS screenshots. The iOS
+  simulator has no app installed; device TestFlight build 59 cannot run there.
+  Native-only push/OS permission screens are not represented. No screenshots
+  were uploaded to App Store Connect. No app implementation or deployment change.
+- Exact next step: review the gallery, prepare/install a matching simulator build
+  or use the device build, and recapture the chosen native iOS listing screens
+  before final App Store upload. Legal/reviewer/store declarations remain pending.
+
+## 2026-10-23: Native iOS screenshot collection
+
+- User explicitly requested the same complete collection on iOS. Ran current
+  aeecb1a client source (version 0.1.0, matching TestFlight build 59's source)
+  natively in Expo Go 57.0.9 on iPhone 17 Pro Max and iPad Pro 13-inch (M5),
+  both using the installed iOS/iPadOS 26.5 simulator runtime. No app source,
+  production configuration or App Store Connect record was changed.
+- Captured 172 raw simulator PNGs: 86 matching screen states per device, iPhone
+  1320x2868 and iPad 2064x2752. Captures include account/recovery/verification,
+  profile/preferences, policies, deletion, report/block/unblock, moderator
+  review/enforcement, all three games, hands, dealer selection, bidding,
+  results, chat and flagging. Native system status bars are included.
+- Used local isolated HTTP/WebSocket fixture responses through the existing
+  memory presentation transport. Existing native UI callbacks, Home navigation
+  context and secure-session methods were invoked via the local React Native
+  inspector for repeatable scenarios. No UI components or image pixels were
+  replaced, resized or composited. Expo's floating developer button was disabled
+  through its native menu. No production users/tables/reports were modified.
+- Verified matching 86-name coverage on both devices and all 172 PNG signatures,
+  actual dimensions and SHA-256 hashes. Native gallery verifies device counts,
+  listing selection, search, full-resolution image loading and JavaScript errors;
+  ZIP integrity is checked separately. No application test suite was needed
+  because application source was not changed.
+- Deliverables: artifacts/app-screenshots/ios/index.html, manifest.json,
+  README.txt, iphone/ and ipad/; native ZIP in their parent directory. Gallery
+  includes a proposed listing selection, while supporting admin/safety screens
+  remain available in the full set. Diagnostic/error frames are excluded.
+- Observed: native iPad welcome artwork overlaps the welcome copy. Recorded the
+  existing layout in ipad/01-welcome.png and the capture notes; no unsolicited
+  application fix was included. The proposed listing selection excludes it.
+- Limits: native source runs in Expo Go, not the signed TestFlight device binary.
+  Demo confirmation/deletion/moderation outcomes are fixture responses, not
+  backend acceptance. OS deep-link registration, store-binary permissions,
+  physical-device behavior and push delivery still need separate validation.
+  No screenshots were uploaded, review submitted or public release initiated.
+- Tooling/evidence: /private/tmp/bhidne-ios-{fixture-server.py,capture-native-full.cjs},
+  native-control.cjs/native-helper.js, native capture logs and screenshot gallery
+  verification. Exact next step: review the native gallery, decide the final
+  listing images, and address the iPad welcome overlap before release readiness
+  review. Copyright/reviewer details and store declarations remain pending.
+
+## 2026-10-23: iPad welcome artwork sizing fix and listing selection
+
+- User authorized fixing the observed iPad overlap and preparing listing images.
+  Read the Expo SDK 57 reference before changing client code.
+- WelcomeScreen now calculates the wide artwork column from the available
+  window width, safe-area/page padding, layout maximum, panel width and column
+  gap. The image gets explicit proportional dimensions and the two columns do
+  not shrink. This removes the native intrinsic-image overflow into the copy.
+- TypeScript and a fresh web export passed. Browser checks passed at 320, 390,
+  768, 1023, 1024, 1032, 1194, 1376 and 1440 pixels: artwork/copy separation,
+  horizontal bounds, and heading/action ordering. Sign-in navigation passed at
+  390 and 1032 pixels. No new unit tests mirror the low-impact style calculation.
+- Native Fabric measurements passed on iPad Pro 13-inch (M5) and iPhone 17 Pro
+  Max. At iPad width 1032 points, artwork spans x=40..464 and copy starts x=556;
+  the image measures 424x253. iPhone artwork remains above its heading, and both
+  devices retain the sign-in action below the heading. Refreshed both native
+  01-welcome.png captures, hashes, gallery notes and the full native ZIP.
+- Prepared six public listing screenshots per device (12 raw native PNGs):
+  Flush, Marriage, Call Break hand, Call Break bidding, Marriage results and
+  Friends. Deliverable: artifacts/app-screenshots/app-store-selection/ and
+  bhidne-ho-app-store-selection.zip. The gallery links to the smaller selection.
+- Gallery filters/image loading and ZIP integrity passed. Original pre-fix frames
+  remain private evidence in /private/tmp/bhidne-welcome-before-fix/. Browser and
+  native measurement logs use /private/tmp/bhidne-welcome-*. No production writes.
+- Limitation: this client change is local and is not in TestFlight build 59.
+  Manifest records the working-tree source hash. No commit/push, signed build,
+  App Store upload, review submission or deployment occurred. Exact next step:
+  include the fix in the next signed iOS build, verify the welcome screen in that
+  binary, and finish the pending copyright/reviewer/store declarations.
+
+## 2026-10-23: Play feed states and shared game artwork
+
+- User approved the three proposed home-feed states and requested the Flush,
+  Marriage and Call Break icon motifs throughout the app. This explicitly
+  expands scope to these related UI changes and validation.
+- A confirmed empty feed now shows the welcoming three-card illustration,
+  localized invitation copy and Browse rooms below the single Create game
+  action. Heading, refresh and filters are hidden. Loading is still distinct
+  from a confirmed empty result. Existing observers/polling continue to load
+  new tables automatically without a manual refresh.
+- Nonempty feeds retain Available tables, refresh, counts and filters. A filter
+  with no matches retains those controls and shows a compact game-specific
+  message with View all games. When the entire feed empties, reset the filter
+  to All so the next incoming game is visible. Secondary actions have explicit
+  accessible labels; filters expose their selected state on the web.
+- Recreated the approved motifs as scalable React Native SVG artwork: Flush
+  cards, Marriage rings/crown, Call Break spade, plus decorative empty/search
+  illustrations. GameIcon now supplies these consistently to PlayTableCard,
+  CreateTableForm and GameRoomsScreen. Removed the old bitmap mapping; kept
+  original supplied asset files. Unique gradient IDs support repeated icons.
+- Table cards use the approved trim/ivory headings and a more compact right
+  column for seated count and actions. Join/watch/return, invitations, reserved
+  seats, real avatar counts and room/table identity behavior are preserved.
+- Added English/Nepali copy and an isolated browser acceptance flow covering
+  delayed initial read, confirmed empty, background table arrival, filtering,
+  View all games, stale-filter reset after an empty feed, Create game, shared
+  SVG IDs, responsive bounds, Browse rooms and Nepali persistence.
+- Verification: all 577 frontend tests, TypeScript and fresh Expo web export
+  passed. New browser acceptance passed at 320/390/1032/1280 pixels. Existing
+  Create game acceptance passed at 320/390/1280; its fixture now includes an
+  active table to exercise visible filters, and checks the existing fixed
+  new-room action separately from the three-row scrollable room list.
+- Native iPhone simulator acceptance passed for empty, available, filtered,
+  Create game icons and View all games. Inspected actual native captures.
+  Fixed literal JSX whitespace in CreateTableSheet's room selector that caused
+  a native text warning; repeated the flow with no LogBox warnings/errors and
+  reran TypeScript successfully.
+  Review: artifacts/play-feed-preview/index.html, native PNGs and source/image
+  hash manifest. Captures use an isolated local demo backend, not production.
+- Existing local welcome-layout changes were retained. No backend, schema,
+  deployment, commit/push or App Store submission occurred. A new signed build
+  is still needed to ship the accumulated client changes. Next: review the
+  implementation preview and include these changes in the next release build.

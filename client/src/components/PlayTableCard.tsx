@@ -15,22 +15,22 @@ export function PlayTableCard({table,busy,enter,declineInvitation,leave}:{table:
   const players=table.seated_players?.length?table.seated_players:Array.from({length:Math.min(table.players,table.capacity)},(_,seat_id)=>({seat_id,display_name:'',avatar_url:null}));
   const {label,canDeclineInvitation}=playCardActions(table);
   const button={minHeight:44,minWidth:80,paddingHorizontal:10,borderRadius: radii.medium,alignItems:'center' as const,justifyContent:'center' as const,opacity:busy?visualStates.disabledOpacity:1};
-  return <View testID={`play-table-${table.match_id}`} style={{padding:14,gap:12,borderRadius: radii.large,borderWidth:1,borderColor:c.borderSubtle,backgroundColor:c.surface,flexDirection:'row',alignItems:'center'}}>
+  return <View testID={`play-table-${table.match_id}`} style={{padding:14,gap:12,borderRadius: radii.large,borderWidth:1,borderColor:c.tableTrim,backgroundColor:c.surface,flexDirection:'row',alignItems:'center'}}>
     <View style={{flex:1,minWidth:0,gap:10}}>
       <View style={{flexDirection:'row',alignItems:'center',gap:10}}>
         <GameIcon game={table.game_type} size={48}/>
         <View style={{flex:1,minWidth:0,gap:4}}>
-          <Text accessibilityRole="header" style={{color:c.accent,fontFamily:fonts.editorial,fontSize:20,lineHeight:26}}>{gameLabel(table.game_type)}</Text>
+          <Text accessibilityRole="header" style={{color:c.text,fontFamily:fonts.editorial,fontSize:20,lineHeight:26}}>{gameLabel(table.game_type)}</Text>
           <Text numberOfLines={1} style={{color:c.textMuted,fontFamily:fonts.body,fontSize:15,lineHeight:22}}>{tableHeaderLocation(table.room_name,table.name)}</Text>
         </View>
       </View>
       {!!players.length&&<View testID={`play-players-${table.match_id}`} style={{flexDirection:'row',flexWrap:'wrap',gap:6}}>
         {players.map(player=><View key={player.seat_id} accessibilityLabel={player.display_name} style={{width:30,height:30,borderRadius:15,borderWidth:2,borderColor:c.tableTrim,backgroundColor:c.surfaceRaised,alignItems:'center',justifyContent:'center'}}><PlayerAvatar size={26} uri={player.avatar_url ?? undefined} /></View>)}
       </View>}
-      <Text style={{color:c.textMuted}}>{table.players}/{table.capacity} {ui('flush.seated')}</Text>
       {hasCompletedSeat(table)&&<Text style={{color:c.accent}}>{ui('rooms.completed_seat_reserved')}</Text>}
     </View>
     <View style={{gap:8}}>
+      <Text style={{color:c.textMuted,fontSize:12,textAlign:'right'}}>{table.players}/{table.capacity} {ui('flush.seated')}</Text>
       <Pressable accessibilityRole="button" accessibilityLabel={`${label} · ${table.name}`} disabled={busy} accessibilityState={{disabled:busy}} onPress={()=>enter(action)} style={({pressed})=>({...button,...actionFinish(c,'primary',pressed,busy)})}>
         <Text style={{color:c.onPrimary,fontFamily:fonts.medium}}>{label}</Text>
       </Pressable>
