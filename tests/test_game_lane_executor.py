@@ -512,3 +512,29 @@ async def test_unseen_marriage_finish_is_atomic_durable_and_settles_once(databas
         assert await GameLaneExecutor(inbox).execute_one(lane,fence) is None
     finally:
         await host.close()
+
+
+@pytest.mark.parametrize('own_reveal', [False, True])
+async def test_flush_bet_after_other_reveal_recovers_and_deduplicates(database, own_reveal):
+    from test_game_departure import setup, restore, run
+    pool, checkpoints, fence, users = database
+    host, game, inbox, lane = await setup(database, 'flush', 3)
+    try:
+        detached, _ = await restore(checkpoints, game)
+        actor, bet = command(detached, 'BET', payload={'amount': 1})
+        state = engine_state(detached)
+        from flush.turns import required_bet, find_player
+        bet['payload']['amount'] = required_bet(state, find_player(state, state.current_player_id))
+        other = actor if own_reveal else next(user for user in game.users if user != actor)
+        _, reveal = command(detached, 'SEE_CARDS', payload={'round_number': state.round_number})
+        assert (await run(inbox, lane, fence, other, reveal))['status'] == 'accepted'
+        # Each lane execution rebuilds its engine from the committed checkpoint.
+        result = await run(inbox, lane, fence, actor, bet)
+        assert result['status'] == ('rejected' if own_reveal else 'accepted')
+        restored, saved = await restore(checkpoints, game)
+        assert engine_state(restored).pot == state.pot + (0 if own_reveal else bet['payload']['amount'])
+        assert (await inbox.enqueue(lane, actor, bet)).outcome == result
+        assert await GameLaneExecutor(inbox).execute_one(lane, fence) is None
+        assert (await checkpoints.load(game.table.table_id)).checkpoint == saved.checkpoint
+    finally:
+        await host.close()

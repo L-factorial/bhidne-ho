@@ -1,3 +1,4 @@
+import {useLiveEffects} from '../multiplayer/LivePresentationContext';
 import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
 import { useUiLanguage } from '../i18n/useUiLanguage';
@@ -42,6 +43,7 @@ function PokeBubble({ poke, reduceMotion }: { poke: RoomPoke; reduceMotion: bool
 
 export function PokeOverlay({ pokes, matchId }: { pokes: RoomPoke[]; matchId?: string }) {
   const uiLanguage = useUiLanguage();
+  const liveEffects=useLiveEffects();
   const styles = useThemedStyles(createStyles);
   const compact = useWindowDimensions().width < 900;
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -51,7 +53,7 @@ export function PokeOverlay({ pokes, matchId }: { pokes: RoomPoke[]; matchId?: s
     const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
     return () => { alive = false; subscription.remove(); };
   }, []);
-  const visible = pokes.filter(poke => poke.match_id === matchId && poke.expires_at > Date.now()).slice(-2);
+  const visible = pokes.filter(poke => poke.match_id === matchId && poke.expires_at > Date.now() && (!liveEffects.window || liveEffects.window.fresh(poke.expires_at-5000))).slice(-2);
   return <View pointerEvents="none" testID="poke-overlay" style={[styles.overlay, compact && styles.compactOverlay]}>
     {visible.map(poke =>
       <PokeBubble key={poke.id} poke={poke} reduceMotion={reduceMotion} />)}

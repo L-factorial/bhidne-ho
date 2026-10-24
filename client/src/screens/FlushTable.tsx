@@ -1,3 +1,4 @@
+import {useLiveEffects} from '../multiplayer/LivePresentationContext';
 import {gameRequestFeedback} from '../multiplayer/gameRequestFeedback';
 import { FittedGameTable } from '../components/FittedGameTable';
 import { flushDoubleLimit, flushPlayerName } from '../multiplayer/flush';
@@ -63,6 +64,7 @@ export function FlushTable({ snapshot, busy, error: requestError, connectionRead
   onBack: () => void; onNewGame: () => void;
 }) {
   useUiLanguage();
+  const liveEffects=useLiveEffects();
   const {error, active: requestActive} = gameRequestFeedback(requestError, busy, connectionReady && social.connected, snapshot.status === 'ended', snapshot);
   const { colors } = useTheme();
   const s = useThemedStyles(styles);
@@ -211,7 +213,7 @@ export function FlushTable({ snapshot, busy, error: requestError, connectionRead
       {closeMenu => <FlushMenu snapshot={snapshot} close={closeMenu} rules={() => setRulesExplanationOpen(true)} rulesConfig={() => {setRulesTab('rules');setRulesOpen(true);}} history={() => setBetsOpen(true)}
         poke={() => setPokeOpen(true)} canPoke={social.connected} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl} />}
     </GameTableHeader>
-    <ActivityLine active={requestActive} />
+    <ActivityLine active={requestActive || !liveEffects.ready} />
     <View style={s.mainColumn} testID="flush-main-column">
       <View style={{ flex: 1, minHeight: 0, paddingBottom: snapshot.your_player_id && !ended ? collapsedHandHeight + 12 : 0 }}>
       <GameStats snapshot={snapshot} open={stats.open} onOpen={() => { setHandOpen(false); stats.show(); }} onClose={stats.close}>

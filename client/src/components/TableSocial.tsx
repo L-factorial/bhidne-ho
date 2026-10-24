@@ -1,3 +1,4 @@
+import {useLiveEffects} from '../multiplayer/LivePresentationContext';
 import {ActivityLine} from './ActivityLine';
 import {isActivityCopy} from '../multiplayer/activityCopy';
 import {useFreshSoundEvents} from '../notifications/useFreshSoundEvents';
@@ -61,6 +62,8 @@ export function TableSocialProvider({ requestedChatId, children, snapshot, chann
   requestedChatId?:string; expanded?: boolean; colors?: ThemeColors; session: Session; children: ReactNode; snapshot: RoomSnapshot; channel?: TableSocialChannel; connected: boolean; userId: string; pokes: RoomPoke[]; phrases?: PlayerPhrase[];
 }) {
   const uiLanguage = useUiLanguage();
+  const liveEffects=useLiveEffects();
+  const freshEffect=(sentAt:number)=>liveEffects.window?liveEffects.window.fresh(sentAt):true;
   const blocking = useBlocking(session);
   const reconnecting = usePersistentNotice(!connected);
   const theme = useTheme();
@@ -75,6 +78,7 @@ export function TableSocialProvider({ requestedChatId, children, snapshot, chann
   const [punchline, setPunchline] = useState('');
   const [flights, setFlights] = useState<ReactionFlight[]>([]);
   const reactionIds = useRef(new Set<string>());
+  useEffect(()=>{setFlights([]);setEffects([]);},[liveEffects.epoch]);
   const { t } = useTranslation();
   const [bottom, setBottom] = useState(16);
   const [handCollapsed,setHandCollapsed]=useState(false);
@@ -109,19 +113,20 @@ export function TableSocialProvider({ requestedChatId, children, snapshot, chann
       if (!event || reactionIds.current.has(event.id)) return;
       reactionIds.current.add(event.id);
       if (reactionIds.current.size > 100) reactionIds.current = new Set([...reactionIds.current].slice(-50));
+      if(!freshEffect(event.expires_at-5000))return;
       const sender = seats.current.get(event.sender_player_id), receiver = seats.current.get(event.recipient_player_id);
       if (!sender || !receiver) return;
       root.current?.measureInWindow((rx, ry, width, height) => {
         sender.measureInWindow((sx, sy, sw, sh) => {
           receiver.measureInWindow((tx, ty, tw, th) => {
-            if (!active || !sw || !tw || event.expires_at <= Date.now()) return;
+            if (!active || !sw || !tw || event.expires_at <= Date.now() || !freshEffect(event.expires_at-5000)) return;
             setFlights(current => [...current, { event, bounds: { width, height }, from: { x: sx - rx + sw / 2, y: sy - ry + Math.min(sh / 2, 24) }, to: { x: tx - rx + tw / 2, y: ty - ry + Math.min(th / 2, 24) } }].slice(-3));
           });
         });
       });
     });
     return () => { active = false; unsubscribe(); };
-  }, [channel, connected, snapshot.room_id, snapshot.match_id, snapshot.status]);
+  }, [channel, connected, snapshot.room_id, snapshot.match_id, snapshot.status,liveEffects.window]);
   // Expiry rejects stale incoming events; an accepted flight stays until its
   // animation completes, including the longer recipient catch and fade.
   const measure = useRef((node: View | null) => {});
@@ -155,9 +160,9 @@ export function TableSocialProvider({ requestedChatId, children, snapshot, chann
     setMessages(current => historical ? mergeTableMessages([], preserveRemovals(current,valid)) : mergeTableMessages(current, valid));
     if (!historical) {
       const received = fresh.filter(m => m.sender_id !== userId);
-      if(received.some(m=>soundIds.includes(m.id)))playSound('chat',`table-chat:${snapshot.match_id}:${received.at(-1)!.id}`);
+      if(received.some(m=>soundIds.includes(m.id)&&freshEffect(m.sent_at)))playSound('chat',`table-chat:${snapshot.match_id}:${received.at(-1)!.id}`);
       if (!openRef.current) setUnread(n => n+received.length);
-      setEffects(current => [...current, ...received.filter(m => Date.now()-m.sent_at < 5000).map(m => ({id:m.id,player:players.find(p => p.user_id === m.sender_id)?.player_id ?? -1,kind:"chat" as const,text:m.text,expires:Date.now()+3500}))].slice(-6));
+      setEffects(current => [...current, ...received.filter(m => Date.now()-m.sent_at < 5000 && freshEffect(m.sent_at)).map(m => ({id:m.id,player:players.find(p => p.user_id === m.sender_id)?.player_id ?? -1,kind:"chat" as const,text:m.text,expires:Date.now()+3500}))].slice(-6));
     }
   };
   useEffect(() => {
@@ -183,8 +188,9 @@ export function TableSocialProvider({ requestedChatId, children, snapshot, chann
     const fresh = pokes.filter(p => p.match_id === snapshot.match_id && p.expires_at > Date.now() && !seenPokes.current.has(p.id));
     fresh.forEach(p => seenPokes.current.add(p.id));
     if (seenPokes.current.size > 100) seenPokes.current = new Set([...seenPokes.current].slice(-50));
-    if (fresh.length) setEffects(current => [...current, ...fresh.map(p => ({ id:p.id, player:players.find(row => row.user_id === (p.recipient_id ?? p.sender_id))?.player_id ?? -1, kind:"poke" as const, text:p.text, expires:Math.min(p.expires_at,Date.now()+3500) }))].slice(-6));
-  }, [pokes, snapshot.match_id]);
+    const visible=fresh.filter(p=>freshEffect(p.expires_at-5000));
+    if (visible.length) setEffects(current => [...current, ...visible.map(p => ({ id:p.id, player:players.find(row => row.user_id === (p.recipient_id ?? p.sender_id))?.player_id ?? -1, kind:"poke" as const, text:p.text, expires:Math.min(p.expires_at,Date.now()+3500) }))].slice(-6));
+  }, [pokes, snapshot.match_id,liveEffects.epoch]);
   useEffect(() => {
     if (!effects.length) return;
     const timer = setTimeout(() => setEffects(current => current.filter(e => e.expires > Date.now())), Math.max(1, Math.min(...effects.map(e => e.expires))-Date.now()));
@@ -240,7 +246,7 @@ export function TableSocialProvider({ requestedChatId, children, snapshot, chann
     <View ref={node => { if (presentationExpanded === expandedRef.current) root.current = node; }} collapsable={false} style={{flex:presentationExpanded ? 1 : undefined,minHeight:0,minWidth:0,width:'100%'}} onLayout={measureRoot}>
       <GameModalContent>
       {content}
-      {flights.map(flight => <TableReactionFlight key={flight.event.id} flight={flight} recipient={flight.event.recipient_id === userId}
+      {(liveEffects.active&&liveEffects.ready?flights:[]).map(flight => <TableReactionFlight key={flight.event.id} flight={flight} recipient={flight.event.recipient_id === userId}
         onComplete={() => setFlights(current => current.filter(item => item.event.id !== flight.event.id))} />)}
       <RoomSheet visible={pokeMode || targetPlayer !== null} title={ui("social.poke_a_player")} closeLabel={ui("common.close_poke_tools")} testID="poke-tools" presentation="dialog" onClose={() => { setPokeMode(false); setTargetPlayer(null); }}
         footer={<FormFooter><ChatComposer value={punchline} onChange={value=>setPunchline(Array.from(value).slice(0,PUNCHLINE_LIMIT).join(''))} onSend={() => void sendReaction('punchline')}
@@ -296,7 +302,7 @@ export function TableSocialProvider({ requestedChatId, children, snapshot, chann
       </GameModalContent>
     </View>
   );
-  return <Context.Provider value={{session,pokeMode,eligible,poke,effects,anchor,openChat,canRead,chatOpen:open&&canRead,overlayOpen:(open&&canRead)||pokeMode||targetPlayer!==null,registerSeat,presentation,openPoke,unread,enabled,pokeSent,setHandCollapsed}}>{children}{rules.view}{unavailableChat&&<RoomSheet visible title={ui('common.table_chat')} onClose={()=>setUnavailableChat(false)}><Text accessibilityRole="alert" style={{color:c.text}}>{ui('feedback.notification_unavailable')}</Text></RoomSheet>}</Context.Provider>;
+  return <Context.Provider value={{session,pokeMode,eligible,poke,effects:liveEffects.active&&liveEffects.ready?effects:[],anchor,openChat,canRead,chatOpen:open&&canRead,overlayOpen:(open&&canRead)||pokeMode||targetPlayer!==null,registerSeat,presentation,openPoke,unread,enabled,pokeSent,setHandCollapsed}}>{children}{rules.view}{unavailableChat&&<RoomSheet visible title={ui('common.table_chat')} onClose={()=>setUnavailableChat(false)}><Text accessibilityRole="alert" style={{color:c.text}}>{ui('feedback.notification_unavailable')}</Text></RoomSheet>}</Context.Provider>;
 }
 
 export function TableSocialPresentation({children, expanded = true}: {children: ReactNode; expanded?: boolean}) {

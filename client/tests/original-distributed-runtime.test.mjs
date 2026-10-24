@@ -103,3 +103,17 @@ test('leaving a reserved table clears only its matching creation conflict',()=>{
   assert.deepEqual([...feedback.keys()],['different','limit']);
  }finally{r.close();}
 });
+
+test('a stalled reservation departure stops waiting and passes cancellation to the request',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});
+ const r=runtime(store(),async()=>{throw Error('unexpected fetch');});
+ let captured;
+ r.value.api={request:async(_path,_account,_body,signal)=>{captured=signal;return new Promise(()=>{});},close(){}};
+ const pending=r.value.leaveReservedTable('previous-room','previous-match');
+ const rejected=assert.rejects(pending,/Waiting for confirmation/);
+ assert.equal(captured.aborted,false);
+ t.mock.timers.tick(30000);
+ await rejected;
+ assert.equal(captured.aborted,true);
+ r.close();
+});

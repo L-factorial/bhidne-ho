@@ -1,9 +1,10 @@
 import { captureReview, isRevisionRejection, reviewRetry, type ReviewIntent } from './callbreakReviewRetry.ts';
 import { ui } from '../i18n/copy.ts';
 import { PendingGameAction, GameRequestError } from './PendingGameAction.ts';
+import { isDealerPickConflict } from './dealerPickRecovery.ts';
 import type { ActionAck, ActionRequest } from './PendingGameAction.ts';
 
-export type GameSnapshot = { match_id?: string; game?: { revision: number; hand_review_phase_id?: string | null }; action_ack?: ActionAck;
+export type GameSnapshot = { match_id?: string; status?: string; game?: { revision: number; hand_review_phase_id?: string | null }; action_ack?: ActionAck;
   game_type?: string; flush?: {public: {round_number: number}}; marriage?: { public: { declaration_phase_id?: string | null } } };
 
 export function captureGamePayload(snapshot: GameSnapshot, command: string, payload: object): object {
@@ -30,9 +31,18 @@ export class GameCommandClient<T extends GameSnapshot> {
   private review: ReviewIntent | null = null;
   private reviewRetries = 0;
   private reviewConflict: {request: ActionRequest; error: string} | null = null;
+  private selectionConflict: {match: string; revision: number} | null = null;
 
   constructor(transport: GameCommandTransport<T>) { this.transport = transport; }
-  get pending() { return this.action.request !== null || this.reviewConflict !== null; }
+  get pending() { return this.action.request !== null || this.reviewConflict !== null || this.selectionConflict !== null; }
+
+  private finishSelectionConflict(snapshot: T): {snapshot:T;error:string} {
+    const conflict = this.selectionConflict!;
+    if (snapshot.status !== 'ended' && snapshot.match_id === conflict.match && (snapshot.game?.revision ?? -1) < conflict.revision)
+      throw Error(ui('feedback.waiting_for_the_server_to_confirm_your_action'));
+    this.selectionConflict = null;
+    return {snapshot,error:''};
+  }
 
   submit(snapshot: T, command: string, payload: object = {}) {
     if (this.pending || !snapshot.match_id || !snapshot.game) return false;
@@ -46,6 +56,8 @@ export class GameCommandClient<T extends GameSnapshot> {
     const generation = this.generation;
     let snapshot = await this.transport.snapshot(signal);
     if (generation !== this.generation) return { snapshot, error: '' };
+    if (signal.aborted) return {snapshot,error:''};
+    if (this.selectionConflict) return this.finishSelectionConflict(snapshot);
     while (true) {
       if (signal.aborted || generation !== this.generation) return {snapshot,error:''};
       if (this.reviewConflict && this.review) {
@@ -59,6 +71,16 @@ export class GameCommandClient<T extends GameSnapshot> {
       }
       const request = this.action.request;
       const result = await this.action.reconcile(snapshot, body => this.transport.action(body, signal), signal);
+      if (request && isDealerPickConflict(request.command, result.error)
+          && !signal.aborted && generation === this.generation) {
+        // Retain recovery across read failures so the fading activity line stays
+        // visible and a fresh tap cannot overlap an unresolved screen refresh.
+        this.selectionConflict = {match:request.match_id,
+          revision:result.snapshot.action_ack?.revision ?? result.snapshot.game?.revision ?? request.expected_revision};
+        snapshot = await this.transport.snapshot(signal);
+        if (signal.aborted || generation !== this.generation) return {snapshot,error:''};
+        return this.finishSelectionConflict(snapshot);
+      }
       if (!request || !this.review || !isRevisionRejection(result.error) || signal.aborted || generation !== this.generation) return result;
       // Keep the rejected intention while obtaining a fresh view. A read failure
       // must not discard it or turn it into a blind resubmission.

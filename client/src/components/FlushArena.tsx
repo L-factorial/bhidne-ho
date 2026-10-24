@@ -1,3 +1,4 @@
+import {useLiveEffects} from '../multiplayer/LivePresentationContext';
 import { flushPlayerName } from '../multiplayer/flush';
 import {ArrangementSeat,ArrangementHint,useSeatArrangement} from './SeatArrangement';
 import {useTableAvatar} from './TableAvatar';
@@ -19,6 +20,7 @@ import { flushPlayerNet, minimumArenaHeight, newBets, playerPosition, potBeforeF
 
 export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot: RoomSnapshot; height?: number; centerControl?: ReactNode }) {
   const uiLanguage = useUiLanguage();
+  const liveEffects=useLiveEffects();
   const social = useTableSocial();
   const avatar = useTableAvatar();
   const s = useThemedStyles(styles);
@@ -37,10 +39,16 @@ export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot
   useEffect(() => { let active = true; AccessibilityInfo.isReduceMotionEnabled().then(v => { if (active) setReduceMotion(v); });
     const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion); return () => { active = false; sub.remove(); }; }, []);
   const newest = bets.at(-1)?.sequence || 0;
+  const effectEpoch=useRef(liveEffects.epoch);
   useEffect(() => {
-    if (last.current !== null && !reduceMotion) setPending(current => [...current, ...newBets(bets, last.current!)]);
+    if (effectEpoch.current===liveEffects.epoch && last.current !== null && !reduceMotion && liveEffects.active && liveEffects.ready) {
+      const fresh=newBets(bets,last.current);
+      // A catch-up batch updates the pot/history without replaying coin flights.
+      setPending(fresh.length===1?fresh:[]);
+    } else setPending([]);
     last.current = newest;
-  }, [newest, reduceMotion]);
+    effectEpoch.current=liveEffects.epoch;
+  }, [newest, reduceMotion, liveEffects.epoch]);
   useEffect(() => { if (reduceMotion) setPending([]); }, [reduceMotion]);
   const arrangement = useSeatArrangement();
   const own = roster.findIndex(p => p.player_id === String(snapshot.your_player_id));
@@ -55,12 +63,13 @@ export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot
   const measureRow=(height:number)=>setRowHeight(current=>Math.max(current,Math.ceil(height)+8));
   const minimumHeight = useMemo(() => Math.max(minimumArenaHeight(players.length, width, seatInset, rowHeight), 2*seatInset+rowHeight+centerHeight+28), [players.length, width, uiLanguage,seatInset,rowHeight,centerHeight]);
   height = Math.max(height - 8, minimumHeight);
-  const current = pending[0];
+  const displayedPending=liveEffects.active&&liveEffects.ready?pending:[];
+  const current = displayedPending[0];
   const index = current ? players.findIndex(p => p.player_id === current.player_id) : -1;
   return <View style={[s.arena, { height }]} onLayout={e => setWidth(e.nativeEvent.layout.width)} testID="flush-arena">
     <View pointerEvents="none" style={{ position: 'absolute', top: 12, bottom: 12, left: 4, right: 4 }}><TableSurface game="flush" /></View>
     {!centerControl && <View onLayout={event=>{const height=event.nativeEvent.layout.height;setCenterHeight(current=>Math.max(current,Math.ceil(height)));}} style={[s.pot,{left:width/2-58,top:height/2+rowHeight/2-38-centerHeight/2}]}>
-      <Text testID="flush-pot" numberOfLines={1} adjustsFontSizeToFit style={{color:colors.text,fontFamily:fonts.medium,fontSize:18}}>{ui('flush.pot')} = {potBeforeFlights(pub?.pot||0,pending)}</Text>
+      <Text testID="flush-pot" numberOfLines={1} adjustsFontSizeToFit style={{color:colors.text,fontFamily:fonts.medium,fontSize:18}}>{ui('flush.pot')} = {potBeforeFlights(pub?.pot||0,displayedPending)}</Text>
       <Text style={{color:colors.textMuted,fontSize:13}}>{ui('flush.seen_bet')} = {pub?.current_seen_bet||0}</Text>
       <Text style={{color:colors.textMuted,fontSize:13}}>{ui('flush.blind_bet')} = {pub?.current_blind_bet||0}</Text>
     </View>}
@@ -96,6 +105,7 @@ export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot
 }
 function CoinFlight({ bet, from, to, onFinish }: { bet: FlushBet; from: { x: number; y: number }; to: { x: number; y: number }; onFinish: () => void }) {
   const uiLanguage = useUiLanguage();
+  const liveEffects=useLiveEffects();
   const { colors } = useTheme();
   const value = useRef(new Animated.Value(0)).current;
   const done = useRef(onFinish); done.current = onFinish;

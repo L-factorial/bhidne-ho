@@ -193,6 +193,22 @@ def live_control(game, actor, command, now):
     return None
 
 
+def reconcile_completed_flush_departures(game):
+    """Release deferred leavers only after the engine has finished the round.
+
+    Mutate the current roster, never historical engine seats or settlement input.
+    Durable callers commit this with their checkpoint, reservations and outbox.
+    """
+    if not game.flush_target or not game.pending_flush_departures or not game.flush_open:
+        return False
+    for user in sorted(game.pending_flush_departures):
+        if user in game.users:
+            game.users.remove(user)
+        game.table.emit('SEAT_RELEASED', user_id=user, match_id=game.match_id, reason='ROUND_COMPLETED')
+    game.pending_flush_departures.clear()
+    return True
+
+
 def resolve_pending_flush(game):
     """Fold a timed-out dealer once preparation has produced a dealt hand."""
     events = []

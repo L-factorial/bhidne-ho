@@ -135,14 +135,9 @@ class GameLaneExecutor:
                 # mutations, randomness, query caches, table metadata, and events.
                 detail = error.detail
             else:
-                from app.multiplayer.table_session import resolve_pending_flush
+                from app.multiplayer.table_session import resolve_pending_flush, reconcile_completed_flush_departures
                 events.extend(resolve_pending_flush(game))
-                if game.pending_flush_departures and game.flush_open:
-                    for user in sorted(game.pending_flush_departures):
-                        if user in game.users:
-                            game.users.remove(user)
-                        game.table.emit('SEAT_RELEASED', user_id=user, match_id=game.match_id, reason='ROUND_COMPLETED')
-                    game.pending_flush_departures.clear()
+                reconcile_completed_flush_departures(game)
                 host._sync_proposal(game)
                 from app.multiplayer.table_session import sync as sync_session
                 from .seat_offers import now as db_now

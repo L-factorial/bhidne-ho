@@ -1,3 +1,4 @@
+import {useLiveEffects} from '../multiplayer/LivePresentationContext';
 import {CallBreakSummary} from '../components/CallBreakSummary';
 import {ActivityLine} from '../components/ActivityLine';
 import {gameRequestFeedback} from '../multiplayer/gameRequestFeedback';
@@ -88,6 +89,7 @@ export function LiveGameTable({ snapshot, busy, error: requestError, connectionR
   snapshot: RoomSnapshot; busy: boolean; error: string; connectionReady?: boolean; requestBusy?: boolean; onAction: (command: string, payload?: object) => void; onBack: () => void;
 }) {
   useUiLanguage();
+  const liveEffects=useLiveEffects();
   const {error, active: requestActive} = gameRequestFeedback(requestError, requestBusy, connectionReady && social.connected, snapshot.status === 'ended', snapshot);
   const { colors } = useTheme();
   const ended = snapshot.status === 'ended';
@@ -138,7 +140,7 @@ export function LiveGameTable({ snapshot, busy, error: requestError, connectionR
     drawerMetadata={<GameMenuMetadata snapshot={snapshot} />}>
     {close => <GameMenu snapshot={snapshot} close={close} back={onBack} tableControl={tableControl} leaveControl={lobbyControl} endControl={endControl}
       rules={() => setRulesOpen(true)} rulesConfig={() => setConfigOpen(true)} poke={() => setPokeTarget(null)} pokePlayer={setPokeTarget} canPoke={social.connected} />}
-  </GameTableHeader><ActivityLine active={requestActive} /></>;
+  </GameTableHeader><ActivityLine active={requestActive || !liveEffects.ready} /></>;
   const gameRules = <><GameRules snapshot={snapshot} visible={rulesOpen} onClose={() => setRulesOpen(false)} /><GameDetails configOpen={configOpen} onCloseConfig={() => setConfigOpen(false)} snapshot={snapshot} busy={busy} onSave={onSave} menu /></>;
   const socialOverlay = !ended && pokeTarget !== undefined && <PokeComposer recipient={pokeTarget} recipientName={snapshot.players?.find(p => p.player_id === pokeTarget)?.display_name} phrases={social.phrases} connected={social.connected}
     onClose={() => setPokeTarget(undefined)} onSave={social.save} onSend={async text => {

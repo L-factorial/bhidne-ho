@@ -7,7 +7,7 @@ from pydantic import TypeAdapter
 
 from flush import FlushGameEngine, FlushError, InvariantError
 
-from .concurrency import reveal_scope_matches
+from .concurrency import bet_scope_matches, reveal_scope_matches
 from .contracts import (COMMAND_SPECS, CommandName, CommandRejected, Identifier, OutboundEvent,
                         PlayerCommand, RoutedEvent)
 
@@ -63,7 +63,8 @@ class FlushAdapter:
     def validate_concurrency(self, request, player_id):
         if request.command == 'SEE_CARDS' and request.payload.get('round_number') is not None:
             return reveal_scope_matches(self._engine.get_state(), self.match_id, request, player_id)
-        return request.expected_revision == self.revision
+        return (request.expected_revision == self.revision
+                or bet_scope_matches(self._engine.get_state(), self.match_id, request, player_id))
 
     def dispatch_player(self, request: PlayerCommand, *, player_id: str) -> AdapterResult | CommandRejected:
         request = PlayerCommand.model_validate(request.model_dump(mode="json"))

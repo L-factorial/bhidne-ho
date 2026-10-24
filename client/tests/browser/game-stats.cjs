@@ -25,7 +25,7 @@ async function fixture(browser, kind, count, width, spectator = false, configure
   configure?.(snapshot);
   const actor = spectator ? 'u4' : 'u0';
   const room = { room_id: 'room', name: 'Stats room', creator_id: 'u0', members: Array.from({ length: count + 1 }, (_, i) => 'u' + i) };
-  const errors = [], writes = [];
+  const errors = [], writes = [], sockets = new Set();
   await context.addInitScript(({site, actor, room, kind}) => {
     localStorage.setItem('bhidne.language', 'en');
     sessionStorage.setItem('bhidne.session.v1:' + site, JSON.stringify({ session: { user_id: actor, token: 'fixture' }, room, game: kind }));
@@ -46,13 +46,14 @@ async function fixture(browser, kind, count, width, spectator = false, configure
     await route.fulfill({json:body});
   });
   await context.routeWebSocket(site.replace(/^http/,'ws') + '/**', ws => {
+    sockets.add(ws);ws.onClose(()=>sockets.delete(ws));
     ws.send(JSON.stringify({ type: 'CONNECTED' }));
     ws.onMessage(raw => { const message = JSON.parse(raw); ws.send(JSON.stringify(message.type === 'HEARTBEAT' ? { type: 'HEARTBEAT_ACK' } : { type: 'TABLE_SOCIAL_ACK', room_id: 'room', match_id: snapshot.match_id, command_id: message.command_id, status: 'accepted', messages: messages.map(m=>({...m,room_id:'room',match_id:snapshot.match_id})) })); });
   });
   await page.goto(site);
   await page.getByRole('button', {name:/Return to table|Watch/}).first().click().catch(async error=>{if(process.env.DEBUG_UI){await page.screenshot({path:'/private/tmp/game-ux-fixture-failure.png'});console.error(await page.locator('body').innerText());console.error(errors);console.error(await page.evaluate(()=>({url:location.href,storage:{...sessionStorage}}))); }throw error;});
   await page.getByTestId('game-stats-toggle').waitFor({state:'attached'});
-  return {page, context, errors, writes, change: update => { snapshot = structuredClone(snapshot); update(snapshot); }, notify: () => {
+  return {page, context, errors, writes, emit: value => sockets.forEach(ws=>ws.send(JSON.stringify(value))), change: update => { snapshot = structuredClone(snapshot); update(snapshot); }, notify: () => {
     snapshot = structuredClone(snapshot); snapshot.game.revision++;
     snapshot.game.turn.player_id = 1;
     if (kind === 'callbreak') { snapshot.game.phase = 'BIDDING'; snapshot.deal.players[0].bid = null; }

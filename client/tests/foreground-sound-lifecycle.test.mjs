@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import ts from '../node_modules/typescript/lib/typescript.js';
 import * as cues from '../src/notifications/soundCues.ts';
+import {LivePresentation} from '../src/multiplayer/LivePresentation.ts';
 const wait=()=>new Promise(resolve=>setTimeout(resolve,90));
 function load(file,extra={}){
  const effects=[],cleanup=[],listeners=new Map();
@@ -13,7 +14,7 @@ function load(file,extra={}){
  const react={useCallback:fn=>fn,useRef:value=>({current:value}),useEffect:fn=>effects.push(fn)};
  const exports={};
  const source=ts.transpileModule(fs.readFileSync(new URL(file,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
- const require=name=>name==='react'?react:name==='react-native'?{AppState}:name==='./soundCues'?cues:name==='expo-audio'?extra.audio:name.endsWith('.wav')?name:assert.fail(name);
+ const require=name=>name==='react'?react:name==='react-native'?{AppState}:name==='./soundCues'?cues:name==='../multiplayer/LivePresentationContext'?{useLiveEffects:()=>extra.live??{epoch:0,active:true,ready:true}}:name==='expo-audio'?extra.audio:name.endsWith('.wav')?name:assert.fail(name);
  vm.runInNewContext(source,{exports,require,document,setTimeout,clearTimeout,console,...extra});
  return {exports,document,listeners,AppState,mount(){effects.forEach(fn=>{const dispose=fn();if(dispose)cleanup.push(dispose);});},background(){AppState.currentState='background';appListeners.forEach(fn=>fn('background'));},cleanup(){cleanup.forEach(fn=>fn());cues.foregroundSounds.cancel();}};
 }
@@ -56,3 +57,17 @@ test('event baselines suppress initial history, duplicates and foreground catch-
   assert.equal(fresh(['next']).join(),'next');
  }finally{h.cleanup();}
 });
+
+ test('sound history remains silent through pending foreground hydration and resumes for live cues',()=>{
+ const window=new LivePresentation();
+ const h=load('../src/notifications/useFreshSoundEvents.ts',{live:{window,...window.snapshot()}});
+ const fresh=h.exports.useFreshSoundEvents('account');h.mount();
+ try{
+  assert.equal(fresh(['old']).length,0);
+  window.activity(false);assert.equal(fresh(['old','background']).length,0);
+  window.activity(true);assert.equal(fresh(['old','background','catchup']).length,0);
+  window.confirm(window.snapshot().epoch);
+  assert.equal(fresh(['old','background','catchup']).length,0);
+  assert.equal(fresh(['old','background','catchup','live']).join(),'live');
+ }finally{h.cleanup();}
+ });

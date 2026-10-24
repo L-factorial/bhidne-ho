@@ -3,6 +3,7 @@ import type { GameSnapshot } from './GameCommandClient.ts';
 import { captureGamePayload } from './GameCommandClient.ts';
 import type { DurableCommandClient, DurableReceipt, Json } from './DurableCommandClient.ts';
 import { gameControl } from './DistributedControls.ts';
+import { isDealerPickConflict } from './dealerPickRecovery.ts';
 import type { SelectedTable } from './DistributedControls.ts';
 
 export class GameConfirmationPending extends Error {}
@@ -78,9 +79,22 @@ export class DistributedGameCommandClient<T extends GameSnapshot> {
       && (this.observed?.game?.revision ?? -1)>=revision ? this.observed! : await this.read(signal,!!commandId || this.commands.pending);
     if (signal.aborted) throw Error('Game refresh aborted.');
     if (generation !== this.generation) throw Error('Game changed during refresh.');
+    const silentBetConflict = receipt?.status === 'rejected'
+      && this.commands.request?.body.command === 'BET'
+      && snapshot.game_type === 'flush'
+      && ['The hand changed. Your view has been refreshed; try again.',
+        'Refresh the game before retrying.'].includes(receipt.outcome?.detail ?? '');
+    const silentConflict = silentBetConflict || (receipt?.status === 'rejected'
+      && isDealerPickConflict(this.commands.request?.body.command, receipt.outcome?.detail ?? ''));
+    // Keep the existing activity line and original receipt until the refreshed
+    // view includes the conflict. Never resubmit a bet against changed terms.
+    if (silentConflict && snapshot.status !== 'ended' && snapshot.match_id === this.commands.request?.body.match_id
+        && revision != null && (snapshot.game?.revision ?? -1) < revision)
+      throw new GameConfirmationPending('Waiting for the server to confirm your action.');
     // Keep the result unobserved until a fresh projection succeeds. A failed read
     // after acceptance therefore retries only the read, never the game action.
     this.unobserved = null;
+    if (silentConflict) return {snapshot,error:''};
     if (receipt?.status === 'rejected' && this.review && isRevisionRejection(receipt.outcome?.detail ?? undefined)) {
       const decision = reviewRetry(this.review,snapshot);
       if (decision === 'resolved') return {snapshot,error:''};

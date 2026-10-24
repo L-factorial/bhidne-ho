@@ -188,6 +188,17 @@ class TableLaneExecutor:
             invitation_before = canonical_json(invitations)
             invitation_recipients = [i['recipient_id'] for i in invitations]
             already_ended = game.ended
+            if (detail is None and between_rounds and game.pending_flush_departures
+                    and request.command in (self.roster_commands | {'start'})):
+                # Older timer checkpoints may retain a completed-round leaver.
+                # Verify settlement authority before repairing the detached roster;
+                # checkpoint, reservations, events and receipt commit together.
+                intent = await (await claim.connection.execute('''SELECT 1 FROM game_finalization_jobs
+                    WHERE game_id=%s AND round_number=%s AND job_type='hosted_settlement' ''',
+                    (game.durable_game_id, data['engine']['state']['round_number']))).fetchone()
+                if intent is None:
+                    raise DurableGameConflict('Completed Flush round is missing its finalization intent.')
+                session_policy.reconcile_completed_flush_departures(game)
             if detail is None:
                 if closing:
                     detail = await closure_rejection(claim.connection, game, claim.entry.actor_id, request.command)

@@ -156,3 +156,40 @@ for (const command of ['ACCEPT_HAND', 'CLAIM_REDEAL']) {
  assert.deepEqual(payload,{round_number:2});
  assert.deepEqual(captureGamePayload(snapshot,'BET',{amount:20}),{amount:20});
  });
+
+for(const detail of ['The turn changed. Your view has been refreshed; try again.','That card has already been picked.','Dealer selection is not active.']){
+ test(`legacy dealer recovery retains pending state through failed and lagging reads: ${detail}`,async()=>{
+  let reads=0,submits=0;
+  const initial={match_id:'m',game_type:'callbreak',game:{revision:1}};
+  const latest={...initial,game:{revision:2}};
+  const client=new GameCommandClient({snapshot:async()=>{
+   reads++;
+   if(reads===2)throw Error('offline');
+   return reads<4?initial:latest;
+  },action:async request=>{submits++;return {...initial,action_ack:{command_id:request.command_id,status:'rejected',revision:2,detail}};}});
+  client.submit(initial,'PICK_DEALER_CARD',{position:17});
+  await assert.rejects(client.refresh(signal()),/offline/);assert.equal(client.pending,true);
+  assert.equal(client.submit(initial,'PICK_DEALER_CARD',{position:18}),false);
+  await assert.rejects(client.refresh(signal()),/confirm/);assert.equal(client.pending,true);
+  const result=await client.refresh(signal());
+  assert.equal(result.error,'');assert.equal(result.snapshot,latest);
+  assert.equal(client.pending,false);assert.equal(submits,1);
+ });
+}
+test('legacy dealer action is silently retired when the selected match changes',async()=>{
+ let submits=0;
+ const initial={match_id:'m',game_type:'callbreak',game:{revision:1}};
+ const latest={...initial,match_id:'new',game:{revision:0}};
+ const client=new GameCommandClient({snapshot:async()=>latest,action:async()=>{submits++;assert.fail();}});
+ client.submit(initial,'PICK_DEALER_CARD',{position:17});
+ assert.equal((await client.refresh(signal())).error,'');assert.equal(client.pending,false);assert.equal(submits,0);
+});
+
+test('legacy dealer recovery stops loading if the table ends without a game projection',async()=>{
+ let reads=0;
+ const initial={match_id:'m',game_type:'callbreak',game:{revision:1}};
+ const ended={match_id:'m',game_type:'callbreak',status:'ended'};
+ const client=new GameCommandClient({snapshot:async()=>++reads===1?initial:ended,action:async r=>({...initial,action_ack:{command_id:r.command_id,status:'rejected',revision:2,detail:'Dealer selection is not active.'}})});
+ client.submit(initial,'PICK_DEALER_CARD',{position:17});
+ assert.equal((await client.refresh(signal())).error,'');assert.equal(client.pending,false);
+});

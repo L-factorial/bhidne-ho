@@ -11861,3 +11861,240 @@ Capacity, observability, database HA and operational readiness remain deferred.
 - Exact next step: finish automated SQL checks, then deploy only when requested;
   build native apps and validate background/terminated push and ledger taps on
   physical iOS/Android devices. Deferred operational task set remains deferred.
+
+### Direct production deployment — 2026-10-23 (da75af7)
+
+- User authorized direct deployment of the pending Flush UI and ledger push work.
+  Released clean committed revision da75af72c1b96077deb7a9d59a0536352781064f.
+  Cancelled competing GitHub runs 40023082993 and 40022356851 and verified no
+  active production workflow immediately before migration/activation.
+- Built the git archive on app1 with Dockerfile.production: all 555 client tests,
+  TypeScript and production export passed. Local release tests passed 41 cases;
+  prior SQL-backed settlement/push/provider verification passed 40 cases. No claim
+  that a full backend CI gate passed; automated runs were cancelled.
+- Created root-only /var/backups/bhidne/pre-da75af7.dump on app1 using pg_dump 17;
+  pg_restore archive listing passed. Backup SHA-256:
+  3cbcff2016f2315f62b9473dd0ac7ccd0dc51e255aaabf0c72d6768b874cd1f9.
+  This verifies archive readability, not a full restore drill or off-server backup.
+- Transferred one image, verified matching archive checksums, applied explicit
+  migration 44 from schema 43, then passed both dependency/schema/frontend checks.
+  Activated backends sequentially, then both frontends using existing locks and
+  peer-health checks. No database initialization or ledger data rewrite.
+- Both hosts run image
+  sha256:1673630fd179cb3b3ee9bbcb968674f456ea32c2abf06a3618fd6a3f59e20551.
+  Both frontend indexes and public HTTPS index match SHA-256
+  923269db5dc059ee824244e8d64e0674dd22b331487cf2139907ac9dc6764ac3.
+  Public API health passes. Evidence: /private/tmp/bhidne-da75af7-rollout.log;
+  remote build log: /srv/bhidne-prod/builds/da75af7/build.log.
+- Limitations: server/web deployment only. Native apps require an updated signed
+  build for settlement push navigation. No physical-device notification validation,
+  live settlement writes or gameplay smoke writes. Pre-migration images reject
+  schema 44 on restart; use a compatible forward release for recovery.
+- Exact next step: review production Flush results and build/distribute native
+  packages for device-level background settlement notification validation when
+  requested. Deferred capacity/operational task set remains deferred.
+
+### Direct production deployment — 2026-10-23 (6cda523)
+
+- User authorized direct deployment of the create-game UI change. Released
+  committed revision 6cda523d860924548af06e9983d9bf6f52c5eee7. Existing local plan
+  edits were retained and were not included in the git archive. Cancelled competing
+  GitHub production run 40025147735 and verified no active run before activation.
+- Built the exact archive on app1 using Dockerfile.production: all 555 client
+  tests, TypeScript and production export passed. Local release tests passed 41
+  cases; installed app1 receiver hash matches committed source. The automatic
+  backend CI run was cancelled, not passed.
+- Transferred one image with matching archive checksums, passed both hosts'
+  dependency/schema/frontend checks, activated backends sequentially, then both
+  frontends. Existing locks, peer-health and rollback checks remain. No migration,
+  database initialization or runtime environment change was needed.
+- Both hosts run image
+  sha256:a2071c10969b5ba5941bcfe565e421cc1c017b8f6606eb7f5f243ad47201e267.
+  Host and public HTTPS frontend indexes match SHA-256
+  d696f469f00a41584615e8047944485108ff20ee31ee1304500ab3e520c5a827.
+  Public API health passes. Evidence: /private/tmp/bhidne-6cda523-rollout.log;
+  remote build log: /srv/bhidne-prod/builds/6cda523/build.log.
+- Limitations: server/web deployment only; installed iOS apps need a new build for
+  this UI. No production room/table creation or other authenticated smoke writes.
+- Exact next step: refresh production web to review the inline room creation and
+  prominent footer; build iOS separately when requested. Operational/capacity
+  work remains deferred.
+
+## 2026-10-23: Bound a stalled reserved-table departure wait
+
+- Investigating Ekraj's reported unresponsive Leave Table on prakriti-Room →
+  Table-1 found that a stalled API request can outlive the durable intent's
+  polling deadline. Reserved-table departure now bounds its entire API wait to
+  30 seconds, aborts the underlying request and returns a retryable confirmation
+  error. It retains the journaled command so a retry reconciles the original ID.
+- Verification: 45 original-runtime/API tests pass, including a fetch that never
+  settles and cancellation propagation. Diff whitespace checks pass.
+- Limitations: this is a local hang-recovery safeguard, not a confirmed diagnosis
+  of Ekraj's live table. Production SSH rejected the available server key; no
+  production seat was changed and no deployment occurred. Reservation preview
+  reads and Return to table need separate investigation with live evidence.
+- Exact next step: obtain working production access or device request diagnostics,
+  inspect this user's authoritative seat and command receipt, and resolve the
+  specific departure through the fenced runtime. Operational/capacity work stays
+  deferred.
+
+## 2026-10-23: Silent Flush bet concurrency recovery
+
+- User authorized implementation after reviewing the incident and plan, with no
+  error banner or retry prompt for this concurrency flow. Existing fading
+  ActivityLine remains active while a command or authoritative refresh is pending.
+- Flush accepts the original exact-amount BET across an older revision only when
+  complete, consecutive engine history proves every intervening revision is another
+  player's CARDS_SEEN in the current round. Future revisions, own reveals, missing
+  history, turn changes, folds, show state and round boundaries remain protected.
+  Normal engine legality and amount validation still run; no stakes are adjusted.
+- Reused the same predicate in adapter/host execution and checkpoint acceptance.
+  PostgreSQL checkpoint validation checks the prior committed engine, not the
+  candidate state or client assertions. No checkpoint/schema/payload migration.
+- Distributed original UI consumes definitive Flush stale-bet rejections silently
+  only after an authoritative view reaches the rejection revision (or the match
+  changes). A lagging/failed read retains the original receipt and pending state.
+  No replacement BET is submitted: controls return with the new table state.
+  Unknown outcomes retain the original command identity and background recovery.
+  Unrelated failures retain their existing behavior; no blanket error suppression.
+- Verification: 167 Flush adapter/engine/statistics tests, all 559 client tests,
+  TypeScript and production web export pass. Regression cases cover blind/seen
+  minimum/double bets, multiple reveals, own reveal, intervening fold/bets, return
+  to the same player, invalid amounts/future revisions/missing history, restored
+  engines, receipt replay, failed/lagging reads and match changes. SQL validation
+  and final handoff results follow below.
+- Limitations: local implementation only; no commit, push, deployment, native
+  package or physical-device check. Existing UI progress renderer is reused.
+  Older installed clients benefit from server acceptance after deployment, but
+  silent rejection feedback requires an updated client build. Table start/end
+  permissions and earlier live seat/departure investigation remain separate.
+- Exact next step: review this increment, then release server/web and build native
+  clients when requested. Deferred capacity/operational work remains deferred.
+- Final SQL verification: all 49 game-lane executor and checkpoint-store tests
+  passed against PostgreSQL/WASM (PGLITE_MODULE configured), including accepted
+  other-player reveal races and rejected own-reveal races, checkpoint restoration,
+  duplicate receipts, fencing and transactional rollback. git diff --check passes.
+  Evidence: /private/tmp/bhidne-flush-silent-{client-tests,sql-tests,build}.log.
+
+## 2026-10-23: Silent Call Break dealer-pick recovery
+
+- Inspected dealer selection and corrected the earlier hypothetical race: this
+  game deliberately picks in seat order, not independently. Kept server turn,
+  selected-position, revision and receipt validation intact. No concurrent-pick
+  permission or replacement-card behavior was introduced.
+- Added narrow recognition of definitive dealer-selection conflicts shared by
+  distributed and legacy clients. They refresh the authoritative selection before
+  clearing pending state, without showing a rejection banner or retry prompt.
+  The distributed client retains the original journal/receipt across uncertain
+  responses and failed/lagging reads; legacy recovery retains its refresh state.
+  Unknown outcomes retry the original ID and position. Definitive conflicts never
+  generate a new command, select another card or carry a pick into a later turn.
+- Existing header ActivityLine covers background recovery. The Flip card button
+  now also shows that fading line while the viewer's pick is pending, preserving
+  its dimensions, accessible action name and disabled/busy state. Table closure
+  clears recovery even when its game projection disappears. Unrecognized errors,
+  including seat reclamation requirements, retain their existing handling.
+- Verification: all 9 dealer-selection engine/SQL tests pass with PGLITE_MODULE,
+  including turn checks, duplicate positions, private-deck protection, receipt
+  deduplication and checkpoint recovery. Browser fixture checks pass at 390 and
+  1280 pixels: measured fading animation, stable button dimensions, disabled
+  controls, loading through delayed snapshot recovery, no alert, one command,
+  and correct next-player state. Inspected mobile screenshot. Final client/build
+  verification results follow below.
+- Evidence: /private/tmp/bhidne-dealer-recovery-{client-tests,sql-tests,browser,
+  production-build}.log and /private/tmp/bhidne-dealer-recovery-{390,1280}.png.
+- Limitations: local changes and isolated fixtures; no production writes, commit,
+  push, deployment, native build or physical-device validation. Reuses the
+  existing reduced-motion-aware animation. No permission changes for next-game
+  start/table ending; no broad suppression of unrelated game errors.
+- Exact next step: review the combined Flush and dealer-selection recovery
+  increments; release server/web and native builds when requested. Distributed
+  capacity/operational work remains deferred.
+- Final verification: all 573 client tests, production TypeScript check and web
+  export pass; git diff --check passes. The final client regressions include
+  table closure with no game projection in both command-client implementations.
+
+## 2026-10-23: Flush timeout completion releases deferred departures
+
+- User authorized the proposed lifecycle fix after read-only production diagnosis.
+  Ekraj's FOLD_AND_LEAVE was accepted at 22:27:48 UTC. The finished third round
+  retained him in pending_flush_departures and active_table_players after timeout
+  completion. Leave-seat at 22:52:07 UTC then raised the unreconciled-departures
+  invariant, quarantining prakriti-Room at epoch 1; its leave and enter commands
+  remain pending. This is server-side cleanup, not the earlier client wait issue.
+- Extracted one completed-round reconciliation helper and reused it from gameplay,
+  durable session timers and the between-round table recovery path. It removes
+  deferred leavers from the current roster, clears their pending markers and emits
+  one release event each, preserving all historical engine seats and results.
+  Timer checkpoints now commit cleanup, reservations, session changes, settlement
+  intent, outbox and timer outcome in one existing fenced transaction.
+- Between-round roster/start commands can reconcile old finished checkpoints only
+  after verifying the exact round's hosted_settlement intent. An original leave
+  for an already-reconciled player is a successful no-op. Normal request revisions,
+  authorization, locking, receipts and quarantine policy remain enforced. Missing
+  settlement authority still fails closed; no manual seat/receipt/ledger edits.
+- Verification: new PostgreSQL/WASM regressions pass all 3 cases, including the
+  exact off-turn fold-and-leave -> timeout ends round sequence, already-stuck
+  checkpoint, missing finalization authority, injected outbox failure/rollback,
+  retry/deduplication, unchanged completed engine, one release and settlement job,
+  and successful subsequent seating at a different table. Another 41 table-session
+  and Flush-adapter tests pass. Broader integration results follow below.
+- Safe live recovery after deployment: recheck room
+  004662a0dfff5d5daf94eef441e02bec and table
+  906fb40e-489c-53ec-8cec-914c2a316185 against current checkpoint/settlement records
+  and pending request mvlken53-2k-90n4fia41p8-33rpzaoa64u. Then use the existing
+  PostgresRoomOwnershipStore.retry_quarantined with the freshly verified epoch;
+  ordinary recovery must acquire a new epoch and execute queued commands. Verify
+  accepted original receipt, cleared reservation and serving ownership. Never
+  release quarantine on an app host still running the unfixed code.
+- Limitations: no commit, push, deployment, quarantine release or production data
+  mutation in this increment; Ekraj's live seat remains blocked until release and
+  recovery. No client/native change is required for this server lifecycle fix.
+- Exact next step: deploy the reviewed server changes, perform guarded quarantine
+  retry using fresh evidence, and verify Ekraj's original leave completes. Deferred
+  capacity and operational-readiness work remains deferred.
+- Final verification: all 48 PostgreSQL/WASM departure recovery, session-runtime,
+  Flush restart and game-departure tests pass. The final focused 3-case rerun also
+  passes; git diff --check passes. Evidence:
+  /private/tmp/bhidne-flush-departure-{regressions,final}.log.
+
+## 2026-10-23: Foreground catch-up without stacked transient effects
+
+- User requested implementation after reporting piles of missed pokes/bet effects
+  on returning to the app. Added a room/account-scoped presentation window shared
+  by the original distributed and legacy game screens. Native AppState, web
+  visibility, socket disconnection, online recovery and table reopening reset its
+  epoch. In-flight effects clear and remain suppressed until a foreground read
+  started in that epoch succeeds. A pre-suspension read cannot re-arm effects.
+- Foreground confirmation explicitly fetches the authoritative view, including
+  when a pending accepted command could otherwise use an observed projection.
+  The fresh snapshot establishes a silent baseline; no delivery cursor, command
+  journal, receipt, durable history or server gameplay state is discarded. Existing
+  fading ActivityLine stays visible while the presentation baseline is loading.
+- Flush coin flights no longer accumulate an unbounded queue. Catch-up batches
+  update the pot directly; single subsequent live bets animate normally. Fold
+  notices reset with the presentation epoch. Social overlays clear old flights,
+  pokes and chat bubbles, and reject events created before the fresh baseline
+  even if their TTL remains live. Existing five-second poke/reaction TTL is used
+  to derive creation time for older payloads without sent_at. Chat history and
+  unread counts remain available. Sound cursors also establish silent baselines.
+- Verification: browser fixtures pass at 390/1280 pixels with a native-equivalent
+  visibility lifecycle: an active poke clears, missed unexpired pokes/chat bubbles
+  stay hidden, multiple missed bets restore the actual pot without coin flights,
+  delayed reads keep catch-up silent, and new live bets/pokes work afterwards.
+  Missed chat remains readable in the chat panel. Unit cases cover stale read
+  completion, repeated suspension, reopening, normal refresh and unsubscription.
+  Final client/build results follow below.
+- Evidence: /private/tmp/bhidne-resume-effects-{tests,browser,production-build}.log
+  and /private/tmp/bhidne-resume-effects-{390,1280}.png.
+- Limitations: isolated browser lifecycle simulation, not physical-device
+  suspension validation. This is presentation-only and requires a new native
+  build for installed apps; no commit, push or deployment performed. Existing
+  live seat/quarantine recovery remains pending the earlier server release.
+- Exact next step: review the resume behavior and release web/native clients when
+  requested, then verify suspension/reconnect on a physical device. Deferred
+  capacity and operational-readiness work remains deferred.
+- Final verification: all 577 client tests pass, including sound-baseline coverage
+  during pending foreground hydration. Production TypeScript and web export pass;
+  git diff --check passes. Inspected the mobile capture of a new live bet/poke
+  after catch-up. Browser chat-history assertions also pass at both widths.

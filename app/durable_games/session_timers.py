@@ -149,6 +149,11 @@ async def execute_tick(claim, checkpoints, fence, *, max_events=512, round_summa
             if occupied is None:
                 available.append(user)
         events, changed = policy.tick(host, game, now, connections=observed, candidates=available)
+        if policy.reconcile_completed_flush_departures(game):
+            host._sync_proposal(game)
+            game.table.sync(game)
+            policy.sync(game, now)
+            changed = True
         if changed:
             revision += 1
             invitations = [dict(i, status='cancelled') if game.ended and i.get('status') == 'pending' else i for i in d['invitations']]

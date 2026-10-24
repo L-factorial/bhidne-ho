@@ -1,3 +1,4 @@
+import {LivePresentationContext,useLivePresentation} from '../multiplayer/LivePresentationContext';
 import {clearObsoleteTurnError} from '../multiplayer/gameRequestFeedback';
 import {DistributedChat} from './DistributedChat';
 import {RoomSheet} from './RoomSheet';
@@ -146,6 +147,8 @@ export function RoomGameControl({ requestedChat, requestedNavigationId, onOpenLe
   const [actionTick, setActionTick] = useState(0);
   const [actionNotice, setActionNotice] = useState('');
   const [synced, setSynced] = useState(false);
+  const presentation=useLivePresentation(`${roomId}:${userId}:${token}`,connected);
+  useEffect(()=>presentation.reset(),[presentation,open]);
 
   // HTTP table operations use durable room membership. Chat/presence socket
   // readiness must not prevent the first snapshot or freeze table creation.
@@ -249,9 +252,16 @@ export function RoomGameControl({ requestedChat, requestedNavigationId, onOpenLe
             if (runtime) noticeTimer = setTimeout(showNotice, 500);
             else showNotice();
           }
+          const presentationEpoch=presentation.snapshot().epoch;
           const result = await commandClient.refresh(controller.signal);
           if (controller.signal.aborted || generation.current !== version) return;
-          const data = result.snapshot;
+          const state=presentation.snapshot();
+          // An accepted pending command may use an observed projection. Resume
+          // needs a new authoritative read before transient effects are armed.
+          const data = state.active&&!state.ready
+            ? committedSnapshot(result.snapshot,await transport.snapshot(controller.signal)) : result.snapshot;
+          if(controller.signal.aborted||generation.current!==version)return;
+          presentation.confirm(presentationEpoch);
           if(runtime && data.match_id && !selectedMatch.current && data.status!=='ended')selectedMatch.current=data.match_id;
           if (hadPending) {
             setError(result.error ? playerError(result.error) : ''); setBusy(false); setActionNotice('');
@@ -281,7 +291,7 @@ export function RoomGameControl({ requestedChat, requestedNavigationId, onOpenLe
     return () => {
       controller.abort(); clearTimeout(timer); if(rescheduleRefresh.current===schedule)rescheduleRefresh.current=()=>{};
     };
-  }, [commandClient, sessionActive, actionTick]);
+  }, [commandClient, sessionActive, actionTick, presentation]);
   useEffect(() => {
     if (!runtime || !sessionActive) return;
     return runtime.root.observeSnapshot(view => {
@@ -550,7 +560,7 @@ export function RoomGameControl({ requestedChat, requestedNavigationId, onOpenLe
       </View></KeyboardFrame></GameModalContent>}
     </GameModalRoot>
   </>;
-  return live && snapshot ? <TableCardThemeProvider id={snapshot.card_theme} canChange={snapshot.can_change_card_theme === true} pending={busy || !connected || !synced} select={theme => void lobbyAction('/card-theme', {card_theme:theme})}><TableSocialProvider requestedChatId={requestedChat?.matchId===snapshot.match_id&&(!runtime||runtime.root.ephemeralEnabled)&&requestedChat?.scope!=='game'?requestedChat?.eventId:undefined} key={snapshot.match_id} snapshot={{ ...(visibleSnapshot || snapshot), starting: startingGame }} channel={socialChannel} connected={connected} userId={userId} session={{user_id:userId,token}} pokes={pokes} phrases={personal.phrases} expanded={open} colors={gameTheme.colors}>{content}{scopedChat&&requestedChat?.matchId===snapshot.match_id&&scopedChat===requestedChat?.eventId&&runtime&&snapshot.table_id&&snapshot.match_id&&<RoomSheet visible title={ui('common.table_chat')} testID="notification-scoped-chat" onClose={()=>setScopedChat(undefined)}><DistributedChat key={scopedChat} root={runtime.root} view={{room_id:roomId,table_id:snapshot.table_id,match_id:snapshot.match_id,table_revision:snapshot.table_revision??0,durable_game_id:requestedChat?.gameId??snapshot.durable_game_id??null}} initialScope={requestedChat?.scope==='game'?'game_chat':'table_chat'}/></RoomSheet>}</TableSocialProvider></TableCardThemeProvider> : content;
+  return <LivePresentationContext.Provider value={presentation}>{live && snapshot ? <TableCardThemeProvider id={snapshot.card_theme} canChange={snapshot.can_change_card_theme === true} pending={busy || !connected || !synced} select={theme => void lobbyAction('/card-theme', {card_theme:theme})}><TableSocialProvider requestedChatId={requestedChat?.matchId===snapshot.match_id&&(!runtime||runtime.root.ephemeralEnabled)&&requestedChat?.scope!=='game'?requestedChat?.eventId:undefined} key={snapshot.match_id} snapshot={{ ...(visibleSnapshot || snapshot), starting: startingGame }} channel={socialChannel} connected={connected} userId={userId} session={{user_id:userId,token}} pokes={pokes} phrases={personal.phrases} expanded={open} colors={gameTheme.colors}>{content}{scopedChat&&requestedChat?.matchId===snapshot.match_id&&scopedChat===requestedChat?.eventId&&runtime&&snapshot.table_id&&snapshot.match_id&&<RoomSheet visible title={ui('common.table_chat')} testID="notification-scoped-chat" onClose={()=>setScopedChat(undefined)}><DistributedChat key={scopedChat} root={runtime.root} view={{room_id:roomId,table_id:snapshot.table_id,match_id:snapshot.match_id,table_revision:snapshot.table_revision??0,durable_game_id:requestedChat?.gameId??snapshot.durable_game_id??null}} initialScope={requestedChat?.scope==='game'?'game_chat':'table_chat'}/></RoomSheet>}</TableSocialProvider></TableCardThemeProvider> : content}</LivePresentationContext.Provider>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   invitation: { backgroundColor: colors.surfaceSelected, borderWidth: 1, borderColor: colors.accent, borderRadius: 16, padding: 20, gap: 12, marginBottom: 20 },

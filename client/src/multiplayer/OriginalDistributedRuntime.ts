@@ -86,7 +86,20 @@ export class OriginalDistributedRuntime {
   }
   async leaveReservedTable(room:string,match:string,abandon=false) {
     if(!this.api)throw Error('Session is unavailable.');
-    return this.api.request(`/test-games/${encodeURIComponent(room)}/${abandon?'table/abandon':'leave'}`,this.account,{match_id:match});
+    const controller=new AbortController();
+    let timer:ReturnType<typeof setTimeout>|undefined;
+    try {
+      // A stalled fetch can otherwise outlive the intent's receipt deadline.
+      // Cancel the wait without retiring its journaled command: retry must
+      // reconcile the same command ID, including a possibly accepted departure.
+      return await Promise.race([
+        this.api.request(`/test-games/${encodeURIComponent(room)}/${abandon?'table/abandon':'leave'}`,this.account,{match_id:match},controller.signal),
+        new Promise<never>((_,reject)=>{timer=setTimeout(()=>{
+          reject(Error('Waiting for confirmation. Retry to check the original action.'));
+          controller.abort();
+        },30000);}),
+      ]);
+    } finally {clearTimeout(timer);}
   }
   connectRequests(shared: UiRequest) {
     if (this.closed || this.api) throw Error('API runtime already connected or closed.');

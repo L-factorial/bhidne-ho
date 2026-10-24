@@ -1,4 +1,5 @@
 import { MobileGameHand } from './MobileGameHand';
+import { ActivityLine } from './ActivityLine';
 import { useEffect, useState } from 'react';
 import { Pressable, View, useWindowDimensions } from 'react-native';
 import { AppText as Text } from './AppText';
@@ -64,10 +65,11 @@ export function DealerSelectionTable({ snapshot, busy, onPick }: {
           {ownPick?<CompactCardFace rank={ownPick.card.slice(0,-1)} suit={ownPick.card.slice(-1)}/>:<CardBack />}
         </View>
         <Pressable testID="dealer-flip-card" accessibilityRole="button" accessibilityLabel={ui('common.flip_card')}
-          disabled={!canFlip} accessibilityState={{disabled:!canFlip}}
+          disabled={!canFlip} accessibilityState={{disabled:!canFlip,busy:mine&&busy}}
           onPress={flipCard}
           style={({pressed})=>({...gameButtonStyle(c,'secondary',pressed),minHeight:44,paddingHorizontal:24,justifyContent:'center',opacity:mine&&!busy?1:0.5})}>
-          <Text style={{color:c.text,fontFamily:fonts.medium}}>{ui('common.flip_card')}</Text>
+          <Text style={{color:c.text,fontFamily:fonts.medium,opacity:mine&&busy?0:1}}>{ui('common.flip_card')}</Text>
+          {mine&&busy&&<View style={{position:'absolute',left:12,right:12}}><ActivityLine /></View>}
         </Pressable>
       </View>
     </MobileGameHand>}

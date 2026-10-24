@@ -218,3 +218,102 @@ async def test_nonowner_winner_starts_next_round_and_retry_is_idempotent():
     assert a.snapshot()['view']['round_number'] == 2
     assert a.snapshot()['view']['dealer_id'] == '2'
     assert len(a.snapshot()['view']['round_results']) == 1
+
+
+@pytest.mark.parametrize('amount', [10, 20])
+@pytest.mark.parametrize('seen', [False, True])
+def test_bet_crosses_only_other_players_reveals(amount, seen):
+    a = adapter(); send(a, 'START_GAME'); send(a, 'DEAL_CARDS'); send(a, 'SKIP_CUT', '2')
+    if seen:
+        send(a, 'SEE_CARDS', '2')
+        amount *= 2
+    revision = a.revision
+    before = a.checkpoint().get_state()
+    send(a, 'SEE_CARDS', '1')
+    result = send(a, 'BET', '2', {'amount': amount}, revision=revision)
+    assert isinstance(result, AdapterResult)
+    state = a.checkpoint().get_state()
+    assert state.pot == before.pot + amount
+    assert state.current_player_id == '1'
+
+
+def test_old_bet_cannot_cross_own_reveal_or_returning_turn():
+    a = adapter(); send(a, 'START_GAME'); send(a, 'DEAL_CARDS'); send(a, 'SKIP_CUT', '2')
+    revision = a.revision
+    send(a, 'SEE_CARDS', '2')
+    assert send(a, 'BET', '2', {'amount': 20}, revision=revision).code == 'STALE_REVISION'
+    revision = a.revision
+    send(a, 'BET', '2', {'amount': 20})
+    send(a, 'BET', '1', {'amount': 10})
+    before = a.checkpoint()
+    assert send(a, 'BET', '2', {'amount': 20}, revision=revision).code == 'STALE_REVISION'
+    assert a.checkpoint() is before
+
+
+def test_reveal_race_still_validates_exact_amount_and_future_revision():
+    a = adapter(); send(a, 'START_GAME'); send(a, 'DEAL_CARDS'); send(a, 'SKIP_CUT', '2')
+    revision = a.revision
+    send(a, 'SEE_CARDS', '1')
+    before = a.checkpoint()
+    assert send(a, 'BET', '2', {'amount': 11}, revision=revision).code == 'INVALID_ACTION'
+    assert send(a, 'BET', '2', {'amount': 10}, revision=a.revision+1).code == 'STALE_REVISION'
+    assert a.checkpoint() is before
+
+
+def test_reveal_race_requires_complete_history_and_survives_restore():
+    a = adapter(); send(a, 'START_GAME'); send(a, 'DEAL_CARDS'); send(a, 'SKIP_CUT', '2')
+    revision = a.revision
+    send(a, 'SEE_CARDS', '1')
+    saved = a.checkpoint()
+    from app.adapters.flush.concurrency import bet_scope_matches
+    request = PlayerCommand(match_id='m', command_id='missing-history', expected_revision=revision,
+                            command='BET', payload={'amount': 10})
+    assert not bet_scope_matches(replace(saved.get_state(), history=()), 'm', request, '2')
+    a.restore(FlushGameEngine.from_state(saved.get_state()))
+    assert isinstance(send(a, 'BET', '2', {'amount': 10}, revision=revision), AdapterResult)
+
+
+def test_bet_crosses_multiple_reveals_but_not_fold_or_round_boundary():
+    a = FlushAdapter(FlushGameEngine(['1', '2', '3'], rules=FlushRulesConfig(5, 10),
+                                    rng=Random(4)), match_id='m', owner_player_id='1')
+    send(a, 'START_GAME'); send(a, 'DEAL_CARDS'); send(a, 'SKIP_CUT', '2')
+    revision = a.revision
+    send(a, 'SEE_CARDS', '1'); send(a, 'SEE_CARDS', '3')
+    assert isinstance(send(a, 'BET', '2', {'amount': 10}, revision=revision), AdapterResult)
+    revision = a.revision
+    send(a, 'FOLD', '3')
+    assert send(a, 'BET', '1', {'amount': 20}, revision=revision).code == 'STALE_REVISION'
+    # Round scope is checked from authoritative history, including restored state.
+    from app.adapters.flush.concurrency import bet_scope_matches
+    state = a.checkpoint().get_state()
+    request = PlayerCommand(match_id='m', command_id='prior-round', expected_revision=revision,
+                            command='BET', payload={'amount': 20})
+    assert not bet_scope_matches(replace(state, round_start_revision=state.revision), 'm', request, '1')
+
+
+async def test_registered_reveal_race_bet_is_deduplicated_after_lost_response():
+    from app.adapters.flush import register_flush
+    from app.runtime.game_registry import GameRegistry
+    from app.runtime.command_runtime import CommandRuntime
+    from app.models.action import ReliableActionCommand
+    a = adapter()
+    registry = GameRegistry()
+    target = register_flush(registry, 'race', adapter=a, seat_by_user={'alice': '1', 'bob': '2'})
+    session = registry.get_room('race').commands
+    runtime = CommandRuntime()
+    delivered = []
+    async def deliver(events): delivered.extend(events)
+    async def act(user, name):
+        return await runtime.execute(session, target, user, ReliableActionCommand(
+            match_id='m', command_id=name, expected_revision=a.revision, command=name), deliver)
+    await act('alice', 'START_GAME'); await act('alice', 'DEAL_CARDS'); await act('bob', 'SKIP_CUT')
+    bet = ReliableActionCommand(match_id='m', command_id='original-bet', expected_revision=a.revision,
+                                command='BET', payload={'amount': 10})
+    await act('alice', 'SEE_CARDS')
+    first = await runtime.execute(session, target, 'bob', bet, deliver)
+    before, count = a.checkpoint(), len(delivered)
+    retried = await runtime.execute(session, target, 'bob', bet, deliver)
+    assert first['action_ack']['status'] == 'accepted'
+    assert retried['action_ack'] == first['action_ack']
+    assert a.checkpoint() is before and len(delivered) == count
+    assert a.checkpoint().get_state().pot == 20

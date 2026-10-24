@@ -131,3 +131,97 @@ for (const reviewCommand of ['ACCEPT_HAND', 'CLAIM_REDEAL']) {
   assert.equal(restored.pending,false);
  });
 }
+
+for(const detail of ['The hand changed. Your view has been refreshed; try again.','Refresh the game before retrying.']){
+ test(`Flush bet conflicts resolve silently after a fresh snapshot: ${detail}`,async()=>{
+  let submits=0,reads=0;
+  const initial={...view,game_type:'flush'};
+  const latest={...initial,game:{revision:4}};
+  const command=new DurableCommandClient({submit:async r=>{
+   submits++;return {...receipt(r,'rejected'),outcome:{...receipt(r,'rejected').outcome,detail}};
+  },status:async()=>assert.fail()});
+  const client=new DistributedGameCommandClient(command,async()=>{
+   reads++;return reads===1?initial:latest;
+  },s=>s);
+  assert.equal(client.submit(initial,'BET',{amount:10}),true);
+  await assert.rejects(client.refresh(signal()),GameConfirmationPending);
+  assert.equal(client.pending,true);
+  assert.equal(client.submit(latest,'BET',{amount:20}),false);
+  const result=await client.refresh(signal());
+  assert.equal(result.error,'');assert.equal(result.snapshot,latest);
+  assert.equal(client.pending,false);assert.equal(submits,1);
+  assert.deepEqual(command.request.body.payload,{amount:10});
+ });
+}
+test('Flush bet conflict retains receipt across a failed refresh and a round change',async()=>{
+ let submits=0,reads=0;
+ const initial={...view,game_type:'flush'};
+ const latest={...initial,match_id:'next-match',game:{revision:0}};
+ const command=new DurableCommandClient({submit:async r=>{
+  submits++;return {...receipt(r,'rejected'),outcome:{...receipt(r,'rejected').outcome,detail:'The hand changed. Your view has been refreshed; try again.'}};
+ },status:async()=>assert.fail()});
+ const client=new DistributedGameCommandClient(command,async()=>{if(++reads===1)throw Error('offline');return latest;},s=>s);
+ client.submit(initial,'BET',{amount:10});
+ await assert.rejects(client.refresh(signal()),/offline/);assert.equal(client.pending,true);
+ assert.equal((await client.refresh(signal())).error,'');assert.equal(submits,1);assert.equal(client.pending,false);
+});
+
+for(const detail of [
+ 'The turn changed. Your view has been refreshed; try again.',
+ 'Refresh game state before retrying.',
+ 'Dealer selection is not active.',
+ 'Wait for your turn to pick a dealer card.',
+ 'That card has already been picked.',
+ 'Request belongs to another deal attempt.',
+]){
+ test(`dealer pick conflict refreshes silently without selecting another card: ${detail}`,async()=>{
+  let submits=0,reads=0;
+  const initial={...view,game_type:'callbreak'};
+  const latest={...initial,game:{revision:4,phase:'SELECTING_DEALER'}};
+  const command=new DurableCommandClient({submit:async r=>{
+   submits++;return {...receipt(r,'rejected'),outcome:{...receipt(r,'rejected').outcome,detail}};
+  },status:async()=>assert.fail()});
+  const client=new DistributedGameCommandClient(command,async()=>++reads===1?initial:latest,s=>s);
+  client.submit(initial,'PICK_DEALER_CARD',{position:17});
+  await assert.rejects(client.refresh(signal()),GameConfirmationPending);
+  assert.equal(client.pending,true);
+  assert.equal(client.submit(latest,'PICK_DEALER_CARD',{position:18}),false);
+  const result=await client.refresh(signal());
+  assert.equal(result.error,'');assert.equal(result.snapshot,latest);
+  assert.equal(client.pending,false);assert.equal(submits,1);
+  assert.deepEqual(command.request.body.payload,{position:17});
+ });
+}
+test('dealer pick network recovery retains ID and position through a changed match',async()=>{
+ let original,submits=0;
+ const initial={...view,game_type:'callbreak'};
+ const latest={...initial,match_id:'next-match',game:{revision:0}};
+ const command=new DurableCommandClient({submit:async r=>{
+  submits++;
+  if(!original){original=r;throw Error('response lost');}
+  assert.deepEqual(r,original);
+  return {...receipt(r,'rejected'),outcome:{...receipt(r,'rejected').outcome,detail:'The turn changed. Your view has been refreshed; try again.'}};
+ },status:async()=>assert.fail()});
+ const client=new DistributedGameCommandClient(command,async()=>latest,s=>s);
+ client.submit(initial,'PICK_DEALER_CARD',{position:17});
+ await assert.rejects(client.refresh(signal()),/response lost/);
+ assert.equal(client.pending,true);
+ assert.equal((await client.refresh(signal())).error,'');
+ assert.equal(client.pending,false);assert.equal(submits,2);
+ assert.deepEqual(original.body.payload,{position:17});
+});
+test('unrecognized dealer errors are not mistaken for recoverable selection conflicts',async()=>{
+ const command=new DurableCommandClient({submit:async r=>({...receipt(r,'rejected'),outcome:{...receipt(r,'rejected').outcome,detail:'Reclaim your seat before playing.'}}),status:async()=>assert.fail()});
+ const client=new DistributedGameCommandClient(command,async()=>({...view,game_type:'callbreak'}),s=>s);
+ client.submit(view,'PICK_DEALER_CARD',{position:17});
+ assert.equal((await client.refresh(signal())).error,'Reclaim your seat before playing.');
+});
+
+test('ending the table resolves dealer conflict even when its game projection is removed',async()=>{
+ const initial={...view,game_type:'callbreak'};
+ const ended={...initial,status:'ended',game:undefined};
+ const command=new DurableCommandClient({submit:async r=>({...receipt(r,'rejected'),outcome:{...receipt(r,'rejected').outcome,detail:'Dealer selection is not active.'}}),status:async()=>assert.fail()});
+ const client=new DistributedGameCommandClient(command,async()=>ended,s=>s);
+ client.submit(initial,'PICK_DEALER_CARD',{position:17});
+ assert.equal((await client.refresh(signal())).error,'');assert.equal(client.pending,false);
+});
