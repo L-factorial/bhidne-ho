@@ -1,0 +1,33 @@
+PROPOSAL ONLY — no app implementation changes
+
+1. Establish local game-control variants matching the approved Flush palette:
+   Primary: gold #EDC44F / dark text #20202A.
+   Secondary: navy #263650 / ivory #FFF7E6 / border #8293B4.
+   Destructive: dark #1B263E / rose #FFB9C6 / border #E78BA0.
+   Selected layout: navy with gold text/border; retain selected accessibility state.
+   Disabled: slate fill/text/border with native disabled semantics; retain readable labels.
+   Retain clear pressed/focus feedback and existing pending indicators.
+
+2. Apply to Marriage's hand actions, discard footer, Tunnela declaration,
+   Maal/meld preview, winning preview, and Fold confirmation.
+   Gold identifies the eligible submission for the current step. Fold remains
+   rose. Back, hide/reveal, previews and arrangement tools stay navy.
+   Preserve tappable stock/discard cards; only highlight legal draw targets.
+   Do not add a cut phase, new draw buttons, rules or automatic actions.
+
+3. Apply to Call Break's preparation, hand review, bid confirmation, card play,
+   reveal/hide and arrangement controls. Minus/plus stay navy; confirm/play is
+   gold. Retain smaller Skip and the existing countdown. Keep compact bid layout.
+
+4. Keep action availability, existing placement, labels/localization, gestures,
+   confirmations, timers and network/idempotency behavior. Screenshots depict
+   isolated control states, not a redesign of the full table. Generic shared
+   states use explanatory labels rather than proposed replacement product copy.
+
+5. When implementation is authorized: typecheck/export; check phone/tablet/desktop
+   layouts and long Nepali labels; verify disabled/selected/pending/error states,
+   keyboard focus, single submission and the existing cut countdown. Capture real
+   app screenshots and perform native validation before release.
+
+Review index.html, marriage.png, callbreak.png, shared.png, and individual PNGs.
+26 representative states: 11 Marriage, 9 Call Break, 6 shared.

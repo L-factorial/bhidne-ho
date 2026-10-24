@@ -35,7 +35,7 @@ const assert = require('node:assert/strict');
   await context.routeWebSocket('ws://localhost:8000/**',ws=>{ws.send(JSON.stringify({type:'CONNECTED'}));ws.onMessage(()=>ws.send(JSON.stringify({type:'HEARTBEAT_ACK'})));});
   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
   await page.goto('http://localhost:8081');
-  for(const label of ['Start game','Shuffle deck','Cut in half','Deal cards'])await page.getByRole('button',{name:label,exact:true}).click();
+  for(const label of ['Start game','Shuffle deck','Cut deck','Deal cards'])await page.getByRole('button',{name:label,exact:true}).click();
   assert.deepEqual(requests.find(r=>r.command==='CUT_DECK').payload,{position:26});
   await page.getByText('Reveal your hand',{exact:true}).waitFor();
   assert.equal(await page.getByRole('button',{name:'Confirm bid',exact:true}).count(),0);

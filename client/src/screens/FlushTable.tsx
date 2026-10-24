@@ -1,3 +1,5 @@
+import {gameControlStyle,gameControlText} from '../gameControls';
+import {CutDeckActions} from '../components/CutDeckActions';
 import {useLiveEffects} from '../multiplayer/LivePresentationContext';
 import {gameRequestFeedback} from '../multiplayer/gameRequestFeedback';
 import { FittedGameTable } from '../components/FittedGameTable';
@@ -28,7 +30,7 @@ import { GameTableHeader } from '../components/GameTableHeader';
 import { flushDecision } from '../multiplayer/flushDecision';
 import { type ReactNode, useEffect, useState } from 'react';
 import {Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions} from 'react-native';
-import { visualStates, radii, fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { visualStates, radii, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import type { RoomSnapshot } from './LiveGameTable';
 import { GameStats, useGameStats } from '../components/GameStats';
 import { FlushFoldNotice } from '../components/FlushFoldNotice';
@@ -163,16 +165,15 @@ export function FlushTable({ snapshot, busy, error: requestError, connectionRead
 
   const name = (id: string) => flushPlayerName(id, snapshot.flush?.participants, snapshot.players || []) || ui("common.player_number", { "number": id });
   const can = (kind: string) => !busy && snapshot.status === 'playing' && !!mine?.actions.kinds.includes(kind);
-  const button = (label: string, action: () => void, disabled = false, _primary = false, _danger = false, caption = label) => {
+  const button = (label: string, action: () => void, disabled = false, primary = false, danger = false, caption = label) => {
     return <Pressable accessibilityRole="button" accessibilityLabel={label}
-      disabled={disabled} accessibilityState={{ disabled }} onPress={action} style={({ pressed }) => [s.button, gameButtonStyle(colors, 'secondary', pressed), disabled && { opacity: visualStates.disabledOpacity }]}>
-      <Text style={[s.text, { color: colors.text }]}>{caption}</Text>
+      disabled={disabled} accessibilityState={{ disabled }} onPress={action} style={({ pressed }) => [s.button,gameControlStyle(colors,danger?'destructive':primary?'primary':'secondary',pressed,disabled)]}>
+      <Text style={[s.buttonText,{color:gameControlText(danger?'destructive':primary?'primary':'secondary',disabled)}]}>{caption}</Text>
     </Pressable>;
   };
   const preparationControl = activeGame && preparing && myTurn ? <View testID="flush-center-preparation" style={{ gap: 8, alignItems: 'center' }}>
     {mine?.actions.kinds.includes('deal_cards') && <FloatingTableAction label={ui("callbreak.deal_cards")} onPress={() => act('DEAL_CARDS')} disabled={!can('deal_cards')} />}
-    {mine?.actions.kinds.includes('cut_deck') && <FloatingTableAction label={ui("callbreak.cut_in_half")} onPress={() => act('CUT_DECK', { position: 26 })} disabled={!can('cut_deck')} />}
-    {mine?.actions.kinds.includes('skip_cut') && <FloatingTableAction label={ui("callbreak.skip_cut")} onPress={() => act('SKIP_CUT')} disabled={!can('skip_cut')} />}
+    {mine?.actions.kinds.includes('cut_deck') && mine.actions.kinds.includes('skip_cut') && <CutDeckActions key={`${snapshot.match_id}:${pub?.round_number}`} disabled={!can('cut_deck') || !connectionReady} onCut={() => act('CUT_DECK', {position:26})} onSkip={() => act('SKIP_CUT')}/>}
   </View> : null;
   const rulesContent = <>
       <Text style={s.text}>{ui(canConfigureGameRules(snapshot) ? 'common.rules_config_editable' : 'common.rules_config_read_only')}</Text>
@@ -203,8 +204,8 @@ export function FlushTable({ snapshot, busy, error: requestError, connectionRead
     ? pub?.pending_side_show ? pub.pending_side_show.accepted ? ui("flush.reveal_side_show_prompt") : ui("flush.accept_or_decline_player_s_side_show", { "player": name(pub.pending_side_show.requester_id) })
       : pub?.pending_show ? ui("flush.reveal_or_fold")
       : preparing ? `${pub?.status === 'awaiting_deal' ? ui("callbreak.deal_cards") : ui("callbreak.cut_or_skip")}`
-      : `${visibility} · ${[['bet', 'Bet'], ['show', 'Show'], ['side_show', 'Side-show'], ['fold', 'Fold']].filter(([kind]) => available(kind)).map(([, label]) => uiLabel(label, 'flush')).join(' / ') || ui("common.choose_an_action")}`
-    : `${ownPlayer?.status === 'active' && !preparing ? `${visibility} · ` : ownPlayer?.status === 'folded' ? `${ui("flush.folded")} · ` : ''}${ui("rooms.waiting")}`
+      : `${[['bet', 'Bet'], ['show', 'Show'], ['side_show', 'Side-show'], ['fold', 'Fold']].filter(([kind]) => available(kind)).map(([, label]) => uiLabel(label, 'flush')).join(' / ') || ui("common.choose_an_action")}`
+    : `${ownPlayer?.status === 'folded' ? `${ui("flush.folded")} · ` : ''}${ui("rooms.waiting")}`
     : ui("rooms.seated_capacity_seated", {seated: snapshot.players?.length || 0, capacity: snapshot.capacity});
   const handCue = gameAttention(snapshot);
   return <View style={[s.page, mobile && { padding: 8, gap: 4 }]} testID="flush-table">
@@ -235,6 +236,7 @@ export function FlushTable({ snapshot, busy, error: requestError, connectionRead
             instruction={ui("common.your_turn_action", { "action": turnText })}/>
         </View>}
         <ScrollView testID="flush-hand-content" nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{display:!snapshot.your_player_id || !!mine && handOpen && !stats.open?'flex':'none',minHeight:0,flexShrink:1,alignSelf:'stretch'}} contentContainerStyle={{alignItems:'center',gap:6}} accessibilityElementsHidden={!!mine&&(!handOpen||stats.open)} importantForAccessibility={mine&&(!handOpen||stats.open)?'no-hide-descendants':'auto'}>
+        {!ended && mine && !preparing && !pub?.settlement && <View testID="flush-hand-visibility" style={s.handVisibility}><Text style={s.handVisibilityText}>{visibility}</Text></View>}
         {!ended && mine && !preparing && !pub?.settlement && <View style={s.cards} testID="flush-own-cards">
           <View style={s.scaledCards}><FlushCards tapToToggle shown={cardsShown} onShownChange={setCardsShown} key={pub?.round_number} cards={mine.cards} /></View>
         </View>}
@@ -353,7 +355,14 @@ const styles = (c: ThemeColors) => StyleSheet.create({
   panel: { backgroundColor: c.surface, padding: 16, borderRadius: radii.large, gap: 12 },
   row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   title: { color: c.text, fontFamily: fonts.medium, fontSize: 20 }, text: { color: c.text, fontFamily: fonts.body, fontSize: 14 },
-  button: { justifyContent: 'center', padding: 10, ...gameButtonStyle(c) },
+  button: { justifyContent: 'center', alignItems:'center', minHeight:48, paddingVertical:12, paddingHorizontal:16, borderRadius:radii.medium, borderWidth:1, borderColor:'#8293b4', backgroundColor:'#263650' },
+  buttonText: {color:'#fff7e6',fontFamily:fonts.medium,fontSize:14},
+  primaryButton: {backgroundColor:'#edc44f',borderColor:'#edc44f'},
+  primaryButtonText: {color:'#20202a'},
+  dangerButton: {backgroundColor:'#1b263e',borderColor:'#e78ba0'},
+  dangerButtonText: {color:'#ffb9c6'},
+  handVisibility: {alignSelf:'stretch',alignItems:'flex-end',paddingHorizontal:12,paddingTop:4},
+  handVisibilityText: {color:c.textMuted,fontFamily:fonts.medium,fontSize:12},
   chosen: { borderColor: c.accent, backgroundColor: c.surfaceSelected },
   field: { gap: 6 }, input: { padding: 12, borderRadius: radii.medium, borderWidth: 1, borderColor: c.border, color: c.text },
   error: { color: c.danger, fontFamily: fonts.body },

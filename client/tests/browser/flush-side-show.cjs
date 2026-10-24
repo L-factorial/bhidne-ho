@@ -40,9 +40,9 @@ async function api(route, user, body) {
     const dealer = preparation.game.turn.player_id - 1;
     await pages[dealer].getByRole('button', {name:'Deal cards',exact:true}).click();
     const cutter = (dealer + 1) % pages.length;
-    await pages[cutter].getByRole('button', {name:'Cut in half',exact:true}).waitFor();
+    await pages[cutter].getByRole('button', {name:'Cut deck',exact:true}).waitFor();
     await pages[cutter].reload();
-    await pages[cutter].getByRole('button', {name:'Cut in half',exact:true}).waitFor();
+    await pages[cutter].getByRole('button', {name:'Cut deck',exact:true}).waitFor();
     for (const page of pages) {
       const name = page.getByTestId(`flush-turn-name-${cutter + 1}`);
       await name.waitFor();
@@ -53,7 +53,7 @@ async function api(route, user, body) {
       }
       assert.ok(values.size > 1, 'Active player name pulses for every viewer');
     }
-    await pages[cutter].getByRole('button', {name:'Cut in half',exact:true}).click();
+    await pages[cutter].getByRole('button', {name:'Cut deck',exact:true}).click();
 
     await owner.getByTestId('flush-arena').waitFor();
     let state = await api(root, users[0]);

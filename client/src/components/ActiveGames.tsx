@@ -92,11 +92,14 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable
     finally{setDiscarding(false);}
   }
   const retry = <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.retry_active_games")} onPress={() => setRefresh(v => v + 1)} style={{ minHeight: 44, paddingHorizontal: 16, borderRadius: radii.medium, backgroundColor: c.primary, justifyContent: 'center' }}><Text style={{ color: c.onPrimary, fontFamily: fonts.medium }}>{ui("common.retry")}</Text></Pressable>;
-  return <View testID="active-games" style={{ gap: 14, paddingVertical: 16 }}>
-    <Pressable testID="play-create-table" accessibilityRole="button" accessibilityLabel={ui('rooms.create_game_table')} disabled={busy||discarding} accessibilityState={{disabled:busy||discarding}} onPress={onCreateTable}
+  const createButton = (top = false) => (
+    <Pressable testID={top?"play-create-table":"empty-play-create-table"} accessibilityRole="button" accessibilityLabel={ui(top?'rooms.create_game_table_top':'rooms.create_game_table')} disabled={busy||discarding} accessibilityState={{disabled:busy||discarding}} onPress={onCreateTable}
       style={({pressed})=>({minHeight:64,paddingHorizontal:18,borderRadius: radii.large,borderWidth:2,borderColor:c.onPrimary,backgroundColor:c.primary,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:10,opacity:busy||discarding?visualStates.disabledOpacity:pressed?0.8:1})}>
-      <Ionicons name="add" size={26} color={c.onPrimary}/><Text style={{flexShrink:1,color:c.onPrimary,fontFamily:fonts.medium,fontSize:17}}>{ui('rooms.create_game_table')}</Text>
+      <Ionicons name="add" size={26} color={c.onPrimary}/><Text style={{flexShrink:1,color:c.onPrimary,fontFamily:fonts.medium,fontSize:17}}>{ui(top?'rooms.create_game_table_top':'rooms.create_game_table')}</Text>
     </Pressable>
+  );
+  return <View testID="active-games" style={{ gap: 14, paddingVertical: 16 }}>
+    {createButton(true)}
     {!!actionError&&<Text accessibilityRole="alert" style={{color:c.danger}}>{actionError}</Text>}
     {hasTables && <><View testID="active-games-heading" style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
       <Text accessibilityRole="header" style={{ flex: 1, color: c.text, fontFamily: fonts.editorial, fontSize: typography.pageTitle }}>{ui("rooms.available_tables")}</Text>
@@ -118,10 +121,13 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable
       {hasTables ? <NoMatchingTablesArtwork color={c.accent}/> : <EmptyTablesArtwork/>}
       <Text accessibilityRole="header" style={{ color: c.text, fontFamily: fonts.editorial, fontSize: typography.pageTitle, textAlign: 'center' }}>{hasTables ? ui('rooms.no_game_tables_right_now', {game:selectedGame}) : ui('rooms.empty_tables_title')}</Text>
       <Text style={{ color: c.textMuted, textAlign: 'center', lineHeight: 23, maxWidth:360 }}>{hasTables ? ui('rooms.empty_filtered_games_help', {game:selectedGame}) : ui('rooms.empty_tables_welcome')}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel={ui(hasTables?'rooms.view_all_games':'rooms.browse_rooms')} onPress={() => hasTables ? setFilter('all') : onBrowseRooms()} style={({pressed})=>({ minHeight: 48, paddingHorizontal:22, marginTop:4, borderRadius:radii.medium, borderWidth:1, borderColor:c.accent, flexDirection:'row', alignItems:'center', justifyContent: 'center', gap:10, backgroundColor:pressed?c.surfaceSelected:'transparent' })}>
-        <Text style={{ color: c.accent, fontFamily: fonts.medium, textAlign:'center', flexShrink:1 }}>{ui(hasTables?'rooms.view_all_games':'rooms.browse_rooms')}</Text>
+      <View style={{alignSelf:'stretch',gap:12}}>
+      {!hasTables && createButton()}
+      <Pressable accessibilityRole="button" accessibilityLabel={ui(hasTables?'rooms.view_all_games':'rooms.browse_rooms')} onPress={() => hasTables ? setFilter('all') : onBrowseRooms()} style={({pressed})=>({ minHeight: hasTables?48:64, paddingHorizontal:18, borderRadius:hasTables?radii.medium:radii.large, borderWidth:1, borderColor:c.accent, flexDirection:'row', alignItems:'center', justifyContent: 'center', gap:10, backgroundColor:pressed?c.surfaceSelected:'transparent' })}>
+        <Text style={{ color: c.accent, fontFamily: fonts.medium, fontSize:hasTables?14:17, textAlign:'center', flexShrink:1 }}>{ui(hasTables?'rooms.view_all_games':'rooms.browse_rooms')}</Text>
         {!hasTables&&<Ionicons name="arrow-forward" size={20} color={c.accent} accessible={false}/>}
       </Pressable>
+      </View>
     </View>}
     <CreationCards runtime={runtime} onReleased={()=>setRefresh(value=>value+1)} onReturn={table=>enter(table,'watch')} kind="table" matches={tables.map(table=>table.match_id)}/>
     {visible.map(table => <PlayTableCard key={`${table.room_id}:${table.match_id}`} table={table} busy={busy||discarding} enter={action => enter(table, action)} declineInvitation={()=>void declineInvitation(table)} leave={()=>void leaveTable(table)}/>)}

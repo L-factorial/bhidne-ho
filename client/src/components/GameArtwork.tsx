@@ -1,5 +1,8 @@
-import {useId} from 'react';
-import Svg, {Circle, Defs, Ellipse, G, LinearGradient, Path, Rect, Stop} from 'react-native-svg';
+import {useId,useState} from 'react';
+import {Image,View} from 'react-native';
+import {cardThemeImages} from '../cardThemeImages';
+import {cardThemeCatalog,type CardThemeId} from '../cardThemeCatalog';
+import Svg, {Circle, Defs, G, LinearGradient, Path, Rect, Stop} from 'react-native-svg';
 
 export type GameArtworkKind = 'flush' | 'marriage' | 'callbreak';
 
@@ -41,28 +44,16 @@ export function GameArtwork({game,size}: {game:GameArtworkKind;size:number}) {
   </Svg>;
 }
 
-function DecorativeCard({id,suit}: {id:string;suit:'heart'|'spade'|'club'}) {
-  const gold=`url(#${id}-gold)`;
-  return <>
-    <Rect width={76} height={110} rx={7} fill={`url(#${id}-red)`} stroke={gold} strokeWidth={2.5}/>
-    <Rect x={5} y={5} width={66} height={100} rx={4} fill="none" stroke={gold} strokeWidth={0.8}/>
-    <Path d="M10 20V10H20M56 10H66V20M66 90V100H56M20 100H10V90" fill="none" stroke={gold} strokeWidth={1}/>
-    {suit==='heart'?<Path d={heart} transform="translate(38 42) scale(.65)" fill={gold}/>:suit==='spade'?<Path d={spade} transform="translate(21 13) scale(.34)" fill={gold}/>:<G fill={gold}>
-      <Circle cx={38} cy={28} r={6}/><Circle cx={32} cy={37} r={6}/><Circle cx={44} cy={37} r={6}/><Path d="M36 37L33 48H43L40 37Z"/>
-    </G>}
-    <Path d={suit==='heart'?'M14 83L28 61L37 75L44 66L62 88M24 68L28 73L31 68M39 73L44 78L48 73':suit==='spade'?'M14 89H62M20 83H56M26 71H50M31 59H45M38 48V91M16 79L38 70L60 79ZM22 67L38 58L54 67ZM28 56L38 48L48 56Z':'M22 83C26 65 50 65 54 83C50 97 26 97 22 83ZM38 66V94M25 73L51 87M25 87L51 73'} fill="none" stroke={gold} strokeWidth={1.6} strokeLinejoin="round"/>
-  </>;
-}
-
+/** Pick once per empty-state mount; polling must not shuffle the artwork. */
 export function EmptyTablesArtwork() {
-  const id=`empty-${useId().replace(/:/g,'')}`;
-  return <Svg width={196} height={140} viewBox="0 0 220 156" accessible={false}>
-    <ArtworkColors id={id}/>
-    <Ellipse cx={110} cy={145} rx={78} ry={5} fill="#000" opacity={0.12}/>
-    <G transform="translate(21 32) rotate(-18 38 55)"><DecorativeCard id={id} suit="heart"/></G>
-    <G transform="translate(123 32) rotate(18 38 55)"><DecorativeCard id={id} suit="club"/></G>
-    <G transform="translate(72 13)"><DecorativeCard id={id} suit="spade"/></G>
-  </Svg>;
+  const [theme] = useState(() => {
+    const themes=Object.keys(cardThemeCatalog) as CardThemeId[];
+    return themes[Math.floor(Math.random()*themes.length)];
+  });
+  return <View testID={`empty-tables-artwork-${theme}`} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{width:196,height:140}}>
+    {([{left:20,top:27,angle:'-18deg'},{left:108,top:27,angle:'18deg'},{left:64,top:8,angle:'0deg'}] as const).map((card,index)=><Image key={index} source={cardThemeImages[theme]} accessible={false} resizeMode="cover"
+      style={{position:'absolute',left:card.left,top:card.top,width:68,height:101,borderRadius:6,transform:[{rotate:card.angle}]}}/>)}
+  </View>;
 }
 
 export function NoMatchingTablesArtwork({color}: {color:string}) {

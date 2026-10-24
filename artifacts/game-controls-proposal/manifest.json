@@ -1,0 +1,158 @@
+[
+  {
+    "game": "marriage",
+    "case": "01",
+    "title": "Reveal hand",
+    "screenshot": "marriage-01.png"
+  },
+  {
+    "game": "marriage",
+    "case": "02",
+    "title": "Initial Tunnela declaration",
+    "screenshot": "marriage-02.png"
+  },
+  {
+    "game": "marriage",
+    "case": "03",
+    "title": "Draw a card",
+    "screenshot": "marriage-03.png"
+  },
+  {
+    "game": "marriage",
+    "case": "04",
+    "title": "Select a discard",
+    "screenshot": "marriage-04.png"
+  },
+  {
+    "game": "marriage",
+    "case": "05",
+    "title": "Confirm discard",
+    "screenshot": "marriage-05.png"
+  },
+  {
+    "game": "marriage",
+    "case": "06",
+    "title": "Show melds / see maal",
+    "screenshot": "marriage-06.png"
+  },
+  {
+    "game": "marriage",
+    "case": "07",
+    "title": "Maal reveal",
+    "screenshot": "marriage-07.png"
+  },
+  {
+    "game": "marriage",
+    "case": "08",
+    "title": "Winning preview",
+    "screenshot": "marriage-08.png"
+  },
+  {
+    "game": "marriage",
+    "case": "09",
+    "title": "Win without maal",
+    "screenshot": "marriage-09.png"
+  },
+  {
+    "game": "marriage",
+    "case": "10",
+    "title": "Arrange / hide / review",
+    "screenshot": "marriage-10.png"
+  },
+  {
+    "game": "marriage",
+    "case": "11",
+    "title": "Fold confirmation",
+    "screenshot": "marriage-11.png"
+  },
+  {
+    "game": "callbreak",
+    "case": "01",
+    "title": "Shuffle / deal preparation",
+    "screenshot": "callbreak-01.png"
+  },
+  {
+    "game": "callbreak",
+    "case": "02",
+    "title": "Cut deck",
+    "screenshot": "callbreak-02.png"
+  },
+  {
+    "game": "callbreak",
+    "case": "03",
+    "title": "Deal cards",
+    "screenshot": "callbreak-03.png"
+  },
+  {
+    "game": "callbreak",
+    "case": "04",
+    "title": "Reveal / review hand",
+    "screenshot": "callbreak-04.png"
+  },
+  {
+    "game": "callbreak",
+    "case": "05",
+    "title": "Choose a bid",
+    "screenshot": "callbreak-05.png"
+  },
+  {
+    "game": "callbreak",
+    "case": "06",
+    "title": "Bid limits",
+    "screenshot": "callbreak-06.png"
+  },
+  {
+    "game": "callbreak",
+    "case": "07",
+    "title": "Choose a card",
+    "screenshot": "callbreak-07.png"
+  },
+  {
+    "game": "callbreak",
+    "case": "08",
+    "title": "Play selected card",
+    "screenshot": "callbreak-08.png"
+  },
+  {
+    "game": "callbreak",
+    "case": "09",
+    "title": "Hidden hand",
+    "screenshot": "callbreak-09.png"
+  },
+  {
+    "game": "shared",
+    "case": "00",
+    "title": "Lock / start / next game",
+    "screenshot": "shared-00.png"
+  },
+  {
+    "game": "shared",
+    "case": "01",
+    "title": "Sending an action",
+    "screenshot": "shared-01.png"
+  },
+  {
+    "game": "shared",
+    "case": "02",
+    "title": "Waiting for another player",
+    "screenshot": "shared-02.png"
+  },
+  {
+    "game": "shared",
+    "case": "03",
+    "title": "Action error",
+    "screenshot": "shared-03.png"
+  },
+  {
+    "game": "shared",
+    "case": "04",
+    "title": "Result / next round",
+    "screenshot": "shared-04.png"
+  },
+  {
+    "game": "shared",
+    "case": "05",
+    "title": "Pressed and focus states",
+    "screenshot": "shared-05.png"
+  }
+]

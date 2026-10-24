@@ -62,10 +62,10 @@ async function api(path, user, body) {
  await preparationPulse(pages[Number(state.game.turn.player_id)-1],'Deal cards');
  await button(pages[Number(state.game.turn.player_id)-1],'Deal cards').click();
  await new Promise(r=>setTimeout(r,1500)); state=await api(root,users[0]);
- await preparationPulse(pages[Number(state.game.turn.player_id)-1],'Cut in half');
- await preparationPulse(pages[Number(state.game.turn.player_id)-1],'Skip cut');
+ await preparationPulse(pages[Number(state.game.turn.player_id)-1],'Cut deck');
+ await button(pages[Number(state.game.turn.player_id)-1],'Skip').waitFor();
  assert.equal(await pages[1-(Number(state.game.turn.player_id)-1)].getByTestId('flush-center-preparation').count(),0);
- await button(pages[Number(state.game.turn.player_id)-1],'Skip cut').click();
+ await button(pages[Number(state.game.turn.player_id)-1],'Skip').click();
  await new Promise(r=>setTimeout(r,2000)); state=await api(root,users[0]);
  const first=Number(state.game.turn.player_id)-1, p=pages[first];
  await button(p,'Expand your card area').click();

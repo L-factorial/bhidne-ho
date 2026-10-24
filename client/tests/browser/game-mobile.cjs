@@ -45,7 +45,7 @@ async function pulse(locator) {
       await cue.getByRole('button', { name: 'Start game', exact: true }).click();
       let state = await stateWhen(s => s.status === 'playing');
       if (kind === 'callbreak') {
-        for (const [phase, label] of [['AWAITING_SHUFFLE', 'Shuffle deck'], ['AWAITING_CUT', 'Cut in half'], ['AWAITING_DISTRIBUTION', 'Deal cards']]) {
+        for (const [phase, label] of [['AWAITING_SHUFFLE', 'Shuffle deck'], ['AWAITING_CUT', 'Cut deck'], ['AWAITING_DISTRIBUTION', 'Deal cards']]) {
           state = await stateWhen(s => s.game.phase === phase);
           const actor = pages[state.game.turn.player_id - 1], preparation = actor.getByTestId('callbreak-center-preparation');
           await pulse(preparation.getByRole('button', { name: label, exact: true }).getByTestId('action-cue'));

@@ -53,7 +53,7 @@ async function api(route, user, body) {
     const dealer = preparation.game.turn.player_id - 1;
     await pages[dealer].getByRole('button', {name:'Deal cards',exact:true}).click();
     const cutter = (dealer + 1) % pages.length;
-    await pages[cutter].getByRole('button', {name:'Skip cut',exact:true}).click();
+    await pages[cutter].getByRole('button', {name:'Skip',exact:true}).click();
 
     await one.getByRole('button', { name: 'Rules', exact: true }).click();
     await one.getByText('Rules locked for this game', { exact: true }).waitFor();
@@ -138,7 +138,7 @@ async function api(route, user, body) {
     await pages[winner].getByRole('button', {name:'Deal cards',exact:true}).waitFor();
     await pages[winner].reload();
     await pages[winner].getByRole('button', {name:'Deal cards',exact:true}).click();
-    await pages[1 - winner].getByRole('button', {name:'Skip cut',exact:true}).click();
+    await pages[1 - winner].getByRole('button', {name:'Skip',exact:true}).click();
     await pages[1 - winner].getByRole('button', {name:'Bet minimum · 10 points',exact:true}).waitFor();
     state = await api(root, users[0]);
     assert.equal(state.match_id, preparation.match_id);

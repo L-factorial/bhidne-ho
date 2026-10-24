@@ -12302,3 +12302,195 @@ Capacity, observability, database HA and operational readiness remain deferred.
   deployment, commit/push or App Store submission occurred. A new signed build
   is still needed to ship the accumulated client changes. Next: review the
   implementation preview and include these changes in the next release build.
+
+### Direct production deployment — 2026-10-23 (bb9be11)
+
+- User authorized direct server deployment. Built the exact committed archive
+  bb9be11c0327acfebecede3561ff7c57acaf93c6; generated screenshot/preview folders
+  are ignored and absent from the archive. Includes the approved lobby states,
+  shared game artwork and previously authorized welcome-layout fix.
+- Remote production build passed all 577 frontend tests, TypeScript and web
+  export. Local release tests passed 41 cases. GitHub run 40066982892 failed
+  original-UI adapter acceptance on "Move delivery took too long"; the full
+  backend CI gate did not pass. Backend and multiplayer adapter sources match
+  the previously deployed aeecb1a revision; this deployment does not fix or
+  establish the cause of that timing failure. No competing production run was
+  active before activation.
+- Transferred one image with matching archive checksums, passed both hosts'
+  dependency/schema checks, activated backends sequentially, then frontends
+  through the existing locked receiver with health/rollback safeguards. No
+  migration, database initialization or runtime configuration changes.
+- Both servers run image
+  sha256:5ced0fc145ec3f907234737d5c18060d6e7277563246b9b862d7f80831e90e71.
+  Host/public frontend indexes match SHA-256
+  64ff9acf992fe95e95576f4697b9e42467605642844efe135b3d88e53496d0d5;
+  public JavaScript matches both hosts. Both host and public API health pass.
+  Read-only public browser checks pass at 390/1280 pixels for welcome, sign-in,
+  sign-up, viewport bounds and absence of uncaught JavaScript errors. No live
+  gameplay/account writes were performed. Authenticated lobby states were
+  validated previously with isolated fixtures, not production accounts.
+- Evidence: /private/tmp/bhidne-bb9be11-{rollout.log,verification.json,smoke.log};
+  remote build: /srv/bhidne-prod/builds/bb9be11/build.log. This deployment record
+  is a local post-release documentation change, not part of deployed bb9be11.
+- Next: refresh production web to review the lobby; installed native apps still
+  need a new signed build. Investigate the CI move-delivery timing failure
+  separately; deferred capacity/operational work remains deferred.
+
+## 2026-10-24: Table-scoped My settlement tab
+
+- User explicitly authorized the table-view settlement UI and a screenshot.
+  Added My settlement beside Entire session and Games breakdown in table detail.
+  Reuses room-view To pay, To receive and Settled cards/actions, filtering the
+  shared transfer projection by the selected table ID. No backend change.
+- Verification: TypeScript, Expo web export and git diff checks passed. Isolated
+  browser acceptance passed at 320/390/1280 pixels, including three table-detail
+  tabs, exclusion of other-table payments, settlement controls, disabled settled
+  rows, no browsing writes, existing room payment actions and notifications.
+- Screenshot: artifacts/table-settlement-preview/my-settlement.png. Inspected
+  the actual rendered web UI with local fixtures. No deployment or native build.
+- Exact next step: review the screenshot, then include this client change in a
+  future authorized release. Deferred runtime operations/capacity scope unchanged.
+
+## 2026-10-24: Notification row action alignment
+
+- User authorized right-aligned, vertically centered, arrow-only buttons in
+  notification list rows. Removed the settlement-only column layout; all rows
+  share flexible text and a fixed right action column. Invitation, friend and
+  settlement buttons retain existing callbacks and localized accessible names.
+  Header Close, Mark all as read and Clear notifications retain their labels.
+- Verification: TypeScript and web export passed. Browser checks at
+  320/390/1280px cover notification action-column right alignment/vertical
+  centering, icon-only buttons and settlement acceptance. No production writes.
+- Preview: artifacts/notification-preview/notifications.png (local fixture web
+  capture). Next: review and include in the next authorized client release;
+  native device validation and deployment remain outstanding.
+
+## 2026-10-24: Single settlement notification navigation action
+
+- User clarified settlement acceptance belongs only in the ledger. Removed the
+  notification-list acceptance button, request handler and pending state.
+  Settlement notifications now have one right-aligned arrow opening the ledger.
+- Verification: TypeScript, web export and browser acceptance at 320/390/1280px
+  passed. Checks assert one icon-only notification button, right/center alignment,
+  ledger navigation, no settlement write on opening, and pending payment retained.
+  Ledger acceptance remains covered by the existing flow. Updated preview PNG.
+- Next: review local changes for a future authorized release. No deployment or
+  native build; deferred runtime capacity/operations work remains deferred.
+
+## 2026-10-24: Flush flat buttons and card-area visibility status
+
+- User authorized only the proposed button styling and Seen/Blind placement.
+  Flush's local button helper now honors its primary/destructive flags: gold
+  primary actions, navy bordered secondary actions (including Side show), and
+  rose outlined Fold. Removed control shadows; retained wrapping, action
+  eligibility, callbacks, disabled states and accessible labels.
+- Moved the own-player Seen/Blind text from the centered turn description to a
+  right-aligned row above the cards. Existing turn instructions stay centered.
+  Avatar status overlap and center-pot/round styling remain deferred as requested.
+- Verification: TypeScript and fresh web export passed. Isolated browser checks
+  at 320/390/1280px verified the status above cards, Side show availability,
+  shadow-free controls and no page errors. Inspected 390px rendered capture at
+  artifacts/flush-controls-preview/flush.png. Fixture data only; no live writes.
+- Next: user review and native-device validation before an authorized release.
+  No deployment, native build or unrelated runtime behavior changes.
+
+## 2026-10-24: Random existing card themes in empty Play view
+
+- User requested replacing the empty-table decorative cards with random existing
+  card-theme artwork. EmptyTablesArtwork now renders three bundled card backs
+  in the same fan footprint, using one of the ten catalog themes per mount.
+  The choice stays stable during polling and does not modify saved preferences
+  or table themes. Other game icons and filtered-empty artwork are unchanged.
+- Verification: TypeScript, web export and browser acceptance passed at
+  320/390/1032/1280px, including valid theme selection, all three images loaded,
+  stability through polling, and existing feed/navigation behavior. Inspected
+  artifacts/empty-card-theme-preview/empty.png from isolated local fixtures.
+- Next: review and include in a future authorized release. No deployment or
+  native build; remaining Flush requests and deferred runtime work unchanged.
+
+## 2026-10-24: Symmetric stacked empty-feed actions
+
+- User requested Create game and Browse rooms stacked with matching dimensions.
+  In the empty Play card, Create game now sits directly above Browse rooms;
+  both stretch to the same width with 64px minimum height and matching type size.
+  Retained red/white-border plus-prefixed creation and gold Browse rooms arrow.
+  Nonempty/loading/error views retain the existing top Create game action.
+- Verification: TypeScript, web export and browser acceptance passed at
+  320/390/1032/1280px; explicit bounds checks confirm equal width/height,
+  aligned left edges and vertical stacking. Existing create/browse navigation,
+  feed updates and filters pass. Updated and inspected empty-view screenshot.
+- Next: user review and a future authorized release. Local changes only; no
+  deployment/native build or deferred runtime work.
+
+## 2026-10-24: Restore persistent top creation button
+
+- User clarified the top button should remain alongside the stacked empty-view
+  actions. Restored it in every feed state and named it Create game table, with
+  English/Nepali copy. The in-card Create game and Browse rooms retain matching
+  dimensions and their existing callbacks. Distinct test IDs identify both.
+- Verification: TypeScript, web export, diff checks and Play feed browser flow
+  passed at 320/390/1032/1280px. Assertions cover both creation buttons in the
+  empty state and the top action in filtered/nonempty states. Refreshed preview.
+- Next: user review and future authorized release; no deployment/native build.
+
+## 2026-10-24: Remaining Flush status and center-summary changes
+
+- User authorized the remaining reported Flush UI items. Seen/Blind badges now
+  occupy their own flow row below the avatar ring, with spacing, instead of
+  absolute positioning over the avatar. Existing measured seat sizing accounts
+  for the added row; folded/waiting visibility behavior is retained.
+- Added localized Round to the center summary. Pot uses larger bold gold type;
+  Round, Seen bet and Blind bet use lavender, green and blue on a dark panel.
+  Values retain their existing authoritative projection and coin-flight logic.
+- Verification: TypeScript, fresh Expo web export and diff checks passed. New
+  isolated browser geometry checks passed for 2/4/5 players at 320/390/1280px:
+  badge bounds clear avatar rings, all four center values have distinct colors,
+  Pot is bold/larger, and no page errors. Inspected phone capture at
+  artifacts/flush-controls-preview/table-status.png. No live gameplay writes.
+- Next: review and verify on a native device before a future authorized release.
+  No deployment/native build; deferred capacity/operations remain deferred.
+
+## 2026-10-24: Cut deck / Skip presentation and foreground countdown
+
+- User accepted the proposed cutting UX. Existing Flush and Call Break cut
+  screens now share CutDeckActions: prominent Cut deck, smaller Skip, and a
+  localized ten-second countdown submitting SKIP_CUT when it reaches zero.
+  Manual cut/skip cancels the automatic submission. Pauses while disabled or
+  backgrounded; uses existing command/idempotency and eligibility boundaries.
+  No engine, server timer or offline/background auto-play changes.
+- Marriage has no cut phase/command today. Asked whether to add a new engine
+  phase or limit this increment to existing cut flows; no answer received yet.
+  Kept Marriage unchanged rather than introducing an incomplete gameplay phase.
+  No automatic-cut table setting was added (that was a future suggestion).
+- Verification: TypeScript, web export and diff checks passed. Isolated browser
+  checks passed manual CUT_DECK, manual SKIP_CUT and timed SKIP_CUT in both games,
+  with no extra distinct commands after manual/automatic submission. Existing
+  transport retries retain the original command ID. Updated browser expectations
+  for renamed labels and the non-pulsing secondary Skip button. These older
+  backend-dependent browser flows were updated but not rerun this increment.
+- Next: resolve whether Marriage should gain a separate engine cut phase, then
+  native-device/release review. Local only; no deployment or signed native build.
+  Deferred runtime operational/capacity work remains deferred.
+
+## 2026-10-24: Shared game action colors with preserved glow exceptions
+
+- User authorized implementation and screenshots for all games, excluding Show
+  Tunnela, Finish game and Marriage eligible glowing controls. Added a scoped
+  gameControls palette/helper and applied it to regular Flush/Marriage/Call Break
+  hand controls, Call Break bidding/review, and shared floating preparation/start
+  actions. Gold primary, navy secondary, rose Fold, slate disabled, gold selected
+  borders; no button shadows. Layout callbacks/eligibility/commands are unchanged.
+- MarriageTunnelaPanel, MarriageMaalPanel and MarriageWinPanel remain untouched,
+  preserving their glowing entry points and existing preview/final actions. No
+  global theme rewrite. User separately confirmed existing cut flows only;
+  Marriage keeps its current no-cut game flow.
+- Verification: TypeScript, fresh Expo export, all 577 frontend tests and diff
+  checks passed. Browser checks cover actual selected-card/discard gold controls
+  in all three games at 320/390/1280px, no page errors, plus Call Break bidding
+  captures/color assertions at the same widths. Inspected phone Marriage/Call
+  Break screenshots and confirmed exception components have no diff.
+- Review gallery: artifacts/game-controls-preview/index.html, with 12 app PNGs
+  across three widths (Flush, Marriage, Call Break play and bidding). Captures
+  use isolated local fixtures, not live production games or native device builds.
+- Next: user review and native-device validation before an authorized release.
+  No commit, push, deployment or signed build. Deferred runtime scope unchanged.

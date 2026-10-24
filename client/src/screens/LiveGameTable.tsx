@@ -1,3 +1,5 @@
+import {gameControlStyle as gameButtonStyle,gameControlText} from '../gameControls';
+import {CutDeckActions} from '../components/CutDeckActions';
 import {useLiveEffects} from '../multiplayer/LivePresentationContext';
 import {CallBreakSummary} from '../components/CallBreakSummary';
 import {ActivityLine} from '../components/ActivityLine';
@@ -32,7 +34,7 @@ import { PlayerHand, type HandView } from '../components/PlayerHand';
 import { LiveBidPrompt } from '../components/LiveBidPrompt';
 import { GameDetails } from '../components/GameDetails';
 import { RoundSummary } from '../components/RoundSummary';
-import { radii, fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { radii, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import type { ActionAck } from '../multiplayer/PendingGameAction';
 import type { PlayerPhrase } from '../multiplayer/pokes';
 import { PokeComposer } from '../components/PokeComposer';
@@ -175,11 +177,11 @@ export function LiveGameTable({ snapshot, busy, error: requestError, connectionR
   const last = [...deal.tricks].reverse().find(trick => trick.complete);
   const trick = reveal ? completedTrick : game.current_trick;
   function action(label: string, command: string, payload = {}) {
-    return <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => cards.act(command, payload)} style={styles.button}><ActionCue active={!busy} style={styles.buttonText}>{label}</ActionCue></Pressable>;
+    return <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => cards.act(command, payload)} style={[styles.button,gameButtonStyle(colors,command==='CLAIM_REDEAL'?'secondary':'primary',false,busy)]}><ActionCue active={!busy} style={[styles.buttonText,{color:gameControlText(command==='CLAIM_REDEAL'?'secondary':'primary',busy)}]}>{label}</ActionCue></Pressable>;
   }
   const preparation = isTurn && ['AWAITING_SHUFFLE', 'AWAITING_CUT', 'AWAITING_DISTRIBUTION'].includes(game.phase) ? <View testID="callbreak-center-preparation" style={{ gap: 8, alignItems: 'center' }}>
       {game.phase === 'AWAITING_SHUFFLE' && <FloatingTableAction label={ui("callbreak.shuffle_deck")} disabled={busy} onPress={() => cards.act('SHUFFLE_DECK')} />}
-      {game.phase === 'AWAITING_CUT' && <>{<FloatingTableAction label={ui("callbreak.cut_in_half")} disabled={busy} onPress={() => cards.act('CUT_DECK', { position: 26 })} />}{<FloatingTableAction label={ui("callbreak.skip_cut")} disabled={busy} onPress={() => cards.act('SKIP_CUT')} />}</>}
+      {game.phase === 'AWAITING_CUT' && <CutDeckActions disabled={busy || !connectionReady || !social.connected} onCut={() => cards.act('CUT_DECK', {position:26})} onSkip={() => cards.act('SKIP_CUT')}/> }
       {game.phase === 'AWAITING_DISTRIBUTION' && <FloatingTableAction label={ui("callbreak.deal_cards")} disabled={busy} onPress={() => cards.act('START_DISTRIBUTION')} />}
     </View> : null;
   const showDealerNotice=game.phase==='AWAITING_SHUFFLE'&&deal.deal_number===1&&game.dealer_selection?.complete;
@@ -263,7 +265,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   body: { flex: 1, minHeight: 0 }, wideBody: { flexDirection: 'row', justifyContent: 'center' }, tableScroll: { flex: 1, minHeight: 0, minWidth: 0 },
   page: { flex: 1, backgroundColor: colors.background }, container: { flexGrow:1, alignItems: 'center' }, back: { minHeight: 44, justifyContent: 'center' }, link: { color: colors.accent, fontFamily: fonts.medium, fontSize: 12 },
   title: { fontFamily: fonts.display, fontSize: 28, color: colors.text, marginVertical: 12 }, meta: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 11, lineHeight: 20 }, status: { fontFamily: fonts.medium, fontSize: 13, color: colors.accent, marginVertical: 12 }, error: { color: colors.danger, fontFamily: fonts.body, fontSize: 12 },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, paddingVertical: 10 }, button: { padding: 12, ...gameButtonStyle(colors, 'primary'), justifyContent: 'center', alignItems: 'center' }, buttonText: { color: colors.onPrimary, fontFamily: fonts.medium, fontSize: 12 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, paddingVertical: 10 }, button: { padding: 12, ...gameButtonStyle(colors, 'primary'), justifyContent: 'center', alignItems: 'center' }, buttonText: { color: gameControlText('primary'), fontFamily: fonts.medium, fontSize: 12 },
   handDock: { paddingHorizontal: 0, paddingBottom: 0, borderTopWidth: 1, borderColor: colors.tableTrim, backgroundColor: colors.surface },
 
 });

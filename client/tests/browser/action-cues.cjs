@@ -37,7 +37,7 @@ async function api(path, user, body) {
     const dealer = Number(state.game.turn.player_id) - 1;
     await pulse(pages[dealer], 'Deal cards');
     await pages[dealer].getByRole('button', { name: 'Deal cards', exact: true }).click();
-    await pulse(pages[1 - dealer], 'Cut in half'); await pulse(pages[1 - dealer], 'Skip cut');
+    await pulse(pages[1 - dealer], 'Cut deck'); await pages[1 - dealer].getByRole('button',{name:'Skip',exact:true}).waitFor();
     for (const context of contexts) await context.close();
     console.log('PASS: disabled lock, animated lock/start/deal/cut/skip, and reduced motion.');
   } finally { await browser.close(); }

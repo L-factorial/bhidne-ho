@@ -30,6 +30,7 @@ export default {
   "play": "खेल्नुहोस्",
   "wait": "पर्खनुहोस्",
   "rooms": "कोठाहरू",
+  "create_game_table_top": "खेल टेबल बनाउनुहोस्",
   "create_game_table": "खेल बनाउनुहोस्",
   "choose_game_type": "खेल छान्नुहोस्",
   "choose_room": "कोठा छान्नुहोस्",

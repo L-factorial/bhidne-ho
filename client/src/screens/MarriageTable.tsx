@@ -1,3 +1,4 @@
+import {gameControlStyle as gameButtonStyle,gameControlText} from '../gameControls';
 import {ActivityLine} from '../components/ActivityLine';
 import {gameRequestFeedback} from '../multiplayer/gameRequestFeedback';
 import {MarriageDeclaredTunnelas} from '../components/MarriageDeclaredTunnelas';
@@ -29,7 +30,7 @@ import { marriageDecision, marriageHandSnap, type HandSnap } from '../multiplaye
 import { TableStartCue } from '../components/TableStartCue';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import {Pressable, ScrollView, StyleSheet, Text as TabText, View, useWindowDimensions} from 'react-native';
-import { visualStates, radii, fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { visualStates, radii, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { useMarriageReveal } from '../multiplayer/useMarriageReveal';
 import { MarriageCardArea } from '../components/MarriageCardArea';
 import { MarriageCardBack } from '../components/MarriageCardBack';
@@ -143,8 +144,8 @@ export function MarriageTable({ snapshot, busy, error: requestError, connectionR
   useEffect(() => { setFinishPreview(false); setPreview(false); }, [snapshot.match_id, mine?.player_id]);
   function button(label: string, action: () => void, disabled = false, chosen = false, primary = false, compact = false) {
     return <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled}
-      accessibilityState={{ disabled, selected: chosen }} onPress={action} style={({ pressed }) => [s.button, gameButtonStyle(colors, primary ? 'primary' : 'secondary', pressed), chosen && s.chosen, disabled && s.disabled, compact && {minWidth:0,minHeight:50,maxWidth:'100%',flex:1,paddingHorizontal:8}]}>
-      <Text style={[s.buttonText, primary && { color: colors.onPrimary },compact && {fontSize:14,textAlign:'center',flexShrink:1}]} >{label}</Text></Pressable>;
+      accessibilityState={{ disabled, selected: chosen }} onPress={action} style={({ pressed }) => [s.button, gameButtonStyle(colors,label===ui('marriage.fold')||label===ui('marriage.confirm_fold')?'destructive':primary?'primary':'secondary',pressed,disabled), chosen && s.chosen, disabled && s.disabled, compact && {minWidth:0,minHeight:50,maxWidth:'100%',flex:1,paddingHorizontal:8}]}>
+      <Text style={[s.buttonText, {color:gameControlText(label===ui('marriage.fold')||label===ui('marriage.confirm_fold')?'destructive':primary?'primary':'secondary',disabled)},compact && {fontSize:14,textAlign:'center',flexShrink:1}]} >{label}</Text></Pressable>;
   }
   const postMaal = !!own?.has_seen_maal;
   const manualView = postMaal || arrangement === "personal";
@@ -208,7 +209,7 @@ export function MarriageTable({ snapshot, busy, error: requestError, connectionR
     {!!error && <Text activity accessibilityRole="alert" style={[s.small, { color: colors.danger }]}>{uiLabel(error, 'feedback')}</Text>}
     <Pressable testID="marriage-discard-action" accessibilityRole="button" accessibilityLabel={ui("marriage.discard_card", { "card": physicalLabel(selectedCard.card_id) })}
       disabled={!canDiscard} accessibilityState={{ disabled: !canDiscard }} onPress={() => cards.act('DISCARD_CARD', { card_id: selectedCard.card_id })}
-      style={({ pressed }) => [s.button, gameButtonStyle(colors, 'primary', pressed), !canDiscard && s.disabled]}><Text activity style={[s.buttonText, { color: colors.onPrimary }]}>{busy ? ui("social.sending") : ui("marriage.discard_card", { "card": marriageFace(selectedCard) })}</Text></Pressable>
+      style={({ pressed }) => [s.button, gameButtonStyle(colors,'primary',pressed,!canDiscard), !canDiscard && s.disabled]}><Text activity style={[s.buttonText, { color: gameControlText('primary') }]}>{busy ? ui("social.sending") : ui("marriage.discard_card", { "card": marriageFace(selectedCard) })}</Text></Pressable>
   </>;
   useEffect(() => {
     if (!stats.open && error && !busy && selectedCard && decision === 'DISCARD_REQUIRED') setSnap('expanded');
@@ -361,7 +362,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   player: { fontFamily: fonts.medium, color: colors.text, fontSize: 16 }, text: { fontFamily: fonts.body, color: colors.text, fontSize: 13, lineHeight: 21 },
   small: { fontFamily: fonts.body, color: colors.textMuted, fontSize: 12, lineHeight: 19 }, heading: { fontFamily: fonts.medium, color: colors.accent, fontSize: 16 },
   row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }, button: { ...gameButtonStyle(colors), alignItems: 'center', justifyContent: 'center' },
-  chosen: { backgroundColor: colors.surfaceSelected }, buttonText: { fontFamily: fonts.medium, color: colors.onTableHeader, fontSize: 12 }, disabled: { opacity: visualStates.disabledOpacity },
+  chosen: { ...gameButtonStyle(colors,'selected') }, buttonText: { fontFamily: fonts.medium, color: gameControlText(), fontSize: 12 }, disabled: { opacity: visualStates.disabledOpacity },
   drawSection: { flexDirection:'row', flexWrap:'wrap', alignItems:'flex-start', gap:8, justifyContent:'center', padding:6, borderWidth:1, borderColor:colors.border, borderRadius: radii.medium, backgroundColor:colors.tableHeader },
   drawSource: { flex:1, alignItems:'center', gap:2 },
   piles: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 24, minHeight: 130 }, pileFace: { fontSize: 32, backgroundColor: colors.cardFace, color: colors.cardRed, borderRadius: radii.medium, padding: 14 },

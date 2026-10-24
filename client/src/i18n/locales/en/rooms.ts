@@ -30,6 +30,7 @@ export default {
   "play": "Play",
   "wait": "Wait",
   "rooms": "Rooms",
+  "create_game_table_top": "Create game table",
   "create_game_table": "Create game",
   "choose_game_type": "Choose a game",
   "choose_room": "Choose a room",

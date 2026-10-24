@@ -69,9 +69,10 @@ export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot
   return <View style={[s.arena, { height }]} onLayout={e => setWidth(e.nativeEvent.layout.width)} testID="flush-arena">
     <View pointerEvents="none" style={{ position: 'absolute', top: 12, bottom: 12, left: 4, right: 4 }}><TableSurface game="flush" /></View>
     {!centerControl && <View onLayout={event=>{const height=event.nativeEvent.layout.height;setCenterHeight(current=>Math.max(current,Math.ceil(height)));}} style={[s.pot,{left:width/2-58,top:height/2+rowHeight/2-38-centerHeight/2}]}>
-      <Text testID="flush-pot" numberOfLines={1} adjustsFontSizeToFit style={{color:colors.text,fontFamily:fonts.medium,fontSize:18}}>{ui('flush.pot')} = {potBeforeFlights(pub?.pot||0,displayedPending)}</Text>
-      <Text style={{color:colors.textMuted,fontSize:13}}>{ui('flush.seen_bet')} = {pub?.current_seen_bet||0}</Text>
-      <Text style={{color:colors.textMuted,fontSize:13}}>{ui('flush.blind_bet')} = {pub?.current_blind_bet||0}</Text>
+      <Text testID="flush-pot" numberOfLines={1} adjustsFontSizeToFit style={s.potValue}>{ui('flush.pot')} = {potBeforeFlights(pub?.pot||0,displayedPending)}</Text>
+      <Text testID="flush-round" style={s.roundValue}>{ui('flush.round_number',{number:pub?.round_number || 0})}</Text>
+      <Text testID="flush-seen-bet" style={s.seenValue}>{ui('flush.seen_bet')} = {pub?.current_seen_bet||0}</Text>
+      <Text testID="flush-blind-bet" style={s.blindValue}>{ui('flush.blind_bet')} = {pub?.current_blind_bet||0}</Text>
     </View>}
     {players.map((p, i) => {
       const pos = playerPosition(i, players.length, width, height, seatInset), folded = p.status !== 'active';
@@ -87,8 +88,9 @@ export function FlushArena({ snapshot, height = 370, centerControl }: { snapshot
         <PlayerSocialEffect playerId={Number(p.player_id)} />
         <View style={[s.icon, p.player_id === decision?.actor && s.current, target && {borderColor:colors.accent}]}>
           <ActiveTurnRing active={p.player_id===decision?.actor} size={48}/>
-          {target && <Text style={{position:'absolute',right:-8,top:-8}}>👋</Text>}<PlayerAvatar uri={editAvatar && avatar?.uri !== undefined ? avatar.uri ?? undefined : snapshot.players?.find(row => String(row.player_id) === p.player_id)?.avatar_url} />{!pregame&&!folded&&<View style={[s.count,{padding:2,width:26,height:26,borderRadius:13,backgroundColor:colors.successSurface,alignItems:"center",justifyContent:"center"}]}><Ionicons name={p.visibility==='seen'?'checkmark-circle':'eye-off-outline'} size={22} color={p.visibility==='seen'?colors.success:colors.textMuted} accessibilityLabel={ui(p.visibility==='seen'?'flush.seen':'flush.blind')}/></View>}
+          {target && <Text style={{position:'absolute',right:-8,top:-8}}>👋</Text>}<PlayerAvatar uri={editAvatar && avatar?.uri !== undefined ? avatar.uri ?? undefined : snapshot.players?.find(row => String(row.player_id) === p.player_id)?.avatar_url} />
           {p.player_id === pub?.dealer_id && <Text accessibilityLabel={ui("common.dealer")} style={s.dealer}>D</Text>}</View>
+        {!pregame&&!folded&&<View testID={`flush-visibility-${p.player_id}`} style={s.visibility}><Ionicons name={p.visibility==='seen'?'checkmark-circle':'eye-off-outline'} size={18} color={p.visibility==='seen'?colors.success:colors.textMuted} accessibilityLabel={ui(p.visibility==='seen'?'flush.seen':'flush.blind')}/></View>}
         <Text testID={`flush-turn-name-${p.player_id}`} numberOfLines={1} style={s.name}>{name}</Text>
         {pregame||folded?<Text style={s.caption}>{ui(pregame?'flush.seated':'flush.folded')}</Text>:null}
         {!pregame&&<View style={{flexDirection:'row',gap:6}}>
@@ -123,7 +125,11 @@ function CoinFlight({ bet, from, to, onFinish }: { bet: FlushBet; from: { x: num
 }
 const styles = (c: ThemeColors) => StyleSheet.create({
   arena: { height: 370, flexShrink: 0, width: '100%', maxWidth: 1040, alignSelf: 'center' },
-  pot: { backgroundColor: c.surface, borderRadius: radii.large, paddingVertical: 8, position: 'absolute', top: 151, width: 116, alignItems: 'center' }, potValue: { color: c.text, fontFamily: fonts.medium, fontSize: 18 },
+  pot: { backgroundColor: '#1b263e', borderRadius: radii.large, paddingVertical: 8, gap:3, position: 'absolute', top: 151, width: 116, alignItems: 'center' }, potValue: { color:'#f7d66f', fontFamily: fonts.medium, fontWeight:'700', fontSize: 22 },
+  roundValue: {color:'#c5baff',fontFamily:fonts.medium,fontSize:13},
+  seenValue: {color:'#9ce2bf',fontFamily:fonts.body,fontSize:13},
+  blindValue: {color:'#a9d5ff',fontFamily:fonts.body,fontSize:13},
+  visibility: {width:22,height:22,borderRadius:11,backgroundColor:c.successSurface,alignItems:'center',justifyContent:'center',marginTop:3},
   seat: { position: 'absolute', width: 80, alignItems: 'center', gap: 3 },
   icon: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: c.tableTrim, backgroundColor: c.surface },
   dealer: { position: 'absolute', left: -5, bottom: 0, color: c.text, backgroundColor: c.surfaceSelected, borderRadius: 9, minWidth: 18, textAlign: 'center', fontSize: 11 },

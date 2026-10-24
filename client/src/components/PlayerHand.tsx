@@ -1,3 +1,4 @@
+import {gameControlStyle as gameButtonStyle,gameControlText} from '../gameControls';
 import {ActivityLine} from './ActivityLine';
 import {AppText as Text} from './AppText';
 import {ui} from '../i18n/copy.ts';
@@ -9,7 +10,7 @@ import {cardDropTarget, insertHandCardBefore, type CardBounds} from '../multipla
 import {groupedCallBreakHand, reconcileCallBreakHand} from '../multiplayer/callbreakHandOrder';
 import {callBreakCardArea, isCallBreakThrow} from '../multiplayer/callbreakCardArea';
 import {Pressable, StyleSheet, Text as TabText, View, useWindowDimensions} from 'react-native';
-import {visualStates, radii, fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors} from '../theme';
+import {visualStates, radii, fonts, useTheme, useThemedStyles, type ThemeColors} from '../theme';
 
 const suits:Record<string,string>={S:'♠',C:'♣',H:'♥',D:'♦'};
 export type HandView='fan'|'grid';
@@ -68,10 +69,10 @@ export function PlayerHand({hand,legalCards,canPlay,onPlay,view='fan',onViewChan
   }
   const layout=callBreakCardArea(width,height,hand.length);
   const displayGrid=view==='grid'&&!revealing;
-  const button=(label:string,onPress:()=>void,disabled=false,primary=false,accessibilityLabel=label,loading=false)=><Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{disabled}} disabled={disabled} onPress={onPress} style={[styles.option,primary&&gameButtonStyle(colors,'primary'),disabled&&{opacity:visualStates.disabledOpacity}]}><>{loading?<ActivityLine/>:<Text numberOfLines={1} adjustsFontSizeToFit style={[styles.label,primary&&{color:colors.onPrimary}]}>{label}</Text>}</></Pressable>;
+  const button=(label:string,onPress:()=>void,disabled=false,primary=false,accessibilityLabel=label,loading=false)=><Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{disabled}} disabled={disabled} onPress={onPress} style={[styles.option,gameButtonStyle(colors,primary?'primary':'secondary',false,disabled),disabled&&{opacity:visualStates.disabledOpacity}]}><>{loading?<ActivityLine/>:<Text numberOfLines={1} adjustsFontSizeToFit style={[styles.label,{color:gameControlText(primary?'primary':'secondary',disabled)}]}>{label}</Text>}</></Pressable>;
   return <View testID="player-hand" onLayout={event=>setWidth(event.nativeEvent.layout.width)} style={{gap:6}}>
     <View accessibilityRole="tablist" testID="callbreak-arrangement-tabs" style={styles.row}>
-      {(['personal','auto'] as const).map(value=><Pressable key={value} accessibilityRole="tab" accessibilityLabel={ui(value==='personal'?'marriage.my_arrangement':'marriage.auto_arrangement')} accessibilityState={{selected:arrangement===value,disabled:revealing}} aria-selected={arrangement===value} disabled={revealing} onPress={()=>setArrangement(value)} style={[styles.arrangement,arrangement===value&&{backgroundColor:colors.surfaceSelected},revealing&&{opacity:visualStates.disabledOpacity}]}>
+      {(['personal','auto'] as const).map(value=><Pressable key={value} accessibilityRole="tab" accessibilityLabel={ui(value==='personal'?'marriage.my_arrangement':'marriage.auto_arrangement')} accessibilityState={{selected:arrangement===value,disabled:revealing}} aria-selected={arrangement===value} disabled={revealing} onPress={()=>setArrangement(value)} style={[styles.arrangement,arrangement===value&&gameButtonStyle(colors,'selected'),revealing&&{opacity:visualStates.disabledOpacity}]}>
         <TabText numberOfLines={1} adjustsFontSizeToFit style={styles.label}>{ui(value==='personal'?'marriage.my_arrangement':'marriage.auto_arrangement')}</TabText>
       </Pressable>)}
       {!revealing&&<Pressable accessibilityRole="button" accessibilityLabel={ui(hidden?'common.show_cards':'common.hide_cards')} onPress={()=>setHiddenDeal(hidden?null:dealKey)} style={[styles.arrangement,{flex:0,flexBasis:56,flexShrink:0,width:56}]}><TabText numberOfLines={1} adjustsFontSizeToFit style={styles.label}>{ui(hidden?'callbreak.show_hand':'callbreak.hide_hand')}</TabText></Pressable>}
@@ -89,7 +90,7 @@ export function PlayerHand({hand,legalCards,canPlay,onPlay,view='fan',onViewChan
       </View>}
       <View style={styles.row}>
         <View accessibilityRole="radiogroup" accessibilityLabel={ui('common.hand_view')} style={[styles.row,{flex:1}]}>
-          {(['grid','fan'] as const).map(mode=><Pressable key={mode} accessibilityRole="radio" accessibilityLabel={ui(mode==='fan'?'common.arc':'common.card_grid')} accessibilityState={{checked:view===mode,disabled:revealing}} aria-checked={view===mode} disabled={revealing} onPress={()=>onViewChange?.(mode)} style={[styles.option,view===mode&&{backgroundColor:colors.surfaceSelected,borderColor:colors.accent},revealing&&{opacity:visualStates.disabledOpacity}]}><Text style={styles.label}>{ui(mode==='fan'?'common.arc':'common.grid')}</Text></Pressable>)}
+          {(['grid','fan'] as const).map(mode=><Pressable key={mode} accessibilityRole="radio" accessibilityLabel={ui(mode==='fan'?'common.arc':'common.card_grid')} accessibilityState={{checked:view===mode,disabled:revealing}} aria-checked={view===mode} disabled={revealing} onPress={()=>onViewChange?.(mode)} style={[styles.option,view===mode&&{...gameButtonStyle(colors,'selected')},revealing&&{opacity:visualStates.disabledOpacity}]}><Text style={styles.label}>{ui(mode==='fan'?'common.arc':'common.grid')}</Text></Pressable>)}
         </View>
         {!revealing&&button(hidden?ui('callbreak.show_hand'):ui('callbreak.play_selected_card'),()=>hidden?setHiddenDeal(null):selected&&play(selected),!hidden&&(!selected||sending),!hidden,ui(hidden?'common.show_cards':'callbreak.play_selected_card'),sending&&!hidden)}
       </View>
@@ -115,6 +116,6 @@ const createStyles=(colors:ThemeColors)=>StyleSheet.create({
   row:{flexDirection:'row',gap:4,alignItems:'center'},
   arrangement:{...gameButtonStyle(colors),flex:1,minWidth:0,height:44,minHeight:44,paddingHorizontal:4,paddingVertical:4,alignItems:'center',justifyContent:'center'},
   option:{...gameButtonStyle(colors),flex:1,minWidth:0,minHeight:44,paddingHorizontal:6,paddingVertical:6,alignItems:'center',justifyContent:'center'},
-  label:{fontFamily:fonts.medium,color:colors.onTableHeader,fontSize:12,lineHeight:16,textAlign:'center'},
+  label:{fontFamily:fonts.medium,color:gameControlText(),fontSize:12,lineHeight:16,textAlign:'center'},
   card:{borderRadius:radii.medium,overflow:'hidden',boxShadow:`0px 3px 6px ${colors.shadow}`},
 });

@@ -36,7 +36,6 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
   const freshInvitations=useFreshSoundEvents(session.token);
   const freshDirectChat=useFreshSoundEvents(session.token);
   const [clearing, setClearing] = useState(false);
-  const [accepting, setAccepting] = useState<string>();
 
   async function refresh(signal?: AbortSignal) {
     const version = refreshVersion.current;
@@ -86,19 +85,6 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
     } catch (failure) { setError(playerError(failure, ui("feedback.could_not_update_notifications"))); }
     finally { setClearing(false); }
   }
-  async function acceptSettlement(item: Notification) {
-    const payload = item.payload;
-    if (accepting || !payload?.room_id || !payload.batch_id || !payload.transfer_id) return;
-    setAccepting(item.id);
-    try {
-      await request(`/rooms/${encodeURIComponent(payload.room_id)}/ledger/settlements/${encodeURIComponent(payload.batch_id)}/transfers/${encodeURIComponent(payload.transfer_id)}/confirm`, session, {idempotency_key:`accept:${item.id}`});
-      await request('/notifications/read', session, {ids:[item.id]});
-      refreshVersion.current++;
-      setItems(current => current.filter(row => row.id !== item.id));
-      setError('');
-    } catch (failure) { setError(playerError(failure,ui('feedback.could_not_update_settlement'))); }
-    finally { setAccepting(undefined); }
-  }
   async function answerRequest(player: Player, accept: boolean) {
     try {
       const id = encodeURIComponent(player.user_id);
@@ -132,6 +118,7 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
       matchId:item.kind.startsWith('settlement_')?undefined:item.payload?.match_id,otherUserId:item.payload?.scope==='direct'||item.kind.startsWith('friend_')?item.actor.user_id:undefined,
       scope:item.payload?.scope as Invitation['scope'],gameId:item.payload?.game_id,notificationKind:item.kind,eventId:item.id,recipientId:session.user_id});
   }
+  const actionArrow = <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={colors.onPrimary} strokeWidth={2} accessible={false}><Path d="M5 12h14M12 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" /></Svg>;
   const clearable = items.some(item => item.kind !== 'friend_request');
   const pending = items.some(item => item.kind === 'friend_request') || !!tableInvitations.length || !!roomInvitations.length;
   const unread = items.filter(item => !item.read).length + tableInvitations.length + roomInvitations.length;
@@ -156,28 +143,28 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
             {!items.length && !tableInvitations.length && !roomInvitations.length && <View style={styles.empty}><Text style={styles.name}>{ui("common.you_re_all_caught_up")}</Text><Text style={styles.detail}>{ui("social.friend_and_room_activity_will_appear_here")}</Text></View>}
             {roomInvitations.map(invitation => <View key={invitation.id} style={[styles.notice, styles.unread]}>
               <View style={styles.avatar}><Text style={styles.avatarText}>R</Text></View>
-              <View style={{ flex: 1 }}><Text style={styles.name}>{ui("social.player_invited_you_to_tablename", { "player": invitation.inviter ? playerName(invitation.inviter) : 'A player', "tableName": invitation.room_name })}</Text><Text style={styles.detail}>{ui("common.accepting_adds_this_room_to_your_memberships")}</Text></View>
+              <View style={styles.noticeContent}><Text style={styles.name}>{ui("social.player_invited_you_to_tablename", { "player": invitation.inviter ? playerName(invitation.inviter) : 'A player', "tableName": invitation.room_name })}</Text><Text style={styles.detail}>{ui("common.accepting_adds_this_room_to_your_memberships")}</Text></View>
               <View style={styles.requestActions}>
-                <Pressable accessibilityRole="button" onPress={() => void answerRoom(invitation, true)} style={styles.accept}><Text style={styles.acceptText}>{ui("common.open_room")}</Text></Pressable>
-                <Pressable accessibilityRole="button" onPress={() => void answerRoom(invitation, false)} style={styles.decline}><Text style={styles.link}>{ui("common.decline")}</Text></Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel={ui("common.open_room")} onPress={() => void answerRoom(invitation, true)} style={styles.navigate}>{actionArrow}</Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel={ui("common.decline")} onPress={() => void answerRoom(invitation, false)} style={styles.navigate}>{actionArrow}</Pressable>
               </View>
             </View>)}
             {tableInvitations.map(invitation => <View key={invitation.id} style={[styles.notice, styles.unread]}>
               <View style={styles.avatar}><Text style={styles.avatarText}>♠</Text></View>
-              <View style={{ flex: 1 }}><Text style={styles.name}>{ui(invitation.room_notification ? "social.player_created_table" : "social.player_invited_you_to_tablename", { "player": invitation.inviter ? playerName(invitation.inviter) : ui("common.player"), "tableName": invitation.table_name, "roomName": invitation.room_name })}</Text><Text style={styles.detail}>{ui("rooms.invitation_summary", { "game": invitation.room_name, "phase": invitation.game_type, "seated": invitation.seated, "capacity": invitation.capacity, "players": invitation.seat_available ? ui("rooms.seat_available") : ui("rooms.watch_or_join_the_waitlist") })}</Text></View>
+              <View style={styles.noticeContent}><Text style={styles.name}>{ui(invitation.room_notification ? "social.player_created_table" : "social.player_invited_you_to_tablename", { "player": invitation.inviter ? playerName(invitation.inviter) : ui("common.player"), "tableName": invitation.table_name, "roomName": invitation.room_name })}</Text><Text style={styles.detail}>{ui("rooms.invitation_summary", { "game": invitation.room_name, "phase": invitation.game_type, "seated": invitation.seated, "capacity": invitation.capacity, "players": invitation.seat_available ? ui("rooms.seat_available") : ui("rooms.watch_or_join_the_waitlist") })}</Text></View>
               <View style={styles.requestActions}>
-                <Pressable accessibilityRole="button" onPress={() => void answerTable(invitation, true)} style={styles.accept}><Text style={styles.acceptText}>{ui("common.open_table")}</Text></Pressable>
-                <Pressable accessibilityRole="button" onPress={() => void answerTable(invitation, false)} style={styles.decline}><Text style={styles.link}>{ui("common.decline")}</Text></Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel={ui("common.open_table")} onPress={() => void answerTable(invitation, true)} style={styles.navigate}>{actionArrow}</Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel={ui("common.decline")} onPress={() => void answerTable(invitation, false)} style={styles.navigate}>{actionArrow}</Pressable>
               </View>
             </View>)}
-            {items.map(item => <View key={item.id} style={[styles.notice, !item.read && styles.unread, item.kind.startsWith('settlement_') && styles.settlementNotice]}>
+            {items.map(item => <View key={item.id} style={[styles.notice, !item.read && styles.unread]}>
               <View style={styles.avatar}><Text style={styles.avatarText}>{playerName(item.actor).slice(0, 1).toUpperCase()}</Text></View>
-              <View style={item.kind.startsWith('settlement_') ? {width:'100%',minWidth:0} : {flex:1}}><Text style={styles.name}>{playerName(item.actor)} {item.kind === 'settlement_requested' ? ui('ledger.settlement_requested') : item.kind === 'settlement_accepted' ? ui('ledger.settlement_accepted') : item.kind === 'friend_request' ? ui("social.sent_you_a_connection_request") : item.kind === 'friend_accepted' ? ui("social.accepted_your_connection_request") : item.kind === 'chat' ? ui("social.sent_you_a_chat_message") : item.kind === 'poke' ? ui("social.poked_you") : ui("social.declined_your_connection_request")}</Text>
+              <View style={styles.noticeContent}><Text style={styles.name}>{playerName(item.actor)} {item.kind === 'settlement_requested' ? ui('ledger.settlement_requested') : item.kind === 'settlement_accepted' ? ui('ledger.settlement_accepted') : item.kind === 'friend_request' ? ui("social.sent_you_a_connection_request") : item.kind === 'friend_accepted' ? ui("social.accepted_your_connection_request") : item.kind === 'chat' ? ui("social.sent_you_a_chat_message") : item.kind === 'poke' ? ui("social.poked_you") : ui("social.declined_your_connection_request")}</Text>
                 <Text style={styles.detail}>{[item.payload?.room_name,item.payload?.table_name,item.payload?.amount].filter(value => value !== undefined && value !== '').join(" · ")}</Text><Text style={styles.detail}>{new Date(item.created_at).toLocaleString()}</Text></View>
-              {item.kind === 'settlement_requested' && <Pressable accessibilityRole="button" disabled={!!accepting} accessibilityState={{disabled:!!accepting}} onPress={() => void acceptSettlement(item)} style={styles.accept}><Text style={styles.acceptText}>{ui('ledger.accept_settlement')}</Text></Pressable>}
+              <View style={styles.requestActions}>
               {item.kind === 'friend_request' && <View style={styles.requestActions}>
-                <Pressable accessibilityRole="button" onPress={() => void answerRequest(item.actor, true)} style={styles.accept}><Text style={styles.acceptText}>{ui("common.accept")}</Text></Pressable>
-                <Pressable accessibilityRole="button" onPress={() => void answerRequest(item.actor, false)} style={styles.decline}><Text style={styles.link}>{ui("common.decline")}</Text></Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel={ui("common.accept")} onPress={() => void answerRequest(item.actor, true)} style={styles.navigate}>{actionArrow}</Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel={ui("common.decline")} onPress={() => void answerRequest(item.actor, false)} style={styles.navigate}>{actionArrow}</Pressable>
               </View>}
               {onOpenActivity&&<Pressable accessibilityRole="button"
                 accessibilityLabel={ui(item.kind.startsWith('settlement_')?'ledger.ledger_settlements':item.kind.startsWith('friend_')?'common.friends':item.payload?.scope==='direct'?'social.chat':item.payload?.match_id?'common.open_table':'common.open_room')}
@@ -187,6 +174,7 @@ export function NotificationBell({ session, onOpenTable, onOpenRoom, onOpenActiv
                   <Path d="M5 12h14M12 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
                 </Svg>
               </Pressable>}
+              </View>
             </View>)}
           </ScrollView>
           {!!error && <Text activity accessibilityRole="alert" style={styles.error}>{uiLabel(error, 'feedback')}</Text>}
@@ -204,11 +192,11 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   desktopSheet: { width: 420, maxHeight: 560, alignSelf: 'flex-end', marginRight: 28, marginBottom: 28, borderRadius: radii.large },
   headingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }, title: { fontFamily: fonts.display, fontSize: 24, color: colors.text },
   detail: { fontFamily: fonts.body, fontSize: 11, lineHeight: 18, color: colors.textMuted }, close: { minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center' }, link: { fontFamily: fonts.medium, fontSize: 12, color: colors.accent },
-  markRead: { alignSelf: 'flex-end', minHeight: 40, justifyContent: 'center' }, list: { maxHeight: 440 }, notice: { flexDirection: 'row', gap: 10, paddingVertical: 13, borderBottomWidth: 1, borderColor: colors.border },
+  markRead: { alignSelf: 'flex-end', minHeight: 40, justifyContent: 'center' }, list: { maxHeight: 440 }, notice: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, borderBottomWidth: 1, borderColor: colors.border },
   unread: { backgroundColor: colors.surfaceSelected, marginHorizontal: -8, paddingHorizontal: 8, borderRadius: radii.medium }, avatar: { width: 36, height: 36, borderRadius: radii.large, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }, avatarText: { fontFamily: fonts.medium, color: colors.accent },
   name: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 19, color: colors.text }, empty: { paddingVertical: 36, alignItems: 'center', gap: 5 }, error: { color: colors.danger, fontFamily: fonts.body, fontSize: 11 },
-  settlementNotice: {flexDirection:'column',alignItems:'flex-start'},
+  noticeContent: {flex:1,minWidth:0},
   navigate: { alignSelf: 'center', flexShrink: 0, width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radii.medium, backgroundColor: colors.primary },
   navigatePressed: { opacity: 0.75 },
-  requestActions: { alignSelf: 'center', alignItems: 'stretch', gap: 4 }, accept: { alignSelf: 'center', flexShrink: 0, minHeight: 34, paddingVertical: 6, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', borderRadius: radii.medium, backgroundColor: colors.primary }, acceptText: { fontFamily: fonts.medium, fontSize: 11, color: colors.onPrimary }, decline: { minHeight: 34, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center' },
+  requestActions: { alignSelf: 'center', alignItems: 'stretch', flexShrink: 0, gap: 4 },
 });

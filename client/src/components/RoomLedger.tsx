@@ -40,7 +40,7 @@ export function RoomLedger({ roomId, session, embedded = false, transport, targe
   const styles = useThemedStyles(createStyles), [tab, setTab] = useState<'balances' | 'tables' | 'personal'>(target?'tables':'balances');
   const { t } = useTranslation();
   const { colors } = useTheme();
-  const [detailTab, setDetailTab] = useState<'session' | 'games'>('session');
+  const [detailTab, setDetailTab] = useState<'session' | 'games' | 'personal'>('session');
   const [selectedTable, setSelectedTable] = useState<string | undefined>(target?.tableId);
   const [expandedGames, setExpandedGames] = useState<Record<string, boolean>>({});
   const [open, setOpen] = useState(false);
@@ -164,11 +164,14 @@ export function RoomLedger({ roomId, session, embedded = false, transport, targe
           <Ionicons name="arrow-back" size={24} color={colors.accent}/><Text style={styles.link}>{ui('ledger.back_to_tables')}</Text>
         </Pressable>
         <Text style={styles.title}>{tableLabel(detail)}</Text><Text style={styles.muted}>{ui('ledger.created_at',{date:date(detail.created_at)})}</Text>
-        <View accessibilityRole="tablist" style={styles.tabs}>{(['session','games'] as const).map(value => <Pressable key={value} accessibilityRole="tab" aria-selected={detailTab === value}
+        <View accessibilityRole="tablist" style={styles.tabs}>{(['session','games','personal'] as const).map(value => <Pressable key={value} accessibilityRole="tab" aria-selected={detailTab === value}
           accessibilityState={{selected:detailTab === value}} onPress={() => setDetailTab(value)} style={styles.tab}>
-          <Text style={[styles.tabText,detailTab === value && styles.selectedText]}>{ui(value === 'session' ? 'ledger.entire_session' : 'ledger.games_breakdown')}</Text>
+          <Text style={[styles.tabText,detailTab === value && styles.selectedText]}>{ui(value === 'session' ? 'ledger.entire_session' : value === 'games' ? 'ledger.games_breakdown' : 'ledger.my_settlement')}</Text>
           {detailTab === value && <View style={styles.underline}/>}</Pressable>)}</View>
-        {detailTab === 'session' ? balances(detail.record_balances || detail.balances) : <>
+        {detailTab === 'personal' ? <View testID="ledger-table-settlement" style={{gap:6}}>
+          <Text style={styles.muted}>{ui('ledger.game_results_and_records_only_payments_happen_outside_bhidne_ho')}</Text>
+          {personalSummary(personalTransfers.filter(row => row.table_id === detail.table_id),detail)}
+        </View> : detailTab === 'session' ? balances(detail.record_balances || detail.balances) : <>
           {!detail.games.length && <Text style={styles.muted}>{t('ledger.noResults')}</Text>}
           {detail.games.map((game,index) => <View key={game.game_id} style={styles.table} testID={`ledger-game-${game.game_id}`}>
             <Pressable accessibilityRole="button" accessibilityState={{expanded:!!expandedGames[game.game_id]}}

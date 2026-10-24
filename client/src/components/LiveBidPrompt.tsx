@@ -1,3 +1,4 @@
+import {gameControlStyle as gameButtonStyle,gameControlText} from '../gameControls';
 import {ActivityLine} from './ActivityLine';
 import {AppText as Text} from './AppText';
 import { ui } from '../i18n/copy.ts';
@@ -5,7 +6,7 @@ import { useUiLanguage } from '../i18n/useUiLanguage';
 import { useState } from 'react';
 import {Pressable, StyleSheet, View} from 'react-native';
 import type { RoomSnapshot } from '../screens/LiveGameTable';
-import { radii, fonts, gameButtonStyle, useTheme, useThemedStyles, type ThemeColors } from '../theme';
+import { radii, fonts, useTheme, useThemedStyles, type ThemeColors } from '../theme';
 import { ActionCue } from './ActionCue';
 import { TurnGlow } from './TurnGlow';
 
@@ -27,10 +28,10 @@ export function LiveBidPrompt({ snapshot, busy, onAction, revealed, compact = fa
     </Text>}
     {!compact && <Text accessibilityLiveRegion="polite" style={styles.text}>{revealed ? ui("callbreak.how_many_tricks_will_you_win") : ui("common.reveal_bid_help")}</Text>}
     {revealed && <View style={[styles.controls,compact&&{marginTop:0,flexWrap:'nowrap',justifyContent:'center'}]}>
-      <Pressable accessibilityRole="button" accessibilityLabel={ui("callbreak.decrease_bid")} disabled={busy || amount <= 1} onPress={() => setAmount(value => Math.max(1, value - 1))} style={styles.button}><Text style={styles.label}>−</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={ui("callbreak.decrease_bid")} disabled={busy || amount <= 1} onPress={() => setAmount(value => Math.max(1, value - 1))} style={[styles.button,gameButtonStyle(colors,'secondary',false,busy||amount<=1)]}><Text style={[styles.label,{color:gameControlText('secondary',busy||amount<=1)}]}>−</Text></Pressable>
       <Text accessibilityLabel={ui("callbreak.selected_bid_count", { "count": amount })} style={styles.amount}>{amount}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel={ui("callbreak.increase_bid")} disabled={busy || amount >= maximum} onPress={() => setAmount(value => Math.min(maximum, value + 1))} style={styles.button}><Text style={styles.label}>+</Text></Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={ui("callbreak.confirm_bid")} disabled={busy} onPress={() => onAction('PLACE_BID', { amount })} style={({ pressed }) => [styles.button, gameButtonStyle(colors, 'primary', pressed), {minWidth:64,height:44,paddingVertical:0}]}>{busy?<ActivityLine/>:<ActionCue active={!busy} style={[styles.label, { color: colors.onPrimary }]}>{ui("callbreak.confirm_bid")}</ActionCue>}</Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={ui("callbreak.increase_bid")} disabled={busy || amount >= maximum} onPress={() => setAmount(value => Math.min(maximum, value + 1))} style={[styles.button,gameButtonStyle(colors,'secondary',false,busy||amount>=maximum)]}><Text style={[styles.label,{color:gameControlText('secondary',busy||amount>=maximum)}]}>+</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={ui("callbreak.confirm_bid")} disabled={busy} onPress={() => onAction('PLACE_BID', { amount })} style={({ pressed }) => [styles.button, gameButtonStyle(colors,'primary',pressed,busy), {minWidth:64,height:44,paddingVertical:0}]}>{busy?<ActivityLine/>:<ActionCue active={!busy} style={[styles.label, { color: gameControlText('primary') }]}>{ui("callbreak.confirm_bid")}</ActionCue>}</Pressable>
     </View>}
     {revealed && !compact && <Text style={styles.text}>{ui("common.your_bid_is_submitted_only_when_you_confirm")}</Text>}
   </View>;
@@ -39,5 +40,5 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   panel: { padding: 12, marginVertical: 8, borderRadius: radii.large, borderWidth: 1, borderColor: colors.accent, backgroundColor: colors.surface, gap: 4 },
   title: { color: colors.accent, fontFamily: fonts.medium, fontSize: 15 }, text: { color: colors.text, fontFamily: fonts.body, fontSize: 12, lineHeight: 19 },
   controls: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginTop: 6 },
-  button: { padding: 10, ...gameButtonStyle(colors), alignItems: 'center', justifyContent: 'center' }, label: { color: colors.onTableHeader, fontFamily: fonts.medium, fontSize: 12 }, amount: { color: colors.accent, backgroundColor: colors.surfaceSelected, borderWidth: 2, borderColor: colors.accent, borderRadius: radii.medium, padding: 8, fontSize: 24, minWidth: 48, textAlign: 'center' },
+  button: { padding: 10, ...gameButtonStyle(colors), alignItems: 'center', justifyContent: 'center' }, label: { color: gameControlText(), fontFamily: fonts.medium, fontSize: 12 }, amount: { color: colors.accent, backgroundColor: colors.surfaceSelected, borderWidth: 2, borderColor: colors.accent, borderRadius: radii.medium, padding: 8, fontSize: 24, minWidth: 48, textAlign: 'center' },
 });

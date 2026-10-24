@@ -41,7 +41,7 @@ async function api(path, user, body) {
     throw new Error(`Timed out waiting for ${status}`);
   }
   let i=await current('awaiting_deal');await button(pages[i],'Deal cards').click();
-  i=await current('awaiting_cut');await button(pages[i],'Skip cut').waitFor();await pages[i].reload();await pages[i].getByRole('button',{name:/^Return to table ·/}).click();await button(pages[i],'Skip cut').click();
+  i=await current('awaiting_cut');await button(pages[i],'Skip').waitFor();await pages[i].reload();await pages[i].getByRole('button',{name:/^Return to table ·/}).click();await button(pages[i],'Skip').click();
   i=await current('in_progress');await pages[i].getByTestId('flush-own-cards').waitFor();
   await checkThemes(pages[i], 'flush-active');
   for (const p of pages) {
