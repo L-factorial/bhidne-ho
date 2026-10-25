@@ -1,3 +1,6 @@
+import {useVisibleActivity} from './useVisibleActivity';
+import {ActivityLine} from './ActivityLine';
+import {displaySnapshot} from '../multiplayer/displaySnapshots';
 import {ledgerRecordBalances, personalLedgerTransfers} from '../multiplayer/ledgerPresentation.ts';
 import {AppText as Text} from './AppText';
 import { retryingError, playerError } from '../multiplayer/playerError.ts';
@@ -8,7 +11,7 @@ import { radii, gameControlFinish, gameHeadingFinish, gamePanelFinish, fonts, us
 import { Ionicons } from '@expo/vector-icons';
 import { PlayerAvatar } from './PlayerAvatar';
 import { RoundResultsTable } from './RoundResultsTable';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {AccessibilityInfo, Animated, Pressable, StyleSheet, View} from 'react-native';
 import { request } from '../multiplayer/api';
 import type { Session } from '../multiplayer/session';
@@ -44,23 +47,45 @@ export function RoomLedger({ roomId, session, embedded = false, transport, targe
   const [selectedTable, setSelectedTable] = useState<string | undefined>(target?.tableId);
   const [expandedGames, setExpandedGames] = useState<Record<string, boolean>>({});
   const [open, setOpen] = useState(false);
-  const [data, setData] = useState<Ledger>(), [expanded, setExpanded] = useState<string|undefined>(target?.tableId);
+  const visibleActivity=useVisibleActivity(true);
+  const snapshotCache=useMemo(()=>displaySnapshot<Ledger>(`${session.user_id}:${session.token}:ledger:${roomId}`),[session.user_id,session.token,roomId]);
+  const [refreshing,setRefreshing]=useState(false);
+  const mounted=useRef(true);
+  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;};},[]);
+  const latestCache=useRef(snapshotCache);latestCache.current=snapshotCache;
+  useEffect(()=>{setData(snapshotCache.read());},[snapshotCache]);
+  const inflight=useRef<{scope:typeof snapshotCache;value:Promise<Ledger|undefined>}|undefined>(undefined);
+  const [data, setData] = useState<Ledger|undefined>(()=>snapshotCache.read()), [expanded, setExpanded] = useState<string|undefined>(target?.tableId);
   const [localBusy, setBusy] = useState(false), [localError, setError] = useState('');
   const busy = localBusy || !!transport?.busy, error = transport?.error || localError;
-  const load = useCallback(async () => { try { const value = await (transport ? transport.load() : request<Ledger>(`/rooms/${encodeURIComponent(roomId)}/ledger`, session)); setData(value); setError(''); return value; } catch (e) { setError(retryingError(e, ui("feedback.could_not_load_ledger"))); } }, [roomId, session, uiLanguage, transport?.load]);
+  const load = useCallback(async (afterWrite=false):Promise<Ledger|undefined> => {
+    // A post-mutation refresh must never reuse a read started before that mutation.
+    if(afterWrite&&inflight.current?.scope===snapshotCache)await inflight.current.value;
+    if(inflight.current?.scope===snapshotCache)return inflight.current.value;
+    setRefreshing(true);
+    const read=snapshotCache.beginRead();
+    const value=Promise.resolve().then(async()=>{try {
+      const result=await (transport?transport.load():request<Ledger>(`/rooms/${encodeURIComponent(roomId)}/ledger`,session));
+      read.write(result);
+      if(mounted.current&&latestCache.current===snapshotCache&&read.current()){setData(result);setError('');}
+      return result;
+    }catch(e){if(mounted.current&&latestCache.current===snapshotCache)setError(retryingError(e,ui('feedback.could_not_load_ledger')));}
+    finally{if(inflight.current?.scope===snapshotCache)inflight.current=undefined;if(mounted.current&&latestCache.current===snapshotCache)setRefreshing(false);}});
+    inflight.current={scope:snapshotCache,value};return value;
+  },[roomId,session.token,session.user_id,uiLanguage,transport?.load,snapshotCache]);
   useEffect(() => { setOpen(false); setExpanded(undefined); setSelectedTable(target?.tableId); setDetailTab('session'); setExpandedGames({}); setTab(target ? 'tables' : 'balances'); }, [roomId,target]);
-  useEffect(() => { void load(); const timer = setInterval(() => void load(), 15_000); return () => clearInterval(timer); }, [load]);
+  useEffect(() => { if(!visibleActivity)return;void load(); const timer = setInterval(() => void load(), 15_000); return () => clearInterval(timer); }, [load,visibleActivity]);
   const targetReady=!!data && !!target && (data.record_tables || data.tables).some(table=>
     (target.tableId ? table.table_id===target.tableId : table.game_type===target.gameType) &&
     (!target.gameId || table.games.some(game=>game.game_id===target.gameId)));
   useEffect(()=>{
-    if(!target || targetReady)return;
+    if(!target || targetReady || !visibleActivity)return;
     // Finalization can publish the ledger shortly after the accepted end command.
     // Retry reads briefly; never repeat the departure or settlement command.
     let attempts=0;
     const timer=setInterval(()=>{void load();if(++attempts>=10)clearInterval(timer);},1000);
     return()=>clearInterval(timer);
-  },[target,targetReady,load]);
+  },[target,targetReady,load,visibleActivity]);
   const focusedTable=target?.tableId || (target?.gameId
     ? (data?.record_tables || data?.tables)?.find(table=>table.games.some(game=>game.game_id===target.gameId))
     : target?.gameType ? (data?.record_tables || data?.tables)?.filter(table=>table.game_type===target.gameType)
@@ -80,7 +105,7 @@ export function RoomLedger({ roomId, session, embedded = false, transport, targe
         if (transport) await transport.start(row.table_id);
         else await request(`/rooms/${encodeURIComponent(roomId)}/ledger/settlements`, session,
           {scope: 'table', table_id: row.table_id, idempotency_key: key()});
-        const fresh = await load();
+        const fresh = await load(true);
         const match = personalLedgerTransfers(fresh).find(candidate => candidate.table_id === row.table_id
           && candidate.payer_id === row.payer_id && candidate.payee_id === row.payee_id
           && candidate.amount === row.amount && candidate.status === 'OPEN' && candidate.transfer_id && candidate.batch_id
@@ -90,7 +115,7 @@ export function RoomLedger({ roomId, session, embedded = false, transport, targe
       }
       if (transport) await transport.act(payment, 'mark-paid');
       else await request(`/rooms/${encodeURIComponent(roomId)}/ledger/settlements/${payment.batch_id}/transfers/${payment.transfer_id}/mark-paid`, session, {idempotency_key: key()});
-      await load();
+      await load(true);
     } catch (e) { setError(playerError(e, ui('feedback.could_not_update_settlement'))); }
     finally { setBusy(false); }
   }
@@ -100,7 +125,7 @@ export function RoomLedger({ roomId, session, embedded = false, transport, targe
     try {
       if (transport) await transport.act(row, 'confirm');
       else await request(`/rooms/${encodeURIComponent(roomId)}/ledger/settlements/${row.batch_id}/transfers/${row.transfer_id}/confirm`, session, {idempotency_key:key()});
-      await load();
+      await load(true);
     } catch(e) { setError(playerError(e, ui('feedback.could_not_update_settlement'))); }
     finally { setBusy(false); }
   }
@@ -158,6 +183,7 @@ export function RoomLedger({ roomId, session, embedded = false, transport, targe
       <Text style={styles.name}>{t('ledger.section')}</Text><Text style={styles.name}>{open ? '−' : '+'}</Text>
     </Pressable>}
     {(embedded || open) && <>
+      {refreshing&&<ActivityLine/>}
       {!!error && <Text activity accessibilityRole="alert" style={styles.error}>{uiLabel(error,'feedback')}</Text>}
       {tab === 'tables' && detail ? <View testID="ledger-table-detail" style={{gap:12}}>
         <Pressable accessibilityRole="button" accessibilityLabel={ui('ledger.back_to_tables')} onPress={() => setSelectedTable(undefined)} style={styles.row}>

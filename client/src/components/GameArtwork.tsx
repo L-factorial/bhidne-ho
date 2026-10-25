@@ -1,6 +1,6 @@
 import {useId,useState} from 'react';
 import {Image,View} from 'react-native';
-import {cardThemeImages} from '../cardThemeImages';
+import {cardPreviewImages} from '../cardPreviewImages';
 import {cardThemeCatalog,type CardThemeId} from '../cardThemeCatalog';
 import Svg, {Circle, Defs, G, LinearGradient, Path, Rect, Stop} from 'react-native-svg';
 
@@ -45,13 +45,14 @@ export function GameArtwork({game,size}: {game:GameArtworkKind;size:number}) {
 }
 
 /** Pick once per empty-state mount; polling must not shuffle the artwork. */
-export function EmptyTablesArtwork() {
-  const [theme] = useState(() => {
+export function EmptyTablesArtwork({theme:providedTheme}:{theme?:CardThemeId}={}) {
+  const [fallbackTheme] = useState(() => {
     const themes=Object.keys(cardThemeCatalog) as CardThemeId[];
     return themes[Math.floor(Math.random()*themes.length)];
   });
+  const theme=providedTheme??fallbackTheme;
   return <View testID={`empty-tables-artwork-${theme}`} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{width:196,height:140}}>
-    {([{left:20,top:27,angle:'-18deg'},{left:108,top:27,angle:'18deg'},{left:64,top:8,angle:'0deg'}] as const).map((card,index)=><Image key={index} source={cardThemeImages[theme]} accessible={false} resizeMode="cover"
+    {([{left:20,top:27,angle:'-18deg'},{left:108,top:27,angle:'18deg'},{left:64,top:8,angle:'0deg'}] as const).map((card,index)=><Image key={index} source={cardPreviewImages[theme]} accessible={false} resizeMode="cover"
       style={{position:'absolute',left:card.left,top:card.top,width:68,height:101,borderRadius:6,transform:[{rotate:card.angle}]}}/>)}
   </View>;
 }

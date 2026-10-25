@@ -1,3 +1,4 @@
+import {clearDisplaySnapshots} from './displaySnapshots.ts';
 import { setSessionNotice } from '../auth/sessionNotice.ts';
 import { readAuthValue, writeAuthValue } from '../auth/storage.ts';
 
@@ -34,6 +35,7 @@ export function readSession(server: string): SavedSession | null {
 
 export function saveSession(server: string, value: SavedSession | null) {
   // The latest choice, including a logout tombstone, wins even when storage fails.
+  if (!value || memory.get(server)?.session.token !== value?.session.token || memory.get(server)?.session.user_id !== value?.session.user_id) clearDisplaySnapshots();
   if (memory.get(server)?.session.token !== value?.session.token) versions.set(server, (versions.get(server) || 0) + 1);
   memory.set(server, value);
   try {

@@ -1,3 +1,7 @@
+import {useVisibleActivity} from './useVisibleActivity';
+import {Image,Platform} from 'react-native';
+import {cardPreviewImages} from '../cardPreviewImages';
+import {type CardThemeId} from '../cardThemeCatalog';
 import {isActivityCopy} from '../multiplayer/activityCopy';
 import {ActivityLine} from './ActivityLine';
 import {AppText as Text} from './AppText';
@@ -20,8 +24,15 @@ import {EmptyTablesArtwork,NoMatchingTablesArtwork} from './GameArtwork';
 
 export type ActiveTable = PlayTable;
 const filters = [['all', 'All'], ['flush', 'Flush'], ['marriage', 'Marriage'], ['callbreak', 'Call Break']] as const;
-export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable, activity, runtime }: { runtime?:OriginalDistributedRuntime|null; activity?: { observeActivity: (listener: () => void) => () => void }; onCreateTable: () => void; onBrowseRooms: () => void; session: Session; busy: boolean; enter: (table: ActiveTable, action: TableEntry) => void }) {
+export function ActiveGames({ active=true, session, busy, enter, onBrowseRooms, onCreateTable, activity, runtime }: { active?:boolean; runtime?:OriginalDistributedRuntime|null; activity?: { observeActivity: (listener: () => void) => () => void }; onCreateTable: () => void; onBrowseRooms: () => void; session: Session; busy: boolean; enter: (table: ActiveTable, action: TableEntry) => void }) {
   useUiLanguage();
+  const visibleActivity=useVisibleActivity(active);
+  const [artworkTheme]=useState(()=>{const ids=Object.keys(cardPreviewImages) as CardThemeId[];return ids[Math.floor(Math.random()*ids.length)];});
+  useEffect(()=>{
+    const source=cardPreviewImages[artworkTheme];
+    const uri=Platform.OS==='web'?(typeof source==='string'?source:(source as {uri?:string}).uri):Image.resolveAssetSource(source)?.uri;
+    if(uri)void Image.prefetch(uri).catch(()=>{});
+  },[artworkTheme]);
   const { colors: c } = useTheme();
   const [actionError,setActionError]=useState(''),[discarding,setDiscarding]=useState(false);
   const requestVersion=useRef(0);
@@ -30,6 +41,7 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable
   const [loaded, setLoaded] = useState(false), [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(''), [refresh, setRefresh] = useState(0);
   useEffect(() => {
+    if(!visibleActivity)return;
     const controller = new AbortController();
     let pending = false, dirty = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -63,7 +75,7 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable
     const timer = setInterval(() => void load(), 15000);
     const subscription = AppState.addEventListener('change', state => { if (state === 'active') void load(); });
     return () => { controller.abort(); unsubscribe?.(); clearInterval(timer); clearTimeout(retryTimer); cancelDelay?.(); subscription.remove(); };
-  }, [session.token, refresh, activity]);
+  }, [session.token, refresh, activity, visibleActivity]);
   const visible = tables.filter(table => filter === 'all' || table.game_type === filter);
   const hasTables = tables.length > 0;
   const selectedGame = uiLabel(filters.find(([key]) => key === filter)?.[1] || '', 'rooms');
@@ -100,6 +112,7 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable
   );
   return <View testID="active-games" style={{ gap: 14, paddingVertical: 16 }}>
     {hasTables && createButton(true)}
+    {refreshing&&loaded&&<ActivityLine/>}
     {!!actionError&&<Text accessibilityRole="alert" style={{color:c.danger}}>{actionError}</Text>}
     {hasTables && <><View testID="active-games-heading" style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
       <Text accessibilityRole="header" style={{ flex: 1, color: c.text, fontFamily: fonts.editorial, fontSize: typography.pageTitle }}>{ui("rooms.available_tables")}</Text>
@@ -118,7 +131,7 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable
     </View>}
     {!loaded && !error && <View testID="active-games-loading" style={{minHeight:120,justifyContent:'center',padding:16}}><ActivityLine /></View>}
     {loaded && !error && !visible.length && <View testID="active-games-empty" style={{ alignItems: 'center', justifyContent:'center', gap: 16, padding: 24, paddingVertical:hasTables?28:32, backgroundColor: c.surface, borderRadius: radii.large, borderWidth: 1, borderColor: c.border, minHeight:hasTables?244:320 }}>
-      {hasTables ? <NoMatchingTablesArtwork color={c.accent}/> : <EmptyTablesArtwork/>}
+      {hasTables ? <NoMatchingTablesArtwork color={c.accent}/> : <EmptyTablesArtwork theme={artworkTheme}/>}
       <Text accessibilityRole="header" style={{ color: c.text, fontFamily: fonts.editorial, fontSize: typography.pageTitle, textAlign: 'center' }}>{hasTables ? ui('rooms.no_game_tables_right_now', {game:selectedGame}) : ui('rooms.empty_tables_title')}</Text>
       <Text style={{ color: c.textMuted, textAlign: 'center', lineHeight: 23, maxWidth:360 }}>{hasTables ? ui('rooms.empty_filtered_games_help', {game:selectedGame}) : ui('rooms.empty_tables_welcome')}</Text>
       <View style={{alignSelf:'stretch',gap:12}}>

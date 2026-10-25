@@ -65,3 +65,14 @@ test('retry persists the latest logout choice once storage is writable again',()
   storage.write=write;assert.equal(retrySessionStorage('retry'),true);
   assert.equal(data.has('bhidne.session.v1:retry'),false);assert.equal(sessionNotice('retry'),'');
 });
+
+
+test('account changes and logout clear private display snapshots and reject late reads',async()=>{
+ const {displaySnapshot}=await import('../src/multiplayer/displaySnapshots.ts');
+ adapter();saveSession('display-cache',a);
+ const cache=displaySnapshot('alice:room'),read=cache.beginRead();read.write({balance:42});
+ saveSession('display-cache',b);assert.equal(cache.read(),undefined);read.write({balance:99});
+ assert.equal(displaySnapshot('alice:room').read(),undefined);
+ const next=displaySnapshot('bob:room');next.beginRead().write({balance:12});
+ saveSession('display-cache',null);assert.equal(next.read(),undefined);
+});

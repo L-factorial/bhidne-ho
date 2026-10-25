@@ -1,3 +1,5 @@
+import {ActivityLine} from './ActivityLine';
+import {useVisibleActivity} from './useVisibleActivity';
 import {useOutgoingChat} from './useOutgoingChat';
 import {runtimeRequest} from '../multiplayer/RuntimeRequests';
 import {useChatScroll} from './useChatScroll';
@@ -45,8 +47,10 @@ export type FriendsTransport = {
   send(other: string, text: string): Promise<void>; busy: boolean; error: string;
   sent?: {id:string;recipient:string;text:string};
 };
-export function FriendsPanel({ session, transport, onlineOnly = false, initialPlayerId, initialFriendId, initialRequestId, onInitialOpen, friendLimit }: { friendLimit?:number; initialFriendId?:string; initialRequestId?:string; onInitialOpen?:()=>void; initialPlayerId?:string; session: Session; transport?: FriendsTransport; onlineOnly?: boolean }) {
+export function FriendsPanel({ active=true, session, transport, onlineOnly = false, initialPlayerId, initialFriendId, initialRequestId, onInitialOpen, friendLimit }: { active?:boolean; friendLimit?:number; initialFriendId?:string; initialRequestId?:string; onInitialOpen?:()=>void; initialPlayerId?:string; session: Session; transport?: FriendsTransport; onlineOnly?: boolean }) {
   useUiLanguage();
+  const visibleActivity=useVisibleActivity(active);
+  const [refreshing,setRefreshing]=useState(false);
   const {play:playSound}=useForegroundSound();
   const freshMessages=useFreshSoundEvents(session.token);
   const blocking = useBlocking(session);
@@ -56,6 +60,7 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const [conversations,setConversations]=useState<Conversation[]>([]);
+  const [conversationsLoaded,setConversationsLoaded]=useState(false);
   const [conversationError,setConversationError]=useState('');
   const [friendsLoaded,setFriendsLoaded]=useState(false);
   const [snapshot, setSnapshot] = useState<Snapshot>(empty);
@@ -65,11 +70,12 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
   const [selected, setSelected] = useState<Player | null>(null);
   const [chatNow, setChatNow] = useState(Date.now);
   useEffect(() => {
-    if (!selected) return;
+    if (!selected||!visibleActivity) return;
     setChatNow(Date.now());
     const timer = setInterval(() => setChatNow(Date.now()), 30000);
     return () => clearInterval(timer);
-  }, [selected?.user_id]);
+  }, [selected?.user_id,visibleActivity]);
+  const histories=useRef(new Map<string,Message[]>());
   const [messages, setMessages] = useState<Message[]>([]);
   const outgoing=useOutgoingChat<Message>(session.token);
   const visibleMessages=outgoing.rows(selected?.user_id??'',messages);
@@ -82,6 +88,18 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
   const busy=localBusy||!!transport?.busy, error=transport?.error||localError;
   const sending = useRef(false);
   const [sendError, setSendError] = useState('');
+  const [historyPending,setHistoryPending]=useState(false);
+  const [openingPlayer,setOpeningPlayer]=useState<string|null>(null);
+  function openConversation(player:Player){
+    const cached=histories.current.get(player.user_id);
+    const preview=conversations.find(row=>row.user_id===player.user_id);
+    const initial=cached??(preview?[{...preview,recipient_id:preview.sender_id===session.user_id?player.user_id:session.user_id}]:[]);
+    setMessages(initial);setViewedConversation(cached?player.user_id:null);setHistoryPending(true);setSendError('');setSelected(player);
+  }
+  async function startConversation(player:Player){
+    setOpeningPlayer(player.user_id);
+    try{await rules.run(()=>openConversation(player));}finally{setOpeningPlayer(current=>current===player.user_id?null:current);}
+  }
   useEffect(()=>{
     const sent=transport?.sent;
     if(sent)setDrafts(current=>current[sent.recipient]===sent.text?{...current,[sent.recipient]:''}:current);
@@ -90,7 +108,7 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
   const initialOpened=useRef(onInitialOpen);initialOpened.current=onInitialOpen;
   const [initialAttempt,setInitialAttempt]=useState(0),[initialError,setInitialError]=useState('');
   useEffect(()=>{
-    if(!initialPlayerId)return;
+    if(!initialPlayerId||!visibleActivity)return;
     setInitialError('');
     const controller=new AbortController();
     void request<Snapshot>('/friends?include_presence=true',session,undefined,controller.signal).then(value=>{
@@ -98,44 +116,51 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
       setSnapshot(value);
       const player=value.friends.find(friend=>friend.user_id===initialPlayerId);
       if(!player){setInitialError(ui('feedback.notification_chat_unavailable'));return;}
-      void rules.run(()=>{if(!controller.signal.aborted){setSelected(player);initialOpened.current?.();}});
+      void rules.run(()=>{if(!controller.signal.aborted){openConversation(player);initialOpened.current?.();}});
     }).catch(failure=>{if(!controller.signal.aborted)setInitialError(playerError(failure));});
     return()=>controller.abort();
-  },[initialPlayerId,initialRequestId,initialAttempt,session.token]);
+  },[initialPlayerId,initialRequestId,initialAttempt,session.token,visibleActivity]);
   async function refresh(signal?: AbortSignal) {
-    const value = await request<Snapshot>('/friends?include_presence=true', session, undefined, signal);
-    if (!signal?.aborted) {
-      setSnapshot(value);setFriendsLoaded(true);
-      setSelected(current => current && !value.friends.some(friend => friend.user_id === current.user_id) ? null : current);
-    }
-    if (onlineOnly && !signal?.aborted) {
-      try {
-        const rows=await request<Conversation[]>('/friends/conversations',session,undefined,signal);
-        if(!signal?.aborted){setConversations(rows);setConversationError('');}
-      } catch(failure){if(!signal?.aborted)setConversationError(retryingError(failure,ui('social.conversations_unavailable')));}
-    }
+    // Independent reads start together; either can render without waiting for the other.
+    const conversationsRead=onlineOnly?request<Conversation[]>('/friends/conversations',session,undefined,signal).then(rows=>{
+      if(!signal?.aborted){setConversations(rows);setConversationsLoaded(true);setConversationError('');}
+    }).catch(failure=>{if(!signal?.aborted)setConversationError(retryingError(failure,ui('social.conversations_unavailable')));}):Promise.resolve();
+    let value:Snapshot;
+    try {
+      value=await request<Snapshot>('/friends?include_presence=true',session,undefined,signal);
+      if(!signal?.aborted){
+        setSnapshot(value);setFriendsLoaded(true);
+        for(const id of histories.current.keys())if(!value.friends.some(friend=>friend.user_id===id))histories.current.delete(id);
+        setSelected(current=>current&&!value.friends.some(friend=>friend.user_id===current.user_id)?null:current);
+      }
+    } finally {await conversationsRead;}
     return value;
   }
   useEffect(() => {
+    if(!visibleActivity)return;
     const controller = new AbortController(); let timer: ReturnType<typeof setTimeout>;
     async function poll() {
+      setRefreshing(true);
       try { await refresh(controller.signal); if (!controller.signal.aborted) setError(''); }
       catch (failure) { if (!controller.signal.aborted) { setSnapshot(current => ({...current, online_friend_ids: []})); setError(retryingError(failure, ui("feedback.could_not_load_friends"))); } }
-      finally { if (!controller.signal.aborted) timer = setTimeout(poll, 3000); }
+      finally { if (!controller.signal.aborted) {setRefreshing(false);timer = setTimeout(poll, 3000);} }
     }
     void poll(); return () => { controller.abort(); clearTimeout(timer); };
-  }, [session.token, onlineOnly, blocking.revision]);
+  }, [session.token, onlineOnly, blocking.revision,visibleActivity]);
   useEffect(() => {
-    if (!selected) { setMessages([]);setViewedConversation(null); return; }
+    if (!selected) { setMessages([]);setViewedConversation(null);setHistoryPending(false); return; }
+    if(!visibleActivity)return;
     const controller = new AbortController(); let timer: ReturnType<typeof setTimeout>;
     let soundHistoryLoaded=false;
     setFirstUnread(undefined);
     async function poll() {
       try {
-        const unread=initialPlayerId===selected!.user_id&&!soundHistoryLoaded
-          ? await request<{kind:string;read:boolean;actor?:{user_id:string};payload?:{scope?:string;source_id?:string}}[]>('/notifications',session,undefined,controller.signal).catch(()=>[]) : [];
+        const unreadRead=initialPlayerId===selected!.user_id&&!soundHistoryLoaded
+          ? request<{kind:string;read:boolean;actor?:{user_id:string};payload?:{scope?:string;source_id?:string}}[]>('/notifications',session,undefined,controller.signal).catch(()=>[]) : Promise.resolve([]);
         const value = await (transport ? transport.history(selected!.user_id, controller.signal) : request<Message[]>(`/friends/${encodeURIComponent(selected!.user_id)}/messages`, session, undefined, controller.signal));
+        const unread=await unreadRead;
         if (!controller.signal.aborted) {
+          setHistoryPending(false);
           const freshIds=freshMessages(value.map(message=>`${selected!.user_id}:${message.id}`),!soundHistoryLoaded);
           if(!soundHistoryLoaded){
             const ids=new Set(unread.filter(n=>!n.read&&n.kind==='chat'&&n.actor?.user_id===selected!.user_id&&n.payload?.scope==='direct').map(n=>n.payload?.source_id));
@@ -144,12 +169,15 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
           soundHistoryLoaded=true;
           const fresh=value.filter(message=>freshIds.includes(`${selected!.user_id}:${message.id}`)&&message.sender_id!==session.user_id);
           if(fresh?.length)playSound('chat',`chat:${fresh.at(-1)!.id}`);
-          setMessages(current=>preserveRemovals(current,value));setViewedConversation(selected!.user_id); setError(''); }
-      } catch (failure) { if (!controller.signal.aborted) setError(retryingError(failure, ui("feedback.could_not_load_messages"))); }
+          const rows=preserveRemovals(histories.current.get(selected!.user_id)??[],value);
+          histories.current.delete(selected!.user_id);histories.current.set(selected!.user_id,rows);
+          while(histories.current.size>8)histories.current.delete(histories.current.keys().next().value!);
+          setMessages(current=>preserveRemovals(current,rows));setViewedConversation(selected!.user_id); setError(''); }
+      } catch (failure) { if (!controller.signal.aborted) {setHistoryPending(false);setError(retryingError(failure, ui("feedback.could_not_load_messages")));} }
       finally { if (!controller.signal.aborted) timer = setTimeout(poll, 1500); }
     }
     void poll(); return () => { controller.abort(); clearTimeout(timer); };
-  }, [selected?.user_id, session.token, transport?.history,initialRequestId]);
+  }, [selected?.user_id, session.token, transport?.history,initialRequestId,visibleActivity]);
 
   async function search() {
     if (query.trim().length < 2 || busy) return;
@@ -205,7 +233,7 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
     </View>{action}
     {(blocking.reporting || blocking.enabled || snapshot.friends.some(f=>f.user_id===player.user_id)) && player.user_id!==session.user_id &&
       <ReportButton session={session} enabled={blocking.reporting} player={{user_id:player.user_id,display_name:label(player)}} renderTrigger={report=>
-        <BlockPlayerButton session={session} enabled={blocking.enabled} player={{user_id:player.user_id,display_name:label(player)}} onBlocked={()=>{setResults(current=>current.filter(p=>p.user_id!==player.user_id));setSelected(null);setMessages([]);}} renderTrigger={block=>
+        <BlockPlayerButton session={session} enabled={blocking.enabled} player={{user_id:player.user_id,display_name:label(player)}} onBlocked={()=>{histories.current.delete(player.user_id);setResults(current=>current.filter(p=>p.user_id!==player.user_id));setSelected(null);setMessages([]);}} renderTrigger={block=>
           <ContextMenu label={`${ui('common.player_actions')} · ${label(player)}`}>{close=><>
             {blocking.reporting && <MenuAction label={`⚑ ${ui('moderation.report_player')}`} onPress={()=>{close();report();}}/>}
             {blocking.enabled && <MenuAction label={`⊘ ${ui('safety.confirm')}`} onPress={()=>{close();block();}}/>}
@@ -215,6 +243,7 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
   </View>;
 
   return <View style={styles.panel}>
+    {(refreshing||!!openingPlayer)&&<ActivityLine/>}
     <View style={{paddingVertical:8,borderBottomWidth:1,borderColor:colors.border}}><Text accessibilityRole="header" style={[styles.title,onlineOnly&&{textAlign:'center'}]}>{onlineOnly ? ui("social.lobby_chat") : ui("common.friends")}</Text></View>
     {!onlineOnly && <Text style={styles.detail}>{ui("social.friends_help")}</Text>}
     {!!initialPlayerId&&!!initialError&&<><Text accessibilityRole="alert" style={styles.error}>{initialError}</Text><Pressable accessibilityRole="button" onPress={()=>{setInitialError('');setInitialAttempt(v=>v+1);}}><Text style={styles.link}>{ui('rooms.retry_invitation')}</Text></Pressable></>}
@@ -239,25 +268,25 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
     </>}
     {onlineOnly ? <>
       <View style={styles.sectionHeading}><Text style={styles.heading}>{ui('social.online_friends')}</Text><Text style={styles.count}>{visibleFriends.length}</Text></View>
-      {!visibleFriends.length ? <Text style={styles.detail}>{ui('social.no_online_friends')}</Text> : <OnlinePeopleStrip people={visibleFriends} onlineIds={snapshot.online_friend_ids || []} onPress={player=>void rules.run(()=>{setMessages([]);setSendError('');setSelected(player);})}/>}
+      {!visibleFriends.length ? friendsLoaded&&<Text style={styles.detail}>{ui('social.no_online_friends')}</Text> : <OnlinePeopleStrip people={visibleFriends} onlineIds={snapshot.online_friend_ids || []} onPress={player=>void startConversation(player)}/>}
       <ChatTableSeparator/>
       <View style={{flexDirection:'row',alignItems:'center',gap:20}}><Text accessibilityRole="header" style={styles.heading}>{ui('social.conversations')}</Text>
         <View style={styles.searchField}><Ionicons name="search-outline" size={16} color={colors.textMuted}/><FormInput testID="chat-friend-search" accessibilityLabel={ui('social.searching_friends')} placeholder={ui('social.searching_friends')} placeholderTextColor={colors.textMuted} value={friendQuery} onChangeText={setFriendQuery} maxLength={50} autoCapitalize="none" style={[styles.input,{padding:8,fontSize:12}]}/></View>
       </View>
       {!!conversationError && <Text activity accessibilityRole="alert" style={styles.error}>{conversationError}</Text>}
-      {!friendQuery.trim() && !conversationError && !conversations.length && <Text style={styles.detail}>{ui('social.no_conversations')}</Text>}
+      {friendsLoaded && conversationsLoaded && !friendQuery.trim() && !conversationError && !conversations.length && <Text style={styles.detail}>{ui('social.no_conversations')}</Text>}
       {!!friendSearch && !matchingFriends.length && <Text style={styles.detail}>{ui('social.no_matching_friends')}</Text>}
       <View testID="chat-conversations" style={{gap:10}}>{conversationRows.map(({user_id,message})=>{
         const player=snapshot.friends.find(friend=>friend.user_id===user_id);
         if(!player)return null;
         const online=!!snapshot.online_friend_ids?.includes(player.user_id);
         return <Pressable key={player.user_id} accessibilityRole="button" accessibilityLabel={ui('social.chat_with_player',{player:label(player)})}
-          onPress={()=>void rules.run(()=>{setMessages([]);setSendError('');setSelected(player);})}
+          onPress={()=>void startConversation(player)}
           style={{flexDirection:'row',alignItems:'center',gap:12,padding:14,minHeight:86,borderRadius:radii.large,backgroundColor:colors.surfaceRaised,borderWidth:1,borderColor:colors.borderSubtle}}>
           <View><PlayerAvatar size={48} uri={player.avatar_url || undefined}/>{online && <View style={{position:'absolute',right:0,bottom:0,width:10,height:10,borderRadius:5,backgroundColor:colors.success,borderWidth:2,borderColor:colors.surfaceRaised}}/>}</View>
           <View style={{flex:1,minWidth:0,gap:5}}><Text numberOfLines={1} style={styles.name}>{label(player)}</Text><Text numberOfLines={1} style={styles.detail}>{message ? message.removed?ui('moderation.removed'):message.text : ui('common.no_messages_yet')}</Text></View>
           <View style={{alignSelf:'stretch',alignItems:'flex-end',justifyContent:'space-between',gap:8}}>
-            <ContextMenu label={`${ui('common.player_actions')} · ${label(player)}`}>{close=><MenuAction label={ui('social.message')} onPress={()=>{close();void rules.run(()=>{setMessages([]);setSendError('');setSelected(player);});}}/>}</ContextMenu>
+            <ContextMenu label={`${ui('common.player_actions')} · ${label(player)}`}>{close=><MenuAction label={ui('social.message')} onPress={()=>{close();void startConversation(player);}}/>}</ContextMenu>
             {message && <NativeText style={[styles.detail,{fontSize:10,lineHeight:14}]}>{new Date(message.sent_at).toDateString()===new Date().toDateString()?new Date(message.sent_at).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):new Date(message.sent_at).toLocaleDateString(undefined,{month:'short',day:'numeric'})}</NativeText>}
           </View>
         </Pressable>;
@@ -266,15 +295,15 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
     {!visibleFriends.length && <Text style={styles.detail}>{onlineOnly ? ui("social.no_online_friends") : ui("social.no_friends_yet")}</Text>}
     <ScrollView testID="friends-list" nestedScrollEnabled style={expandedFriends ? {maxHeight:420} : undefined} scrollEnabled={expandedFriends}>
     {(friendLimit && !expandedFriends ? visibleFriends.slice(0,friendLimit) : visibleFriends).map(player => row(player, <View style={styles.actions}>
-      <Pressable accessibilityRole="button" accessibilityLabel={ui('social.message')} onPress={() => void rules.run(() => { setMessages([]); setError(''); setSendError(''); setSelected(player); })} style={styles.linkButton}><View style={{flexDirection:'row',alignItems:'center',gap:6}}><Ionicons name="chatbubble-outline" size={18} color={colors.accent}/><Text style={styles.link}>{ui("social.message")}</Text></View></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={ui('social.message')} onPress={() => void startConversation(player)} style={styles.linkButton}><View style={{flexDirection:'row',alignItems:'center',gap:6}}><Ionicons name="chatbubble-outline" size={18} color={colors.accent}/><Text style={styles.link}>{ui("social.message")}</Text></View></Pressable>
 
     </View>))}
 
     </ScrollView>
     {!!friendLimit && visibleFriends.length>friendLimit && !expandedFriends && <Pressable accessibilityRole="button" onPress={()=>setExpandedFriends(true)} style={styles.linkButton}><Text style={styles.link}>{ui("common.more")}</Text></Pressable>}</>}
 
-    {rules.view}
-    {selected && <RoomSheet visible title={ui("social.chat_with_player", { "player": label(selected) })} closeLabel={ui("common.close_private_chat")} onClose={() => setSelected(null)} scrollable={false}
+    {active&&rules.view}
+    {selected && <RoomSheet visible={active} title={ui("social.chat_with_player", { "player": label(selected) })} closeLabel={ui("common.close_private_chat")} onClose={() => setSelected(null)} scrollable={false}
       footer={<FormFooter>
         {!!(sendError || error) && <Text activity accessibilityRole="alert" style={styles.error}>{sendError || error}</Text>}
         {!available && <Text style={styles.detail}>{ui("social.friend_unavailable")}</Text>}
@@ -284,7 +313,8 @@ export function FriendsPanel({ session, transport, onlineOnly = false, initialPl
       </FormFooter>}>
       <ScrollView ref={chatScroll.scroll} testID="private-chat-history" onScroll={chatScroll.onScroll} scrollEventThrottle={16} onLayout={chatScroll.followLayout} onContentSizeChange={chatScroll.followLayout} style={{ flex: 1, minHeight: 0 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
         <Text style={[styles.detail,{textAlign:'center',marginBottom:12}]}>{ui('social.times_local')}</Text>
-        {!visibleMessages.length && <Text style={styles.detail}>{ui("common.no_messages_yet")}</Text>}
+        {historyPending&&<View testID="private-chat-loading" style={{gap:12}}><ActivityLine/>{!visibleMessages.length&&[0,1,2].map(index=><View key={index} style={{alignSelf:index===1?'flex-end':'flex-start',width:index===1?'55%':'70%',height:42,borderRadius:12,backgroundColor:colors.surfaceRaised}}/>)}</View>}
+        {!historyPending&&viewedConversation===selected.user_id&&!visibleMessages.length && <Text style={styles.detail}>{ui("common.no_messages_yet")}</Text>}
         {visibleMessages.map((message,index) => <View key={message.id} onLayout={event=>chatScroll.focusLayout(message.id,event.nativeEvent.layout.y)}>
           {(index === 0 || localChatDay(message.sent_at) !== localChatDay(visibleMessages[index-1].sent_at)) &&
             <View testID="private-chat-date-separator" style={{flexDirection:'row',alignItems:'center',gap:10,marginVertical:12}}>

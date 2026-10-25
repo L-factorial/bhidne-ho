@@ -1,3 +1,4 @@
+import {RetainedLobbyTab} from '../components/RetainedLobbyTab';
 import {diagnostic} from '../diagnostics/events';
 import {SignupValidation} from '../components/SignupValidation';
 import {validSignupUsername,validSignupPassword} from '../auth/signupValidation';
@@ -579,12 +580,12 @@ export function SharedRoomsScreen({ onExit, invitation: externalInvitation, dism
           <View style={styles.roomGrid}>{publicRooms.map(roomCard)}</View>
           {!publicRooms.length && <Text style={styles.description}>{ui("rooms.no_public_rooms_yet")}</Text>}
         </RoomSheet>
-        {session && !expired && lobbyTab === 'chat' && <FriendsPanel key={session.user_id + '-chat'} session={session} onlineOnly initialPlayerId={chatPlayer} initialRequestId={chatRequestId} onInitialOpen={()=>{if(invitation?.otherUserId===chatPlayer)clearInvitation();}} />}
-        {session && !expired && lobbyTab === 'ledger' && <LobbyLedger session={session} onOpenRoom={target => { requestedLedgerRoom.current = target.room_id; setLinkedMatch(undefined); setLinkedEntry(undefined); setTransferring(false); enterRoom(target); }} />}
+        {session && !expired && <RetainedLobbyTab key={session.user_id+':'+session.token+'-chat'} active={lobbyTab==='chat'}><FriendsPanel active={lobbyTab==='chat'} key={session.user_id + '-chat'} session={session} onlineOnly initialPlayerId={chatPlayer} initialRequestId={chatRequestId} onInitialOpen={()=>{if(invitation?.otherUserId===chatPlayer)clearInvitation();}} /></RetainedLobbyTab>}
+        {session && !expired && <RetainedLobbyTab key={session.user_id+':'+session.token+'-ledger'} active={lobbyTab==='ledger'}><LobbyLedger active={lobbyTab==='ledger'} session={session} onOpenRoom={target => { requestedLedgerRoom.current = target.room_id; setLinkedMatch(undefined); setLinkedEntry(undefined); setTransferring(false); enterRoom(target); }} /></RetainedLobbyTab>}
         {session && !expired && lobbyTab === 'players' && <View style={styles.playersArea}>
           <FriendsPanel session={session} initialFriendId={friendNotification} friendLimit={friendNotification?undefined:6} />
         </View>}
-        {session && !expired && lobbyTab === 'games' && <ActiveGames runtime={shared.runtime} activity={shared.runtime?.root} onCreateTable={() => setCreateTableOpen(true)} onBrowseRooms={() => {setLobbyTab('rooms');setRoomTab('friends');}} session={session} busy={busy} enter={(table, action) => void enterActiveTable(table, action)} />}
+        {session && !expired && <RetainedLobbyTab key={session.user_id+':'+session.token+'-games'} active={lobbyTab==='games'}><ActiveGames active={lobbyTab==='games'} runtime={shared.runtime} activity={shared.runtime?.root} onCreateTable={() => setCreateTableOpen(true)} onBrowseRooms={() => {setLobbyTab('rooms');setRoomTab('friends');}} session={session} busy={busy} enter={(table, action) => void enterActiveTable(table, action)} /></RetainedLobbyTab>}
 
       </>}
     </View>

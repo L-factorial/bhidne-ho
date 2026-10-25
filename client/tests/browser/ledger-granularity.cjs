@@ -17,6 +17,7 @@ const site=process.env.TEST_WEB_URL||'http://127.0.0.1:8119';
     {game_id:'g2',game_type:'flush',created_at:'2026-10-22T01:20:00Z',settled:false,record_balances:rows(-30,30,0)}]},
    {table_id:'t2',table_name:'Weekend table',game_type:'marriage',created_at:'2026-10-21T00:00:00Z',game_count:1,balances:rows(40,-40,0),record_balances:rows(40,-40,0),transactions:[],suggested_transfers:[{payer_id:'u1',payee_id:'u0',amount:40}],games:[{game_id:'g3',game_type:'marriage',created_at:'2026-10-21T00:30:00Z',record_balances:rows(40,-40,0)}]}]};
   const notice={id:'notice1',kind:'settlement_requested',actor:{user_id:'u2',display_name:'Amit'},created_at:Date.now(),read:false,payload:{room_id:'r1',table_id:'t1',batch_id:'b2',transfer_id:'receive',amount:15,room_name:'Friday cards',table_name:'Evening table'}};
+  let ledgerGate=null;
   const writes=[],errors=[];let notifications=[notice];page.on('pageerror',e=>errors.push(e.message));
   const room={room_id:'r1',name:'Friday cards',creator_id:'u0',members:['u0','u1','u2'],connected_members:['u0'],is_member:true};
   await context.addInitScript(site=>{localStorage.setItem('bhidne.language','en');sessionStorage.setItem('bhidne.session.v1:'+site,JSON.stringify({session:{user_id:'u0',token:'fixture'},room:null,game:null}));},site);
@@ -28,7 +29,7 @@ const site=process.env.TEST_WEB_URL||'http://127.0.0.1:8119';
    if(p==='/ledger/rooms')body={items:[{room_id:'r1',name:'Friday cards'}],next_room_id:null};
    else if(p==='/rooms')body=[room];
    else if(p==='/rooms/r1'||p==='/rooms/r1/enter')body=room;
-   else if(p==='/rooms/r1/ledger')body=ledger;
+   else if(p==='/rooms/r1/ledger'){if(ledgerGate)await ledgerGate;body=ledger;}
    else if(p==='/rooms/r1/ledger/settlements'&&req.method()==='POST'){
     writes.push(p);const created={...preview,table_id:'t1',batch_id:'new',transfer_id:'newpay',status:'OPEN'};
     ledger.tables[0].suggested_transfers=[];ledger.tables[0].transactions.push(created);ledger.personal_settlements.push(created);body={};
@@ -55,7 +56,16 @@ const site=process.env.TEST_WEB_URL||'http://127.0.0.1:8119';
   await page.goto(site);await page.getByTestId('lobby-navigation').getByRole('tab',{name:'Ledger',exact:true}).click();
   await page.getByTestId('pending-ledger-room-r1').click();const sheet=page.getByTestId('room-sheet');await sheet.waitFor();
   assert.deepEqual(await sheet.getByRole('tab').allTextContents(),['Balances','Table ledgers','My settlement']);
-  const balances=sheet.getByTestId('ledger-balances');await balances.waitFor();assert.match(await balances.innerText(),/\+20/);await shot('01-balances');
+  const balances=sheet.getByTestId('ledger-balances');await balances.waitFor();assert.match(await balances.innerText(),/\+20/);
+  // Reopening renders the session's display snapshot while a fresh read is held.
+  await page.getByTestId('room-sheet-close').click();
+  await sheet.waitFor({state:'hidden'});
+  let releaseLedger;ledgerGate=new Promise(resolve=>releaseLedger=resolve);
+  await page.getByRole('button',{name:'Room ledger',exact:true}).first().click();
+  await balances.waitFor();assert.match(await balances.innerText(),/\+20/);
+  await sheet.getByTestId('activity-line').waitFor();
+  ledgerGate=null;releaseLedger();await sheet.getByTestId('activity-line').waitFor({state:'hidden'});
+  await shot('01-balances');
   await sheet.getByRole('tab',{name:'Table ledgers',exact:true}).click();await sheet.getByText('Created',{exact:false}).first().waitFor();await shot('02-tables');
   await sheet.getByTestId('ledger-table-card-t1').getByRole('button').click();const detail=sheet.getByTestId('ledger-table-detail');await detail.waitFor();
   assert.deepEqual(await detail.getByRole('tab').allTextContents(),['Entire session','Games breakdown','My settlement']);

@@ -12616,3 +12616,121 @@ Capacity, observability, database HA and operational readiness remain deferred.
   only; no deployment, signed native build or live gameplay writes.
 - Next: user review and native-device readability validation before a separately
   authorized release. Deferred runtime operational/capacity scope unchanged.
+
+
+## 2026-10-24: Direct deployment of Flush stats and Play UI (55814be)
+
+- User explicitly authorized direct deployment to both application servers and,
+  after automatic review required separate authorization, cancellation of GitHub
+  production run 40146048183. Normal cancellation stalled; force cancellation
+  completed with conclusion cancelled before activation. Confirmed no active
+  production workflows. Backend CI was canceled, not passed.
+- Deployed clean committed revision 55814be6c83ee8cc9292872ae594a69c160e73d4.
+  Built its checksum-verified archive on app1 using Dockerfile.production;
+  all 577 frontend tests, TypeScript and production export passed. Local release
+  and web deployment checks passed 44 tests. Backend/receiver source matches the
+  previous release; no migrations or runtime environment changes were needed.
+- Verified established SSH host keys and both installed receiver hashes. App1
+  preflight passed; copied the identical image to app2 with archive checksum
+  verification and passed app2 preflight. Activated backends sequentially with
+  release locks, peer-health checks and rollback retained, then switched both
+  frontends after both backends were healthy.
+- Both hosts (168.144.105.49 and 165.245.180.205) run immutable image
+  sha256:fc2c0a38505b68b8631241d7e5b39e5be5e07161ec6cbe680c5658f171514546.
+  Host/public index SHA-256:
+  520dbdd5b3e7b29f527a83ea1565dbaa276f9815b449e5fd976c73dfd65593b4.
+  Public JavaScript SHA-256 matches both hosts:
+  a48d493cac2cb9fbf4a6c18c33199c56ab7eae16f01b3e1695f05904bc99f263.
+  Both direct and public API health report ok. Public Chrome checks passed at
+  390/1280px for welcome/sign-in, assets, viewport bounds and no uncaught errors
+  or server errors. Writes and WebSockets were blocked during these checks;
+  authenticated game layout was validated earlier with isolated local fixtures.
+- Evidence: /private/tmp/bhidne-55814be-verification.json and public phone/desktop
+  PNGs. Build log/source/helper/image remain under /srv/bhidne-prod/builds/55814be.
+- Next: refresh production web to review the new UI. Installed mobile apps still
+  require a separate signed client build; native-device validation is outstanding.
+  This post-release note is local/uncommitted. Deferred runtime capacity and
+  operational scope remains unchanged.
+
+
+## 2026-10-24: Faster Home, Ledger and Chat navigation
+
+- User authorized the proposed frontend performance changes after planning and
+  risk review. No backend, deployment, gameplay or operational capacity changes.
+- Completed Home/shared increment: retain at most one instance of each visited
+  Home/Ledger/Chat tab, keyed by user and session, and remove them on logout,
+  expiry or leaving the lobby branch. Hidden views are removed from layout and
+  accessibility traversal. Reads pause while hidden/backgrounded and refresh
+  immediately on return; existing server action validation remains authoritative.
+  Home keeps its merged tables/invitations snapshot during refresh, without
+  asserting a cold empty state before both reads finish. Request coalescing and
+  abort/version protections are retained.
+- Empty Play artwork now uses ten bundled 240px JPEG previews (~18–20KB each,
+  versus 225–290KB originals). Preloads only the chosen preview while the initial
+  feed requests run. The random choice remains stable across polling/tab switches;
+  full-size playing-card artwork and saved preferences are unchanged.
+- Completed Ledger increment: initial room pages render progressively; refreshing
+  a completed list keeps it until a full replacement succeeds. Room balance/detail
+  snapshots use a separate memory-only cache (32 entries, five-minute lifetime),
+  scoped by user/token/room and cleared by logout/account changes. Generation and
+  read ordering reject late writers. Room reads coalesce, but refreshes after
+  settlement writes explicitly wait out older reads and fetch again. Server-issued
+  transfer matching, commands, confirmation and permission checks are unchanged.
+- Completed Chat increment: friends/presence and conversation reads start together;
+  either result can render independently. Retention preserves local drafts and
+  existing outgoing-message state through tab switches. Up to eight recent
+  conversation histories are retained in that session component for immediate
+  reopening; removed friendships/explicit blocks discard their cached history.
+  Pending-send/retry IDs,
+  server message ordering/deduplication, moderation and unread logic remain intact.
+  No-conversation/no-online-friend states wait for their initial successful reads.
+  Existing activity lines show nonblocking refresh progress; failures preserve
+  readable cached results with the existing error/retry handling.
+- Verification: TypeScript, fresh Expo export, all 582 frontend tests and diff
+  checks passed. Added tests cover expiry, boundedness, account isolation, logout
+  invalidation and late cache writers. Delayed-response browser tests verify
+  progressive Ledger, concurrent Chat reads, retained drafts, background refresh
+  replacing displayed data, no browsing writes and no hidden Home/Ledger polling
+  over a full 15-second interval. Play regression passed at 320/390/1032/1280px.
+  Ledger reopening with a held response confirms balances remain visible during
+  revalidation; full settlement request/acceptance and notification regression
+  passed at 320/390/1280px. Direct/room optimistic-chat retry checks passed.
+- Controlled 390px fixture benchmark before -> after (milliseconds): Home return
+  1826 -> 34; Ledger return 3323 -> 33; Chat return 3317 -> 59. Initial Ledger
+  first-content 1512 -> 422 and Chat 803 -> 298. Cached chat history reopened in
+  58ms while its fresh response was deliberately delayed by 1500ms. These are local delayed-response
+  measurements, not production/network or physical-device performance guarantees.
+  Evidence: /private/tmp/bhidne-lobby-{baseline,after}.json and
+  /private/tmp/bhidne-lobby-{unit,performance-build}.log; reproducible test:
+  client/tests/browser/lobby-navigation-performance.cjs.
+- Exact next step: user review, followed by native-device and production-like
+  latency checks before a separately authorized release. Cold loads still require
+  server data; retained tabs reset on page reload or leaving the lobby branch.
+  No commit, push, deployment or native build. Prior deployment note and unrelated
+  button-theme screenshots remain preserved. Runtime operations stay deferred.
+
+
+## 2026-10-24: Individual Chat opening feedback and first-history preview
+
+- User reported the empty window while opening an individual lobby conversation.
+  First-time opens now immediately seed the visible history from the existing
+  server-provided conversation preview when available. Otherwise, show lightweight
+  placeholder bubbles and the shared activity line while history loads. Existing
+  cached full histories still render immediately. No messages are fabricated.
+- No messages yet is now shown only after a successful history response confirms
+  an empty conversation. Failed reads retain previews/cached history and existing
+  error/retry behavior. Recipient changes keep their histories isolated.
+- Conversation entry shows activity feedback during the unchanged Community Rules
+  gate. Notification/unread and history reads start concurrently for deep links,
+  retaining acceptance checks, unread anchoring, abort guards and server checks.
+- Verification: TypeScript, fresh web export and diff checks passed. Delayed local
+  browser checks verify the first-history preview/loading feedback, cached reopen,
+  drafts, progressive Ledger and hidden-tab polling. A truly empty second
+  conversation shows its empty state only after the delayed response, and never
+  displays the previous recipient's messages. Direct/room optimistic-send
+  regressions passed: immediate bubbles, rejected sends, retry and deduplication.
+  No live messages or production requests were used.
+- Next: review locally and validate on native before a separately authorized
+  release. First-time full history still requires a server response; feedback
+  and existing previews avoid presenting a blank/incorrect empty view meanwhile.
+  Local only; this change and the preceding navigation work are not deployed.
