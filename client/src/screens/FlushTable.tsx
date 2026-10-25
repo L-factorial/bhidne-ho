@@ -1,3 +1,5 @@
+import {FlushPlayerStats} from '../components/FlushPlayerStats';
+import {flushPlayerNet} from '../multiplayer/flushTable';
 import {gameControlStyle,gameControlText} from '../gameControls';
 import {CutDeckActions} from '../components/CutDeckActions';
 import {useLiveEffects} from '../multiplayer/LivePresentationContext';
@@ -236,7 +238,7 @@ export function FlushTable({ snapshot, busy, error: requestError, connectionRead
             instruction={ui("common.your_turn_action", { "action": turnText })}/>
         </View>}
         <ScrollView testID="flush-hand-content" nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{display:!snapshot.your_player_id || !!mine && handOpen && !stats.open?'flex':'none',minHeight:0,flexShrink:1,alignSelf:'stretch'}} contentContainerStyle={{alignItems:'center',gap:6}} accessibilityElementsHidden={!!mine&&(!handOpen||stats.open)} importantForAccessibility={mine&&(!handOpen||stats.open)?'no-hide-descendants':'auto'}>
-        {!ended && mine && !preparing && !pub?.settlement && <View testID="flush-hand-visibility" style={s.handVisibility}><Text style={s.handVisibilityText}>{visibility}</Text></View>}
+        {!ended && mine && !preparing && !pub?.settlement && <View testID="flush-hand-visibility" style={s.handVisibility}>{ownPlayer&&<FlushPlayerStats detailed id="hand" net={flushPlayerNet(pub?.round_results||[],ownPlayer.player_id,ownPlayer.total_contribution,false)} bet={ownPlayer.total_contribution}/>}<Text style={s.handVisibilityText}>{visibility}</Text></View>}
         {!ended && mine && !preparing && !pub?.settlement && <View style={s.cards} testID="flush-own-cards">
           <View style={s.scaledCards}><FlushCards tapToToggle shown={cardsShown} onShownChange={setCardsShown} key={pub?.round_number} cards={mine.cards} /></View>
         </View>}
@@ -361,7 +363,7 @@ const styles = (c: ThemeColors) => StyleSheet.create({
   primaryButtonText: {color:'#20202a'},
   dangerButton: {backgroundColor:'#1b263e',borderColor:'#e78ba0'},
   dangerButtonText: {color:'#ffb9c6'},
-  handVisibility: {alignSelf:'stretch',alignItems:'flex-end',paddingHorizontal:12,paddingTop:4},
+  handVisibility: {alignSelf:'stretch',flexDirection:'row',justifyContent:'space-between',alignItems:'flex-start',paddingHorizontal:12,paddingTop:4},
   handVisibilityText: {color:c.textMuted,fontFamily:fonts.medium,fontSize:12},
   chosen: { borderColor: c.accent, backgroundColor: c.surfaceSelected },
   field: { gap: 6 }, input: { padding: 12, borderRadius: radii.medium, borderWidth: 1, borderColor: c.border, color: c.text },

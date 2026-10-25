@@ -93,13 +93,13 @@ export function ActiveGames({ session, busy, enter, onBrowseRooms, onCreateTable
   }
   const retry = <Pressable accessibilityRole="button" accessibilityLabel={ui("rooms.retry_active_games")} onPress={() => setRefresh(v => v + 1)} style={{ minHeight: 44, paddingHorizontal: 16, borderRadius: radii.medium, backgroundColor: c.primary, justifyContent: 'center' }}><Text style={{ color: c.onPrimary, fontFamily: fonts.medium }}>{ui("common.retry")}</Text></Pressable>;
   const createButton = (top = false) => (
-    <Pressable testID={top?"play-create-table":"empty-play-create-table"} accessibilityRole="button" accessibilityLabel={ui(top?'rooms.create_game_table_top':'rooms.create_game_table')} disabled={busy||discarding} accessibilityState={{disabled:busy||discarding}} onPress={onCreateTable}
+    <Pressable testID={top?"play-create-table":"empty-play-create-table"} accessibilityRole="button" accessibilityLabel={ui('rooms.create_game_table_top')} disabled={busy||discarding} accessibilityState={{disabled:busy||discarding}} onPress={onCreateTable}
       style={({pressed})=>({minHeight:64,paddingHorizontal:18,borderRadius: radii.large,borderWidth:2,borderColor:c.onPrimary,backgroundColor:c.primary,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:10,opacity:busy||discarding?visualStates.disabledOpacity:pressed?0.8:1})}>
-      <Ionicons name="add" size={26} color={c.onPrimary}/><Text style={{flexShrink:1,color:c.onPrimary,fontFamily:fonts.medium,fontSize:17}}>{ui(top?'rooms.create_game_table_top':'rooms.create_game_table')}</Text>
+      <Ionicons name="add" size={26} color={c.onPrimary}/><Text style={{flexShrink:1,color:c.onPrimary,fontFamily:fonts.medium,fontSize:17}}>{ui('rooms.create_game_table_top')}</Text>
     </Pressable>
   );
   return <View testID="active-games" style={{ gap: 14, paddingVertical: 16 }}>
-    {createButton(true)}
+    {hasTables && createButton(true)}
     {!!actionError&&<Text accessibilityRole="alert" style={{color:c.danger}}>{actionError}</Text>}
     {hasTables && <><View testID="active-games-heading" style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
       <Text accessibilityRole="header" style={{ flex: 1, color: c.text, fontFamily: fonts.editorial, fontSize: typography.pageTitle }}>{ui("rooms.available_tables")}</Text>

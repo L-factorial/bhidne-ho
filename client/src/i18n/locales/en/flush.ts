@@ -16,7 +16,7 @@ export default {
   "salami": "Salami",
 
   "pot": "Pot",
-  "seen_bet": "Seen Bet", "blind_bet": "Blind Bet", "round_contribution": "Round bet", "session_net": "Session net",
+  "seen_bet": "Seen Bet", "blind_bet": "Blind Bet", "round_contribution": "Round bet", "session_gain": "Session gain", "bet_in_game": "Bet in this game", "session_net": "Session net",
   "reveal_side_show": "Side show", "reveal_side_show_prompt": "Reveal the accepted side-show",
   "request_side_show_button": "SideShowRequest", "reject_side_show_button": "Reject side show",
   "side_show_accepted_notice": "{{player}} accepted {{requester}}'s side-show", "side_show_declined_notice": "{{player}} rejected {{requester}}'s side-show",

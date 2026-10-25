@@ -26,9 +26,9 @@ const table=(kind,id)=>({room_id:'room',room_name:'Friends Room',match_id:id,nam
   assert.equal(await page.getByTestId('active-game-filters').count(),0);
   delay=null;release();await page.getByRole('heading',{name:'Who’s up for a game?',exact:true}).waitFor();
   assert.equal(await page.getByTestId('active-games-heading').count(),0);assert.equal(await page.getByTestId('active-game-filters').count(),0);
-  assert.equal(await page.getByRole('button',{name:'Create game',exact:true}).count(),1,'one in-card Create action');
-  await page.getByRole('button',{name:'Create game table',exact:true}).waitFor();
-  const createBox=await page.getByRole('button',{name:'Create game',exact:true}).boundingBox();
+  assert.equal(await page.getByRole('button',{name:'Create game table',exact:true}).count(),1,'one in-card Create action');
+  assert.equal(await page.getByTestId('play-create-table').count(),0);
+  const createBox=await page.getByRole('button',{name:'Create game table',exact:true}).boundingBox();
   const browseBox=await page.getByRole('button',{name:'Browse rooms',exact:true}).boundingBox();
   assert.equal(createBox.width,browseBox.width);assert.equal(createBox.height,browseBox.height);
   assert.equal(createBox.x,browseBox.x);assert.ok(createBox.y+createBox.height<browseBox.y);

@@ -16,7 +16,7 @@ export default {
   "salami": "सलामी",
 
   "pot": "पोट",
-  "seen_bet": "हेरिएको दाउ", "blind_bet": "नहेरी दाउ", "round_contribution": "यस हातको दाउ", "session_net": "सत्रको खुद अंक",
+  "seen_bet": "हेरिएको दाउ", "blind_bet": "नहेरी दाउ", "round_contribution": "यस हातको दाउ", "session_gain": "सत्रको नाफा", "bet_in_game": "यस खेलको दाउ", "session_net": "सत्रको खुद अंक",
   "reveal_side_show": "साइड शो", "reveal_side_show_prompt": "स्वीकृत साइड शोका पत्ता खोल्नुहोस्",
   "request_side_show_button": "SideShowRequest", "reject_side_show_button": "साइड शो अस्वीकार",
   "side_show_accepted_notice": "{{player}} ले {{requester}} को साइड शो स्वीकार गर्नुभयो", "side_show_declined_notice": "{{player}} ले {{requester}} को साइड शो अस्वीकार गर्नुभयो",

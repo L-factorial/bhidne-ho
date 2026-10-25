@@ -11,7 +11,7 @@ const {fixture}=require('./game-stats.cjs');
   await p.evaluate(()=>document.fonts.ready);await p.waitForTimeout(400);
   const badges=p.getByTestId(/^flush-visibility-/);assert.equal(await badges.count(),count);
   assert.ok(await badges.evaluateAll(nodes=>nodes.every(node=>{
-   const badge=node.getBoundingClientRect(),avatar=node.previousElementSibling.getBoundingClientRect();
+   const badge=node.getBoundingClientRect(),avatar=node.parentElement.previousElementSibling.getBoundingClientRect();
    return badge.top>=avatar.bottom+3;
   })),'visibility icons must clear the entire avatar ring');
   assert.match(await p.getByTestId('flush-round').innerText(),/Round \d+/);

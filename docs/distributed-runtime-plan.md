@@ -12525,3 +12525,94 @@ Capacity, observability, database HA and operational readiness remain deferred.
   and retained draft. Screenshot: artifacts/table-chat-feedback-preview/retrying.png.
 - Next: user review and native/reconnect validation before an authorized release.
   No deployment/native build or production chat writes.
+
+## 2026-10-24: Direct production deployment of approved UI/chat changes (70f6b6f)
+
+- User explicitly authorized deployment directly to both servers. Working tree
+  was clean at committed revision 70f6b6fae1da4b0d1c77e3443806970308cbf22e.
+  Cancelled queued workflow 40133294393 and testing workflow 40132612507 (normal
+  cancellation followed by force cancellation for the older run). Confirmed no
+  deployment job was active and both runs completed cancelled before activation.
+  The full backend CI suite was cancelled, not passed. No push/new run was started.
+- Verified established SSH host keys; loaded the existing administrator key from
+  macOS Keychain. Both installed release-receiver hashes matched committed source.
+  Built the checksum-verified source archive on app1 with Dockerfile.production.
+  All 577 frontend tests, TypeScript and production web export passed in the build.
+  Local production-release/web-deployment checks passed 44 tests. Backend source
+  and receiver match the previously deployed bb9be11 release; no migration or
+  runtime environment change was needed.
+- Transferred the identical image with matching archive checksums to app2.
+  Both schema/dependency/frontend preflights passed. Used the existing direct
+  helper pattern with the receiver's release lock, sandbox, peer-health checks
+  and rollback containers. Replaced backends sequentially, then activated both
+  frontends only after both backends were healthy.
+- Both app hosts (168.144.105.49 and 165.245.180.205) run immutable image
+  sha256:7985e529f7012e93a6f8f7f98428847ecdecaaff23f6e1e109d0a6085fdadd6c
+  at revision 70f6b6f. Host/public frontend index SHA-256 matches:
+  8cfa601b4d7e3c5805a0dc5b81a05a8fac51aa3efd2c6b1b5adcf584a62fb0b1.
+  Public JavaScript SHA-256 matches both hosts:
+  f1088ecf0ee7e3f0c507d1511f6cfda0df06d8a489c4bc870918663f4974acb7.
+  Both direct API health checks and public HTTPS API health report status ok.
+- Read-only public Chrome checks passed at 390/1280px: welcome/sign-in control,
+  asset loading, viewport bounds, no uncaught JavaScript or server errors. All
+  browser writes/WebSockets blocked; no live account/chat/gameplay writes occurred.
+  Authenticated UI flows were previously checked with isolated local fixtures.
+- Evidence: /private/tmp/bhidne-70f6b6f-verification.json and public phone/desktop
+  PNGs. Remote build/source/helper/image artifacts remain under
+  /srv/bhidne-prod/builds/70f6b6f; build.log records the production checks.
+- Limits/next: refresh production web to use the new UI. Installed mobile apps
+  still need a separate signed client build; physical-device validation remains
+  outstanding. This post-release note is local/uncommitted. Deferred runtime
+  capacity/operations work remains deferred.
+
+
+## 2026-10-24: Flush compact session/bet stats and conditional Play creation
+
+- User explicitly authorized these UI changes and screenshots. Play hides the
+  redundant top creation action when there are no tables; the empty-card action
+  now also reads Create game table. The top action remains for listed tables,
+  including filtered lists. Shared English/Nepali table-creation copy is reused.
+- Flush stats now show session net / current-game contribution, with signed
+  green/red net and gold contribution. Preserved the existing authoritative
+  net calculation (settled rounds plus current exposure), contribution source,
+  and localized accessible value labels. Own stats use a smaller bordered box
+  in table view; other seats and My Card use unboxed values. My Card keeps
+  Seen/Blind top right and places stats top left.
+- Positioned table stats inward with separate space above side avatars and
+  between end avatars and center. Compacted the center panel and added vertical
+  room for five-plus seats to avoid narrow-screen pot collisions; the existing
+  table scroll remains available. No gameplay, commands or runtime changes.
+- Verification: TypeScript, fresh Expo web export, 10 focused unit tests and
+  diff checks passed. Isolated browser checks pass for 2/4/5 players at
+  320/390/1280px, asserting stats clear every seat and the pot, My Card positions,
+  and no page errors. Play flow passed at 320/390/1032/1280px including empty,
+  available, filtered, arriving tables and creation navigation. Inspected actual
+  rendered phone screenshots; no AI-generated previews used for verification.
+- Review gallery: artifacts/flush-stats-preview/index.html; table/My Card captures
+  at all three widths plus Seen variant and empty/available Play screenshots.
+- Limits/next: review screenshots and validate native devices before a separately
+  authorized release. Local only, no deploy or native build. Existing deferred
+  capacity/operations work remains deferred. Six-to-ten-player layouts retain
+  the seat-spacing algorithm but were not browser-verified in this increment.
+
+
+## 2026-10-24: Combined Flush visibility/stat row and labeled own-hand stats
+
+- User authorized the revised design: every table player now has an unboxed
+  Seen/Blind icon plus session / current-game bet row immediately below the
+  avatar, with name beneath. Removed the detached radial stat placement and
+  own-player box. Folded players retain stats with their existing folded styling
+  and no visibility icon. Preserved preparation/waiting behavior.
+- My Card uses two unboxed colored rows: Session gain : x and Bet in this game : y.
+  Added English/Nepali labels. Seen/Blind stays top right, aligned with the first
+  row. Net/contribution sources and gameplay behavior remain unchanged.
+- Verification: TypeScript, fresh Expo web export, seven focused unit tests and
+  diff checks passed. Browser checks cover shared-row alignment, no stat borders,
+  other-seat/pot clearance, hand labels and left/right positions at 320/390/1280px
+  with 2/4/5 players. Additional 390px captures cover 4 through 10 players with
+  expected seat counts, no other-seat/pot stat intersections or page errors.
+  Inspected My Card and ten-player screenshots; detached-stat crowding is gone.
+- Gallery: artifacts/flush-status-row-preview/index.html. Local fixture captures
+  only; no deployment, signed native build or live gameplay writes.
+- Next: user review and native-device readability validation before a separately
+  authorized release. Deferred runtime operational/capacity scope unchanged.
