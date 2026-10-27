@@ -87,6 +87,11 @@ export class DistributedSession<T> {
   private error(lane: string | null, error: unknown, source: 'command' | 'delivery' = 'delivery') {
     try { this.report(lane, error, source); } catch { /* Error reporting cannot strand cleanup. */ }
   }
+  // Display only: never bind a slot or touch protected storage while rendering.
+  commandSnapshot(slot: string) {
+    const command=this.closed?undefined:this.commands.get(slot);
+    return command?{request:command.request,latest:command.latest}:null;
+  }
   command(slot: string): DurableCommandClient {
     this.journal?.check();
     if (this.closed || !slot.trim()) throw new Error('Invalid command session.');

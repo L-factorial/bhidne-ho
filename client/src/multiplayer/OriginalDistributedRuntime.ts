@@ -26,6 +26,14 @@ export class OriginalDistributedRuntime {
   private flowRunning=false;
   private flowTimer?:ReturnType<typeof setTimeout>;
   get creationFlow(){return this.closed?null:this.journal.creationFlow;}
+  get creationProgressSnapshot(){
+    if(this.closed)return null;
+    return {
+      commands:['original-room-actions','ui-table-control'].map(slot=>this.root.session.commandSnapshot(slot)),
+      flow:this.journal.creationFlowSnapshot,
+      feedback:[...this.creationFeedback.values()],
+    };
+  }
   finishCreationFlow(){this.journal.saveCreationFlow(null);}
   readonly creationFeedback=new Map<string,CreationFeedback>();
   readonly root: DistributedRootRuntime;

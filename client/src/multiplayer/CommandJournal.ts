@@ -39,6 +39,8 @@ export class CommandJournal {
       ||value.room&&(!validName(value.room.room_id)||!validName(value.room.name)||!Array.isArray(value.room.members)))throw Error('Invalid creation flow.');
   }
   get creationFlow(){this.check();return clone(this.document.creationFlow??null);}
+  // Display only. Commands must continue to use the checked persistence API.
+  get creationFlowSnapshot(){return this.closed?null:clone(this.document.creationFlow??null);}
   saveCreationFlow(value:GameCreationFlow|null){if(value)this.validateCreationFlow(value);const next=clone(this.document);next.creationFlow=clone(value);this.commit(next);}
   private decode(raw: string): Document {
     if (raw.length * 2 > 1048576) throw new Error('Journal exceeds storage bound.');

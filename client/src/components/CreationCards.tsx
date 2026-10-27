@@ -2,7 +2,7 @@ import {ActivityLine} from './ActivityLine';
 import {SeatReservationNotice} from './SeatReservationNotice';
 import type {PlayTable} from '../multiplayer/playFeed';
 import {useEffect,useState} from 'react';
-import {View} from 'react-native';
+import {AppState,View} from 'react-native';
 import {AppText as Text} from './AppText';
 import {useTheme} from '../theme';
 import {ui} from '../i18n/copy';
@@ -15,16 +15,28 @@ export function useCreationProgress(runtime?:OriginalDistributedRuntime|null){
   const [state,setState]=useState<{cards:CreationProgress[];feedback:CreationFeedback[]}>({cards:[],feedback:[]});
   useEffect(()=>{
     if(!runtime){setState({cards:[],feedback:[]});return;}
+    let disposed=false;
+    let timer:ReturnType<typeof setInterval>|undefined;
     const read=()=>{
-      const cards=['original-room-actions','ui-table-control'].flatMap(slot=>{
-        const command=runtime.root.session.command(slot),card=creationProgress(command.request,command.latest);
+      if(disposed||AppState.currentState==='inactive'||AppState.currentState==='background')return;
+      const snapshot=runtime.creationProgressSnapshot;
+      if(!snapshot){setState({cards:[],feedback:[]});return;}
+      const cards=snapshot.commands.flatMap(command=>{
+        const card=command&&creationProgress(command.request,command.latest);
         return card?[card]:[];
       });
-      const flow=runtime.creationFlow;
+      const flow=snapshot.flow;
       if(flow&&!cards.some(card=>card.kind==='table'))cards.push({id:flow.id,kind:'table',roomId:flow.room?.room_id,name:flow.room?'Table':flow.defaultName,stage:flow.room?'table':'room',gameType:String(flow.payload.game_type)});
-      setState({cards,feedback:[...runtime.creationFeedback.values()].filter(item=>!cards.some(card=>card.kind===item.kind))});
+      setState({cards,feedback:snapshot.feedback.filter(item=>!cards.some(card=>card.kind===item.kind))});
     };
-    read();const timer=setInterval(read,250);return()=>clearInterval(timer);
+    const activity=()=>{
+      clearInterval(timer);timer=undefined;
+      if(disposed||AppState.currentState==='inactive'||AppState.currentState==='background')return;
+      read();timer=setInterval(read,250);
+    };
+    const subscription=AppState.addEventListener('change',activity);
+    activity();
+    return()=>{disposed=true;clearInterval(timer);subscription.remove();};
   },[runtime]);
   return state;
 }
